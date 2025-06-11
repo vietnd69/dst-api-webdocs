@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkdst_api_webdocs=self.webpackChunkdst_api_webdocs||[]).push([[634],{192:(e,t,s)=>{s.r(t),s.d(t,{default:()=>n});var c=s(6540),d=s(6347),i=s(4848);function n(){const e=(0,d.W6)();return(0,c.useEffect)((()=>{e.replace("/getting-started")}),[e]),(0,i.jsx)("div",{children:(0,i.jsx)("p",{children:"Redirecting to Getting Started..."})})}}}]);
