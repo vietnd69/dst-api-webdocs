@@ -1,6 +1,6 @@
 ---
-description:
-globs:
+description: 
+globs: 
 alwaysApply: false
 ---
 # GitHub Pages Deployment Guide
@@ -9,7 +9,7 @@ This Docusaurus site is configured for deployment on GitHub Pages.
 
 ## Configuration Settings
 
-In [docusaurus.config.ts](mdc:docusaurus.config.ts):
+In [docusaurus.config.ts](mdc:dst-api-webdocs/docusaurus.config.ts):
 
 ```ts
 const config: Config = {
@@ -47,6 +47,7 @@ When deploying to GitHub Pages, all URLs must take into account the base URL:
 
 GitHub Pages requires special handling for the 404 page:
 
-- The [static/404.html](mdc:static/404.html) file includes client-side routing script
+- The [static/404.html](mdc:dst-api-webdocs/static/404.html) file includes client-side routing script
 - It has a fallback meta refresh to redirect to the documentation
 - It is configured to handle the baseUrl prefix correctly
+

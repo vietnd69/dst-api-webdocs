@@ -1,6 +1,6 @@
 ---
-description:
-globs:
+description: 
+globs: 
 alwaysApply: false
 ---
 # Project Structure
@@ -9,10 +9,10 @@ This project follows the standard Docusaurus project structure with TypeScript s
 
 ## Root Configuration Files
 
-- [docusaurus.config.ts](mdc:docusaurus.config.ts) - Main configuration
-- [sidebars.ts](mdc:sidebars.ts) - Sidebar structure
-- [package.json](mdc:package.json) - Dependencies and scripts
-- [tsconfig.json](mdc:tsconfig.json) - TypeScript configuration
+- [docusaurus.config.ts](mdc:dst-api-webdocs/docusaurus.config.ts) - Main configuration
+- [sidebars.ts](mdc:dst-api-webdocs/sidebars.ts) - Sidebar structure
+- [package.json](mdc:dst-api-webdocs/package.json) - Dependencies and scripts
+- [tsconfig.json](mdc:dst-api-webdocs/tsconfig.json) - TypeScript configuration
 
 ## Core Directories
 
@@ -22,14 +22,14 @@ This project follows the standard Docusaurus project structure with TypeScript s
 
 - `/src` - Source code
   - `/pages` - React components for custom pages
-    - [index.tsx](mdc:src/pages/index.tsx) - Home page (redirects to docs)
-    - [_index.tsx](mdc:src/pages/_index.tsx) - Reference implementation (not used in routing)
+    - [index.tsx](mdc:dst-api-webdocs/src/pages/index.tsx) - Home page (redirects to docs)
+    - [_index.tsx](mdc:dst-api-webdocs/src/pages/_index.tsx) - Reference implementation (not used in routing)
   - `/components` - Reusable React components
   - `/css` - Custom CSS files
 
 - `/static` - Static assets
   - `/img` - Images including logo and favicon
-  - [404.html](mdc:static/404.html) - Custom 404 page
+  - [404.html](mdc:dst-api-webdocs/static/404.html) - Custom 404 page
 
 - `/blog` - Blog posts (currently not used)
 
@@ -44,3 +44,4 @@ The project uses TypeScript for enhanced type safety:
 - React components use `.tsx` extension
 - Configuration files use `.ts` extension
 - Type definitions are provided by Docusaurus packages
+

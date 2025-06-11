@@ -1,6 +1,6 @@
 ---
-description:
-globs:
+description: 
+globs: 
 alwaysApply: false
 ---
 # Docusaurus Configuration Guide
@@ -9,9 +9,9 @@ This project is a Docusaurus documentation site for the Don't Starve Together Va
 
 ## Key Configuration Files
 
-- [docusaurus.config.ts](mdc:docusaurus.config.ts) - Main configuration file that defines site settings, plugins, and theme options
-- [sidebars.ts](mdc:sidebars.ts) - Defines the sidebar navigation structure for documentation
-- [tsconfig.json](mdc:tsconfig.json) - TypeScript configuration
+- [docusaurus.config.ts](mdc:dst-api-webdocs/docusaurus.config.ts) - Main configuration file that defines site settings, plugins, and theme options
+- [sidebars.ts](mdc:dst-api-webdocs/sidebars.ts) - Defines the sidebar navigation structure for documentation
+- [tsconfig.json](mdc:dst-api-webdocs/tsconfig.json) - TypeScript configuration
 
 ## Important Directories
 
@@ -34,3 +34,4 @@ The site uses client-side redirects to handle navigation:
 - The homepage redirects to the documentation using relative paths
 - The 404 page has special handling for GitHub Pages
 - All links in the site should use relative paths (without the baseUrl) as Docusaurus will automatically add the baseUrl in production
+
