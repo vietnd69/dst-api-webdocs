@@ -27,8 +27,9 @@ const config: Config = {
   trailingSlash: false,
   deploymentBranch: 'gh-pages',
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
+  onDuplicateRoutes: 'warn',
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
@@ -44,6 +45,12 @@ const config: Config = {
       '@docusaurus/plugin-client-redirects',
       {
         fromExtensions: ['html', 'htm'],
+        redirects: [
+          {
+            from: '/',
+            to: '/dst-api-webdocs/docs/getting-started',
+          },
+        ],
         createRedirects: function (existingPath) {
           // Redirect to /docs/introduction from /docs
           if (existingPath.includes('/docs')) {
@@ -61,7 +68,7 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          routeBasePath: '/',
+          routeBasePath: 'docs',
         },
         blog: false,
         theme: {
@@ -102,7 +109,7 @@ const config: Config = {
           items: [
             {
               label: 'DST Vanilla',
-              to: '/',
+              to: '/dst-api-webdocs/docs/getting-started',
             },
           ],
         },

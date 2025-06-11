@@ -4,48 +4,38 @@ on:
   push:
     branches:
       - main
-    # Kích hoạt khi có thay đổi ở các file cần thiết
-    paths:
-      - '.github/workflows/**'
-      - 'blog/**'
-      - 'docs/**'
-      - 'src/**'
-      - 'static/**'
-      - 'docusaurus.config.ts'
-      - 'package.json'
-      - 'sidebars.ts'
-      - 'yarn.lock'
-      - 'package-lock.json'
-  # Cho phép chạy workflow thủ công từ tab Actions trong GitHub
-  workflow_dispatch:
+    # Review gh actions docs if you want to further define triggers, paths, etc
+    # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#on
 
 permissions:
   contents: write
 
 jobs:
-  build-and-deploy:
-    name: Build and Deploy
+  deploy:
+    name: Deploy to GitHub Pages
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
         with:
           node-version: 18
           cache: npm
 
       - name: Install dependencies
         run: npm ci
-
       - name: Build website
         run: npm run build
 
+      # Popular action to deploy to GitHub Pages:
+      # Docs: https://github.com/peaceiris/actions-gh-pages
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Build output to publish to the `gh-pages` branch:
           publish_dir: ./build
+          # Assign commit authorship to the official GH-Actions bot
           user_name: github-actions[bot]
           user_email: 41898282+github-actions[bot]@users.noreply.github.com 
