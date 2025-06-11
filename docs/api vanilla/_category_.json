@@ -1,0 +1,8 @@
+{
+  "label": "DST Vanilla API v0.5.2",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "Welcome to the official documentation for the Don't Starve Together Vanilla API. This documentation provides comprehensive information about the game's base modding capabilities, components, systems, and functions."
+  }
+} 
