@@ -1,0 +1,36 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Docusaurus Configuration Guide
+
+This project is a Docusaurus documentation site for the Don't Starve Together Vanilla API.
+
+## Key Configuration Files
+
+- [docusaurus.config.ts](mdc:docusaurus.config.ts) - Main configuration file that defines site settings, plugins, and theme options
+- [sidebars.ts](mdc:sidebars.ts) - Defines the sidebar navigation structure for documentation
+- [tsconfig.json](mdc:tsconfig.json) - TypeScript configuration
+
+## Important Directories
+
+- `/docs` - Contains markdown documentation files
+- `/src/pages` - Contains React components for custom pages
+- `/static` - Static assets like images and the 404 page
+
+## GitHub Pages Deployment
+
+This site is configured for deployment on GitHub Pages with the following settings:
+
+- Base URL: `/dst-api-webdocs/`
+- Organization: `vietnd69`
+- Project: `dst-api-webdocs`
+
+## Routing and Redirects
+
+The site uses client-side redirects to handle navigation:
+
+- The homepage redirects to the documentation using relative paths
+- The 404 page has special handling for GitHub Pages
+- All links in the site should use relative paths (without the baseUrl) as Docusaurus will automatically add the baseUrl in production
