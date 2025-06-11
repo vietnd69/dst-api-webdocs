@@ -2,5 +2,5 @@ import React from 'react';
 import { Redirect } from '@docusaurus/router';
 
 export default function Home() {
-  return <Redirect to="/getting-started" />;
+  return <Redirect to="/dst-api-webdocs/getting-started" />;
 } 

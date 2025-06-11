@@ -18,7 +18,7 @@ const config: Config = {
   url: 'https://vietnd69.github.io', // Thay thế USERNAME bằng username GitHub của bạn
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/', // Thay thế theo tên repo của bạn
+  baseUrl: '/dst-api-webdocs/', // Sửa thành tên repository của bạn
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
@@ -37,6 +37,23 @@ const config: Config = {
     defaultLocale: 'en',
     locales: ['en'],
   },
+
+  // Thêm plugins
+  plugins: [
+    [
+      '@docusaurus/plugin-client-redirects',
+      {
+        fromExtensions: ['html', 'htm'],
+        createRedirects: function (existingPath) {
+          // Redirect to /docs/introduction from /docs
+          if (existingPath.includes('/docs')) {
+            return [existingPath.replace('/docs', '')];
+          }
+          return undefined; // Return undefined if no redirect needed
+        },
+      },
+    ],
+  ],
 
   presets: [
     [
