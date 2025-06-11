@@ -47,8 +47,10 @@ const config: Config = {
         fromExtensions: ['html', 'htm'],
         redirects: [
           {
+            // Chuyển hướng từ trang chính đến trang docs/getting-started
+            // Lưu ý: từ / sẽ là /dst-api-webdocs/ khi triển khai
             from: '/',
-            to: '/dst-api-webdocs/docs/getting-started',
+            to: '/docs/getting-started',
           },
         ],
         createRedirects: function (existingPath) {
@@ -109,7 +111,9 @@ const config: Config = {
           items: [
             {
               label: 'DST Vanilla',
-              to: '/dst-api-webdocs/docs/getting-started',
+              // Sử dụng đường dẫn tương đối so với baseUrl
+              // Docusaurus sẽ tự động thêm baseUrl vào đường dẫn này
+              to: '/docs/getting-started',
             },
           ],
         },
