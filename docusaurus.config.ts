@@ -15,14 +15,14 @@ const config: Config = {
   },
 
   // Set the production url of your site here
-  url: 'https://USERNAME.github.io', // Thay thế USERNAME bằng username GitHub của bạn
+  url: 'https://vietnd69.github.io', // Thay thế USERNAME bằng username GitHub của bạn
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/dst-api-webdocs/', // Thay thế theo tên repo của bạn
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'USERNAME', // Thay thế USERNAME bằng username GitHub của bạn
+  organizationName: 'vietnd69', // Thay thế USERNAME bằng username GitHub của bạn
   projectName: 'dst-api-webdocs', // Thay thế bằng tên repo GitHub của bạn
   trailingSlash: false,
   deploymentBranch: 'gh-pages',
@@ -71,7 +71,7 @@ const config: Config = {
           label: 'DST Vanilla',
         },
         {
-          href: 'https://github.com/USERNAME/dst-api-webdocs', // Cập nhật URL Github repository
+          href: 'https://github.com/vietnd69/dst-api-webdocs', // Cập nhật URL Github repository
           label: 'GitHub',
           position: 'right',
         },
@@ -107,7 +107,7 @@ const config: Config = {
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/USERNAME/dst-api-webdocs', // Cập nhật URL Github repository
+              href: 'https://github.com/vietnd69/dst-api-webdocs', // Cập nhật URL Github repository
             },
           ],
         },

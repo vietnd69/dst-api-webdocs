@@ -41,7 +41,7 @@ Dự án này đã được cấu hình để tự động triển khai lên Git
 
 2. GitHub Actions sẽ tự động xây dựng và triển khai trang web của bạn. Bạn có thể theo dõi tiến trình trong tab "Actions" của repository GitHub.
 
-3. Trang web của bạn sẽ có sẵn tại `https://USERNAME.github.io/dst-api-webdocs` (thay thế USERNAME bằng tên người dùng GitHub của bạn).
+3. Trang web của bạn sẽ có sẵn tại `https://vietnd69.github.io/dst-api-webdocsdst-api-webdocs` (thay thế USERNAME bằng tên người dùng GitHub của bạn).
 
 ### Thiết lập GitHub Pages
 
