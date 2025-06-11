@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkdst_api_webdocs=self.webpackChunkdst_api_webdocs||[]).push([[634],{192:(t,e,s)=>{s.r(e),s.d(e,{default:()=>r});s(6540);var d=s(6347),a=s(4848);function r(){return(0,a.jsx)(d.rd,{to:"/getting-started"})}}}]);
