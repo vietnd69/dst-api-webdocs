@@ -153,7 +153,7 @@ const config: Config = {
 			// Các giá trị này sẽ được cung cấp sau khi đăng ký với DocSearch
 			appId: "P9GA1YAAFR",
 			apiKey: "5f8489e3578120b54de886d560f78022",
-			indexName: "dst-api-webdocs",
+			indexName: "vietnd69_github_io_p9ga1yaafr_pages",
 
 			// Các thiết lập tuỳ chọn
 			contextualSearch: true,
