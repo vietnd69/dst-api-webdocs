@@ -72,6 +72,3 @@ Before deploying for the first time, you need to set up GitHub Pages in your rep
 - [Steam Workshop DST](https://steamcommunity.com/app/322330/workshop/)
 - [Docusaurus](https://docusaurus.io/) - The documentation framework used for this project
 
-## GitHub Pages
-
-Trang tài liệu được triển khai tại: https://vietnd69.github.io/dst-api-webdocs/
