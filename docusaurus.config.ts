@@ -50,7 +50,7 @@ const config: Config = {
 						// Chuyển hướng từ trang chính đến trang docs/getting-started
 						// Lưu ý: từ / sẽ là /dst-api-webdocs/ khi triển khai
 						from: "/",
-						to: "/docs/getting-started",
+						to: "/docs/api/getting-started",
 					},
 				],
 				createRedirects: function (existingPath) {
@@ -90,7 +90,6 @@ const config: Config = {
 		// Replace with your project's social card
 		image: "img/docusaurus-social-card.jpg",
 		navbar: {
-			title: "DST Vanilla API Docs v0.5.2",
 			logo: {
 				alt: "DST Logo",
 				src: "img/logo.png",
@@ -98,7 +97,7 @@ const config: Config = {
 			items: [
 				{
 					type: "docSidebar",
-					sidebarId: "tutorialSidebar",
+					sidebarId: "docs",
 					position: "left",
 					label: "DST Vanilla",
 				},
@@ -148,6 +147,17 @@ const config: Config = {
 			],
 			copyright: `Copyright © ${new Date().getFullYear()} Don't Starve Together Vanilla API v0.5.2 Docs.`,
 		},
+		prism: {
+			theme: require("prism-react-renderer").themes.github,
+			darkTheme: require("prism-react-renderer").themes.dracula,
+			additionalLanguages: ["lua"],
+		},
+		// Thêm cấu hình theo dõi theme hệ thống
+		colorMode: {
+			defaultMode: "light",
+			disableSwitch: false,
+			respectPrefersColorScheme: true,
+		},
 		// Thêm cấu hình Algolia DocSearch
 		algolia: {
 			// Các giá trị này sẽ được cung cấp sau khi đăng ký với DocSearch
@@ -158,10 +168,6 @@ const config: Config = {
 			// Các thiết lập tuỳ chọn
 			contextualSearch: true,
 			searchPagePath: "search",
-		},
-		prism: {
-			theme: prismThemes.github,
-			darkTheme: prismThemes.dracula,
 		},
 	} satisfies Preset.ThemeConfig,
 };

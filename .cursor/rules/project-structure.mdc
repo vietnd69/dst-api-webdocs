@@ -17,7 +17,7 @@ This project follows the standard Docusaurus project structure with TypeScript s
 ## Core Directories
 
 - `/docs` - Documentation markdown files
-  - `/api vanilla` - API documentation for different modules
+  - `/api-vanilla` - API documentation for different modules
   - Other documentation files like getting-started.md
 
 - `/src` - Source code

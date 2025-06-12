@@ -1,0 +1,75 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Documentation Standards
+
+This project follows specific documentation standards to ensure consistency and readability.
+
+## Markdown Guidelines
+
+- Use proper header hierarchy (H1 for page title, H2 for sections, H3 for subsections)
+- Code blocks should use appropriate language tags for syntax highlighting:
+  ```lua
+  -- Lua code example
+  local function example()
+    return true
+  end
+  ```
+- Use bulleted lists for collections of items
+- Use numbered lists for sequential instructions
+- Use blockquotes for important notes or warnings
+
+## API Documentation Format
+
+API documentation should follow this structure:
+
+1. **Description** - Brief overview of the function/component
+2. **Usage** - Example usage code
+3. **Parameters** - Table listing parameters with types and descriptions
+4. **Returns** - Description of return values
+5. **Notes** - Additional information, edge cases, or warnings
+
+Example:
+
+```md
+## SetMaxHealth
+
+Sets the maximum health of an entity.
+
+### Usage
+```lua
+inst.components.health:SetMaxHealth(100)
+```
+
+### Parameters
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| amount    | number | The new maximum health value |
+
+### Returns
+None
+
+### Notes
+Changing the maximum health does not automatically heal the entity.
+```
+
+## Cross-Referencing
+
+- Use relative links for cross-references between documentation pages
+- Link to relevant API documentation when mentioning functions or components
+- For external references, use full URLs
+
+## Language and Style
+
+- Use clear, concise language
+- Write in present tense
+- Use active voice when possible
+- Avoid jargon unless necessary for technical accuracy
+- Define acronyms on first use
+
+## Examples
+
+All API documentation should include working code examples that demonstrate practical usage.
+

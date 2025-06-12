@@ -1,0 +1,8 @@
+{
+    "label": "Global Objects",
+    "position": 3,
+    "link": {
+        "type": "generated-index",
+        "description": "Global objects and variables available in Don't Starve Together modding API"
+    }
+}

@@ -1,0 +1,51 @@
+{
+  "label": "DST Vanilla API v0.5.2",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "Welcome to the official documentation for the Don't Starve Together Vanilla API. This documentation provides comprehensive information about the game's base modding capabilities, components, systems, and functions."
+  },
+  "customProps": {
+    "sublist": [
+      {
+        "title": "Làm quen với API",
+        "items": [
+          "getting-started",
+          "core"
+        ]
+      },
+      {
+        "title": "Hệ thống cốt lõi",
+        "items": [
+          "core-systems",
+          "entity-framework",
+          "global-objects"
+        ]
+      },
+      {
+        "title": "Thành phần và Đối tượng",
+        "items": [
+          "components",
+          "prefabs",
+          "node-types"
+        ]
+      },
+      {
+        "title": "Cơ chế game",
+        "items": [
+          "stategraphs",
+          "recipes",
+          "world"
+        ]
+      },
+      {
+        "title": "Công cụ và Kiểu dữ liệu",
+        "items": [
+          "data-types",
+          "utils",
+          "shared-properties"
+        ]
+      }
+    ]
+  }
+}

@@ -5,7 +5,7 @@ import Head from "@docusaurus/Head";
 
 const Home: React.FC = () => {
 	// useBaseUrl sẽ tự động thêm baseUrl vào đường dẫn
-	const docsPath = useBaseUrl("/docs/getting-started");
+	const docsPath = useBaseUrl("/docs/api/getting-started");
 	return (
 		<>
 			<Head>

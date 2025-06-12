@@ -1,0 +1,54 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# API Documentation Structure
+
+This project contains documentation for the Don't Starve Together Vanilla API.
+
+## API Directory Structure
+
+The API documentation is organized in the `/docs/api-vanilla/` directory with the following subdirectories:
+
+- `/components` - Documentation for game components
+- `/core` - Core API functionality
+- `/core-systems` - Documentation for core game systems
+- `/data-types` - Lua data types used in the API
+- `/entity-framework` - Entity system documentation
+- `/getting-started` - Introduction and getting started guides
+- `/global-objects` - Global objects available in the API
+- `/node-types` - Node type documentation
+- `/prefabs` - Prefab documentation
+- `/recipes` - Crafting recipe documentation
+- `/shared-properties` - Shared property documentation
+- `/stategraphs` - State graph documentation
+- `/utils` - Utility function documentation
+- `/world` - World-related API documentation
+
+## Documentation Format
+
+All documentation files are written in Markdown with the following conventions:
+
+- Each API element has its own dedicated page
+- Code examples use syntax highlighting with ```lua code blocks
+- Function signatures include parameter and return type information
+- Cross-references use relative links between documentation pages
+
+## Code Examples
+
+Code examples should demonstrate practical usage of the API:
+
+```lua
+-- Example of component usage
+local health = inst.components.health
+if health ~= nil then
+    health:SetMaxHealth(100)
+    health:SetPercent(0.5)
+end
+```
+
+## Reference Source
+
+The documentation refers to the source code in the `dst-api` directory, which contains the actual API implementation files.
+

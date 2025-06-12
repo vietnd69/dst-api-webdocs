@@ -1,0 +1,70 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Development Workflow
+
+This document outlines the workflow for developing and maintaining the documentation site.
+
+## Local Development
+
+To start the local development server:
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm start
+```
+
+The site will be available at `http://localhost:3000/` with hot-reloading enabled.
+
+## Building
+
+To build the site for production:
+
+```bash
+npm run build
+```
+
+This generates static content in the `build` directory that can be served by any static hosting service.
+
+## Testing Built Site
+
+To test the production build locally:
+
+```bash
+npm run serve
+```
+
+This will serve the built website locally.
+
+## Deployment
+
+The site is configured for GitHub Pages deployment:
+
+1. Build the site using `npm run build`
+2. Deploy using `npm run deploy`
+
+The `deploy` script uses the `docusaurus deploy` command, which builds the website and pushes it to the `gh-pages` branch of your GitHub repository.
+
+## File Organization
+
+When adding new documentation:
+
+1. Place new API documentation in the appropriate subdirectory under `/docs/api-vanilla/`
+2. Update the sidebar configuration in [sidebars.ts](mdc:dst-api-webdocs/dst-api-webdocs/sidebars.ts) to include the new page
+3. Use consistent naming conventions for files and directories
+
+## Updating Dependencies
+
+To update Docusaurus and other dependencies:
+
+```bash
+npm update
+```
+
+Check for breaking changes in the Docusaurus documentation when updating to a new major version.
+

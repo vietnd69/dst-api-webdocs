@@ -1,0 +1,8 @@
+{
+  "label": "World",
+  "position": 5,
+  "link": {
+    "type": "generated-index",
+    "description": "World generation and management APIs in Don't Starve Together"
+  }
+}

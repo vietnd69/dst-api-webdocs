@@ -1,6 +1,6 @@
 ---
 id: getting-started
-title: Getting Started with DST Modding
+title: Introduction DST Modding
 sidebar_position: 1
 ---
 
