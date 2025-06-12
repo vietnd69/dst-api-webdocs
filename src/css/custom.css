@@ -77,3 +77,6 @@
 	border: none;
 	border-top: 1px solid var(--ifm-toc-border-color);
 }
+.thin-scrollbar {
+	padding-bottom: 3rem;
+}

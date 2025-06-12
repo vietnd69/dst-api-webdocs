@@ -56,15 +56,6 @@ This project is configured to automatically deploy to GitHub Pages whenever chan
 
 The website is deployed at: https://vietnd69.github.io/dst-api-webdocs/
 
-### GitHub Pages Setup
-
-Before deploying for the first time, you need to set up GitHub Pages in your repository:
-
-1. Go to your GitHub repository and click on the "Settings" tab.
-2. Scroll down to the "GitHub Pages" section.
-3. In "Source", select "GitHub Actions".
-4. Save the settings.
-
 ## Links
 
 - [Original dst-api project](https://github.com/dstmodders/dst-api)

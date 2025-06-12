@@ -70,29 +70,7 @@ const sidebars: SidebarsConfig = {
 			value: "<hr/>",
 			className: "sidebar-divider",
 		},
-		{
-			type: "category",
-			label: "Components",
-			link: {
-				type: "generated-index",
-				title: "Components",
-				description: "Component system for entity behaviors in Don't Starve Together",
-			},
-			items: [
-				"api-vanilla/components/components-overview",
-				"api-vanilla/components/combat",
-				"api-vanilla/components/health",
-				"api-vanilla/components/inventory",
-				"api-vanilla/components/weapon",
-				"api-vanilla/components/temperature",
-				// Add more components as needed
-			],
-		},
-		{
-			type: "html",
-			value: "<hr/>",
-			className: "sidebar-divider",
-		},
+		
 		{
 			type: "category",
 			label: "Global Objects",
@@ -114,27 +92,7 @@ const sidebars: SidebarsConfig = {
 			type: "html",
 			value: "<hr/>",
 			className: "sidebar-divider",
-		},
-		{
-			type: "category",
-			label: "Prefabs",
-			link: {
-				type: "generated-index",
-				title: "Prefabs",
-				description: "Templates for creating entities in Don't Starve Together",
-			},
-			items: [
-				"api-vanilla/prefabs/prefabs-overview",
-				"api-vanilla/prefabs/characters",
-				"api-vanilla/prefabs/creatures",
-				// Add more prefab types
-			],
-		},
-		{
-			type: "html",
-			value: "<hr/>",
-			className: "sidebar-divider",
-		},
+		},	
 		{
 			type: "category",
 			label: "Core Concepts",
@@ -159,6 +117,189 @@ const sidebars: SidebarsConfig = {
 			value: "<hr/>",
 			className: "sidebar-divider",
 		},
+		
+		{
+			type: "category",
+			label: "World",
+			link: {
+				type: "generated-index",
+				title: "World",
+				description: "World-related API functionality in Don't Starve Together",
+			},
+			items: [
+				"api-vanilla/world/world-overview",
+				"api-vanilla/world/map",
+				"api-vanilla/world/seasons",
+				"api-vanilla/world/network",
+				"api-vanilla/world/worldgen",
+				"api-vanilla/world/worldsettings",
+			],
+		},
+		
+		{
+			type: "html",
+			value: "<hr/>",
+			className: "sidebar-divider",
+		},
+		{
+			type: "category",
+			label: "Components",
+			link: {
+				type: "generated-index",
+				title: "Components",
+				description: "Component system for entity behaviors in Don't Starve Together",
+			},
+			items: [
+				"api-vanilla/components/components-overview",
+				"api-vanilla/components/combat",
+				"api-vanilla/components/health",
+				"api-vanilla/components/inventory",
+				"api-vanilla/components/weapon",
+				"api-vanilla/components/temperature",
+				"api-vanilla/components/hunger",
+				"api-vanilla/components/sanity",
+				"api-vanilla/components/burnable",
+				"api-vanilla/components/cookable",
+				"api-vanilla/components/workable",
+				"api-vanilla/components/growable",
+				"api-vanilla/components/perishable",
+				// Add more components as needed
+			],
+		},
+		{
+			type: "html",
+			value: "<hr/>",
+			className: "sidebar-divider",
+		},
+			
+		{
+			type: "category",
+			label: "Prefabs",
+			link: {
+				type: "generated-index",
+				title: "Prefabs",
+				description: "Templates for creating entities in Don't Starve Together",
+			},
+			items: [
+				"api-vanilla/prefabs/prefabs-overview",
+				"api-vanilla/prefabs/characters",
+				"api-vanilla/prefabs/creatures",
+				"api-vanilla/prefabs/items",
+				"api-vanilla/prefabs/structures",
+				// Add more prefab types
+			],
+		},
+		{
+			type: "html",
+			value: "<hr/>",
+			className: "sidebar-divider",
+		},
+		{
+			type: "category",
+			label: "Recipes",
+			link: {
+				type: "generated-index",
+				title: "Recipes",
+				description: "Recipe systems for crafting and cooking in Don't Starve Together",
+			},
+			items: [
+				"api-vanilla/recipes/recipes-overview",
+				"api-vanilla/recipes/crafting",
+				"api-vanilla/recipes/cooking",
+			],
+		},
+		{
+			type: "html",
+			value: "<hr/>",
+			className: "sidebar-divider",
+		},
+		{
+			type: "category",
+			label: "State Graphs",
+			link: {
+				type: "generated-index",
+				title: "State Graphs",
+				description: "State machine system for entity behavior and animations in Don't Starve Together",
+			},
+			items: [
+				"api-vanilla/stategraphs/stategraphs-overview",
+				"api-vanilla/stategraphs/states",
+				"api-vanilla/stategraphs/events",
+				"api-vanilla/stategraphs/actionhandlers",
+				"api-vanilla/stategraphs/commonstates",
+				"api-vanilla/stategraphs/examples",
+			],
+		},
+		{
+			type: "html",
+			value: "<hr/>",
+			className: "sidebar-divider",
+		},
+		{
+			type: "category",
+			label: "Shared Properties",
+			link: {
+				type: "generated-index",
+				title: "Shared Properties",
+				description: "Common properties shared across entities in Don't Starve Together",
+			},
+			items: [
+				"api-vanilla/shared-properties/shared-properties-overview",
+				"api-vanilla/shared-properties/transform",
+				"api-vanilla/shared-properties/network",
+				"api-vanilla/shared-properties/tags",
+			],
+		},
+		{
+			type: "html",
+			value: "<hr/>",
+			className: "sidebar-divider",
+		},
+		{
+			type: "category",
+			label: "Utility Functions",
+			link: {
+				type: "generated-index",
+				title: "Utility Functions",
+				description: "Helper functions and utilities for Don't Starve Together modding",
+			},
+			items: [
+				"api-vanilla/utils/utils-overview",
+				"api-vanilla/utils/vector",
+				"api-vanilla/utils/string",
+				"api-vanilla/utils/table",
+				"api-vanilla/utils/math",
+			],
+		},
+		{
+			type: "html",
+			value: "<hr/>",
+			className: "sidebar-divider",
+		},
+		{
+			type: "category",
+			label: "Node Types",
+			link: {
+				type: "generated-index",
+				title: "Node Types",
+				description: "Different node types that make up the game architecture in Don't Starve Together",
+			},
+			items: [
+				"api-vanilla/node-types/node-types-overview",
+				"api-vanilla/node-types/entity",
+				"api-vanilla/node-types/component",
+				"api-vanilla/node-types/prefab",
+				"api-vanilla/node-types/brain",
+				"api-vanilla/node-types/stategraph",
+				"api-vanilla/node-types/widget",
+				"api-vanilla/node-types/network",
+			],
+		},
+		{
+			type: "html",
+			value: "<hr/>",
+			className: "sidebar-divider",
+		},
 		{
 			type: "category",
 			label: "Data Types",
@@ -174,8 +315,7 @@ const sidebars: SidebarsConfig = {
 				"api-vanilla/data-types/netvar",
 				"api-vanilla/data-types/luatable",
 			],
-		},
-		// Add other main categories as needed
+		}
 	],
 };
 
