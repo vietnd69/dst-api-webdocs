@@ -242,6 +242,7 @@ const sidebars: SidebarsConfig = {
 				"api-vanilla/stategraphs/events",
 				"api-vanilla/stategraphs/actionhandlers",
 				"api-vanilla/stategraphs/commonstates",
+				"api-vanilla/stategraphs/animation-integration",
 				"api-vanilla/stategraphs/examples",
 			],
 		},
