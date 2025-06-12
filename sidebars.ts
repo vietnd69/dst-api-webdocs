@@ -58,6 +58,32 @@ const sidebars: SidebarsConfig = {
 		},
 		{
 			type: "category",
+			label: "Core Concepts",
+			link: {
+				type: "generated-index",
+				title: "Core API Concepts",
+				description: "Core functionality of the Don't Starve Together API",
+			},
+			items: [
+				"api-vanilla/core/entityscript",
+				"api-vanilla/core/event-system",
+				"api-vanilla/core/constants",
+				"api-vanilla/core/server-startup",
+				"api-vanilla/core/mod-structure",
+				"api-vanilla/core/modoverrides",
+				"api-vanilla/core/component-system",
+				"api-vanilla/core/worldstate",
+				"api-vanilla/core/network-system",
+				"api-vanilla/core/rpc-system"
+			],
+		},
+		{
+			type: "html",
+			value: "<hr/>",
+			className: "sidebar-divider",
+		},
+		{
+			type: "category",
 			label: "Entity Framework",
 			link: {
 				type: "generated-index",
@@ -94,32 +120,7 @@ const sidebars: SidebarsConfig = {
 			value: "<hr/>",
 			className: "sidebar-divider",
 		},	
-		{
-			type: "category",
-			label: "Core Concepts",
-			link: {
-				type: "generated-index",
-				title: "Core API Concepts",
-				description: "Core functionality of the Don't Starve Together API",
-			},
-			items: [
-				"api-vanilla/core/entityscript",
-				"api-vanilla/core/event-system",
-				"api-vanilla/core/constants",
-				"api-vanilla/core/server-startup",
-				"api-vanilla/core/mod-structure",
-				"api-vanilla/core/modoverrides",
-				"api-vanilla/core/component-system",
-				"api-vanilla/core/worldstate",
-				"api-vanilla/core/network-system",
-				"api-vanilla/core/rpc-system"
-			],
-		},
-		{
-			type: "html",
-			value: "<hr/>",
-			className: "sidebar-divider",
-		},
+		
 		
 		{
 			type: "category",
