@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/"
+                       xmlns:moz="http://www.mozilla.org/2006/browser/search/">
+  <ShortName>Don&#39;t Starve Together Vanilla API</ShortName>
+  <Description>Search Don&#39;t Starve Together Vanilla API</Description>
+  <InputEncoding>UTF-8</InputEncoding>
+  <Image width="16" height="16" type="image/x-icon">https://vietnd69.github.io/dst-api-webdocs/img/favicon.ico</Image>
+  <Url type="text/html" method="get" template="https://vietnd69.github.io/dst-api-webdocs/search?q={searchTerms}"/>
+  <Url type="application/opensearchdescription+xml" rel="self" template="https://vietnd69.github.io/dst-api-webdocs/opensearch.xml" />
+  <moz:SearchForm>https://vietnd69.github.io/dst-api-webdocs/</moz:SearchForm>
+</OpenSearchDescription>
