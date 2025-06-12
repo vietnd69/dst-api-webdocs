@@ -1,6 +1,6 @@
 ---
 id: health
-title: Health Component
+title: Health
 sidebar_position: 3
 ---
 

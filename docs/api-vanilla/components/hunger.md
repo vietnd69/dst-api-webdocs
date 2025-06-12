@@ -1,6 +1,6 @@
 ---
 id: hunger
-title: Hunger Component
+title: Hunger
 sidebar_position: 7
 ---
 

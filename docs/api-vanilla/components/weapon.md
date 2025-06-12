@@ -1,6 +1,6 @@
 ---
 id: weapon
-title: Weapon Component
+title: Weapon
 sidebar_position: 5
 ---
 

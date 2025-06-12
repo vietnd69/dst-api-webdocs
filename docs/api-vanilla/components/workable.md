@@ -1,6 +1,6 @@
 ---
 id: workable
-title: Workable Component
+title: Workable
 sidebar_position: 11
 ---
 

@@ -1,6 +1,6 @@
 ---
 id: inventory
-title: Inventory Component
+title: Inventory
 sidebar_position: 4
 ---
 

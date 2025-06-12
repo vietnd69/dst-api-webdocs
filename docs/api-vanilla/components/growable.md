@@ -1,6 +1,6 @@
 ---
 id: growable
-title: Growable Component
+title: Growable
 sidebar_position: 12
 ---
 

@@ -1,6 +1,6 @@
 ---
 id: perishable
-title: Perishable Component
+title: Perishable
 sidebar_position: 13
 ---
 

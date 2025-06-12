@@ -1,6 +1,6 @@
 ---
 id: cookable
-title: Cookable Component
+title: Cookable
 sidebar_position: 10
 ---
 

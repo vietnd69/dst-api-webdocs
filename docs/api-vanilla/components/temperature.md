@@ -1,6 +1,6 @@
 ---
 id: temperature
-title: Temperature Component
+title: Temperature
 sidebar_position: 6
 ---
 

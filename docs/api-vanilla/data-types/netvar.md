@@ -1,163 +1,271 @@
 ---
 id: netvar
 title: Network Variables
-sidebar_position: 4
+sidebar_position: 5
 ---
 
 # Network Variables
 
-Network Variables (net_*) are special data types used to synchronize data between server and client in the multiplayer system. 
+Network variables (netvars) are specialized data types in Don't Starve Together that handle automatic synchronization between server and clients. They are the backbone of DST's multiplayer architecture.
 
 ## Overview
 
-Network Variables (NetVars) are an essential component of the Don't Starve Together multiplayer architecture. They provide a mechanism for automatically synchronizing state between the server and connected clients, ensuring that all players see a consistent game world.
+Network variables provide a mechanism to:
+- Automatically synchronize state between server and clients
+- Trigger events when values change
+- Optimize network bandwidth through various encoding methods
+- Support different data types and sizes
 
-Key characteristics of NetVars include:
-- They are unidirectional, flowing from server to clients
-- They trigger events when values change, allowing for reactive updates
-- They are bound to specific entities through their GUIDs
-- They support various data types with different performance characteristics and size limitations
-
-## NetVar Types
-
-Don't Starve Together provides several NetVar types for different data needs:
-
-| Type | Description | Range/Size |
-|------|-------------|------------|
-| `net_bool` | Boolean value | `true` or `false` |
-| `net_byte` | 8-bit unsigned integer | 0 to 255 |
-| `net_tinybyte` | 3-bit unsigned integer | 0 to 7 |
-| `net_smallbyte` | 6-bit unsigned integer | 0 to 63 |
-| `net_shortint` | 16-bit signed integer | -32,767 to 32,767 |
-| `net_ushortint` | 16-bit unsigned integer | 0 to 65,535 |
-| `net_int` | 32-bit signed integer | -2,147,483,647 to 2,147,483,647 |
-| `net_uint` | 32-bit unsigned integer | 0 to 4,294,967,295 |
-| `net_float` | 32-bit floating point | Standard float range |
-| `net_string` | Variable-length string | Limited by network protocol |
-| `net_hash` | 32-bit hash value | Usually derived from strings |
-| `net_entity` | Entity reference | Valid entity GUIDs |
-| `net_bytearray` | Array of bytes | Maximum 31 bytes |
-| `net_smallbytearray` | Array of smallbytes | Maximum 31 entries |
-| `net_event` | Convenience wrapper over net_bool | Used for one-shot triggers |
-
-## Creating and Using NetVars
-
-NetVars must be created on both the server and client sides to function properly. They are typically declared in component or classified files.
+## Available Network Variable Types
 
 ```lua
--- Basic NetVar declaration syntax
-local my_variable = net_type(entity_guid, "unique_name", "dirty_event_name")
-
--- Examples for different types
-local is_active = net_bool(inst.GUID, "component_name.is_active", "is_active_dirty")
-local health_value = net_byte(inst.GUID, "component_name.health", "health_dirty")
-local position_x = net_float(inst.GUID, "component_name.position_x", "position_dirty")
-local entity_name = net_string(inst.GUID, "component_name.name", "name_dirty")
+-- Import network variable modules
+local net_string = require "net_string"    -- String values
+local net_bool = require "net_bool"        -- Boolean values
+local net_byte = require "net_byte"        -- Byte values (0-255)
+local net_tinybyte = require "net_tinybyte" -- 4-bit values (0-15)
+local net_smallbyte = require "net_smallbyte" -- 6-bit values (0-63)
+local net_int = require "net_int"          -- Integer values
+local net_uint = require "net_uint"        -- Unsigned integer values
+local net_float = require "net_float"      -- Floating point values
+local net_hash = require "net_hash"        -- String hash values (efficient for strings)
+local net_entity = require "net_entity"    -- Entity references
+local net_shortint = require "net_shortint" -- 16-bit integer values
+local net_bytearray = require "net_bytearray" -- Array of bytes
 ```
 
-## NetVar Methods
+## Creating Network Variables
 
-All NetVar types share a common interface:
+Network variables are initialized with three parameters:
 
 ```lua
--- Set the value (server-side, will sync to clients)
-my_variable:set(new_value)
+-- Basic initialization format
+local my_netvar = net_type(entity_guid, variable_path, [dirty_event_name])
 
--- Get the current value (both server and client)
-local value = my_variable:value()
-
--- Set the value locally without syncing
-my_variable:set_local(new_value)
+-- Parameters:
+-- entity_guid: GUID of the entity that owns this variable (typically inst.GUID)
+-- variable_path: String that uniquely identifies the variable (e.g., "health.current")
+-- dirty_event_name: Optional name of event to trigger when value changes
 ```
 
-For `net_event` specifically:
+### Examples
+
 ```lua
--- Trigger the event without providing a value
-my_event:push()
+-- Create a network variable for health
+self.current_health = net_float(inst.GUID, "health.current", "healthdirty")
+
+-- Create a network variable for entity state
+self.state = net_string(inst.GUID, "npc.state", "statechanged") 
+
+-- Create a network variable for carrying an item
+self.carrying_item = net_entity(inst.GUID, "inventory.activeitem", "activeitembecamedirty")
+
+-- Create a network variable without a custom dirty event
+self.mana = net_int(inst.GUID, "mana.current") -- Uses default dirty event name
 ```
 
-## Event Handling
+## Using Network Variables
 
-NetVars can trigger "dirty" events when their values change, allowing components to react to network updates:
+### Setting Values (Server Only)
+
+Network variables can only be set on the server:
 
 ```lua
--- Listen for the "dirty" event
-inst:ListenForEvent("health_dirty", OnHealthDirty)
+-- Set a value (server-only)
+if TheWorld.ismastersim then
+    self.current_health:set(100)
+    self.state:set("idle")
+    self.carrying_item:set(item_entity)
+end
 
--- Handler function
-function OnHealthDirty(inst)
-    -- React to the updated value
-    local new_health = health_value:value()
-    -- Update visual representation, play sounds, etc.
+-- Set a value without triggering dirty event
+self.current_health:set_local(100)
+
+-- Force a dirty event even if value hasn't changed
+self.current_health:set(100, true)
+```
+
+### Reading Values (Both Server and Client)
+
+Both server and clients can read network variable values:
+
+```lua
+-- Get the current value
+local health = self.current_health:value()
+local state = self.state:value()
+local item = self.carrying_item:value()
+
+-- Check if the value exists
+if self.carrying_item:value() ~= nil then
+    -- Has an item
 end
 ```
 
-## Common Usage Patterns
+### Handling Value Changes
 
-### Component Synchronization
+Clients can listen for network variable changes:
 
 ```lua
--- In a component initialization
-function MyComponent:Init(inst)
-    if TheWorld.ismastersim then
-        -- Server-side initialization
-        self.value = 100
-        self.net_value = net_int(inst.GUID, "mycomponent.value", "value_dirty")
-        self.net_value:set(self.value)
-    else
-        -- Client-side initialization
-        self.net_value = net_int(inst.GUID, "mycomponent.value", "value_dirty")
-        inst:ListenForEvent("value_dirty", function()
-            -- Update client-side representation
-            local new_value = self.net_value:value()
-            -- Do something with the new value
+-- In component initialization
+if not TheWorld.ismastersim then
+    -- Listen for the dirty event
+    inst:ListenForEvent("healthdirty", function()
+        local new_health = self.current_health:value()
+        -- Update visual health bar
+        UpdateHealthBar(new_health)
+    end)
+    
+    inst:ListenForEvent("statechanged", function()
+        local new_state = self.state:value()
+        -- Play animation for new state
+        inst.AnimState:PlayAnimation(new_state)
+    end)
+end
+```
+
+## Advanced Features
+
+### Target-Specific Network Variables
+
+Some network variables can be targeted to specific players:
+
+```lua
+-- Network variable visible only to a specific player
+self.secret_info = net_string(inst.GUID, "player.secretinfo", "secretinfodirty")
+
+-- Set the variable to be visible only to the owner
+inst.Network:SetClassifiedTarget(owner)
+
+-- Make the variable visible to everyone again
+inst.Network:SetClassifiedTarget(nil)
+```
+
+### Array Network Variables
+
+For arrays of data:
+
+```lua
+-- Create a byte array network variable (for inventory slots)
+self.inventory_items = net_bytearray(inst.GUID, "inventory.items", "inventorydirty")
+
+-- Set the array data
+local data = {1, 5, 3, 0, 2}
+self.inventory_items:set(data)
+```
+
+### Optimizing with Different Types
+
+Choose appropriate network variable types to conserve bandwidth:
+
+```lua
+-- For values 0-15, use tinybyte (4 bits)
+self.small_value = net_tinybyte(inst.GUID, "tinystats.value")
+
+-- For values 0-63, use smallbyte (6 bits)
+self.medium_value = net_smallbyte(inst.GUID, "smallstats.value")
+
+-- For values 0-255, use byte (8 bits)
+self.byte_value = net_byte(inst.GUID, "bytestats.value")
+
+-- For values 0-65535, use shortint (16 bits)
+self.short_value = net_shortint(inst.GUID, "shortstats.value")
+
+-- For larger or negative values, use int (32 bits)
+self.large_value = net_int(inst.GUID, "stats.value")
+```
+
+## Network Variables in Replica Components
+
+Network variables are the foundation of replica components:
+
+```lua
+-- components/mycomponent_replica.lua
+local MyComponent = Class(function(self, inst)
+    self.inst = inst
+    
+    -- Define network variables
+    self._value = net_int(inst.GUID, "mycomponent.value", "mycomponent.valuedirty")
+    self._active = net_bool(inst.GUID, "mycomponent.active", "mycomponent.activedirty")
+    self._owner = net_entity(inst.GUID, "mycomponent.owner", "mycomponent.ownerdirty")
+    
+    -- Set up client-side event handlers
+    if not TheWorld.ismastersim then
+        inst:ListenForEvent("mycomponent.valuedirty", function()
+            inst:PushEvent("valuechanged", {value = self:GetValue()})
+        end)
+        
+        inst:ListenForEvent("mycomponent.activedirty", function()
+            if self:IsActive() then
+                inst:PushEvent("activated")
+            else
+                inst:PushEvent("deactivated")
+            end
         end)
     end
-end
+end)
 
--- Server-side setter that synchronizes to clients
 function MyComponent:SetValue(val)
     if TheWorld.ismastersim then
-        self.value = val
-        self.net_value:set(val)
+        self._value:set(val)
     end
 end
-```
 
-### One-time Events
+function MyComponent:GetValue()
+    return self._value:value()
+end
 
-```lua
--- Using net_event for one-time notifications
-local explode_event = net_event(inst.GUID, "bomb.explode", "explode_event")
+function MyComponent:SetActive(active)
+    if TheWorld.ismastersim then
+        self._active:set(active)
+    end
+end
 
--- Server triggers the event
-explode_event:push()
+function MyComponent:IsActive()
+    return self._active:value()
+end
 
--- Client listens for the event
-inst:ListenForEvent("explode_event", function()
-    -- Play explosion effects locally
-    SpawnPrefab("explosion_fx").Transform:SetPosition(inst.Transform:GetWorldPosition())
-    TheFocalPoint.SoundEmitter:PlaySound("dontstarve/common/blackpowder_explo")
-end)
+return MyComponent
 ```
 
 ## Best Practices
 
-1. **Use the appropriate type**: Choose the smallest NetVar type that fits your needs to minimize bandwidth.
+1. **Use Appropriate Types**: Select the smallest netvar type that can represent your data range
+2. **Minimize Updates**: Only set network variables when values actually change
+3. **Batch Updates**: Group related changes to minimize network traffic
+4. **Prioritize Important Data**: Consider which data needs immediate synchronization
+5. **Consider Visibility**: Use classified targets for player-specific data
+6. **Avoid Large Strings**: Large strings consume significant bandwidth
+7. **Optimize Dirty Events**: Only listen for events you need to respond to
 
-2. **Limit update frequency**: NetVars have overhead, so avoid updating them every frame.
+## Common Issues and Solutions
 
-3. **Batch updates**: When changing multiple related values, consider using arrays or a single update.
+### Debugging Network Variables
 
-4. **Use local setters for prediction**: Use `:set_local()` for client-side prediction between server updates.
+```lua
+-- Print the current value
+print("Current health: " .. tostring(self.current_health:value()))
 
-5. **Only set from server**: While clients can call `:set()`, it only changes their local value and doesn't sync.
+-- Check if variable is initialized
+assert(self.current_health ~= nil, "Network variable not initialized")
 
-6. **Use unique names**: Each NetVar on an entity must have a unique name to avoid conflicts.
+-- Force a variable update
+if TheWorld.ismastersim then
+    self.current_health:set(self.current_health:value(), true) -- Force dirty
+end
+```
 
-## Notes
+### Variable Not Synchronizing
 
-- NetVars are one-way only (server to client). For client-to-server communication, use Remote Procedure Calls (RPCs).
-- NetVars must be attached to entities that have had `:AddNetwork()` called on them.
-- Avoid binding NetVars to entities that don't exist on the client, as this will cause crashes.
-- NetVars should be declared in both the server and client initialization paths. 
+Common causes:
+- Variable is created after `SetPristine()`
+- Missing entity:AddNetwork() call
+- Server and client have different variable paths
+- Setting values on the client (which is ignored)
+
+### Excessive Network Traffic
+
+Solutions:
+- Use smaller network variable types
+- Reduce update frequency
+- Use delta compression for related values
+- Batch updates of related variables 

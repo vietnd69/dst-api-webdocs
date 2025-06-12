@@ -80,3 +80,7 @@
 .thin-scrollbar {
 	padding-bottom: 3rem;
 }
+.theme-doc-sidebar-item-link-level-2 {
+	font-size: 0.9rem;
+	font-weight: 400;
+}

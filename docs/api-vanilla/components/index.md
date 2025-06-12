@@ -54,6 +54,17 @@ Some of the most commonly used components in Don't Starve Together include:
 | [Workable](workable.md) | Makes entity interact with tools |
 | [Growable](growable.md) | Allows entity to grow over time |
 | [Perishable](perishable.md) | Makes items spoil over time |
+| [Locomotor](locomotor.md) | Controls entity movement |
+| [Builder](builder.md) | Manages crafting capabilities |
+| [Edible](edible.md) | Defines food properties |
+| [Eater](eater.md) | Allows entity to consume food |
+| [Container](container.md) | Provides storage capabilities |
+| [Stackable](stackable.md) | Allows items to stack |
+| [Equippable](equippable.md) | Allows items to be equipped |
+| [Inspectable](inspectable.md) | Enables examination by players |
+| [Trader](trader.md) | Manages trading interactions |
+| [LootDropper](lootdropper.md) | Controls item drops |
+| [Other Components](other-components.md) | Additional specialized components |
 
 ## Component Lifecycle
 

@@ -1,6 +1,6 @@
 ---
 id: sanity
-title: Sanity Component
+title: Sanity
 sidebar_position: 8
 ---
 

@@ -48,6 +48,7 @@ const sidebars: SidebarsConfig = {
 				"api-vanilla/core-systems/event-system",
 				"api-vanilla/core-systems/stategraph-system",
 				"api-vanilla/core-systems/network-system",
+				
 			],
 		},
 		{
@@ -110,6 +111,8 @@ const sidebars: SidebarsConfig = {
 				"api-vanilla/core/modoverrides",
 				"api-vanilla/core/component-system",
 				"api-vanilla/core/worldstate",
+				"api-vanilla/core/network-system",
+				"api-vanilla/core/rpc-system"
 			],
 		},
 		{
@@ -163,6 +166,17 @@ const sidebars: SidebarsConfig = {
 				"api-vanilla/components/workable",
 				"api-vanilla/components/growable",
 				"api-vanilla/components/perishable",
+				"api-vanilla/components/builder",
+				"api-vanilla/components/container",
+				"api-vanilla/components/eater",
+				"api-vanilla/components/edible",
+				"api-vanilla/components/equippable",
+				"api-vanilla/components/inspectable",
+				"api-vanilla/components/locomotor",
+				"api-vanilla/components/lootdropper",
+				"api-vanilla/components/stackable",
+				"api-vanilla/components/trader",
+				"api-vanilla/components/other-components",
 				// Add more components as needed
 			],
 		},
@@ -245,30 +259,10 @@ const sidebars: SidebarsConfig = {
 			},
 			items: [
 				"api-vanilla/shared-properties/shared-properties-overview",
-				"api-vanilla/shared-properties/transform",
-				"api-vanilla/shared-properties/network",
-				"api-vanilla/shared-properties/tags",
-			],
-		},
-		{
-			type: "html",
-			value: "<hr/>",
-			className: "sidebar-divider",
-		},
-		{
-			type: "category",
-			label: "Utility Functions",
-			link: {
-				type: "generated-index",
-				title: "Utility Functions",
-				description: "Helper functions and utilities for Don't Starve Together modding",
-			},
-			items: [
-				"api-vanilla/utils/utils-overview",
-				"api-vanilla/utils/vector",
-				"api-vanilla/utils/string",
-				"api-vanilla/utils/table",
-				"api-vanilla/utils/math",
+				"api-vanilla/shared-properties/health-properties",
+				"api-vanilla/shared-properties/interaction-properties",
+				"api-vanilla/shared-properties/network-properties",
+				"api-vanilla/shared-properties/transformation-properties",
 			],
 		},
 		{
@@ -282,17 +276,15 @@ const sidebars: SidebarsConfig = {
 			link: {
 				type: "generated-index",
 				title: "Node Types",
-				description: "Different node types that make up the game architecture in Don't Starve Together",
+				description: "Node types for creating behaviors and interactions in Don't Starve Together",
 			},
 			items: [
 				"api-vanilla/node-types/node-types-overview",
-				"api-vanilla/node-types/entity",
-				"api-vanilla/node-types/component",
-				"api-vanilla/node-types/prefab",
-				"api-vanilla/node-types/brain",
-				"api-vanilla/node-types/stategraph",
-				"api-vanilla/node-types/widget",
-				"api-vanilla/node-types/network",
+				"api-vanilla/node-types/action-nodes",
+				"api-vanilla/node-types/condition-nodes",
+				"api-vanilla/node-types/decorator-nodes",
+				"api-vanilla/node-types/priority-nodes",
+				"api-vanilla/node-types/sequence-nodes",
 			],
 		},
 		{
@@ -306,16 +298,39 @@ const sidebars: SidebarsConfig = {
 			link: {
 				type: "generated-index",
 				title: "Data Types",
-				description: "Data types used in the Don't Starve Together API",
+				description: "Lua data types used in Don't Starve Together API",
 			},
 			items: [
 				"api-vanilla/data-types/data-types-overview",
-				"api-vanilla/data-types/vector",
+				"api-vanilla/data-types/vector3",
 				"api-vanilla/data-types/colour",
-				"api-vanilla/data-types/netvar",
-				"api-vanilla/data-types/luatable",
+				"api-vanilla/data-types/rect",
+				"api-vanilla/data-types/anim",
+				"api-vanilla/data-types/userdata",
 			],
-		}
+		},
+		{
+			type: "html",
+			value: "<hr/>",
+			className: "sidebar-divider",
+		},
+		{
+			type: "category",
+			label: "Utils",
+			link: {
+				type: "generated-index",
+				title: "Utils",
+				description: "Utility functions available in Don't Starve Together API",
+			},
+			items: [
+				"api-vanilla/utils/utils-overview",
+				"api-vanilla/utils/math-utils",
+				"api-vanilla/utils/string-utils",
+				"api-vanilla/utils/table-utils",
+				"api-vanilla/utils/debug-utils",
+				"api-vanilla/utils/file-utils",
+			],
+		},
 	],
 };
 
