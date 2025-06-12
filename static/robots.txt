@@ -1,1 +1,5 @@
+User-agent: *
+Allow: /dst-api-webdocs/
+Disallow: /
+Sitemap: https://vietnd69.github.io/dst-api-webdocs/sitemap.xml
 # Algolia-Crawler-Verif: 3760C30573B7EC98
