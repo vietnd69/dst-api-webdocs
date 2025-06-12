@@ -11,7 +11,7 @@ Don't Starve Together is a survival game developed by Klei Entertainment with ro
 - Describe the standard structure of a DST mod
 - Reference documentation for components, prefabs, and stategraphs
 
-This documentation is built based on the [dst-api](https://github.com/dstmodders/dst-api) project and aims to supplement detailed information about DST modding mechanisms.
+This documentation is built based on the [dst-api](https://github.com/b1inkie/dst-api) project and aims to supplement detailed information about DST modding mechanisms.
 
 ## Installation
 
@@ -58,7 +58,7 @@ The website is deployed at: https://vietnd69.github.io/dst-api-webdocs/
 
 ## Links
 
-- [Original dst-api project](https://github.com/dstmodders/dst-api)
+- [Original dst-api project](https://github.com/b1inkie/dst-api)
 - [Klei modding documentation](https://forums.kleientertainment.com/forums/forum/79-dont-starve-together-beta-modding/)
 - [Steam Workshop DST](https://steamcommunity.com/app/322330/workshop/)
 - [Docusaurus](https://docusaurus.io/) - The documentation framework used for this project
