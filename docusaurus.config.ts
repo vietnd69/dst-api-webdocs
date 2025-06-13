@@ -47,10 +47,10 @@ const config: Config = {
 				fromExtensions: ["html", "htm"],
 				redirects: [
 					{
-						// Chuyển hướng từ trang chính đến trang docs/getting-started
-						// Lưu ý: từ / sẽ là /dst-api-webdocs/ khi triển khai
+						// Redirect from main page to docs/getting-started
+						// Note: / will be /dst-api-webdocs/ when deployed
 						from: "/",
-						to: "/docs/api/getting-started",
+						to: "/docs/getting-started",
 					},
 				],
 				createRedirects: function (existingPath) {

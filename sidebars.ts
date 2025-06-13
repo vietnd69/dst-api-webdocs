@@ -18,15 +18,15 @@ const sidebars: SidebarsConfig = {
 			type: "category",
 			label: "Getting Started",
 			link: {
-				type: "generated-index",
-				title: "Getting Started with DST API",
-				description: "Learn the basics of Don't Starve Together API",
+				type: "doc",
+				id: "getting-started",
 			},
 			items: [
-				"getting-started",
 				"api-vanilla/getting-started/introduction",
-
-				// Add other getting started docs here
+				"api-vanilla/getting-started/installation",
+				"api-vanilla/getting-started/first-mod",
+				"api-vanilla/getting-started/debugging-and-testing",
+				"api-vanilla/getting-started/api-updates",
 			],
 		},
 		{
@@ -48,7 +48,6 @@ const sidebars: SidebarsConfig = {
 				"api-vanilla/core-systems/event-system",
 				"api-vanilla/core-systems/stategraph-system",
 				"api-vanilla/core-systems/network-system",
-				
 			],
 		},
 		{
@@ -74,7 +73,11 @@ const sidebars: SidebarsConfig = {
 				"api-vanilla/core/component-system",
 				"api-vanilla/core/worldstate",
 				"api-vanilla/core/network-system",
-				"api-vanilla/core/rpc-system"
+				"api-vanilla/core/rpc-system",
+				"api-vanilla/core/ui-system",
+				"api-vanilla/core/widgets",
+				"api-vanilla/core/creating-screens",
+				"api-vanilla/core/ui-events",
 			],
 		},
 		{
@@ -97,7 +100,7 @@ const sidebars: SidebarsConfig = {
 			value: "<hr/>",
 			className: "sidebar-divider",
 		},
-		
+
 		{
 			type: "category",
 			label: "Global Objects",
@@ -119,9 +122,8 @@ const sidebars: SidebarsConfig = {
 			type: "html",
 			value: "<hr/>",
 			className: "sidebar-divider",
-		},	
-		
-		
+		},
+
 		{
 			type: "category",
 			label: "World",
@@ -139,7 +141,7 @@ const sidebars: SidebarsConfig = {
 				"api-vanilla/world/worldsettings",
 			],
 		},
-		
+
 		{
 			type: "html",
 			value: "<hr/>",
@@ -186,7 +188,7 @@ const sidebars: SidebarsConfig = {
 			value: "<hr/>",
 			className: "sidebar-divider",
 		},
-			
+
 		{
 			type: "category",
 			label: "Prefabs",
@@ -217,11 +219,7 @@ const sidebars: SidebarsConfig = {
 				title: "Recipes",
 				description: "Recipe systems for crafting and cooking in Don't Starve Together",
 			},
-			items: [
-				"api-vanilla/recipes/recipes-overview",
-				"api-vanilla/recipes/crafting",
-				"api-vanilla/recipes/cooking",
-			],
+			items: ["api-vanilla/recipes/recipes-overview", "api-vanilla/recipes/crafting", "api-vanilla/recipes/cooking"],
 		},
 		{
 			type: "html",

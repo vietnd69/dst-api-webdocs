@@ -56,6 +56,29 @@ This project is configured to automatically deploy to GitHub Pages whenever chan
 
 The website is deployed at: https://vietnd69.github.io/dst-api-webdocs/
 
+### Manual Deployment
+
+You can also deploy manually using:
+
+```bash
+npm run deploy
+```
+
+This command builds the site and pushes it to the `gh-pages` branch of your GitHub repository.
+
+### GitHub Pages Configuration
+
+To check your GitHub Pages configuration:
+
+```bash
+npm run check-github-pages
+```
+
+Make sure GitHub Pages is enabled in your repository settings:
+1. Go to your repository on GitHub
+2. Navigate to Settings > Pages
+3. Set the source to "GitHub Actions"
+
 ## Links
 
 - [Original dst-api project](https://github.com/b1inkie/dst-api)

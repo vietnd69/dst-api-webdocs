@@ -13,7 +13,9 @@
     "write-translations": "docusaurus write-translations",
     "write-heading-ids": "docusaurus write-heading-ids",
     "typecheck": "tsc",
-    "update-github-config": "node scripts/update-github-config.js"
+    "update-github-config": "node scripts/update-github-config.js",
+    "check-github-pages": "node scripts/check-github-pages.js",
+    "commit": "node scripts/commit-and-push.js"
   },
   "dependencies": {
     "@docusaurus/core": "3.8.1",
