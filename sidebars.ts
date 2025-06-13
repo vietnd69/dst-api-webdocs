@@ -335,21 +335,51 @@ const sidebars: SidebarsConfig = {
 			},
 			items: [
 				"api-vanilla/examples/examples-overview",
-				"api-vanilla/examples/simple-item",
-				"api-vanilla/examples/character-mod",
-				"api-vanilla/examples/recipe-mod",
-				"api-vanilla/examples/custom-component",
-				"api-vanilla/examples/ui-mod",
-				"api-vanilla/examples/stategraph-mod",
-				"api-vanilla/examples/worldgen-mod",
-				"api-vanilla/examples/optimization",
-				"api-vanilla/examples/networking-mod",
-				"api-vanilla/examples/case-geometric",
-				"api-vanilla/examples/case-wormhole",
-				"api-vanilla/examples/case-status",
-				"api-vanilla/examples/project-tools",
-				"api-vanilla/examples/project-biome",
-				"api-vanilla/examples/project-boss"
+				// Mod Development
+				{
+					type: "category",
+					label: "Mod Development",
+					className: "sidebar-title",
+					collapsed: false,
+					collapsible: false,
+					items: [
+						"api-vanilla/examples/simple-item",
+						"api-vanilla/examples/character-mod",
+						"api-vanilla/examples/recipe-mod",
+						"api-vanilla/examples/custom-component",
+						"api-vanilla/examples/ui-mod",
+						"api-vanilla/examples/stategraph-mod",
+						"api-vanilla/examples/worldgen-mod",
+						"api-vanilla/examples/optimization",
+						"api-vanilla/examples/networking-mod",
+					]
+				},
+				// Case Studies
+				{
+					type: "category",
+					label: "Case Studies",
+					className: "sidebar-title",
+					collapsed: false,
+					collapsible: false,
+					items: [
+						"api-vanilla/examples/case-geometric",
+						"api-vanilla/examples/case-wormhole",
+						"api-vanilla/examples/case-status",
+					]
+				},
+				// Projects
+				{
+					type: "category",
+					label: "Projects",
+					className: "sidebar-title",
+					collapsed: false,
+					collapsible: false,
+					items: [
+						"api-vanilla/examples/project-tools",
+						"api-vanilla/examples/project-biome",
+						"api-vanilla/examples/project-boss"
+					]
+				}
 			],
 			
 		},

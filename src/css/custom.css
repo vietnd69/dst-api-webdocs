@@ -80,6 +80,7 @@
 }
 .thin-scrollbar {
 	padding-bottom: 3rem;
+	padding-right: 0.5rem;
 }
 .theme-doc-sidebar-item-link-level-2 {
 	font-size: 0.9rem;
@@ -89,10 +90,7 @@
 	white-space: pre-wrap !important;
 	word-break: break-word;
 }
-.sidebar-title .menu__list-item-collapsible{
-	margin-top: 0.5rem;
-	margin-bottom: 0;
-	
+.sidebar-title .menu__list-item-collapsible{	
 	.menu__link{
 		font-size: 0.8rem;
 		font-weight: 600;
