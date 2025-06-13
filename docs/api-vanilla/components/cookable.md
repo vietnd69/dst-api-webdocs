@@ -58,6 +58,14 @@ The Cookable component often works with:
 - `Stackable` - Cooking may affect stack size or properties
 - `Inventoryitem` - The cooked item becomes a new inventory item
 
+## See also
+
+- [Burnable Component](burnable.md) - For items that can catch fire
+- [Edible Component](edible.md) - For food properties that change when cooked
+- [Perishable Component](perishable.md) - For spoilage rates of cooked items
+- [Stackable Component](stackable.md) - For stacking cooked items
+- [Recipes](../recipes/cooking.md) - For cooking recipe definitions
+
 ## Example: Creating a Cookable Item
 
 ```lua

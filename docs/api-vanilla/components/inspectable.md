@@ -87,6 +87,14 @@ The Inspectable component often works with:
 - `Health` - For showing health status
 - `Armor` - For showing durability status
 
+## See also
+
+- [Named Component](other-components.md) - For customizing entity names
+- [Perishable Component](perishable.md) - For showing spoilage status
+- [Growable Component](growable.md) - For showing growth stage information
+- [Health Component](health.md) - For showing health status
+- [Talker Component](other-components.md) - For displaying character dialogue
+
 ## Example: Basic Inspectable Entity
 
 ```lua

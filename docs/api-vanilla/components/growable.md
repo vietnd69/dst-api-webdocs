@@ -80,6 +80,14 @@ The Growable component often works with:
 - `Burnable` - For fire behavior that varies by growth stage
 - `Lootdropper` - For different drops at different growth stages
 
+## See also
+
+- [Pickable Component](other-components.md) - For harvesting plants at maturity
+- [Workable Component](workable.md) - For chopping/mining at different growth stages
+- [Burnable Component](burnable.md) - For burning behavior at different stages
+- [LootDropper Component](lootdropper.md) - For drops at different growth stages
+- [Timer Component](other-components.md) - For timing growth stages
+
 ## Example: Creating a Growable Plant
 
 ```lua
@@ -124,4 +132,4 @@ local function MakePlant()
     
     return inst
 end
-``` 
+```

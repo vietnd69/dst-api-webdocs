@@ -123,6 +123,14 @@ The Temperature component often works with:
 - `Moisture` - For wetness effects on temperature
 - `Insulator` - For items that provide insulation
 
+## See also
+
+- [Health Component](health.md) - For temperature-related damage
+- [Hunger Component](hunger.md) - For hunger effects on temperature
+- [Sanity Component](sanity.md) - For sanity effects from temperature
+- [Edible Component](edible.md) - For food that affects temperature
+- [Equippable Component](equippable.md) - For items that provide insulation
+
 ## Examples
 
 ```lua

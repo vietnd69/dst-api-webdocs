@@ -73,4 +73,12 @@ The Burnable component often works with:
 - `Propagator` - For spreading fire to nearby objects
 - `Fueled` - For fuel consumption during burning
 - `Health` - For damage while burning
-- `Light` - For generating light while burning 
+- `Light` - For generating light while burning
+
+## See also
+
+- [Propagator Component](other-components.md) - For spreading fire to nearby objects
+- [Fueled Component](other-components.md) - For fuel consumption during burning
+- [Health Component](health.md) - For damage while burning
+- [Light Component](other-components.md) - For generating light while burning
+- [Cookable Component](cookable.md) - For items that can be cooked by fire 

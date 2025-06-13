@@ -119,6 +119,14 @@ The Combat component often works with:
 - `Inventory` - For equipping weapons that modify combat stats
 - `State Graph` - For playing attack animations
 
+## See also
+
+- [Health Component](health.md) - For managing entity health and damage
+- [Weapon Component](weapon.md) - For weapon damage and effects
+- [Inventory Component](inventory.md) - For equipping weapons
+- [Armor Component](armor.md) - For damage reduction
+- [LootDropper Component](lootdropper.md) - For drops when entities are killed
+
 ## Examples
 
 ```lua

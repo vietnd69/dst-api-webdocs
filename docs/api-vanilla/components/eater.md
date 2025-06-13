@@ -92,6 +92,15 @@ The Eater component often works with:
 - `Temperature` - For temperature effects from food
 - `Inventory` - For managing eaten items
 
+## See also
+
+- [Edible Component](edible.md) - For defining food properties
+- [Health Component](health.md) - For health effects from eating
+- [Hunger Component](hunger.md) - For hunger effects from eating
+- [Sanity Component](sanity.md) - For sanity effects from eating
+- [Temperature Component](temperature.md) - For temperature effects from food
+- [Perishable Component](perishable.md) - For food spoilage effects
+
 ## Example: Creating a Specialized Eater
 
 ```lua

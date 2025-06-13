@@ -95,6 +95,16 @@ The Edible component often works with:
 - `Eater` - The component that consumes edible items
 - `FoodMemory` - For tracking eaten food preferences
 
+## See also
+
+- [Eater Component](eater.md) - For entities that can consume food
+- [Perishable Component](perishable.md) - For food spoilage mechanics
+- [Cookable Component](cookable.md) - For food that can be cooked
+- [Stackable Component](stackable.md) - For stacking food items
+- [Health Component](health.md) - For health effects from food
+- [Hunger Component](hunger.md) - For hunger effects from food
+- [Sanity Component](sanity.md) - For sanity effects from food
+
 ## Example: Creating an Edible Food Item
 
 ```lua

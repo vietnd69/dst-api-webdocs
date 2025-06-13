@@ -117,6 +117,14 @@ The Weapon component often works with:
 - `Projectile` - For projectile behavior
 - `DamageTypeBonus` - For bonus damage against specific types
 
+## See also
+
+- [Combat Component](combat.md) - For attack mechanics
+- [Equippable Component](equippable.md) - For weapons that can be equipped
+- [Inventory Component](inventory.md) - For storing and equipping weapons
+- [Armor Component](armor.md) - For protection against weapon damage
+- [Health Component](health.md) - For receiving weapon damage
+
 ## Examples
 
 ```lua

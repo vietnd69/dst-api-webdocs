@@ -85,6 +85,14 @@ The Perishable component often works with:
 - `Inventoryitem` - Containers affect perish rate
 - `FoodMemory` - For tracking when food was eaten
 
+## See also
+
+- [Edible Component](edible.md) - For food values that change as items spoil
+- [Cookable Component](cookable.md) - For cooking effects on spoilage rates
+- [Stackable Component](stackable.md) - For stacking perishable items
+- [Container Component](container.md) - For containers that preserve items
+- [Eater Component](eater.md) - For consuming perishable food
+
 ## Example: Creating a Perishable Food Item
 
 ```lua
@@ -119,4 +127,4 @@ local function MakeFood()
     
     return inst
 end
-``` 
+```

@@ -171,6 +171,7 @@ const sidebars: SidebarsConfig = {
 				"api-vanilla/components/lootdropper",
 				"api-vanilla/components/stackable",
 				"api-vanilla/components/trader",
+				"api-vanilla/components/armor",
 				"api-vanilla/components/other-components",
 				// Add more components as needed
 			],

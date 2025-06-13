@@ -128,6 +128,14 @@ The Health component often works with:
 - `Hunger` - For hunger-related damage
 - `State Graph` - For playing hurt and death animations
 
+## See also
+
+- [Combat Component](combat.md) - For attacking and receiving damage
+- [Armor Component](armor.md) - For protection against damage
+- [Temperature Component](temperature.md) - For temperature effects that can cause damage
+- [Hunger Component](hunger.md) - For hunger effects that can cause damage
+- [Sanity Component](sanity.md) - For mental state that can affect health
+
 ## Examples
 
 ```lua

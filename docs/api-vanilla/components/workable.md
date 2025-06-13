@@ -74,6 +74,14 @@ The Workable component often works with:
 - `Health` - For damage when being worked on
 - `Combat` - For entities that attack when worked on
 
+## See also
+
+- [LootDropper Component](lootdropper.md) - For dropping items when work is completed
+- [Growable Component](growable.md) - For regrowth after being worked on
+- [Health Component](health.md) - For damage when being worked on
+- [Combat Component](combat.md) - For entities that attack when worked on
+- [Inventory Component](inventory.md) - For storing harvested resources
+
 ## Example: Creating a Workable Tree
 
 ```lua

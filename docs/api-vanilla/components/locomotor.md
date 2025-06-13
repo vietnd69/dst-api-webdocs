@@ -111,6 +111,14 @@ The Locomotor component often works with:
 - `State Graph` - For playing movement animations
 - `Physics` - For collision detection during movement
 
+## See also
+
+- [Combat Component](combat.md) - For movement during combat
+- [Physics Component](other-components.md) - For physical collision during movement
+- [State Graph System](../core/stategraph-system.md) - For animation states during movement
+- [Equippable Component](equippable.md) - For items that affect movement speed
+- [Temperature Component](temperature.md) - For temperature effects on movement
+
 ## Example: Creating a Basic Moving Entity
 
 ```lua

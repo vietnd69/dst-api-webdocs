@@ -94,6 +94,14 @@ The Trader component often works with:
 - `SpawnPrefab` - For creating reward items
 - `ItemDropper` - For dropping traded items
 
+## See also
+
+- [Inventory Component](inventory.md) - For managing items involved in trades
+- [Talker Component](other-components.md) - For dialogue during trading
+- [LootDropper Component](lootdropper.md) - For dropping items as rewards
+- [Combat Component](combat.md) - For hostile traders that may attack
+- [Inspectable Component](inspectable.md) - For examining traders
+
 ## Example: Simple Item Trader
 
 ```lua

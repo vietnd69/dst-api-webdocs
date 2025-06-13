@@ -68,4 +68,12 @@ The Sanity component often works with:
 - `Inventory` - Equipped items can affect sanity
 - `Temperature` - Extreme temperatures can affect sanity
 - `Hunger` - Hunger state can affect sanity
-- `State Graph` - For playing insanity animations 
+- `State Graph` - For playing insanity animations
+
+## See also
+
+- [Health Component](health.md) - For another vital stat that works similarly
+- [Hunger Component](hunger.md) - For another vital stat that works similarly
+- [Temperature Component](temperature.md) - For temperature effects on sanity
+- [Equippable Component](equippable.md) - For items that affect sanity when equipped
+- [Edible Component](edible.md) - For food that affects sanity when eaten 

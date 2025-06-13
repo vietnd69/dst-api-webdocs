@@ -8,21 +8,21 @@
   "customProps": {
     "sublist": [
       {
-        "title": "Làm quen với API",
+        "title": "Getting Started with API",
         "items": [
           "getting-started",
           "core"
         ]
       },
       {
-        "title": "Hệ thống cốt lõi",
+        "title": "Core Systems",
         "items": [
           "entity-framework",
           "global-objects"
         ]
       },
       {
-        "title": "Thành phần và Đối tượng",
+        "title": "Components and Objects",
         "items": [
           "components",
           "prefabs",
@@ -30,7 +30,7 @@
         ]
       },
       {
-        "title": "Cơ chế game",
+        "title": "Game Mechanics",
         "items": [
           "stategraphs",
           "recipes",
@@ -38,7 +38,7 @@
         ]
       },
       {
-        "title": "Công cụ và Kiểu dữ liệu",
+        "title": "Tools and Data Types",
         "items": [
           "data-types",
           "utils",

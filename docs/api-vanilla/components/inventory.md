@@ -143,6 +143,14 @@ The Inventory component often works with:
 - `Combat` - For equipping weapons
 - `Health` - For using healing items
 
+## See also
+
+- [Container Component](container.md) - For storing items in containers
+- [Equippable Component](equippable.md) - For items that can be equipped
+- [Combat Component](combat.md) - For using weapons from inventory
+- [Builder Component](builder.md) - For crafting items from inventory resources
+- [Stackable Component](stackable.md) - For stacking items in inventory
+
 ## Examples
 
 ```lua

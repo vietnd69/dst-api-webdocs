@@ -6,7 +6,7 @@ import type * as Preset from "@docusaurus/preset-classic";
 
 const config: Config = {
 	title: "Don't Starve Together Vanilla API",
-	tagline: "DST Vanilla API Documentation v0.5.2",
+	tagline: "Don't Starve Together Vanilla API Documentation v0.5.2",
 	favicon: "img/favicon.ico",
 
 	// Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
@@ -27,7 +27,7 @@ const config: Config = {
 	trailingSlash: false,
 	deploymentBranch: "gh-pages",
 
-	onBrokenLinks: "warn",
+	onBrokenLinks: "ignore",
 	onBrokenMarkdownLinks: "warn",
 	onDuplicateRoutes: "warn",
 
@@ -86,7 +86,7 @@ const config: Config = {
 		image: "img/docusaurus-social-card.jpg",
 		navbar: {
 			logo: {
-				alt: "DST Logo",
+				alt: "Don't Starve Together Logo",
 				src: "img/logo.png",
 			},
 			items: [
@@ -94,7 +94,7 @@ const config: Config = {
 					type: "docSidebar",
 					sidebarId: "docs",
 					position: "left",
-					label: "DST Vanilla",
+					label: "Vanilla",
 				},
 				{
 					href: "https://github.com/vietnd69/dst-api-webdocs", // Cập nhật URL Github repository

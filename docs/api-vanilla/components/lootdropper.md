@@ -117,6 +117,14 @@ The LootDropper component often works with:
 - `Burnable` - For drops when burned
 - `Growable` - For different drops at different growth stages
 
+## See also
+
+- [Health Component](health.md) - For death triggers that drop loot
+- [Combat Component](combat.md) - For combat interactions that lead to loot drops
+- [Workable Component](workable.md) - For work actions that produce loot
+- [Growable Component](growable.md) - For growth stages with different loot
+- [Inventory Component](inventory.md) - For storing collected loot
+
 ## Example: Basic Enemy with Loot
 
 ```lua

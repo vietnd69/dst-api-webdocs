@@ -117,6 +117,14 @@ The Container component often works with:
 - `Preserver` - For containers that preserve items (like ice boxes)
 - `Inventoryitem` - For containers that can be carried
 
+## See also
+
+- [Inventory Component](inventory.md) - For player item storage and management
+- [Inventoryitem Component](other-components.md) - For items that can be stored in containers
+- [Stackable Component](stackable.md) - For stacking items in containers
+- [Preserver Component](other-components.md) - For preserving items in containers
+- [Equippable Component](equippable.md) - For wearable containers like backpacks
+
 ## Example: Creating a Chest Container
 
 ```lua

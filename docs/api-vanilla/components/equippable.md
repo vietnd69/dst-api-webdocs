@@ -94,6 +94,15 @@ The Equippable component often works with:
 - `Waterproofer` - For rain protection
 - `Fueled` - For items that degrade with use
 
+## See also
+
+- [Inventory Component](inventory.md) - For managing equipped items
+- [Weapon Component](weapon.md) - For equippable weapons
+- [Armor Component](armor.md) - For equippable armor
+- [Container Component](container.md) - For equippable containers like backpacks
+- [Inventoryitem Component](other-components.md) - For items that can be equipped
+- [Temperature Component](temperature.md) - For temperature effects from equipped items
+
 ## Example: Creating an Equippable Weapon
 
 ```lua

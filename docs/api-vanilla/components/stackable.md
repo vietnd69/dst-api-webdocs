@@ -94,6 +94,14 @@ The Stackable component often works with:
 - `Container` - For managing stacks in containers
 - `Inspectable` - To show stack size in inspection
 
+## See also
+
+- [Inventory Component](inventory.md) - For managing stacked items
+- [Perishable Component](perishable.md) - For food spoilage in stacks
+- [Edible Component](edible.md) - For stacking food items
+- [Container Component](container.md) - For storing stacks in containers
+- [Inventoryitem Component](other-components.md) - For items that can be stacked
+
 ## Example: Creating a Stackable Resource
 
 ```lua

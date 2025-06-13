@@ -102,6 +102,14 @@ The Builder component often works with:
 - `ActionHandler` - For triggering building actions
 - `Prototyper` - For workstations that enhance crafting abilities
 
+## See also
+
+- [Inventory Component](inventory.md) - For storing crafting ingredients
+- [Prototyper Component](other-components.md) - For workstations that provide tech levels
+- [Recipes](../recipes/crafting.md) - For crafting recipe definitions
+- [Sanity Component](sanity.md) - For sanity effects from crafting
+- [Container Component](container.md) - For storing crafted items
+
 ## Example: Setting Up a Builder with Tech Levels
 
 ```lua
@@ -141,4 +149,4 @@ local function OnDeactivatePrototyper(inst, doer)
         doer.components.builder:RemoveBonus(inst)
     end
 end
-``` 
+```
