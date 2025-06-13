@@ -1,8 +1,8 @@
 {
-  "label": "Core API",
+  "label": "Core Systems",
   "position": 2,
   "link": {
     "type": "generated-index",
-    "description": "Core functionality of the Don't Starve Together API including entity system, events, components, and world state management."
+    "description": "Core functionality and fundamental systems that power the Don't Starve Together game engine and modding API, including entity system, event system, component system, stategraph system, networking, UI, and mod development tools."
   }
 }

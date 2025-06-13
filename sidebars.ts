@@ -40,36 +40,32 @@ const sidebars: SidebarsConfig = {
 			link: {
 				type: "generated-index",
 				title: "Core Systems",
-				description: "Fundamental systems that power the Don't Starve Together game engine",
+				description: "Fundamental systems that power the Don't Starve Together game engine and modding API",
 			},
 			items: [
-				"api-vanilla/core-systems/entity-system",
-				"api-vanilla/core-systems/component-system",
-				"api-vanilla/core-systems/event-system",
-				"api-vanilla/core-systems/stategraph-system",
-				"api-vanilla/core-systems/network-system",
-			],
-		},
-
-		{
-			type: "category",
-			label: "Core Concepts",
-			link: {
-				type: "generated-index",
-				title: "Core API Concepts",
-				description: "Core functionality of the Don't Starve Together API",
-			},
-			items: [
+				// Entity and Component Systems
+				{type: "html", value: "<p>Entity and Component Systems</p>", className: "sidebar-title"},
+				"api-vanilla/core/entity-system",
+				"api-vanilla/core/component-system",
 				"api-vanilla/core/entityscript",
 				"api-vanilla/core/event-system",
-				"api-vanilla/core/constants",
-				"api-vanilla/core/server-startup",
-				"api-vanilla/core/mod-structure",
-				"api-vanilla/core/modoverrides",
-				"api-vanilla/core/component-system",
-				"api-vanilla/core/worldstate",
+				"api-vanilla/core/stategraph-system",
+				
+				// Network and Communication
+				{type: "html", value: "<p>Network and Communication</p>", className: "sidebar-title"},
 				"api-vanilla/core/network-system",
 				"api-vanilla/core/rpc-system",
+				
+				// Mod Development
+				{type: "html", value: "<p>Mod Development</p>", className: "sidebar-title"},
+				"api-vanilla/core/mod-structure",
+				"api-vanilla/core/modoverrides",
+				"api-vanilla/core/server-startup",
+				"api-vanilla/core/constants",
+				"api-vanilla/core/worldstate",
+				
+				// UI Systems
+				{type: "html", value: "<p>UI Systems</p>", className: "sidebar-title"},
 				"api-vanilla/core/ui-system",
 				"api-vanilla/core/widgets",
 				"api-vanilla/core/creating-screens",
@@ -339,6 +335,8 @@ const sidebars: SidebarsConfig = {
 				"api-vanilla/examples/snippets/ui-snippets",
 				"api-vanilla/examples/snippets/networking-snippets",
 				"api-vanilla/examples/snippets/component-snippets",
+				"api-vanilla/examples/snippets/animation-snippets",
+				"api-vanilla/examples/snippets/prefab-snippets",
 			]
 		},
 	],

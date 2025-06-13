@@ -17,7 +17,6 @@
       {
         "title": "Hệ thống cốt lõi",
         "items": [
-          "core-systems",
           "entity-framework",
           "global-objects"
         ]

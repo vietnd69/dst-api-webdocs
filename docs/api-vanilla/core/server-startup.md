@@ -1,7 +1,7 @@
 ---
 id: server-startup
 title: Server Startup Process
-sidebar_position: 4
+sidebar_position: 10
 ---
 
 # Server Startup Process

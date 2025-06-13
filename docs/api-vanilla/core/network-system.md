@@ -1,7 +1,7 @@
 ---
 id: network-system
 title: Network System
-sidebar_position: 4
+sidebar_position: 6
 ---
 
 # Network System

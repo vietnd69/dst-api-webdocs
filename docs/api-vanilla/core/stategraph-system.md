@@ -1,7 +1,7 @@
 ---
 id: stategraph-system
 title: State Graph System
-sidebar_position: 4
+sidebar_position: 5
 ---
 
 # State Graph System

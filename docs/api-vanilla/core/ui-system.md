@@ -1,7 +1,7 @@
 ---
 id: ui-system
 title: UI System
-sidebar_position: 8
+sidebar_position: 13
 ---
 
 # UI System

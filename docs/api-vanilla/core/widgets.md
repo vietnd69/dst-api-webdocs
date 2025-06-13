@@ -1,7 +1,7 @@
 ---
 id: widgets
 title: Common Widgets
-sidebar_position: 9
+sidebar_position: 14
 ---
 
 # Common Widgets

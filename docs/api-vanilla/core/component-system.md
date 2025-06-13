@@ -1,7 +1,7 @@
 ---
 id: component-system
 title: Component System
-sidebar_position: 7
+sidebar_position: 2
 ---
 
 # Component System

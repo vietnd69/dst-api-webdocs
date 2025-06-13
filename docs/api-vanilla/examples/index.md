@@ -56,7 +56,7 @@ Reusable code snippets for common modding tasks:
 - [Entity Spawning](snippets/entity-spawning.md)
 - [Event Handling](snippets/event-handling.md)
 - [Saving and Loading](snippets/saving-loading.md)
-- [Networking](snippets/networking.md)
+- [Networking](snippets/networking-snippets.md)
 - [Animation](snippets/animation.md)
 
 ## Community Resources

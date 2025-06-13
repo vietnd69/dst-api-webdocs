@@ -13,6 +13,7 @@
 	--ifm-color-primary-light: #33925d;
 	--ifm-color-primary-lighter: #359962;
 	--ifm-color-primary-lightest: #3cad6e;
+	--ifm-color-text-tertiary: #888888;
 	--ifm-code-font-size: 95%;
 	--docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
 }
@@ -87,4 +88,14 @@
 .theme-code-block > div > pre {
 	white-space: pre-wrap !important;
 	word-break: break-word;
+}
+.sidebar-title {
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: var(--ifm-color-text-tertiary);
+
+	p{
+		margin-top: 0.5rem;
+		margin-bottom: 0;
+	}
 }

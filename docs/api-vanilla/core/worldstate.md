@@ -1,7 +1,7 @@
 ---
 id: worldstate
 title: WorldState API
-sidebar_position: 8
+sidebar_position: 12
 ---
 
 # WorldState API

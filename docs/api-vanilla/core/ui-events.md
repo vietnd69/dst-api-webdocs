@@ -1,7 +1,7 @@
 ---
 id: ui-events
 title: UI Events
-sidebar_position: 11
+sidebar_position: 16
 ---
 
 # UI Events

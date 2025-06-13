@@ -1,7 +1,7 @@
 ---
 id: rpc-system
 title: Remote Procedure Call System
-sidebar_position: 5
+sidebar_position: 7
 ---
 
 # Remote Procedure Call System

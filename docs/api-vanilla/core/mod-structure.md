@@ -1,7 +1,7 @@
 ---
 id: mod-structure
 title: Mod Structure and Server Integration
-sidebar_position: 5
+sidebar_position: 8
 ---
 
 # Mod Structure and Server Integration
