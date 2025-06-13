@@ -3,13 +3,98 @@ description: github pages
 globs: 
 alwaysApply: false
 ---
-# GitHub Pages Deployment Guide
+# GitHub Pages Deployment
 
-This Docusaurus site is configured for deployment on GitHub Pages.
+This project is configured for automatic deployment to GitHub Pages.
+
+## Configuration
+
+The deployment configuration is defined in [docusaurus.config.ts](mdc:dst-api-webdocs/docusaurus.config.ts):
+
+```ts
+const config: Config = {
+  // ...
+  url: "https://vietnd69.github.io",
+  baseUrl: "/dst-api-webdocs/",
+  organizationName: "vietnd69",
+  projectName: "dst-api-webdocs",
+  trailingSlash: false,
+  deploymentBranch: "gh-pages",
+  // ...
+};
+```
+
+## GitHub Actions Workflow
+
+The deployment is automated using GitHub Actions, configured in [.github/workflows/deploy.yml](mdc:dst-api-webdocs/.github/workflows/deploy.yml):
+
+```yaml
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build website
+        run: npm run build
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build
+```
+
+## Manual Deployment
+
+You can also deploy manually using:
+
+```bash
+npm run deploy
+```
+
+This command:
+1. Builds the website
+2. Pushes the built files to the `gh-pages` branch
+
+## Deployment URL
+
+The deployed site is available at: https://vietnd69.github.io/dst-api-webdocs/
+
+## URL Structure
+
+- All internal links should use relative paths without the baseUrl
+- Docusaurus will automatically add the baseUrl in production
+- For React components, use the `useBaseUrl` hook for proper path handling
+
+## Testing Deployment
+
+Before deploying, you can test the production build locally:
+
+```bash
+npm run serve
+```
+
+This will serve the built website locally with the baseUrl configuration applied.
 
 ## Configuration Settings
 
-In [docusaurus.config.ts](mdc:dst-api-webdocs/dst-api-webdocs/docusaurus.config.ts):
+In [docusaurus.config.ts](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/docusaurus.config.ts):
 
 ```ts
 const config: Config = {
@@ -47,7 +132,7 @@ When deploying to GitHub Pages, all URLs must take into account the base URL:
 
 GitHub Pages requires special handling for the 404 page:
 
-- The [static/404.html](mdc:dst-api-webdocs/dst-api-webdocs/static/404.html) file includes client-side routing script
+- The [static/404.html](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/static/404.html) file includes client-side routing script
 - It has a fallback meta refresh to redirect to the documentation
 - It is configured to handle the baseUrl prefix correctly
 

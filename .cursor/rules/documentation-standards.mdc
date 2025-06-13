@@ -45,7 +45,7 @@ inst.components.health:SetMaxHealth(100)
 
 ### Parameters
 | Parameter | Type | Description |
-|-----------|------|-------------|
+|-----|---|----|
 | amount    | number | The new maximum health value |
 
 ### Returns

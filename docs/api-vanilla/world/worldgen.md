@@ -1,797 +1,385 @@
 ---
 id: worldgen
-title: World Generation API
-sidebar_position: 6
+title: World Generation
+sidebar_position: 4
 ---
 
-# World Generation API
+# World Generation
 
-Tools and systems for procedurally generating game worlds in Don't Starve Together.
+World generation in Don't Starve Together is a complex process that creates the game world through a series of steps involving rooms, tasks, and terrain generation. This document explains how the world generation system works and how it can be customized.
 
-## Overview
+## World Generation Process
 
-The World Generation API controls how game worlds are created, including terrain, biomes, and feature placement. It provides the foundation for procedurally generated worlds with various customization options.
+The world generation in DST follows these main steps:
 
-## Generation Process
+1. **Level Selection**: The game selects a level configuration based on the chosen preset (e.g., "Survival Together", "Caves", etc.)
+2. **Task Assignment**: Tasks are assigned to different regions of the map
+3. **Room Placement**: Rooms are placed within tasks based on task requirements
+4. **Terrain Generation**: Terrain is generated for each room
+5. **Object Placement**: Objects are placed within rooms according to their distribution rules
+6. **Finalization**: Final adjustments are made, such as placing setpieces and connecting regions
 
-The world generation process follows these main steps:
+### Key Components
 
-1. **Level Selection**: Choose a level preset defining overall world characteristics
-2. **Graph Construction**: Create a connected graph of tasks and rooms
-3. **Node Population**: Fill nodes with terrain types and features
-4. **Terrain Generation**: Convert abstract nodes to actual terrain tiles
-5. **Feature Placement**: Add structures, resources, and other map features
+- **Levels**: Define the overall world configuration (forest, caves, etc.)
+- **Tasks**: Represent gameplay objectives and areas (e.g., "Make a pick", "Dig that rock")
+- **Rooms**: Define specific areas with terrain and object distributions (e.g., "Forest", "Rocky", "Marsh")
+- **Setpieces**: Pre-designed arrangements of objects (e.g., "Maxwell's Throne", "Pig Village")
 
-### Detailed Generation Pipeline
+## Customizing World Generation
 
-The actual generation process consists of the following phases:
+### Using the World Customization Screen
 
-1. **Initialization**
-   - Load level preset and configuration
-   - Initialize random number generator
-   - Set up world size and boundaries
-   - Configure season and starting conditions
+The in-game customization screen allows you to modify many world generation parameters:
 
-2. **Map Layout**
-   - Generate task graph based on level definition
-   - Connect tasks using lock and key system
-   - Ensure proper progression path
-   - Create branching paths and optional areas
+- **World Size**: Affects the overall size of the generated world
+- **Branching**: Controls how many branches the world has
+- **Loops**: Determines whether paths loop back on themselves
+- **Resource Abundance**: Controls the frequency of various resources
+- **Season Length**: Adjusts the duration of each season
+- **Special Events**: Toggles special events like Winter's Feast
 
-3. **Room Placement**
-   - Assign room types to graph nodes
-   - Calculate room sizes and borders
-   - Connect rooms with appropriate transitions
-   - Place background and special rooms
+### Programmatic Customization
 
-4. **Terrain Generation**
-   - Convert room types to terrain tiles
-   - Generate terrain height and variation
-   - Create water bodies and land masses
-   - Apply noise and natural variation
+To programmatically customize world generation, you need to understand the following files:
 
-5. **Prefab Distribution**
-   - Place required structures (Maxwell's Door, etc.)
-   - Distribute resources based on biome rules
-   - Add creatures and spawners
-   - Place vegetation and natural features
-
-6. **Set Piece Placement**
-   - Add pre-designed layouts
-   - Place special structures
-   - Add story-related elements
-   - Include random set pieces
-
-7. **Finalization**
-   - Validate map connectivity
-   - Ensure resource availability
-   - Add player spawn points
-   - Apply final polish and cleanup
-
-## Key Components
-
-### Level Configuration
-
-Levels define the high-level parameters for world generation:
-
-```lua
-local level = {
-    id = "SURVIVAL_DEFAULT",
-    name = "Default",
-    desc = "The standard Don't Starve Together experience.",
-    location = "forest",
-    version = 4,
-    overrides = {
-        season_start = "autumn",
-        wormhole_prefab = "wormhole" 
-    },
-    tasks = { "Make a pick", "Resource-rich", "The other side" },
-    optional_tasks = { "Forest hunters", "Befriend the pigs" },
-    numoptionaltasks = 2
-}
-```
-
-### Tasks
-
-Tasks represent connected clusters of rooms that form distinct areas:
-
-```lua
-AddTask("Make a pick", {
-    locks = {{LOCKS.NONE, LOCKS.ROCKS}},
-    keys_given = {KEYS.PICKAXE},
-    room_choices = {
-        ["Plain"] = { ["Forest"] = 1, ["Clearing"] = 1 }
-    },
-    room_bg = GROUND.GRASS,
-    background_room = "BGGrass",
-    colour = {r=0, g=1, b=0, a=1}
-})
-```
-
-### Rooms
-
-Rooms define the contents of specific areas:
-
-```lua
-AddRoom("Forest", {
-    colour = {r=0.1, g=0.8, b=0.1, a=0.3},
-    value = GROUND.FOREST,
-    tags = {"ExitPiece", "Chester_Eyebone"},
-    contents = {
-        distributepercent = 0.3,
-        distributeprefabs = {
-            evergreen = 6,
-            grass = 0.3,
-            sapling = 0.5,
-            flint = 0.05,
-            fireflies = 0.01
-        }
-    }
-})
-```
-
-## Lock and Key System
-
-The "Lock and Key" system controls progression through the world and helps structure the layout. It creates a natural game flow by requiring players to gather resources or complete tasks before accessing new areas.
-
-### Locks
-
-Locks represent barriers that must be overcome to progress. They don't necessarily manifest as physical barriers, but represent resource or equipment requirements:
-
-```lua
-LOCKS = {
-    NONE = 0,           -- No requirement
-    ROCKS = 1,          -- Requires pickaxe (rock resource)
-    TREES = 2,          -- Requires axe (wood resource)
-    SPIDERS = 3,        -- Requires combat capability
-    TIER1 = 4,          -- Requires basic resources
-    TIER2 = 5,          -- Requires advanced resources
-    MEAT = 6,           -- Requires hunting capability
-    GRASS = 7,          -- Requires basic resources
-    TWIGS = 8,          -- Requires basic resources
-    NIGHTTIME = 9,      -- Requires light sources
-    HAMMER = 10,        -- Requires hammer tool
-    MINERHAT = 11,      -- Requires miner hat
-    MONSTERS = 12,      -- Requires combat capability
-    -- and more
-}
-```
-
-### Keys
-
-Keys represent the tools, resources, or capabilities that allow players to overcome locks:
-
-```lua
-KEYS = {
-    NONE = 0,           -- No key
-    PICKAXE = 1,        -- Basic pickaxe
-    AXE = 2,            -- Basic axe
-    MEAT = 3,           -- Meat resource
-    WOOD = 4,           -- Wood resource
-    GRASS = 5,          -- Grass resource
-    TIER1 = 6,          -- Basic resources
-    TIER2 = 7,          -- Advanced resources
-    LIGHT = 8,          -- Light sources
-    -- and more
-}
-```
-
-### Using Locks and Keys
-
-When defining tasks, you specify which locks they have and which keys they provide:
-
-```lua
-AddTask("Starting Area", {
-    locks = {LOCKS.NONE},  -- No requirements to enter
-    keys_given = {KEYS.AXE, KEYS.PICKAXE},  -- Provides basic tools
-    room_choices = {
-        ["Base"] = {
-            ["ForestStart"] = 1,
-            ["Clearing"] = 1
-        }
-    },
-    room_bg = GROUND.GRASS,
-    background_room = "BGGrass",
-    colour = {r=0, g=1, b=0, a=1}
-})
-
-AddTask("Rocky Territory", {
-    locks = {LOCKS.ROCKS},  -- Requires pickaxe
-    keys_given = {KEYS.TIER1},  -- Provides tier 1 resources
-    room_choices = {
-        ["Rocky"] = {
-            ["Rocky"] = 2,
-            ["RockyBadlands"] = 1
-        }
-    },
-    room_bg = GROUND.DIRT,
-    background_room = "BGRocky",
-    colour = {r=0.6, g=0.6, b=0.0, a=1}
-})
-```
-
-## World Customization
-
-The game allows customization of world generation through several parameters:
-
-```lua
--- Customize world size
-worldgendata.overrides.worldsize = "large"
-
--- Customize resource distribution
-worldgendata.overrides.boons = "more"
-worldgendata.overrides.trees = "lots"
-
--- Customize terrain features
-worldgendata.overrides.branching = "most"
-worldgendata.overrides.loop = "never"
-```
-
-### Override Options
-
-World generation can be customized through override parameters:
-
-| Parameter | Options | Description |
-|-----------|---------|-------------|
-| `worldsize` | "small", "medium", "large", "huge" | Controls overall map size |
-| `branching` | "never", "least", "default", "most" | Controls how many branches tasks have |
-| `loop` | "never", "default", "always" | Whether tasks form loops |
-| `resources` | "few", "default", "many", "max" | Overall resource abundance |
-| `season_start` | "autumn", "winter", "spring", "summer" | Starting season |
-| `touchstone` | "none", "default", "many" | Number of revival stones |
-| `boons` | "none", "few", "default", "many" | Skeleton/supply drops frequency |
-| `prefabswaps_start` | "default", "classic", "highly random" | How predictable prefab placement is |
-| `beefalo` | "none", "rare", "default", "often", "always" | Beefalo abundance |
-| `pigs` | "none", "rare", "default", "often", "always" | Pig house abundance |
-| `spiders` | "none", "rare", "default", "often", "always" | Spider den abundance |
-| `rabbits` | "none", "rare", "default", "often", "always" | Rabbit hole abundance |
-| `trees` | "none", "rare", "default", "often", "always" | Tree abundance |
-| `rocks` | "none", "rare", "default", "often", "always" | Rock abundance |
-| `carrots` | "none", "rare", "default", "often", "always" | Carrot abundance |
-| `grass` | "none", "rare", "default", "often", "always" | Grass abundance |
-
-### World Generation Properties
-
-The following are common prefabs and properties used in world generation:
-
-#### Structures
-| Prefab | Description | Default Distribution |
-|--------|-------------|---------------------|
-| `pighouse` | Pig houses | 0.12 per room in Forest biomes |
-| `mermhouse` | Merm houses | 0.1 per room in Marsh biomes |
-| `spiderden` | Spider dens | 0.15 per room in Forest/Rocky biomes |
-| `rabbithouse` | Rabbit hutches | 0.08 per room in Deciduous biomes |
-| `beehive` | Bee hives | 0.05 per room in Forest/Meadow biomes |
-| `wasphive` | Killer bee hives | 0.03 per room in Meadow biomes |
-| `tallbirdnest` | Tallbird nests | 0.08 per room in Rocky biomes |
-
-#### Resources
-| Prefab | Description | Default Distribution |
-|--------|-------------|---------------------|
-| `evergreen` | Pine trees | 6.0 per Forest room |
-| `deciduoustree` | Birchnut trees | 4.0 per Deciduous room |
-| `rock1` | Boulder | 0.05 per Rocky room |
-| `rock2` | Gold vein | 0.02 per Rocky room |
-| `flint` | Flint | 0.05 per room |
-| `grass` | Grass tufts | 0.3 per Grassland room |
-| `sapling` | Saplings | 0.5 per Forest room |
-| `reeds` | Reeds | 0.3 per Marsh room |
-| `flower` | Flowers | 0.2 per Meadow room |
-| `carrot_planted` | Carrots | 0.1 per Grassland room |
-| `berrybush` | Berry bushes | 0.2 per Forest room |
-| `berrybush2` | Juicy berry bushes | 0.1 per Forest room |
-
-#### Special Features
-| Prefab | Description | Default Distribution |
-|--------|-------------|---------------------|
-| `wormhole` | Wormholes | 2-4 pairs per world |
-| `cave_entrance` | Cave entrances | 4-8 per world |
-| `pond` | Ponds | 0.1 per Grassland room |
-| `pond_mos` | Mosquito ponds | 0.15 per Marsh room |
-| `fireflies` | Firefly lights | 0.1 per Forest room |
-| `skeleton` | Skeleton set pieces | Based on 'boons' setting |
-| `beefaloherd` | Beefalo herds | Based on 'beefalo' setting |
-
-#### Terrain Features
-| Feature | Description | Default Weight |
-|---------|-------------|----------------|
-| `GROUND.ROAD` | Roads | Generated between tasks |
-| `GROUND.FOREST` | Forest terrain | 1.0 in Forest rooms |
-| `GROUND.GRASS` | Grassland terrain | 1.0 in Grassland rooms |
-| `GROUND.MARSH` | Marsh terrain | 1.0 in Marsh rooms |
-| `GROUND.ROCKY` | Rocky terrain | 1.0 in Rocky rooms |
-| `GROUND.SAVANNA` | Savanna terrain | 1.0 in Savanna rooms |
-| `GROUND.DIRT` | Dirt terrain | Used for transitions |
-| `GROUND.WOODFLOOR` | Wooden flooring | Used in set pieces |
-| `GROUND.CARPET` | Carpeted flooring | Used in set pieces |
-
-### Creating Custom World Settings
-
-You can define custom world settings in your mod:
-
-```lua
--- In modworldgenmain.lua
-GLOBAL.TUNING.WORLDGEN_DENSITY_MULTIPLIER = 0.8 -- Reduce overall density
-GLOBAL.terrain.filter.multiply.GRASS = 1.5 -- Increase grass density
-
--- Custom level preset
-AddLevelPreset("CUSTOM_WORLD", {
-    name = "Custom World",
-    desc = "A customized world with unique features.",
-    location = "forest",
-    version = 1,
-    overrides = {
-        start_location = "default",
-        world_size = "medium",
-        resource_renewal = "always",
-        spring = "rare",
-        boons = "many",
-        weather = "rare",
-        roads = "never",
-        spiders = "often",
-        beefalo = "rare",
-        pigs = "often"
-    }
-})
-```
-
-## Special Feature Placement
-
-Special features like set pieces have dedicated placement systems:
-
-```lua
--- Add a guaranteed set piece
-level.ordered_story_setpieces = {
-    "PigKingLayout",
-    "MaxwellThrone"
-}
-
--- Add potential random set pieces
-level.random_set_pieces = {
-    "Chessy_1",
-    "Chessy_2",
-    "Chessy_3",
-    "Chessy_4",
-    "Chessy_5",
-    "Chessy_6"
-}
-```
+- `map/levels.lua`: Defines world presets
+- `map/tasks.lua`: Defines tasks for world generation
+- `map/rooms/*.lua`: Defines rooms and their contents
+- `map/terrain.lua`: Defines terrain types and their properties
 
 ## Creating Custom Rooms
 
-You can create custom rooms for your mod:
+Rooms are the basic building blocks of world generation. Each room has a terrain type and a set of objects to spawn.
 
 ```lua
--- Define a custom room
-AddRoom("MyCustomForest", {
-    colour = {r=0.2, g=0.7, b=0.1, a=0.3},
-    value = GROUND.FOREST,
-    tags = {"ExitPiece", "MyCustomTag"},
+-- Example of a custom room definition
+AddRoom("MyCustomRoom", {
+    colour = {r=0.3, g=0.5, b=0.6, a=0.3},
+    value = WORLD_TILES.GRASS,  -- Base terrain type
+    tags = {"ExitPiece", "Chester_Eyebone"},
     contents = {
-        distributepercent = 0.4, -- Higher density than regular forest
+        distributepercent = 0.15,  -- Density of objects
         distributeprefabs = {
-            evergreen = 8,
+            evergreen = 3,
             grass = 0.5,
-            sapling = 0.7,
-            berrybush = 0.2,
-            red_mushroom = 0.1,
-            fireflies = 0.02,
-            goldnugget = 0.05,
-            flint = 0.1,
-            blue_mushroom = 0.02
-        }
+            sapling = 0.5,
+            flint = 0.05,
+            boulder = 0.01,
+        },
     }
 })
+```
 
--- Add a task that uses your custom room
+### Room Properties
+
+- `colour`: Used for map visualization during development
+- `value`: The base terrain type (from `WORLD_TILES` in `constants.lua`)
+- `tags`: Special tags that affect room selection and object placement
+- `contents`: Defines what objects appear in the room and their distribution
+
+## Creating Custom Tasks
+
+Tasks are collections of rooms that fulfill a specific gameplay purpose.
+
+```lua
+-- Example of a custom task
 AddTask("MyCustomTask", {
-    locks = {LOCKS.NONE},
-    keys_given = {KEYS.PICKAXE, KEYS.AXE},
+    locks = {LOCKS.TIER1},
+    keys_given = {KEYS.WOOD, KEYS.TIER2},
     room_choices = {
-        ["Plain"] = {
-            ["MyCustomForest"] = 2,
-            ["Clearing"] = 1
-        }
+        ["Forest"] = 2,
+        ["BarePlain"] = 1,
+        ["MyCustomRoom"] = 1
     },
-    room_bg = GROUND.GRASS,
+    room_bg = WORLD_TILES.GRASS,
     background_room = "BGGrass",
     colour = {r=0.2, g=0.6, b=0.2, a=1}
 })
-
--- Add your task to a level
-AddLevel("SURVIVAL_DEFAULT", {
-    tasks = {"Make a pick", "MyCustomTask", "The other side"}
-})
 ```
 
-### Room Content Types
+### Task Properties
 
-Rooms can distribute contents in different ways:
+- `locks`: Requirements to access this task
+- `keys_given`: Resources or capabilities provided by this task
+- `room_choices`: Rooms to include (with counts)
+- `room_bg`: Default terrain type
+- `background_room`: Room type for empty areas
+
+## Terrain Customization
+
+Terrain is defined in `map/terrain.lua` and includes properties for each terrain type.
 
 ```lua
--- Standard distribution (random placement based on percentages)
-contents = {
-    distributepercent = 0.3,
-    distributeprefabs = {
-        evergreen = 6,
-        grass = 0.3,
-        sapling = 0.5
+-- Example of terrain customization
+WORLD_TILES.MYTERRAIN = 42  -- Add a new terrain type with ID 42
+
+terrain.names[WORLD_TILES.MYTERRAIN] = "myterrain"
+terrain.ground_names[WORLD_TILES.MYTERRAIN] = "My Custom Terrain"
+
+-- Define terrain properties
+terrain.texture_names[WORLD_TILES.MYTERRAIN] = "myterrain"
+terrain.minimap_colors[WORLD_TILES.MYTERRAIN] = {r=0.5, g=0.3, b=0.1, a=1}
+```
+
+## Setpieces
+
+Setpieces are pre-designed layouts that can be placed in the world.
+
+```lua
+-- Example of adding a setpiece to a level
+local my_level = {
+    id = "SURVIVAL_CUSTOM",
+    name = "My Custom Level",
+    desc = "A custom level with special setpieces",
+    location = "forest",
+    version = 4,
+    overrides = {},
+    required_setpieces = {
+        "Sculptures_1",
+        "MaxwellThrone"
+    },
+    numrandom_set_pieces = 3,
+    random_set_pieces = {
+        "Chessy_1",
+        "Chessy_2",
+        "Chessy_3",
+        "Maxwell1",
+        "Maxwell2",
+        "MyCustomSetpiece"
     }
 }
-
--- Exact counts (place exactly this many of each prefab)
-contents = {
-    countstaticlayouts = {
-        ["PigHouse"] = 3,
-        ["BerryPatch"] = 2
-    }
-}
-
--- Mixed approach
-contents = {
-    distributepercent = 0.2,
-    distributeprefabs = {
-        evergreen = 5,
-        grass = 0.4
-    },
-    countprefabs = {
-        pighouse = 2,
-        spiderden = 1
-    }
-}
+AddLevel(LEVELTYPE.SURVIVAL, my_level)
 ```
 
-## Custom Terrain Creation
+### Creating Custom Setpieces
 
-To create custom terrain types:
+Custom setpieces can be created using the Tiled map editor and converted to Lua:
 
-```lua
--- Define a new terrain type
-GROUND.MYTERRAIN = 99 -- Choose an unused number
-GROUND_NAMES[GROUND.MYTERRAIN] = "MyTerrain"
-
--- Add assets for the new terrain
-local function AddAssets()
-    return {
-        Asset("IMAGE", "levels/tiles/myterrain.tex"),
-        Asset("FILE", "levels/tiles/myterrain.xml")
-    }
-end
-
--- Use the terrain in a custom room
-AddRoom("MyTerrainRoom", {
-    colour = {r=0.5, g=0.5, b=0.2, a=0.3},
-    value = GROUND.MYTERRAIN,
-    contents = {
-        distributepercent = 0.2,
-        distributeprefabs = {
-            rocks = 0.1,
-            grass = 0.5,
-            myprefab = 0.3
-        }
-    }
-})
-```
-
-### Advanced Room Creation
-
-When creating custom rooms, you have several advanced options available:
-
-```lua
-AddRoom("CustomAdvancedRoom", {
-    -- Basic properties
-    colour = {r=0.3, g=0.3, b=0.3, a=0.3},
-    value = GROUND.FOREST,
-    
-    -- Tags control room behavior and placement
-    tags = {
-        "ExitPiece",         -- Can be used as an exit
-        "Hutch_Fishbowl",    -- Can spawn Hutch
-        "Chester_Eyebone",   -- Can spawn Chester's eyebone
-        "StagehandGarden",   -- Can spawn Stagehand
-        "HasMonsters",       -- Contains hostile creatures
-        "Mist",             -- Has mist effects
-        "RoadPoison",       -- Roads are dangerous here
-        "Forest",           -- Forest biome tag
-        "MoonIsland"        -- Moon island biome tag
-    },
-    
-    -- Advanced content distribution
-    contents = {
-        -- Percentage of room to fill with distributed items
-        distributepercent = 0.4,
-        
-        -- Random distribution of prefabs
-        distributeprefabs = {
-            evergreen = {
-                weight = 6,           -- Relative spawn weight
-                min_spacing = 2,      -- Minimum spacing between trees
-                avoid_player = true,  -- Avoid spawning near players
-                clustering = 0.5      -- How much items cluster together (0-1)
-            },
-            grass = {
-                weight = 0.3,
-                min_spacing = 1.5,
-                clustering = 0.2
-            },
-            berrybush = {
-                weight = 0.2,
-                min_spacing = 1.8,
-                avoid_secondary = true -- Avoid other tagged items
-            }
-        },
-        
-        -- Exact count prefabs
-        countprefabs = {
-            pighouse = 2,    -- Exactly 2 pig houses
-            spiderden = 1    -- Exactly 1 spider den
-        },
-        
-        -- Static layouts (pre-designed arrangements)
-        countstaticlayouts = {
-            ["PigVillage"] = 1,
-            ["SpiderCity"] = 1
-        }
-    },
-    
-    -- Custom generation parameters
-    gen_params = {
-        ground_types = {     -- Multiple ground types in one room
-            [GROUND.FOREST] = 3,
-            [GROUND.GRASS] = 1
-        },
-        water_percentage = 0.2,  -- Amount of water
-        has_border = true,      -- Add terrain border
-        border_size = 2,        -- Size of border in tiles
-        edge_padding = 1        -- Padding from room edge
-    },
-    
-    -- Custom placement rules
-    custom_tiles = {
-        GeneratorFunction = function(room, entity, x, y, z)
-            -- Custom placement logic
-            return true -- or false to prevent placement
-        end
-    },
-    
-    -- Room-specific handlers
-    handlers = {
-        -- Called when room is first created
-        OnCreate = function(room)
-            -- Initialize room-specific data
-        end,
-        
-        -- Called when entities are being placed
-        OnPopulate = function(room)
-            -- Add custom entities
-        end,
-        
-        -- Called after all entities are placed
-        OnPostPopulate = function(room)
-            -- Final room modifications
-        end
-    }
-})
-```
-
-### Terrain Patterns and Mixing
-
-You can create complex terrain patterns by mixing different ground types:
-
-```lua
--- Create a checkerboard pattern
-local function CreateCheckerboardTerrain(room)
-    local size = room.size
-    for x = 0, size.x do
-        for y = 0, size.y do
-            if (x + y) % 2 == 0 then
-                room:SetTile(x, y, GROUND.FOREST)
-            else
-                room:SetTile(x, y, GROUND.GRASS)
-            end
-        end
-    end
-end
-
--- Create terrain gradients
-local function CreateTerrainGradient(room)
-    local size = room.size
-    for x = 0, size.x do
-        local percent = x / size.x
-        if percent < 0.33 then
-            room:SetTile(x, y, GROUND.FOREST)
-        elseif percent < 0.66 then
-            room:SetTile(x, y, GROUND.GRASS)
-        else
-            room:SetTile(x, y, GROUND.MARSH)
-        end
-    end
-end
-
--- Add noise to terrain
-local function AddTerrainNoise(room)
-    local size = room.size
-    for x = 0, size.x do
-        for y = 0, size.y do
-            if math.random() < 0.2 then
-                -- Randomly change 20% of tiles
-                room:SetTile(x, y, GROUND.DIRT)
-            end
-        end
-    end
-end
-```
-
-### Custom Room Connections
-
-You can define how rooms connect to each other:
-
-```lua
-AddRoom("CustomConnectedRoom", {
-    -- ... other room properties ...
-    
-    -- Define valid connections
-    connections = {
-        {
-            name = "Forest",      -- Connect to Forest rooms
-            direction = "north",  -- From north side
-            guards = "spiderden" -- Guard with spider dens
-        },
-        {
-            name = "Rocky",       -- Connect to Rocky rooms
-            direction = "east",   -- From east side
-            distance = 2,        -- Must be 2 rooms away
-            required = true      -- Must have this connection
-        }
-    },
-    
-    -- Custom connection handling
-    OnConnect = function(room, other_room, direction)
-        -- Add custom logic when rooms connect
-        if direction == "north" then
-            -- Add special features at north connection
-        end
-    end
-})
-```
-
-## Static Layouts
-
-Static layouts allow you to create custom "set pieces" with precise object placement:
-
-```lua
--- Define a static layout
-local mylayout = StaticLayout.Get(
-    "map/static_layouts/my_custom_layout",
-    {
-        start_mask = PLACE_MASK.NORMAL,
-        fill_mask = PLACE_MASK.IGNORE_IMPASSABLE,
-        layout_position = LAYOUT_POSITION.CENTER
-    }
-)
-
--- Add it to the set pieces that can be placed
-table.insert(level.random_set_pieces, "my_custom_layout")
-```
-
-The layout file would define exact positions for objects:
+1. Create a `.tmx` file in Tiled
+2. Export it to the `data/scripts/map/static_layouts` directory
+3. Create a Lua file that loads the layout:
 
 ```lua
 return {
-  version = "1.1",
-  luaversion = "5.1",
-  orientation = "orthogonal",
-  width = 16,
-  height = 16,
-  tilewidth = 16,
-  tileheight = 16,
-  properties = {},
-  tilesets = {},
-  layers = {
-    {
-      type = "objectgroup",
-      name = "FG_OBJECTS",
-      visible = true,
-      opacity = 1,
-      properties = {},
-      objects = {
-        {
-          name = "evergreen",
-          type = "evergreen",
-          shape = "rectangle",
-          x = 64,
-          y = 80,
-          width = 0,
-          height = 0
-        },
-        {
-          name = "firepit",
-          type = "firepit",
-          shape = "rectangle",
-          x = 128,
-          y = 128,
-          width = 0,
-          height = 0
+    type = LAYOUT.STATIC,
+    layout_file = "map/static_layouts/my_setpiece",
+    areas = {
+        my_area = {
+            -- Define special properties for this area
         }
-      }
-    }
-  }
+    },
+    -- Additional properties
 }
 ```
 
-## Debugging World Generation
+## World Generation Properties
 
-When creating custom world generation, debugging is essential. Here are some useful techniques:
+The world generation system uses many properties to control the generation process. These properties can be set through the in-game customization screen or programmatically in mods.
 
-### Visualization Tools
+### Global Properties
+
+- `task_set`: Determines which set of tasks to use (e.g., "default", "classic")
+- `start_location`: Controls the starting location type ("default", "plus", "darkness", etc.)
+- `world_size`: Controls the overall world size ("small", "medium", "default", "huge")
+- `branching`: Controls how many branches the world has ("never", "least", "default", "most", "random")
+- `loop`: Determines whether paths loop back on themselves ("never", "default", "always")
+- `roads`: Controls road generation ("never", "default", "often")
+- `prefabswaps_start`: Determines how predictable prefab placement is ("classic", "default", "highly random")
+- `keep_disconnected_tiles`: Whether to keep disconnected landmasses ("default", "always")
+- `layout_mode`: Controls the overall layout pattern ("LinkNodesByKeys", "RestrictNodesByKey")
+- `wormhole_prefab`: Specifies the prefab to use for wormholes (default: "wormhole")
+
+### Season Properties
+
+- `season_start`: Determines which season the world starts in ("default", "winter", "spring", "summer", "autumn|spring", "winter|summer", "random")
+- `autumn`: Controls autumn length ("noseason", "veryshortseason", "shortseason", "default", "longseason", "verylongseason", "random")
+- `winter`: Controls winter length ("noseason", "veryshortseason", "shortseason", "default", "longseason", "verylongseason", "random")
+- `spring`: Controls spring length ("noseason", "veryshortseason", "shortseason", "default", "longseason", "verylongseason", "random")
+- `summer`: Controls summer length ("noseason", "veryshortseason", "shortseason", "default", "longseason", "verylongseason", "random")
+- `day`: Controls day/night cycle ("default", "longday", "longdusk", "longnight", "noday", "nodusk", "nonight", "onlyday", "onlydusk", "onlynight")
+
+### Resource Properties
+
+#### Basic Resources
+- `berrybush`: Controls berry bush abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `grass`: Controls grass tuft abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `sapling`: Controls sapling abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `reeds`: Controls reed abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `trees`: Controls tree abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `flint`: Controls flint abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `rock`: Controls rock abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `rock_ice`: Controls ice rock abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `meteorspawner`: Controls meteor shower frequency ("never", "rare", "uncommon", "default", "often", "mostly", "always")
+- `meteorshowers`: Controls meteor shower frequency ("never", "rare", "uncommon", "default", "often", "mostly", "always")
+
+#### Food Resources
+- `carrot`: Controls carrot abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `berrybush_juicy`: Controls juicy berry bush abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `cactus`: Controls cactus abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `marshbush`: Controls marsh bush abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `flowers`: Controls flower abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `moon_tree`: Controls moon tree abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `moon_sapling`: Controls moon sapling abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `moon_berrybush`: Controls rock avocado bush abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `moon_rock`: Controls moon rock abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `moon_hotspring`: Controls hot spring abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+
+#### Ocean Resources
+- `ocean_seastack`: Controls sea stack abundance ("ocean_never", "ocean_rare", "ocean_uncommon", "ocean_default", "ocean_often", "ocean_mostly", "ocean_always", "ocean_insane")
+- `ocean_shoal`: Controls fish shoal abundance ("ocean_never", "ocean_rare", "ocean_uncommon", "ocean_default", "ocean_often", "ocean_mostly", "ocean_always", "ocean_insane")
+- `ocean_waterplant`: Controls sea weed abundance ("ocean_never", "ocean_rare", "ocean_uncommon", "ocean_default", "ocean_often", "ocean_mostly", "ocean_always", "ocean_insane")
+- `ocean_wobsterden`: Controls wobster den abundance ("ocean_never", "ocean_rare", "ocean_uncommon", "ocean_default", "ocean_often", "ocean_mostly", "ocean_always", "ocean_insane")
+- `ocean_bullkelp`: Controls bull kelp abundance ("ocean_never", "ocean_rare", "ocean_uncommon", "ocean_default", "ocean_often", "ocean_mostly", "ocean_always", "ocean_insane")
+- `ocean_otterdens`: Controls otter den abundance ("ocean_never", "ocean_rare", "ocean_uncommon", "ocean_default", "ocean_often", "ocean_mostly", "ocean_always", "ocean_insane")
+
+### Creature Properties
+
+#### Passive Creatures
+- `rabbits`: Controls rabbit hole abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `moles`: Controls molehill abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `butterfly`: Controls butterfly abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `birds`: Controls bird abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `pigs`: Controls pig house abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `beefalo`: Controls beefalo herd abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `bees`: Controls beehive abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `catcoon`: Controls catcoon den abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `lightninggoat`: Controls lightning goat abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `buzzard`: Controls buzzard abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `merm`: Controls mermhouse abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `bunnymen`: Controls rabbit hutch abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `rocky`: Controls rocklobster abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `monkey`: Controls monkey abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+
+#### Hostile Creatures
+- `spiders`: Controls spider den abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `cave_spiders`: Controls cave spider abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `houndmound`: Controls hound mound abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `tallbirds`: Controls tallbird nest abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `tentacles`: Controls tentacle abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `chess`: Controls clockwork monster abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `walrus`: Controls MacTusk camp abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `angrybees`: Controls killer bee hive abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `deciduousmonster`: Controls Birchnut tree abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `moon_spiders`: Controls moon spider den abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `moon_carrot`: Controls planted carrat abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `moon_fruitdragon`: Controls fruit dragon abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `moon_fissure`: Controls moon fissure abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `moon_starfish`: Controls starfish trap abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+- `moon_bullkelp`: Controls beached bullkelp abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always", "insane")
+
+### Special Features
+
+- `touchstone`: Controls resurrection touchstone abundance ("never", "rare", "uncommon", "default", "often", "mostly", "always")
+- `boons`: Controls setpiece skeleton/supply drops frequency ("never", "rare", "uncommon", "default", "often", "mostly", "always")
+- `frograin`: Controls frog rain frequency ("never", "rare", "uncommon", "default", "often", "mostly", "always")
+- `wildfires`: Controls wildfire frequency ("never", "rare", "uncommon", "default", "often", "mostly", "always")
+- `petrification`: Controls forest petrification rate ("none", "few", "default", "many", "max")
+- `lightning`: Controls lightning frequency ("never", "rare", "uncommon", "default", "often", "mostly", "always")
+- `weather`: Controls rain frequency ("never", "rare", "uncommon", "default", "often", "mostly", "always")
+- `disease_delay`: Controls disease onset timing ("none", "random", "long", "default", "short")
+- `terrariumchest`: Controls the presence of the Terrarium chest ("never", "default")
+- `stageplays`: Controls the presence of stageplays ("never", "default")
+- `regrowth`: Controls how quickly destroyed resources regrow ("never", "veryslow", "slow", "default", "fast", "veryfast")
+- `extrastartingitems`: Controls extra starting items ("0", "5", "default", "15", "20", "none")
+- `specialevent`: Controls special events ("none", "default")
+- `atrium_gate`: Controls atrium gate regeneration speed ("veryslow", "slow", "default", "fast", "veryfast")
+
+### Boss Properties
+
+- `bearger`: Controls Bearger spawn frequency ("never", "rare", "default", "often", "always")
+- `deerclops`: Controls Deerclops spawn frequency ("never", "rare", "default", "often", "always")
+- `goosemoose`: Controls Moose/Goose spawn frequency ("never", "rare", "default", "often", "always")
+- `dragonfly`: Controls Dragonfly spawn frequency ("never", "rare", "default", "often", "always")
+- `antliontribute`: Controls Antlion tribute frequency ("never", "rare", "default", "often", "always")
+- `klaus`: Controls Klaus spawn frequency ("never", "rare", "default", "often", "always")
+- `malbatross`: Controls Malbatross spawn frequency ("never", "rare", "default", "often", "always")
+- `crabking`: Controls Crab King spawn frequency ("never", "rare", "default", "often", "always")
+- `beequeen`: Controls Bee Queen spawn frequency ("never", "rare", "default", "often", "always")
+- `toadstool`: Controls Toadstool spawn frequency ("never", "rare", "default", "often", "always")
+- `stalker`: Controls Ancient Fuelweaver spawn frequency ("never", "rare", "default", "often", "always")
+- `minotaur`: Controls Ancient Guardian spawn frequency ("never", "rare", "default", "often", "always")
+- `deciduousmonster`: Controls Poison Birchnut Tree spawn frequency ("never", "rare", "default", "often", "always")
+
+### Effect on Gameplay
+
+Different property settings can dramatically change the gameplay experience:
+
+- **Resource Abundance**: Setting resources to "often" or "mostly" creates a more relaxed survival experience, while "rare" or "never" creates a challenging scarcity
+- **Creature Balance**: Increasing passive creatures while decreasing hostile ones creates a more peaceful world, while the opposite creates a combat-focused challenge
+- **Season Length**: Longer winters with shorter summers creates a harsh environment focused on cold survival, while the opposite allows for more farming and exploration
+- **World Structure**: High branching with loops creates a more interconnected world with multiple paths, while low branching creates a more linear experience
+- **Boss Frequency**: Increasing boss spawns creates a more combat-focused game with frequent high-stakes encounters
+
+### Property Interactions
+
+Some properties interact with each other in interesting ways:
+
+- Setting `season_start` to "winter" while making `winter` "longseason" creates an extended initial challenge
+- Increasing `spiders` while decreasing `pigs` shifts the natural balance of the world toward a spider-dominated landscape
+- Setting `regrowth` to "fast" while making resources "rare" creates a dynamic where resources are scarce but renewable
+- Combining "default" `world_size` with "most" `branching` creates large, complex worlds with many interconnected areas
+- Setting `roads` to "never" while increasing resource abundance encourages more exploration on foot
+
+## Advanced Techniques
+
+### Custom World Generation
+
+For more advanced customization, you can create a mod that hooks into the world generation process:
 
 ```lua
--- In your modmain, add a debug command to visualize the world graph
-local function VisualizeWorldGraph()
-    local graph = TheWorld.topology
+-- In modmain.lua
+local function CustomizeWorldGeneration(world)
+    -- Modify world generation parameters
+    world.topology.overrides.berrybush = "never"
+    world.topology.overrides.spiders = "always"
     
-    -- Highlight each node in the graph
-    for i, node in ipairs(graph.nodes) do
-        local x, y, z = node.x, 0, node.y
-        local marker = SpawnPrefab("flint") -- Use any visible prefab
-        marker.Transform:SetPosition(x, y, z)
-        marker:DoTaskInTime(30, marker.Remove) -- Clean up after 30 seconds
-        marker.AnimState:SetMultColour(1, 0, 0, 1) -- Make it red
-        
-        -- Show node info
-        print("Node", i, ":", node.type, "at", x, ",", z)
-    end
-    
-    -- Highlight each edge in the graph
-    for i, edge in ipairs(graph.edges) do
-        local node1 = graph.nodes[edge[1]]
-        local node2 = graph.nodes[edge[2]]
-        
-        -- Create a line of markers between the nodes
-        local steps = 10
-        for j = 0, steps do
-            local percent = j / steps
-            local x = node1.x + (node2.x - node1.x) * percent
-            local z = node1.y + (node2.y - node1.y) * percent
-            
-            local marker = SpawnPrefab("goldnugget")
-            marker.Transform:SetPosition(x, 0, z)
-            marker:DoTaskInTime(30, marker.Remove)
-        end
-    end
+    -- Add custom tasks or rooms
+    -- ...
 end
 
-AddPlayerPostInit(function(player)
-    player:ListenForEvent("ms_debug_worldgen", VisualizeWorldGraph)
+AddPrefabPostInit("world", CustomizeWorldGeneration)
+```
+
+### Custom Room Distribution
+
+You can create custom distribution rules for objects in rooms:
+
+```lua
+-- Custom distribution function
+local function CustomDistribution(room, prefab, points_x, points_y, width, height)
+    -- Custom placement logic
+    local custom_points = {}
+    
+    -- Example: Place objects in a circle
+    local center_x = width / 2
+    local center_y = height / 2
+    local radius = math.min(width, height) / 3
+    
+    for i = 1, 8 do
+        local angle = (i - 1) * (2 * math.pi / 8)
+        local x = center_x + radius * math.cos(angle)
+        local y = center_y + radius * math.sin(angle)
+        table.insert(custom_points, {x = x, y = y})
+    end
+    
+    return custom_points
+end
+
+-- Hook into room generation
+AddRoomPreInit("Forest", function(room)
+    room.custom_distribution = CustomDistribution
 end)
 ```
 
-### Logging World Generation
+## Common Issues and Solutions
 
-```lua
--- In modworldgenmain.lua, add logging
-local oldAddTask = AddTask
-AddTask = function(name, data)
-    print("WORLDGEN: Adding task", name)
-    for k, v in pairs(data.room_choices or {}) do
-        print("  Room Group:", k)
-        for room, count in pairs(v) do
-            print("    Room:", room, "Count:", count)
-        end
-    end
-    return oldAddTask(name, data)
-end
+- **World Too Small**: Increase `world_size` parameter
+- **Resources Too Scarce**: Increase specific resource parameters (e.g., `berrybush = "often"`)
+- **Too Many Enemies**: Decrease enemy parameters (e.g., `spiders = "rare"`)
+- **Disconnected Regions**: Increase `branching` and `loop` parameters
+- **Missing Biomes**: Ensure all required tasks are included in the task set
 
-local oldAddRoom = AddRoom
-AddRoom = function(name, data)
-    print("WORLDGEN: Adding room", name, "with ground", data.value)
-    return oldAddRoom(name, data)
-end
-```
+## Conclusion
 
-## Related Components
-
-- **Network System**: Handles connections between different areas
-- **Lock and Key System**: Controls progression through the world
-- **Room System**: Defines individual areas' contents
-- **Map System**: Translates the generation plan into actual terrain 
+World generation in Don't Starve Together offers extensive customization options. By understanding the system's components and how they interact, you can create unique worlds tailored to specific gameplay experiences. Whether through the in-game customization screen or programmatic modifications, the possibilities for world generation are vast. 

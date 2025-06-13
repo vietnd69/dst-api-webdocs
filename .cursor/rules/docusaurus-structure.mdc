@@ -1,0 +1,56 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Docusaurus Project Structure
+
+This project follows the standard Docusaurus structure with TypeScript support for the Don't Starve Together API documentation.
+
+## Key Files
+
+- [docusaurus.config.ts](mdc:dst-api-webdocs/dst-api-webdocs/docusaurus.config.ts) - Main configuration file
+- [sidebars.ts](mdc:dst-api-webdocs/dst-api-webdocs/sidebars.ts) - Sidebar navigation structure
+- [package.json](mdc:dst-api-webdocs/dst-api-webdocs/package.json) - Dependencies and scripts
+- [tsconfig.json](mdc:dst-api-webdocs/dst-api-webdocs/tsconfig.json) - TypeScript configuration
+
+## Core Directories
+
+- `/docs` - Documentation markdown files
+  - `/api-vanilla` - API documentation organized by module categories
+  
+- `/src` - Source code
+  - `/pages` - React components for custom pages
+  - `/components` - Reusable React components
+  - `/css` - Custom CSS files
+
+- `/static` - Static assets
+  - `/img` - Images including logo and favicon
+  - [404.html](mdc:dst-api-webdocs/dst-api-webdocs/static/404.html) - Custom 404 page
+
+## Development Workflow
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm start
+
+# Build the site
+npm run build
+
+# Test the production build locally
+npm run serve
+
+# Deploy to GitHub Pages
+npm run deploy
+```
+
+## TypeScript Usage
+
+The project uses TypeScript for enhanced type safety:
+- React components use `.tsx` extension
+- Configuration files use `.ts` extension
+- Type definitions are provided by Docusaurus packages
+

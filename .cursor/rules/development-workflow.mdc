@@ -55,7 +55,7 @@ The `deploy` script uses the `docusaurus deploy` command, which builds the websi
 When adding new documentation:
 
 1. Place new API documentation in the appropriate subdirectory under `/docs/api-vanilla/`
-2. Update the sidebar configuration in [sidebars.ts](mdc:dst-api-webdocs/dst-api-webdocs/sidebars.ts) to include the new page
+2. Update the sidebar configuration in [sidebars.ts](mdc:dst-api-webdocs/sidebars.ts) to include the new page
 3. Use consistent naming conventions for files and directories
 
 ## Updating Dependencies

@@ -5,43 +5,53 @@ alwaysApply: true
 ---
 # Project Structure
 
-This project follows the standard Docusaurus project structure with TypeScript support.
+This project is a Docusaurus documentation site for the Don't Starve Together Vanilla API.
 
-## Root Configuration Files
+## Key Configuration Files
 
-- [docusaurus.config.ts](mdc:dst-api-webdocs/docusaurus.config.ts) - Main configuration
-- [sidebars.ts](mdc:dst-api-webdocs/sidebars.ts) - Sidebar structure
-- [package.json](mdc:dst-api-webdocs/package.json) - Dependencies and scripts
+- [docusaurus.config.ts](mdc:dst-api-webdocs/docusaurus.config.ts) - Main configuration file that defines site settings, plugins, and theme options
+- [sidebars.ts](mdc:dst-api-webdocs/sidebars.ts) - Defines the sidebar navigation structure for documentation
+- [package.json](mdc:dst-api-webdocs/package.json) - Project dependencies and scripts
 - [tsconfig.json](mdc:dst-api-webdocs/tsconfig.json) - TypeScript configuration
 
 ## Core Directories
 
-- `/docs` - Documentation markdown files
-  - `/api-vanilla` - API documentation for different modules
-  - Other documentation files like getting-started.md
-
+- `/docs` - Contains markdown documentation files
+  - `/api-vanilla` - API documentation organized by module categories
+  
 - `/src` - Source code
   - `/pages` - React components for custom pages
-    - [index.tsx](mdc:dst-api-webdocs/src/pages/index.tsx) - Home page (redirects to docs)
-    - [_index.tsx](mdc:dst-api-webdocs/src/pages/_index.tsx) - Reference implementation (not used in routing)
-  - `/components` - Reusable React components
   - `/css` - Custom CSS files
 
 - `/static` - Static assets
   - `/img` - Images including logo and favicon
-  - [404.html](mdc:dst-api-webdocs/static/404.html) - Custom 404 page
 
-- `/blog` - Blog posts (currently not used)
+## Development Workflow
 
-## Build Output
+```bash
+# Install dependencies
+npm install
 
-- `/build` - Production build output (not tracked in git)
-- `/.docusaurus` - Development cache (not tracked in git)
+# Start development server
+npm start
 
-## TypeScript Usage
+# Build the site
+npm run build
 
-The project uses TypeScript for enhanced type safety:
-- React components use `.tsx` extension
-- Configuration files use `.ts` extension
-- Type definitions are provided by Docusaurus packages
+# Test the production build locally
+npm run serve
+
+# Deploy to GitHub Pages
+npm run deploy
+```
+
+## GitHub Pages Deployment
+
+This site is configured for deployment on GitHub Pages with the following settings:
+
+- Base URL: `/dst-api-webdocs/`
+- Organization: `vietnd69`
+- Project: `dst-api-webdocs`
+
+The deployment is automated via GitHub Actions workflow defined in [.github/workflows/deploy.yml](mdc:dst-api-webdocs/.github/workflows/deploy.yml).
 

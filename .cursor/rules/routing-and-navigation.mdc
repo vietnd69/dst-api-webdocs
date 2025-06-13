@@ -1,0 +1,54 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Routing and Navigation
+
+This document outlines the routing strategy for the Don't Starve Together API documentation site.
+
+## Home Page Redirect
+
+The home page ([src/pages/index.tsx](mdc:dst-api-webdocs/dst-api-webdocs/src/pages/index.tsx)) redirects to the documentation using `useBaseUrl`:
+
+```tsx
+import React from 'react';
+import { Redirect } from '@docusaurus/router';
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
+const Home: React.FC = () => {
+  // useBaseUrl automatically adds baseUrl to the path
+  const docsPath = useBaseUrl('/docs/getting-started');
+  return <Redirect to={docsPath} />;
+};
+
+export default Home;
+```
+
+## URL Structure
+
+- Base URL for production: `/dst-api-webdocs/`
+- All internal links should use relative paths without the baseUrl
+- Docusaurus will automatically add the baseUrl in production
+
+## Sidebar Navigation
+
+The sidebar navigation is defined in [sidebars.ts](mdc:dst-api-webdocs/dst-api-webdocs/sidebars.ts):
+
+- API documentation is organized by category
+- Each category has its own sidebar section
+- Items are ordered logically based on API relationships
+
+## Special Pages
+
+- **404 Page**: Custom 404 page ([static/404.html](mdc:dst-api-webdocs/dst-api-webdocs/static/404.html)) includes special handling for GitHub Pages
+- **Getting Started**: Entry point for new users at `/docs/getting-started`
+
+## URL Best Practices
+
+When creating links in documentation or components:
+
+- For documentation links, use relative paths: `../components/health`
+- For React components, use the `useBaseUrl` hook: `useBaseUrl('/docs/getting-started')`
+- Never hardcode the baseUrl in links
+

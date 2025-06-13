@@ -1,0 +1,72 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# TypeScript Guidelines
+
+This project uses TypeScript for enhanced type safety and developer experience.
+
+## File Extensions
+
+- React components: `.tsx`
+- Configuration files: `.ts`
+- Type definitions: `.d.ts`
+
+## Component Type Definitions
+
+React components should be properly typed using React.FC:
+
+```tsx
+import React from 'react';
+import { Redirect } from '@docusaurus/router';
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
+// Using React.FC for function components
+const Home: React.FC = () => {
+  const docsPath = useBaseUrl('/docs/getting-started');
+  return <Redirect to={docsPath} />;
+};
+
+export default Home;
+```
+
+## Type Imports
+
+When using types from Docusaurus packages:
+
+```ts
+import type {Config} from '@docusaurus/types';
+import type * as Preset from '@docusaurus/preset-classic';
+```
+
+## Configuration with TypeScript
+
+The [docusaurus.config.ts](mdc:dst-api-webdocs/docusaurus.config.ts) file uses TypeScript with proper type annotations:
+
+```ts
+const config: Config = {
+  // Configuration options with proper typing
+  title: 'Don\'t Starve Together Vanilla API',
+  // other options...
+};
+
+export default config;
+```
+
+## Type Safety for Docusaurus Components
+
+When using Docusaurus components, ensure they have proper type definitions:
+
+- Use hooks like `useBaseUrl` and `useDocusaurusContext` with correct typing
+- Import types from Docusaurus packages when needed
+- Use satisfies operator for complex configurations
+
+## Best Practices
+
+- Avoid `any` type when possible
+- Use interfaces for object types
+- Use type guards for runtime type checking
+- Leverage TypeScript's built-in utility types (Partial, Pick, etc.)
+- Add JSDoc comments for better IDE integration
+
