@@ -84,3 +84,7 @@
 	font-size: 0.9rem;
 	font-weight: 400;
 }
+.theme-code-block > div > pre {
+	white-space: pre-wrap !important;
+	word-break: break-word;
+}

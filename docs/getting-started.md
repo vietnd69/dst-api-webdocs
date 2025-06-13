@@ -441,7 +441,7 @@ Remember to update your mod regularly and respond to user feedback to improve yo
 ## References
 
 - [Don't Starve Forums](https://forums.kleientertainment.com/)
-- [Don't Starve Modding Wiki](https://dontstarveapi.com/)
+- [Don't Starve Together API Complete Extension For VSCode](https://github.com/b1inkie/dst-api)
 - [Don't Starve Mod Tools Documentation](https://forums.kleientertainment.com/files/file/83-dont-starve-mod-tools/)
 
 Good luck with your modding project! Don't hesitate to join the DST modding community to learn and share ideas. 

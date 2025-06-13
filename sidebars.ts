@@ -50,11 +50,7 @@ const sidebars: SidebarsConfig = {
 				"api-vanilla/core-systems/network-system",
 			],
 		},
-		{
-			type: "html",
-			value: "<hr/>",
-			className: "sidebar-divider",
-		},
+
 		{
 			type: "category",
 			label: "Core Concepts",
@@ -80,11 +76,7 @@ const sidebars: SidebarsConfig = {
 				"api-vanilla/core/ui-events",
 			],
 		},
-		{
-			type: "html",
-			value: "<hr/>",
-			className: "sidebar-divider",
-		},
+
 		{
 			type: "category",
 			label: "Entity Framework",
@@ -94,11 +86,6 @@ const sidebars: SidebarsConfig = {
 				description: "Components of the entity system that define game objects in Don't Starve Together",
 			},
 			items: ["api-vanilla/entity-framework/entityscript", "api-vanilla/entity-framework/tags"],
-		},
-		{
-			type: "html",
-			value: "<hr/>",
-			className: "sidebar-divider",
 		},
 
 		{
@@ -118,30 +105,6 @@ const sidebars: SidebarsConfig = {
 				"api-vanilla/global-objects/global",
 			],
 		},
-		{
-			type: "html",
-			value: "<hr/>",
-			className: "sidebar-divider",
-		},
-
-		{
-			type: "category",
-			label: "World",
-			link: {
-				type: "generated-index",
-				title: "World",
-				description: "World-related API functionality in Don't Starve Together",
-			},
-			items: [
-				"api-vanilla/world/world-overview",
-				"api-vanilla/world/map",
-				"api-vanilla/world/seasons",
-				"api-vanilla/world/network",
-				"api-vanilla/world/worldgen",
-				"api-vanilla/world/worldsettings",
-			],
-		},
-
 		{
 			type: "html",
 			value: "<hr/>",
@@ -188,6 +151,23 @@ const sidebars: SidebarsConfig = {
 			value: "<hr/>",
 			className: "sidebar-divider",
 		},
+		{
+			type: "category",
+			label: "World",
+			link: {
+				type: "generated-index",
+				title: "World",
+				description: "World-related API functionality in Don't Starve Together",
+			},
+			items: [
+				"api-vanilla/world/world-overview",
+				"api-vanilla/world/map",
+				"api-vanilla/world/seasons",
+				"api-vanilla/world/network",
+				"api-vanilla/world/worldgen",
+				"api-vanilla/world/worldsettings",
+			],
+		},
 
 		{
 			type: "category",
@@ -206,11 +186,7 @@ const sidebars: SidebarsConfig = {
 				// Add more prefab types
 			],
 		},
-		{
-			type: "html",
-			value: "<hr/>",
-			className: "sidebar-divider",
-		},
+
 		{
 			type: "category",
 			label: "Recipes",
@@ -221,11 +197,7 @@ const sidebars: SidebarsConfig = {
 			},
 			items: ["api-vanilla/recipes/recipes-overview", "api-vanilla/recipes/crafting", "api-vanilla/recipes/cooking"],
 		},
-		{
-			type: "html",
-			value: "<hr/>",
-			className: "sidebar-divider",
-		},
+
 		{
 			type: "category",
 			label: "State Graphs",
@@ -244,11 +216,7 @@ const sidebars: SidebarsConfig = {
 				"api-vanilla/stategraphs/examples",
 			],
 		},
-		{
-			type: "html",
-			value: "<hr/>",
-			className: "sidebar-divider",
-		},
+
 		{
 			type: "category",
 			label: "Shared Properties",
@@ -287,11 +255,7 @@ const sidebars: SidebarsConfig = {
 				"api-vanilla/node-types/sequence-nodes",
 			],
 		},
-		{
-			type: "html",
-			value: "<hr/>",
-			className: "sidebar-divider",
-		},
+
 		{
 			type: "category",
 			label: "Data Types",
@@ -309,11 +273,7 @@ const sidebars: SidebarsConfig = {
 				"api-vanilla/data-types/userdata",
 			],
 		},
-		{
-			type: "html",
-			value: "<hr/>",
-			className: "sidebar-divider",
-		},
+
 		{
 			type: "category",
 			label: "Utils",
@@ -330,6 +290,56 @@ const sidebars: SidebarsConfig = {
 				"api-vanilla/utils/debug-utils",
 				"api-vanilla/utils/file-utils",
 			],
+		},
+		{
+			type: "html",
+			value: "<hr/>",
+			className: "sidebar-divider",
+		},
+		{
+			type: "category",
+			label: "Examples",
+			link: {
+				type: "generated-index",
+				title: "Examples",
+				description: "Examples of how to use the Don't Starve Together API",
+			},
+			items: [
+				"api-vanilla/examples/examples-overview",
+				"api-vanilla/examples/simple-item",
+				"api-vanilla/examples/character-mod",
+				"api-vanilla/examples/recipe-mod",
+				"api-vanilla/examples/custom-component",
+				"api-vanilla/examples/ui-mod",
+				"api-vanilla/examples/stategraph-mod",
+				"api-vanilla/examples/worldgen-mod",
+				"api-vanilla/examples/optimization",
+				"api-vanilla/examples/networking-mod",
+				"api-vanilla/examples/case-geometric",
+				"api-vanilla/examples/case-wormhole",
+				"api-vanilla/examples/case-status",
+				"api-vanilla/examples/project-tools",
+				"api-vanilla/examples/project-biome",
+				"api-vanilla/examples/project-boss"
+			],
+			
+		},
+		{
+			type: "category",
+			label: "Snippets",
+			link: {
+				type: "generated-index",
+				title: "Snippets",
+				description: "Snippets of code for common tasks in Don't Starve Together",
+			},
+			items: [
+				"api-vanilla/examples/snippets/entity-spawning",
+				"api-vanilla/examples/snippets/event-handling",
+				"api-vanilla/examples/snippets/saving-loading",
+				"api-vanilla/examples/snippets/ui-snippets",
+				"api-vanilla/examples/snippets/networking-snippets",
+				"api-vanilla/examples/snippets/component-snippets",
+			]
 		},
 	],
 };
