@@ -57,7 +57,7 @@ Reusable code snippets for common modding tasks:
 - [Event Handling](snippets/event-handling.md)
 - [Saving and Loading](snippets/saving-loading.md)
 - [Networking](snippets/networking-snippets.md)
-- [Animation](snippets/animation.md)
+- [Animation](snippets/animation-snippets.md)
 
 ## Community Resources
 

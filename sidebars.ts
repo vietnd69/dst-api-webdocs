@@ -44,32 +44,65 @@ const sidebars: SidebarsConfig = {
 			},
 			items: [
 				// Entity and Component Systems
-				{type: "html", value: "<p>Entity and Component Systems</p>", className: "sidebar-title"},
-				"api-vanilla/core/entity-system",
-				"api-vanilla/core/component-system",
-				"api-vanilla/core/entityscript",
-				"api-vanilla/core/event-system",
-				"api-vanilla/core/stategraph-system",
+				{
+					type: "category",
+					label: "Entity and Component Systems",
+					className: "sidebar-title",
+					collapsed: false,
+					collapsible: false,
+					items: [
+						"api-vanilla/core/entity-system",
+						"api-vanilla/core/component-system",
+						"api-vanilla/core/entityscript",
+						"api-vanilla/core/event-system",
+						"api-vanilla/core/stategraph-system",
+					]
+				},
 				
 				// Network and Communication
-				{type: "html", value: "<p>Network and Communication</p>", className: "sidebar-title"},
-				"api-vanilla/core/network-system",
-				"api-vanilla/core/rpc-system",
+				{
+					type: "category",
+					label: "Network and Communication",
+					className: "sidebar-title",
+					collapsed: false,
+					collapsible: false,
+					items: [
+						"api-vanilla/core/network-system",
+						"api-vanilla/core/rpc-system",
+					]
+				},
 				
 				// Mod Development
-				{type: "html", value: "<p>Mod Development</p>", className: "sidebar-title"},
-				"api-vanilla/core/mod-structure",
-				"api-vanilla/core/modoverrides",
-				"api-vanilla/core/server-startup",
-				"api-vanilla/core/constants",
-				"api-vanilla/core/worldstate",
+				{
+					type: "category",
+					label: "Mod Development",
+					className: "sidebar-title",
+					collapsed: false,
+					collapsible: false,
+					items: [
+						"api-vanilla/core/mod-structure",
+						"api-vanilla/core/modoverrides",
+						"api-vanilla/core/server-startup",
+						"api-vanilla/core/constants",
+						"api-vanilla/core/worldstate",
+						"api-vanilla/core/mod-interaction",
+					]
+				},
 				
 				// UI Systems
-				{type: "html", value: "<p>UI Systems</p>", className: "sidebar-title"},
-				"api-vanilla/core/ui-system",
-				"api-vanilla/core/widgets",
-				"api-vanilla/core/creating-screens",
-				"api-vanilla/core/ui-events",
+				{
+					type: "category",
+					label: "UI Systems",
+					className: "sidebar-title",
+					collapsed: false,
+					collapsible: false,
+					items: [
+						"api-vanilla/core/ui-system",
+						"api-vanilla/core/widgets",
+						"api-vanilla/core/creating-screens",
+						"api-vanilla/core/ui-events",
+					]
+				},
 			],
 		},
 

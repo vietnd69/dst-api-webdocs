@@ -13,11 +13,11 @@ Global objects in Don't Starve Together are special singleton instances that pro
 
 | Object | Description |
 |--------|-------------|
-| [TheWorld](./theworld) | The main world instance that manages terrain, environment, and game state |
-| [ThePlayer](./theplayer) | The local player character (client-side only) |
-| [TheNet](./thenet) | Networking functionality for multiplayer and server management |
-| [TheSim](./thesim) | Low-level simulation engine access |
-| [GLOBAL](./global) | The game's global namespace for accessing internal functions and tables |
+| [TheWorld](/docs/api-vanilla/global-objects/theworld) | The main world instance that manages terrain, environment, and game state |
+| [ThePlayer](/docs/api-vanilla/global-objects/theplayer) | The local player character (client-side only) |
+| [TheNet](/docs/api-vanilla/global-objects/thenet) | Networking functionality for multiplayer and server management |
+| [TheSim](/docs/api-vanilla/global-objects/thesim) | Low-level simulation engine access |
+| [GLOBAL](/docs/api-vanilla/global-objects/global) | The game's global namespace for accessing internal functions and tables |
 
 ## Other Important Global Objects
 

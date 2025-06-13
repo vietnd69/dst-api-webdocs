@@ -13,37 +13,37 @@ Don't Starve Together's game architecture is built around a variety of specializ
 
 The DST codebase is structured around these fundamental node types:
 
-### [Entity](entity)
+### [Entity](/docs/api-vanilla/node-types/entity)
 Entities are the fundamental objects in the game world. Everything from characters and creatures to items and structures are entities. They serve as containers for components and provide the foundation for the entity-component system.
 
-### [Component](component)
+### [Component](/docs/api-vanilla/node-types/component)
 Components are reusable modules that provide specific behaviors and properties to entities. They implement discrete functionality that can be attached to entities to give them capabilities like health, inventory, combat, and more.
 
-### [Prefab](prefab)
+### [Prefab](/docs/api-vanilla/node-types/prefab)
 Prefabs are templates or blueprints for creating entities. They define which components an entity should have and set initial values for those components. Prefabs allow for consistent creation of similar entities.
 
 ## Behavioral Node Types
 
 These node types handle AI, movement, and state management:
 
-### [Brain](brain)
+### [Brain](/docs/api-vanilla/node-types/brain)
 Brains control the AI behavior of entities, defining how they make decisions and respond to the environment. They use behavior trees to create complex decision-making processes.
 
-### [Stategraph](stategraph)
+### [Stategraph](/docs/api-vanilla/node-types/stategraph)
 Stategraphs manage animations, sounds, and state-based behaviors for entities. They define the states an entity can be in and the transitions between those states.
 
 ## Interface Node Types
 
 These node types handle the user interface:
 
-### [Widget](widget)
+### [Widget](/docs/api-vanilla/node-types/widget)
 Widgets are UI elements that make up the game's interface. They handle rendering, input, and animation for UI components.
 
 ## Networking Node Types
 
 These node types handle multiplayer functionality:
 
-### [Network](network)
+### [Network](/docs/api-vanilla/node-types/network)
 Network nodes manage the synchronization of game state between server and clients, allowing for multiplayer gameplay.
 
 ## System Interaction

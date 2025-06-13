@@ -46,12 +46,7 @@ const config: Config = {
 			{
 				fromExtensions: ["html", "htm"],
 				redirects: [
-					{
-						// Redirect from main page to docs/getting-started
-						// Note: / will be /dst-api-webdocs/ when deployed
-						from: "/",
-						to: "/docs/getting-started",
-					},
+					// Removed the root redirect as it's handled by index.tsx
 				],
 				createRedirects: function (existingPath) {
 					// Redirect to /docs/introduction from /docs
