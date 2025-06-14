@@ -1,7 +1,7 @@
 ---
-description: 
+description: This project follows specific documentation standards to ensure consistency and readability.
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 # Documentation Standards
 

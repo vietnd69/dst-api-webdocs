@@ -1,13 +1,13 @@
 ---
-description: 
+description: Docusaurus Routing Strategy
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 # Docusaurus Routing Strategy
 
 ## Home Page Redirect
 
-The home page ([src/pages/index.tsx](mdc:dst-api-webdocs/src/pages/index.tsx)) redirects to the documentation page using `useBaseUrl`:
+The home page ([src/pages/index.tsx](mdc:dst-api-webdocs/dst-api-webdocs/src/pages/index.tsx)) redirects to the documentation page using `useBaseUrl`:
 
 ```tsx
 import React from 'react';
@@ -25,7 +25,7 @@ export default Home;
 
 ## 404 Page Handling
 
-The 404 page ([static/404.html](mdc:dst-api-webdocs/static/404.html)) includes special handling for GitHub Pages:
+The 404 page ([static/404.html](mdc:dst-api-webdocs/dst-api-webdocs/static/404.html)) includes special handling for GitHub Pages:
 
 1. It uses a script to handle client-side routing
 2. It has a fallback meta refresh redirect to the documentation
@@ -41,5 +41,5 @@ When creating links in components or configuration:
 
 ## Plugin Redirects
 
-The client-redirects plugin is configured in [docusaurus.config.ts](mdc:dst-api-webdocs/docusaurus.config.ts) to handle specific redirect cases.
+The client-redirects plugin is configured in [docusaurus.config.ts](mdc:dst-api-webdocs/dst-api-webdocs/docusaurus.config.ts) to handle specific redirect cases.
 

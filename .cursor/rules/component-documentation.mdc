@@ -1,0 +1,130 @@
+---
+description: This document outlines the standard format for documenting Don't Starve Together components.
+globs: 
+alwaysApply: false
+---
+# Component Documentation Standards
+
+This document outlines the standard format for documenting Don't Starve Together components.
+
+## Component Documentation Structure
+
+Each component documentation file should follow this structure:
+
+1. **Frontmatter**:
+   ```md
+   ---
+   id: component-name
+   title: Component Name
+   sidebar_position: X
+   ---
+   ```
+
+2. **Title and Overview**:
+   ```md
+   # Component Name
+
+   Brief description of what the component does and its purpose in the game.
+   ```
+
+3. **Basic Usage**:
+   ```md
+   ## Basic Usage
+
+   ```lua
+   -- Add a component to an entity
+   local entity = CreateEntity()
+   entity:AddComponent("componentname")
+
+   -- Configure the component
+   local component = entity.components.componentname
+   component:SomeMethod(parameters)
+   ```
+   ```
+
+4. **Properties Table**:
+   ```md
+   ## Properties
+
+   | Property | Type | Description |
+   |----------|------|-------------|
+   | `property1` | Type | Description of the property |
+   | `property2` | Type | Description of the property |
+   ```
+
+5. **Key Methods**:
+   ```md
+   ## Key Methods
+
+   ```lua
+   -- Method group 1
+   component:Method1(param)
+   component:Method2(param)
+
+   -- Method group 2
+   component:Method3(param)
+   ```
+   ```
+
+6. **Events** (if applicable):
+   ```md
+   ## Events
+
+   The Component triggers or listens for these events:
+
+   - `event1` - Description
+   - `event2` - Description
+   ```
+
+7. **Integration with Other Components**:
+   ```md
+   ## Integration with Other Components
+
+   The Component often works with:
+
+   - `OtherComponent1` - Relationship description
+   - `OtherComponent2` - Relationship description
+   ```
+
+8. **See Also**:
+   ```md
+   ## See also
+
+   - [Related Component](mdc:dst-api-webdocs/related-component.md)
+   - [Another Related Component](mdc:dst-api-webdocs/another-component.md)
+   ```
+
+9. **Examples**:
+   ```md
+   ## Example: Creating a Basic Implementation
+
+   ```lua
+   local function MakeEntityWithComponent()
+       local inst = CreateEntity()
+       
+       -- Add basic components
+       inst.entity:AddTransform()
+       inst.entity:AddAnimState()
+       
+       -- Add and configure our component
+       inst:AddComponent("componentname")
+       inst.components.componentname:Configure(params)
+       
+       return inst
+   end
+   ```
+   ```
+
+## Best Practices
+
+1. **Complete Examples**: Provide working, complete examples that demonstrate the component in action
+2. **Cross-References**: Link to related components and systems
+3. **Property Documentation**: Document all important properties with accurate types
+4. **Method Parameters**: Clearly document parameters for key methods
+5. **Edge Cases**: Note any important edge cases or limitations
+6. **Code Comments**: Include helpful comments in code examples
+
+## Example Component Documentation
+
+See [Health Component](mdc:dst-api-webdocs/dst-api-webdocs/docs/api-vanilla/components/health.md) for a well-structured example of component documentation.
+

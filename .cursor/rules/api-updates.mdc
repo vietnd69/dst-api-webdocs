@@ -1,0 +1,131 @@
+---
+description: This document outlines the standards for documenting updates to the Don't Starve Together API.
+globs: 
+alwaysApply: false
+---
+# API Updates Documentation Standards
+
+This document outlines the standards for documenting updates to the Don't Starve Together API.
+
+## API Update Documentation
+
+When documenting API updates, follow these guidelines to ensure consistency and clarity:
+
+## Update File Structure
+
+API update documentation should be placed in the `/docs/api-vanilla/getting-started/` directory and follow this structure:
+
+1. **Frontmatter**:
+   ```md
+   ---
+   id: update-[version]
+   title: API Update [Version]
+   sidebar_position: X
+   ---
+   ```
+
+2. **Title and Overview**:
+   ```md
+   # API Update [Version]
+
+   Brief description of the update scope and significance.
+   ```
+
+3. **Update Summary**:
+   ```md
+   ## Summary
+
+   - Added X new components
+   - Modified Y existing components
+   - Deprecated Z functions
+   - [Other significant changes]
+   ```
+
+4. **New Features**:
+   ```md
+   ## New Features
+
+   ### Feature Name
+
+   Description of the new feature with code examples:
+
+   ```lua
+   -- Example of new feature usage
+   ```
+   ```
+
+5. **Modified Features**:
+   ```md
+   ## Modified Features
+
+   ### Feature Name
+
+   Description of changes to existing features:
+
+   **Before:**
+   ```lua
+   -- Old usage
+   ```
+
+   **After:**
+   ```lua
+   -- New usage
+   ```
+   ```
+
+6. **Deprecated Features**:
+   ```md
+   ## Deprecated Features
+
+   ### Feature Name
+
+   Description of deprecated feature and recommended alternatives:
+
+   **Deprecated:**
+   ```lua
+   -- Deprecated code
+   ```
+
+   **Recommended Alternative:**
+   ```lua
+   -- Alternative approach
+   ```
+   ```
+
+7. **Breaking Changes**:
+   ```md
+   ## Breaking Changes
+
+   ### Change Description
+
+   Details about breaking changes and migration steps:
+
+   **Migration Steps:**
+   1. Step 1
+   2. Step 2
+   3. Step 3
+   ```
+
+8. **Compatibility Notes**:
+   ```md
+   ## Compatibility Notes
+
+   Information about backwards compatibility and minimum game version requirements.
+   ```
+
+## Best Practices
+
+1. **Version Numbers**: Use clear version numbers that match the game update version
+2. **Complete Examples**: Provide working code examples for all new or changed features
+3. **Migration Guides**: Include step-by-step migration guides for breaking changes
+4. **Cross-References**: Link to detailed documentation for new features
+5. **Changelog**: Maintain a master changelog that links to individual update documents
+
+## Example API Update Documentation
+
+See [API Update Example](mdc:dst-api-webdocs/dst-api-webdocs/docs/api-vanilla/getting-started/api-update-example.md) for a well-structured example of API update documentation.
+
+## API Changelog
+
+The [API Changelog](mdc:dst-api-webdocs/dst-api-webdocs/docs/api-vanilla/getting-started/api-changelog.md) provides a chronological list of all API updates with links to detailed documentation for each update.
+

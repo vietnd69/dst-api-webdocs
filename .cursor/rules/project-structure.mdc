@@ -1,7 +1,7 @@
 ---
-description: 
+description: This project is a Docusaurus documentation site for the Don't Starve Together Vanilla API.
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 # Project Structure
 
@@ -9,10 +9,10 @@ This project is a Docusaurus documentation site for the Don't Starve Together Va
 
 ## Key Configuration Files
 
-- [docusaurus.config.ts](mdc:dst-api-webdocs/docusaurus.config.ts) - Main configuration file that defines site settings, plugins, and theme options
-- [sidebars.ts](mdc:dst-api-webdocs/sidebars.ts) - Defines the sidebar navigation structure for documentation
-- [package.json](mdc:dst-api-webdocs/package.json) - Project dependencies and scripts
-- [tsconfig.json](mdc:dst-api-webdocs/tsconfig.json) - TypeScript configuration
+- [docusaurus.config.ts](mdc:dst-api-webdocs/dst-api-webdocs/docusaurus.config.ts) - Main configuration file that defines site settings, plugins, and theme options
+- [sidebars.ts](mdc:dst-api-webdocs/dst-api-webdocs/sidebars.ts) - Defines the sidebar navigation structure for documentation
+- [package.json](mdc:dst-api-webdocs/dst-api-webdocs/package.json) - Project dependencies and scripts
+- [tsconfig.json](mdc:dst-api-webdocs/dst-api-webdocs/tsconfig.json) - TypeScript configuration
 
 ## Core Directories
 
@@ -53,5 +53,5 @@ This site is configured for deployment on GitHub Pages with the following settin
 - Organization: `vietnd69`
 - Project: `dst-api-webdocs`
 
-The deployment is automated via GitHub Actions workflow defined in [.github/workflows/deploy.yml](mdc:dst-api-webdocs/.github/workflows/deploy.yml).
+The deployment is automated via GitHub Actions workflow defined in [.github/workflows/deploy.yml](mdc:dst-api-webdocs/dst-api-webdocs/.github/workflows/deploy.yml).
 

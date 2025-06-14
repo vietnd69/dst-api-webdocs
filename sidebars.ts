@@ -22,11 +22,29 @@ const sidebars: SidebarsConfig = {
 				id: "getting-started",
 			},
 			items: [
-				"api-vanilla/getting-started/introduction",
-				"api-vanilla/getting-started/installation",
-				"api-vanilla/getting-started/first-mod",
-				"api-vanilla/getting-started/debugging-and-testing",
-				"api-vanilla/getting-started/api-updates",
+				{
+					type: "category",
+					label: "Quick Start",
+					className: "sidebar-title",
+					collapsed: false,
+					collapsible: false,
+					items: [
+						"api-vanilla/getting-started/introduction",
+						"api-vanilla/getting-started/installation",
+						"api-vanilla/getting-started/first-mod",
+					],
+				},
+				{
+					type: "category",
+					label: "Debugging and Testing",
+					className: "sidebar-title",
+					collapsed: false,
+					collapsible: false,
+					items: [
+						"api-vanilla/getting-started/debugging-and-testing",
+						"api-vanilla/getting-started/troubleshooting-guide",
+					],
+				},
 			],
 		},
 		{
@@ -53,12 +71,13 @@ const sidebars: SidebarsConfig = {
 					items: [
 						"api-vanilla/core/entity-system",
 						"api-vanilla/core/component-system",
+						"api-vanilla/core/component-interactions",
 						"api-vanilla/core/entityscript",
 						"api-vanilla/core/event-system",
 						"api-vanilla/core/stategraph-system",
-					]
+					],
 				},
-				
+
 				// Network and Communication
 				{
 					type: "category",
@@ -66,12 +85,9 @@ const sidebars: SidebarsConfig = {
 					className: "sidebar-title",
 					collapsed: false,
 					collapsible: false,
-					items: [
-						"api-vanilla/core/network-system",
-						"api-vanilla/core/rpc-system",
-					]
+					items: ["api-vanilla/core/network-system", "api-vanilla/core/rpc-system"],
 				},
-				
+
 				// Mod Development
 				{
 					type: "category",
@@ -86,9 +102,9 @@ const sidebars: SidebarsConfig = {
 						"api-vanilla/core/constants",
 						"api-vanilla/core/worldstate",
 						"api-vanilla/core/mod-interaction",
-					]
+					],
 				},
-				
+
 				// UI Systems
 				{
 					type: "category",
@@ -101,7 +117,7 @@ const sidebars: SidebarsConfig = {
 						"api-vanilla/core/widgets",
 						"api-vanilla/core/creating-screens",
 						"api-vanilla/core/ui-events",
-					]
+					],
 				},
 			],
 		},
@@ -336,16 +352,17 @@ const sidebars: SidebarsConfig = {
 			},
 			items: [
 				"api-vanilla/examples/examples-overview",
-				// Mod Development
+				// Mod Examples
 				{
 					type: "category",
-					label: "Mod Development",
+					label: "Mod Examples",
 					className: "sidebar-title",
 					collapsed: false,
 					collapsible: false,
 					items: [
 						"api-vanilla/examples/simple-item",
 						"api-vanilla/examples/character-mod",
+						"api-vanilla/examples/full-character-example",
 						"api-vanilla/examples/recipe-mod",
 						"api-vanilla/examples/custom-component",
 						"api-vanilla/examples/ui-mod",
@@ -353,7 +370,10 @@ const sidebars: SidebarsConfig = {
 						"api-vanilla/examples/worldgen-mod",
 						"api-vanilla/examples/optimization",
 						"api-vanilla/examples/networking-mod",
-					]
+						"api-vanilla/examples/resource-usage",
+						"api-vanilla/examples/network-optimization",
+						"api-vanilla/examples/profiling-debugging",
+					],
 				},
 				// Case Studies
 				{
@@ -366,7 +386,7 @@ const sidebars: SidebarsConfig = {
 						"api-vanilla/examples/case-geometric",
 						"api-vanilla/examples/case-wormhole",
 						"api-vanilla/examples/case-status",
-					]
+					],
 				},
 				// Projects
 				{
@@ -378,11 +398,10 @@ const sidebars: SidebarsConfig = {
 					items: [
 						"api-vanilla/examples/project-tools",
 						"api-vanilla/examples/project-biome",
-						"api-vanilla/examples/project-boss"
-					]
-				}
+						"api-vanilla/examples/project-boss",
+					],
+				},
 			],
-			
 		},
 		{
 			type: "category",
@@ -401,7 +420,29 @@ const sidebars: SidebarsConfig = {
 				"api-vanilla/examples/snippets/component-snippets",
 				"api-vanilla/examples/snippets/animation-snippets",
 				"api-vanilla/examples/snippets/prefab-snippets",
-			]
+			],
+		},
+		{
+			type: "html",
+			value: "<hr/>",
+			className: "sidebar-divider",
+		},
+		{
+			type: "category",
+			label: "Updates",
+			link: {
+				type: "generated-index",
+				title: "Updates",
+				description: "Updates to the Don't Starve Together API",
+			},
+			items: [
+				"api-vanilla/getting-started/api-updates",
+				"api-vanilla/getting-started/api-changelog",
+				"api-vanilla/getting-started/mod-updating-guide",
+				"api-vanilla/getting-started/deprecated-features",
+				"api-vanilla/getting-started/backwards-compatibility",
+				"api-vanilla/getting-started/migration-guides",
+			],
 		},
 	],
 };

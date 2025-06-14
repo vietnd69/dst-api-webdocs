@@ -1,7 +1,7 @@
 ---
-description: 
+description: This project follows the standard Docusaurus structure with TypeScript support for the Don't Starve Together API documentation.
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 # Docusaurus Project Structure
 
@@ -9,10 +9,10 @@ This project follows the standard Docusaurus structure with TypeScript support f
 
 ## Key Files
 
-- [docusaurus.config.ts](mdc:dst-api-webdocs/dst-api-webdocs/docusaurus.config.ts) - Main configuration file
-- [sidebars.ts](mdc:dst-api-webdocs/dst-api-webdocs/sidebars.ts) - Sidebar navigation structure
-- [package.json](mdc:dst-api-webdocs/dst-api-webdocs/package.json) - Dependencies and scripts
-- [tsconfig.json](mdc:dst-api-webdocs/dst-api-webdocs/tsconfig.json) - TypeScript configuration
+- [docusaurus.config.ts](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/docusaurus.config.ts) - Main configuration file
+- [sidebars.ts](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/sidebars.ts) - Sidebar navigation structure
+- [package.json](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/package.json) - Dependencies and scripts
+- [tsconfig.json](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/tsconfig.json) - TypeScript configuration
 
 ## Core Directories
 
@@ -26,7 +26,7 @@ This project follows the standard Docusaurus structure with TypeScript support f
 
 - `/static` - Static assets
   - `/img` - Images including logo and favicon
-  - [404.html](mdc:dst-api-webdocs/dst-api-webdocs/static/404.html) - Custom 404 page
+  - [404.html](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/static/404.html) - Custom 404 page
 
 ## Development Workflow
 

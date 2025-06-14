@@ -1,0 +1,121 @@
+---
+description: This document outlines the workflow for deploying the Don't Starve Together API documentation site.
+globs: 
+alwaysApply: false
+---
+# Deployment Workflow
+
+This document outlines the workflow for deploying the Don't Starve Together API documentation site.
+
+## Deployment Methods
+
+The documentation site can be deployed using two methods:
+
+### 1. Automatic Deployment with GitHub Actions
+
+The site is automatically deployed to GitHub Pages whenever changes are pushed to the `main` branch. The GitHub Actions workflow is defined in [.github/workflows/deploy.yml](mdc:dst-api-webdocs/dst-api-webdocs/.github/workflows/deploy.yml).
+
+The workflow:
+1. Checks out the repository
+2. Sets up Node.js
+3. Installs dependencies
+4. Builds the website
+5. Deploys to GitHub Pages
+
+### 2. Manual Deployment
+
+You can also deploy manually using:
+
+```bash
+npm run deploy
+```
+
+This command:
+1. Builds the site
+2. Pushes the built files to the `gh-pages` branch
+
+## GitHub Pages Configuration
+
+The GitHub Pages configuration in [docusaurus.config.ts](mdc:dst-api-webdocs/dst-api-webdocs/docusaurus.config.ts) is:
+
+```ts
+const config: Config = {
+  // ...
+  url: "https://vietnd69.github.io",
+  baseUrl: "/dst-api-webdocs/",
+  organizationName: "vietnd69",
+  projectName: "dst-api-webdocs",
+  trailingSlash: false,
+  deploymentBranch: "gh-pages",
+  // ...
+};
+```
+
+## Deployment Checklist
+
+Before deploying, ensure:
+
+1. All documentation is accurate and up-to-date
+2. Links and cross-references are working
+3. Code examples are valid
+4. Images and assets are properly referenced
+5. The site builds without errors locally
+
+## Testing Deployment Locally
+
+To test the production build locally before deploying:
+
+```bash
+npm run build
+npm run serve
+```
+
+This will build the site and serve it locally with the production configuration.
+
+## Checking GitHub Pages Configuration
+
+To verify your GitHub Pages configuration:
+
+```bash
+npm run check-github-pages
+```
+
+This script checks that:
+1. The repository exists
+2. GitHub Pages is enabled
+3. The deployment branch exists
+4. The site is accessible
+
+## Troubleshooting Deployment Issues
+
+If you encounter issues with deployment:
+
+1. **Build Errors**: Check the build logs for any errors
+2. **GitHub Pages Settings**: Verify GitHub Pages is enabled in repository settings
+3. **Permissions**: Ensure the GitHub token has write permissions
+4. **Branch Issues**: Check if the `gh-pages` branch exists and is properly configured
+5. **URL Issues**: Verify the `url` and `baseUrl` in `docusaurus.config.ts` are correct
+
+## Post-Deployment Verification
+
+After deployment, verify:
+
+1. The site is accessible at https://vietnd69.github.io/dst-api-webdocs/
+2. Navigation and links work correctly
+3. Images and assets are loading properly
+4. The search functionality is working
+5. The site displays correctly on different devices
+
+## Deployment Schedule
+
+- **Automatic Deployments**: Occur whenever changes are pushed to the `main` branch
+- **Manual Deployments**: Performed as needed for urgent updates or when GitHub Actions is not available
+
+## Rollback Procedure
+
+If issues are found after deployment:
+
+1. Fix the issues in the `main` branch
+2. Push the changes to trigger a new deployment
+3. If necessary, revert to a previous commit and deploy manually
+

@@ -1,7 +1,7 @@
 ---
-description: 
+description: This project has been converted from JavaScript to TypeScript for improved type safety and developer experience.
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 # TypeScript Conversion Guidelines
 
@@ -42,7 +42,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 ## Configuration with TypeScript
 
-The [docusaurus.config.ts](mdc:dst-api-webdocs/docusaurus.config.ts) file uses TypeScript with proper type annotations:
+The [docusaurus.config.ts](mdc:dst-api-webdocs/dst-api-webdocs/docusaurus.config.ts) file uses TypeScript with proper type annotations:
 
 ```ts
 const config: Config = {

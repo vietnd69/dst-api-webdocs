@@ -1,7 +1,7 @@
 ---
-description: 
+description: This document outlines the routing strategy for the Don't Starve Together API documentation site.
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 # Routing and Navigation
 
@@ -9,7 +9,7 @@ This document outlines the routing strategy for the Don't Starve Together API do
 
 ## Home Page Redirect
 
-The home page ([src/pages/index.tsx](mdc:dst-api-webdocs/dst-api-webdocs/src/pages/index.tsx)) redirects to the documentation using `useBaseUrl`:
+The home page ([src/pages/index.tsx](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/src/pages/index.tsx)) redirects to the documentation using `useBaseUrl`:
 
 ```tsx
 import React from 'react';
@@ -33,7 +33,7 @@ export default Home;
 
 ## Sidebar Navigation
 
-The sidebar navigation is defined in [sidebars.ts](mdc:dst-api-webdocs/dst-api-webdocs/sidebars.ts):
+The sidebar navigation is defined in [sidebars.ts](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/sidebars.ts):
 
 - API documentation is organized by category
 - Each category has its own sidebar section
@@ -41,7 +41,7 @@ The sidebar navigation is defined in [sidebars.ts](mdc:dst-api-webdocs/dst-api-w
 
 ## Special Pages
 
-- **404 Page**: Custom 404 page ([static/404.html](mdc:dst-api-webdocs/dst-api-webdocs/static/404.html)) includes special handling for GitHub Pages
+- **404 Page**: Custom 404 page ([static/404.html](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/static/404.html)) includes special handling for GitHub Pages
 - **Getting Started**: Entry point for new users at `/docs/getting-started`
 
 ## URL Best Practices

@@ -1,5 +1,5 @@
 ---
-description: github pages
+description: This project is configured for automatic deployment to GitHub Pages.
 globs: 
 alwaysApply: false
 ---
@@ -9,7 +9,7 @@ This project is configured for automatic deployment to GitHub Pages.
 
 ## Configuration
 
-The deployment configuration is defined in [docusaurus.config.ts](mdc:dst-api-webdocs/docusaurus.config.ts):
+The deployment configuration is defined in [docusaurus.config.ts](mdc:dst-api-webdocs/dst-api-webdocs/docusaurus.config.ts):
 
 ```ts
 const config: Config = {
@@ -26,7 +26,7 @@ const config: Config = {
 
 ## GitHub Actions Workflow
 
-The deployment is automated using GitHub Actions, configured in [.github/workflows/deploy.yml](mdc:dst-api-webdocs/.github/workflows/deploy.yml):
+The deployment is automated using GitHub Actions, configured in [.github/workflows/deploy.yml](mdc:dst-api-webdocs/dst-api-webdocs/.github/workflows/deploy.yml):
 
 ```yaml
 name: Deploy to GitHub Pages
@@ -94,7 +94,7 @@ This will serve the built website locally with the baseUrl configuration applied
 
 ## Configuration Settings
 
-In [docusaurus.config.ts](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/docusaurus.config.ts):
+In [docusaurus.config.ts](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/docusaurus.config.ts):
 
 ```ts
 const config: Config = {
@@ -132,7 +132,7 @@ When deploying to GitHub Pages, all URLs must take into account the base URL:
 
 GitHub Pages requires special handling for the 404 page:
 
-- The [static/404.html](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/static/404.html) file includes client-side routing script
+- The [static/404.html](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/static/404.html) file includes client-side routing script
 - It has a fallback meta refresh to redirect to the documentation
 - It is configured to handle the baseUrl prefix correctly
 

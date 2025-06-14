@@ -1,0 +1,202 @@
+---
+description: This document outlines the standards for documenting the core systems of Don't Starve Together.
+globs: 
+alwaysApply: false
+---
+# Core Systems Documentation Standards
+
+This document outlines the standards for documenting the core systems of Don't Starve Together.
+
+## Core Systems Documentation Structure
+
+Core systems documentation should follow this structure:
+
+1. **Frontmatter**:
+   ```md
+   ---
+   id: system-name
+   title: System Name
+   sidebar_position: X
+   ---
+   ```
+
+2. **Title and Overview**:
+   ```md
+   # System Name
+
+   Brief description of what the system does and its role in the game architecture.
+   ```
+
+3. **System Architecture**:
+   ```md
+   ## System Architecture
+
+   Explanation of how the system is structured, including key components and their relationships.
+
+   [Optional diagram showing system architecture]
+   ```
+
+4. **Key Concepts**:
+   ```md
+   ## Key Concepts
+
+   ### Concept 1
+   Explanation of the first key concept.
+
+   ### Concept 2
+   Explanation of the second key concept.
+   ```
+
+5. **API Reference**:
+   ```md
+   ## API Reference
+
+   ### Functions
+
+   #### FunctionName(param1, param2)
+   Description of the function.
+
+   **Parameters:**
+   - `param1` (Type): Description of first parameter
+   - `param2` (Type): Description of second parameter
+
+   **Returns:**
+   - (Type): Description of return value
+
+   **Example:**
+   ```lua
+   -- Example of function usage
+   ```
+   ```
+
+6. **Integration with Other Systems**:
+   ```md
+   ## Integration with Other Systems
+
+   ### System 1
+   How this system interacts with System 1.
+
+   ### System 2
+   How this system interacts with System 2.
+   ```
+
+7. **Common Patterns**:
+   ```md
+   ## Common Patterns
+
+   ### Pattern 1
+   Description and example of a common usage pattern.
+
+   ```lua
+   -- Example code for pattern 1
+   ```
+
+   ### Pattern 2
+   Description and example of another common usage pattern.
+
+   ```lua
+   -- Example code for pattern 2
+   ```
+   ```
+
+8. **Best Practices**:
+   ```md
+   ## Best Practices
+
+   - Best practice 1
+   - Best practice 2
+   - Best practice 3
+   ```
+
+9. **Common Pitfalls**:
+   ```md
+   ## Common Pitfalls
+
+   ### Pitfall 1
+   Description of a common mistake and how to avoid it.
+
+   ### Pitfall 2
+   Description of another common mistake and how to avoid it.
+   ```
+
+10. **Examples**:
+    ```md
+    ## Examples
+
+    ### Basic Example
+    ```lua
+    -- Basic example code
+    ```
+
+    ### Advanced Example
+    ```lua
+    -- Advanced example code
+    ```
+    ```
+
+11. **See Also**:
+    ```md
+    ## See Also
+
+    - [Related System 1](mdc:dst-api-webdocs/related-system-1.md)
+    - [Related System 2](mdc:dst-api-webdocs/related-system-2.md)
+    ```
+
+## Core Systems Categories
+
+The core systems documentation is organized into these categories:
+
+1. **Entity and Component Systems**:
+   - Entity System
+   - Component System
+   - Component Interactions
+   - EntityScript
+   - Event System
+   - StateGraph System
+
+2. **Network and Communication**:
+   - Network System
+   - RPC System
+
+3. **Mod Development**:
+   - Mod Structure
+   - ModOverrides
+   - Server Startup
+   - Constants
+   - WorldState
+   - Mod Interaction
+
+4. **UI Systems**:
+   - UI System
+   - Widgets
+   - Creating Screens
+   - UI Events
+
+## Diagrams
+
+When appropriate, include diagrams to illustrate system architecture and relationships:
+
+- Use simple, clear diagrams
+- Include legends for any symbols or colors
+- Focus on the most important relationships
+- Keep diagrams consistent with the text description
+
+## Code Examples
+
+Core system documentation should include:
+
+- Basic usage examples
+- Common pattern examples
+- Integration examples showing how the system works with other systems
+- Complete, working examples that can be used in mods
+
+## Best Practices
+
+1. **Completeness**: Document all important aspects of the system
+2. **Clarity**: Use clear, concise language
+3. **Accuracy**: Ensure all information is technically accurate
+4. **Examples**: Include relevant, working examples
+5. **Cross-References**: Link to related systems and components
+6. **Architecture**: Explain the system's architecture and design principles
+7. **Integration**: Describe how the system integrates with other systems
+

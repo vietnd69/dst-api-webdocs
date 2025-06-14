@@ -1,0 +1,184 @@
+---
+description: This document outlines the standards for creating and documenting code examples in the Don't Starve Together API documentation.
+globs: 
+alwaysApply: false
+---
+# Example Documentation Standards
+
+This document outlines the standards for creating and documenting code examples in the Don't Starve Together API documentation.
+
+## Example Types
+
+The documentation includes several types of examples:
+
+### 1. Snippet Examples
+
+Short code snippets that demonstrate specific API features:
+
+```lua
+-- Example of setting health
+entity.components.health:SetMaxHealth(100)
+entity.components.health:SetPercent(0.5) -- Set to 50% health
+```
+
+### 2. Function Examples
+
+Complete function examples that show how to implement specific functionality:
+
+```lua
+-- Function to make an entity take damage over time
+local function ApplyPoisonEffect(inst, damage, interval, duration)
+    if inst.components.health == nil then
+        return
+    end
+    
+    -- Calculate number of damage ticks
+    local ticks = math.floor(duration / interval)
+    local remaining = ticks
+    
+    -- Create poison effect
+    inst:DoPeriodicTask(interval, function(inst)
+        if inst.components.health ~= nil and not inst.components.health:IsDead() then
+            inst.components.health:DoDelta(-damage)
+            remaining = remaining - 1
+            
+            if remaining <= 0 then
+                -- Poison effect has ended
+                if inst.components.talker ~= nil then
+                    inst.components.talker:Say("The poison has worn off")
+                end
+            end
+        end
+    end)
+    
+    return ticks * damage -- Return total damage that will be dealt
+end
+```
+
+### 3. Complete Prefab Examples
+
+Full prefab implementations that demonstrate how to create game entities:
+
+```lua
+-- Complete example of a custom food item
+local function MakeCustomFood()
+    local inst = CreateEntity()
+    
+    -- Basic entity setup
+    inst.entity:AddTransform()
+    inst.entity:AddAnimState()
+    inst.entity:AddNetwork()
+    
+    -- Set up animations
+    inst.AnimState:SetBank("custom_food")
+    inst.AnimState:SetBuild("custom_food")
+    inst.AnimState:PlayAnimation("idle")
+    
+    -- Make it an inventory item
+    inst:AddComponent("inventoryitem")
+    inst.components.inventoryitem.imagename = "custom_food"
+    inst.components.inventoryitem.atlasname = "images/inventoryitems/custom_food.xml"
+    
+    -- Make it stackable
+    inst:AddComponent("stackable")
+    inst.components.stackable.maxsize = 20
+    
+    -- Make it edible
+    inst:AddComponent("edible")
+    inst.components.edible.healthvalue = 5
+    inst.components.edible.hungervalue = 15
+    inst.components.edible.sanityvalue = 10
+    inst.components.edible.foodtype = FOODTYPE.VEGGIE
+    
+    -- Make it perishable
+    inst:AddComponent("perishable")
+    inst.components.perishable:SetPerishTime(TUNING.PERISH_MED)
+    inst.components.perishable:StartPerishing()
+    
+    -- Make it inspectable
+    inst:AddComponent("inspectable")
+    inst.components.inspectable.nameoverride = "custom_food"
+    
+    return inst
+end
+```
+
+## Example Documentation Structure
+
+When documenting examples, follow this structure:
+
+1. **Title and Purpose**:
+   ```md
+   ## Example: Creating a Custom Food Item
+   
+   This example demonstrates how to create a custom food item with edible, perishable, and stackable properties.
+   ```
+
+2. **Prerequisites** (if applicable):
+   ```md
+   ### Prerequisites
+   
+   - Understanding of basic entity creation
+   - Custom art assets for the food item
+   ```
+
+3. **Code Example**:
+   ```md
+   ### Implementation
+   
+   ```lua
+   -- Code example here
+   ```
+   ```
+
+4. **Explanation**:
+   ```md
+   ### Explanation
+   
+   This example creates a custom food item with the following components:
+   
+   - **Inventoryitem**: Makes it pickable and storable in inventory
+   - **Stackable**: Allows stacking up to 20 items
+   - **Edible**: Defines food values and type
+   - **Perishable**: Makes the food spoil over time
+   ```
+
+5. **Usage** (if applicable):
+   ```md
+   ### Usage
+   
+   ```lua
+   -- How to use the example in a mod
+   local custom_food = GLOBAL.Prefabs["custom_food"]
+   local food_inst = custom_food()
+   ```
+   ```
+
+## Best Practices
+
+1. **Completeness**: Examples should be complete and runnable
+2. **Comments**: Include comments to explain complex or non-obvious parts
+3. **Error Handling**: Include appropriate error checking and handling
+4. **Performance**: Demonstrate efficient coding practices
+5. **Modularity**: Structure examples to be modular and reusable
+6. **Consistency**: Follow the game's coding style and conventions
+
+## Example Categories
+
+The `/docs/api-vanilla/examples/` directory contains various categories of examples:
+
+- **Snippets**: Small, focused code snippets
+- **Simple Items**: Basic item creation examples
+- **Characters**: Character mod examples
+- **UI Mods**: User interface modification examples
+- **Case Studies**: Complex, real-world examples
+
+## Testing Examples
+
+All examples should be tested to ensure they work correctly in the game. Before submitting an example:
+
+1. Test it in a development environment
+2. Verify it works with the current game version
+3. Check for any errors or warnings
+4. Ensure it demonstrates best practices
+

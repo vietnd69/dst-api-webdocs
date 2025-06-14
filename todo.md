@@ -1,31 +1,31 @@
 DST API Documentation Development Checklist
 1. Component Interactions
-[ ] Add a "Component Interactions" section describing how common components interact
-[ ] Create a data flow diagram between core components
-[ ] Add code examples demonstrating interaction between Health, Combat, and Inventory
-[ ] Add examples of how components communicate via events
-[ ] Describe common design patterns when working with multiple components
+[x] Add a "Component Interactions" section describing how common components interact
+[x] Create a data flow diagram between core components
+[x] Add code examples demonstrating interaction between Health, Combat, and Inventory
+[x] Add examples of how components communicate via events
+[x] Describe common design patterns when working with multiple components
 
 2. Performance Optimization
-[ ] Create a guide on optimizing when working with many entities
-[ ] Add a section on reducing resource usage in mods
-[ ] Describe caching and lazy loading techniques
-[ ] Add examples of optimizing network traffic in multiplayer
-[ ] Add a section on profiling and debugging performance issues
+[x] Create a guide on optimizing when working with many entities
+[x] Add a section on reducing resource usage in mods
+[x] Describe caching and lazy loading techniques
+[x] Add examples of optimizing network traffic in multiplayer
+[x] Add a section on profiling and debugging performance issues
 
 3. Troubleshooting Guide
-[ ] Create a list of common errors and how to fix them
-[ ] Add a section on effective mod debugging techniques
-[ ] Describe how to handle compatibility issues between mods
-[ ] Add a guide on reading logs and error messages
-[ ] Create a step-by-step bug testing workflow
+[x] Create a list of common errors and how to fix them
+[x] Add a section on effective mod debugging techniques
+[x] Describe how to handle compatibility issues between mods
+[x] Add a guide on reading logs and error messages
+[x] Create a step-by-step bug testing workflow
 
 4. API Updates
-[ ] Create an "API Changelog" page to track version changes
-[ ] Add guidance on updating mods when the API changes
-[ ] Describe deprecated features and their alternatives
-[ ] Add a section on backwards compatibility
-[ ] Create migration guides for major versions
+[x] Create an "API Changelog" page to track version changes
+[x] Add guidance on updating mods when the API changes
+[x] Describe deprecated features and their alternatives
+[x] Add a section on backwards compatibility
+[x] Create migration guides for major versions
 
 5. More Complete Code Samples
 [ ] Add a full example of creating a custom character

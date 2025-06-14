@@ -94,6 +94,95 @@ Components can communicate with each other through:
    self.inst:ListenForEvent("death", OnDeath)
    ```
 
+## Component Interactions
+
+Components are designed to work together to create complex behaviors. Understanding how components interact is crucial for effective modding. Here are common interaction patterns:
+
+### Health and Combat Interaction
+
+The Health and Combat components work closely together to manage damage and death:
+
+```lua
+-- Combat component deals damage to the Health component
+function Combat:DoAttack(target)
+    if target.components.health ~= nil then
+        local damage = self:CalcDamage(target)
+        target.components.health:DoDelta(-damage)
+        
+        if target.components.health:IsDead() then
+            self:OnKill(target)
+        end
+    end
+end
+```
+
+### Inventory and Equippable Interaction
+
+The Inventory component manages equipped items through the Equippable component:
+
+```lua
+function Inventory:Equip(item)
+    if item.components.equippable ~= nil then
+        local eslot = item.components.equippable.equipslot
+        local old_item = self:GetEquippedItem(eslot)
+        
+        if old_item ~= nil then
+            self:Unequip(eslot)
+        end
+        
+        item.components.equippable:OnEquip(self.inst)
+        self.equipslots[eslot] = item
+        self.inst:PushEvent("equipped", {item = item, eslot = eslot})
+    end
+end
+```
+
+### Container and Inventory Interaction
+
+Containers work with the Inventory system to store and transfer items:
+
+```lua
+function Container:GiveItem(item, slot)
+    if self.inst.components.inventory ~= nil then
+        -- First try to add to existing stacks
+        for i, v in pairs(self.slots) do
+            if v.prefab == item.prefab and v.components.stackable ~= nil and 
+               v.components.stackable:CanStack(item) then
+                return v.components.stackable:Put(item)
+            end
+        end
+        
+        -- Then try to find an empty slot
+        local emptyslot = slot or self:GetFirstEmptySlot()
+        if emptyslot ~= nil then
+            self.slots[emptyslot] = item
+            return item
+        end
+    end
+    return nil
+end
+```
+
+### Common Interaction Patterns
+
+1. **State Management**: Components often manage different aspects of an entity's state and notify each other of changes
+   - Health notifies Combat when health reaches zero
+   - Temperature notifies Health when freezing/overheating damage occurs
+
+2. **Resource Management**: Components work together to manage resources
+   - Hunger affects Health regeneration
+   - Fuel components interact with Burnable components
+
+3. **Action Chains**: Components form chains of actions
+   - Combat triggers LootDropper when killing an entity
+   - Workable triggers resource drops when finished working
+
+4. **Buff Systems**: Components apply and manage buffs/debuffs
+   - Equippable items provide buffs to Temperature, Combat, etc.
+   - Food items affect Hunger, Health, and Sanity
+
+Understanding these interaction patterns helps when creating or modifying components to ensure they integrate properly with the existing system.
+
 ## Creating Custom Components
 
 While modding, you can create custom components to add new behaviors:

@@ -1,0 +1,153 @@
+---
+description: This document outlines the standards for code examples in the Don't Starve Together API documentation.
+globs: 
+alwaysApply: false
+---
+# Code Examples Standards
+
+This document outlines the standards for code examples in the Don't Starve Together API documentation.
+
+## General Guidelines
+
+- All code examples should be valid, runnable Lua code
+- Use proper syntax highlighting with the `lua` language tag
+- Include comments to explain complex or non-obvious parts
+- Follow consistent naming conventions
+- Keep examples focused on demonstrating the specific API being documented
+
+## Lua Style Guidelines
+
+- Use 4 spaces for indentation (not tabs)
+- Use camelCase for local variables and functions
+- Use PascalCase for global functions and constants
+- Use snake_case for component methods and properties (to match the game's style)
+- Place spaces around operators: `x = y + z` not `x=y+z`
+- Use meaningful variable names that indicate purpose
+
+## Example Structure
+
+### Basic Examples
+
+```lua
+-- Simple example showing basic usage
+local entity = CreateEntity()
+entity:AddComponent("componentname")
+
+-- Configure the component
+local component = entity.components.componentname
+component:SetSomeProperty(value)
+```
+
+### Complete Function Examples
+
+```lua
+-- Function that creates an entity with the component
+local function MakeEntityWithComponent()
+    local inst = CreateEntity()
+    
+    -- Add required components
+    inst.entity:AddTransform()
+    inst.entity:AddAnimState()
+    inst.entity:AddNetwork()
+    
+    -- Add our component
+    inst:AddComponent("componentname")
+    
+    -- Configure the component
+    local component = inst.components.componentname
+    component:SetSomeProperty(value)
+    
+    -- Add event handlers if needed
+    inst:ListenForEvent("eventname", function(inst, data)
+        -- Handle event
+    end)
+    
+    return inst
+end
+```
+
+## Common Patterns to Demonstrate
+
+### Component Addition
+
+```lua
+entity:AddComponent("componentname")
+```
+
+### Component Configuration
+
+```lua
+local component = entity.components.componentname
+component:SetProperty(value)
+component:Configure(options)
+```
+
+### Event Handling
+
+```lua
+inst:ListenForEvent("eventname", function(inst, data)
+    -- Handle event
+end)
+```
+
+### Component Interaction
+
+```lua
+-- Show how components interact with each other
+if inst.components.health ~= nil and inst.components.combat ~= nil then
+    inst.components.health:SetMaxHealth(100)
+    inst.components.combat:SetDefaultDamage(10)
+end
+```
+
+## Best Practices
+
+1. **Completeness**: Include all necessary code for the example to work
+2. **Simplicity**: Keep examples as simple as possible while still being useful
+3. **Context**: Provide enough context to understand what the code is doing
+4. **Error Handling**: Include error handling where appropriate
+5. **Performance**: Demonstrate efficient coding practices
+6. **Comments**: Use comments to explain the "why" not just the "what"
+
+## Example Code Blocks
+
+### Good Example
+
+```lua
+-- Create an entity with the health component
+local function MakeCreature()
+    local inst = CreateEntity()
+    
+    -- Add required components
+    inst.entity:AddTransform()
+    inst.entity:AddAnimState()
+    
+    -- Add health component
+    inst:AddComponent("health")
+    local health = inst.components.health
+    
+    -- Configure health
+    health:SetMaxHealth(100)
+    health:SetCurrentHealth(100)
+    
+    -- Add death callback
+    inst:ListenForEvent("death", function(inst)
+        -- Spawn loot on death
+        if inst.components.lootdropper ~= nil then
+            inst.components.lootdropper:DropLoot()
+        end
+    end)
+    
+    return inst
+end
+```
+
+### Bad Example (Avoid)
+
+```lua
+-- Too vague and incomplete
+local e = CreateEntity()
+e:AddComponent("health")
+e.components.health:SetMax(100)
+```
+
