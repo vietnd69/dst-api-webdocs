@@ -2,6 +2,7 @@
 id: case-global-position
 title: Case Study - Global Position CompleteSync Mod
 sidebar_position: 4
+last_updated: 2023-07-06
 ---
 
 # Case Study: Global Position CompleteSync Mod

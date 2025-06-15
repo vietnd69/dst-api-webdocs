@@ -2,6 +2,7 @@
 id: networking-mod
 title: Networking and Multiplayer
 sidebar_position: 9
+last_updated: 2023-07-06
 ---
 
 # Networking and Multiplayer

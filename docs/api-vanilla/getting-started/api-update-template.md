@@ -2,6 +2,7 @@
 id: api-update-template
 title: API Update Template
 sidebar_position: 6
+last_updated: 2023-07-06
 slug: /api/update-template
 ---
 

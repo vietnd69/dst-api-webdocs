@@ -2,6 +2,7 @@
 id: rpc-system
 title: Remote Procedure Call System
 sidebar_position: 7
+last_updated: 2023-07-06
 ---
 
 # Remote Procedure Call System

@@ -2,6 +2,7 @@
 id: maintaining-documentation
 title: Maintaining Documentation
 sidebar_position: 8
+last_updated: 2023-07-06
 slug: /api/maintaining-documentation
 ---
 

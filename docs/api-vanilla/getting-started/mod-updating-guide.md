@@ -2,6 +2,7 @@
 id: mod-updating-guide
 title: Updating Mods for API Changes
 sidebar_position: 7
+last_updated: 2023-07-06
 ---
 
 # Updating Mods for API Changes

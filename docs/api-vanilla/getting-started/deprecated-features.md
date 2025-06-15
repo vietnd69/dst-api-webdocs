@@ -2,6 +2,7 @@
 id: deprecated-features
 title: Deprecated Features and Alternatives
 sidebar_position: 8
+last_updated: 2023-07-06
 ---
 
 # Deprecated Features and Alternatives

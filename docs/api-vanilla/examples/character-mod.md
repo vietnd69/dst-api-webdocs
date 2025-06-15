@@ -2,6 +2,7 @@
 id: character-mod
 title: Character Mod
 sidebar_position: 3
+last_updated: 2023-07-06
 ---
 
 # Creating a Custom Character

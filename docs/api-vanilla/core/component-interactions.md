@@ -2,6 +2,7 @@
 id: component-interactions
 title: Component Interactions and Data Flow
 sidebar_position: 3
+last_updated: 2023-07-06
 ---
 
 # Component Interactions and Data Flow

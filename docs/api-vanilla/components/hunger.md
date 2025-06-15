@@ -2,6 +2,7 @@
 id: hunger
 title: Hunger
 sidebar_position: 7
+last_updated: 2023-07-06
 version: 619045
 ---
 
@@ -282,3 +283,68 @@ end
 - [Edible Component](edible.md) - For food properties that affect hunger
 - [Temperature Component](temperature.md) - For hunger effects on temperature
 - [Sanity Component](sanity.md) - For another vital stat that works similarly 
+
+## Example: Creating an Entity with Custom Hunger
+
+```lua
+local function MakeHungryCreature()
+    local inst = CreateEntity()
+    
+    -- Add basic components
+    inst.entity:AddTransform()
+    inst.entity:AddAnimState()
+    inst.entity:AddNetwork()
+    
+    -- Add health for starvation damage
+    inst:AddComponent("health")
+    inst.components.health:SetMaxHealth(150)
+    
+    -- Configure hunger
+    inst:AddComponent("hunger")
+    local hunger = inst.components.hunger
+    hunger:SetMax(200) -- Higher than standard hunger capacity
+    hunger:SetRate(1.25 * TUNING.WILSON_HUNGER_RATE) -- Gets hungry faster
+    
+    -- Configure starvation damage
+    local old_hunger_update = hunger.OnUpdate
+    hunger.OnUpdate = function(self, dt)
+        old_hunger_update(self, dt)
+        
+        -- Apply starvation damage when completely hungry
+        if self:GetPercent() <= 0 then
+            inst.components.health:DoDelta(-TUNING.STARVE_DAMAGE)
+            
+            -- Play starving effects
+            if inst.SoundEmitter ~= nil then
+                inst.SoundEmitter:PlaySound("dontstarve/wilson/hungry")
+            end
+            
+            if inst.components.talker ~= nil then
+                inst.components.talker:Say("So... hungry...")
+            end
+        end
+    end
+    
+    -- Configure hunger visual effects
+    inst:ListenForEvent("hungerdelta", function(inst, data)
+        if data.newpercent <= 0.25 and data.oldpercent > 0.25 then
+            -- Visual indication of hunger
+            if inst.components.talker ~= nil then
+                inst.components.talker:Say("I need food!")
+            end
+            
+            -- Slow down when very hungry
+            if inst.components.locomotor ~= nil then
+                inst.components.locomotor:SetExternalSpeedMultiplier(inst, "hunger_penalty", 0.75)
+            end
+        elseif data.newpercent > 0.25 and data.oldpercent <= 0.25 then
+            -- Remove slowdown when no longer very hungry
+            if inst.components.locomotor ~= nil then
+                inst.components.locomotor:RemoveExternalSpeedMultiplier(inst, "hunger_penalty")
+            end
+        end
+    end)
+    
+    return inst
+end
+``` 

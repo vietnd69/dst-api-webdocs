@@ -2,6 +2,7 @@
 id: armor
 title: Armor Component
 sidebar_position: 14
+last_updated: 2023-07-06
 version: 619045
 ---
 

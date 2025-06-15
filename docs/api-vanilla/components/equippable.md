@@ -2,6 +2,7 @@
 id: equippable
 title: Equippable
 sidebar_position: 26
+last_updated: 2023-07-06
 version: 619045
 ---
 
@@ -96,6 +97,59 @@ The Equippable component often works with:
 - `Insulator` - For temperature protection
 - `Waterproofer` - For rain protection
 - `Fueled` - For items that degrade with use
+
+## Real-World Examples
+
+For practical implementations of the Equippable component in mods, see these case studies:
+
+- **[The Forge Mod](../examples/case-forge.md)** - Implements custom weapons with special abilities:
+  ```lua
+  -- Example from The Forge: equippable weapon with special properties
+  local function MakeForgeWeapon(name)
+      local inst = CreateEntity()
+      
+      -- Add basic components
+      inst.entity:AddTransform()
+      inst.entity:AddAnimState()
+      inst.entity:AddNetwork()
+      
+      -- Make it equippable with special handling
+      inst:AddComponent("equippable")
+      inst.components.equippable.equipslot = EQUIPSLOTS.HANDS
+      inst.components.equippable:SetOnEquip(function(inst, owner)
+          -- Visual changes
+          owner.AnimState:OverrideSymbol("swap_object", "swap_"..name, "swap_"..name)
+          owner.AnimState:Show("ARM_carry")
+          owner.AnimState:Hide("ARM_normal")
+          
+          -- Apply combat buffs when equipped
+          if owner.components.combat then
+              if inst.components.weapon.damagetype then
+                  owner.components.combat:SetDamageType(inst.components.weapon.damagetype)
+              end
+              if inst.components.weapon.damagebuff then
+                  owner.components.combat:AddDamageBuff(name, inst.components.weapon.damagebuff)
+              end
+          end
+      end)
+      
+      inst.components.equippable:SetOnUnequip(function(inst, owner)
+          -- Visual changes
+          owner.AnimState:Hide("ARM_carry")
+          owner.AnimState:Show("ARM_normal")
+          
+          -- Remove combat buffs when unequipped
+          if owner.components.combat then
+              owner.components.combat:SetDamageType(nil)
+              owner.components.combat:RemoveDamageBuff(name)
+          end
+      end)
+      
+      return inst
+  end
+  ```
+
+- **[Island Adventures Core](../examples/case-ia-core.md)** - Shows specialized equippables like diving gear and specialized sailing equipment.
 
 ## See also
 

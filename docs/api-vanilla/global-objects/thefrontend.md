@@ -2,6 +2,7 @@
 id: thefrontend
 title: TheFrontEnd
 sidebar_position: 9
+last_updated: 2023-07-06
 ---
 
 # TheFrontEnd

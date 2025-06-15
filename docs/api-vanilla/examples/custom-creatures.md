@@ -2,6 +2,7 @@
 id: custom-creatures
 title: Creating Custom Creatures
 sidebar_position: 5
+last_updated: 2023-07-06
 ---
 
 # Creating Custom Creatures

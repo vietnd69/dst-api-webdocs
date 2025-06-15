@@ -2,6 +2,7 @@
 id: security-considerations-networking
 title: Security Considerations in Networking
 sidebar_position: 10
+last_updated: 2023-07-06
 ---
 
 # Security Considerations in Networking

@@ -2,6 +2,7 @@
 id: crafting
 title: Crafting Recipes
 sidebar_position: 2
+last_updated: 2023-07-06
 ---
 
 # Crafting Recipes

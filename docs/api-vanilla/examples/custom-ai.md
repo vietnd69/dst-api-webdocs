@@ -2,6 +2,7 @@
 id: custom-ai
 title: Creating Custom AI and Brain Behaviors
 sidebar_position: 14
+last_updated: 2023-07-06
 ---
 
 # Creating Custom AI and Brain Behaviors

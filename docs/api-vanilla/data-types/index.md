@@ -2,6 +2,7 @@
 id: data-types-overview
 title: Data Types Overview
 sidebar_position: 1
+last_updated: 2023-07-06
 slug: /api/data-types
 ---
 

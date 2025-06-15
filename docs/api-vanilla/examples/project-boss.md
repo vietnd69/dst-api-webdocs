@@ -2,6 +2,7 @@
 id: project-boss
 title: Custom Boss Project
 sidebar_position: 16
+last_updated: 2023-07-06
 ---
 
 # Custom Boss Project

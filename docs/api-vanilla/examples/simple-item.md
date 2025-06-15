@@ -2,6 +2,7 @@
 id: simple-item
 title: Simple Item Mod
 sidebar_position: 2
+last_updated: 2023-07-06
 ---
 
 # Creating a Simple Custom Item

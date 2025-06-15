@@ -2,6 +2,7 @@
 id: sequence-nodes
 title: Sequence Nodes
 sidebar_position: 6
+last_updated: 2023-07-06
 ---
 
 # Sequence Nodes

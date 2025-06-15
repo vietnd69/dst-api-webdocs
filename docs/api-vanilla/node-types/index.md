@@ -2,6 +2,7 @@
 id: node-types-overview
 title: Node Types Overview
 sidebar_position: 1
+last_updated: 2023-07-06
 slug: /api/node-types
 ---
 

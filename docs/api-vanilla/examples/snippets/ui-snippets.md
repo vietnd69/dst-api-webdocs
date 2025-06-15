@@ -2,6 +2,7 @@
 id: ui-snippets
 title: UI Snippets
 sidebar_position: 4
+last_updated: 2023-07-06
 ---
 
 # UI Snippets

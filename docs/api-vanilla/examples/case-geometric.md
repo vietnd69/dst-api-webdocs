@@ -2,6 +2,7 @@
 id: case-geometric
 title: Case Study - Geometric Placement
 sidebar_position: 11
+last_updated: 2023-07-06
 ---
 
 # Case Study: Geometric Placement Mod

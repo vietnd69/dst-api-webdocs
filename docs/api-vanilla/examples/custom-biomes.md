@@ -2,6 +2,7 @@
 id: custom-biomes
 title: Creating Custom Biomes
 sidebar_position: 12
+last_updated: 2023-07-06
 ---
 
 # Creating Custom Biomes

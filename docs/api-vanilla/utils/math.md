@@ -2,6 +2,7 @@
 id: math
 title: Math Utilities
 sidebar_position: 5
+last_updated: 2023-07-06
 ---
 
 # Math Utilities

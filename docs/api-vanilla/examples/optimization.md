@@ -2,6 +2,7 @@
 id: optimization
 title: Performance Optimization
 sidebar_position: 10
+last_updated: 2023-07-06
 ---
 
 # Performance Optimization Techniques

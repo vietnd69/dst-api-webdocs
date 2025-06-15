@@ -2,6 +2,7 @@
 id: case-ia-core
 title: Case Study - Island Adventures Core
 sidebar_position: 3
+last_updated: 2023-07-06
 version: 619045
 ---
 

@@ -2,6 +2,7 @@
 id: case-forge
 title: Case Study - The Forge Mod
 sidebar_position: 2
+last_updated: 2023-07-06
 version: 619045
 ---
 

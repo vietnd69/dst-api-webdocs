@@ -2,6 +2,7 @@
 id: eater
 title: Eater
 sidebar_position: 23
+last_updated: 2023-07-06
 version: 619045
 ---
 

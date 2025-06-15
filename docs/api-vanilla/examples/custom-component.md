@@ -2,6 +2,7 @@
 id: custom-component
 title: Custom Component
 sidebar_position: 5
+last_updated: 2023-07-06
 ---
 
 # Creating a Custom Component

@@ -2,6 +2,7 @@
 id: api-updates
 title: API Updates and Changes
 sidebar_position: 5
+last_updated: 2023-07-06
 slug: /api/updates
 ---
 

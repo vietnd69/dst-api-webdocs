@@ -2,6 +2,7 @@
 id: custom-game-mode
 title: Creating Custom Game Modes
 sidebar_position: 13
+last_updated: 2023-07-06
 ---
 
 # Creating Custom Game Modes

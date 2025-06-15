@@ -2,6 +2,7 @@
 id: installation
 title: Installation
 sidebar_position: 2
+last_updated: 2023-07-06
 slug: /api/installation
 ---
 

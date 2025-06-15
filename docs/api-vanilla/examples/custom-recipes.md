@@ -2,6 +2,7 @@
 id: custom-recipes
 title: Custom Crafting Recipes and Tech Trees
 sidebar_position: 4
+last_updated: 2023-07-06
 ---
 
 # Custom Crafting Recipes and Tech Trees

@@ -2,6 +2,7 @@
 id: edible
 title: Edible
 sidebar_position: 22
+last_updated: 2023-07-06
 version: 619045
 ---
 

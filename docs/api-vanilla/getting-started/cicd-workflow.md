@@ -2,6 +2,7 @@
 id: cicd-workflow
 title: CI/CD Workflow
 sidebar_position: 18
+last_updated: 2023-07-06
 ---
 
 # CI/CD Workflow for DST Mods

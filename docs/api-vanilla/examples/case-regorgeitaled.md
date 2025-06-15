@@ -2,6 +2,7 @@
 id: case-regorgeitaled
 title: Case Study - Re-Gorge-itated Mod
 sidebar_position: 5
+last_updated: 2023-07-06
 ---
 
 # Case Study: Re-Gorge-itated Mod

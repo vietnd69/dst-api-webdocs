@@ -2,6 +2,7 @@
 id: container
 title: Container
 sidebar_position: 24
+last_updated: 2023-07-06
 version: 619045
 ---
 
@@ -119,6 +120,29 @@ The Container component often works with:
 - `ItemSlot` - For slot-specific behaviors
 - `Preserver` - For containers that preserve items (like ice boxes)
 - `Inventoryitem` - For containers that can be carried
+
+## Real-World Examples
+
+For practical implementations of the Container component in mods, see these case studies:
+
+- **[Combined Status Mod](../examples/case-status.md)** - Shows how mods can interact with container UI elements:
+  ```lua
+  -- Example from Combined Status: accessing container data
+  local function GetItemsFromContainer(container)
+      local items = {}
+      if container and container.classified then
+          for i = 0, container:GetNumSlots() - 1 do
+              local item = container:GetItemInSlot(i)
+              if item ~= nil then
+                  table.insert(items, item)
+              end
+          end
+      end
+      return items
+  end
+  ```
+
+- **[Global Position CompleteSync Mod](../examples/case-global-position.md)** - Demonstrates custom container integration with map and positional systems.
 
 ## See also
 

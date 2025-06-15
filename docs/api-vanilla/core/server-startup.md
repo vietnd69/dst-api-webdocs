@@ -2,6 +2,7 @@
 id: server-startup
 title: Server Startup Process
 sidebar_position: 10
+last_updated: 2023-07-06
 ---
 
 # Server Startup Process

@@ -2,6 +2,7 @@
 id: thefocalpoint
 title: TheFocalPoint
 sidebar_position: 11
+last_updated: 2023-07-06
 ---
 
 # TheFocalPoint

@@ -2,6 +2,7 @@
 id: event-handling
 title: Event Handling Snippets
 sidebar_position: 2
+last_updated: 2023-07-06
 ---
 
 # Event Handling Snippets

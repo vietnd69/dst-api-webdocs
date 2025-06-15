@@ -2,6 +2,7 @@
 id: animation-integration
 title: Animation Integration
 sidebar_position: 7
+last_updated: 2023-07-06
 ---
 
 # State Graph Animation Integration

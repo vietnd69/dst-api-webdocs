@@ -2,6 +2,7 @@
 id: tags
 title: Tag System
 sidebar_position: 2
+last_updated: 2023-07-06
 ---
 
 # Tag System

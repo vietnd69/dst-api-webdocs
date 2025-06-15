@@ -2,6 +2,7 @@
 id: entity-system
 title: Entity System
 sidebar_position: 1
+last_updated: 2023-07-06
 ---
 
 # Entity System

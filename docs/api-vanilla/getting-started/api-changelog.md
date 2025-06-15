@@ -2,6 +2,7 @@
 id: api-changelog
 title: API Changelog
 sidebar_position: 6
+last_updated: 2023-07-06
 ---
 
 # API Changelog

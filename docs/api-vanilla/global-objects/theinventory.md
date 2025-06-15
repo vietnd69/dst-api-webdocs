@@ -2,6 +2,7 @@
 id: theinventory
 title: TheInventory
 sidebar_position: 6
+last_updated: 2023-07-06
 ---
 
 # TheInventory

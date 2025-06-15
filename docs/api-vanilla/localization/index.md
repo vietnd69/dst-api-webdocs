@@ -2,6 +2,7 @@
 id: localization-overview
 title: Localization Overview
 sidebar_position: 1
+last_updated: 2023-07-06
 slug: /api/localization
 version: 619045
 ---

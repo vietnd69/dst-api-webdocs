@@ -2,6 +2,7 @@
 id: mod-interaction
 title: Mod Interaction and Compatibility
 sidebar_position: 10
+last_updated: 2023-07-06
 ---
 
 # Mod Interaction and Compatibility

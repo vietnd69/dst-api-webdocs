@@ -2,6 +2,7 @@
 id: client-server-synchronization
 title: Client-Server Synchronization
 sidebar_position: 8
+last_updated: 2023-07-06
 ---
 
 # Client-Server Synchronization

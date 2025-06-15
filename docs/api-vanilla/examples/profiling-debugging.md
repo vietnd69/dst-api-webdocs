@@ -2,6 +2,7 @@
 id: profiling-debugging
 title: Profiling and Debugging Performance Issues
 sidebar_position: 13
+last_updated: 2023-07-06
 ---
 
 # Profiling and Debugging Performance Issues

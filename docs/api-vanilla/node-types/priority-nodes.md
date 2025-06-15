@@ -2,6 +2,7 @@
 id: priority-nodes
 title: Priority Nodes
 sidebar_position: 5
+last_updated: 2023-07-06
 ---
 
 # Priority Nodes

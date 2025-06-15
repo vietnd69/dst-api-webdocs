@@ -2,6 +2,7 @@
 id: ui-events
 title: UI Events
 sidebar_position: 16
+last_updated: 2023-07-06
 ---
 
 # UI Events

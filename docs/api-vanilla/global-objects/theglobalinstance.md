@@ -2,6 +2,7 @@
 id: theglobalinstance
 title: TheGlobalInstance
 sidebar_position: 8
+last_updated: 2023-07-06
 ---
 
 # TheGlobalInstance

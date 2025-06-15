@@ -2,6 +2,7 @@
 id: testing-localization
 title: Testing Localized Content
 sidebar_position: 6
+last_updated: 2023-07-06
 version: 619045
 ---
 

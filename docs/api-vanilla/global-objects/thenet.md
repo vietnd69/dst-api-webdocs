@@ -2,6 +2,7 @@
 id: thenet
 title: TheNet
 sidebar_position: 4
+last_updated: 2023-07-06
 ---
 
 # TheNet

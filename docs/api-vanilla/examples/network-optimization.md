@@ -2,6 +2,7 @@
 id: network-optimization
 title: Optimizing Network Traffic
 sidebar_position: 12
+last_updated: 2023-07-06
 ---
 
 # Optimizing Network Traffic in Multiplayer

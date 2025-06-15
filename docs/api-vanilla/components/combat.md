@@ -2,6 +2,7 @@
 id: combat
 title: Combat Component
 sidebar_position: 2
+last_updated: 2023-07-06
 version: 619045
 ---
 
@@ -124,6 +125,35 @@ The Combat component often works with:
 - `Inventory` - For equipping weapons that modify combat stats
 - `State Graph` - For playing attack animations
 
+## Real-World Examples
+
+For practical implementations of the Combat component in complex mods, see these case studies:
+
+- **[The Forge Mod](../examples/case-forge.md)** - Implements a full combat-focused game mode with custom damage types and buffs:
+  ```lua
+  -- From The Forge Mod: Adding damage types
+  _G.TUNING.FORGE.DAMAGETYPES = {
+      PHYSICAL = 1,
+      MAGIC = 2,
+      SOUND = 3,
+      GAS = 4,
+      LIQUID = 5
+  }
+  
+  -- Adding damage buffs
+  function Combat:AddDamageBuff(buffname, data, recieved, remove_old_buff)
+      if remove_old_buff and self:HasDamageBuff(buffname, recieved) then
+          self:RemoveDamageBuff(buffname, recieved)
+      end
+      if not self:HasDamageBuff(buffname, recieved) then
+          local buff = type(data) == "number" and {buff = data} or data
+          self.damagebuffs[recieved and "recieved" or "dealt"][buffname] = buff
+      end
+  end
+  ```
+
+- **[Island Adventures Core](../examples/case-ia-core.md)** - Shows how to extend the combat component for specialized uses like swimming and sailing.
+
 ## See also
 
 - [Health Component](health.md) - For managing entity health and damage
@@ -160,4 +190,4 @@ local function MakeEnemy()
     
     return inst
 end
-``` 
+```

@@ -2,6 +2,7 @@
 id: worldstate
 title: WorldState API
 sidebar_position: 12
+last_updated: 2023-07-06
 ---
 
 # WorldState API

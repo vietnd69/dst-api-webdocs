@@ -2,6 +2,7 @@
 id: recipe-mod
 title: Recipe Mod
 sidebar_position: 4
+last_updated: 2023-07-06
 ---
 
 # Creating Custom Recipes

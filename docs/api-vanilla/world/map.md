@@ -2,6 +2,7 @@
 id: map
 title: Map API
 sidebar_position: 2
+last_updated: 2023-07-06
 ---
 
 # Map API

@@ -2,6 +2,7 @@
 id: resource-usage
 title: Reducing Resource Usage
 sidebar_position: 11
+last_updated: 2023-07-06
 ---
 
 # Reducing Resource Usage in Mods

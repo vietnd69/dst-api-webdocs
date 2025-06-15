@@ -2,6 +2,7 @@
 id: case-island-adventures
 title: Case Study - Island Adventures Gameplay
 sidebar_position: 4
+last_updated: 2023-07-06
 version: 619045
 ---
 

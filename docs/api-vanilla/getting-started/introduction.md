@@ -2,6 +2,7 @@
 id: introduction
 title: Introduction to DST API
 sidebar_position: 1
+last_updated: 2023-07-06
 slug: /api/getting-started
 ---
 

@@ -2,6 +2,7 @@
 id: global-objects-overview
 title: Global Objects Overview
 sidebar_position: 1
+last_updated: 2023-07-06
 slug: /api/global-objects
 ---
 

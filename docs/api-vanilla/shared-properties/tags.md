@@ -2,6 +2,7 @@
 id: tags
 title: Tags
 sidebar_position: 2
+last_updated: 2023-07-06
 ---
 
 # Tags

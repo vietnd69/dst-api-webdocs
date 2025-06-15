@@ -2,6 +2,7 @@
 id: burnable
 title: Burnable Component
 sidebar_position: 9
+last_updated: 2023-07-06
 version: 619045
 ---
 
@@ -83,3 +84,50 @@ The Burnable component often works with:
 - [Health Component](health.md) - For damage while burning
 - [Light Component](other-components.md) - For generating light while burning
 - [Cookable Component](cookable.md) - For items that can be cooked by fire 
+
+## Example: Creating a Burnable Object
+
+```lua
+local function MakeBurnableObject()
+    local inst = CreateEntity()
+    
+    -- Add basic components
+    inst.entity:AddTransform()
+    inst.entity:AddAnimState()
+    inst.entity:AddSoundEmitter()
+    
+    -- Make it burnable
+    inst:AddComponent("burnable")
+    local burnable = inst.components.burnable
+    
+    -- Configure burning properties
+    burnable:SetBurnTime(10)
+    burnable:SetFXLevel(3)
+    
+    -- Add callbacks for burn events
+    burnable:SetOnIgniteFn(function(inst)
+        inst.AnimState:PlayAnimation("ignite")
+        inst.AnimState:PushAnimation("burning_loop", true)
+        inst.SoundEmitter:PlaySound("dontstarve/common/fireAddFuel")
+    end)
+    
+    burnable:SetOnExtinguishFn(function(inst)
+        inst.AnimState:PlayAnimation("extinguish")
+        inst.AnimState:PushAnimation("idle", true)
+        inst.SoundEmitter:PlaySound("dontstarve/common/fireOut")
+    end)
+    
+    burnable:SetOnBurntFn(function(inst)
+        inst.AnimState:PlayAnimation("burnt")
+        inst:AddTag("burnt")
+        inst:RemoveTag("burnable")
+    end)
+    
+    -- Add propagator for spreading fire
+    inst:AddComponent("propagator")
+    inst.components.propagator.propagaterange = 5
+    inst.components.propagator.damagerange = 2
+    
+    return inst
+end
+``` 

@@ -2,6 +2,7 @@
 id: lootdropper
 title: LootDropper
 sidebar_position: 28
+last_updated: 2023-07-06
 version: 619045
 ---
 

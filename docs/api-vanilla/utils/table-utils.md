@@ -2,6 +2,7 @@
 id: table-utils
 title: Table Utils
 sidebar_position: 4
+last_updated: 2023-07-06
 ---
 
 # Table Utils

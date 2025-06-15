@@ -2,6 +2,7 @@
 id: widget
 title: Widget
 sidebar_position: 7
+last_updated: 2023-07-06
 ---
 
 # Widget

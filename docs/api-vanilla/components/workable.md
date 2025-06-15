@@ -1,13 +1,14 @@
 ---
 id: workable
-title: Workable
-sidebar_position: 15
+title: Workable Component
+sidebar_position: 11
+last_updated: 2023-07-06
 version: 619045
 ---
 
 # Workable Component
 
-The Workable component allows entities to be worked on with tools, such as chopping trees, mining rocks, or hammering structures.
+The Workable component allows entities to be affected by tools such as axes, pickaxes, hammers, and other work tools. It manages resource collection, destruction, and work-based interactions.
 
 ## Basic Usage
 
@@ -20,240 +21,146 @@ entity:AddComponent("workable")
 local workable = entity.components.workable
 workable:SetWorkAction(ACTIONS.CHOP)
 workable:SetWorkLeft(10)
-workable:SetOnFinishCallback(OnChopped)
+workable:SetOnFinishCallback(OnFinished)
+workable:SetOnWorkCallback(OnWorked)
 ```
 
 ## Properties
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `action` | Action | The action type required to work this entity (CHOP, MINE, DIG, etc.) |
-| `workleft` | Number | Amount of work remaining before the work is complete |
-| `maxwork` | Number | Maximum amount of work required to complete |
-| `savestate` | Boolean | Whether to save work progress when the game is saved |
-| `onwork` | Function | Callback when the entity is worked on |
-| `onfinish` | Function | Callback when the work is completed |
+| `action` | ACTIONS | The type of action that can work on this entity (CHOP, MINE, HAMMER, etc.) |
+| `workleft` | Number | How much work is required to complete the action |
+| `maxwork` | Number | The maximum amount of work (for resetting) |
+| `savestate` | Boolean | Whether to save the work state |
+| `onwork` | Function | Called when the entity is worked on |
+| `onfinish` | Function | Called when the work is completed |
+| `workable` | Boolean | Whether the entity can currently be worked on |
+| `workmultiplier` | Number | Multiplier for work effectiveness |
 
 ## Key Methods
 
-### SetWorkAction
-
-Sets the action required to work on this entity.
-
 ```lua
--- Set the action required to work on this entity
+-- Set the action type
 workable:SetWorkAction(ACTIONS.MINE)
 
--- Example of a boulder that requires mining
-function MakeBoulder()
-    local inst = CreateEntity()
-    
-    -- Basic components
-    inst.entity:AddTransform()
-    inst.entity:AddAnimState()
-    inst.entity:AddSoundEmitter()
-    
-    -- Add workable component with mining action
-    inst:AddComponent("workable")
-    inst.components.workable:SetWorkAction(ACTIONS.MINE)
-    inst.components.workable:SetWorkLeft(15)
-    
-    return inst
-end
-```
+-- Set how much work is required
+workable:SetWorkLeft(5)
 
-### SetWorkLeft
-
-Sets the amount of work remaining before the entity is completely worked.
-
-```lua
--- Set how much work is required to complete
-workable:SetWorkLeft(20)
-
--- Example of a tree with different work requirements based on growth stage
-function SetTreeWorkAmount(inst)
-    local workable = inst.components.workable
-    local growthStage = inst.components.growable:GetStage()
-    
-    if growthStage == 1 then        -- Sapling
-        workable:SetWorkLeft(3)
-    elseif growthStage == 2 then    -- Medium tree
-        workable:SetWorkLeft(8)
-    elseif growthStage == 3 then    -- Full tree
-        workable:SetWorkLeft(15)
-    end
-    
-    -- Display a visual indicator of how much work is left
-    inst.AnimState:SetMultColor(1, 1, 1, 1)
-end
-```
-
-### SetOnWorkCallback
-
-Sets the callback function called each time the entity is worked on.
-
-```lua
--- Set whether this entity makes sound when worked on
+-- Set work callbacks
 workable:SetOnWorkCallback(function(inst, worker, workleft)
-    -- Play sound effect when worked on
-    inst.SoundEmitter:PlaySound("dontstarve/wilson/use_axe_tree")
+    -- Do something when worked on
+    inst.AnimState:PlayAnimation("hit")
+    inst.SoundEmitter:PlaySound("dontstarve/common/destroy_stone")
 end)
 
--- Example of a rock with progressive visual damage
-function ConfigureRockWork(inst)
-    inst:AddComponent("workable")
-    local workable = inst.components.workable
-    workable:SetWorkAction(ACTIONS.MINE)
-    workable:SetWorkLeft(20)
-    
-    -- Setup progressive damage visuals
-    workable:SetOnWorkCallback(function(inst, worker, workleft)
-        -- Play mining sound
-        inst.SoundEmitter:PlaySound("dontstarve/common/destroy_stone")
-        
-        -- Show visual damage based on work progress
-        if workleft <= 5 then
-            inst.AnimState:PlayAnimation("low")
-        elseif workleft <= 10 then
-            inst.AnimState:PlayAnimation("med")
-        elseif workleft <= 15 then
-            inst.AnimState:PlayAnimation("high")
-        end
-        
-        -- Chance to spawn small rocks when hit
-        if math.random() < 0.3 then
-            local rock = SpawnPrefab("rocks")
-            rock.Transform:SetPosition(inst.Transform:GetWorldPosition())
-            Launch(rock, inst, 2)
-        end
-    end)
-end
-```
-
-### SetOnFinishCallback
-
-Sets the callback function called when the entity is fully worked.
-
-```lua
--- Set what happens when work is completed
 workable:SetOnFinishCallback(function(inst, worker)
-    -- Drop loot, play effects, etc.
+    -- Do something when work is finished
+    local loot = SpawnPrefab("rocks")
+    loot.Transform:SetPosition(inst.Transform:GetWorldPosition())
     inst:Remove()
 end)
 
--- Example of a stump that can be dug up after a tree is chopped
-function SetupStumpAfterChop(inst)
-    -- Called when tree is fully chopped
-    inst.components.workable:SetOnFinishCallback(function(inst, worker)
-        -- Play fall sound and animation
-        inst.SoundEmitter:PlaySound("dontstarve/forest/treefall")
-        inst.AnimState:PlayAnimation("falling", false)
-        
-        -- Schedule stump creation after animation
-        inst:DoTaskInTime(0.4, function(inst)
-            -- Create stump
-            local stump = SpawnPrefab("stump")
-            stump.Transform:SetPosition(inst.Transform:GetWorldPosition())
-            
-            -- Create loot
-            local loot = inst.components.lootdropper:DropLoot()
-            
-            -- Add stump workability for digging
-            stump:AddComponent("workable")
-            stump.components.workable:SetWorkAction(ACTIONS.DIG)
-            stump.components.workable:SetWorkLeft(2)
-            stump.components.workable:SetOnFinishCallback(function(stump_inst, digger)
-                stump_inst.components.lootdropper:SpawnLootPrefab("twigs")
-                stump_inst:Remove()
-            end)
-            
-            -- Remove the original tree
-            inst:Remove()
-        end)
-    end)
-end
+-- Work on the entity
+workable:WorkedBy(worker, work_effectiveness)
+
+-- Make the entity unworkable
+workable:SetWorkable(false)
+
+-- Reset the work required
+workable:SetWorkLeft(workable.maxwork)
 ```
 
-## Work Actions
+## Common Work Actions
 
-Common work actions include:
+The Workable component supports different action types:
 
-- `ACTIONS.CHOP` - For trees and wooden objects
-- `ACTIONS.MINE` - For rocks and mineral deposits
-- `ACTIONS.DIG` - For digging up plants or buried objects
-- `ACTIONS.HAMMER` - For breaking down structures
-- `ACTIONS.HACK` - For hacking through vegetation
+- **ACTIONS.CHOP** - For trees and other wood sources
+- **ACTIONS.MINE** - For rocks and minerals
+- **ACTIONS.HAMMER** - For structures that can be demolished
+- **ACTIONS.DIG** - For diggable objects
+- **ACTIONS.NET** - For catching creatures
+- **ACTIONS.HARVEST** - For harvesting resources
 
 ## Integration with Other Components
 
 The Workable component often works with:
 
-- `Lootdropper` - For dropping items when work is completed
-- `Growable` - For regrowth after being worked on
-- `Health` - For damage when being worked on
-- `Combat` - For entities that attack when worked on
+- `LootDropper` - For dropping resources when work is complete
+- `Growable` - For renewable resources
+- `Health` - For entities that can be damaged by work
+- `Combat` - For entities that fight back when worked on
+- `StaticGrid` - For placing on the world grid
+
+## Real-World Examples
+
+For practical implementations of the Workable component in mods, see these case studies:
+
+- **[Geometric Placement Mod](../examples/case-geometric.md)** - Shows how workable entities integrate with grid-based placement systems
+- **[Island Adventures Gameplay](../examples/case-island-adventures.md)** - Demonstrates specialized workable resources like bamboo and tropical trees
 
 ## See also
 
-- [LootDropper Component](lootdropper.md) - For dropping items when work is completed
-- [Growable Component](growable.md) - For regrowth after being worked on
-- [Health Component](health.md) - For damage when being worked on
-- [Combat Component](combat.md) - For entities that attack when worked on
-- [Inventory Component](inventory.md) - For storing harvested resources
+- [LootDropper Component](lootdropper.md) - For resource drops when work is completed
+- [Health Component](health.md) - For damage from working
+- [Growable Component](growable.md) - For renewable workable resources
+- [Pickable Component](other-components.md) - For resources that can be picked without tools
+- [Tool-Related Actions](../core/actions.md) - For actions related to tools
 
-## Example: Creating a Complex Workable Entity
+## Example: Creating a Basic Workable Tree
 
 ```lua
-local function MakeInteractiveStructure()
+local function MakeTree()
     local inst = CreateEntity()
     
     -- Add basic components
     inst.entity:AddTransform()
     inst.entity:AddAnimState()
     inst.entity:AddSoundEmitter()
-    inst.entity:AddNetwork()
     
-    -- Add loot dropper for rewards
-    inst:AddComponent("lootdropper")
-    inst.components.lootdropper:SetLoot({"boards", "boards", "cutstone"})
+    -- Configure animation
+    inst.AnimState:SetBank("tree")
+    inst.AnimState:SetBuild("tree_normal")
+    inst.AnimState:PlayAnimation("sway1_loop", true)
     
-    -- Add workable component for hammering
+    -- Make it workable
     inst:AddComponent("workable")
-    inst.components.workable:SetWorkAction(ACTIONS.HAMMER)
-    inst.components.workable:SetWorkLeft(6)
+    inst.components.workable:SetWorkAction(ACTIONS.CHOP)
+    inst.components.workable:SetWorkLeft(10)
     
-    -- Progressive damage visuals and effects
+    -- Set callbacks
     inst.components.workable:SetOnWorkCallback(function(inst, worker, workleft)
-        -- Play sound
-        inst.SoundEmitter:PlaySound("dontstarve/common/destroy_wood")
+        inst.AnimState:PlayAnimation("chop")
+        inst.AnimState:PushAnimation("sway1_loop", true)
         
-        -- Shake the screen a bit
-        worker.components.playercontroller:ShakeCamera(inst, "VERTICAL", 0.1, 0.02, 0.15, 15)
-        
-        -- Show different damage states
-        if workleft <= 2 then
-            inst.AnimState:PlayAnimation("hit_high")
-            inst.AnimState:PushAnimation("idle_high")
-        elseif workleft <= 4 then
-            inst.AnimState:PlayAnimation("hit_med")
-            inst.AnimState:PushAnimation("idle_med")
-        else
-            inst.AnimState:PlayAnimation("hit_low")
-            inst.AnimState:PushAnimation("idle_low")
-        end
+        -- Play sound effect
+        inst.SoundEmitter:PlaySound("dontstarve/wilson/use_axe_tree")
     end)
     
-    -- Final destruction
     inst.components.workable:SetOnFinishCallback(function(inst, worker)
-        -- Play destruction effect
-        SpawnPrefab("collapse_small").Transform:SetPosition(inst.Transform:GetWorldPosition())
-        inst.SoundEmitter:PlaySound("dontstarve/common/destroy_wood")
+        -- Change to stump
+        inst.AnimState:PlayAnimation("fall")
         
-        -- Drop loot
-        inst.components.lootdropper:DropLoot()
+        -- Play sound effects
+        inst.SoundEmitter:PlaySound("dontstarve/forest/treefall")
         
-        -- Remove the structure
-        inst:Remove()
+        -- Spawn resources
+        local pt = inst:GetPosition()
+        local log = SpawnPrefab("log")
+        local pinecone = SpawnPrefab("pinecone")
+        
+        if log then
+            log.Transform:SetPosition(pt.x, pt.y, pt.z)
+        end
+        
+        if pinecone then
+            pinecone.Transform:SetPosition(pt.x, pt.y, pt.z)
+        end
+        
+        -- Remove the tree
+        inst:DoTaskInTime(0.5, function() 
+            inst:Remove() 
+        end)
     end)
     
     return inst

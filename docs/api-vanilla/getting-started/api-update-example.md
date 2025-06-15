@@ -2,6 +2,7 @@
 id: api-update-example
 title: API Update Example - Waterlogged Update
 sidebar_position: 7
+last_updated: 2023-07-06
 slug: /api/update-example
 ---
 

@@ -2,6 +2,7 @@
 id: custom-stategraphs-and-animations
 title: Custom Stategraphs and Animations
 sidebar_position: 5
+last_updated: 2023-07-06
 ---
 
 # Custom Stategraphs and Animations

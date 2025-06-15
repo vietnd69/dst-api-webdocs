@@ -2,6 +2,7 @@
 id: trader
 title: Trader
 sidebar_position: 29
+last_updated: 2023-07-06
 version: 619045
 ---
 

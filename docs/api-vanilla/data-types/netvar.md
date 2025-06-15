@@ -2,6 +2,7 @@
 id: netvar
 title: Network Variables
 sidebar_position: 5
+last_updated: 2023-07-06
 ---
 
 # Network Variables

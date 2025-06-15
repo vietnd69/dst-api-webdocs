@@ -2,6 +2,7 @@
 id: modoverrides
 title: modoverrides.lua Configuration
 sidebar_position: 9
+last_updated: 2023-07-06
 ---
 
 # modoverrides.lua Configuration

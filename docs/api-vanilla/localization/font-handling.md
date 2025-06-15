@@ -2,6 +2,7 @@
 id: font-handling
 title: Font Handling for Different Languages
 sidebar_position: 4
+last_updated: 2023-07-06
 version: 619045
 ---
 

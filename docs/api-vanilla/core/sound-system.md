@@ -2,6 +2,7 @@
 id: sound-system
 title: Sound System
 sidebar_position: 20
+last_updated: 2023-07-06
 ---
 
 # Sound System

@@ -2,6 +2,7 @@
 id: sanity
 title: Sanity
 sidebar_position: 8
+last_updated: 2023-07-06
 version: 619045
 ---
 
@@ -77,4 +78,68 @@ The Sanity component often works with:
 - [Hunger Component](hunger.md) - For another vital stat that works similarly
 - [Temperature Component](temperature.md) - For temperature effects on sanity
 - [Equippable Component](equippable.md) - For items that affect sanity when equipped
-- [Edible Component](edible.md) - For food that affects sanity when eaten 
+- [Edible Component](edible.md) - For food that affects sanity when eaten
+
+## Example: Creating an Entity with Custom Sanity
+
+```lua
+local function MakeSanityEntity()
+    local inst = CreateEntity()
+    
+    -- Add basic components
+    inst.entity:AddTransform()
+    inst.entity:AddAnimState()
+    inst.entity:AddNetwork()
+    
+    -- Add health component
+    inst:AddComponent("health")
+    inst.components.health:SetMaxHealth(150)
+    
+    -- Configure sanity
+    inst:AddComponent("sanity")
+    local sanity = inst.components.sanity
+    
+    -- Custom sanity settings
+    sanity:SetMax(200)
+    sanity:SetPercent(1.0) -- Start at full sanity
+    sanity.night_drain_mult = 1.5 -- More sanity loss at night
+    sanity.neg_aura_mult = 0.8 -- Less affected by negative auras
+    
+    -- Add custom sanity penalties/bonuses
+    inst:DoPeriodicTask(1, function(inst)
+        if TheWorld.state.isnight and not TheWorld.state.isfullmoon then
+            -- Lose sanity faster at night (except during full moons)
+            inst.components.sanity:DoDelta(-1/60)
+        elseif TheWorld.state.isfullmoon then
+            -- Gain sanity during full moon
+            inst.components.sanity:DoDelta(2/60)
+        end
+    end)
+    
+    -- Listen for sanity changes
+    inst:ListenForEvent("sanitydelta", function(inst, data)
+        if data.newpercent <= 0.3 and data.oldpercent > 0.3 then
+            -- Low sanity effects
+            if inst.components.talker ~= nil then
+                inst.components.talker:Say("The shadows are coming...")
+            end
+            
+            -- Visual effects
+            if inst.SoundEmitter ~= nil then
+                inst.SoundEmitter:PlaySound("dontstarve/sanity/gonecrazy_stinger")
+            end
+        elseif data.newpercent <= 0.15 and data.oldpercent > 0.15 then
+            -- Very low sanity effects
+            if inst.components.talker ~= nil then
+                inst.components.talker:Say("GET OUT OF MY HEAD!")
+            end
+        elseif data.newpercent > 0.7 and data.oldpercent <= 0.7 then
+            -- Recovering sanity
+            if inst.components.talker ~= nil then
+                inst.components.talker:Say("I feel much better now.")
+            end
+        end
+    end)
+    
+    return inst
+end 

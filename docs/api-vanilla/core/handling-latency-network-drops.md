@@ -2,6 +2,7 @@
 id: handling-latency-network-drops
 title: Handling Latency and Network Drops
 sidebar_position: 9
+last_updated: 2023-07-06
 ---
 
 # Handling Latency and Network Drops

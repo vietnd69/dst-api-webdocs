@@ -2,6 +2,7 @@
 id: prefab-snippets
 title: Prefab Snippets
 sidebar_position: 7
+last_updated: 2023-07-06
 ---
 
 # Prefab Snippets

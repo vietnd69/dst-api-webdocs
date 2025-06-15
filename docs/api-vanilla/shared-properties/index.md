@@ -2,6 +2,7 @@
 id: shared-properties-overview
 title: Shared Node Properties Overview
 sidebar_position: 1
+last_updated: 2023-07-06
 slug: /api/shared-properties
 ---
 

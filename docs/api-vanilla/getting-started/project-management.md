@@ -2,6 +2,7 @@
 id: project-management
 title: Integrating with Project Management Tools
 sidebar_position: 19
+last_updated: 2023-07-06
 ---
 
 # Integrating with Project Management Tools

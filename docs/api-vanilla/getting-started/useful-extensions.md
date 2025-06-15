@@ -2,6 +2,7 @@
 id: useful-extensions
 title: Useful Extensions and Tools
 sidebar_position: 17
+last_updated: 2023-07-06
 ---
 
 # Useful Extensions and Tools for DST Modding

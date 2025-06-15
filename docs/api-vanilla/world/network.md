@@ -2,6 +2,7 @@
 id: network
 title: Network and World Synchronization
 sidebar_position: 3
+last_updated: 2023-07-06
 ---
 
 # Network and World Synchronization

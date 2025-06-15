@@ -2,6 +2,7 @@
 id: stategraph-mod
 title: State Graph Integration
 sidebar_position: 6
+last_updated: 2023-07-06
 ---
 
 # Working with State Graphs

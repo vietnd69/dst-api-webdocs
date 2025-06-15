@@ -2,6 +2,7 @@
 id: best-practices
 title: Localization Best Practices
 sidebar_position: 5
+last_updated: 2023-07-06
 version: 619045
 ---
 

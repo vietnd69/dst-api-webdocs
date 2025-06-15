@@ -2,6 +2,7 @@
 id: widgets
 title: Common Widgets
 sidebar_position: 14
+last_updated: 2023-07-06
 ---
 
 # Common Widgets

@@ -2,6 +2,7 @@
 id: git-integration
 title: Using Git
 sidebar_position: 16
+last_updated: 2023-07-06
 ---
 
 # Using Git with DST Modding

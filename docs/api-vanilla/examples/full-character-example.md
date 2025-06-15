@@ -2,6 +2,7 @@
 id: full-character-example
 title: Full Character Example
 sidebar_position: 3
+last_updated: 2023-07-06
 ---
 
 # Full Character Example

@@ -2,6 +2,7 @@
 id: mod-structure
 title: Mod Structure and Server Integration
 sidebar_position: 8
+last_updated: 2023-07-06
 ---
 
 # Mod Structure and Server Integration

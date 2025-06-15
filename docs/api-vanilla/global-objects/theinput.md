@@ -2,6 +2,7 @@
 id: input
 title: Input System
 sidebar_position: 10
+last_updated: 2023-07-06
 ---
 
 # Input System
