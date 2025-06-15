@@ -19,7 +19,7 @@ const sidebars: SidebarsConfig = {
 			label: "Getting Started",
 			link: {
 				type: "doc",
-				id: "getting-started",
+				id: "api-vanilla/getting-started",
 			},
 			items: [
 				{
@@ -28,10 +28,20 @@ const sidebars: SidebarsConfig = {
 					className: "sidebar-title",
 					collapsed: false,
 					collapsible: false,
+					items: ["api-vanilla/getting-started/introduction", "api-vanilla/getting-started/installation", "api-vanilla/getting-started/first-mod"],
+				},
+				{
+					type: "category",
+					label: "Development Tools",
+					className: "sidebar-title",
+					collapsed: false,
+					collapsible: false,
 					items: [
-						"api-vanilla/getting-started/introduction",
-						"api-vanilla/getting-started/installation",
-						"api-vanilla/getting-started/first-mod",
+						"api-vanilla/getting-started/vscode-setup",
+						"api-vanilla/getting-started/git-integration",
+						"api-vanilla/getting-started/useful-extensions",
+						"api-vanilla/getting-started/cicd-workflow",
+						"api-vanilla/getting-started/project-management",
 					],
 				},
 				{
@@ -42,6 +52,7 @@ const sidebars: SidebarsConfig = {
 					collapsible: false,
 					items: [
 						"api-vanilla/getting-started/debugging-and-testing",
+						"api-vanilla/getting-started/testing-environment",
 						"api-vanilla/getting-started/troubleshooting-guide",
 					],
 				},
@@ -96,10 +107,9 @@ const sidebars: SidebarsConfig = {
 					collapsed: false,
 					collapsible: false,
 					items: [
-						"api-vanilla/core/mod-structure",
+								"api-vanilla/core/mod-structure",
 						"api-vanilla/core/modoverrides",
 						"api-vanilla/core/server-startup",
-						"api-vanilla/core/constants",
 						"api-vanilla/core/worldstate",
 						"api-vanilla/core/mod-interaction",
 					],
@@ -112,12 +122,7 @@ const sidebars: SidebarsConfig = {
 					className: "sidebar-title",
 					collapsed: false,
 					collapsible: false,
-					items: [
-						"api-vanilla/core/ui-system",
-						"api-vanilla/core/widgets",
-						"api-vanilla/core/creating-screens",
-						"api-vanilla/core/ui-events",
-					],
+					items: ["api-vanilla/core/ui-system", "api-vanilla/core/widgets", "api-vanilla/core/creating-screens", "api-vanilla/core/ui-events"],
 				},
 			],
 		},
@@ -224,7 +229,7 @@ const sidebars: SidebarsConfig = {
 				description: "Templates for creating entities in Don't Starve Together",
 			},
 			items: [
-				"api-vanilla/prefabs/prefabs-overview",
+					"api-vanilla/prefabs/prefabs-overview",
 				"api-vanilla/prefabs/characters",
 				"api-vanilla/prefabs/creatures",
 				"api-vanilla/prefabs/items",
@@ -260,6 +265,24 @@ const sidebars: SidebarsConfig = {
 				"api-vanilla/stategraphs/commonstates",
 				"api-vanilla/stategraphs/animation-integration",
 				"api-vanilla/stategraphs/examples",
+			],
+		},
+
+		{
+			type: "category",
+			label: "Localization",
+			link: {
+				type: "generated-index",
+				title: "Localization",
+				description: "Tools and techniques for implementing multiple language support in Don't Starve Together mods",
+			},
+			items: [
+				"api-vanilla/localization/localization-overview",
+				"api-vanilla/localization/multilingual-support",
+				"api-vanilla/localization/string-tables",
+				"api-vanilla/localization/font-handling",
+				"api-vanilla/localization/best-practices",
+				"api-vanilla/localization/testing-localization",
 			],
 		},
 
@@ -361,11 +384,15 @@ const sidebars: SidebarsConfig = {
 					collapsible: false,
 					items: [
 						"api-vanilla/examples/simple-item",
+						"api-vanilla/examples/complex-item",
 						"api-vanilla/examples/character-mod",
 						"api-vanilla/examples/full-character-example",
 						"api-vanilla/examples/recipe-mod",
+						"api-vanilla/examples/custom-recipes",
 						"api-vanilla/examples/custom-component",
 						"api-vanilla/examples/ui-mod",
+						"api-vanilla/examples/custom-ui-elements",
+						"api-vanilla/examples/custom-stategraphs-and-animations",
 						"api-vanilla/examples/stategraph-mod",
 						"api-vanilla/examples/worldgen-mod",
 						"api-vanilla/examples/optimization",
@@ -382,11 +409,7 @@ const sidebars: SidebarsConfig = {
 					className: "sidebar-title",
 					collapsed: false,
 					collapsible: false,
-					items: [
-						"api-vanilla/examples/case-geometric",
-						"api-vanilla/examples/case-wormhole",
-						"api-vanilla/examples/case-status",
-					],
+					items: ["api-vanilla/examples/case-geometric", "api-vanilla/examples/case-wormhole", "api-vanilla/examples/case-status"],
 				},
 				// Projects
 				{
@@ -395,11 +418,7 @@ const sidebars: SidebarsConfig = {
 					className: "sidebar-title",
 					collapsed: false,
 					collapsible: false,
-					items: [
-						"api-vanilla/examples/project-tools",
-						"api-vanilla/examples/project-biome",
-						"api-vanilla/examples/project-boss",
-					],
+					items: ["api-vanilla/examples/project-tools", "api-vanilla/examples/project-biome", "api-vanilla/examples/project-boss"],
 				},
 			],
 		},

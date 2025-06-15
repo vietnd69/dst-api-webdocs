@@ -2,6 +2,7 @@
 id: growable
 title: Growable
 sidebar_position: 12
+version: 619045
 ---
 
 # Growable Component

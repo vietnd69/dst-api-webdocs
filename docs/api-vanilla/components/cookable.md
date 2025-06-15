@@ -2,6 +2,7 @@
 id: cookable
 title: Cookable
 sidebar_position: 10
+version: 619045
 ---
 
 # Cookable Component

@@ -2,6 +2,7 @@
 id: equippable
 title: Equippable
 sidebar_position: 26
+version: 619045
 ---
 
 # Equippable Component
@@ -58,6 +59,8 @@ equippable:SetOnUnequip(function(inst, owner)
     owner.AnimState:Show("ARM_normal")
 end)
 ```
+
+> **Related functions**: When an equippable item with a [Weapon Component](weapon.md) is equipped, the item is automatically registered with the owner's [Combat Component](combat.md) via its `SetWeapon()` function. Similarly, [Armor Components](armor.md) are registered with the entity's damage calculation system when equipped.
 
 ### Equipment Properties
 

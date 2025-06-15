@@ -1,7 +1,8 @@
 ---
 id: perishable
 title: Perishable
-sidebar_position: 13
+sidebar_position: 11
+version: 619045
 ---
 
 # Perishable Component

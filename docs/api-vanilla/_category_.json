@@ -1,50 +1,9 @@
 {
   "label": "DST Vanilla API v0.5.2",
-  "position": 2,
+  "position": 1,
   "link": {
     "type": "generated-index",
     "description": "Welcome to the official documentation for the Don't Starve Together Vanilla API. This documentation provides comprehensive information about the game's base modding capabilities, components, systems, and functions."
-  },
-  "customProps": {
-    "sublist": [
-      {
-        "title": "Getting Started with API",
-        "items": [
-          "getting-started",
-          "core"
-        ]
-      },
-      {
-        "title": "Core Systems",
-        "items": [
-          "entity-framework",
-          "global-objects"
-        ]
-      },
-      {
-        "title": "Components and Objects",
-        "items": [
-          "components",
-          "prefabs",
-          "node-types"
-        ]
-      },
-      {
-        "title": "Game Mechanics",
-        "items": [
-          "stategraphs",
-          "recipes",
-          "world"
-        ]
-      },
-      {
-        "title": "Tools and Data Types",
-        "items": [
-          "data-types",
-          "utils",
-          "shared-properties"
-        ]
-      }
-    ]
   }
+  
 }

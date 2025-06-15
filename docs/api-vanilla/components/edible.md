@@ -2,6 +2,7 @@
 id: edible
 title: Edible
 sidebar_position: 22
+version: 619045
 ---
 
 # Edible Component

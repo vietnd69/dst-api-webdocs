@@ -2,6 +2,7 @@
 id: sanity
 title: Sanity
 sidebar_position: 8
+version: 619045
 ---
 
 # Sanity Component

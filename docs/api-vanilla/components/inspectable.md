@@ -2,6 +2,7 @@
 id: inspectable
 title: Inspectable
 sidebar_position: 27
+version: 619045
 ---
 
 # Inspectable Component

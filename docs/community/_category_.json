@@ -1,0 +1,8 @@
+{
+  "label": "Community",
+  "position": 10,
+  "link": {
+    "type": "generated-index",
+    "description": "Guidelines and resources for contributing to the Don't Starve Together API Documentation."
+  }
+} 

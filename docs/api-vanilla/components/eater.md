@@ -2,6 +2,7 @@
 id: eater
 title: Eater
 sidebar_position: 23
+version: 619045
 ---
 
 # Eater Component
@@ -71,6 +72,8 @@ eater:SetOnEatFn(function(inst, food)
     print(inst.prefab .. " ate " .. food.prefab)
 end)
 ```
+
+> **Related functions**: When an entity eats food with the `Eat()` function, several component interactions occur. First, values are retrieved from the [Edible Component](edible.md) using its `GetHealth()`, `GetHunger()`, and `GetSanity()` methods. Then, these values are applied to the entity's [Health Component](health.md), [Hunger Component](hunger.md), and [Sanity Component](sanity.md) using their respective `DoDelta()` methods. For temperature effects, the [Temperature Component](temperature.md) is accessed via `SetTemperatureInBelly()`.
 
 ## Diet Types
 

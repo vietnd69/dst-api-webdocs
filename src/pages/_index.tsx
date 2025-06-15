@@ -5,7 +5,7 @@ import React from "react";
 import { Redirect } from "@docusaurus/router";
 
 const Home: React.FC = () => {
-	return <Redirect to="/api/getting-started" />;
+	return <Redirect to="/docs/api-vanilla/getting-started" />;
 };
 
 export default Home;

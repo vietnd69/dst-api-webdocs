@@ -1,7 +1,8 @@
 ---
 id: lootdropper
 title: LootDropper
-sidebar_position: 29
+sidebar_position: 28
+version: 619045
 ---
 
 # LootDropper Component

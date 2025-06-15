@@ -2,6 +2,7 @@
 id: container
 title: Container
 sidebar_position: 24
+version: 619045
 ---
 
 # Container Component
@@ -82,6 +83,8 @@ container:Close()
 -- Open container for a user
 container:Open(opener)
 ```
+
+> **Related functions**: Container operations often interact with the [Inventory Component](inventory.md). When a player opens a container using `Open()`, the inventory manages the UI interaction. When transferring items between containers and inventory, methods like `GiveItem()` check for [Stackable Components](stackable.md) to combine compatible items. For portable containers, the [Equippable Component](equippable.md) allows the container to be worn while retaining its storage functionality.
 
 ### Container Configuration
 

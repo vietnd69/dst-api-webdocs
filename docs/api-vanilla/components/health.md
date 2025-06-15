@@ -2,6 +2,7 @@
 id: health
 title: Health
 sidebar_position: 3
+version: 619045
 ---
 
 # Health Component
@@ -57,6 +58,8 @@ health:DoDelta(-10) -- Remove 10 health
 -- Check if entity is dead
 local is_dead = health:IsDead()
 ```
+
+> **Related functions**: The `DoDelta()` method is typically called by the [Combat Component](combat.md) when dealing damage via `DoAttack()`. When health reaches zero, the `IsDead()` function is used by Combat's target system to determine if a target is still valid.
 
 ### Invincibility
 

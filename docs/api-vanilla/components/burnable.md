@@ -2,6 +2,7 @@
 id: burnable
 title: Burnable Component
 sidebar_position: 9
+version: 619045
 ---
 
 # Burnable Component

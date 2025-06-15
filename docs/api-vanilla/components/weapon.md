@@ -2,6 +2,7 @@
 id: weapon
 title: Weapon
 sidebar_position: 5
+version: 619045
 ---
 
 # Weapon Component

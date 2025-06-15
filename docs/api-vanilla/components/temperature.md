@@ -2,6 +2,7 @@
 id: temperature
 title: Temperature
 sidebar_position: 6
+version: 619045
 ---
 
 # Temperature Component

@@ -2,6 +2,7 @@
 id: combat
 title: Combat Component
 sidebar_position: 2
+version: 619045
 ---
 
 # Combat Component
@@ -53,6 +54,8 @@ local can_target = combat:CanTarget(target_entity)
 local is_target = combat:TargetIs(target_entity)
 ```
 
+> **Related functions**: When a target is set with `SetTarget()`, the combat component will often use the [Health Component's](health.md) `IsDead()` to check if the target is still valid. For area attacks affecting multiple targets, each target's health is modified using `health:DoDelta()`.
+
 ### Attack Configuration
 
 ```lua
@@ -87,6 +90,8 @@ combat:ResetCooldown()
 -- Restart the cooldown timer
 combat:RestartCooldown()
 ```
+
+> **Related functions**: When an entity has a [Weapon Component](weapon.md) equipped, the Combat component will use the weapon's `GetDamage()` function instead of its own `defaultdamage` value. Advanced weapons may also implement special effects through the `onattack` callback.
 
 ### Combat State
 

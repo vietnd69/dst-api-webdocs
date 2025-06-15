@@ -2,6 +2,7 @@
 id: inventory
 title: Inventory
 sidebar_position: 4
+version: 619045
 ---
 
 # Inventory Component
@@ -79,6 +80,8 @@ local is_equipped = inventory:IsEquipped(item)
 -- Get item in a specific equipment slot
 local weapon = inventory:GetEquippedItem(EQUIPSLOTS.HANDS)
 ```
+
+> **Related functions**: When equipping an item with the `Equip()` function, inventory calls the [Equippable Component's](equippable.md) `OnEquip()` method, which triggers visual changes and functional effects. Weapons equipped this way are automatically registered with the entity's [Combat Component](combat.md), and armor items apply their protection effects through the damage calculation system.
 
 ### Active Item Management
 

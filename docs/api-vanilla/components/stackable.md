@@ -2,6 +2,7 @@
 id: stackable
 title: Stackable
 sidebar_position: 25
+version: 619045
 ---
 
 # Stackable Component

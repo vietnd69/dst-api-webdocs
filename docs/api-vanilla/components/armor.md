@@ -2,6 +2,7 @@
 id: armor
 title: Armor Component
 sidebar_position: 14
+version: 619045
 ---
 
 # Armor Component
@@ -59,6 +60,8 @@ armor:SetOnFinished(function(inst)
     inst:Remove()
 end)
 ```
+
+> **Related functions**: When an entity with armor is damaged, the [Combat Component](combat.md) calls the armor's `TakeDamage()` function. The armor then calculates damage reduction based on its `absorb_percent` value and any special immunities or weaknesses. The remaining damage is passed to the [Health Component](health.md) via `DoDelta()`.
 
 ## Armor Types
 
