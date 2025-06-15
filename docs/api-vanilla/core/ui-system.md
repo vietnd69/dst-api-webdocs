@@ -1,433 +1,342 @@
 ---
 id: ui-system
 title: UI System
-sidebar_position: 13
+sidebar_position: 15
 ---
 
 # UI System
 
-Don't Starve Together uses a hierarchical widget-based UI system to create and manage user interfaces. This system allows for creating complex UIs with nested elements, event handling, animations, and interactions.
+The UI system in Don't Starve Together controls the creation and management of user interface elements.
+
+## Overview
+
+Don't Starve Together uses a widget-based UI system built on top of IMGUI (Immediate Mode GUI). This document covers the core concepts of the UI system, widget hierarchies, and common usage patterns.
 
 ## Widget Hierarchy
 
-The UI system in DST is built on a parent-child hierarchy of widgets:
+UI elements in DST are organized in a hierarchical structure:
 
-- Every UI element inherits from the base `Widget` class
-- Widgets can contain other widgets as children
-- Events and rendering flow through the hierarchy
-- Focus and input handling are managed through this hierarchy
-
-```lua
--- Basic widget hierarchy example
-local root = Widget("root")
-local panel = root:AddChild(Widget("panel"))
-local button = panel:AddChild(ImageButton("images/ui.xml", "button.tex", "button_focus.tex"))
+```
+TheFrontEnd
+    └── Screen
+        └── Widget
+            ├── Text
+            ├── Image
+            ├── Button
+            └── Container
+                └── ...
 ```
 
-## Base Widget Class
+Each widget can have child widgets, forming a tree structure. The root of this tree is typically a Screen object, which is managed by TheFrontEnd.
 
-The `Widget` class is the foundation of all UI elements:
+## Basic Widget Types
+
+### Widget
+
+Base class for all UI elements:
 
 ```lua
 local Widget = require "widgets/widget"
-
--- Creating a basic widget
-local my_widget = Widget("my_widget")
+local MyWidget = Class(Widget, function(self)
+    Widget._ctor(self, "MyWidget")
+    -- Initialize your widget
+end)
 ```
-
-### Key Widget Properties
-
-| Property | Description |
-|----------|-------------|
-| `children` | Table of child widgets |
-| `parent` | Reference to parent widget |
-| `focus` | Whether widget has input focus |
-| `enabled` | Whether widget is enabled |
-| `shown` | Whether widget is visible |
-
-### Key Widget Methods
-
-```lua
--- Positioning and scaling
-widget:SetPosition(x, y, z)       -- Set position relative to parent
-widget:SetScale(scale)            -- Set scale (1 is normal size)
-widget:SetRotation(angle)         -- Set rotation in degrees
-
--- Visibility
-widget:Show()                     -- Make widget visible
-widget:Hide()                     -- Make widget invisible
-
--- Hierarchy
-widget:AddChild(child_widget)     -- Add a child widget
-widget:RemoveChild(child_widget)  -- Remove a child widget
-widget:KillAllChildren()          -- Remove all children
-
--- Focus
-widget:SetFocus()                 -- Give this widget focus
-widget:ClearFocus()               -- Remove focus from this widget
-
--- Lifecycle
-widget:Kill()                     -- Destroy the widget and all children
-widget:StartUpdating()            -- Make widget receive update calls
-widget:StopUpdating()             -- Stop widget from receiving updates
-```
-
-## Common Widget Types
-
-DST provides many specialized widget types for different UI needs:
 
 ### Text
 
-Displays text with various formatting options:
+For displaying text:
 
 ```lua
 local Text = require "widgets/text"
-
-local my_text = Text(NEWFONT, 30, "Hello World")
-my_text:SetColour(1, 1, 1, 1)  -- RGBA (white)
-my_text:SetString("New text")  -- Change text content
+self.label = self:AddChild(Text(BODYTEXTFONT, 30))
+self.label:SetString("Hello World!")
+self.label:SetColour(UICOLOURS.GOLD)
 ```
 
 ### Image
 
-Displays images from texture atlases:
+For displaying images:
 
 ```lua
 local Image = require "widgets/image"
-
-local my_image = Image("images/ui.xml", "panel.tex")
-my_image:SetSize(100, 100)
-my_image:SetTint(1, 0.8, 0.8, 1)  -- Apply a reddish tint
+self.icon = self:AddChild(Image("images/ui.xml", "icon.tex"))
+self.icon:SetScale(1.2)
+self.icon:SetTint(1, 1, 1, 0.8)
 ```
 
 ### Button
 
-Base class for interactive buttons:
+For interactive buttons:
 
 ```lua
 local Button = require "widgets/button"
-
-local my_button = Button()
-my_button:SetText("Click Me")
-my_button:SetOnClick(function() print("Button clicked!") end)
+self.button = self:AddChild(Button())
+self.button:SetText("Click Me")
+self.button:SetOnClick(function()
+    print("Button clicked!")
+end)
 ```
 
 ### ImageButton
 
-Buttons with different images for different states:
+For buttons with images:
 
 ```lua
 local ImageButton = require "widgets/imagebutton"
-
-local my_button = ImageButton(
-    "images/ui.xml",      -- Atlas
-    "button.tex",         -- Normal state
-    "button_focus.tex",   -- Focus state
-    "button_disabled.tex" -- Disabled state
-)
-
-my_button:SetOnClick(function() print("Image button clicked!") end)
-my_button:SetScale(1.2)
-```
-
-### UIAnim
-
-Displays animated UI elements:
-
-```lua
-local UIAnim = require "widgets/uianim"
-
-local my_anim = UIAnim()
-my_anim:GetAnimState():SetBank("portal_scene")
-my_anim:GetAnimState():SetBuild("portal_scene2")
-my_anim:GetAnimState():PlayAnimation("portal_idle", true)
-```
-
-### NineSlice
-
-Creates expandable panels with fixed corners:
-
-```lua
-local NineSlice = require "widgets/nineslice"
-
-local panel = NineSlice(
-    "images/ui.xml",        -- Atlas
-    "panel_nine_slice.tex", -- Texture
-    24                      -- Margin size
-)
-panel:SetSize(200, 150)
-```
-
-### Screen
-
-Base class for full screens in the game:
-
-```lua
-local Screen = require "widgets/screen"
-
-MyScreen = Class(Screen, function(self)
-    Screen._ctor(self, "MyScreen")
-    
-    -- Create UI elements
-    self.bg = self:AddChild(Image("images/bg.xml", "bg.tex"))
-    self.title = self:AddChild(Text(TITLEFONT, 50, "My Screen"))
-    
-    -- Set default focus
-    self.default_focus = self.title
+self.imagebutton = self:AddChild(ImageButton("images/ui.xml", "button_normal.tex", "button_hover.tex", "button_disabled.tex"))
+self.imagebutton:SetOnClick(function()
+    print("Image button clicked!")
 end)
-```
-
-## Input Handling
-
-Widgets can handle various input events:
-
-```lua
--- Mouse events
-function MyWidget:OnMouseButton(button, down, x, y)
-    if button == MOUSEBUTTON_LEFT and down then
-        print("Left mouse button pressed")
-        return true -- Consume the event
-    end
-    return false -- Pass event to other widgets
-end
-
--- Keyboard events
-function MyWidget:OnRawKey(key, down)
-    if key == KEY_SPACE and down then
-        print("Space key pressed")
-        return true
-    end
-    return false
-end
-
--- Controller events
-function MyWidget:OnControl(control, down)
-    if control == CONTROL_ACCEPT and down then
-        print("Accept button pressed")
-        return true
-    end
-    return false
-end
-```
-
-## Focus Management
-
-The focus system determines which widget receives input:
-
-```lua
--- Set focus direction for controller/keyboard navigation
-widget:SetFocusChangeDir(MOVE_UP, other_widget)
-widget:SetFocusChangeDir(MOVE_DOWN, another_widget)
-widget:SetFocusChangeDir(MOVE_LEFT, left_widget)
-widget:SetFocusChangeDir(MOVE_RIGHT, right_widget)
-
--- Set and clear focus
-widget:SetFocus()
-widget:ClearFocus()
-
--- Focus callbacks
-function MyWidget:OnGainFocus()
-    self:SetScale(1.1) -- Grow when focused
-end
-
-function MyWidget:OnLoseFocus()
-    self:SetScale(1.0) -- Normal size when not focused
-end
-```
-
-## Animations and Transitions
-
-Widgets support various animations:
-
-```lua
--- Move animation
-widget:MoveTo(
-    Vector3(0, 0, 0),   -- Start position
-    Vector3(100, 0, 0), -- End position
-    0.5,                -- Duration in seconds
-    function()          -- Callback when complete
-        print("Move animation finished")
-    end
-)
-
--- Scale animation
-widget:ScaleTo(
-    Vector3(1, 1, 1),   -- Start scale
-    Vector3(1.5, 1.5, 1.5), -- End scale
-    0.3,                -- Duration
-    function()          -- Callback
-        print("Scale animation finished")
-    end
-)
-
--- Rotate animation
-widget:RotateTo(
-    0,      -- Start angle
-    360,    -- End angle
-    1.0,    -- Duration
-    nil,    -- Callback
-    false   -- Don't loop
-)
-
--- Color tint animation
-widget:TintTo(
-    {1, 1, 1, 1},   -- Start color (RGBA)
-    {1, 0, 0, 1},   -- End color (red)
-    0.5             -- Duration
-)
 ```
 
 ## Creating Custom Widgets
 
-You can create custom widgets by extending existing ones:
+Custom widgets are created by extending the Widget class:
 
 ```lua
-local MyCustomWidget = Class(Widget, function(self)
-    Widget._ctor(self, "MyCustomWidget")
+local Widget = require "widgets/widget"
+local Image = require "widgets/image"
+local Text = require "widgets/text"
+
+local HealthBar = Class(Widget, function(self, owner)
+    Widget._ctor(self, "HealthBar")
+    self.owner = owner
     
-    -- Add components
-    self.bg = self:AddChild(Image("images/ui.xml", "panel.tex"))
-    self.text = self:AddChild(Text(NEWFONT, 30, "Custom Widget"))
+    self.bg = self:AddChild(Image("images/ui.xml", "health_bar_bg.tex"))
+    self.bar = self:AddChild(Image("images/ui.xml", "health_bar_fg.tex"))
+    self.text = self:AddChild(Text(BODYTEXTFONT, 20))
     
-    -- Set layout
-    self.bg:SetSize(200, 100)
-    self.text:SetPosition(0, 10)
+    self.bar:SetScale(1, 1)
+    self.text:SetPosition(0, -30)
+    
+    self:StartUpdating()
 end)
 
--- Add custom methods
-function MyCustomWidget:SetContent(content)
-    self.text:SetString(content)
+function HealthBar:OnUpdate(dt)
+    if self.owner and self.owner.components.health then
+        local health_percent = self.owner.components.health:GetPercent()
+        self.bar:SetScale(health_percent, 1)
+        self.text:SetString(string.format("Health: %d/%d", 
+            self.owner.components.health.currenthealth,
+            self.owner.components.health.maxhealth))
+    end
 end
 
--- Use the custom widget
-local my_widget = MyCustomWidget()
-my_widget:SetContent("Hello World")
-root:AddChild(my_widget)
+return HealthBar
 ```
 
-## Templates and Common Patterns
+## Screens
 
-DST provides many templates for common UI elements:
-
-```lua
-local TEMPLATES = require "widgets/templates"
-
--- Create common UI elements
-local background = TEMPLATES.BackgroundTint(0.75)
-local panel = TEMPLATES.RectangleWindow(400, 300)
-local button = TEMPLATES.StandardButton(function() print("Clicked") end, "Click Me")
-```
-
-## Best Practices
-
-1. **Cleanup**: Always call `widget:Kill()` when removing widgets to prevent memory leaks
-2. **Focus Management**: Set up proper focus navigation for controller support
-3. **Scaling**: Use `SetScaleMode` appropriately for different screen resolutions
-4. **Performance**: Minimize the number of widgets and avoid creating them frequently
-5. **Event Handling**: Return `true` from event handlers to prevent event propagation when appropriate
-
-## Example: Complete UI Screen
-
-Here's an example of a complete UI screen:
+Screens are top-level widgets managed by TheFrontEnd:
 
 ```lua
 local Screen = require "widgets/screen"
 local Widget = require "widgets/widget"
 local Text = require "widgets/text"
-local Image = require "widgets/image"
-local ImageButton = require "widgets/imagebutton"
-local TEMPLATES = require "widgets/templates"
 
-MyCustomScreen = Class(Screen, function(self)
-    Screen._ctor(self, "MyCustomScreen")
+local MyScreen = Class(Screen, function(self)
+    Screen._ctor(self, "MyScreen")
     
-    -- Create root panel
-    self.root = self:AddChild(Widget("root"))
+    self.root = self:AddChild(Widget("ROOT"))
     self.root:SetVAnchor(ANCHOR_MIDDLE)
     self.root:SetHAnchor(ANCHOR_MIDDLE)
     self.root:SetScaleMode(SCALEMODE_PROPORTIONAL)
     
-    -- Add background
-    self.bg = self.root:AddChild(TEMPLATES.BackgroundTint())
+    self.title = self.root:AddChild(Text(TITLEFONT, 50))
+    self.title:SetString("My Custom Screen")
+    self.title:SetPosition(0, 100)
     
-    -- Add panel
-    self.panel = self.root:AddChild(Image("images/ui.xml", "panel.tex"))
-    self.panel:SetSize(500, 400)
-    
-    -- Add title
-    self.title = self.panel:AddChild(Text(TITLEFONT, 40, "My Custom Screen"))
-    self.title:SetPosition(0, 150)
-    
-    -- Add content
-    self.content = self.panel:AddChild(Text(BODYFONT, 25, "This is a custom screen example."))
-    self.content:SetPosition(0, 50)
-    
-    -- Add buttons
-    self.ok_button = self.panel:AddChild(ImageButton(
-        "images/ui.xml", 
-        "button.tex", 
-        "button_focus.tex", 
-        "button_disabled.tex"
-    ))
-    self.ok_button:SetPosition(0, -120)
-    self.ok_button:SetText("OK")
-    self.ok_button:SetOnClick(function() TheFrontEnd:PopScreen() end)
-    
-    -- Set default focus
-    self.default_focus = self.ok_button
+    -- Add more UI elements here
 end)
 
--- Show the screen
-TheFrontEnd:PushScreen(MyCustomScreen())
+function MyScreen:OnControl(control, down)
+    if Screen.OnControl(self, control, down) then return true end
+    
+    if control == CONTROL_CANCEL and not down then
+        TheFrontEnd:PopScreen()
+        return true
+    end
+    
+    return false
+end
+
+return MyScreen
 ```
 
-## UI Debugging
+## Positioning and Anchoring
 
-To debug UI layouts:
-
-1. Use `widget:GetLocalPosition()` and `widget:GetWorldPosition()` to check positions
-2. The game includes debug rendering that can be enabled with console commands
-3. Add temporary colored backgrounds to visualize widget boundaries
-4. Use `print` statements to track focus and event propagation
-
-## Advanced Topics
-
-### Widget Lifecycle
-
-1. **Creation**: Widget is instantiated with `Widget()` or a derived class
-2. **Addition to Hierarchy**: Widget is added to a parent with `parent:AddChild()`
-3. **Updates**: If enabled with `widget:StartUpdating()`, widget receives update calls
-4. **Destruction**: Widget is destroyed with `widget:Kill()`
-
-### Screen Management
-
-The `TheFrontEnd` object manages screen navigation:
+Widgets can be positioned and anchored in several ways:
 
 ```lua
--- Push a new screen onto the stack
+-- Absolute positioning
+widget:SetPosition(100, 50)
+
+-- Relative positioning
+widget:SetPosition(parent_x + 10, parent_y - 5)
+
+-- Scaling
+widget:SetScale(1.5)
+widget:SetScale(1.5, 1.0) -- Different X and Y scales
+
+-- Anchoring
+widget:SetVAnchor(ANCHOR_MIDDLE) -- Vertical anchoring (TOP, MIDDLE, BOTTOM)
+widget:SetHAnchor(ANCHOR_LEFT)   -- Horizontal anchoring (LEFT, MIDDLE, RIGHT)
+
+-- Scale modes
+widget:SetScaleMode(SCALEMODE_PROPORTIONAL)
+```
+
+## Input Handling
+
+Widgets can handle input events:
+
+```lua
+function MyWidget:OnControl(control, down)
+    if Widget.OnControl(self, control, down) then return true end
+    
+    if control == CONTROL_ACCEPT and not down then
+        -- Handle the accept button release
+        return true
+    end
+    
+    return false
+end
+
+function MyWidget:OnMouseButton(button, down, x, y)
+    if Widget.OnMouseButton(self, button, down, x, y) then return true end
+    
+    if button == MOUSEBUTTON_LEFT and not down then
+        -- Handle left mouse button release
+        return true
+    end
+    
+    return false
+end
+```
+
+## Common UI Elements
+
+### Containers
+
+```lua
+local UIAnim = require "widgets/uianim"
+local container = self:AddChild(UIAnim())
+container:GetAnimState():SetBank("container_bank")
+container:GetAnimState():SetBuild("container_build")
+container:GetAnimState():PlayAnimation("idle")
+```
+
+### Sliders
+
+```lua
+local Slider = require "widgets/slider"
+local slider = self:AddChild(Slider(0, 100, 200, 30))
+slider:SetPosition(0, -50)
+slider:SetValue(50)
+
+slider.OnChanged = function(val)
+    print("Slider value changed:", val)
+end
+```
+
+### Spinners
+
+```lua
+local Spinner = require "widgets/spinner"
+local options = {"Option 1", "Option 2", "Option 3"}
+local spinner = self:AddChild(Spinner(options, 200, 30))
+spinner:SetPosition(0, -100)
+spinner:SetSelectedIndex(1)
+
+spinner.OnChanged = function(selected)
+    print("Selected option:", selected)
+end
+```
+
+## Managing Screens
+
+The screen stack is managed by TheFrontEnd:
+
+```lua
+-- Push a new screen
 TheFrontEnd:PushScreen(MyScreen())
 
 -- Pop the top screen
 TheFrontEnd:PopScreen()
 
--- Replace all screens with a new one
-TheFrontEnd:SetScreen(MyScreen())
+-- Get the current screen
+local current_screen = TheFrontEnd:GetActiveScreen()
+
+-- Clear all screens (be careful!)
+TheFrontEnd:ClearScreens()
 ```
 
-### Custom Input Handling
+## HUD Customization
 
-For complex input handling:
+The player's HUD can be customized:
 
 ```lua
--- Add a global input handler
-self.input_handler = TheInput:AddGeneralHandler(function(key, down)
-    if key == KEY_ESCAPE and not down then
-        TheFrontEnd:PopScreen()
-        return true
-    end
-    return false
-end)
+local function ModifyHUD(hud)
+    -- Add a custom widget to the HUD
+    hud.my_widget = hud.root:AddChild(MyWidget())
+    hud.my_widget:SetPosition(100, 100)
+end
 
--- Remove the handler when done
-TheInput:RemoveHandler(self.input_handler)
-``` 
+AddPrefabPostInit("player_classified", function(inst)
+    if inst.HUD then
+        ModifyHUD(inst.HUD)
+    else
+        inst:ListenForEvent("hudsetup", function(inst, data)
+            ModifyHUD(data.hud)
+        end)
+    end
+end)
+```
+
+## Animation in UI
+
+UI elements can be animated:
+
+```lua
+-- Simple position animation
+widget:MoveTo(current_pos, target_pos, duration, callback)
+
+-- Simple scale animation
+widget:ScaleTo(current_scale, target_scale, duration, callback)
+
+-- Custom animation
+local start_time = GetTime()
+local duration = 1.0
+local start_pos = Vector3(widget:GetPosition())
+local end_pos = Vector3(100, 100, 0)
+
+widget:StartUpdating()
+function widget:OnUpdate(dt)
+    local t = math.min((GetTime() - start_time) / duration, 1)
+    local pos = start_pos + (end_pos - start_pos) * t
+    widget:SetPosition(pos:Get())
+    
+    if t >= 1 then
+        widget:StopUpdating()
+    end
+end
+```
+
+## Best Practices
+
+1. **Clean up resources**: Remove event listeners and stop updating when widgets are removed
+2. **Use widget hierarchy**: Organize related widgets in a hierarchical structure
+3. **Optimize rendering**: Use SetClickable(false) for non-interactive elements
+4. **Scale appropriately**: Design UI to work across different screen resolutions
+5. **Handle input properly**: Return true from input handlers when consuming events
+6. **Test with different screen sizes**: Ensure your UI works on various resolutions
+
+## See Also
+
+- [Widgets](widgets.md) - Detailed documentation of available widgets
+- [UI Events](ui-events.md) - Event handling in UI
+- [Creating Screens](creating-screens.md) - Detailed guide on screen creation
+- [Custom UI Elements Example](../examples/custom-ui-elements.md) - Example of creating custom UI
+- [Global Position CompleteSync Case Study](../examples/case-global-position.md) - Real-world example of complex UI implementation with map pings and indicators
+- [Re-Gorge-itated Case Study](../examples/case-regorgeitaled.md) - Example of extensive UI customization for a game mode conversion mod 

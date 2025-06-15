@@ -40,6 +40,9 @@ Analysis of popular mods from the Steam Workshop:
 - [Geometric Placement](case-geometric.md) - Grid-based structure placement
 - [Wormhole Marks](case-wormhole.md) - Wormhole identification system
 - [Combined Status](case-status.md) - Enhanced status display
+- [Global Position CompleteSync](case-global-position.md) - Complete map sharing and position tracking system
+- [Re-Gorge-itated](case-regorgeitaled.md) - Expanded recreation of The Gorge event with multiple game modes
+- [The Forge](case-forge.md) - Complete recreation of The Forge event with custom components and combat system
 
 ## Complete Projects
 

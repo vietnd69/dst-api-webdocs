@@ -134,7 +134,7 @@ const config: Config = {
 					title: "More",
 					items: [
 						{
-							label: "GitHub",
+							label: "Contribute",
 							href: "https://github.com/vietnd69/dst-api-webdocs", // Cập nhật URL Github repository
 						},
 					],

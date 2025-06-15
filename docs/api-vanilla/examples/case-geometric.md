@@ -7,23 +7,25 @@ sidebar_position: 11
 # Case Study: Geometric Placement Mod
 
 This case study examines the popular "Geometric Placement" mod for Don't Starve Together, which enhances the building system by adding grid-based placement options. We'll analyze its implementation and learn valuable modding techniques.
+- [Github](https://github.com/rezecib/Geometric-Placement)
+- [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=351325790)
 
 ## Mod Overview
 
 The Geometric Placement mod allows players to:
-- Place structures on a customizable grid
+- Place structures on a customizable grid with multiple geometry options
 - Align objects precisely with each other
 - Create perfectly symmetrical bases
-- Toggle between different placement modes
+- Toggle between different placement modes using hotkeys
+- Customize colors, grid sizes, and visual feedback
 
-![Geometric Placement Example](https://images.steamusercontent.com/ugc/278474310944194293/801E1F603CA5F5B800D81EC604A882B5C7A3E180/?imw=268&imh=268&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=true)
 
 ## Technical Implementation
 
 ### Core Techniques Used
 
 1. **Placement Prediction Modification**
-2. **Custom Input Handling**
+2. **Multiple Geometry Systems**
 3. **Visual Feedback System**
 4. **Configuration Management**
 5. **Performance Optimization**
@@ -37,24 +39,23 @@ The mod works by intercepting and modifying the game's placement prediction syst
 ### Key Code Elements
 
 ```lua
--- Hook into the placement system
-local OldGetPlacementPosition = GetPlayer().components.placer.GetPlacementPosition
-GetPlayer().components.placer.GetPlacementPosition = function(self)
-    -- Get original position
-    local pt = OldGetPlacementPosition(self)
+-- Hook into the placement system with more sophisticated geometry handling
+function Placer:GetPreciseGridPoint(geometry, spacing, offset_type, pt)
+    local ROW_OFFSET, COL_OFFSET = geometry.row_offset, geometry.col_offset
+    local ORIGIN_OFFSET = ORIGIN_OFFSETS[offset_type]
     
-    -- Skip grid alignment if disabled or in certain cases
-    if not GEOMETRIC_PLACEMENT_ENABLED or SKIP_PLACEMENT_ADJUSTMENT then
-        return pt
+    -- Calculate the offset from origin in grid space
+    local offx, offz = 0, 0
+    if geometry == GEOMETRIES.SQUARE then
+        offx = math.floor((pt.x - ORIGIN_OFFSET.x) / spacing + 0.5)
+        offz = math.floor((pt.z - ORIGIN_OFFSET.z) / spacing + 0.5)
+    else
+        -- Handle more complex geometries
+        offx, offz = GetGridOffsetForPoint(geometry, pt, spacing)
     end
     
-    -- Calculate grid-aligned position
-    local grid_size = GetGridSize()
-    local aligned_x = math.floor((pt.x + grid_size/2) / grid_size) * grid_size
-    local aligned_z = math.floor((pt.z + grid_size/2) / grid_size) * grid_size
-    
-    -- Return adjusted position
-    return Vector3(aligned_x, pt.y, aligned_z)
+    -- Transform the grid coordinate back to world space
+    return COL_OFFSET * spacing * offx + ROW_OFFSET * spacing * offz + ORIGIN_OFFSET
 end
 ```
 
@@ -73,84 +74,113 @@ This approach is powerful because it:
 - Allows toggling the functionality on/off
 - Maintains the original behavior when needed
 
-## 2. Custom Input Handling
+## 2. Multiple Geometry Systems
 
-The mod implements custom key bindings to toggle different placement modes and grid sizes.
+One of the mod's most powerful features is its support for multiple grid geometries, including:
+- Square (standard grid)
+- Diamond (rotated square)
+- X-Hexagon (hexagons aligned with x-axis)
+- Z-Hexagon (hexagons aligned with z-axis)
+- Flat Hexagon (flat-topped hexagons)
+- Pointy Hexagon (pointy-topped hexagons)
 
 ### Key Code Elements
 
 ```lua
--- Define key handlers
-local function OnKeyUp(key)
-    if key == KEY_G then
-        -- Toggle geometric placement
-        GEOMETRIC_PLACEMENT_ENABLED = not GEOMETRIC_PLACEMENT_ENABLED
-        UpdatePlacementModeText()
-    elseif key == KEY_F then
-        -- Cycle through grid sizes
-        CURRENT_GRID_SIZE_INDEX = (CURRENT_GRID_SIZE_INDEX % #GRID_SIZES) + 1
-        UpdateGridSizeText()
-    elseif key == KEY_V then
-        -- Toggle snap to geometry
-        SNAP_TO_GEOMETRY = not SNAP_TO_GEOMETRY
-        UpdateSnapModeText()
-    end
-end
-
--- Register key handler
-TheInput:AddKeyUpHandler(KEY_G, OnKeyUp)
-TheInput:AddKeyUpHandler(KEY_F, OnKeyUp)
-TheInput:AddKeyUpHandler(KEY_V, OnKeyUp)
+-- Implementation of different geometry systems
+local sqrt2_over_2 = math.sqrt(2)*0.5
+local sqrt3_over_2 = math.sqrt(3)*0.5
+local GEOMETRIES = {
+    SQUARE = {
+        GetRowRange = function(grid_size)
+            return -grid_size, grid_size
+        end,
+        GetColRangeForRow = function(row, grid_size)
+            return -grid_size, grid_size
+        end,
+        HasOverlap = function(dx, dz, grid_size)
+            return not(math.abs(dx) > grid_size*2 or math.abs(dz) > grid_size*2)
+        end,
+        col_offset = Vector3(1, 0, 0),
+        row_offset = Vector3(0, 0, 1),
+        gridplacer_rotation = 0,
+    },
+    X_HEXAGON = {
+        GetRowRange = function(grid_size)
+            return -grid_size, grid_size
+        end,
+        GetColRangeForRow = function(row, grid_size)
+            local is_odd = math.abs(row % 2) > 0
+            local row_start = -grid_size
+            if is_odd then row_start = row_start - 0.5 end
+            return row_start, grid_size + (is_odd and 0.5 or 0)
+        end,
+        HasOverlap = function(dx, dz, grid_size)
+            -- Hexagonal overlap check
+            return not(math.abs(dx) > grid_size*2 or math.abs(dz) > grid_size*2)
+        end,
+        col_offset = Vector3(1, 0, 0),
+        row_offset = Vector3(0.5, 0, sqrt3_over_2),
+        gridplacer_rotation = 0,
+    },
+    -- Additional geometries defined similarly
+}
 ```
 
 ### Implementation Analysis
 
-The mod uses the game's input system to capture key presses and toggle different modes. This demonstrates:
+The geometry system demonstrates:
 
-1. **Effective use of the input system**: Registering handlers for specific keys
-2. **State management**: Using global variables to track current modes
-3. **User feedback**: Updating UI text to reflect current settings
+1. **Mathematical precision**: Applying geometric transformations to create different grid patterns
+2. **Abstracted coordinate systems**: Converting between lattice space and world space
+3. **Modular design**: Each geometry is defined with its own transformation functions
+4. **Visual differentiation**: Different grid patterns provide unique building aesthetics
 
 ## 3. Visual Feedback System
 
 To help users understand the grid system, the mod provides visual feedback by:
-- Displaying grid lines when placing objects
-- Highlighting the current placement cell
-- Showing alignment guides for nearby structures
+- Displaying grid points when placing objects
+- Highlighting valid/invalid placement positions with configurable colors
+- Creating visual distinctions between placement types (buildings, walls, farm tiles)
 
 ### Key Code Elements
 
 ```lua
--- Create grid visualization
-function CreateGridOverlay(placer)
-    if GRID_OVERLAY then
-        GRID_OVERLAY:Remove()
+function Placer:BuildGridPoint(bgx, bgz, bgpt, bgp)
+    if bgp == nil then
+        bgp = SpawnPrefab(self.placertype)
+        bgp.Transform:SetRotation(self.geometry.gridplacer_rotation)
     end
-    
-    -- Create a new entity for the grid
-    local grid = SpawnPrefab("gridoverlay")
-    
-    -- Set up the grid appearance
-    local grid_size = GetGridSize()
-    local grid_range = 10 -- How many cells to show
-    
-    -- Set up grid lines
-    for x = -grid_range, grid_range do
-        for z = -grid_range, grid_range do
-            local line = SpawnPrefab("gridline")
-            line.Transform:SetPosition(x * grid_size, 0, z * grid_size)
-            line.AnimState:SetMultColour(0.3, 0.3, 0.3, 0.3)
-            line:AddTag("gridline")
-            grid:AddChild(line)
+    self.build_grid[bgx][bgz] = bgp
+    self.build_grid_positions[bgx][bgz] = bgpt
+    bgp.Transform:SetPosition(bgpt:Get())
+    table.insert(self.refresh_queue, {bgx, bgz})
+end
+
+function Placer:RefreshGridPoint(bgx, bgz)
+    local row = self.build_grid[bgx]
+    if row == nil then return end
+    local bgp = row[bgz]
+    if bgp == nil then return end
+    local bgpt = self.build_grid_positions[bgx][bgz]
+    local can_build = self:TestPoint(bgp, bgpt)
+    local color = can_build and COLORS.GOOD or COLORS.BAD
+    if self.snap_to_tile then
+        color = can_build and COLORS.GOODTILE or COLORS.BADTILE
+        bgp.AnimState:SetSortOrder(can_build and 1 or 0)
+    end
+    if color == "hidden" then
+        bgp:Hide()
+    else
+        bgp:Show()
+        if color == "on" or color == "off" then
+            bgp.AnimState:PlayAnimation(color, true)
+            bgp.AnimState:SetAddColour(0, 0, 0, 0)
+        else
+            bgp.AnimState:PlayAnimation("anim", true)
+            bgp.AnimState:SetAddColour(color.x, color.y, color.z, 1)
         end
     end
-    
-    -- Position the grid at the player
-    local pt = placer:GetPosition()
-    grid.Transform:SetPosition(pt.x, 0, pt.z)
-    
-    GRID_OVERLAY = grid
-    return grid
 end
 ```
 
@@ -158,56 +188,68 @@ end
 
 The visual feedback system demonstrates:
 
-1. **Dynamic entity creation**: Spawning visual elements as needed
-2. **Parent-child relationships**: Using AddChild to manage related entities
+1. **Dynamic entity creation**: Spawning visual markers as needed
+2. **Efficient recycling**: Reusing existing entities for better performance
 3. **Visual styling**: Setting colors and transparency for UI elements
-4. **Cleanup management**: Removing old elements when creating new ones
+4. **Cleanup management**: Properly removing elements when no longer needed
 
 ## 4. Configuration Management
 
-The mod allows users to customize various aspects of the grid system through a configuration menu.
+The mod provides extensive customization options through both a configuration menu and in-game toggles.
 
 ### Key Code Elements
 
 ```lua
--- Configuration options in modinfo.lua
+-- Excerpt from modinfo.lua showing configuration options
 configuration_options = {
     {
-        name = "GRID_SIZE",
-        label = "Grid Size",
+        name = "CTRL",
+        label = "CTRL Turns Mod",
         options = {
-            {description = "Extra Small (0.5)", data = 0.5},
-            {description = "Small (1)", data = 1},
-            {description = "Medium (2)", data = 2},
-            {description = "Large (4)", data = 4},
-            {description = "Extra Large (8)", data = 8}
+            {description = "On", data = true},
+            {description = "Off", data = false},
         },
-        default = 2
+        default = false,
+        hover = "Whether holding CTRL enables or disables the mod.",
     },
     {
-        name = "CONTROLLER_MODE",
-        label = "Controller Compatibility",
+        name = "KEYBOARDTOGGLEKEY",
+        label = "Options Button",
+        options = keyslist, -- List of keyboard keys
+        default = "B",
+        hover = "A key to open the mod's options. On controllers, open\nthe scoreboard and then use Menu Misc 3 (left stick click). When set to None, controller is also unbound.",
+    },    
+    {
+        name = "GEOMETRY",
+        label = "Grid Geometry",
         options = {
-            {description = "Enabled", data = true},
-            {description = "Disabled", data = false}
+            {description = "Square", data = "SQUARE"},
+            {description = "Diamond", data = "DIAMOND"},
+            {description = "X Hexagon", data = "X_HEXAGON"},
+            {description = "Z Hexagon", data = "Z_HEXAGON"},
+            {description = "Flat Hexagon", data = "FLAT_HEXAGON"},
+            {description = "Pointy Hexagon", data = "POINTY_HEXAGON"},
         },
-        default = true
+        default = "SQUARE",    
+        hover = "What build grid geometry to use.",
     },
-    -- More options...
+    -- Many more options for grid sizes, colors, etc.
 }
 
--- Loading configuration in modmain.lua
-local GRID_SIZE = GetModConfigData("GRID_SIZE")
-local CONTROLLER_MODE = GetModConfigData("CONTROLLER_MODE")
+-- Loading and applying configuration
+local CTRL = GetConfig("CTRL", false, "boolean")
+local GEOMETRY_NAME = GetConfig("GEOMETRY", "SQUARE", function(g) return GEOMETRIES[g] ~= nil end)
+local SMALLGRIDSIZE = GetConfig("SMALLGRIDSIZE", 10, "number")
 ```
 
 ### Implementation Analysis
 
 The configuration system shows:
 
-1. **User-friendly options**: Descriptive labels and sensible defaults
-2. **Data typing**: Using appropriate data types for each option
-3. **Runtime configuration**: Loading and applying settings when the mod starts
+1. **User-friendly options**: Descriptive labels and helpful hover text
+2. **Sensible defaults**: Pre-configured for immediate usability
+3. **Type validation**: Ensuring configuration values have the correct data type
+4. **Runtime configuration**: Both startup and in-game configuration options
 
 ## 5. Performance Optimization
 
@@ -216,35 +258,22 @@ The mod implements several optimizations to ensure it doesn't impact game perfor
 ### Key Code Elements
 
 ```lua
--- Efficient grid calculation
-function GetGridPoint(pt)
-    -- Cache grid size to avoid repeated lookups
-    local grid_size = GetGridSize()
-    
-    -- Use math.floor instead of rounding for better performance
-    local x = math.floor((pt.x + grid_size/2) / grid_size) * grid_size
-    local z = math.floor((pt.z + grid_size/2) / grid_size) * grid_size
-    
-    return Vector3(x, pt.y, z)
-end
-
--- Throttle visual updates
-local last_update_time = 0
-function UpdateGridVisuals(placer)
-    local current_time = GetTime()
-    
-    -- Only update visuals every 0.1 seconds
-    if current_time - last_update_time < 0.1 then
-        return
+function Placer:RefreshBuildGrid(time_remaining) --if not time_remaining, then config was set to no limit
+    if time_remaining then
+        if time_remaining < 0 then return end --we were over time already (common on generation updates)
+        -- we only have 1ms accuracy, so subtract off a ms
+        time_remaining = time_remaining - 0.001
     end
-    
-    -- Update grid position
-    if GRID_OVERLAY then
-        local pt = placer:GetPosition()
-        GRID_OVERLAY.Transform:SetPosition(pt.x, 0, pt.z)
+    local refresh_start = os.clock()
+    local refresh_queue_size = #self.refresh_queue
+    for i = 1, refresh_queue_size do
+        if time_remaining and i%20 == 0 then
+            if os.clock() - refresh_start > time_remaining then
+                return
+            end
+        end
+        self:RefreshGridPoint(unpack(table.remove(self.refresh_queue)))
     end
-    
-    last_update_time = current_time
 end
 ```
 
@@ -252,10 +281,11 @@ end
 
 The performance optimizations demonstrate:
 
-1. **Throttling updates**: Limiting visual updates to reduce CPU usage
-2. **Efficient calculations**: Using fast math operations
-3. **Conditional processing**: Only performing work when necessary
-4. **Memory management**: Creating visual elements only when needed
+1. **Time budget system**: Limiting processing time to prevent frame rate drops
+2. **Incremental updates**: Processing grid points in batches
+3. **Prioritized visual feedback**: Updating the most relevant grid points first
+4. **Efficient calculations**: Using optimized math operations
+5. **Memory recycling**: Reusing existing entities when possible
 
 ## Lessons Learned
 
@@ -268,18 +298,18 @@ The mod demonstrates how to modify game behavior without replacing entire system
 ### 2. User Experience Focus
 
 The mod prioritizes user experience through:
-- Clear visual feedback
-- Intuitive controls
-- Customizable options
-- Helpful status indicators
+- Clear visual feedback with customizable colors
+- Multiple grid geometries for different building styles
+- Intuitive controls with configurable key bindings
+- Helpful status indicators and toggle options
 
 ### 3. Performance Consciousness
 
 Despite adding visual elements and calculations, the mod maintains good performance by:
-- Throttling updates
-- Using efficient algorithms
-- Managing memory carefully
-- Avoiding unnecessary operations
+- Using a time budget system to prevent frame drops
+- Processing updates incrementally
+- Recycling grid point entities
+- Limiting visual updates to what's necessary
 
 ### 4. Progressive Enhancement
 
@@ -345,13 +375,19 @@ end
 ```lua
 -- Create visual indicators for placement
 function CreatePlacementIndicator(pos, color)
-    local indicator = SpawnPrefab("gridpoint")
+    local indicator = SpawnPrefab("buildgridplacer")
     
     indicator.Transform:SetPosition(pos.x, pos.y, pos.z)
-    indicator.AnimState:SetMultColour(color.r, color.g, color.b, color.a)
+    if type(color) == "table" then
+        indicator.AnimState:SetAddColour(color.x, color.y, color.z, 1)
+    end
     
-    -- Auto-remove after a short time
-    indicator:DoTaskInTime(1, function() indicator:Remove() end)
+    -- Ensure proper cleanup
+    indicator:DoTaskInTime(30, function() 
+        if indicator:IsValid() then
+            indicator:Remove() 
+        end
+    end)
     
     return indicator
 end
@@ -364,11 +400,14 @@ end
 function SetupControls()
     -- Define toggle function
     local function TogglePlacementMode()
-        PLACEMENT_MODE = (PLACEMENT_MODE % 3) + 1
+        GEOMETRY_INDEX = (GEOMETRY_INDEX % #GEOMETRY_OPTIONS) + 1
+        local new_geometry = GEOMETRY_OPTIONS[GEOMETRY_INDEX]
+        SetGeometry(new_geometry)
         
         -- Update UI
-        local mode_names = {"Grid", "Geometry", "Free"}
-        Announcement("Placement Mode: " .. mode_names[PLACEMENT_MODE])
+        if ANNOUNCE_CHANGES then
+            Announcement("Grid Geometry: " .. new_geometry)
+        end
     end
     
     -- Register key handler
@@ -381,6 +420,14 @@ function SetupControls()
     end)
 end
 ```
+
+## Cross-References and Related Documentation
+
+- Learn more about the [components system](/docs/api-vanilla/components) that this mod interacts with
+- Explore [stategraphs](/docs/api-vanilla/stategraphs) for understanding game state handling
+- Check out [prefab creation](/docs/api-vanilla/prefabs) to learn how the grid visuals are implemented
+- See [world manipulation](/docs/api-vanilla/world) documentation for understanding grid placement mechanics
+- Review [UI events and input handling](/docs/api-vanilla/core/ui-events) to learn how to capture and process key presses
 
 ## Conclusion
 

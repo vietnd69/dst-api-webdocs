@@ -52,4 +52,12 @@ local is_accessible = TheWorld.Map:IsAboveGroundAtPoint(x, y, z)
 
 - **Minimap**: Interface for the player's minimap functionality
 - **Pathfinder**: Navigation system for entities traversing the map
-- **WorldStateComponent**: Controls global map states and transitions 
+- **WorldStateComponent**: Controls global map states and transitions
+- **MapRecorder**: Records map exploration for sharing between players
+
+## See Also
+
+- [World Generation](worldgen.md) - For detailed map generation information
+- [Seasons](seasons.md) - For season-based map effects
+- [Global Position CompleteSync Case Study](../examples/case-global-position.md) - Real-world example of map sharing implementation
+- [Re-Gorge-itated Case Study](../examples/case-regorgeitaled.md) - Example of custom world generation for a specialized game mode 

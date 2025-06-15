@@ -8,6 +8,8 @@ sidebar_position: 6
 
 The Don't Starve Together network system enables multiplayer functionality by managing communication between server and clients. This document covers the core networking concepts, synchronization mechanisms, and implementation details.
 
+For a practical example of advanced networking in a complex mod, see the [The Forge Case Study](../examples/case-forge.md), which demonstrates synchronizing game state, UI elements, and combat mechanics in a multiplayer arena game mode.
+
 ## Overview
 
 Don't Starve Together uses a client-server architecture where:
@@ -199,277 +201,77 @@ RPCs allow executing functions remotely between server and clients.
 
 ### RPC Types
 
-```lua
--- RPC directions
-RPC = {
-    -- Server to clients
-    Broadcast = 0, -- Send to all clients
-    Target = 1,    -- Send to a specific client
-    
-    -- Client to server
-    ToServer = 2   -- Send from client to server
-}
-```
+* **Client to Server**: Actions from client to server
+* **Server to Client**: Updates from server to client
+* **Server to All Clients**: Broadcasts to all connected clients
+* **Shard RPCs**: Communication between different world shards (surface/caves)
 
-### Defining RPC Messages
-
-RPCs are defined with unique identifiers:
+### Creating and Using RPCs
 
 ```lua
--- In modmain.lua
-MOD_RPC = {
-    MyMod = {
-        ExampleRPC = 0,
-        AnotherRPC = 1
-    }
-}
-```
-
-### Sending RPC Messages
-
-```lua
--- Client sending to server
-SendModRPCToServer(MOD_RPC.MyMod.ExampleRPC, param1, param2)
-
--- Server broadcasting to all clients
-SendModRPCToClient(MOD_RPC.MyMod.AnotherRPC, client, param1)
-
--- Server sending to all clients
-SendModRPCToClients(MOD_RPC.MyMod.AnotherRPC, param1)
-```
-
-### Handling RPC Messages
-
-```lua
--- In modmain.lua
--- Register handler for client-to-server RPC
+-- Define an RPC handler in modmain.lua
 AddModRPCHandler("MyMod", "ExampleRPC", function(player, param1, param2)
-    -- Handle the RPC from client
-    print(player:GetDisplayName() .. " sent RPC with " .. param1)
+    print(string.format("RPC called by %s with params: %s, %s", 
+        player.name, tostring(param1), tostring(param2)))
+    
+    -- Do something with the received data
+    if player.components.mycomponent then
+        player.components.mycomponent:DoSomething(param1, param2)
+    end
 end)
 
--- Register handler for server-to-client RPC
-AddClientModRPCHandler("MyMod", "AnotherRPC", function(param1)
-    -- Handle the RPC from server
-    print("Server sent RPC with " .. param1)
-end)
+-- Trigger the RPC from client code
+SendModRPCToServer(MOD_RPC.MyMod.ExampleRPC, "hello", 42)
+
+-- Send an RPC from server to specific client
+SendModRPCToClient(MOD_RPC.MyMod.ClientRPC, client, "message")
+
+-- Send an RPC from server to all clients
+SendModRPCToAllClients(MOD_RPC.MyMod.BroadcastRPC, "message")
 ```
 
-## Entity Synchronization
+## Classified Entities
 
-Entities synchronize between server and client through several mechanisms:
-
-### Entity Setup for Networking
+For complex replicated data, DST often uses "classified" entities - invisible entities that serve as containers for networked variables.
 
 ```lua
-local function CreateNetworkedEntity()
-    local inst = CreateEntity()
-    
-    -- Essential for networking
-    inst.entity:AddTransform()
-    inst.entity:AddNetwork()
-    
-    -- Tag for classification
-    inst:AddTag("networked")
-    
-    -- Network variables visible to clients
-    inst.displayname = net_string(inst.GUID, "displayname", "displaynamedirty")
-    
-    -- Mark entity setup as complete for clients
-    inst.entity:SetPristine()
-    
-    if not TheWorld.ismastersim then
-        -- Client-only code
-        inst:ListenForEvent("displaynamedirty", OnNameChanged)
-        return inst
-    end
-    
-    -- Server-only components and setup
-    inst.components.named:SetName("EntityName")
-    
-    return inst
+-- Creating a classified entity
+local classified = CreateEntity()
+classified.entity:AddNetwork()
+classified.entity:Hide()
+classified.persists = false
+
+-- Adding network variables
+classified.health = net_float(classified.GUID, "health", "healthdirty")
+classified.max_health = net_float(classified.GUID, "max_health")
+
+-- Setting up relationships between entities
+classified:SetParent(owner)
+owner.player_classified = classified
+
+-- Mark as ready for network use
+classified.entity:SetPristine()
+
+-- Client-side event handlers
+if not TheWorld.ismastersim then
+    owner:ListenForEvent("healthdirty", OnHealthDirty, classified)
 end
 ```
 
-### Entity Ownership
+## Best Practices
 
-Some entities can be "owned" by clients for more responsive interaction:
+1. **Minimize Network Traffic**: Send only necessary data to reduce bandwidth usage
+2. **Prediction**: Implement client-side prediction for smooth gameplay
+3. **Authority Validation**: Always validate client requests on the server
+4. **Resynchronization**: Provide mechanisms to recover from desync situations
+5. **Progressive Loading**: Load and synchronize data progressively for large worlds
 
-```lua
--- Give client authority over an entity
-inst.Network:SetClassifiedTarget(client)
+## See Also
 
--- Give server back authority
-inst.Network:SetClassifiedTarget(nil)
-```
-
-## Optimizing Network Usage
-
-DST provides several methods to optimize network traffic:
-
-### Batch Updates
-
-```lua
--- Group multiple updates to reduce network messages
-inst.components.container:StartUpdating()
--- Make multiple changes
-inst.components.container:GiveItem(item1)
-inst.components.container:GiveItem(item2)
-inst.components.container:GiveItem(item3)
--- Send a single update
-inst.components.container:StopUpdating()
-```
-
-### Priority Systems
-
-```lua
--- Network priority levels
-NETWORK_PRIORITY = {
-    CRITICAL = 0,  -- Must be delivered immediately
-    HIGH = 1,      -- Important for gameplay
-    MEDIUM = 2,    -- Standard priority
-    LOW = 3        -- Can be delayed if needed
-}
-
--- Set entity network priority
-inst.entity:SetPriority(NETWORK_PRIORITY.HIGH)
-```
-
-### Relevance Checking
-
-```lua
--- Only sync with nearby players
-local x, y, z = inst.Transform:GetWorldPosition()
-local players = FindPlayersInRange(x, y, z, TUNING.MAX_SYNC_DISTANCE)
-for _, player in ipairs(players) do
-    SendModRPCToClient(MOD_RPC.MyMod.AnotherRPC, player.userid, param1)
-end
-```
-
-## Advanced Networking Techniques
-
-### Client Prediction
-
-Client prediction helps reduce perceived latency:
-
-```lua
--- In locomotor component
-if TheWorld.ismastersim then
-    -- Server: Set actual position
-    self.inst.Transform:SetPosition(x, y, z)
-else
-    -- Client: Predict position based on input
-    local predicted_x = start_x + (speed * dt * direction_x)
-    local predicted_z = start_z + (speed * dt * direction_z)
-    self.inst.Transform:SetPosition(predicted_x, y, predicted_z)
-end
-```
-
-### Server Reconciliation
-
-When server corrections arrive, clients must reconcile differences:
-
-```lua
--- Listen for position correction from server
-inst:ListenForEvent("onpositionupdate", function(inst, data)
-    -- Smoothly move to correct position
-    inst:DoTaskInTime(0.1, function()
-        inst.Transform:SetPosition(data.x, data.y, data.z)
-    end)
-end)
-```
-
-### Network Debugging
-
-Tools for diagnosing network issues:
-
-```lua
--- Print network statistics
-print("Network Statistics:")
-print("Bandwidth In: " .. TheSim:GetBandwidthIn())
-print("Bandwidth Out: " .. TheSim:GetBandwidthOut())
-print("Packet Loss: " .. TheSim:GetPacketLoss())
-
--- Show network entities
-c_countallnetwork() -- Console command
-
--- Track bandwidth usage
-c_bandwidth() -- Console command
-```
-
-## Example: Synchronized Item Chest
-
-Complete example of a chest with synchronized inventory:
-
-```lua
-local function MakeNetworkedChest()
-    local inst = CreateEntity()
-    
-    inst.entity:AddTransform()
-    inst.entity:AddAnimState()
-    inst.entity:AddNetwork()
-    
-    -- Visual setup
-    inst.AnimState:SetBank("chest")
-    inst.AnimState:SetBuild("treasure_chest")
-    inst.AnimState:PlayAnimation("closed")
-    
-    -- Tags for identification
-    inst:AddTag("chest")
-    inst:AddTag("structure")
-    
-    -- Network variables for UI
-    inst.openlid = net_bool(inst.GUID, "chest.openlid", "openlidchest")
-    
-    inst.entity:SetPristine()
-    
-    -- Client-side handlers
-    if not TheWorld.ismastersim then
-        -- Handle lid animation on clients
-        inst:ListenForEvent("openlidchest", function()
-            if inst.openlid:value() then
-                inst.AnimState:PlayAnimation("open")
-            else
-                inst.AnimState:PlayAnimation("closed")
-            end
-        end)
-        return inst
-    end
-    
-    -- Server-side components
-    inst:AddComponent("container")
-    inst.components.container:SetNumSlots(9)
-    
-    -- UI configuration
-    inst.components.container.widgetslotpos = {}
-    for y = 0, 2 do
-        for x = 0, 2 do
-            table.insert(inst.components.container.widgetslotpos, 
-                Vector3(80*x-80*2/2, 80*y-80*2/2, 0))
-        end
-    end
-    inst.components.container.widgetanimbank = "ui_chest_3x3"
-    inst.components.container.widgetanimbuild = "ui_chest_3x3"
-    
-    -- Connect container events to network variables
-    inst:ListenForEvent("onopen", function()
-        inst.openlid:set(true)
-    end)
-    
-    inst:ListenForEvent("onclose", function()
-        inst.openlid:set(false)
-    end)
-    
-    return inst
-end
-```
-
-## Network Limitations and Best Practices
-
-1. **Minimize Synchronization**: Only sync what clients absolutely need
-2. **Use Appropriate Data Types**: Smaller data types use less bandwidth
-3. **Batch Updates**: Group related changes together
-4. **Prioritize Critical Data**: Use network priorities appropriately
-5. **Consider Latency**: Design systems that are resilient to latency
-6. **Avoid Client Authority**: Remember the server is always authoritative
-7. **Test with Artificial Latency**: Use network condition simulators 
+- [Client-Server Synchronization](client-server-synchronization.md)
+- [RPC System](rpc-system.md)
+- [Network Bandwidth Optimization](network-bandwidth-optimization.md)
+- [Handling Latency](handling-latency-network-drops.md)
+- [Security Considerations](security-considerations-networking.md)
+- [Global Position CompleteSync Case Study](../examples/case-global-position.md) - Real-world example of advanced networking implementation
+- [Re-Gorge-itated Case Study](../examples/case-regorgeitaled.md) - Example of multiplayer voting systems and network synchronization 

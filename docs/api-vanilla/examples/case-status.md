@@ -7,92 +7,161 @@ sidebar_position: 13
 # Case Study: Combined Status Mod
 
 This case study examines the "Combined Status" mod for Don't Starve Together, which enhances the player status display with additional information. We'll analyze its implementation and extract valuable modding techniques for UI enhancement.
+- [Github](https://github.com/rezecib/Combined-Status)
+- [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=376333686)
 
 ## Mod Overview
 
-The Combined Status mod addresses a common player need: having more information readily visible on the screen. The mod:
+The Combined Status mod addresses a common player need: having more information readily visible on the screen. The mod is compatible with all versions of Don't Starve and Don't Starve Together, enhancing the HUD with various player and world information. The mod:
 
-- Combines temperature, season, and world day information into a compact display
 - Shows numerical values for health, hunger, and sanity
-- Displays exact durability percentages for equipped items
-- Adds moon phase indicators and clock
+- Displays player and world temperature with customizable units (Game units, Celsius, Fahrenheit)
+- Shows season information through a clock or compact display with days remaining
+- Displays moon phases with advanced features like waxing/waning distinction
+- Shows equipped item durability percentages 
+- Adds custom meters like naughtiness (in singleplayer) and beaver meter for Woodie
+- Features high customizability through numerous configuration options
 - Maintains the game's visual style while adding functionality
 
 ## Technical Implementation
 
 ### Core Techniques Used
 
-1. **UI Widget Creation and Positioning**
-2. **Status Data Collection**
-3. **Dynamic UI Updates**
-4. **Configuration System**
-5. **Performance Optimization**
+1. **Custom Widget Creation and Integration**
+2. **Game Component Data Access**
+3. **Cross-Platform Compatibility**
+4. **Responsive UI Configuration**
+5. **Event-Based UI Updates**
+6. **Performance Optimization**
+7. **Integration with Other Mods**
 
 Let's examine each of these techniques in detail.
 
-## 1. UI Widget Creation and Positioning
+## 1. Custom Widget Creation and Integration
 
-The mod creates custom UI elements that match the game's visual style while providing additional information.
+The mod creates custom UI elements and integrates them with the game's existing UI by using class post-construction (modifying existing classes) and creating custom widget classes.
 
-### Key Code Elements
+### Custom Widget Classes
 
 ```lua
--- Create the main status display widget
-local function CreateStatusDisplay(owner)
-    -- Create the root widget
-    local root = owner.HUD.controls.top_root:AddChild(Widget("CombinedStatus"))
-    root:SetVAnchor(ANCHOR_TOP)
-    root:SetHAnchor(ANCHOR_LEFT)
-    root:SetPosition(CONFIG.POSITION_X, CONFIG.POSITION_Y, 0)
+-- MiniBadge widget for compact status displays
+local Minibadge = Class(Widget, function(self, name, owner)
+    Widget._ctor(self, "Minibadge")
+    self.owner = owner
+	
+    self.name = name
+
+    self:SetScale(.9, .9, .9)
+	
+    self.bg = self:AddChild(Image("images/status_bgs.xml", "status_bgs.tex"))
+    self.bg:SetScale(.4,.43,1)
+    self.bg:SetPosition(-.5, -40)
+	
+    self.num = self:AddChild(Text(NUMBERFONT, 28))
+    self.num:SetHAlign(ANCHOR_MIDDLE)
+    self.num:SetPosition(3.5, -40.5)
+    self.num:SetScale(1,.78,1)
+end)
+
+-- Custom season clock widget
+local SeasonClock = Class(Widget, function(self, owner, isdst, season_transition_fn, show_clock_text)
+    Widget._ctor(self, "SeasonClock")
     
-    -- Create the background
-    local background = root:AddChild(Image("images/status_bg.xml", "status_bg.tex"))
-    background:SetScale(0.7, 0.7, 0.7)
+    -- Configure based on game version and environment
+    self._dst = isdst
+    self._season_transition_fn = season_transition_fn
+    local world = self._dst and TheWorld or GetWorld()
+    self._cave = (self._dst and world ~= nil and world:HasTag("cave"))
+        or (not self._dst and world:IsCave())
+        
+    -- Create clock visuals
+    self._face = self:AddChild(Image("images/hud.xml", "clock_NIGHT.tex"))
+    self._face:SetClickable(false)
     
-    -- Add temperature display
-    local temp = root:AddChild(Widget("temperature"))
-    temp:SetPosition(25, -25, 0)
+    -- Create clock segments
+    local segscale = .4
+    for i = NUM_SEGS, 1, -1 do
+        local seg = self:AddChild(Image("images/hud.xml", "clock_wedge.tex"))
+        seg:SetScale((i == 1 and 0.5 or 1)*segscale, segscale, segscale)
+        seg:SetHRegPoint(ANCHOR_LEFT)
+        seg:SetVRegPoint(ANCHOR_BOTTOM)
+        seg:SetRotation((i - (i == 1 and 1 or 2)) * (360 / NUM_SEGS))
+        seg:SetClickable(false)
+        self._segs[i] = seg
+    end
+end)
+```
+
+### Integration with Existing UI
+
+The mod uses class post-construction to modify existing game UI components:
+
+```lua
+-- Modify the Badge class to add numerical display
+local function BadgePostConstruct(self)
+    if self.active == nil then
+        self.active = true
+    end
     
-    local temp_icon = temp:AddChild(Image("images/temperature.xml", "temperature.tex"))
-    temp_icon:SetScale(0.5, 0.5, 0.5)
+    self:SetScale(.9,.9,.9)
     
-    local temp_text = temp:AddChild(Text(NUMBERFONT, 28))
-    temp_text:SetPosition(25, 0, 0)
-    temp_text:SetString("0°C")
+    -- Add background for numerical display
+    self.bg = self:AddChild(Image("images/status_bgs.xml", "status_bgs.tex"))
+    self.bg:SetScale(SHOWDETAILEDSTATNUMBERS and 0.55 or .4,.43,0)
+    self.bg:SetPosition(-.5, -40, 0)
     
-    -- Add more UI elements...
+    -- Configure numerical display
+    self.num:SetFont(GLOBAL.NUMBERFONT)
+    self.num:SetSize(SHOWDETAILEDSTATNUMBERS and 20 or 28)
+    self.num:SetPosition(2, -40.5, 0)
+    self.num:SetScale(1,.78,1)
+
+    self.num:MoveToFront()
+    if self.active then
+        self.num:Show()
+    end
     
-    -- Store references to update later
-    root.temp_text = temp_text
+    -- Add max value display when hovering
+    self.maxnum = self:AddChild(Text(GLOBAL.NUMBERFONT, SHOWMAXONNUMBERS and 25 or 33))
+    self.maxnum:SetPosition(6, 0, 0)
+    self.maxnum:MoveToFront()
+    self.maxnum:Hide()
     
-    return root
+    -- Override focus methods to show/hide max numbers
+    local OldOnGainFocus = self.OnGainFocus
+    function self:OnGainFocus()
+        OldOnGainFocus(self)
+        if self.active then
+            self.maxnum:Show()
+        end
+    end
 end
+AddClassPostConstruct("widgets/badge", BadgePostConstruct)
 ```
 
 ### Implementation Analysis
 
-The UI creation system demonstrates:
+The UI integration system demonstrates:
 
-1. **Widget Hierarchy**: Creating a structured UI with parent-child relationships
-2. **Anchoring**: Using anchors to position UI elements relative to screen edges
-3. **Visual Styling**: Matching the game's art style with appropriate assets
-4. **Component Organization**: Grouping related elements into sub-widgets
-5. **Reference Management**: Storing references to elements that need updating
+1. **Custom Widgets**: Creating specialized widgets like `Minibadge` and `SeasonClock` for enhanced functionality
+2. **Class Extension**: Using post-construction to modify existing game widgets
+3. **Hierarchy Management**: Building complex nested widget structures
+4. **Visual Consistency**: Maintaining the game's art style with matching assets
+5. **Responsive Layout**: Adapting widget positioning and scaling based on configurations
 
-## 2. Status Data Collection
+## 2. Game Component Data Access
 
-The mod needs to gather various types of data from different game systems to display in the UI.
+The mod accesses various game systems and components to collect data for display, handling differences between game versions.
 
-### Key Code Elements
+### Player Status Data
 
 ```lua
--- Collect player status data
 local function GetPlayerStatus(player)
     if not player then return {} end
     
     local status = {}
     
-    -- Get health data
+    -- Get health data with safety checks
     if player.components.health then
         status.health = {
             current = math.floor(player.components.health.currenthealth),
@@ -110,74 +179,77 @@ local function GetPlayerStatus(player)
         }
     end
     
-    -- Get sanity data
-    if player.components.sanity then
-        status.sanity = {
-            current = math.floor(player.components.sanity.current),
-            max = math.floor(player.components.sanity.max),
-            percent = player.components.sanity:GetPercent()
-        }
-    end
-    
-    -- Get temperature
+    -- Get temperature with unit conversion
     if player.components.temperature then
-        status.temperature = math.floor(player.components.temperature:GetCurrent())
+        local temp = player.components.temperature:GetCurrent()
+        status.temperature = math.floor(temp + 0.5)
         status.is_freezing = player.components.temperature:IsFreezing()
         status.is_overheating = player.components.temperature:IsOverheating()
     end
     
-    -- Get equipped items
-    status.equipped = {}
-    if player.components.inventory then
-        for k, v in pairs(EQUIPSLOTS) do
-            local item = player.components.inventory:GetEquippedItem(v)
-            if item then
-                local data = {
-                    prefab = item.prefab,
-                    name = item:GetDisplayName()
-                }
-                
-                -- Get durability if available
-                if item.components.finiteuses then
-                    data.durability = item.components.finiteuses:GetPercent()
-                elseif item.components.armor then
-                    data.durability = item.components.armor:GetPercent()
-                elseif item.components.fueled then
-                    data.durability = item.components.fueled:GetPercent()
-                end
-                
-                status.equipped[v] = data
-            end
-        end
+    -- Get naughtiness (only available in single-player)
+    if not DST and player.components.kramped then
+        status.naughtiness = {
+            current = player.components.kramped.actions,
+            max = player.components.kramped.threshold,
+            percent = player.components.kramped.actions / player.components.kramped.threshold
+        }
+    end
+    
+    -- Get beaver meter for Woodie
+    if player.components.beaverness then
+        status.beaverness = {
+            current = player.components.beaverness:GetPercent(),
+            max = 1,
+            percent = player.components.beaverness:GetPercent(),
+        }
     end
     
     return status
 end
+```
 
--- Collect world status data
+### World Status Data
+
+```lua
 local function GetWorldStatus()
-    if not TheWorld then return {} end
+    -- Handle differences between DST and DS
+    local world = DST and TheWorld or GetSeasonManager()
+    if not world then return {} end
     
     local status = {}
     
     -- Get season info
-    if TheWorld.components.seasons then
-        status.season = TheWorld.components.seasons:GetSeason()
-        status.days_left = TheWorld.components.seasons:GetDaysLeftInSeason()
-        status.days_elapsed = TheWorld.components.seasons:GetSeasonLength() - status.days_left
+    if DST then
+        status.season = TheWorld.state.season
+        status.days_left = TheWorld.state.remainingdaysinseason
+        status.days_elapsed = TheWorld.state[status.season .. "length"] - status.days_left
+    else
+        status.season = world:GetSeason()
+        status.days_left = (1 - world.percent_season) * world:GetSeasonLength()
+        status.days_elapsed = world:GetSeasonLength() - status.days_left
     end
     
     -- Get time of day
-    if TheWorld.components.clock then
-        status.time = TheWorld.components.clock:GetTimeString()
-        status.day = TheWorld.components.clock:GetNumCycles() + 1
-        status.phase = TheWorld.components.clock:GetPhase()
-        status.remaining_daylight = TheWorld.components.clock:GetTimeUntilPhase("dusk")
+    local clock = DST and TheWorld or GetClock()
+    if clock then
+        status.time = clock:GetTimeString()
+        status.day = (DST and TheWorld.state.cycles or clock:GetNumCycles()) + 1
+        status.phase = DST and TheWorld.state.phase or clock:GetPhase()
     end
     
     -- Get moon phase
-    if TheWorld.components.worldstate then
-        status.moon_phase = TheWorld.components.worldstate:GetMoonPhase()
+    if DST then
+        status.moon_phase = TheWorld.state.moonphase
+        status.moon_visible = TheWorld.state.moonvisible 
+    else
+        status.moon_phase = GetClock():GetMoonPhase()
+        status.moon_visible = GetClock():GetMoonPhase() ~= "new"
+    end
+    
+    -- Get world temperature
+    if world.GetCurrentTemperature then
+        status.world_temperature = math.floor(world:GetCurrentTemperature() + 0.5)
     end
     
     return status
@@ -188,138 +260,71 @@ end
 
 The data collection system demonstrates:
 
-1. **Component Access**: Safely accessing various game components
-2. **Defensive Programming**: Checking for component existence before accessing
-3. **Data Transformation**: Converting raw values to display-friendly formats
-4. **Comprehensive Coverage**: Gathering data from both player and world sources
-5. **Structured Organization**: Organizing related data into logical groups
+1. **Component Safety**: Using safety checks before accessing components
+2. **Cross-Version Abstraction**: Handling differences between DS and DST
+3. **Complex Calculations**: Computing derived values like days remaining
+4. **Data Normalization**: Formatting data for consistent display
+5. **Feature Detection**: Checking for optional components before accessing them
 
-## 3. Dynamic UI Updates
+## 3. Cross-Platform Compatibility
 
-The mod updates the UI elements in response to changes in the game state.
-
-### Key Code Elements
+The mod includes extensive handling to work across different game versions: vanilla Don't Starve, Reign of Giants, Shipwrecked, Hamlet, and Don't Starve Together.
 
 ```lua
--- Update the status display
-local function UpdateStatusDisplay(widget, player_status, world_status)
-    -- Update temperature
-    if widget.temp_text and player_status.temperature then
-        local temp = player_status.temperature
-        local color = NORMAL_COLOR
-        
-        -- Set color based on temperature state
-        if player_status.is_freezing then
-            color = COLD_COLOR
-        elseif player_status.is_overheating then
-            color = HOT_COLOR
+-- Detect game version and DLCs
+local DST = GLOBAL.TheSim.GetGameID ~= nil and GLOBAL.TheSim:GetGameID() == "DST"
+local ROG = DST or CheckDlcEnabled("REIGN_OF_GIANTS")
+local CSW = CheckDlcEnabled("CAPY_DLC")
+local HML = CheckDlcEnabled("PORKLAND_DLC")
+
+-- Handle different season systems
+local function FindSeasonTransitions()
+    if DST then
+        local seasons_trans = {"autumn", "winter", "spring", "summer"}
+        --IsShipwreckedWorld and IsPorkWorld are defined in Island Adventures
+        if HAS_MOD.ISLAND_ADVENTURES then
+            return GLOBAL.IsShipwreckedWorld() and {"mild", "wet", "green", "dry"}
+                or GLOBAL.IsPorkWorld() and {"temperate", "humid", "lush"}
+                or seasons_trans
         end
-        
-        widget.temp_text:SetString(string.format("%d°C", temp))
-        widget.temp_text:SetColor(color)
+        return seasons_trans
     end
     
-    -- Update health display
-    if widget.health_text and player_status.health then
-        local health = player_status.health
-        widget.health_text:SetString(string.format("%d / %d", health.current, health.max))
-        
-        -- Update health bar
-        if widget.health_bar then
-            widget.health_bar:SetPercent(health.percent)
-        end
-    end
-    
-    -- Update hunger display
-    if widget.hunger_text and player_status.hunger then
-        local hunger = player_status.hunger
-        widget.hunger_text:SetString(string.format("%d / %d", hunger.current, hunger.max))
-        
-        -- Update hunger bar
-        if widget.hunger_bar then
-            widget.hunger_bar:SetPercent(hunger.percent)
+    -- For singleplayer, scrape the SeasonManager's data
+    local season_trans = {}
+    local season_orders = {
+        "autumn", "winter", "spring", "summer",
+        "mild", "wet", "green", "dry",
+        "temperate", "humid", "lush",
+    }
+    for i, season in ipairs(season_orders) do
+        if GLOBAL.GetSeasonManager()[season .. "enabled"] then
+            table.insert(season_trans, season)
         end
     end
-    
-    -- Update sanity display
-    if widget.sanity_text and player_status.sanity then
-        local sanity = player_status.sanity
-        widget.sanity_text:SetString(string.format("%d / %d", sanity.current, sanity.max))
-        
-        -- Update sanity bar
-        if widget.sanity_bar then
-            widget.sanity_bar:SetPercent(sanity.percent)
-        end
+    -- Vanilla DS fallback
+    if #season_trans == 0 then
+        season_trans = {"summer", "winter"}
     end
-    
-    -- Update season and day display
-    if widget.season_text and world_status.season then
-        local season_name = STRINGS.UI.SERVERLISTINGSCREEN.SEASONS[string.upper(world_status.season)]
-        widget.season_text:SetString(season_name)
-        
-        -- Update season icon
-        if widget.season_icon then
-            widget.season_icon:SetTexture("images/seasons.xml", world_status.season .. ".tex")
-        end
-    end
-    
-    if widget.day_text and world_status.day then
-        widget.day_text:SetString(string.format(STRINGS.UI.HUD.DAY, world_status.day))
-    end
-    
-    -- Update clock
-    if widget.clock_text and world_status.time then
-        widget.clock_text:SetString(world_status.time)
-    end
-    
-    -- Update moon phase
-    if widget.moon_icon and world_status.moon_phase then
-        widget.moon_icon:SetTexture("images/moon_phases.xml", "moon_phase_" .. world_status.moon_phase .. ".tex")
-    end
-    
-    -- Update equipped items
-    if widget.equipped and player_status.equipped then
-        for slot, item_widget in pairs(widget.equipped) do
-            local item = player_status.equipped[slot]
-            
-            if item and item_widget.durability and item.durability then
-                -- Show durability percentage
-                item_widget.durability:SetString(string.format("%d%%", math.floor(item.durability * 100)))
-                
-                -- Set color based on durability
-                local color = NORMAL_COLOR
-                if item.durability < 0.1 then
-                    color = DANGER_COLOR
-                elseif item.durability < 0.3 then
-                    color = WARNING_COLOR
-                end
-                item_widget.durability:SetColor(color)
-            else
-                -- Hide durability text if no item or no durability
-                if item_widget.durability then
-                    item_widget.durability:SetString("")
-                end
-            end
-        end
-    end
+    return season_trans
 end
 ```
 
 ### Implementation Analysis
 
-The UI update system demonstrates:
+The cross-platform compatibility demonstrates:
 
-1. **Conditional Updates**: Only updating elements when data is available
-2. **Visual Feedback**: Using colors to indicate status conditions
-3. **Formatting**: Formatting numerical values for readability
-4. **Localization Support**: Using game strings for localized text
-5. **Dynamic Visuals**: Changing textures based on game state
+1. **Feature Detection**: Checking for available functions and components
+2. **DLC Detection**: Identifying which DLC content is enabled
+3. **Version-Specific Logic**: Applying different code paths based on game version
+4. **Graceful Fallbacks**: Providing reasonable defaults when features are unavailable
+5. **Dynamic Content**: Adjusting UI for different game environments
 
-## 4. Configuration System
+## 4. Responsive UI Configuration
 
-The mod provides options for users to customize the display according to their preferences.
+The mod provides extensive configuration options to users and dynamically adjusts the UI layout based on those settings.
 
-### Key Code Elements
+### Configuration Options
 
 ```lua
 -- Configuration options in modinfo.lua
@@ -338,43 +343,58 @@ configuration_options = {
         default = "topleft"
     },
     {
-        name = "SHOW_NUMERICAL",
-        label = "Show Numerical Values",
-        options = {
-            {description = "Yes", data = true},
-            {description = "No", data = false}
-        },
-        default = true
+        name = "SHOWTEMPERATURE",
+        label = "Temperature",
+        hover = "Show the temperature of the player.",
+        options =    {
+                        {description = "Show", data = true},
+                        {description = "Hide", data = false},
+                    },
+        default = true,
     },
     {
-        name = "SHOW_DURABILITY",
-        label = "Show Item Durability",
-        options = {
-            {description = "Always", data = "always"},
-            {description = "When Low", data = "low"},
-            {description = "Never", data = "never"}
-        },
-        default = "always"
+        name = "UNIT",
+        label = "Temperature Unit",
+        hover = "Do the right thing, and leave this on Game.",
+        options =    {
+                        {description = "Game Units", data = "T"},
+                        {description = "Celsius", data = "C"},
+                        {description = "Fahrenheit", data = "F"},
+                    },
+        default = "T",
     },
     {
-        name = "UPDATE_INTERVAL",
-        label = "Update Frequency",
-        options = {
-            {description = "Very High (0.1s)", data = 0.1},
-            {description = "High (0.25s)", data = 0.25},
-            {description = "Normal (0.5s)", data = 0.5},
-            {description = "Low (1s)", data = 1}
-        },
-        default = 0.5
-    }
+        name = "SEASONOPTIONS",
+        label = "Season Clock",
+        hover = "Adds a clock that shows the seasons, and rearranges the status badges to fit better.",
+        options =    {
+                        {description = "Micro", data = "Micro"},
+                        {description = "Compact", data = "Compact"},
+                        {description = "Clock", data = "Clock"},
+                        {description = "No", data = ""},
+                    },
+        default = "Clock",
+    },
+    {
+        name = "HUDSCALEFACTOR",
+        label = "HUD Scale",
+        hover = "Lets you adjust the size of the badges and clocks independently of the rest of the game HUD scale.",
+        options = hud_scale_options,
+        default = 100,
+    },
 }
+```
 
+### Dynamic Layout Adjustment
+
+```lua
 -- Apply configuration in modmain.lua
 local function ApplyConfiguration()
+    -- Read configuration values
     CONFIG = {
         POSITION = GetModConfigData("POSITION"),
-        SHOW_NUMERICAL = GetModConfigData("SHOW_NUMERICAL"),
-        SHOW_DURABILITY = GetModConfigData("SHOW_DURABILITY"),
+        SHOW_NUMERICAL = GetModConfigData("SHOWSTATNUMBERS"),
+        SHOW_DURABILITY = GetModConfigData("SHOWDURABILITY"),
         UPDATE_INTERVAL = GetModConfigData("UPDATE_INTERVAL")
     }
     
@@ -407,27 +427,82 @@ local function ApplyConfiguration()
         CONFIG.ANCHOR_H = ANCHOR_MIDDLE
         CONFIG.ALIGNMENT = "center"
     end
+    
+    -- Scale UI based on configuration
+    CONFIG.SCALE = HUDSCALEFACTOR
+    
+    -- Adjust status elements based on which features are enabled
+    CONFIG.TEMP_Y_OFFSET = SHOWTEMPERATURE and 30 or 0
+    CONFIG.WORLD_TEMP_Y_OFFSET = SHOWWORLDTEMP and 30 or 0
+    CONFIG.NAUGHTINESS_Y_OFFSET = SHOWNAUGHTINESS and 30 or 0
+}
+```
+
+### Implementation Analysis
+
+The responsive configuration system demonstrates:
+
+1. **Rich Configuration Options**: Providing users with detailed control
+2. **Hover Tooltips**: Explaining options with hover text
+3. **Layout Algorithm**: Dynamic positioning based on user preferences
+4. **Feature Dependencies**: Enabling/disabling features based on other settings
+5. **Scale Management**: Handling different screen sizes and resolutions
+
+## 5. Event-Based UI Updates
+
+The mod uses the game's event system to efficiently update UI elements when relevant data changes.
+
+```lua
+-- Listen for events to update the season display
+if DST then
+    local function listen_for_event_delayed(event, fn)
+        self.inst:ListenForEvent(event, function(inst, data)
+            TheWorld:DoTaskInTime(0, function()
+                fn(self, data)
+            end)
+        end, TheWorld)
+    end
+    listen_for_event_delayed("seasontick", self.OnCyclesChanged)
+    listen_for_event_delayed("seasonlengthschanged", self.OnSeasonLengthsChanged)
+    listen_for_event_delayed("phasechanged", self.OnPhaseChanged)
+else
+    self.inst:ListenForEvent("daycomplete", function(inst, data)
+        self.inst:DoTaskInTime(0, function()
+            self:OnCyclesChanged()
+            if self._have_focus then
+                self:OnGainFocus()
+            else
+                self:OnLoseFocus()
+            end
+        end)
+    end, GetWorld())
+    self.inst:ListenForEvent("seasonChange", function()
+        self:OnSeasonLengthsChanged()
+        if self._have_focus then
+            self:OnGainFocus()
+        else
+            self:OnLoseFocus()
+        end
+    end, GetWorld())
 end
 ```
 
 ### Implementation Analysis
 
-The configuration system demonstrates:
+The event-based update system demonstrates:
 
-1. **User-Friendly Options**: Providing clear descriptions for each option
-2. **Appropriate Defaults**: Setting sensible default values
-3. **Option Categories**: Organizing options by functionality
-4. **Configuration Application**: Transforming user settings into usable values
-5. **Derived Settings**: Calculating additional settings based on user choices
+1. **Efficient Updates**: Only updating when relevant data changes
+2. **Event Delay**: Using DoTaskInTime(0) to prevent event processing conflicts
+3. **Event Filtering**: Selecting specific events to respond to
+4. **State Preservation**: Maintaining focus state during updates
+5. **Version-Specific Events**: Handling different event systems in DS and DST
 
-## 5. Performance Optimization
+## 6. Performance Optimization
 
-The mod includes optimizations to ensure it doesn't impact game performance.
-
-### Key Code Elements
+The mod includes several optimizations to ensure it doesn't impact game performance.
 
 ```lua
--- Optimized update function
+-- Optimized update function with change detection
 local function InitializeStatusUpdates(widget)
     -- Store last values to avoid unnecessary updates
     local last_player_status = {}
@@ -435,7 +510,7 @@ local function InitializeStatusUpdates(widget)
     
     -- Create periodic update task
     return player:DoPeriodicTask(CONFIG.UPDATE_INTERVAL, function()
-        -- Only collect data if widget exists and is visible
+        -- Skip processing if widget is hidden
         if not widget or not widget.shown then return end
         
         -- Collect current status data
@@ -472,7 +547,7 @@ local function HasChanges(new_data, old_data)
     -- Check if any keys in new_data are different from old_data
     for k, v in pairs(new_data) do
         if type(v) == "table" then
-            if HasChanges(v, old_data[k]) then
+            if old_data[k] == nil or HasChanges(v, old_data[k]) then
                 return true
             end
         elseif old_data[k] == nil or v ~= old_data[k] then
@@ -495,43 +570,106 @@ end
 
 The performance optimization demonstrates:
 
-1. **Conditional Updates**: Only updating the UI when data changes
-2. **Update Frequency Control**: Allowing users to adjust update frequency
+1. **Conditional Updates**: Only updating when data actually changes
+2. **Deep Comparison**: Efficiently comparing nested data structures
 3. **Visibility Checks**: Skipping updates when UI is not visible
-4. **Change Detection**: Efficiently detecting changes in complex data structures
-5. **Memory Management**: Properly storing and comparing previous states
+4. **Update Frequency Control**: Allowing users to adjust update frequency
+5. **Memory Management**: Properly copying and storing previous state data
+
+## 7. Integration with Other Mods
+
+The mod detects and integrates with other popular mods to enhance compatibility and features.
+
+```lua
+local CHECK_MODS = {
+    ["workshop-1402200186"] = "TROPICAL",
+    ["workshop-874857181"] = "CHINESE",
+    ["workshop-2189004162"] = "INSIGHT",
+}
+local HAS_MOD = {}
+-- Check for already loaded mods
+for mod_name, key in pairs(CHECK_MODS) do
+    HAS_MOD[key] = HAS_MOD[key] or (GLOBAL.KnownModIndex:IsModEnabled(mod_name) and mod_name)
+end
+-- Check for mods that will load later
+for k,v in pairs(GLOBAL.KnownModIndex:GetModsToLoad()) do
+    local mod_type = CHECK_MODS[v]
+    if mod_type then
+        HAS_MOD[mod_type] = v
+    end
+    
+    local modinfo = GLOBAL.KnownModIndex:GetModInfo(v)
+    -- Special case for RPG HUD which has many variants
+    if string.match(modinfo.name or "", "RPG HUD") then
+        HAS_MOD.RPGHUD = true
+    elseif modinfo.ia_core then -- For Shipwrecked and Hamlet port mods
+        HAS_MOD.ISLAND_ADVENTURES = true
+    end
+end
+
+-- Adjust UI based on other mods
+if HAS_MOD.RPGHUD then
+    -- Adjust position to avoid conflicts with RPG HUD elements
+    nudge = 75 -- Increased offset when RPG HUD is present
+else
+    nudge = 12.5
+end
+
+-- Use naughtiness from Insight mod if available in DST
+if DST and HAS_MOD.INSIGHT and SHOWNAUGHTINESS then
+    self.inst:ListenForEvent("naughtiness_delta", function(player, data)
+        if self.naughtiness and data then
+            self.naughtiness.num:SetString(data.naughtiness.."/"..data.max_naughtiness)
+        end
+    end, self.owner)
+end
+```
+
+### Implementation Analysis
+
+The mod integration system demonstrates:
+
+1. **Mod Detection**: Identifying installed mods through KnownModIndex
+2. **Conditional Features**: Enabling features based on mod availability
+3. **Layout Adjustment**: Modifying layouts to avoid conflicts with other mods
+4. **Feature Enhancement**: Using features from other mods when available
+5. **Universal Compatibility**: Fallbacks for when integration is not possible
 
 ## Lessons Learned
 
 From analyzing the Combined Status mod, we can extract several valuable lessons for UI mod development:
 
-### 1. Non-Intrusive UI Design
+### 1. User-Centered Design
 
 The mod demonstrates how to:
-- Add information without cluttering the screen
-- Maintain the game's visual style
-- Position UI elements to avoid interfering with gameplay
+- Provide extensive configuration options to suit different player preferences
+- Display information that is most relevant to player decision-making
+- Create clear visual hierarchy and readable information displays
+- Balance information density with visual clarity
 
-### 2. Efficient Data Collection
+### 2. Cross-Platform Development
 
 The mod shows good practices for:
-- Safely accessing game components
-- Organizing data collection in logical functions
-- Transforming raw data into display-friendly formats
+- Handling differences between game versions with graceful fallbacks
+- Detecting available features before attempting to use them
+- Adapting to different DLC content and environments
+- Maintaining consistent look and feel across platforms
 
-### 3. User-Centered Configuration
-
-The mod prioritizes user experience through:
-- Providing meaningful configuration options
-- Setting sensible defaults
-- Allowing users to customize according to their preferences
-
-### 4. Performance Awareness
+### 3. Performance-Conscious Development
 
 Despite adding UI elements and collecting data, the mod maintains good performance by:
-- Only updating when necessary
+- Only updating when necessary through change detection
 - Allowing users to control update frequency
-- Efficiently detecting changes
+- Using efficient data structures and comparison methods
+- Skipping updates when elements are not visible
+
+### 4. Integration and Compatibility
+
+The mod prioritizes working well with:
+- The base game's existing UI elements and style
+- Other popular mods through detection and adaptation
+- Different screen resolutions through scale management
+- Various in-game contexts like caves, seasons, and character types
 
 ## Implementing Similar Features
 
@@ -624,66 +762,129 @@ end
 function UpdateStatusDisplay(widget, player)
     if not widget or not player then return end
     
+    local is_dst = TheSim:GetGameID() == "DST"
+    
     -- Update health
     if widget.elements.health and player.components.health then
         local current = math.floor(player.components.health.currenthealth)
         local max = math.floor(player.components.health.maxhealth)
         widget.elements.health.text:SetString(string.format("%d / %d", current, max))
+        
+        -- Color based on value
+        local percent = player.components.health:GetPercent()
+        if percent < 0.25 then
+            widget.elements.health.text:SetColour(1, 0, 0)
+        else
+            widget.elements.health.text:SetColour(1, 1, 1)
+        end
     end
     
-    -- Update hunger
-    if widget.elements.hunger and player.components.hunger then
-        local current = math.floor(player.components.hunger.current)
-        local max = math.floor(player.components.hunger.max)
-        widget.elements.hunger.text:SetString(string.format("%d / %d", current, max))
-    end
-    
-    -- Update sanity
-    if widget.elements.sanity and player.components.sanity then
-        local current = math.floor(player.components.sanity.current)
-        local max = math.floor(player.components.sanity.max)
-        widget.elements.sanity.text:SetString(string.format("%d / %d", current, max))
-    end
-    
-    -- Update temperature
+    -- Update temperature with unit conversion
     if widget.elements.temperature and player.components.temperature then
-        local temp = math.floor(player.components.temperature:GetCurrent())
-        widget.elements.temperature.text:SetString(string.format("%d°C", temp))
+        local temp = player.components.temperature:GetCurrent()
+        local temp_str = ""
+        
+        -- Convert based on units
+        if CONFIG.UNIT == "C" then
+            temp_str = string.format("%d°C", math.floor(temp/2 + 0.5))
+        elseif CONFIG.UNIT == "F" then
+            temp_str = string.format("%d°F", math.floor(0.9*temp + 32.5))
+        else -- Game units
+            temp_str = string.format("%d°", math.floor(temp + 0.5))
+        end
+        
+        widget.elements.temperature.text:SetString(temp_str)
+        
+        -- Set color based on temperature state
+        if player.components.temperature:IsFreezing() then
+            widget.elements.temperature.text:SetColour(0.5, 0.5, 1)
+        elseif player.components.temperature:IsOverheating() then
+            widget.elements.temperature.text:SetColour(1, 0.4, 0.4)
+        else
+            widget.elements.temperature.text:SetColour(1, 1, 1)
+        end
     end
     
-    -- Update world information
-    if TheWorld then
+    -- Update world information using the appropriate functions for the game version
+    local world = is_dst and TheWorld or GetWorld()
+    local seasons = is_dst and TheWorld or GetSeasonManager()
+    local clock = is_dst and TheWorld or GetClock()
+    
+    if world and seasons and clock then
         -- Update season
-        if widget.elements.season and TheWorld.components.seasons then
-            local season = TheWorld.components.seasons:GetSeason()
-            local season_name = STRINGS.UI.SERVERLISTINGSCREEN.SEASONS[string.upper(season)]
+        if widget.elements.season then
+            local season = is_dst and world.state.season or seasons:GetSeason()
+            local season_name = is_dst
+                and STRINGS.UI.SERVERLISTINGSCREEN.SEASONS[season:upper()]
+                or STRINGS.UI.SANDBOXMENU[season:upper()]
             widget.elements.season.text:SetString(season_name)
         end
         
         -- Update day
-        if widget.elements.day and TheWorld.components.clock then
-            local day = TheWorld.components.clock:GetNumCycles() + 1
+        if widget.elements.day then
+            local day = (is_dst and world.state.cycles or clock:GetNumCycles()) + 1
             widget.elements.day.text:SetString(string.format(STRINGS.UI.HUD.DAY, day))
-        end
-        
-        -- Update time
-        if widget.elements.time and TheWorld.components.clock then
-            local time = TheWorld.components.clock:GetTimeString()
-            widget.elements.time.text:SetString(time)
         end
     end
 end
 ```
 
-### Step 4: Set Up Periodic Updates
+### Step 4: Set Up Periodic Updates with Optimization
 
 ```lua
--- Initialize periodic updates
+-- Initialize periodic updates with change detection
 function InitializeStatusUpdates(player, widget)
+    local last_health = 0
+    local last_hunger = 0
+    local last_temp = 0
+    local last_day = 0
+    local last_season = ""
+    
     -- Create update task
     return player:DoPeriodicTask(0.5, function()
-        if player and widget and widget.shown then
+        if not player or not widget or not widget.shown then
+            return -- Skip processing if not needed
+        end
+        
+        -- Check for changes in key values
+        local health_changed = player.components.health 
+            and math.floor(player.components.health.currenthealth) ~= last_health
+        local hunger_changed = player.components.hunger
+            and math.floor(player.components.hunger.current) ~= last_hunger
+        local temp_changed = player.components.temperature
+            and math.floor(player.components.temperature:GetCurrent()) ~= last_temp
+            
+        local is_dst = TheSim:GetGameID() == "DST"
+        local world = is_dst and TheWorld or GetWorld()
+        local seasons = is_dst and TheWorld or GetSeasonManager()
+        local clock = is_dst and TheWorld or GetClock()
+        
+        local day_changed = is_dst and world.state.cycles ~= last_day
+            or not is_dst and clock:GetNumCycles() ~= last_day
+        local season_changed = is_dst and world.state.season ~= last_season
+            or not is_dst and seasons:GetSeason() ~= last_season
+            
+        -- Only update if something changed
+        if health_changed or hunger_changed or temp_changed or day_changed or season_changed then
             UpdateStatusDisplay(widget, player)
+            
+            -- Store current values for next comparison
+            if player.components.health then
+                last_health = math.floor(player.components.health.currenthealth)
+            end
+            if player.components.hunger then
+                last_hunger = math.floor(player.components.hunger.current)
+            end
+            if player.components.temperature then
+                last_temp = math.floor(player.components.temperature:GetCurrent())
+            end
+            if is_dst then
+                last_day = world.state.cycles
+                last_season = world.state.season
+            else
+                last_day = clock:GetNumCycles()
+                last_season = seasons:GetSeason()
+            end
         end
     end)
 end
@@ -691,11 +892,22 @@ end
 
 ## Conclusion
 
-The Combined Status mod exemplifies excellent UI mod design through:
+The Combined Status mod exemplifies professional UI mod development through:
 
 1. **Information Enhancement**: Providing useful information without overwhelming the player
-2. **Visual Integration**: Maintaining the game's art style and UI conventions
-3. **User Customization**: Allowing players to adjust the display to their preferences
-4. **Performance Consciousness**: Ensuring the mod doesn't negatively impact game performance
+2. **Cross-Platform Support**: Working across all game versions with consistent functionality
+3. **Visual Integration**: Maintaining the game's art style and UI conventions
+4. **User Customization**: Providing extensive options to tailor the experience
+5. **Performance Optimization**: Ensuring the mod doesn't impact game performance
+6. **Mod Compatibility**: Working alongside other popular mods
 
-By studying this mod, we can learn how to create UI enhancements that add value to the game experience while respecting its visual design and performance requirements. These principles apply to any mod that aims to improve the game's interface. 
+By studying this mod, we can learn how to create UI enhancements that add value to the game experience while respecting its visual design, performance requirements, and ecosystem. These principles apply to any mod that aims to improve the game's interface.
+
+## See also
+
+- [Widget System](../core/widgets.md) - For UI widget creation and management
+- [Health Component](../components/health.md) - For accessing player health data
+- [Temperature Component](../components/temperature.md) - For accessing temperature data
+- [Hunger Component](../components/hunger.md) - For accessing hunger data
+- [Sanity Component](../components/sanity.md) - For accessing sanity data
+- [UI System](../core/ui-system.md) - For understanding the game's UI architecture 

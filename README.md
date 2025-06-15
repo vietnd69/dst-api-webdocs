@@ -29,12 +29,57 @@ This command starts a local development server and opens a browser window. Most 
 
 ## Contributing
 
-We welcome contributions to this project:
+We welcome contributions to the Don't Starve Together API Documentation! Your help makes this resource better for the entire modding community.
 
-1. Adding documentation for new APIs
-2. Improving existing descriptions
-3. Adding examples and tutorials
-4. Fixing errors and updating inaccurate information
+### Why Contribute?
+
+Contributing to the DST API documentation helps:
+
+- **Improve the modding ecosystem** for all developers
+- **Share knowledge** with the community
+- **Make modding more accessible** to newcomers
+- **Document undocumented features** for everyone's benefit
+- **Keep information current** with game updates
+
+### Ways to Contribute
+
+There are many ways you can contribute:
+
+- **Documentation improvements**: Enhance existing documentation with clearer explanations
+- **New documentation**: Add documentation for undocumented APIs or features
+- **Code examples**: Provide practical examples that demonstrate API usage
+- **Bug fixes**: Correct errors, typos, or outdated information
+- **Translations**: Help translate documentation to other languages
+
+### Contribution Process
+
+1. **Find an Area to Contribute**
+   - Check the [list of areas needing contributions](https://vietnd69.github.io/dst-api-webdocs/community/areas-needing-contributions)
+   - Review existing documentation for gaps or improvements
+   - Look for issues labeled "help wanted" or "good first issue"
+
+2. **Set Up Your Environment**
+   - Fork the repository
+   - Clone your fork locally
+   - Install dependencies with `npm install`
+   - Start the development server with `npm start`
+
+3. **Make Your Changes**
+   - Follow the [documentation standards](https://vietnd69.github.io/dst-api-webdocs/community/documentation-standards)
+   - Include working code examples following our [coding standards](https://vietnd69.github.io/dst-api-webdocs/community/coding-standards)
+
+4. **Submit Your Contribution**
+   - Create a branch for your changes
+   - Submit a pull request using the [PR template](https://vietnd69.github.io/dst-api-webdocs/community/pr-template)
+
+### Community Resources
+
+For more detailed guidance on contributing, please visit our [community section](https://vietnd69.github.io/dst-api-webdocs/community):
+
+- [Full Contribution Guidelines](https://vietnd69.github.io/dst-api-webdocs/community/contribution-guidelines)
+- [Documentation Standards](https://vietnd69.github.io/dst-api-webdocs/community/documentation-standards)
+- [Code of Conduct](https://vietnd69.github.io/dst-api-webdocs/community/code-of-conduct)
+- [Review Process](https://vietnd69.github.io/dst-api-webdocs/community/review-process)
 
 ## Documentation Structure
 
@@ -47,37 +92,8 @@ We welcome contributions to this project:
   - Stategraphs: State machine system for entity behaviors
   - Utils: Helper utilities
   - World: Game world-related APIs
+- **Community**: Guidelines and resources for contributing to the documentation
 
-## Deployment
-
-### Automatic Deployment with GitHub Actions
-
-This project is configured to automatically deploy to GitHub Pages whenever changes are pushed to the `main` branch. The GitHub Actions workflow will build the website and deploy it to GitHub Pages.
-
-The website is deployed at: https://vietnd69.github.io/dst-api-webdocs/
-
-### Manual Deployment
-
-You can also deploy manually using:
-
-```bash
-npm run deploy
-```
-
-This command builds the site and pushes it to the `gh-pages` branch of your GitHub repository.
-
-### GitHub Pages Configuration
-
-To check your GitHub Pages configuration:
-
-```bash
-npm run check-github-pages
-```
-
-Make sure GitHub Pages is enabled in your repository settings:
-1. Go to your repository on GitHub
-2. Navigate to Settings > Pages
-3. Set the source to "GitHub Actions"
 
 ## Links
 

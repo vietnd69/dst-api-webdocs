@@ -131,6 +131,7 @@ The Combat component often works with:
 - [Inventory Component](inventory.md) - For equipping weapons
 - [Armor Component](armor.md) - For damage reduction
 - [LootDropper Component](lootdropper.md) - For drops when entities are killed
+- [Case Study - The Forge Mod](../examples/case-forge.md) - For an example of extended combat mechanics
 
 ## Examples
 

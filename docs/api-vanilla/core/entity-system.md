@@ -158,6 +158,8 @@ inst:ListenForEvent("onremove", function()
 end, target_entity)
 ```
 
+For a practical example of managing entity relationships, see the [Wormhole Marks case study](../examples/case-wormhole.md). This mod demonstrates how to track pairs of connected wormhole entities and visualize their relationships on the minimap.
+
 ## Multiplayer Considerations
 
 In multiplayer, entities exist in different forms on server and clients:

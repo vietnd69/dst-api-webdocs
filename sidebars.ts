@@ -395,6 +395,12 @@ const sidebars: SidebarsConfig = {
 						"api-vanilla/examples/custom-stategraphs-and-animations",
 						"api-vanilla/examples/stategraph-mod",
 						"api-vanilla/examples/worldgen-mod",
+						"api-vanilla/examples/custom-world-generation",
+						"api-vanilla/examples/custom-biomes",
+						"api-vanilla/examples/custom-creatures",
+						"api-vanilla/examples/custom-ai",
+						"api-vanilla/examples/custom-game-mode",
+						"api-vanilla/examples/custom-weather-effects",
 						"api-vanilla/examples/optimization",
 						"api-vanilla/examples/networking-mod",
 						"api-vanilla/examples/resource-usage",
@@ -409,7 +415,17 @@ const sidebars: SidebarsConfig = {
 					className: "sidebar-title",
 					collapsed: false,
 					collapsible: false,
-					items: ["api-vanilla/examples/case-geometric", "api-vanilla/examples/case-wormhole", "api-vanilla/examples/case-status"],
+					items: [
+						"api-vanilla/examples/case-geometric", 
+						"api-vanilla/examples/case-wormhole", 
+						"api-vanilla/examples/case-status",
+						"api-vanilla/examples/case-forge",
+						"api-vanilla/examples/case-ia-core",
+						"api-vanilla/examples/case-island-adventures",
+						"api-vanilla/examples/island-adventures-relationship",
+						"api-vanilla/examples/case-regorgeitaled",
+						"api-vanilla/examples/case-global-position"
+					],
 				},
 				// Projects
 				{

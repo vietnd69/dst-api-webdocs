@@ -179,6 +179,13 @@ AddPrefabPostInit("myprefab", function(inst)
 end)
 ```
 
+## Advanced Component Usage
+
+See these case studies for examples of advanced component usage:
+
+- [Case Study - The Forge Mod](../examples/case-forge.md) - A complete game mode with custom components
+- [Custom Component Example](../examples/custom-component.md) - Creating and using custom components
+
 ## Creating Replicas for Components
 
 To make a component work on clients:
@@ -243,6 +250,8 @@ function MyComponent:OnLoad(data)
     end
 end
 ```
+
+For a real-world example of component serialization, see the [Wormhole Marks case study](../examples/case-wormhole.md), which demonstrates saving and restoring wormhole pair associations across game sessions. This case study showcases how to create custom components that track relationships between entities and persist that data between game sessions.
 
 ## Component Network Synchronization
 

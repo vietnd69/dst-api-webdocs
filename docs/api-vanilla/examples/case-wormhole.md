@@ -7,178 +7,202 @@ sidebar_position: 12
 # Case Study: Wormhole Marks Mod
 
 This case study examines the "Wormhole Marks" mod for Don't Starve Together, which helps players track wormhole connections by adding visual markers. We'll analyze its implementation and extract valuable modding techniques.
+- [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=362175979)
 
 ## Mod Overview
 
-The Wormhole Marks mod solves a common gameplay challenge: remembering which wormholes connect to each other. The mod:
+The Wormhole Marks mod solves a common gameplay challenge: remembering which wormhole pairs connect to each other. The mod:
 
 - Assigns matching symbols to connected wormhole pairs
-- Displays these symbols above wormholes in the world
-- Shows the symbols on the map for easy navigation
+- Displays these symbols on the minimap for easy navigation
 - Persists markings between game sessions
+- Optionally allows marks to be visible through fog of war
 
 ## Technical Implementation
 
 ### Core Techniques Used
 
-1. **Entity Identification and Pairing**
-2. **Custom Visual Indicators**
-3. **Minimap Integration**
+1. **Custom Components**
+2. **Minimap Integration**
+3. **Configuration Options**
 4. **Data Persistence**
-5. **Network Synchronization**
+5. **Server-Client Synchronization**
 
 Let's examine each of these techniques in detail.
 
-## 1. Entity Identification and Pairing
+## 1. Custom Components
 
-The mod needs to identify all wormholes in the world and determine which ones are connected to each other.
+The mod implements two custom components to manage wormhole marking functionality:
+
+- `wormhole_marks`: Applied to each wormhole to track and display its mark
+- `wormhole_counter`: Applied to the world to track the global pair count
 
 ### Key Code Elements
 
 ```lua
--- Find and track all wormholes in the world
-local function InitializeWormholes()
-    -- Clear existing data
-    WORMHOLE_PAIRS = {}
-    
-    -- Find all wormholes in the world
-    local wormholes = {}
-    for _, v in pairs(Ents) do
-        if v.prefab == "wormhole" then
-            table.insert(wormholes, v)
-        end
+-- In modmain.lua: Adding components to prefabs
+function WormholePrefabPostInit(inst)
+    if not inst.components.wormhole_marks then
+        inst:AddComponent("wormhole_marks")
+    end
+    inst:ListenForEvent("starttravelsound", Mark)
+end
+
+AddPrefabPostInit("wormhole", WormholePrefabPostInit)
+
+function WorldPrefabPostInit(inst)
+    if inst:HasTag("forest") then
+        inst:AddComponent("wormhole_counter")
+    end
+end
+
+if GLOBAL.TheNet:GetIsServer() or GLOBAL.TheNet:IsDedicated() then
+    AddPrefabPostInit("world", WorldPrefabPostInit)
+end
+
+-- The Mark function, triggered when a wormhole is used
+local function Mark(inst)
+    if not inst.components.wormhole_marks:CheckMark() then
+        inst.components.wormhole_marks:MarkEntrance()
     end
     
-    -- Create pairs based on wormhole connections
-    local assigned = {}
-    for i, wormhole in ipairs(wormholes) do
-        if not assigned[wormhole] then
-            -- Find this wormhole's target
-            local target = wormhole.components.teleporter.targetTeleporter
-            if target and not assigned[target] then
-                -- Create a new pair
-                local pair_id = #WORMHOLE_PAIRS + 1
-                WORMHOLE_PAIRS[pair_id] = {wormhole, target}
-                
-                -- Mark both as assigned
-                assigned[wormhole] = true
-                assigned[target] = true
-                
-                -- Assign a symbol to this pair
-                AssignSymbolToPair(pair_id)
-            end
-        end
+    local other = inst.components.teleporter.targetTeleporter    
+    if not other.components.wormhole_marks:CheckMark() then
+        other.components.wormhole_marks:MarkExit()
     end
 end
 ```
 
-### Implementation Analysis
-
-The pairing system demonstrates:
-
-1. **Entity Filtering**: Finding specific entities by prefab name
-2. **Component Access**: Using the teleporter component to find connections
-3. **Relationship Tracking**: Creating pairs based on in-game relationships
-4. **Duplicate Prevention**: Using a lookup table to prevent double-assignment
-
-## 2. Custom Visual Indicators
-
-The mod creates visual indicators that appear above each wormhole in the world.
-
-### Key Code Elements
+### The wormhole_marks Component
 
 ```lua
--- Create a visual marker for a wormhole
-local function CreateWormholeMarker(wormhole, symbol)
-    -- Remove any existing marker
-    if wormhole._wormhole_marker then
-        wormhole._wormhole_marker:Remove()
+-- In scripts/components/wormhole_marks.lua
+local Wormhole_Marks = Class(function(self, inst)
+    self.inst = inst
+    self.marked = false
+    self.wormhole_number = nil
+end)
+
+function Wormhole_Marks:MarkEntrance()
+    self:GetNumber()
+    if self.wormhole_number <= 22 then 
+        self.marked = true
+        if fow_setting == "enabled" then
+            self.inst.MiniMapEntity:SetDrawOverFogOfWar(true)
+        end
+        self.inst.MiniMapEntity:SetIcon("mark_"..self.wormhole_number..".tex")
     end
-    
-    -- Create a new marker entity
-    local marker = SpawnPrefab("wormholemarker")
-    
-    -- Position it above the wormhole
-    local x, y, z = wormhole.Transform:GetWorldPosition()
-    marker.Transform:SetPosition(x, y + 2.5, z)
-    
-    -- Set the symbol
-    marker.symbol = symbol
-    marker.AnimState:OverrideSymbol("symbol", "wormhole_symbols", symbol)
-    
-    -- Link it to the wormhole
-    wormhole._wormhole_marker = marker
-    marker.entity:SetParent(wormhole.entity)
-    
-    return marker
 end
 
--- Assign a symbol to a wormhole pair
-function AssignSymbolToPair(pair_id)
-    local pair = WORMHOLE_PAIRS[pair_id]
-    if not pair then return end
-    
-    -- Choose a symbol from our set
-    local symbol = "symbol_" .. ((pair_id - 1) % NUM_SYMBOLS + 1)
-    
-    -- Create markers for both wormholes in the pair
-    CreateWormholeMarker(pair[1], symbol)
-    CreateWormholeMarker(pair[2], symbol)
-    
-    -- Store the symbol for this pair
-    WORMHOLE_SYMBOLS[pair_id] = symbol
+function Wormhole_Marks:MarkExit()
+    self:GetNumber()
+    if self.wormhole_number <= 22 then 
+        self.marked = true
+        if fow_setting == "enabled" then
+            self.inst.MiniMapEntity:SetDrawOverFogOfWar(true)
+        end
+        self.inst.MiniMapEntity:SetIcon("mark_"..self.wormhole_number..".tex")
+        TheWorld.components.wormhole_counter:Set()
+    end
 end
+
+-- Save/load functionality for persistence
+function Wormhole_Marks:OnSave()
+    local data = {}
+    data.marked = self.marked
+    data.wormhole_number = self.wormhole_number
+    return data
+end
+
+function Wormhole_Marks:OnLoad(data)
+    if data then
+        self.marked = data.marked
+        self.wormhole_number = data.wormhole_number
+        if self.marked and self.wormhole_number then
+            self.inst.entity:AddMiniMapEntity()
+            self.inst.MiniMapEntity:SetIcon("mark_"..self.wormhole_number..".tex")
+            if fow_setting == "enabled" then
+                self.inst.MiniMapEntity:SetDrawOverFogOfWar(true)
+            end
+        end
+    else
+        self.marked = false
+        self.wormhole_number = 0
+    end
+end
+```
+
+### The wormhole_counter Component
+
+```lua
+-- In scripts/components/wormhole_counter.lua
+return Class(function(self, inst)
+    assert(TheWorld.ismastersim, "Wormhole_Counter should not exist on client")
+
+    self.inst = inst
+    self.wormhole_count = 1
+
+    function self:Set()
+        self.wormhole_count = self.wormhole_count + 1
+    end
+
+    function self:Get()
+        return self.wormhole_count
+    end
+
+    function self:OnSave()
+        local data = {}
+        data.wormhole_count = self.wormhole_count
+        return data
+    end
+
+    function self:OnLoad(data)
+        if data then
+            self.wormhole_count = data.wormhole_count
+        else
+            self.wormhole_count = 1
+        end
+    end
+end)
 ```
 
 ### Implementation Analysis
 
-The visual indicator system demonstrates:
+The custom components demonstrate:
 
-1. **Custom Entity Creation**: Spawning specialized marker entities
-2. **Visual Customization**: Using OverrideSymbol for custom appearances
-3. **Entity Positioning**: Placing markers relative to their parent objects
-4. **Parent-Child Relationships**: Using SetParent to attach markers to wormholes
-5. **Resource Management**: Removing old markers before creating new ones
+1. **Component Architecture**: Following Don't Starve Together's component-based design pattern
+2. **Event System Integration**: Using `ListenForEvent` to trigger functionality when wormholes are used
+3. **Component Interaction**: Coordinating between wormhole and world components
+4. **Prefab Modification**: Using `AddPrefabPostInit` to modify existing prefabs
+5. **Server-Side Validation**: Ensuring world components only exist on the server
 
-## 3. Minimap Integration
+## 2. Minimap Integration
 
-The mod adds custom icons to the minimap to show wormhole locations and their symbols.
+The mod uses the game's MiniMapEntity system to display custom icons for marked wormholes.
 
 ### Key Code Elements
 
 ```lua
--- Add minimap icons for wormholes
-local function AddMinimapIcons()
-    -- For each wormhole pair
-    for pair_id, pair in pairs(WORMHOLE_PAIRS) do
-        local symbol = WORMHOLE_SYMBOLS[pair_id]
-        if symbol then
-            -- Add minimap icon for each wormhole in the pair
-            for _, wormhole in ipairs(pair) do
-                if wormhole and wormhole:IsValid() then
-                    -- Create or update minimap icon
-                    if not wormhole._minimap_icon then
-                        wormhole._minimap_icon = SpawnPrefab("wormholemapicon")
-                        wormhole._minimap_icon.MiniMapEntity:SetPriority(10)
-                    end
-                    
-                    -- Set the icon's position and symbol
-                    local x, y, z = wormhole.Transform:GetWorldPosition()
-                    wormhole._minimap_icon.Transform:SetPosition(x, 0, z)
-                    
-                    -- Set the icon's appearance
-                    wormhole._minimap_icon.MiniMapEntity:SetIcon(symbol)
-                    
-                    -- Make the icon follow the wormhole
-                    wormhole:ListenForEvent("onremove", function()
-                        if wormhole._minimap_icon then
-                            wormhole._minimap_icon:Remove()
-                        end
-                    end)
-                end
-            end
-        end
-    end
+-- In modmain.lua: Adding minimap assets
+Assets = {
+    Asset("ATLAS", "images/mark_1.xml"),
+    Asset("ATLAS", "images/mark_2.xml"),
+    -- [Additional assets omitted for brevity]
+    Asset("ATLAS", "images/mark_22.xml"),
+}
+
+-- Registering assets with the minimap system
+AddMinimapAtlas("images/mark_1.xml")
+AddMinimapAtlas("images/mark_2.xml")
+-- [Additional registrations omitted for brevity]
+AddMinimapAtlas("images/mark_22.xml")
+
+-- In wormhole_marks component: Setting the minimap icon
+self.inst.MiniMapEntity:SetIcon("mark_"..self.wormhole_number..".tex")
+
+-- Optional fog of war visibility
+if fow_setting == "enabled" then
+    self.inst.MiniMapEntity:SetDrawOverFogOfWar(true)
 end
 ```
 
@@ -186,84 +210,94 @@ end
 
 The minimap integration demonstrates:
 
-1. **Custom Map Icons**: Creating specialized entities for the map
-2. **Map Priority**: Setting the display priority for map icons
-3. **Icon Customization**: Setting custom icons based on wormhole pairs
-4. **Position Tracking**: Keeping map icons synchronized with world entities
-5. **Cleanup Management**: Removing map icons when their wormholes are removed
+1. **Custom Icons**: Using game-styled icons for wormhole pairs (22 different symbols)
+2. **Asset Registration**: Properly registering assets for use with the minimap system
+3. **Dynamic Icon Assignment**: Assigning icons based on wormhole pair IDs
+4. **Fog of War Integration**: Optional visibility through unexplored areas
+5. **User Experience Focus**: Making connected wormholes visually distinct
+
+## 3. Configuration Options
+
+The mod includes a configuration option to control whether wormhole marks should be visible through fog of war.
+
+```lua
+-- In modinfo.lua
+configuration_options =
+{    
+    {
+        name = "Draw over FoW",
+        options =
+        {
+            {description = "Disabled", data = "disabled"},
+            {description = "Enabled", data = "enabled"},
+        },
+        default = "disabled",
+    },    
+}
+
+-- In wormhole_marks.lua: Accessing the configuration option
+local modname = KnownModIndex:GetModActualName("Wormhole Marks")
+local fow_setting = GetModConfigData("Draw over FoW", modname)
+
+-- Using the setting in component functions
+if fow_setting == "enabled" then
+    self.inst.MiniMapEntity:SetDrawOverFogOfWar(true)
+end
+```
+
+### Implementation Analysis
+
+The configuration system demonstrates:
+
+1. **User Customization**: Providing options to tailor the experience
+2. **Mod Configuration API**: Using the game's built-in configuration system
+3. **Dynamic Behavior Adjustment**: Adapting functionality based on user preferences
+4. **Default Value Selection**: Choosing appropriate default behavior
 
 ## 4. Data Persistence
 
-The mod saves wormhole pairing information between game sessions.
-
-### Key Code Elements
+The mod saves wormhole pairing information between game sessions using the component save/load system.
 
 ```lua
--- Save wormhole data
-local function SaveWormholeData()
-    -- Prepare data structure
-    local data = {
-        pairs = {},
-        symbols = {}
-    }
-    
-    -- Save pair information using entity references
-    for pair_id, pair in pairs(WORMHOLE_PAIRS) do
-        data.pairs[pair_id] = {
-            pair[1].GUID,
-            pair[2].GUID
-        }
-    end
-    
-    -- Save symbol assignments
-    for pair_id, symbol in pairs(WORMHOLE_SYMBOLS) do
-        data.symbols[pair_id] = symbol
-    end
-    
-    -- Save to world storage
-    if TheWorld.components.worldstate then
-        TheWorld.components.worldstate:SetValue("wormhole_data", data)
+-- In wormhole_marks.lua: Save function
+function Wormhole_Marks:OnSave()
+    local data = {}
+    data.marked = self.marked
+    data.wormhole_number = self.wormhole_number
+    return data
+end
+
+-- In wormhole_marks.lua: Load function
+function Wormhole_Marks:OnLoad(data)
+    if data then
+        self.marked = data.marked
+        self.wormhole_number = data.wormhole_number
+        if self.marked and self.wormhole_number then
+            self.inst.entity:AddMiniMapEntity()
+            self.inst.MiniMapEntity:SetIcon("mark_"..self.wormhole_number..".tex")
+            if fow_setting == "enabled" then
+                self.inst.MiniMapEntity:SetDrawOverFogOfWar(true)
+            end
+        end
+    else
+        self.marked = false
+        self.wormhole_number = 0
     end
 end
 
--- Load wormhole data
-local function LoadWormholeData()
-    -- Get data from world storage
-    local data = nil
-    if TheWorld.components.worldstate then
-        data = TheWorld.components.worldstate:GetValue("wormhole_data")
+-- In wormhole_counter.lua: Save/load for the global counter
+function self:OnSave()
+    local data = {}
+    data.wormhole_count = self.wormhole_count
+    return data
+end
+
+function self:OnLoad(data)
+    if data then
+        self.wormhole_count = data.wormhole_count
+    else
+        self.wormhole_count = 1
     end
-    
-    if not data then return false end
-    
-    -- Clear existing data
-    WORMHOLE_PAIRS = {}
-    WORMHOLE_SYMBOLS = {}
-    
-    -- Restore pair information from entity references
-    for pair_id, guid_pair in pairs(data.pairs) do
-        local wormhole1 = Ents[guid_pair[1]]
-        local wormhole2 = Ents[guid_pair[2]]
-        
-        if wormhole1 and wormhole2 and 
-           wormhole1:IsValid() and wormhole2:IsValid() then
-            WORMHOLE_PAIRS[pair_id] = {wormhole1, wormhole2}
-        end
-    end
-    
-    -- Restore symbol assignments
-    for pair_id, symbol in pairs(data.symbols) do
-        WORMHOLE_SYMBOLS[pair_id] = symbol
-        
-        -- Recreate visual markers
-        local pair = WORMHOLE_PAIRS[pair_id]
-        if pair then
-            CreateWormholeMarker(pair[1], symbol)
-            CreateWormholeMarker(pair[2], symbol)
-        end
-    end
-    
-    return true
 end
 ```
 
@@ -271,247 +305,182 @@ end
 
 The data persistence system demonstrates:
 
-1. **Data Serialization**: Converting runtime objects to serializable data
-2. **Entity References**: Using GUIDs to reference entities between sessions
-3. **World State Storage**: Using the worldstate component for persistence
-4. **State Restoration**: Rebuilding runtime state from saved data
-5. **Validation**: Checking that entities still exist when restoring data
+1. **Component Save/Load Hooks**: Using the standard DST persistence mechanism
+2. **Data Validation**: Checking loaded data before applying
+3. **State Restoration**: Rebuilding visual state from saved data
+4. **Minimal Data Storage**: Saving only what's necessary (marked status and ID number)
+5. **Default Values**: Providing fallbacks when data is not available
 
-## 5. Network Synchronization
+## 5. Server-Client Synchronization
 
-The mod ensures that all players see the same wormhole markings in multiplayer games.
-
-### Key Code Elements
+The mod uses the world component's server authority to manage wormhole marking, ensuring all clients see consistent information.
 
 ```lua
--- Sync wormhole data to clients
-local function SyncWormholeData()
-    if not TheWorld.ismastersim then return end
-    
-    -- Prepare data for network transmission
-    local data = {
-        pairs = {},
-        symbols = {}
-    }
-    
-    -- Convert entity references to GUIDs
-    for pair_id, pair in pairs(WORMHOLE_PAIRS) do
-        data.pairs[pair_id] = {
-            pair[1].GUID,
-            pair[2].GUID
-        }
-    end
-    
-    -- Include symbol assignments
-    for pair_id, symbol in pairs(WORMHOLE_SYMBOLS) do
-        data.symbols[pair_id] = symbol
-    end
-    
-    -- Serialize the data
-    local data_string = json.encode(data)
-    
-    -- Send to all clients
-    for i, player in ipairs(AllPlayers) do
-        if player.userid then
-            SendModRPCToClient(GetClientModRPC("WormholeMarks", "ReceiveWormholeData"), player.userid, data_string)
-        end
-    end
+-- In modmain.lua: Server-side validation
+if GLOBAL.TheNet:GetIsServer() or GLOBAL.TheNet:IsDedicated() then
+    AddPrefabPostInit("world", WorldPrefabPostInit)
 end
 
--- RPC handler for clients to receive data
-AddClientModRPCHandler("WormholeMarks", "ReceiveWormholeData", function(data_string)
-    -- Deserialize the data
-    local success, data = pcall(json.decode, data_string)
-    if not success or not data then return end
-    
-    -- Apply the data
-    ApplyWormholeData(data)
-end)
-
--- Apply received wormhole data
-function ApplyWormholeData(data)
-    -- Clear existing data
-    WORMHOLE_PAIRS = {}
-    WORMHOLE_SYMBOLS = {}
-    
-    -- Process pair information
-    for pair_id, guid_pair in pairs(data.pairs) do
-        local wormhole1 = Ents[guid_pair[1]]
-        local wormhole2 = Ents[guid_pair[2]]
-        
-        if wormhole1 and wormhole2 and 
-           wormhole1:IsValid() and wormhole2:IsValid() then
-            WORMHOLE_PAIRS[pair_id] = {wormhole1, wormhole2}
-        end
-    end
-    
-    -- Apply symbol assignments
-    for pair_id, symbol in pairs(data.symbols) do
-        WORMHOLE_SYMBOLS[pair_id] = symbol
-        
-        -- Recreate visual markers
-        local pair = WORMHOLE_PAIRS[pair_id]
-        if pair then
-            CreateWormholeMarker(pair[1], symbol)
-            CreateWormholeMarker(pair[2], symbol)
-        end
-    end
-    
-    -- Update minimap icons
-    AddMinimapIcons()
-end
+-- In wormhole_counter.lua: Server-side assertion
+assert(TheWorld.ismastersim, "Wormhole_Counter should not exist on client")
 ```
+
+The mod leverages the game's built-in entity replication system, which automatically synchronizes MiniMapEntity changes to clients.
 
 ### Implementation Analysis
 
 The network synchronization demonstrates:
 
-1. **Server Authority**: Only the server generates the initial data
-2. **Data Serialization**: Converting complex data structures to strings for transmission
-3. **RPC System**: Using Remote Procedure Calls to communicate between server and clients
-4. **Error Handling**: Using pcall to safely handle potentially corrupted data
-5. **State Application**: Applying received data to recreate the visual state
+1. **Server Authority**: Ensuring the wormhole counter only exists on the server
+2. **Automatic Replication**: Using the game's built-in entity replication for minimaps
+3. **Minimized Network Traffic**: Only sending necessary information (mark assignments)
+4. **Connection-Time Synchronization**: New clients automatically receive the correct state
+5. **Validation**: Ensuring components only run in appropriate environments
 
 ## Lessons Learned
 
 From analyzing the Wormhole Marks mod, we can extract several valuable lessons for mod development:
 
-### 1. Entity Relationship Tracking
+### 1. Component-Based Architecture
 
-The mod demonstrates effective techniques for:
-- Identifying related entities in the world
-- Creating and maintaining relationships between entities
-- Visualizing these relationships for players
+The mod demonstrates excellent use of the component pattern:
+- Creating focused components with single responsibilities
+- Using world components for global state
+- Leveraging the built-in save/load hooks for persistence
+- Separating presentation (marks) from data management (counter)
 
 ### 2. Visual Enhancement Without Gameplay Changes
 
 The mod enhances the game experience by:
-- Adding visual information without changing core gameplay
-- Using subtle but clear visual indicators
-- Integrating with existing systems (minimap, wormholes)
+- Adding visual information without changing core mechanics
+- Respecting the game's existing systems and interfaces
+- Integrating cleanly with the minimap system
+- Using clear visual language (distinct symbols for pairs)
 
-### 3. Effective Data Management
+### 3. Efficient Implementation
 
 The mod shows good practices for:
-- Organizing complex data relationships
-- Persisting data between game sessions
-- Synchronizing data in multiplayer environments
+- Minimal processing (only marking when wormholes are used)
+- Efficient asset management (22 distinct symbols, reused when needed)
+- Strategic event listening rather than continuous checking
+- Using built-in systems rather than reinventing functionality
 
 ### 4. User Experience Focus
 
 The mod prioritizes user experience through:
-- Solving a real player pain point
-- Using intuitive visual language
-- Minimizing configuration requirements
+- Solving a specific gameplay pain point
+- Providing configuration options for player preference
+- Maintaining visual consistency with the game
+- Working consistently in multiplayer environments
 
 ## Implementing Similar Features
 
-If you want to create a mod with similar entity-tracking features, follow these steps:
+If you want to create a mod with similar entity-relationship visualization features, follow these steps:
 
-### Step 1: Identify Target Entities
-
-```lua
--- Find entities of interest
-function FindTargetEntities()
-    local targets = {}
-    
-    -- Search through all entities
-    for _, v in pairs(Ents) do
-        -- Filter by prefab or tag
-        if v.prefab == "target_prefab" or v:HasTag("target_tag") then
-            table.insert(targets, v)
-        end
-    end
-    
-    return targets
-end
-```
-
-### Step 2: Establish Relationships
+### Step 1: Create Custom Components
 
 ```lua
--- Create relationships between entities
-function EstablishRelationships(entities)
-    local relationships = {}
+-- Define your custom component
+local MyComponent = Class(function(self, inst)
+    self.inst = inst
     
-    -- Example: Pair entities by distance
-    local assigned = {}
-    for i, entity1 in ipairs(entities) do
-        if not assigned[entity1] then
-            -- Find closest unassigned entity
-            local closest = nil
-            local closest_dist = math.huge
-            
-            for j, entity2 in ipairs(entities) do
-                if entity1 ~= entity2 and not assigned[entity2] then
-                    local dist = entity1:GetDistanceSqToInst(entity2)
-                    if dist < closest_dist then
-                        closest = entity2
-                        closest_dist = dist
-                    end
-                end
-            end
-            
-            -- Create relationship if found
-            if closest then
-                table.insert(relationships, {entity1, closest})
-                assigned[entity1] = true
-                assigned[closest] = true
-            end
-        end
-    end
-    
-    return relationships
-end
-```
+    -- Initialize component state
+    self.marked = false
+    self.identifier = nil
+end)
 
-### Step 3: Create Visual Indicators
-
-```lua
--- Create a visual indicator for an entity
-function CreateIndicator(entity, symbol)
-    -- Create indicator entity
-    local indicator = SpawnPrefab("indicator_prefab")
-    
-    -- Position above the entity
-    local x, y, z = entity.Transform:GetWorldPosition()
-    indicator.Transform:SetPosition(x, y + 1.5, z)
-    
-    -- Set appearance
-    indicator.AnimState:OverrideSymbol("symbol", "indicator_symbols", symbol)
-    
-    -- Link to entity
-    entity._indicator = indicator
-    indicator.entity:SetParent(entity.entity)
-    
-    return indicator
-end
-```
-
-### Step 4: Add Persistence
-
-```lua
--- Save relationship data
-function SaveRelationshipData()
-    local data = {
-        relationships = {},
-        symbols = {}
+-- Add save/load functionality
+function MyComponent:OnSave()
+    return {
+        marked = self.marked,
+        identifier = self.identifier
     }
-    
-    -- Convert to serializable format
-    for i, relationship in ipairs(RELATIONSHIPS) do
-        data.relationships[i] = {
-            relationship[1].GUID,
-            relationship[2].GUID
-        }
-        data.symbols[i] = RELATIONSHIP_SYMBOLS[i]
-    end
-    
-    -- Save to world state
-    if TheWorld.components.worldstate then
-        TheWorld.components.worldstate:SetValue("relationship_data", data)
+end
+
+function MyComponent:OnLoad(data)
+    if data then
+        self.marked = data.marked
+        self.identifier = data.identifier
+        
+        -- Restore visual state if needed
+        if self.marked and self.identifier then
+            self:ApplyVisualState()
+        end
     end
 end
+
+return MyComponent
+```
+
+### Step 2: Hook Into Appropriate Events
+
+```lua
+-- In modmain.lua
+local function OnEntityInteraction(inst)
+    if inst.components.my_component then
+        inst.components.my_component:MarkEntity()
+        
+        -- Find related entities and mark them too
+        local related = FindRelatedEntity(inst)
+        if related and related.components.my_component then
+            related.components.my_component:MarkEntity()
+        end
+    end
+end
+
+-- Add component to entities and listen for events
+function EntityPostInit(inst)
+    inst:AddComponent("my_component")
+    inst:ListenForEvent("relevant_event", OnEntityInteraction)
+end
+
+AddPrefabPostInit("target_prefab", EntityPostInit)
+```
+
+### Step 3: Add Minimap Integration
+
+```lua
+-- In modmain.lua: Register assets
+Assets = {
+    Asset("ATLAS", "images/custom_icon_1.xml"),
+    Asset("ATLAS", "images/custom_icon_2.xml"),
+    -- Add more as needed
+}
+
+AddMinimapAtlas("images/custom_icon_1.xml")
+AddMinimapAtlas("images/custom_icon_2.xml")
+
+-- In your component: Apply minimap icons
+function MyComponent:ApplyVisualState()
+    -- Ensure entity has a minimap entity
+    if not self.inst.MiniMapEntity then
+        self.inst.entity:AddMiniMapEntity()
+    end
+    
+    -- Set the appropriate icon
+    self.inst.MiniMapEntity:SetIcon("custom_icon_" .. self.identifier .. ".tex")
+end
+```
+
+### Step 4: Handle Multiplayer Considerations
+
+```lua
+-- Ensure server authority for global components
+if TheNet:GetIsServer() or TheNet:IsDedicated() then
+    -- Add world component for tracking global state
+    AddPrefabPostInit("world", function(inst)
+        inst:AddComponent("my_global_component")
+    end)
+end
+
+-- In your global component
+local MyGlobalComponent = Class(function(self, inst)
+    self.inst = inst
+    assert(TheWorld.ismastersim, "MyGlobalComponent should not exist on client")
+    
+    -- Initialize global state
+    self.entity_count = 0
+end)
 ```
 
 ## Conclusion
@@ -519,8 +488,19 @@ end
 The Wormhole Marks mod exemplifies excellent mod design through:
 
 1. **Focused Problem-Solving**: Addressing a specific player pain point
-2. **Non-Invasive Enhancement**: Adding information without changing gameplay
-3. **Technical Excellence**: Implementing robust systems for tracking and visualization
-4. **Multiplayer Awareness**: Ensuring consistent experiences across all players
+2. **Clean Integration**: Working with existing game systems
+3. **Technical Excellence**: Using components and events appropriately
+4. **Multiplayer Support**: Ensuring consistent experience across all players
 
-By studying this mod, we can learn how to create mods that enhance the game's usability while respecting its core design. These principles apply to any mod that aims to visualize relationships between game elements. 
+By studying this mod, we can learn how to create effective quality-of-life improvements that enhance the game while respecting its design and systems.
+
+## See also
+
+- [Entity System](../core/entity-system.md) - For understanding entity management
+- [Component System](../core/component-system.md) - For component-based architecture
+- [Event System](../core/event-system.md) - For event handling and communication
+- [WorldState](../core/worldstate.md) - For world state persistence
+- [Prefab System](../node-types/prefab.md) - For understanding prefab initialization
+- [Network System](../core/network-system.md) - For multiplayer synchronization
+- [Case Study - Combined Status](case-status.md) - Another UI enhancement mod example
+- [Case Study - Geometric Placement](case-geometric.md) - Another QoL improvement mod 

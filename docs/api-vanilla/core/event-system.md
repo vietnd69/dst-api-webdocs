@@ -362,6 +362,8 @@ inst:ListenForEvent("mycustomevent1", function(inst, data)
 end)
 ```
 
+For a practical example of using events to trigger functionality, see the [Wormhole Marks case study](../examples/case-wormhole.md). This mod uses the `starttravelsound` event to detect when players use wormholes and trigger the marking system that pairs connected wormholes with matching symbols.
+
 ## Best Practices for Event System
 
 When working with the event system:

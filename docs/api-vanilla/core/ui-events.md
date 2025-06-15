@@ -286,6 +286,10 @@ TheInput:RemoveHandler(mouse_move_handler)
 TheInput:RemoveHandler(general_handler)
 ```
 
+For a practical example of input handling in mods, see the [Geometric Placement case study](/docs/api-vanilla/examples/case-geometric), which demonstrates how to implement hotkeys for toggling grid geometries and controlling placement behavior.
+
+For detailed information on the input system and TheInput object, see the [Input System documentation](/docs/api-vanilla/global-objects/input).
+
 ## Event Priorities
 
 Events are processed in a specific order:

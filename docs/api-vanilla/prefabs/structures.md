@@ -184,6 +184,8 @@ return Prefab("firepit", fn, assets, prefabs),
        MakePlacer("firepit_placer", "firepit", "firepit", "idle", nil, nil, nil, nil, nil, nil, placer_postinit_fn)
 ```
 
+For an in-depth analysis of how the placement system can be enhanced with grid-based positioning, see the [Geometric Placement mod case study](/docs/api-vanilla/examples/case-geometric), which demonstrates advanced techniques for modifying placement behavior.
+
 ## Building Phases
 
 Many structures have construction phases:

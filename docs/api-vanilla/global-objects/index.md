@@ -23,13 +23,13 @@ Global objects in Don't Starve Together are special singleton instances that pro
 
 | Object | Description |
 |--------|-------------|
-| TheInput | Manages input handling from keyboard, mouse, and controllers |
-| TheInventory | Manages player's item collection (including skins) |
-| TheShard | Handles communication between different server shards |
-| TheGlobalInstance | Manages global data that persists across shards |
-| TheFrontEnd | Controls the game's user interface and screens |
-| TheClock | Provides timing and day/night cycle information |
-| TheFocalPoint | Controls the camera's focal point |
+| [TheInput](/docs/api-vanilla/global-objects/theinput) | Manages input handling from keyboard, mouse, and controllers |
+| [TheInventory](/docs/api-vanilla/global-objects/theinventory) | Manages player's item collection (including skins) |
+| [TheShard](/docs/api-vanilla/global-objects/theshard) | Handles communication between different server shards |
+| [TheGlobalInstance](/docs/api-vanilla/global-objects/theglobalinstance) | Manages global data that persists across shards |
+| [TheFrontEnd](/docs/api-vanilla/global-objects/thefrontend) | Controls the game's user interface and screens |
+| [TheClock](/docs/api-vanilla/global-objects/theclock) | Provides timing and day/night cycle information |
+| [TheFocalPoint](/docs/api-vanilla/global-objects/thefocalpoint) | Controls the camera's focal point |
 
 ## Context-Dependent Globals
 

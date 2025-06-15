@@ -186,6 +186,8 @@ if TheWorld.ismastersim then
 end
 ```
 
+For a practical example of using world components to track global state across game sessions, see the [Wormhole Marks case study](../examples/case-wormhole.md). This mod uses a custom world component to track wormhole pairs and ensure their markings persist when the game is saved and loaded.
+
 ## Using WorldState in Prefabs
 
 ```lua
