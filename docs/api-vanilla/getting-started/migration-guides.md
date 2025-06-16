@@ -2,12 +2,14 @@
 id: migration-guides
 title: Migration Guides
 sidebar_position: 10
-last_updated: 2023-07-06
+last_updated: 2023-08-01
 ---
-*Last Update: 2023-07-06*
+*Last Update: 2023-08-01*
 # Migration Guides
 
 These guides help mod developers update their mods to work with major changes in the Don't Starve Together API. Each section covers a significant API update and provides step-by-step instructions for migrating your code.
+
+For a complete chronological list of all API changes and their exact versions, please refer to the [API Changelog](api-changelog.md).
 
 ## Migrating to Return of Them Update (2019)
 

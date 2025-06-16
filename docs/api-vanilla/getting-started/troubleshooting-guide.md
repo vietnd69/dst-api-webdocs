@@ -2,10 +2,10 @@
 id: troubleshooting-guide
 title: Troubleshooting Guide
 sidebar_position: 5
-last_updated: 2023-07-06
+last_updated: 2023-08-01
 slug: /api/troubleshooting-guide
 ---
-*Last Update: 2023-07-06*
+*Last Update: 2023-08-01*
 # Troubleshooting Guide
 
 This guide provides solutions for common errors and issues you might encounter when developing mods for Don't Starve Together.
@@ -42,6 +42,7 @@ This guide provides solutions for common errors and issues you might encounter w
 | Component functions not working | Using server-side components on client | Remember that most components only exist on the server side |
 | Component state not saving | Missing OnSave/OnLoad implementation | Implement proper serialization with OnSave and OnLoad functions |
 | Component conflicts | Multiple mods modifying the same component | Use component postinits instead of replacing components |
+| API has changed | Using outdated component methods or properties | Check the [API Changelog](api-changelog.md) for component changes and update your code |
 
 ### Network Synchronization Issues
 

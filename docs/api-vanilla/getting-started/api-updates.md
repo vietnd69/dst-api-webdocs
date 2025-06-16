@@ -2,133 +2,62 @@
 id: api-updates
 title: API Updates and Changes
 sidebar_position: 5
-last_updated: 2023-07-06
-slug: /api/updates
+last_updated: 2023-08-01
 ---
-*Last Update: 2023-07-06*
+*Last Update: 2023-08-01*
 # API Updates and Changes
 
-This document tracks changes to the Don't Starve Together API across game updates. It helps mod developers stay informed about new features, changes to existing functionality, and deprecated APIs that may affect their mods.
+The Don't Starve Together API evolves over time as Klei Entertainment adds new features, fixes bugs, and makes balance changes. This page explains how API changes are documented and how to keep your mods updated.
 
-## How to Use This Document
+## API Versioning
 
-- **New Features**: Learn about new APIs and capabilities added in recent game updates
-- **Changed APIs**: Discover modifications to existing APIs that might require updates to your mods
-- **Deprecated APIs**: Identify APIs that are no longer recommended and should be replaced
-- **Removed APIs**: Find APIs that have been completely removed from the game
+Don't Starve Together uses the game build number as its API version. The current documented API version is **624447** (as of August 1, 2023).
 
-Each entry includes the game version where the change was introduced, a description of the change, and migration guidance where applicable.
+## Finding API Changes
 
-## Latest Update (Game Version X.XX)
+API changes are typically announced in these locations:
 
-This section documents the most recent changes to the DST API.
+1. **Game Update Notes**: Check the "Notes for Modders" section in game update posts on the [Klei Forums](https://forums.kleientertainment.com/game-updates/dst/).
 
-### New Features
+2. **API Changelog**: For a comprehensive list of all API changes, check the [API Changelog](api-changelog.md) document.
 
-- **Feature Name**: Description of the new feature or API
-  ```lua
-  -- Example usage
-  local example = SomeNewFunction()
-  ```
+3. **Discord Server**: Join the [Klei Discord](https://discord.gg/klei) to discuss API changes with other modders.
 
-### Changed APIs
+## Recent API Changes
 
-- **API Name**: Description of changes to the existing API
-  ```lua
-  -- Old usage (no longer works)
-  local old = OldFunction(param)
-  
-  -- New usage
-  local new = UpdatedFunction(param, new_param)
-  ```
+### API Version 624447 (August 1, 2023)
+- Added support for recipes unlocked by skill tree skills
+- All existing skill tree builder tags have been removed in favor of builder skills
+- Added missing TUNING.ANTLION_DEAGGRO_DIST value
 
-### Deprecated APIs
+[See complete changelog](api-changelog.md)
 
-- **API Name**: Description of the deprecated API and recommended alternatives
-  ```lua
-  -- Deprecated (will be removed in future versions)
-  local old = DeprecatedFunction()
-  
-  -- Recommended alternative
-  local new = RecommendedFunction()
-  ```
+## Updating Your Mods
 
-### Removed APIs
+When a new API version is released, you should:
 
-- **API Name**: Description of the removed API and migration path
-  ```lua
-  -- This no longer exists
-  -- local removed = RemovedFunction()
-  
-  -- Use this instead
-  local alternative = AlternativeFunction()
-  ```
+1. **Check for breaking changes**: Review the changelog to identify any changes that might affect your mods.
 
-## Historical Changes
+2. **Test your mods**: Load your mods in the latest game version to test for any issues.
 
-### Game Version X.XX (Date)
+3. **Update your code**: Make necessary changes to accommodate API updates.
 
-#### New Features
+4. **Update your mod's API version**: Update the API version in your mod's modinfo.lua file:
 
-- **Feature Name**: Description
+```lua
+api_version = 10
+```
 
-#### Changed APIs
+For more detailed guidance on updating mods, see the [Mod Updating Guide](mod-updating-guide.md).
 
-- **API Name**: Description
+## Backwards Compatibility
 
-#### Deprecated APIs
+Klei generally tries to maintain backwards compatibility, but sometimes breaking changes are necessary. For more information about handling backwards compatibility, see the [Backwards Compatibility](backwards-compatibility.md) document.
 
-- **API Name**: Description
+## Reporting API Issues
 
-#### Removed APIs
+If you encounter issues with the API or believe you've found a bug:
 
-- **API Name**: Description
+1. Post in the #dst-modding channel on the [Klei Discord](https://discord.gg/klei).
 
-### Game Version X.XX (Date)
-
-*(Similar structure for older versions)*
-
-## Maintaining Compatibility
-
-When updating your mods to work with newer game versions, consider these best practices:
-
-1. **Check for API existence**: Always verify that functions exist before calling them
-   ```lua
-   if SomeFunction ~= nil then
-       SomeFunction()
-   else
-       -- Fallback behavior
-   end
-   ```
-
-2. **Version detection**: Adapt behavior based on the game version
-   ```lua
-   local version = TheSim:GetGameVersion()
-   if version >= "X.XX" then
-       -- Use new API
-   else
-       -- Use old API
-   end
-   ```
-
-3. **Feature detection**: Check for specific features rather than version numbers when possible
-   ```lua
-   if TheWorld.components.new_component ~= nil then
-       -- Use new component
-   else
-       -- Alternative approach
-   end
-   ```
-
-4. **Graceful degradation**: Ensure your mod works (perhaps with reduced functionality) even when preferred APIs are unavailable
-
-## Contributing to This Document
-
-If you've discovered API changes not documented here, please contribute by:
-
-1. Submitting a pull request to update this document
-2. Including the game version where the change was introduced
-3. Providing clear examples of both the old and new usage
-4. Explaining any migration paths for deprecated APIs
-
-Your contributions help keep the modding community informed and ensure mods remain compatible with game updates. 
+2. Report the issue on the [Klei Bug Tracker](https://forums.kleientertainment.com/klei-bug-tracker/dont-starve-together/) 

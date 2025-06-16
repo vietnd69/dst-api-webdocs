@@ -353,11 +353,12 @@ const sidebars: SidebarsConfig = {
 			},
 			items: [
 				"api-vanilla/utils/utils-overview",
-				"api-vanilla/utils/math-utils",
-				"api-vanilla/utils/string-utils",
-				"api-vanilla/utils/table-utils",
+				"api-vanilla/utils/math",
+				"api-vanilla/utils/string",
+				"api-vanilla/utils/table",
 				"api-vanilla/utils/debug-utils",
 				"api-vanilla/utils/file-utils",
+				"api-vanilla/utils/vector",
 			],
 		},
 		{

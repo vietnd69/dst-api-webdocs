@@ -2,12 +2,44 @@
 id: component-system
 title: Component System
 sidebar_position: 2
-last_updated: 2023-07-06
+last_updated: 2023-08-01
+version: 624447
 ---
-*Last Update: 2023-07-06*
+*Last Update: 2023-08-01*
 # Component System
 
-*API Version: 619045*
+*API Version: 624447*
+
+The component system is a fundamental part of Don't Starve Together's architecture. This document explains how components work, how to use them, and how to create custom components for your mods.
+
+## Component Basics
+
+Components are self-contained modules that define specific behaviors and properties for entities in the game. This approach allows for composition rather than inheritance, making the system flexible and modular.
+
+### Component Evolution
+
+Components can change between API versions as new features are added or existing functionality is modified. To stay updated on component changes, refer to the [API Changelog](../getting-started/api-changelog.md) which documents all significant component changes between versions.
+
+## Core Concepts
+
+### Entity-Component Relationship
+
+An entity in DST is essentially a container for components. Each component handles a specific aspect of the entity's behavior:
+
+- A `health` component manages an entity's health state
+- A `combat` component handles attacking and being attacked
+- An `inventory` component allows an entity to carry items
+
+```lua
+-- Creating an entity and adding components
+local entity = CreateEntity()
+entity:AddComponent("health")
+entity:AddComponent("combat")
+
+-- Accessing components
+entity.components.health:SetMaxHealth(100)
+entity.components.combat:SetDefaultDamage(10)
+```
 
 Don't Starve Together uses a Component System to add functionality and behaviors to entities. Each component represents a specific feature that an entity can possess.
 

@@ -2,13 +2,13 @@
 id: builder
 title: Builder Component
 sidebar_position: 21
-last_updated: 2023-07-06
-version: 619045
+last_updated: 2023-08-01
+version: 624447
 ---
-*Last Update: 2023-07-06*
+*Last Update: 2023-08-01*
 # Builder Component
 
-*API Version: 619045*
+*API Version: 624447*
 
 The Builder component allows entities to craft and construct items and structures. It manages recipes, ingredients, technology levels, and crafting buffs.
 
@@ -36,6 +36,7 @@ builder:UnlockRecipe("campfire") -- Unlock specific recipe
 | `bonus_tech_level` | Table | Extra tech levels from buffs or equipment |
 | `buffered_builds` | Table | Builds queued for crafting |
 | `current_prototyper` | Entity | Current workstation being used |
+| `builder_skills` | Table | Skills from character's skill tree that enable recipes (added in API 624447) |
 
 ## Key Methods
 
@@ -85,6 +86,21 @@ builder:AddBonus(TECH.SCIENCE_ONE, 1, "sciencemachine")
 builder:RemoveBonus("sciencemachine")
 ```
 
+### Skill Tree Integration
+
+As of API version 624447, builder tags for skill trees have been replaced with builder skills:
+
+```lua
+-- Add a builder skill from a character's skill tree
+builder:AddBuilderSkill("woodcutter_harvester")
+
+-- Remove a builder skill
+builder:RemoveBuilderSkill("woodcutter_harvester")
+
+-- Check if builder has a specific skill
+local has_skill = builder:HasBuilderSkill("woodcutter_harvester")
+```
+
 ## Tech Trees
 
 The builder component organizes recipes by tech trees:
@@ -105,6 +121,7 @@ The Builder component often works with:
 - `Sanity` - Some crafting can affect sanity
 - `ActionHandler` - For triggering building actions
 - `Prototyper` - For workstations that enhance crafting abilities
+- `Skilltreeupdater` - For skills that unlock recipes (added in API 624447)
 
 ## See also
 
@@ -154,3 +171,7 @@ local function OnDeactivatePrototyper(inst, doer)
     end
 end
 ```
+
+## Builder Skills vs Builder Tags
+
+Prior to API version 624447, character skill trees used builder tags to unlock recipes. As of 624447, these have been replaced with builder skills, which integrate directly with the skill tree system. If you were using builder tags related to skill trees in your mods, you'll need to update to the new builder skills system.

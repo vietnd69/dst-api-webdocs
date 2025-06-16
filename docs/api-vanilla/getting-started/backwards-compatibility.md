@@ -2,9 +2,9 @@
 id: backwards-compatibility
 title: Backwards Compatibility
 sidebar_position: 9
-last_updated: 2023-07-06
+last_updated: 2023-08-01
 ---
-*Last Update: 2023-07-06*
+*Last Update: 2023-08-01*
 # Backwards Compatibility
 
 This guide focuses on maintaining backwards compatibility in your Don't Starve Together mods, allowing them to work across multiple game versions. Creating mods that function correctly on both older and newer versions of the game improves user experience and reduces maintenance overhead.
@@ -28,6 +28,8 @@ Several factors can affect backwards compatibility:
 - **Modified Features**: Changes to existing functionality
 - **Removed Features**: Functionality that no longer exists
 - **Renamed Features**: Same functionality with different names
+
+To track all API changes between versions, refer to the [API Changelog](api-changelog.md). This comprehensive document lists all significant changes, additions, and removals in each API version, which is essential for planning your compatibility strategy.
 
 ### Game Behavior Changes
 
@@ -226,69 +228,3 @@ local function SetupNetworking(inst)
     inst.GetNetValue = GetNetValue
 end
 ```
-
-### Event System
-
-```lua
--- Compatible event handling
-local function SetupEvents(inst)
-    -- Handle renamed events
-    inst:ListenForEvent("cycleschanged", function(world, data)
-        -- New event in newer versions
-        OnNewDay(world, data)
-    end)
-    
-    if GetWorld ~= nil then
-        -- Old event in older versions
-        inst:ListenForEvent("daycomplete", function(world, data)
-            OnNewDay(world, data)
-        end)
-    end
-}
-```
-
-## Testing Across Versions
-
-To ensure backwards compatibility:
-
-1. **Maintain Test Environments**: Keep installations of different game versions
-2. **Version Matrix**: Test your mod against a matrix of game versions
-3. **Feature Tests**: Create tests for specific features that might change
-4. **User Reports**: Pay attention to user reports about version-specific issues
-
-## Versioning Your Mod
-
-Consider using semantic versioning for your mod:
-
-- **Major Version**: Incompatible API changes
-- **Minor Version**: Added functionality in a backwards-compatible manner
-- **Patch Version**: Backwards-compatible bug fixes
-
-Example version scheme:
-```
-ModVersion = "2.3.1"
--- 2 = Major version (breaking changes)
--- 3 = Minor version (new features)
--- 1 = Patch version (bug fixes)
-```
-
-## Communicating Compatibility
-
-Clearly communicate compatibility information to users:
-
-1. **Version Requirements**: Specify minimum and maximum game versions
-2. **Known Issues**: Document version-specific issues
-3. **Changelog**: Maintain a detailed changelog noting compatibility changes
-4. **Documentation**: Provide version-specific documentation when needed
-
-Example mod info:
-```lua
-name = "My Compatible Mod"
-description = "Works with DST versions 400000-517850. See notes for details."
-```
-
-## Conclusion
-
-Maintaining backwards compatibility requires effort but pays off in user satisfaction and reduced maintenance burden. By using feature detection, abstraction layers, and careful testing, you can create mods that work across multiple game versions.
-
-Remember that perfect backwards compatibility isn't always possible or practical. In some cases, it may be better to maintain separate versions of your mod for significantly different game versions. 

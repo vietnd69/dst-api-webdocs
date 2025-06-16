@@ -2,10 +2,12 @@
 id: crafting
 title: Crafting Recipes
 sidebar_position: 2
-last_updated: 2023-07-06
+last_updated: 2023-08-01
 ---
-*Last Update: 2023-07-06*
+*Last Update: 2023-08-01*
 # Crafting Recipes
+
+*API Version: 624447*
 
 The crafting recipe system allows players to create items, tools, and structures by combining various ingredients.
 
@@ -47,6 +49,7 @@ The `config` table supports these options:
     nounlock = false,                         -- Whether the recipe is unlocked by default
     numtogive = 1,                            -- How many items the recipe produces
     builder_tag = "tag_name",                 -- Character tag required to craft
+    builder_skill = "skill_name",             -- Character skill required to craft (from skill tree)
     atlas = "path/to/atlas.xml",              -- Custom atlas for recipe icon
     image = "image_name.tex",                 -- Custom image for recipe icon
     testfn = function(pt, rot) ... end,       -- Custom placement test function
@@ -76,7 +79,19 @@ Recipes are locked behind technology levels defined in the `TECH` enum:
 Recipes can be restricted to specific characters using:
 
 1. `builder_tag` - Character-specific tag like "pyromaniac" for Willow
-2. `builder_skill` - Skill from character's skill tree
+2. `builder_skill` - Skill from character's skill tree (preferred method as of API 624447)
+
+Note: As of API version 624447, all existing skill tree builder tags have been removed in favor of builder skills. If you were using builder tags for skill tree recipes in your mods, you need to update to use builder skills.
+
+### Example:
+
+```lua
+-- Old method (pre-624447)
+Recipe2("wormwood_seed_rare", {...}, TECH.NONE, {builder_tag="plantkin"})
+
+-- New method (624447+)
+Recipe2("wormwood_seed_rare", {...}, TECH.NONE, {builder_skill="plantkin_rare_seeds"})
+```
 
 ## API Functions
 
@@ -86,8 +101,11 @@ Recipes can be restricted to specific characters using:
 -- Add a standard crafting recipe
 Recipe2("spear", {Ingredient("twigs", 2), Ingredient("flint", 1)}, TECH.NONE)
 
--- Add a character-specific recipe
+-- Add a character-specific recipe with character tag
 Recipe2("lighter", {Ingredient("rope", 1), Ingredient("goldnugget", 1)}, TECH.NONE, {builder_tag="pyromaniac"})
+
+-- Add a character skill tree recipe
+Recipe2("special_axe", {Ingredient("twigs", 3), Ingredient("flint", 2)}, TECH.NONE, {builder_skill="woodie_lucy_crafting"})
 ```
 
 ### Recipe Testing

@@ -2,20 +2,20 @@
 id: components-overview
 title: Components Overview
 sidebar_position: 1
-last_updated: 2023-07-06
+last_updated: 2023-08-01
 slug: /api/components
-version: 619045
+version: 624447
 ---
-*Last Update: 2023-07-06*
+*Last Update: 2023-08-01*
 # Components Overview
 
-*API Version: 619045*
+*API Version: 624447*
 
 Components are the fundamental building blocks for entity behavior in Don't Starve Together. The game uses a component-based architecture where entities (players, creatures, items, etc.) are composed of various components that define their functionality.
 
 ## API Version Information
 
-All components in this documentation are based on Don't Starve Together API version 619045. This version number corresponds to the game build version and ensures compatibility between mods and the game. When creating mods, make sure to test them with the latest game version, as component behavior may change between updates.
+All components in this documentation are based on Don't Starve Together API version 624447. This version number corresponds to the game build version and ensures compatibility between mods and the game. When creating mods, make sure to test them with the latest game version, as component behavior may change between updates.
 
 ## What are Components?
 

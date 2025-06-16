@@ -1,13 +1,41 @@
 ---
 id: api-changelog
 title: API Changelog
-sidebar_position: 6
-last_updated: 2023-07-06
+sidebar_position: 2
+last_updated: 2023-08-01
 ---
-*Last Update: 2023-07-06*
+*Last Update: 2023-08-01*
 # API Changelog
 
-This document provides a detailed chronological record of changes to the Don't Starve Together API across different game versions. While the [API Updates and Changes](api-updates.md) document provides guidance on handling API changes, this changelog serves as a comprehensive reference of all modifications made to the API.
+This document tracks significant API changes between Don't Starve Together versions.
+
+## API Version 624447 (2023-08-01)
+
+### Builder Component Changes
+- Added support for recipes unlocked by skill tree skills
+- All existing skill tree builder tags have been removed in favor of builder skills
+- New methods:
+  - `builder:AddBuilderSkill(skill_name)` - Add a builder skill from a character's skill tree
+  - `builder:RemoveBuilderSkill(skill_name)` - Remove a builder skill
+  - `builder:HasBuilderSkill(skill_name)` - Check if builder has a specific skill
+
+### Recipe System Changes
+- Recipe configuration now prefers `builder_skill` over `builder_tag` for skill tree integration
+- Example update:
+  ```lua
+  -- Old method (pre-624447)
+  Recipe2("item", ingredients, tech, {builder_tag="character_skill"})
+  
+  -- New method (624447+)
+  Recipe2("item", ingredients, tech, {builder_skill="character_skill"})
+  ```
+
+### New TUNING Constants
+- Added `TUNING.ANTLION_DEAGGRO_DIST` - Distance at which Antlion deaggros
+
+## API Version 619045 (2023-07-06)
+
+Initial documented API version.
 
 ## How to Read This Changelog
 

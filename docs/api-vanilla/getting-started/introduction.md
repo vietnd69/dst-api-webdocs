@@ -2,10 +2,10 @@
 id: introduction
 title: Introduction to DST API
 sidebar_position: 1
-last_updated: 2023-07-06
+last_updated: 2023-08-01
 slug: /api/getting-started
 ---
-*Last Update: 2023-07-06*
+*Last Update: 2023-08-01*
 # Introduction to Don't Starve Together API
 
 Don't Starve Together (DST) is a multiplayer survival game developed by Klei Entertainment. The game's modding API allows developers to create custom content, modify game mechanics, and enhance gameplay through the use of Lua scripts.
@@ -57,7 +57,8 @@ To begin modding Don't Starve Together:
 1. Install the game and set up the modding environment
 2. Learn the basic structure of a mod
 3. Understand how to use the API documentation
-4. Start with simple modifications before moving to complex features
+4. Stay informed about [API changes and updates](api-changelog.md)
+5. Start with simple modifications before moving to complex features
 
 The following sections in this documentation will guide you through these steps and provide detailed information about the DST API components.
 

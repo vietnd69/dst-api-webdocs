@@ -2,9 +2,9 @@
 id: mod-updating-guide
 title: Updating Mods for API Changes
 sidebar_position: 7
-last_updated: 2023-07-06
+last_updated: 2023-08-01
 ---
-*Last Update: 2023-07-06*
+*Last Update: 2023-08-01*
 # Updating Mods for API Changes
 
 This guide provides strategies and best practices for updating your mods when the Don't Starve Together API changes. Keeping your mods compatible with the latest game version ensures they continue to function correctly and provide a good experience for users.
@@ -18,14 +18,18 @@ API changes in Don't Starve Together generally fall into these categories:
 3. **Deprecations**: Features that still work but are planned for removal
 4. **Removals**: Features that have been completely removed
 
+For a detailed history of all API changes, refer to the [API Changelog](api-changelog.md).
+
 ## Monitoring for Changes
 
 Stay informed about API changes through these channels:
 
-- **Official Klei Forums**: Check the [Game Updates](https://forums.kleientertainment.com/game-updates/dst/) section
-- **API Changelog**: Review our [API Changelog](api-changelog.md) document
+- **Official Klei Forums**: Check the [Game Updates](https://forums.kleientertainment.com/game-updates/dst/) section, especially the "Notes for Modders" area
+- **API Changelog**: Review our comprehensive [API Changelog](api-changelog.md) which documents all significant API changes between versions
 - **Steam Beta Branch**: Opt into beta branches to test your mods before updates go live
 - **Community Discord**: Join modding communities where changes are often discussed
+
+When a new game update is released, your first step should always be to check the [API Changelog](api-changelog.md) to identify any changes that might affect your mod.
 
 ## Defensive Coding Practices
 

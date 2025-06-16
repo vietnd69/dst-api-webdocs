@@ -2,12 +2,12 @@
 id: constants
 title: Constants
 sidebar_position: 11
-last_updated: 2023-07-06
+last_updated: 2023-08-01
 ---
-*Last Update: 2023-07-06*
+*Last Update: 2023-08-01*
 # Constants
 
-*API Version: 619045*
+*API Version: 624447*
 
 Don't Starve Together has many predefined constants and values used throughout the codebase. Below are the important constant groups and how to use them.
 
@@ -213,7 +213,10 @@ TUNING = {
     
     -- Light values
     TORCH_LIGHT = 2.5,
-    CAMPFIRE_LIGHT = 3.0
+    CAMPFIRE_LIGHT = 3.0,
+    
+    -- Creature behavior
+    ANTLION_DEAGGRO_DIST = 30  -- Distance at which Antlion deaggros (Added in API 624447)
 }
 ```
 
