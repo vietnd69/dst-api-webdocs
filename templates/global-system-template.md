@@ -4,8 +4,10 @@ title: Global System Name
 sidebar_position: 1
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Global System Name
+
+*API Version: 619045*
 
 Comprehensive introduction to the global system or object, explaining its role in the game's architecture, when it becomes available, and its primary purpose. Include context about which environments it's accessible in (client, server, or both).
 

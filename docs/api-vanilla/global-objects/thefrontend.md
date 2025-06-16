@@ -4,7 +4,7 @@ title: TheFrontEnd
 sidebar_position: 9
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # TheFrontEnd
 
 TheFrontEnd is the global object that controls the game's user interface and screens in Don't Starve Together. It handles screen transitions, UI state management, popups, and other interface-related functionality.

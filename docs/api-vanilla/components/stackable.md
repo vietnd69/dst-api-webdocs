@@ -5,8 +5,10 @@ sidebar_position: 25
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Stackable Component
+
+*API Version: 619045*
 
 The Stackable component allows items to be stacked together, combining multiple identical items into a single inventory slot. It manages stack sizes, item splitting, and stack interactions.
 

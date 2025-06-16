@@ -5,7 +5,7 @@ sidebar_position: 3
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Case Study: Island Adventures Core
 
 This case study examines "Island Adventures Core", a comprehensive mod that ports content from Don't Starve's single-player DLCs (Shipwrecked and Hamlet) to Don't Starve Together. It demonstrates advanced techniques for creating new biomes, mechanics, characters, and integrating them seamlessly with the base game.

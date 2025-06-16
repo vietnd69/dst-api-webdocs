@@ -4,7 +4,7 @@ title: Vector Utilities
 sidebar_position: 2
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Vector Utilities
 
 Vector manipulation and mathematics utilities are essential for handling positions, directions, and spatial calculations in Don't Starve Together mods.

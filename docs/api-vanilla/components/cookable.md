@@ -5,8 +5,10 @@ sidebar_position: 10
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Cookable Component
+
+*API Version: 619045*
 
 The Cookable component allows entities to be cooked, typically on a fire or in a cooking station, transforming them into a cooked variant.
 

@@ -5,8 +5,10 @@ sidebar_position: 2
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Combat Component
+
+*API Version: 619045*
 
 The Combat component handles all combat mechanics for entities that can attack or be attacked. It manages attack ranges, damage, cooldowns, targeting, and other combat-related behaviors.
 

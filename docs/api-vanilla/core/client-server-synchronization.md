@@ -4,8 +4,10 @@ title: Client-Server Synchronization
 sidebar_position: 8
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Client-Server Synchronization
+
+*API Version: 619045*
 
 Client-server synchronization is a critical aspect of developing multiplayer mods for Don't Starve Together. This guide covers techniques and best practices for keeping game state synchronized between server and clients.
 

@@ -4,7 +4,7 @@ title: Network
 sidebar_position: 8
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Network
 
 Network nodes handle the synchronization of game state between server and clients in Don't Starve Together's multiplayer environment.

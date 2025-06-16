@@ -4,7 +4,7 @@ title: Reducing Resource Usage
 sidebar_position: 11
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Reducing Resource Usage in Mods
 
 This guide focuses on strategies to minimize resource consumption in Don't Starve Together mods, ensuring they run efficiently on a variety of hardware configurations and server environments.

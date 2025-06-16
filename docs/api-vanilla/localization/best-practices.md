@@ -5,7 +5,7 @@ sidebar_position: 5
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Localization Best Practices
 
 This guide covers best practices for creating high-quality, maintainable localizations for your Don't Starve Together mods. Following these guidelines will help ensure your translations are accurate, consistent, and user-friendly.

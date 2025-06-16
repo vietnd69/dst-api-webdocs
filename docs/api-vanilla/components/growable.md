@@ -5,8 +5,10 @@ sidebar_position: 12
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Growable Component
+
+*API Version: 619045*
 
 The Growable component allows entities to grow and change over time through different stages, such as plants maturing or trees growing.
 

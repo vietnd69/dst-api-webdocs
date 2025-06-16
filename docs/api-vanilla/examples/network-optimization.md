@@ -4,7 +4,7 @@ title: Optimizing Network Traffic
 sidebar_position: 12
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Optimizing Network Traffic in Multiplayer
 
 This guide focuses on strategies to optimize network traffic in Don't Starve Together mods, ensuring smooth multiplayer experiences even with many players or on connections with limited bandwidth.

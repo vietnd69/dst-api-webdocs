@@ -5,7 +5,7 @@ sidebar_position: 4
 last_updated: 2023-07-06
 slug: /api/debugging-and-testing
 ---
-
+*Last Update: 2023-07-06*
 # Debugging and Testing Mods
 
 Developing mods for Don't Starve Together often involves troubleshooting issues and ensuring your mod works correctly. This guide covers the tools and techniques available for debugging and testing your mods.

@@ -5,7 +5,7 @@ sidebar_position: 8
 last_updated: 2023-07-06
 slug: /api/maintaining-documentation
 ---
-
+*Last Update: 2023-07-06*
 # Maintaining API Documentation
 
 This guide explains how to maintain and update the Don't Starve Together API documentation, particularly when new game updates introduce changes to the API.

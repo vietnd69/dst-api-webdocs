@@ -5,8 +5,10 @@ sidebar_position: 30
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Other Components
+
+*API Version: 619045*
 
 This page provides a brief overview of additional important components available in Don't Starve Together. Each component is described with its primary purpose and key properties.
 

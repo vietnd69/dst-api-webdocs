@@ -4,7 +4,7 @@ title: Structure Prefabs
 sidebar_position: 5
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Structure Prefabs
 
 Structure prefabs define the buildings, crafting stations, and other placeable objects that players can construct and interact with in Don't Starve Together.

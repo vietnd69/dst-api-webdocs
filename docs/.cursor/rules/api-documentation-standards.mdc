@@ -1,6 +1,6 @@
 ---
-description: This project follows specific documentation standards for the Don't Starve Together API.
-globs: 
+description: 
+globs: *.md
 alwaysApply: false
 ---
 # API Documentation Standards

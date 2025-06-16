@@ -5,8 +5,10 @@ sidebar_position: 23
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Eater Component
+
+*API Version: 619045*
 
 The Eater component allows entities to consume edible items. It manages diet restrictions, eating behaviors, and handles the effects of consumed food.
 

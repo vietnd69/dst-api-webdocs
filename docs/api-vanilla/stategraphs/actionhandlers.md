@@ -4,7 +4,7 @@ title: Action Handlers
 sidebar_position: 4
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Action Handlers
 
 Action handlers are a key component of the stategraph system that allows entities to respond to gameplay actions initiated by players or AI. They provide a way to define how an entity should respond when someone attempts to perform an action on it or when it needs to perform an action itself.

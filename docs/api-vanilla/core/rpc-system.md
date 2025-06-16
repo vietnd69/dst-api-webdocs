@@ -4,7 +4,7 @@ title: Remote Procedure Call System
 sidebar_position: 7
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Remote Procedure Call System
 
 Remote Procedure Calls (RPCs) are a core feature of Don't Starve Together's networking architecture, enabling bidirectional communication between server and clients. Unlike network variables which are unidirectional (server to client), RPCs allow clients to send commands to the server and the server to send commands to specific clients.

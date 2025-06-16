@@ -4,7 +4,7 @@ title: UI System
 sidebar_position: 15
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # UI System
 
 The UI system in Don't Starve Together controls the creation and management of user interface elements.

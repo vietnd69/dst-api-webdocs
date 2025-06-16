@@ -4,7 +4,7 @@ title: Stategraph Examples
 sidebar_position: 6
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Stategraph Examples
 
 This page provides practical examples of stategraphs for different types of entities in Don't Starve Together. These examples demonstrate how to implement various behaviors and can serve as a starting point for your own creations.

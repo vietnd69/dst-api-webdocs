@@ -4,7 +4,7 @@ title: Character Mod
 sidebar_position: 3
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Creating a Custom Character
 
 This tutorial walks through creating a custom character for Don't Starve Together. We'll create "Frostbite", a winter-themed character with unique abilities related to cold and ice.

@@ -4,7 +4,7 @@ title: Debug Utils
 sidebar_position: 4
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Debug Utils
 
 Don't Starve Together provides a variety of built-in utilities for debugging your mods. This page documents the available debug functions and tools that can help you troubleshoot issues and understand how your mod interacts with the game.

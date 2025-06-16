@@ -4,7 +4,7 @@ title: Crafting Recipes
 sidebar_position: 2
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Crafting Recipes
 
 The crafting recipe system allows players to create items, tools, and structures by combining various ingredients.

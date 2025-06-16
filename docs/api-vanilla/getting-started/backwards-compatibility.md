@@ -4,7 +4,7 @@ title: Backwards Compatibility
 sidebar_position: 9
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Backwards Compatibility
 
 This guide focuses on maintaining backwards compatibility in your Don't Starve Together mods, allowing them to work across multiple game versions. Creating mods that function correctly on both older and newer versions of the game improves user experience and reduces maintenance overhead.

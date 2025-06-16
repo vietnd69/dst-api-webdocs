@@ -4,7 +4,7 @@ title: Animation Integration
 sidebar_position: 7
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # State Graph Animation Integration
 
 One of the most powerful aspects of the State Graph system in Don't Starve Together is its seamless integration with the animation system. This integration allows developers to create responsive, fluid entity behaviors where gameplay mechanics, visual effects, and sound all work together in perfect harmony.

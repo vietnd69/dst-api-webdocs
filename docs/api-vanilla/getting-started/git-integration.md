@@ -4,7 +4,7 @@ title: Using Git
 sidebar_position: 16
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Using Git with DST Modding
 
 Git is a powerful version control system that can significantly improve your Don't Starve Together mod development workflow. This guide will walk you through setting up Git for your DST mods, establishing best practices, and integrating it with your development process.

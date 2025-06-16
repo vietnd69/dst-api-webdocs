@@ -4,7 +4,7 @@ title: Stategraph Events
 sidebar_position: 3
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Stategraph Events
 
 Events are the mechanism that drives state transitions in the stategraph system. They allow entities to respond to game triggers and change their behavior accordingly.

@@ -4,7 +4,7 @@ title: Case Study - Combined Status
 sidebar_position: 13
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Case Study: Combined Status Mod
 
 This case study examines the "Combined Status" mod for Don't Starve Together, which enhances the player status display with additional information. We'll analyze its implementation and extract valuable modding techniques for UI enhancement.

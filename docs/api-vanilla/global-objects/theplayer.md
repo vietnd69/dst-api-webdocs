@@ -4,7 +4,7 @@ title: ThePlayer
 sidebar_position: 3
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # ThePlayer
 
 ThePlayer is the global object representing the current player character in Don't Starve Together. It provides access to the player's state, components, and control capabilities.

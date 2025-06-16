@@ -5,7 +5,7 @@ sidebar_position: 1
 last_updated: 2023-07-06
 slug: /api/data-types
 ---
-
+*Last Update: 2023-07-06*
 # Data Types Overview
 
 Don't Starve Together uses a variety of data types for representing and manipulating game data. These data types can be classified into several categories:

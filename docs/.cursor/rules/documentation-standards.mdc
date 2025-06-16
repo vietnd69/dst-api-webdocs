@@ -1,6 +1,6 @@
 ---
-description: This project follows specific documentation standards to ensure consistency and readability.
-globs: 
+description: 
+globs: *.md
 alwaysApply: false
 ---
 # Documentation Standards

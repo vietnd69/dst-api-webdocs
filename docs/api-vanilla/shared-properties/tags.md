@@ -4,7 +4,7 @@ title: Tags
 sidebar_position: 2
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Tags
 
 The tag system is a common property used to categorize and identify entity characteristics in Don't Starve Together. Tags provide an efficient way to mark entities with specific attributes that can be queried during gameplay.

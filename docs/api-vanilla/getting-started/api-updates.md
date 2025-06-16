@@ -5,7 +5,7 @@ sidebar_position: 5
 last_updated: 2023-07-06
 slug: /api/updates
 ---
-
+*Last Update: 2023-07-06*
 # API Updates and Changes
 
 This document tracks changes to the Don't Starve Together API across game updates. It helps mod developers stay informed about new features, changes to existing functionality, and deprecated APIs that may affect their mods.

@@ -4,7 +4,7 @@ title: UI Customization
 sidebar_position: 7
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Creating Custom UI Elements
 
 This tutorial walks through the process of creating custom UI elements in Don't Starve Together. We'll build a mod that adds a custom status display showing additional player information.

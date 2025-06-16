@@ -4,7 +4,7 @@ title: Network Bandwidth Optimization
 sidebar_position: 11
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Network Bandwidth Optimization
 
 Optimizing network bandwidth usage is crucial for creating multiplayer mods that perform well even on slower connections. This guide covers techniques and best practices for reducing network traffic in Don't Starve Together mods.

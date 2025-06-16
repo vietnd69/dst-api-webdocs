@@ -5,7 +5,7 @@ sidebar_position: 4
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Font Handling for Different Languages
 
 This guide covers techniques for handling fonts in Don't Starve Together mods to support various languages, especially those with non-Latin scripts like Chinese, Japanese, Korean, Russian, and Arabic.

@@ -4,7 +4,7 @@ title: Case Study - Wormhole Marks
 sidebar_position: 12
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Case Study: Wormhole Marks Mod
 
 This case study examines the "Wormhole Marks" mod for Don't Starve Together, which helps players track wormhole connections by adding visual markers. We'll analyze its implementation and extract valuable modding techniques.

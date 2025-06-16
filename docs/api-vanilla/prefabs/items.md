@@ -4,7 +4,7 @@ title: Item Prefabs
 sidebar_position: 4
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Item Prefabs
 
 Item prefabs define the collectible objects that players can interact with, carry in their inventory, equip, and use in Don't Starve Together.

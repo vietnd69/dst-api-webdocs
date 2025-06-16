@@ -4,7 +4,7 @@ title: Profiling and Debugging Performance Issues
 sidebar_position: 13
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Profiling and Debugging Performance Issues
 
 This guide covers techniques for identifying, analyzing, and resolving performance issues in Don't Starve Together mods.

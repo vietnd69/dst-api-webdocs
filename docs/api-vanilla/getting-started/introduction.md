@@ -5,7 +5,7 @@ sidebar_position: 1
 last_updated: 2023-07-06
 slug: /api/getting-started
 ---
-
+*Last Update: 2023-07-06*
 # Introduction to Don't Starve Together API
 
 Don't Starve Together (DST) is a multiplayer survival game developed by Klei Entertainment. The game's modding API allows developers to create custom content, modify game mechanics, and enhance gameplay through the use of Lua scripts.

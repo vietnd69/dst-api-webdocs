@@ -4,7 +4,7 @@ title: World Generation
 sidebar_position: 4
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # World Generation
 
 World generation in Don't Starve Together is a complex process that creates the game world through a series of steps involving rooms, tasks, and terrain generation. This document explains how the world generation system works and how it can be customized.

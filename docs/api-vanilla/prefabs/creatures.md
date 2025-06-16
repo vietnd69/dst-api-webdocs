@@ -4,7 +4,7 @@ title: Creature Prefabs
 sidebar_position: 3
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Creature Prefabs
 
 Creature prefabs define the non-player entities that populate the world of Don't Starve Together, including animals, monsters, bosses, and other living beings.

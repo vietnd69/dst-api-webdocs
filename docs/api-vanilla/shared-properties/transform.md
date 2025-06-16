@@ -4,7 +4,7 @@ title: Transform
 sidebar_position: 3
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Transform
 
 Transform is a common property that manages an entity's position, rotation, and scale in 3D space. It is one of the core building blocks of every entity in Don't Starve Together.

@@ -4,7 +4,7 @@ title: Brain
 sidebar_position: 5
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Brain
 
 Brains are specialized scripts that control the AI and decision-making behavior of entities. They define how entities respond to their environment and other entities.

@@ -4,7 +4,7 @@ title: Common Widgets
 sidebar_position: 14
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Common Widgets
 
 Don't Starve Together provides a rich collection of pre-built widgets that can be used to create complex UI elements. This document covers the most commonly used widgets and how to implement them in your mods.

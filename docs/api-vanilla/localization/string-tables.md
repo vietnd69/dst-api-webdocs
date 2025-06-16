@@ -5,7 +5,7 @@ sidebar_position: 3
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Managing String Tables for Localization
 
 This guide covers best practices for organizing, maintaining, and scaling string tables in your Don't Starve Together mods to support multiple languages efficiently.

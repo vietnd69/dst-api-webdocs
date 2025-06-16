@@ -4,7 +4,7 @@ title: TheClock
 sidebar_position: 10
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # TheClock
 
 TheClock is the global object that provides timing and day/night cycle information in Don't Starve Together. It manages the game's time system, including day phases, season transitions, and precise time tracking.

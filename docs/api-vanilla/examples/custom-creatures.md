@@ -4,7 +4,7 @@ title: Creating Custom Creatures
 sidebar_position: 5
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Creating Custom Creatures
 
 This guide focuses on creating custom creatures for Don't Starve Together. Custom creatures can add new challenges, pets, allies, or unique monsters to your mod.

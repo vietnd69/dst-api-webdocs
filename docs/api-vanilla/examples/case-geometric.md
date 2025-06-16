@@ -4,7 +4,7 @@ title: Case Study - Geometric Placement
 sidebar_position: 11
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Case Study: Geometric Placement Mod
 
 This case study examines the popular "Geometric Placement" mod for Don't Starve Together, which enhances the building system by adding grid-based placement options. We'll analyze its implementation and learn valuable modding techniques.

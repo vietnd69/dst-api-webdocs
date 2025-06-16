@@ -4,7 +4,7 @@ title: Tag System
 sidebar_position: 2
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Tag System
 
 The tag system in Don't Starve Together is a lightweight method for categorizing and identifying entities. Tags are simple string labels attached to entities that allow for quick filtering and identification without the overhead of checking components or other properties.

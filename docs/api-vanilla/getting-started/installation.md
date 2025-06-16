@@ -5,7 +5,7 @@ sidebar_position: 2
 last_updated: 2023-07-06
 slug: /api/installation
 ---
-
+*Last Update: 2023-07-06*
 # Installation and Setup for Don't Starve Together Modding
 
 This guide will walk you through setting up your development environment for creating Don't Starve Together mods.

@@ -4,7 +4,7 @@ title: Particle Effects System
 sidebar_position: 19
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Particle Effects System
 
 Don't Starve Together's particle effects system allows mod creators to add visual effects like fire, smoke, electricity, and environmental effects to their creations. This document explains how to work with the particle system to create engaging visual effects.

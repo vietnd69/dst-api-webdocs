@@ -4,7 +4,7 @@ title: Creating Custom Biomes
 sidebar_position: 12
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Creating Custom Biomes
 
 This guide focuses specifically on creating custom biomes in Don't Starve Together. While custom biomes are part of world generation, they have unique requirements and considerations that deserve special attention.

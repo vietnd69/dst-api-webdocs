@@ -5,8 +5,10 @@ sidebar_position: 26
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Equippable Component
+
+*API Version: 619045*
 
 The Equippable component allows items to be equipped by entities with an inventory. It manages equipment slots, equip/unequip callbacks, and equipment effects.
 

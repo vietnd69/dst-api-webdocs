@@ -4,7 +4,7 @@ title: modoverrides.lua Configuration
 sidebar_position: 9
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # modoverrides.lua Configuration
 
 The `modoverrides.lua` file is a critical configuration file for Don't Starve Together servers that controls which mods are enabled and how they are configured.

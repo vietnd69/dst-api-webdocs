@@ -4,7 +4,7 @@ title: Recipe Mod
 sidebar_position: 4
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Creating Custom Recipes
 
 This tutorial walks through creating custom crafting recipes for Don't Starve Together. We'll create several types of recipes with varying complexity and requirements.

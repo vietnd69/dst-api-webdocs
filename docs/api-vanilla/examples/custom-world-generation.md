@@ -4,7 +4,7 @@ title: Custom World Generation
 sidebar_position: 9
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Custom World Generation
 
 This guide provides a comprehensive overview of creating custom world generation in Don't Starve Together. You'll learn the fundamental concepts, approaches, and practical examples to create unique and engaging worlds for your mods.

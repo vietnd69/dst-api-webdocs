@@ -4,7 +4,7 @@ title: Entity
 sidebar_position: 2
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Entity
 
 Entity is the most basic node type in Don't Starve Together, representing all objects in the game from characters and items to structures.

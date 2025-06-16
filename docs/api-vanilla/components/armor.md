@@ -5,8 +5,10 @@ sidebar_position: 14
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Armor Component
+
+*API Version: 619045*
 
 The Armor component allows entities to provide protection against damage. It manages damage absorption, durability, and special protection effects.
 

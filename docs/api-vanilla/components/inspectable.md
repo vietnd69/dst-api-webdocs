@@ -5,8 +5,10 @@ sidebar_position: 27
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Inspectable Component
+
+*API Version: 619045*
 
 The Inspectable component allows entities to be examined by players, displaying descriptive text when interacted with. It manages custom descriptions, conditional examination text, and localization.
 

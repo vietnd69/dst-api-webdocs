@@ -5,8 +5,10 @@ sidebar_position: 11
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Workable Component
+
+*API Version: 619045*
 
 The Workable component allows entities to be affected by tools such as axes, pickaxes, hammers, and other work tools. It manages resource collection, destruction, and work-based interactions.
 
@@ -105,7 +107,7 @@ For practical implementations of the Workable component in mods, see these case 
 - [Health Component](health.md) - For damage from working
 - [Growable Component](growable.md) - For renewable workable resources
 - [Pickable Component](other-components.md) - For resources that can be picked without tools
-- [Tool-Related Actions](../core/actions.md) - For actions related to tools
+- [Constants](../core/constants.md) - For action constants and definitions
 
 ## Example: Creating a Basic Workable Tree
 

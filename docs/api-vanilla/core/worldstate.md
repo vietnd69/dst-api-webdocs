@@ -4,7 +4,7 @@ title: WorldState API
 sidebar_position: 12
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # WorldState API
 
 WorldState is the system that manages the world state in Don't Starve Together. It stores and tracks information such as seasons, weather, time, and other game world states.

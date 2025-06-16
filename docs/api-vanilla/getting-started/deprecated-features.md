@@ -4,7 +4,7 @@ title: Deprecated Features and Alternatives
 sidebar_position: 8
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Deprecated Features and Alternatives
 
 This document catalogs deprecated features in the Don't Starve Together API and provides recommended alternatives. Using these alternatives will help ensure your mods remain compatible with future game updates.

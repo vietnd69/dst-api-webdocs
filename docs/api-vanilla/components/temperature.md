@@ -5,8 +5,10 @@ sidebar_position: 6
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Temperature Component
+
+*API Version: 619045*
 
 The Temperature component manages an entity's temperature state, including warming, cooling, freezing, and overheating effects. It's a key component for survival mechanics in Don't Starve Together.
 

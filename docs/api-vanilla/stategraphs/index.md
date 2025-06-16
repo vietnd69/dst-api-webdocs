@@ -5,7 +5,7 @@ sidebar_position: 1
 last_updated: 2023-07-06
 slug: /api/stategraphs
 ---
-
+*Last Update: 2023-07-06*
 # Stategraphs Overview
 
 Stategraphs are a powerful state machine system that controls entity behavior, animations, and interactions in Don't Starve Together. They provide a structured way to define how entities transition between different states based on events and actions.

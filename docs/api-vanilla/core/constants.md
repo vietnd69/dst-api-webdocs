@@ -4,8 +4,10 @@ title: Constants
 sidebar_position: 11
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Constants
+
+*API Version: 619045*
 
 Don't Starve Together has many predefined constants and values used throughout the codebase. Below are the important constant groups and how to use them.
 

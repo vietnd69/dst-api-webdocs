@@ -4,7 +4,7 @@ title: Input System
 sidebar_position: 10
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Input System
 
 The input system in Don't Starve Together allows mods to interact with keyboard, mouse, gamepad, and touch inputs. At the core of this system is the global `TheInput` object, which provides methods for registering event handlers, checking input states, and managing input configurations.

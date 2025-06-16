@@ -5,8 +5,10 @@ sidebar_position: 21
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Builder Component
+
+*API Version: 619045*
 
 The Builder component allows entities to craft and construct items and structures. It manages recipes, ingredients, technology levels, and crafting buffs.
 

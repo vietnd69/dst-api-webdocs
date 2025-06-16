@@ -4,8 +4,10 @@ title: Component Name
 sidebar_position: 1
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Component Name
+
+*API Version: 619045*
 
 Brief overview of what the component does and its primary purpose. This should include a 1-3 sentence description of the component's functionality and role within the game.
 

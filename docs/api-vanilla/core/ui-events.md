@@ -4,7 +4,7 @@ title: UI Events
 sidebar_position: 16
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # UI Events
 
 Don't Starve Together's UI system provides a comprehensive event handling system that allows widgets to respond to user input. This document covers how to handle various input events in your UI elements.

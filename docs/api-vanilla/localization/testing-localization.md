@@ -5,7 +5,7 @@ sidebar_position: 6
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Testing Localized Content
 
 This guide covers comprehensive approaches for testing localized content in your Don't Starve Together mods to ensure high quality across all supported languages.

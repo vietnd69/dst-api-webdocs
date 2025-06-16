@@ -5,8 +5,10 @@ sidebar_position: 9
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Burnable Component
+
+*API Version: 619045*
 
 The Burnable component allows entities to catch fire, burn, and potentially spread fire to nearby objects.
 

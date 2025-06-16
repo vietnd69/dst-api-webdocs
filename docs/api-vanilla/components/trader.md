@@ -5,8 +5,10 @@ sidebar_position: 29
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Trader Component
+
+*API Version: 619045*
 
 The Trader component allows entities to participate in trading interactions, accepting items from players or other entities. It manages trade acceptance, rejection, and the resulting effects of successful trades.
 

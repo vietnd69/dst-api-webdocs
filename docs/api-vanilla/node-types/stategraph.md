@@ -4,7 +4,7 @@ title: Stategraph
 sidebar_position: 6
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Stategraph
 
 Stategraphs control entity animations, sounds, and state-based behaviors in Don't Starve Together. They provide a framework for defining states and transitions between them.

@@ -4,7 +4,7 @@ title: Full Character Example
 sidebar_position: 3
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Full Character Example
 
 This guide provides a complete example of creating a custom character for Don't Starve Together. We'll create a character named "Woodie Jr." who has unique abilities related to trees and woodcutting.

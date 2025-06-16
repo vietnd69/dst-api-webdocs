@@ -4,8 +4,10 @@ title: Entity System
 sidebar_position: 1
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Entity System
+
+*API Version: 619045*
 
 The Entity System is the foundation of Don't Starve Together's game architecture. It defines how game objects are created, managed, and destroyed within the game world.
 

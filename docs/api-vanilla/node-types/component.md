@@ -4,7 +4,7 @@ title: Component
 sidebar_position: 3
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Component
 
 Components are functional modules attached to entities to provide specific behaviors and properties.

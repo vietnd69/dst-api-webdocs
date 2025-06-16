@@ -5,7 +5,7 @@ sidebar_position: 1
 last_updated: 2023-07-06
 slug: /api/shared-properties
 ---
-
+*Last Update: 2023-07-06*
 # Shared Node Properties Overview
 
 Shared node properties are fundamental building blocks used by almost all entities in the Don't Starve Together API. These properties provide essential functionality for positioning, identifying, and synchronizing game objects.

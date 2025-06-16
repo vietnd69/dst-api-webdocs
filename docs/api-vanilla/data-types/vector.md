@@ -4,7 +4,7 @@ title: Vector
 sidebar_position: 2
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Vector
 
 Vector is a data type representing 2D or 3D vectors in space, used for positions, directions, and physics calculations. 

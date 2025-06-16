@@ -6,7 +6,7 @@ last_updated: 2023-07-06
 slug: /api/localization
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Localization in Don't Starve Together Mods
 
 This section provides comprehensive guides and resources for implementing multilingual support in Don't Starve Together mods, allowing your creations to reach a global audience.

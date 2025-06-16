@@ -4,7 +4,7 @@ title: TheWorld
 sidebar_position: 2
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # TheWorld
 
 TheWorld is the main global object representing the game world in Don't Starve Together. It provides access to the world state, terrain information, components, and event management.

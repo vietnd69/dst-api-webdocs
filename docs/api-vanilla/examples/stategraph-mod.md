@@ -4,7 +4,7 @@ title: State Graph Integration
 sidebar_position: 6
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Working with State Graphs
 
 This tutorial walks through working with state graphs in Don't Starve Together. We'll create a custom weapon with unique attack animations and states.

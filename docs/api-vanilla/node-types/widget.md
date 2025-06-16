@@ -4,7 +4,7 @@ title: Widget
 sidebar_position: 7
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Widget
 
 Widgets are UI elements that can be used to create user interfaces in Don't Starve Together. They handle rendering, input, and other UI-related functionality.

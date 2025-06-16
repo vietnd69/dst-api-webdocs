@@ -5,7 +5,7 @@ sidebar_position: 1
 last_updated: 2023-07-06
 slug: /api/prefabs
 ---
-
+*Last Update: 2023-07-06*
 # Prefabs Overview
 
 Prefabs (short for "prefabricated objects") are the fundamental building blocks of all entities in Don't Starve Together. They are templates that define the behavior, appearance, and functionality of game objects.

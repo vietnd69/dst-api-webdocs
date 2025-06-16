@@ -4,7 +4,7 @@ title: Networking and Multiplayer
 sidebar_position: 9
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Networking and Multiplayer
 
 This tutorial walks through creating mods that handle networking and multiplayer functionality in Don't Starve Together. We'll build a mod that synchronizes custom data between clients and the server.

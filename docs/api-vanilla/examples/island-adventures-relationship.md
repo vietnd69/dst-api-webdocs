@@ -5,7 +5,7 @@ sidebar_position: 5
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Relationship Between Island Adventures Case Studies
 
 This document explains the relationship between the two Island Adventures case studies and how they complement each other to provide a comprehensive understanding of large-scale mod development for Don't Starve Together.

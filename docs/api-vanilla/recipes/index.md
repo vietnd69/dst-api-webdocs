@@ -5,7 +5,7 @@ sidebar_position: 1
 last_updated: 2023-07-06
 slug: /api/recipes
 ---
-
+*Last Update: 2023-07-06*
 # Recipes Overview
 
 The recipe system in Don't Starve Together provides the foundation for crafting and cooking mechanics. This system enables players to combine ingredients to create items, tools, structures, and food.

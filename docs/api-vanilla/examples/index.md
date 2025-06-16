@@ -5,7 +5,7 @@ sidebar_position: 1
 last_updated: 2023-07-06
 slug: /api/examples
 ---
-
+*Last Update: 2023-07-06*
 # Examples and Tutorials
 
 This section provides practical examples and tutorials for Don't Starve Together modding, from simple modifications to complex systems.

@@ -5,7 +5,7 @@ sidebar_position: 1
 last_updated: 2023-07-06
 slug: /api/global-objects
 ---
-
+*Last Update: 2023-07-06*
 # Global Objects Overview
 
 Global objects in Don't Starve Together are special singleton instances that provide access to core game systems, data, and functionality. These objects are accessible from anywhere in your mod code and serve as the primary interface for interacting with the game world, players, networking, and other essential systems.

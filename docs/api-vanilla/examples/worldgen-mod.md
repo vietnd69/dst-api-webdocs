@@ -4,7 +4,7 @@ title: World Generation
 sidebar_position: 8
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Modifying World Generation
 
 This tutorial walks through the process of modifying world generation in Don't Starve Together. We'll create a mod that adds a custom biome and modifies the world layout.

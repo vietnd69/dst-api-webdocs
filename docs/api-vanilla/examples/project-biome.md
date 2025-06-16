@@ -4,7 +4,7 @@ title: New Biome Project
 sidebar_position: 15
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # New Biome Project
 
 This tutorial guides you through creating a complete mod that adds a new biome to Don't Starve Together. We'll create a Crystal Forest biome with unique terrain, vegetation, resources, and creatures.

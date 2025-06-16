@@ -4,7 +4,7 @@ title: Case Study - Global Position CompleteSync Mod
 sidebar_position: 4
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Case Study: Global Position CompleteSync Mod
 
 This case study examines the implementation of the Global Position CompleteSync mod, which enhances multiplayer gameplay in Don't Starve Together by providing complete map synchronization and player position tracking.

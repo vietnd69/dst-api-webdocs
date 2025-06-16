@@ -4,7 +4,7 @@ title: Network and World Synchronization
 sidebar_position: 3
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Network and World Synchronization
 
 This document covers how networking functions specifically in the context of the world system in Don't Starve Together, focusing on world state synchronization, shard communication, and related networking concepts.

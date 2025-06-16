@@ -4,8 +4,10 @@ title: Event System
 sidebar_position: 3
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Event System
+
+*API Version: 619045*
 
 Don't Starve Together uses an event system to manage and react to game state changes. This system allows entities to register listeners and respond to events from other entities.
 

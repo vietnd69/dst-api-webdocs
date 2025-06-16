@@ -5,7 +5,7 @@ sidebar_position: 5
 last_updated: 2023-07-06
 slug: /api/testing-environment
 ---
-
+*Last Update: 2023-07-06*
 # Setting Up a Testing Environment
 
 A proper testing environment is crucial for developing reliable Don't Starve Together mods. This guide will help you set up different testing environments to ensure your mods work correctly in various scenarios.

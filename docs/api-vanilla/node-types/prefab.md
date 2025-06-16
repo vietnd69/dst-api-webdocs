@@ -4,7 +4,7 @@ title: Prefab
 sidebar_position: 4
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Prefab
 
 Prefabs are blueprints for creating entities, with predefined components and properties.

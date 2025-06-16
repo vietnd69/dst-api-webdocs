@@ -5,8 +5,10 @@ sidebar_position: 28
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # LootDropper Component
+
+*API Version: 619045*
 
 The LootDropper component handles dropping items when entities die or are destroyed. It manages loot tables, randomized drops, custom loot functions, and drop positioning.
 

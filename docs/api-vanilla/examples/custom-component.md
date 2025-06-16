@@ -4,7 +4,7 @@ title: Custom Component
 sidebar_position: 5
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Creating a Custom Component
 
 This tutorial walks through creating a custom component for Don't Starve Together. We'll create a "magicuser" component that allows entities to cast spells and manage magical energy.

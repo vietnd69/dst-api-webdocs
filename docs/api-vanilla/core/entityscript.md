@@ -4,8 +4,10 @@ title: EntityScript
 sidebar_position: 4
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # EntityScript
+
+*API Version: 619045*
 
 EntityScript is the base class for all entities in Don't Starve Together. Every object in the game such as characters, items, structures, and monsters inherits from this class.
 

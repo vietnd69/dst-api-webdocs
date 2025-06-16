@@ -5,7 +5,7 @@ sidebar_position: 1
 last_updated: 2023-07-06
 slug: /api/world
 ---
-
+*Last Update: 2023-07-06*
 # World API Overview
 
 APIs for world generation, management and manipulation in Don't Starve Together.

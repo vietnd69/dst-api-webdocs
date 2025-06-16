@@ -1,6 +1,6 @@
 ---
-description: This document outlines the guidelines for contributing to the Don't Starve Together API documentation.
-globs: 
+description: 
+globs: *.md
 alwaysApply: false
 ---
 # Documentation Contribution Guidelines
@@ -92,6 +92,6 @@ When updating existing documentation:
 ## Example Contribution
 
 For an example of a well-structured documentation contribution, see:
-- [Component Documentation Example](mdc:dst-api-webdocs/dst-api-webdocs/docs/api-vanilla/components/health.md)
-- [Guide Example](mdc:dst-api-webdocs/dst-api-webdocs/docs/api-vanilla/getting-started/first-mod.md)
+- [Component Documentation Example](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/docs/api-vanilla/components/health.md)
+- [Guide Example](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/docs/api-vanilla/getting-started/first-mod.md)
 

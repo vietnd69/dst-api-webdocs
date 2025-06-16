@@ -4,7 +4,7 @@ title: Sound System
 sidebar_position: 20
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Sound System
 
 Don't Starve Together's sound system enables developers to add audio feedback to their mods through sound effects, music, and ambient sounds. This document explains how to work with the sound system effectively.

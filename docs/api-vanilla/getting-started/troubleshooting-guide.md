@@ -5,7 +5,7 @@ sidebar_position: 5
 last_updated: 2023-07-06
 slug: /api/troubleshooting-guide
 ---
-
+*Last Update: 2023-07-06*
 # Troubleshooting Guide
 
 This guide provides solutions for common errors and issues you might encounter when developing mods for Don't Starve Together.

@@ -5,7 +5,7 @@ sidebar_position: 1
 last_updated: 2023-07-06
 slug: /api/node-types
 ---
-
+*Last Update: 2023-07-06*
 # Node Types Overview
 
 Don't Starve Together's game architecture is built around a variety of specialized node types that work together to create the game experience. Each node type serves a specific purpose in the game's ecosystem.

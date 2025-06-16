@@ -5,7 +5,10 @@ sidebar_position: 8
 last_updated: 2023-07-06
 ---
 
+*Last Update: 2023-07-06*
 # Mod Structure and Server Integration
+
+*API Version: 619045*
 
 This document describes the structure of Don't Starve Together mods and how they integrate with the server environment.
 

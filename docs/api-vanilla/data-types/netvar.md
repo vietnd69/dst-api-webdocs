@@ -4,7 +4,7 @@ title: Network Variables
 sidebar_position: 5
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Network Variables
 
 Network variables (netvars) are specialized data types in Don't Starve Together that handle automatic synchronization between server and clients. They are the backbone of DST's multiplayer architecture.

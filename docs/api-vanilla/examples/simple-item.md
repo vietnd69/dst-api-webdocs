@@ -4,7 +4,7 @@ title: Simple Item Mod
 sidebar_position: 2
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Creating a Simple Custom Item
 
 This tutorial walks through creating a basic custom item for Don't Starve Together: a "Frost Axe" that works like a regular axe but has ice-themed effects and properties.

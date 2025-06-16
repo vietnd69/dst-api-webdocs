@@ -5,8 +5,10 @@ sidebar_position: 13
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Locomotor Component
+
+*API Version: 619045*
 
 The Locomotor component manages entity movement, including walking, running, and navigation between points. It handles movement speed, pathfinding, and movement state.
 

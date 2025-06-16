@@ -4,7 +4,7 @@ title: Setting Up VSCode
 sidebar_position: 15
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Setting Up VSCode for DST Modding
 
 Visual Studio Code (VSCode) is a powerful, lightweight code editor that works well for Don't Starve Together mod development. This guide will walk you through setting up VSCode with extensions and configurations specifically tailored for DST modding.

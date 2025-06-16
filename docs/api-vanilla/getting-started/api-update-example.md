@@ -5,7 +5,7 @@ sidebar_position: 7
 last_updated: 2023-07-06
 slug: /api/update-example
 ---
-
+*Last Update: 2023-07-06*
 # API Update Example: Waterlogged Update
 
 This document demonstrates how to document API changes using a real-world example from the Waterlogged Update (released in March 2022). This update introduced significant changes to the boat system and added new water-related features.

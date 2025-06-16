@@ -4,7 +4,7 @@ title: Updating Mods for API Changes
 sidebar_position: 7
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Updating Mods for API Changes
 
 This guide provides strategies and best practices for updating your mods when the Don't Starve Together API changes. Keeping your mods compatible with the latest game version ensures they continue to function correctly and provide a good experience for users.

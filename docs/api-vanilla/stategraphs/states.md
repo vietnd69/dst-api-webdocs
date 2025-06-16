@@ -4,7 +4,7 @@ title: States API
 sidebar_position: 2
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # States API
 
 The States API allows you to define individual states within a stategraph, controlling how entities behave in different situations.

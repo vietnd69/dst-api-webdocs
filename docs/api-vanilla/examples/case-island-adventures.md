@@ -5,7 +5,7 @@ sidebar_position: 4
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Case Study: Island Adventures Gameplay
 
 This case study examines the gameplay systems of "Island Adventures", a comprehensive mod that ports content from Don't Starve's single-player DLCs (Shipwrecked and Hamlet) to Don't Starve Together. It demonstrates advanced techniques for creating engaging gameplay mechanics that integrate with the base game.

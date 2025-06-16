@@ -4,7 +4,7 @@ title: Custom Tool Set Project
 sidebar_position: 14
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Custom Tool Set Project
 
 This tutorial guides you through creating a complete mod that adds a set of custom tools to Don't Starve Together. We'll create three new tools: a Golden Axe, a Gem Pickaxe, and a Magical Shovel, each with unique properties and abilities.

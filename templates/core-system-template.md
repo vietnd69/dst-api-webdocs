@@ -4,8 +4,10 @@ title: System Name
 sidebar_position: 1
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # System Name
+
+*API Version: 619045*
 
 Comprehensive introduction to the system, explaining its purpose, importance in the game architecture, and when it's typically used. This should be 2-4 sentences providing context for why this system exists.
 

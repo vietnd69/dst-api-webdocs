@@ -4,7 +4,7 @@ title: TheShard
 sidebar_position: 7
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # TheShard
 
 TheShard is the global object that manages communication between different server shards in Don't Starve Together. It provides interfaces for cross-shard messaging, player migration, and shared state management in multi-shard server clusters.

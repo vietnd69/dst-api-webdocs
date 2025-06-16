@@ -4,7 +4,7 @@ title: TheNet
 sidebar_position: 4
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # TheNet
 
 TheNet is the global object that manages networking functions and connections in Don't Starve Together. It provides interfaces for client-server communications, player information, server settings, and more.

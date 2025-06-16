@@ -1,6 +1,6 @@
 ---
-description: This document outlines the standards for creating and documenting code examples in the Don't Starve Together API documentation.
-globs: 
+description: 
+globs: *.md
 alwaysApply: false
 ---
 # Example Documentation Standards

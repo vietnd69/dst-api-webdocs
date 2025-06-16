@@ -4,7 +4,7 @@ title: Math Utilities
 sidebar_position: 5
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Math Utilities
 
 Mathematical functions and operations for Don't Starve Together modding that extend beyond the standard Lua math library.

@@ -5,8 +5,10 @@ sidebar_position: 7
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Hunger Component
+
+*API Version: 619045*
 
 The Hunger component manages an entity's hunger state, including maximum hunger, hunger rate, and starvation effects.
 

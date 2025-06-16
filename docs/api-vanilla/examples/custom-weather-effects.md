@@ -4,7 +4,7 @@ title: Creating Custom Weather Effects
 sidebar_position: 13
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Creating Custom Weather Effects
 
 This guide focuses on creating custom weather effects in Don't Starve Together. Weather effects can add immersion, gameplay challenges, and unique visual elements to your mod.

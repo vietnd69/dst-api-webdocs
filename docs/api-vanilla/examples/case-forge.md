@@ -5,7 +5,7 @@ sidebar_position: 2
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Case Study: The Forge Mod
 
 This case study examines "ReForged" - a fan-made mod that recreates and extends "The Forge" event from Don't Starve Together. The Forge was originally a limited-time official event created by Klei Entertainment. This mod implementation demonstrates advanced techniques for creating a complete game mode with custom mechanics, prefabs, components, and UI elements.

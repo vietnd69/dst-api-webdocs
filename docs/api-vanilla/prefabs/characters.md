@@ -4,7 +4,7 @@ title: Character Prefabs
 sidebar_position: 2
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Character Prefabs
 
 Character prefabs define the playable characters in Don't Starve Together. Each character has unique abilities, stats, and gameplay mechanics that differentiate them from one another.

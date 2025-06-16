@@ -4,7 +4,7 @@ title: CI/CD Workflow
 sidebar_position: 18
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # CI/CD Workflow for DST Mods
 
 Continuous Integration and Continuous Deployment (CI/CD) practices can significantly improve the quality and release process of your Don't Starve Together mods. This guide will walk you through setting up an automated workflow that helps you test, build, and deploy your mods more efficiently.

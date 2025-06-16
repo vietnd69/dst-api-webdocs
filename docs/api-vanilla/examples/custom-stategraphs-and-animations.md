@@ -4,7 +4,7 @@ title: Custom Stategraphs and Animations
 sidebar_position: 5
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Custom Stategraphs and Animations
 
 This guide covers how to create custom stategraphs and animations for your Don't Starve Together mods. Stategraphs are a powerful state machine system that controls entity behavior, animations, and interactions, while animations provide the visual representation of those behaviors.

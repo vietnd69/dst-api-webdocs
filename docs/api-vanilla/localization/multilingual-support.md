@@ -5,7 +5,7 @@ sidebar_position: 2
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Implementing Multilingual Support in Mods
 
 This guide covers the essential steps for adding multilingual support to your Don't Starve Together mods, allowing players worldwide to enjoy your content in their preferred language.

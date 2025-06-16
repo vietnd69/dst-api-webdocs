@@ -5,8 +5,10 @@ sidebar_position: 22
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Edible Component
+
+*API Version: 619045*
 
 The Edible component defines the properties of items that can be eaten. It manages food values, spoilage effects, and special food effects.
 

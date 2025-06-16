@@ -4,7 +4,7 @@ title: Server Startup Process
 sidebar_position: 10
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Server Startup Process
 
 This document describes the startup sequence of Don't Starve Together dedicated servers, with a focus on mod loading and initialization.

@@ -5,7 +5,7 @@ sidebar_position: 3
 last_updated: 2023-07-06
 slug: /api/first-mod
 ---
-
+*Last Update: 2023-07-06*
 # First mod in Don't Starve Together
 
 Creating your first mod for Don't Starve Together (DST) is an exciting way to customize the game experience. This guide will walk you through creating a simple mod, then progressively build toward more complex examples.

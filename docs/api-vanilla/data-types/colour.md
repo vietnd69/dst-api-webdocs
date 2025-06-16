@@ -4,7 +4,7 @@ title: Colour
 sidebar_position: 3
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Colour
 
 Colour is a data type representing colors in the game, typically using RGBA format with values from 0 to 1. 

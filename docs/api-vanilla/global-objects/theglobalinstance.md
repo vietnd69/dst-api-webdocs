@@ -4,7 +4,7 @@ title: TheGlobalInstance
 sidebar_position: 8
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # TheGlobalInstance
 
 TheGlobalInstance is the global object that manages global data that persists across server shards in Don't Starve Together. It provides a centralized storage mechanism for data that needs to be shared between different server instances within a cluster.

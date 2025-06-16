@@ -5,8 +5,10 @@ sidebar_position: 8
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Sanity Component
+
+*API Version: 619045*
 
 The Sanity component manages an entity's mental state, including sanity level, effects of insanity, and sanity modifiers.
 

@@ -4,8 +4,10 @@ title: Example Name
 sidebar_position: 1
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Example Name
+
+*API Version: 619045*
 
 Brief introduction explaining what this example demonstrates and why it's useful. Describe the scenario or problem this example addresses.
 

@@ -1,6 +1,6 @@
 ---
-description: This document outlines the standards for documenting the core systems of Don't Starve Together.
-globs: 
+description: 
+globs: *.md
 alwaysApply: false
 ---
 # Core Systems Documentation Standards
@@ -17,12 +17,17 @@ Core systems documentation should follow this structure:
    id: system-name
    title: System Name
    sidebar_position: X
+   last_updated: 2023-07-06
+   version: version number
    ---
    ```
 
 2. **Title and Overview**:
    ```md
+   *Last Update: 2023-07-06*
    # System Name
+
+    *API Version: 619045*
 
    Brief description of what the system does and its role in the game architecture.
    ```
@@ -138,8 +143,8 @@ Core systems documentation should follow this structure:
     ```md
     ## See Also
 
-    - [Related System 1](mdc:dst-api-webdocs/related-system-1.md)
-    - [Related System 2](mdc:dst-api-webdocs/related-system-2.md)
+    - [Related System 1](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/related-system-1.md)
+    - [Related System 2](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/related-system-2.md)
     ```
 
 ## Core Systems Categories

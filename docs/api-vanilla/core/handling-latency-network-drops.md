@@ -4,8 +4,10 @@ title: Handling Latency and Network Drops
 sidebar_position: 9
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Handling Latency and Network Drops
+
+*API Version: 619045*
 
 In multiplayer games like Don't Starve Together, network latency and disconnections are inevitable challenges that modders must address. This guide covers techniques for creating mods that gracefully handle network issues while maintaining a smooth player experience.
 

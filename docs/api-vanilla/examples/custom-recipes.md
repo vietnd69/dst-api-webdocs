@@ -4,7 +4,7 @@ title: Custom Crafting Recipes and Tech Trees
 sidebar_position: 4
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Custom Crafting Recipes and Tech Trees
 
 This guide demonstrates how to create custom crafting recipes and tech trees in Don't Starve Together. We'll cover basic recipes, recipe categories, tech level requirements, and creating entirely new crafting tabs.

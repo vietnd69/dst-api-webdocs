@@ -4,8 +4,10 @@ title: Mod Interaction and Compatibility
 sidebar_position: 10
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Mod Interaction and Compatibility
+
+*API Version: 619045*
 
 This document explains how mods interact with each other in Don't Starve Together, including dependency management, compatibility checking, and conflict resolution.
 

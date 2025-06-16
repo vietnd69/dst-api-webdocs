@@ -4,8 +4,10 @@ title: DataType Name
 sidebar_position: 1
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # DataType Name
+
+*API Version: 619045*
 
 Brief introduction to the data type, explaining what it represents and its purpose in the game. Include information about when and why this data type would be used.
 

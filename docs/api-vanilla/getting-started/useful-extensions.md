@@ -4,7 +4,7 @@ title: Useful Extensions and Tools
 sidebar_position: 17
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Useful Extensions and Tools for DST Modding
 
 This guide covers additional extensions, tools, and utilities that can enhance your Don't Starve Together modding workflow. These tools can help you work more efficiently, debug more effectively, and create more polished mods.

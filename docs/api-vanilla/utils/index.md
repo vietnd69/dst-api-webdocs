@@ -5,7 +5,7 @@ sidebar_position: 1
 last_updated: 2023-07-06
 slug: /api/utils
 ---
-
+*Last Update: 2023-07-06*
 # Utilities Overview
 
 Don't Starve Together provides a variety of utility functions to assist with common modding tasks. These utilities are organized into several categories that help with everything from vector math to string manipulation.

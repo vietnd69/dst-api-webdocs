@@ -5,8 +5,10 @@ sidebar_position: 4
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Inventory Component
+
+*API Version: 619045*
 
 The Inventory component manages item storage, equipment slots, and item manipulation for entities that can carry items (such as players and some creatures).
 

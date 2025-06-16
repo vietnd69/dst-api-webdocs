@@ -5,8 +5,10 @@ sidebar_position: 24
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Container Component
+
+*API Version: 619045*
 
 The Container component allows entities to store multiple items within them, such as chests, backpacks, or other storage containers. It manages slot configuration, opening/closing, and item access.
 

@@ -5,8 +5,10 @@ sidebar_position: 3
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Health Component
+
+*API Version: 619045*
 
 The Health component manages an entity's health state, including current and maximum health values, damage handling, regeneration, invincibility, and death triggers.
 

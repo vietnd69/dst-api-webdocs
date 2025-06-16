@@ -4,7 +4,7 @@ title: State Graph System
 sidebar_position: 5
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # State Graph System
 
 The State Graph System in Don't Starve Together manages entity behaviors through finite state machines. It controls animations, actions, and transitions between different states, providing a structured way to handle complex entity behaviors.

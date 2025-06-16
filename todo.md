@@ -6,10 +6,10 @@
 2. Metadata and Versioning
 [x] Define a clear versioning system (clarify the meaning of 619045) https://forums.kleientertainment.com/game-updates/dst/
 [x] Add update date information to document metadata
-[ ] Clearly mark the API version each document applies to
+[x] Clearly mark the API version each document applies to
 
 Links and References
-[ ] Audit and fix all internal links
+[x] Audit and fix all internal links
 [ ] Ensure all "See also" references contain working links
 [ ] Add backlinks from referenced documents
 

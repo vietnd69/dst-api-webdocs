@@ -5,7 +5,7 @@ sidebar_position: 6
 last_updated: 2023-07-06
 slug: /api/update-template
 ---
-
+*Last Update: 2023-07-06*
 # API Update Template
 
 This template demonstrates how to document API changes for Don't Starve Together updates. When documenting a new game update, copy this template and fill in the details.

@@ -4,7 +4,7 @@ title: Common States
 sidebar_position: 5
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Common States
 
 The `CommonStates` module provides a collection of pre-defined states that can be reused across different entity stategraphs. This helps maintain consistency in entity behaviors while reducing code duplication.

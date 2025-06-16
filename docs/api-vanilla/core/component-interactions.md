@@ -4,8 +4,10 @@ title: Component Interactions and Data Flow
 sidebar_position: 3
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Component Interactions and Data Flow
+
+*API Version: 619045*
 
 This document provides a comprehensive overview of how components interact with each other in Don't Starve Together's API. Understanding these interactions is crucial for effective modding and creating complex entity behaviors.
 

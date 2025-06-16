@@ -4,7 +4,7 @@ title: String Utilities
 sidebar_position: 3
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # String Utilities
 
 String manipulation and text processing functions for Don't Starve Together modding.

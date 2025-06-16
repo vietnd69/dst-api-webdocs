@@ -4,7 +4,7 @@ title: Network
 sidebar_position: 4
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Network
 
 Network is a common property that manages data synchronization between server and client in the multiplayer system. It is a crucial component for creating entities that properly function in Don't Starve Together's client-server architecture.

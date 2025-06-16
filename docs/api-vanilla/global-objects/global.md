@@ -4,7 +4,7 @@ title: GLOBAL
 sidebar_position: 6
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # GLOBAL
 
 The GLOBAL table is a special environment that contains all of the game's globally accessible functions, classes, and variables. In mod development, GLOBAL is used to access internal game functionality or to inject custom code into the game's global namespace.

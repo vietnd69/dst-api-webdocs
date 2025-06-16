@@ -4,8 +4,10 @@ title: Creating Screens
 sidebar_position: 15
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Creating Screens
+
+*API Version: 619045*
 
 In Don't Starve Together, screens are full-page UI elements that take over the entire game window. Screens are used for menus, popups, and other full-screen interfaces. This document covers how to create and manage screens in your mods.
 

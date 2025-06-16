@@ -4,7 +4,7 @@ title: Network System
 sidebar_position: 6
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Network System
 
 The Don't Starve Together network system enables multiplayer functionality by managing communication between server and clients. This document covers the core networking concepts, synchronization mechanisms, and implementation details.

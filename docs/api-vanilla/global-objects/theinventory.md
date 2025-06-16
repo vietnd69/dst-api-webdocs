@@ -4,7 +4,7 @@ title: TheInventory
 sidebar_position: 6
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # TheInventory
 
 TheInventory is the global object that manages the player's item collection, including character skins, clothing items, and other inventory-related functionality. It primarily deals with Steam inventory items and skins in Don't Starve Together.

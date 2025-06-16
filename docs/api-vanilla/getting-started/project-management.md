@@ -4,7 +4,7 @@ title: Integrating with Project Management Tools
 sidebar_position: 19
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Integrating with Project Management Tools
 
 Effective project management can significantly improve your Don't Starve Together modding workflow, especially for complex mods or collaborative projects. This guide covers how to integrate various project management tools with your DST modding process.

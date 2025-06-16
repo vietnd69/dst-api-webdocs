@@ -4,7 +4,7 @@ title: Performance Optimization
 sidebar_position: 10
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Performance Optimization Techniques
 
 This guide covers techniques for optimizing your Don't Starve Together mods to ensure they run efficiently without causing lag or performance issues.

@@ -4,7 +4,7 @@ title: Case Study - Re-Gorge-itated Mod
 sidebar_position: 5
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Case Study: Re-Gorge-itated Mod
 
 This case study examines the implementation of the Re-Gorge-itated mod, which brings back and expands "The Gorge" limited-time event in Don't Starve Together as a permanent, feature-rich game mode.

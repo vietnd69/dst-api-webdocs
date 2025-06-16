@@ -4,7 +4,7 @@ title: Custom Boss Project
 sidebar_position: 16
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Custom Boss Project
 
 This tutorial guides you through creating a complete mod that adds a custom boss to Don't Starve Together. We'll create the "Ancient Guardian," a powerful entity with unique behaviors, attacks, and drops.

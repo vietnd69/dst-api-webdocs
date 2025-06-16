@@ -5,8 +5,10 @@ sidebar_position: 11
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Perishable Component
+
+*API Version: 619045*
 
 The Perishable component allows items to spoil or deteriorate over time, particularly food items. It manages spoilage rates, preservation effects, and the resulting state changes.
 

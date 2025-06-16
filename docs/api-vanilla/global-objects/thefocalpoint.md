@@ -4,7 +4,7 @@ title: TheFocalPoint
 sidebar_position: 11
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # TheFocalPoint
 
 TheFocalPoint is the global object that controls the camera's focal point in Don't Starve Together. It manages camera position, tracking, zooming, and other camera-related functionality on the client side.

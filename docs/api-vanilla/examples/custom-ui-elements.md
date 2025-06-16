@@ -4,7 +4,7 @@ title: Custom UI Elements
 sidebar_position: 10
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Custom UI Elements
 
 This guide demonstrates how to create custom UI elements for Don't Starve Together mods. You'll learn how to build reusable widgets, create custom screens, and implement interactive UI components.

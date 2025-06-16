@@ -4,7 +4,7 @@ title: Table Utilities
 sidebar_position: 4
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Table Utilities
 
 Lua table manipulation and processing functions for Don't Starve Together modding.

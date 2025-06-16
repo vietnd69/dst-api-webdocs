@@ -4,7 +4,7 @@ title: Security Considerations in Networking
 sidebar_position: 10
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Security Considerations in Networking
 
 When developing networked mods for Don't Starve Together, security is a critical consideration to protect players and servers from exploits and malicious behavior. This guide covers best practices for secure networking in DST mods.

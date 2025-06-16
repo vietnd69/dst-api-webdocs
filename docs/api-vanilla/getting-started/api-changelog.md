@@ -4,7 +4,7 @@ title: API Changelog
 sidebar_position: 6
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # API Changelog
 
 This document provides a detailed chronological record of changes to the Don't Starve Together API across different game versions. While the [API Updates and Changes](api-updates.md) document provides guidance on handling API changes, this changelog serves as a comprehensive reference of all modifications made to the API.

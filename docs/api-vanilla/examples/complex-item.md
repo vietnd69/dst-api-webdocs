@@ -4,7 +4,7 @@ title: Complex Item with Multiple Components
 sidebar_position: 3
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Creating a Complex Item with Multiple Components
 
 This tutorial demonstrates how to create a more sophisticated item that uses multiple components to achieve complex behaviors. We'll create a "Soul Lantern" - a magical lantern that harvests souls from defeated enemies to power itself.

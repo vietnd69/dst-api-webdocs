@@ -4,7 +4,7 @@ title: Creating Custom AI and Brain Behaviors
 sidebar_position: 14
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Creating Custom AI and Brain Behaviors
 
 This guide focuses on creating custom AI and brain behaviors for entities in Don't Starve Together. Understanding how to create custom AI allows you to develop unique creatures with complex behaviors that can interact with the game world and players in interesting ways.

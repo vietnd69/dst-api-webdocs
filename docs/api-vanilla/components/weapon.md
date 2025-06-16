@@ -5,8 +5,10 @@ sidebar_position: 5
 last_updated: 2023-07-06
 version: 619045
 ---
-
+*Last Update: 2023-07-06*
 # Weapon Component
+
+*API Version: 619045*
 
 The Weapon component defines an item that can be used to attack entities. It manages damage values, attack ranges, and special weapon effects like projectiles and elemental damage.
 

@@ -4,7 +4,7 @@ title: Creating Custom Game Modes
 sidebar_position: 13
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Creating Custom Game Modes
 
 This guide explains how to create custom game modes in Don't Starve Together, allowing you to fundamentally change the gameplay experience.

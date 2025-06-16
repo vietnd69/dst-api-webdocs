@@ -4,7 +4,7 @@ title: TheSim
 sidebar_position: 5
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # TheSim
 
 TheSim is a global object that provides access to the game's simulation engine, offering functionality for working with the file system, finding entities, playing sounds, and more low-level operations.

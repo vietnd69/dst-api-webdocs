@@ -4,8 +4,10 @@ title: Component System
 sidebar_position: 2
 last_updated: 2023-07-06
 ---
-
+*Last Update: 2023-07-06*
 # Component System
+
+*API Version: 619045*
 
 Don't Starve Together uses a Component System to add functionality and behaviors to entities. Each component represents a specific feature that an entity can possess.
 
