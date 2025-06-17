@@ -12,340 +12,360 @@ version: 624447
 
 Priority Nodes are specialized behavior tree nodes in Don't Starve Together that execute child nodes in order of priority until one succeeds. They function as a logical "OR" operation, trying each child node in sequence and stopping at the first one that succeeds.
 
-## Basic Usage
+## PriorityNode properties and methods
 
-```lua
--- Basic priority node structure
-local PriorityNode = Class(BehaviorNode, function(self, inst, children, period)
-    BehaviorNode._ctor(self, "PriorityNode")
-    self.inst = inst
-    self.children = children
-    self.period = period or 0
-    self.lasttime = 0
-    self.currentchild = nil
-end)
+PriorityNode provides the following key properties and methods:
 
--- Used in a behavior tree
-local root = PriorityNode(
-{
-    -- Higher priority actions come first
-    RunAway(inst, "character", 4, 6),
-    ChaseAndAttack(inst, 10),
-    Wander(inst)
-}, 0.5) -- Evaluate priority every 0.5 seconds
-```
+- **Properties**
+  - `inst` - Reference to the entity this node controls
+  - `children` - List of child nodes in priority order
+  - `period` - Time between re-evaluations in seconds
+  - `lasttime` - Last evaluation timestamp
+  - `status` - Current execution status of the node
 
-## Priority Node States
-
-Like other behavior nodes, priority nodes can be in one of several states:
-
-| State | Description |
-|-------|-------------|
-| `READY` | Node is ready to evaluate children |
-| `RUNNING` | Node is currently running a child node |
-| `SUCCESS` | A child node has succeeded |
-| `FAILURE` | All child nodes have failed |
+- **Methods**
+  - `Visit()` - Evaluates the node and its children
+  - `Stop()` - Stops execution of this node and all children
+  - `Reset()` - Resets this node and all children to READY state
 
 ## Properties
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `children` | Array | List of child nodes to execute in priority order |
-| `period` | number | Time between re-evaluations of the node (0 = evaluate every frame) |
-| `lasttime` | number | Last time the node was evaluated |
-| `currentchild` | BehaviorNode | Currently executing child node |
+### inst: Entity `[readonly]`
 
-## Key Methods
+A reference to the entity that this priority node is controlling.
 
-### PriorityNode:Visit()
+```lua
+-- Access the priority node's entity
+local health = priority_node.inst.components.health
+```
 
-Evaluates the priority node, trying each child in order until one succeeds.
+---
 
-#### Returns
+### children: `Array<BehaviorNode>` `[readonly]`
 
-- (Status): The status of the priority node (RUNNING, SUCCESS, or FAILURE)
+List of child nodes in priority order. Children are evaluated in the order they appear in this array, with earlier children having higher priority.
 
-### PriorityNode:Stop()
+```lua
+-- Create priority node with ordered children
+local priority_node = PriorityNode(inst, {
+    RunAway(inst, "character", 5, 8),  -- Highest priority: run away
+    ChaseAndAttack(inst, 10),          -- Medium priority: attack
+    Wander(inst)                       -- Lowest priority: wander
+})
 
-Stops the priority node and all its children.
+-- Access a specific child
+local first_child = priority_node.children[1]
+```
 
-### PriorityNode:Reset()
+---
+
+### period: number
+
+Time in seconds between re-evaluations of the priority list. If a higher priority node becomes available during execution of a lower priority node, the priority node will wait until the next evaluation period before switching.
+
+```lua
+-- Create a priority node that re-evaluates every 0.5 seconds
+local priority_node = PriorityNode(inst, {
+    RunAway(inst, "character", 5, 8),
+    ChaseAndAttack(inst, 10),
+    Wander(inst)
+}, 0.5)
+
+-- Modify the period
+priority_node.period = 1.0  -- Re-evaluate every second
+```
+
+---
+
+### lasttime: number `[readonly]`
+
+Timestamp of the last evaluation, used to determine when the next evaluation should occur based on the period.
+
+```lua
+-- Check when the last evaluation occurred
+local time_since_last_eval = GetTime() - priority_node.lasttime
+print("Time since last evaluation: " .. time_since_last_eval .. " seconds")
+```
+
+---
+
+### status: 'READY' | 'RUNNING' | 'SUCCESS' | 'FAILURE' `[readonly]`
+
+The current execution status of the priority node:
+
+- **READY**: Node is ready to begin evaluating children
+- **RUNNING**: Node is currently executing one of its children
+- **SUCCESS**: A child node has succeeded
+- **FAILURE**: All child nodes have failed
+
+```lua
+-- Check the current status
+if priority_node.status == SUCCESS then
+    print("A child node succeeded")
+elseif priority_node.status == FAILURE then
+    print("All child nodes failed")
+end
+```
+
+---
+
+## Methods
+
+### Visit(): 'READY' | 'RUNNING' | 'SUCCESS' | 'FAILURE'
+
+Evaluates the priority node by trying each child in order until one succeeds or all fail.
+
+```lua
+function PriorityNode:Visit()
+    if self.status == READY then
+        self.status = RUNNING
+        self.lasttime = GetTime()
+        
+        -- Try to find a child that can run
+        for i, child in ipairs(self.children) do
+            child:Start()
+            local status = child:Visit()
+            
+            if status == RUNNING or status == SUCCESS then
+                self.current_child = i
+                if status == SUCCESS then
+                    self.status = SUCCESS
+                end
+                return self.status
+            end
+            
+            child:Stop()
+        end
+        
+        -- All children failed
+        self.status = FAILURE
+        return self.status
+    end
+    
+    if self.status == RUNNING then
+        -- Check if we should re-evaluate priorities
+        local now = GetTime()
+        if now - self.lasttime >= self.period then
+            self.lasttime = now
+            
+            -- Try higher priority children first
+            for i = 1, self.current_child - 1 do
+                self.children[i]:Start()
+                local status = self.children[i]:Visit()
+                
+                if status == RUNNING or status == SUCCESS then
+                    -- Higher priority child can run, switch to it
+                    self.children[self.current_child]:Stop()
+                    self.current_child = i
+                    if status == SUCCESS then
+                        self.status = SUCCESS
+                    end
+                    return self.status
+                end
+                
+                self.children[i]:Stop()
+            end
+        end
+        
+        -- Continue with current child
+        local status = self.children[self.current_child]:Visit()
+        
+        if status ~= RUNNING then
+            self.status = status
+        end
+    end
+    
+    return self.status
+end
+```
+
+---
+
+### Stop(): void
+
+Stops execution of this priority node and all its children.
+
+```lua
+function PriorityNode:Stop()
+    for i, child in ipairs(self.children) do
+        child:Stop()
+    end
+    self.status = READY
+    self.current_child = nil
+end
+```
+
+---
+
+### Reset(): void
 
 Resets the priority node and all its children to READY state.
 
+```lua
+function PriorityNode:Reset()
+    for i, child in ipairs(self.children) do
+        child:Reset()
+    end
+    self.status = READY
+    self.current_child = nil
+end
+```
+
+---
+
 ## Built-in Priority Node Types
 
-Don't Starve Together includes several specialized priority node implementations:
+Don't Starve Together includes several pre-defined priority node types:
+
+### PriorityNode(inst: Entity, children: `Array<BehaviorNode>`, period?: number): PriorityNode
+
+The basic priority node that executes children in order until one succeeds or all fail.
+
+- **inst**: Entity the node controls
+- **children**: Array of child nodes in priority order
+- **period**: (Optional) Time in seconds between re-evaluations
 
 ```lua
--- Standard priority node
-PriorityNode(children, period)
-
--- Loop priority node - returns to first child after reaching the end
-LoopPriorityNode(children, period)
-
--- Weighted priority node - chooses based on weights rather than order
-WeightedPriorityNode(weighted_children, period)
+-- Create a priority node with three behaviors
+local node = PriorityNode(inst, {
+    RunAway(inst, "character", 5, 8),  -- Highest priority
+    ChaseAndAttack(inst, 10),          -- Medium priority
+    Wander(inst)                       -- Lowest priority
+}, 0.5)  -- Re-evaluate priorities every 0.5 seconds
 ```
 
-### PriorityNode
+---
 
-The standard priority node that tries each child in order.
+### BrainPriorityNode(inst: Entity, children: `Array<BehaviorNode>`, period?: number): PriorityNode
 
-### LoopPriorityNode
+A priority node that's specifically designed for use in brain components. It works the same as a regular PriorityNode but includes additional brain-specific functionality.
 
-Similar to PriorityNode, but loops back to the first child after reaching the end.
-
-### WeightedPriorityNode
-
-Selects children based on weights rather than strict order:
+- **inst**: Entity the node controls
+- **children**: Array of child nodes in priority order
+- **period**: (Optional) Time in seconds between re-evaluations
 
 ```lua
--- Example weighted priority
-local root = WeightedPriorityNode({
-    {weight = 5, node = FindFood(inst)},
-    {weight = 3, node = ChaseAndAttack(inst, 10)},
-    {weight = 1, node = Wander(inst)}
-})
+-- Create a brain priority node
+local node = BrainPriorityNode(inst, {
+    PanicBehavior(inst),
+    CombatBehavior(inst),
+    ForageBehavior(inst),
+    IdleBehavior(inst)
+}, 1.0)
 ```
 
-## Common Patterns
+---
 
-Priority nodes are commonly used for these patterns:
+## Common Priority Patterns
+
+Here are some common patterns for using priority nodes:
+
+### Survival Hierarchy
+
+Organizing behaviors by survival importance:
 
 ```lua
--- Fallback behavior pattern
-PriorityNode({
-    -- Try high-priority critical behavior first
-    IfNode(function() return inst.components.health:GetPercent() < 0.25 end,
-        RunAway(inst, "character", 5, 8)
-    ),
+-- Survival hierarchy with most important behaviors first
+local behavior = PriorityNode(inst, {
+    -- Emergency behaviors (highest priority)
+    SequenceNode(inst, {
+        ConditionNode(function() return inst.components.health:GetPercent() < 0.25 end),
+        RunAway(inst, "character", 8, 12)
+    }),
     
-    -- Medium priority - fulfill needs
-    IfNode(function() return inst.components.hunger:GetPercent() < 0.5 end,
+    -- Basic needs
+    SequenceNode(inst, {
+        ConditionNode(function() return inst.components.hunger:GetPercent() < 0.25 end),
         FindAndEatFood(inst)
-    ),
+    }),
     
-    -- Low priority - default behavior
+    -- Opportunistic behaviors
+    SequenceNode(inst, {
+        ConditionNode(function() return inst.components.combat:CanTarget() end),
+        ChaseAndAttack(inst, 10)
+    }),
+    
+    -- Default behaviors (lowest priority)
     Wander(inst)
 })
+```
 
--- Multiple ways to solve the same problem
-PriorityNode({
-    -- Try to pick up existing food first
-    FindAndPickupFood(inst),
+### State-Based Priorities
+
+Switching between different behavior sets based on state:
+
+```lua
+-- Different priority sets based on time of day
+local behavior = PriorityNode(inst, {
+    -- Night-time behaviors
+    SequenceNode(inst, {
+        ConditionNode(function() return TheWorld.state.isnight end),
+        PriorityNode(inst, {
+            FindLightSource(inst),
+            SleepBehavior(inst),
+            StayNearHome(inst, 5)
+        })
+    }),
     
-    -- If no food exists, try to harvest some
-    FindAndHarvestFood(inst),
-    
-    -- Last resort - hunt for food
-    FindAndHuntFood(inst)
+    -- Day-time behaviors
+    PriorityNode(inst, {
+        GatherResourcesBehavior(inst),
+        ExploreBehavior(inst),
+        Wander(inst)
+    })
 })
 ```
 
 ## Creating Custom Priority Nodes
 
-To create a custom priority node:
-
-1. **Derive from BehaviorNode**:
-   ```lua
-   local CustomPriorityNode = Class(BehaviorNode, function(self, inst, children, ...)
-       BehaviorNode._ctor(self, "CustomPriorityNode")
-       self.inst = inst
-       self.children = children
-       -- Initialize additional properties
-   end)
-   ```
-
-2. **Implement Visit function**:
-   ```lua
-   function CustomPriorityNode:Visit()
-       if self.status == READY then
-           self.status = RUNNING
-           self.currentchild = nil
-       end
-       
-       if self.status == RUNNING then
-           -- Implement custom priority logic here
-           -- Try children in order based on your custom rules
-       end
-       
-       return self.status
-   end
-   ```
-
-3. **Implement Stop function**:
-   ```lua
-   function CustomPriorityNode:Stop()
-       for i, v in ipairs(self.children) do
-           v:Stop()
-       end
-       self.currentchild = nil
-       self.status = READY
-   end
-   ```
-
-## Example: Dynamic Priority Node
+To create a custom priority node with special behavior:
 
 ```lua
--- A priority node that dynamically adjusts priorities based on state
-local DynamicPriorityNode = Class(BehaviorNode, function(self, inst, children, priority_fn)
-    BehaviorNode._ctor(self, "DynamicPriorityNode")
+local CustomPriorityNode = Class(BehaviorNode, function(self, inst, children, period, custom_param)
+    BehaviorNode._ctor(self, "CustomPriorityNode")
     self.inst = inst
     self.children = children
-    self.priority_fn = priority_fn  -- Function that returns ordered indices
-    self.currentchild = nil
+    self.period = period or 0
+    self.lasttime = 0
+    self.current_child = nil
+    self.custom_param = custom_param
 end)
 
-function DynamicPriorityNode:Visit()
-    if self.status == READY then
-        self.status = RUNNING
-        self.currentchild = nil
-    end
-    
-    if self.status == RUNNING then
-        -- Get current priorities
-        local priorities = self.priority_fn(self.inst)
-        
-        if self.currentchild then
-            local status = self.currentchild:Visit()
-            
-            if status == RUNNING then
-                return self.status
-            else
-                if status == SUCCESS then
-                    self.status = SUCCESS
-                    return self.status
-                end
-                self.currentchild:Stop()
-                self.currentchild = nil
-            end
-        end
-        
-        -- Try children in dynamic priority order
-        for i = 1, #priorities do
-            local idx = priorities[i]
-            if idx > 0 and idx <= #self.children then
-                local child = self.children[idx]
-                child:Start()
-                local status = child:Visit()
-                
-                if status == RUNNING then
-                    self.currentchild = child
-                    return self.status
-                elseif status == SUCCESS then
-                    self.status = SUCCESS
-                    return self.status
-                else
-                    child:Stop()
-                end
-            end
-        end
-        
-        -- If we get here, all children failed
-        self.status = FAILURE
-    end
+function CustomPriorityNode:Visit()
+    -- Custom priority logic here
+    -- ...
     
     return self.status
 end
 
-function DynamicPriorityNode:Stop()
-    if self.currentchild then
-        self.currentchild:Stop()
+function CustomPriorityNode:Stop()
+    for i, child in ipairs(self.children) do
+        child:Stop()
     end
-    
-    for i, v in ipairs(self.children) do
-        if v ~= self.currentchild then
-            v:Stop()
-        end
-    end
-    
-    self.currentchild = nil
     self.status = READY
+    self.current_child = nil
 end
 
--- Example usage
-local behavior = DynamicPriorityNode(inst, 
-    {
-        FindFood(inst),
-        ChaseAndAttack(inst, 10),
-        Wander(inst)
-    },
-    function(inst)
-        -- Return indices in priority order based on current state
-        if inst.components.hunger:GetPercent() < 0.25 then
-            return {1, 3, 2}  -- Food, wander, attack
-        elseif inst.components.combat:HasTarget() then
-            return {2, 1, 3}  -- Attack, food, wander
-        else
-            return {3, 1, 2}  -- Wander, food, attack
-        end
-    end
-)
-```
-
-## Integration with Other Node Types
-
-Priority nodes are often used with other node types to create complex behaviors:
-
-```lua
--- Complex behavior combining multiple node types
-local behavior = PriorityNode({
-    -- Emergency response
-    IfNode(function() 
-        return inst.components.health:GetPercent() < 0.3 
-    end,
-        SequenceNode(inst, {
-            FindItem(inst, function(item) 
-                return item.prefab == "healing_item" 
-            end, 20),
-            DoAction(inst, function() 
-                return inst.components.health:GetPercent() < 0.3 and
-                       inst.components.inventory:Has("healing_item", 1) and
-                       inst.components.inventory:GetItemByName("healing_item")
-            end)
-        })
-    ),
-    
-    -- Combat behavior
-    WhileNode(function() 
-        return inst.components.combat:HasTarget() and
-               inst.components.combat:CanAttack() 
-    end,
-        "Attack Enemy",
-        ChaseAndAttack(inst, 10)
-    ),
-    
-    -- Gathering behavior
-    NotDecorator(inst, 
-        IfNode(function() 
-            return inst.components.inventory:IsFull() 
-        end,
-            LoopNode(inst, 
-                FindAndCollectItems(inst)
-            )
-        )
-    ),
-    
-    -- Default behavior
-    Wander(inst, function() 
-        return inst.components.knownlocations:GetLocation("home") 
-    end, 20)
-}, 0.5)  -- Re-evaluate every 0.5 seconds
+-- Usage
+local node = CustomPriorityNode(inst, {
+    RunAway(inst, "character", 5, 8),
+    ChaseAndAttack(inst, 10),
+    Wander(inst)
+}, 0.5, "custom value")
 ```
 
 ## Performance Considerations
 
-- **Child Order**: Put most commonly successful nodes first for better performance
-- **Evaluation Period**: Use an appropriate period value (not 0) for non-critical priority nodes
-- **Child Count**: Keep the number of children manageable; consider nested priority nodes for complex hierarchies
-- **Reset State**: Properly handle the reset state for children that may run for multiple frames
-- **Stop Method**: Always implement a proper Stop method to clean up resources
+- **Child Order**: Place the most likely to succeed nodes first to avoid unnecessary evaluations
+- **Evaluation Period**: Use an appropriate period value - smaller values give more responsive behavior but use more CPU
+- **Child Count**: Keep the number of children manageable; consider using sub-priority nodes for complex hierarchies
+- **Condition Checks**: Use ConditionNode wrappers for expensive condition checks to avoid evaluating entire sub-trees
+- **State Management**: Be careful with state transitions between different priority children
 
 ## See also
 
-- [Brain](brain.md) - For brain implementation using behavior trees
-- [Action Nodes](action-nodes.md) - For nodes that perform actions
-- [Condition Nodes](condition-nodes.md) - For conditional execution
-- [Sequence Nodes](sequence-nodes.md) - For executing actions in sequence
-- [Decorator Nodes](decorator-nodes.md) - For modifying node behavior
+- [Brain](brain.md) - Brain component that uses behavior trees
+- [Behavior Node](behavior-node.md) - Base class for all behavior tree nodes
+- [Sequence Nodes](sequence-nodes.md) - Nodes that execute actions in sequence
+- [Decorator Nodes](decorator-nodes.md) - Nodes that modify other nodes' behavior
+- [Condition Nodes](condition-nodes.md) - Nodes that evaluate conditions

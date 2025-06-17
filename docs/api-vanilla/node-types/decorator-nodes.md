@@ -12,154 +12,231 @@ version: 619045
 
 Decorator Nodes are specialized behavior tree nodes that modify the behavior of other nodes. They typically wrap a single child node and either change its execution behavior, modify its return value, or control when and how it runs. Decorator nodes are a powerful tool for creating complex behaviors without needing to create entirely new node types.
 
-## Basic Usage
+## Decorator Node properties and methods
+
+Decorator Nodes provide the following key properties and methods:
+
+- **Properties**
+  - `inst` - Reference to the entity this node controls
+  - `child` - The behavior node being decorated
+  - `status` - Current execution status of the node
+
+- **Methods**
+  - `Visit()` - Evaluates the decorator and its child node
+  - `Stop()` - Stops execution of this node and its child
+  - `Reset()` - Resets this node and its child to READY state
+
+## Properties
+
+### inst: Entity `[readonly]`
+
+A reference to the entity that this decorator node is controlling.
 
 ```lua
--- Basic decorator node structure
-local MyDecorator = Class(BehaviorNode, function(self, inst, child, param)
-    BehaviorNode._ctor(self, "MyDecorator")
-    self.inst = inst
-    self.child = child
-    self.param = param
-end)
+-- Access the decorator node's entity
+local health = decorator_node.inst.components.health
+```
 
-function MyDecorator:Visit()
+---
+
+### child: BehaviorNode `[readonly]`
+
+The behavior node that this decorator is modifying.
+
+```lua
+-- Create a decorator node with a child
+local decorator_node = NotDecorator(inst, Wander(inst))
+
+-- Access the child node
+local child_node = decorator_node.child
+```
+
+---
+
+### status: 'READY' | 'RUNNING' | 'SUCCESS' | 'FAILURE' `[readonly]`
+
+The current execution status of the decorator node:
+
+- **READY**: Node is ready to begin execution
+- **RUNNING**: Node is currently executing
+- **SUCCESS**: Node has completed successfully
+- **FAILURE**: Node has failed to complete
+
+```lua
+-- Check the current status
+if decorator_node.status == SUCCESS then
+    print("Decorator node completed successfully")
+elseif decorator_node.status == FAILURE then
+    print("Decorator node failed")
+end
+```
+
+---
+
+## Methods
+
+### Visit(): 'READY' | 'RUNNING' | 'SUCCESS' | 'FAILURE'
+
+Evaluates the decorator node and its child. The specific behavior depends on the type of decorator.
+
+```lua
+function DecoratorNode:Visit()
     if self.status == READY then
         self.status = RUNNING
         self.child:Start()
     end
-
+    
     if self.status == RUNNING then
         local status = self.child:Visit()
         
-        -- Modify the child node's result or behavior
-        if status == SUCCESS or status == FAILURE then
-            -- Apply decorator logic
-            self.status = self:ModifyResult(status)
+        -- Decorator-specific logic here
+        -- This is where the decorator modifies the child's behavior
+        
+        if status ~= RUNNING then
+            self.status = self:ProcessChildResult(status)
         end
     end
     
     return self.status
 end
-
-function MyDecorator:ModifyResult(status)
-    -- This is where the decorator modifies the result
-    if self.param then
-        return SUCCESS
-    else
-        return status
-    end
-end
-
--- Used in a behavior tree
-local root = PriorityNode(
-{
-    -- Apply a decorator to a node
-    MyDecorator(inst, 
-        DoAction(inst, SomeAction), 
-        true
-    ),
-    -- Other nodes
-}, 0.5) -- Run every 0.5 seconds
 ```
 
-## Decorator Node States
+---
 
-Decorator nodes can be in the same states as other behavior nodes:
+### Stop(): void
 
-| State | Description |
-|-------|-------------|
-| `READY` | Node is ready to be executed |
-| `RUNNING` | Node is currently executing |
-| `SUCCESS` | Node has completed successfully |
-| `FAILURE` | Node has failed to complete |
+Stops execution of this decorator node and its child.
 
-## Built-in Decorator Nodes
+```lua
+function DecoratorNode:Stop()
+    self.child:Stop()
+    self.status = READY
+end
+```
 
-Don't Starve Together includes several pre-defined decorator nodes:
+---
 
-### NotDecorator
+### Reset(): void
+
+Resets the decorator node and its child to READY state.
+
+```lua
+function DecoratorNode:Reset()
+    self.child:Reset()
+    self.status = READY
+end
+```
+
+---
+
+## Built-in Decorator Node Types
+
+Don't Starve Together includes several pre-defined decorator node types:
+
+### NotDecorator(inst: Entity, child: BehaviorNode): DecoratorNode
 
 Inverts the result of its child node - SUCCESS becomes FAILURE and vice versa.
 
-```lua
--- Basic format
-NotDecorator(child_node)
+- **inst**: Entity the node controls
+- **child**: The behavior node to invert
 
--- Example: Invert the result of an action
-NotDecorator(
-    DoAction(inst, function()
-        return inst.components.hunger:GetPercent() > 0.5
-    end)
+```lua
+-- Invert a condition result
+local node = NotDecorator(inst, 
+    ConditionNode(function() return inst.components.hunger:GetPercent() < 0.5 end)
+)
+-- Now succeeds when hunger is >= 50% instead of < 50%
+```
+
+---
+
+### FailIfRunningDecorator(inst: Entity, child: BehaviorNode): DecoratorNode
+
+Converts RUNNING status to FAILURE, useful for nodes that need immediate results.
+
+- **inst**: Entity the node controls
+- **child**: The behavior node to modify
+
+```lua
+-- Fail immediately if can't complete in one step
+local node = FailIfRunningDecorator(inst, 
+    FindFood(inst)
 )
 ```
 
-### FailIfRunningDecorator
+---
 
-Returns FAILURE if the child is still RUNNING after a certain time.
+### SuccessIfRunningDecorator(inst: Entity, child: BehaviorNode): DecoratorNode
 
-```lua
--- Basic format
-FailIfRunningDecorator(child_node, max_time)
+Converts RUNNING status to SUCCESS, useful for fire-and-forget behaviors.
 
--- Example: Fail if action is taking too long
-FailIfRunningDecorator(
-    GoToEntity(inst, function() return FindClosestFood(inst) end, 1), 
-    5 -- Fail if taking more than 5 seconds
-)
-```
-
-### LoopNode
-
-Repeatedly executes the child node, either forever or a specific number of times.
+- **inst**: Entity the node controls
+- **child**: The behavior node to modify
 
 ```lua
--- Basic format for infinite loop
-LoopNode(child_node)
-
--- Basic format for specific iterations
-LoopNode(child_node, max_loops)
-
--- Example: Try to find food 3 times
-LoopNode(
-    FindFood(inst, {"fruit", "veggie"}, 20),
-    3
-)
-```
-
-### SuccessIfRunningDecorator
-
-Returns SUCCESS if the child node is still RUNNING.
-
-```lua
--- Basic format
-SuccessIfRunningDecorator(child_node)
-
--- Example: Consider it a success if we're still chasing the target
-SuccessIfRunningDecorator(
+-- Consider it a success as soon as it starts
+local node = SuccessIfRunningDecorator(inst, 
     ChaseAndAttack(inst, 10)
 )
 ```
 
-### RandomNode
+---
+
+### LoopDecorator(inst: Entity, child: BehaviorNode, max_loops?: number): DecoratorNode
+
+Repeatedly executes its child node until it fails or reaches the maximum loop count.
+
+- **inst**: Entity the node controls
+- **child**: The behavior node to loop
+- **max_loops**: (Optional) Maximum number of times to loop
+
+```lua
+-- Repeat an action up to 5 times
+local node = LoopDecorator(inst, 
+    DoAction(inst, function() 
+        -- Do something
+        return true
+    end),
+    5 -- Maximum 5 loops
+)
+```
+
+---
+
+### WhileNode(inst: Entity, cond_fn: Function, child: BehaviorNode): DecoratorNode
+
+Executes its child node repeatedly as long as a condition function returns true.
+
+- **inst**: Entity the node controls
+- **cond_fn**: Condition function that returns true/false
+- **child**: The behavior node to execute while condition is true
+
+```lua
+-- Keep eating food while hungry
+local node = WhileNode(inst, 
+    function() return inst.components.hunger:GetPercent() < 0.9 end,
+    EatFood(inst)
+)
+```
+
+---
+
+### RandomNode(nodes: `Array<{chance: number, node: BehaviorNode}>`): DecoratorNode
 
 Randomly selects from its children nodes, based on weighted probabilities.
 
-```lua
--- Basic format
-RandomNode(
-    {chance1, node1},
-    {chance2, node2},
-    ...
-)
+- **nodes**: Array of objects with chance (weight) and node properties
 
--- Example: Random behavior selection
-RandomNode(
+```lua
+-- Random behavior selection
+local node = RandomNode(
     {0.6, Wander(inst)},
     {0.3, DoAction(inst, EatFood)},
     {0.1, RunAway(inst, "character", 5, 8)}
 )
 ```
+
+---
 
 ## Common Decorator Patterns
 
@@ -167,9 +244,11 @@ Here are some common ways to use decorator nodes in Don't Starve Together AI:
 
 ### Timers and Cooldowns
 
+A decorator that only executes its child after a cooldown period:
+
 ```lua
 -- Run a behavior only every X seconds
-TimerDecorator = Class(BehaviorNode, function(self, inst, child, cooldown_time)
+local TimerDecorator = Class(BehaviorNode, function(self, inst, child, cooldown_time)
     BehaviorNode._ctor(self, "TimerDecorator")
     self.inst = inst
     self.child = child
@@ -204,9 +283,11 @@ end
 
 ### Condition Limiters
 
+A decorator that only executes its child if a condition is met:
+
 ```lua
 -- Only execute child node if condition is true
-ConditionalDecorator = Class(BehaviorNode, function(self, inst, child, cond_fn)
+local ConditionalDecorator = Class(BehaviorNode, function(self, inst, child, cond_fn)
     BehaviorNode._ctor(self, "ConditionalDecorator")
     self.inst = inst
     self.child = child
@@ -238,9 +319,11 @@ end
 
 ### Retry Mechanics
 
+A decorator that retries its child multiple times until success:
+
 ```lua
 -- Try the child node multiple times until success
-RetryDecorator = Class(BehaviorNode, function(self, inst, child, max_attempts)
+local RetryDecorator = Class(BehaviorNode, function(self, inst, child, max_attempts)
     BehaviorNode._ctor(self, "RetryDecorator")
     self.inst = inst
     self.child = child
@@ -283,57 +366,61 @@ end
 
 To create a custom decorator node:
 
-1. **Derive from BehaviorNode**:
-   ```lua
-   local CustomDecorator = Class(BehaviorNode, function(self, inst, child, ...)
-       BehaviorNode._ctor(self, "CustomDecorator")
-       self.inst = inst
-       self.child = child
-       -- Store other parameters
-   end)
-   ```
+### 1. Derive from BehaviorNode
 
-2. **Implement Visit function**:
-   ```lua
-   function CustomDecorator:Visit()
-       if self.status == READY then
-           self.status = RUNNING
-           self.child:Start()
-       end
-       
-       if self.status == RUNNING then
-           local status = self.child:Visit()
-           
-           -- Here is where you implement your decorator logic
-           -- to modify the behavior of the child node
-           
-           if status ~= RUNNING then
-               -- Handle completion
-               self.status = self:ProcessChildResult(status)
-           end
-       end
-       
-       return self.status
-   end
-   ```
+```lua
+local CustomDecorator = Class(BehaviorNode, function(self, inst, child, ...)
+    BehaviorNode._ctor(self, "CustomDecorator")
+    self.inst = inst
+    self.child = child
+    -- Store other parameters
+end)
+```
 
-3. **Optional: Implement Stop and Reset functions**:
-   ```lua
-   function CustomDecorator:Stop()
-       self.child:Stop()
-       self.status = READY
-   end
-   
-   function CustomDecorator:Reset()
-       self.child:Reset()
-       self.status = READY
-   end
-   ```
+### 2. Implement Visit function
+
+```lua
+function CustomDecorator:Visit()
+    if self.status == READY then
+        self.status = RUNNING
+        self.child:Start()
+    end
+    
+    if self.status == RUNNING then
+        local status = self.child:Visit()
+        
+        -- Here is where you implement your decorator logic
+        -- to modify the behavior of the child node
+        
+        if status ~= RUNNING then
+            -- Handle completion
+            self.status = self:ProcessChildResult(status)
+        end
+    end
+    
+    return self.status
+end
+```
+
+### 3. Implement Stop and Reset functions
+
+```lua
+function CustomDecorator:Stop()
+    self.child:Stop()
+    self.status = READY
+end
+
+function CustomDecorator:Reset()
+    self.child:Reset()
+    self.status = READY
+end
+```
 
 ## Example: Probability Decorator
 
+A decorator that has a percentage chance of executing its child node:
+
 ```lua
--- A decorator that has a percentage chance of executing its child node
 local ProbabilityDecorator = Class(BehaviorNode, function(self, inst, child, chance)
     BehaviorNode._ctor(self, "ProbabilityDecorator")
     self.inst = inst
@@ -368,7 +455,7 @@ function ProbabilityDecorator:Stop()
     self.status = READY
 end
 
--- Usage in a behavior tree
+-- Usage example
 local behavior = PriorityNode(
 {
     -- 50% chance to run away when health is low
@@ -378,7 +465,6 @@ local behavior = PriorityNode(
         ),
         0.5
     ),
-    
     -- Default behavior
     Wander(inst)
 }, 0.5)
@@ -386,8 +472,9 @@ local behavior = PriorityNode(
 
 ## Example: Tracking Decorator
 
+A decorator that logs success/failure statistics:
+
 ```lua
--- A decorator that logs success/failure statistics
 local TrackingDecorator = Class(BehaviorNode, function(self, inst, child, name)
     BehaviorNode._ctor(self, "TrackingDecorator")
     self.inst = inst
@@ -438,44 +525,6 @@ function TrackingDecorator:GetStats()
              (self.success_count + self.failure_count) or 1)
     }
 end
-```
-
-## Integration with Other Node Types
-
-Decorator nodes work with other node types to create complex behaviors:
-
-```lua
--- Complex behavior tree with decorators
-local behavior = PriorityNode(
-{
-    -- Only try to find food every 10 seconds
-    TimerDecorator(
-        FindAndEatFood(inst),
-        10
-    ),
-    
-    -- Try attacking up to 3 times when target is present
-    IfNode(function() return inst.components.combat:HasTarget() end,
-        RetryDecorator(
-            AttackTarget(inst, function() return inst.components.combat.target end),
-            3
-        )
-    ),
-    
-    -- 75% chance to run away at night, otherwise keep wandering
-    IfNode(function() return TheWorld.state.isnight end,
-        ProbabilityDecorator(
-            RunAway(inst, "character", 10, 15),
-            0.75
-        )
-    ),
-    
-    -- Track wandering success/failure
-    TrackingDecorator(
-        Wander(inst),
-        "wander_tracking"
-    )
-}, 0.5)
 ```
 
 ## Performance Considerations

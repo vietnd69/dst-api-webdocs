@@ -9,9 +9,99 @@ last_updated: 2023-07-06
 
 Components are functional modules attached to entities to provide specific behaviors and properties.
 
-## Overview
+## Component properties and methods
 
-The component system is a key part of Don't Starve Together's entity-component architecture. Components encapsulate specific functionality that can be added to entities, making them modular and reusable. Each component handles a specific aspect of an entity's behavior or properties.
+Components provide the following key properties and methods:
+
+- **Properties**
+  - `inst` - Reference to the entity this component is attached to
+
+- **Methods**
+  - `OnSave()` - Called when the game is saving
+  - `OnLoad()` - Called when the game is loading
+  - `GetDebugString()` - Called when debugging information is requested
+  - `OnRemoveFromEntity()` - Called when the component is removed
+
+## Properties
+
+### inst: [Entity](entity.md) <span style={{color: "#888"}}>[readonly]</span>
+
+A reference to the entity that this component is attached to. This property is set automatically when the component is added to an entity.
+
+```lua
+function MyComponent:SomeAction()
+    -- Access the entity's position
+    local x, y, z = self.inst.Transform:GetWorldPosition()
+    
+    -- Access other components on the same entity
+    if self.inst.components.health then
+        self.inst.components.health:SetMaxHealth(100)
+    end
+end
+```
+
+---
+
+## Methods
+
+### OnSave(): Table
+
+Called when the game is saving. Return a table containing any data that should be saved.
+
+```lua
+function MyComponent:OnSave()
+    return {
+        value = self.value,
+        enabled = self.enabled
+    }
+end
+```
+
+---
+
+### OnLoad(data: Table): void
+
+Called when the game is loading. The data parameter contains the table returned by OnSave.
+
+```lua
+function MyComponent:OnLoad(data)
+    self.value = data.value or self.value
+    self.enabled = data.enabled or self.enabled
+end
+```
+
+---
+
+### GetDebugString(): String
+
+Called when debugging information is requested. Return a string containing debug information.
+
+```lua
+function MyComponent:GetDebugString()
+    return string.format("Value: %d, Enabled: %s", self.value, tostring(self.enabled))
+end
+```
+
+---
+
+### OnRemoveFromEntity(): void
+
+Called when the component is removed from its entity. Use this to clean up any resources or event listeners.
+
+```lua
+function MyComponent:OnRemoveFromEntity()
+    -- Clean up event listeners
+    if self.eventtask then
+        self.eventtask:Cancel()
+        self.eventtask = nil
+    end
+    
+    -- Reset entity state if needed
+    self.inst.ispowerful = nil
+end
+```
+
+---
 
 ## Component Structure
 
@@ -50,22 +140,15 @@ end
 return MyComponent
 ```
 
-## Component Lifecycle
-
-Components have several lifecycle methods:
-
-- **Constructor**: Called when the component is created
-- **OnRemoveFromEntity**: Called when the component is removed
-- **OnSave**: Called when the game is saving
-- **OnLoad**: Called when the game is loading
-- **GetDebugString**: Called when debugging information is requested
-
 ## Adding Components to Entities
 
 Components are added to entities like this:
 
 ```lua
+-- Add a component to an entity
 entity:AddComponent("health")
+
+-- Configure the component
 entity.components.health:SetMaxHealth(100)
 
 -- Check if entity has a component
@@ -121,7 +204,7 @@ end
 
 ## Related Systems
 
-- Entity system
-- Network replication
-- Event system
-- Save/load system 
+- [Entity](entity.md) - The entity system that components attach to
+- [Network](network.md) - Network replication system for multiplayer
+- [Event](event.md) - Event system for communication between components
+- [Save/Load](save-load.md) - Save/Load system for persistence 

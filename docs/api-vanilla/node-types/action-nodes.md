@@ -12,16 +12,71 @@ version: 624447
 
 Action Nodes are fundamental building blocks in Don't Starve Together's behavior tree system. They define specific actions that entities can perform, forming the "leaves" of behavior trees that drive AI decision-making.
 
-## Basic Usage
+## Action Node properties and methods
+
+Action Nodes provide the following key properties and methods:
+
+- **Properties**
+  - `inst` - Reference to the entity this node controls
+  - `status` - Current execution status of the node
+  - `action_fn` - Function that performs the actual action
+
+- **Methods**
+  - `Visit()` - Evaluates the node and executes its action
+  - `OnStop()` - Cleans up resources when execution stops
+
+## Properties
+
+### inst: [Entity](entity.md) <span style={{color: "#888"}}>[readonly]</span>
+
+A reference to the entity that this action node is controlling.
 
 ```lua
--- Basic action node structure
-local MyAction = Class(BehaviorNode, function(self, inst, action_fn)
-    BehaviorNode._ctor(self, "MyAction")
-    self.inst = inst
-    self.action_fn = action_fn
-end)
+-- Access the action node's entity
+local health = action_node.inst.components.health
+```
 
+---
+
+### status: 'READY' | 'RUNNING' | 'SUCCESS' | 'FAILURE' <span style={{color: "#888"}}>[readonly]</span>
+
+The current execution status of the node. Action nodes progress through states as they execute:
+
+- **READY**: Node is ready to be executed
+- **RUNNING**: Node is currently executing
+- **SUCCESS**: Node has completed successfully
+- **FAILURE**: Node has failed to complete
+
+```lua
+-- Check the current status
+if action_node.status == SUCCESS then
+    print("Action completed successfully")
+end
+```
+
+---
+
+### action_fn: Function <span style={{color: "#888"}}>[readonly]</span>
+
+The function that performs the actual action. It should return true for success and false for failure.
+
+```lua
+-- Define an action function
+local attack_action = function(inst)
+    return inst.components.combat:DoAttack()
+end
+```
+
+---
+
+## Methods
+
+### Visit(): 'READY' | 'RUNNING' | 'SUCCESS' | 'FAILURE'
+
+Evaluates the node, executes its action, and returns the current status. This is the main method that drives the behavior tree execution.
+
+```lua
+-- Custom action node implementation
 function MyAction:Visit()
     if self.status == READY then
         self.status = RUNNING
@@ -37,28 +92,22 @@ function MyAction:Visit()
     
     return self.status
 end
-
--- Used in a behavior tree
-local root = PriorityNode(
-{
-    MyAction(inst, function(inst) 
-        -- Do something and return true/false for success/failure
-        return inst.components.combat:DoAttack()
-    end),
-    -- Other nodes
-}, 0.5) -- Run every 0.5 seconds
 ```
 
-## Action Node States
+---
 
-Action nodes can be in one of four states:
+### OnStop(): void
 
-| State | Description |
-|-------|-------------|
-| `READY` | Node is ready to be executed |
-| `RUNNING` | Node is currently executing |
-| `SUCCESS` | Node has completed successfully |
-| `FAILURE` | Node has failed to complete |
+Called when the node stops execution. Use this to clean up any resources or states.
+
+```lua
+function MyAction:OnStop()
+    -- Clean up any active states
+    self.inst.components.locomotor:Stop()
+end
+```
+
+---
 
 ## Built-in Action Nodes
 
@@ -66,89 +115,189 @@ Don't Starve Together includes several pre-defined action nodes for common behav
 
 ### Movement Actions
 
+#### GoToEntity(inst: [Entity](entity.md), target_fn: Function, max_distance: number): ActionNode
+
+Creates a node that moves the entity toward a target entity.
+
+- **inst**: Entity to move
+- **target_fn**: Function that returns the target entity
+- **max_distance**: Maximum distance to move
+
 ```lua
--- Go to target entity
-GoToEntity(inst, target_fn, max_distance)
-
--- Go to specific point
-GoToPoint(inst, point_fn)
-
--- Wander around
-Wander(inst, center_point, max_distance, min_time, max_time)
-
--- Follow entity at distance
-Follow(inst, target_fn, min_dist, target_dist, max_dist)
-
--- Run away from danger
-RunAway(inst, threat_fn, threat_distance, safe_distance)
+-- Go to nearest player
+local go_to_player = GoToEntity(inst, function() 
+    return FindClosestPlayer(inst) 
+end, 2)
 ```
+
+---
+
+#### GoToPoint(inst: [Entity](entity.md), point_fn: Function): ActionNode
+
+Creates a node that moves the entity to a specific point.
+
+- **inst**: Entity to move
+- **point_fn**: Function that returns a Vector3 position
+
+```lua
+-- Go to a specific point
+local go_home = GoToPoint(inst, function() 
+    return inst.components.homeposition:GetPosition() 
+end)
+```
+
+---
+
+#### Wander(inst: [Entity](entity.md), center_point: Function, max_distance: number, min_time: number, max_time: number): ActionNode
+
+Creates a node that makes the entity wander around randomly.
+
+- **inst**: Entity to move
+- **center_point**: Function that returns the center point to wander around
+- **max_distance**: Maximum distance to wander from center
+- **min_time**: Minimum time to wander before picking a new point
+- **max_time**: Maximum time to wander before picking a new point
+
+```lua
+-- Wander around home position
+local wander = Wander(inst, function() 
+    return inst.components.knownlocations:GetLocation("home") 
+end, 20, 2, 6)
+```
+
+---
+
+#### Follow(inst: [Entity](entity.md), target_fn: Function, min_dist: number, target_dist: number, max_dist: number): ActionNode
+
+Creates a node that makes the entity follow another entity at a distance.
+
+- **inst**: Entity to move
+- **target_fn**: Function that returns the entity to follow
+- **min_dist**: Minimum distance to maintain
+- **target_dist**: Preferred distance to maintain
+- **max_dist**: Maximum distance before giving up
+
+```lua
+-- Follow the player at a distance
+local follow_player = Follow(inst, function() 
+    return FindClosestPlayer(inst) 
+end, 2, 4, 10)
+```
+
+---
+
+#### RunAway(inst: [Entity](entity.md), threat_fn: Function, threat_distance: number, safe_distance: number): ActionNode
+
+Creates a node that makes the entity run away from threats.
+
+- **inst**: Entity to move
+- **threat_fn**: Function that returns the threat to run away from
+- **threat_distance**: Distance to detect threats
+- **safe_distance**: Distance considered safe
+
+```lua
+-- Run away from players
+local run_away = RunAway(inst, "player", 5, 10)
+```
+
+---
 
 ### Combat Actions
 
-```lua
--- Chase and attack target
-ChaseAndAttack(inst, max_chase_time, give_up_distance)
+#### ChaseAndAttack(inst: [Entity](entity.md), max_chase_time: number, give_up_distance: number): ActionNode
 
--- Attack specific target
-AttackTarget(inst, target_fn)
+Creates a node that chases and attacks a target.
 
--- Find nearest attackable target
-FindTarget(inst, distance, canattack_fn, tags)
-```
-
-### Other Common Actions
+- **inst**: Entity that will chase and attack
+- **max_chase_time**: Maximum time to chase before giving up
+- **give_up_distance**: Distance at which to give up chase
 
 ```lua
--- Find and eat food
-FindFood(inst, food_tags, distance)
-
--- Sleep at location
-Sleep(inst, sleeptime_fn)
-
--- Find specific items
-FindItem(inst, item_fn, distance)
-
--- Perform custom action
-DoAction(inst, action_fn)
+-- Chase and attack targets
+local chase = ChaseAndAttack(inst, 10, 20)
 ```
+
+---
+
+#### AttackTarget(inst: [Entity](entity.md), target_fn: Function): ActionNode
+
+Creates a node that attacks a specific target.
+
+- **inst**: Entity that will attack
+- **target_fn**: Function that returns the target to attack
+
+```lua
+-- Attack the player
+local attack_player = AttackTarget(inst, function() 
+    return FindClosestPlayer(inst)
+end)
+```
+
+---
+
+### FindTarget
+```ts
+(inst: Entity, distance: number, canattack_fn: Function, tags: Array<string>) => ActionNode
+
+Creates a node that finds and sets a target to attack.
+
+- **inst**: Entity that will search
+- **distance**: Search radius
+- **canattack_fn**: Function that checks if entity can be attacked
+- **tags**: Tags to search for
+
+```lua
+-- Find attackable targets
+local find_target = FindTarget(inst, 20, 
+    function(target) return not target:HasTag("wall") end,
+    {"character", "monster"}
+)
+```
+
+---
 
 ## Creating Custom Action Nodes
 
 To create a custom action node:
 
-1. **Derive from BehaviorNode**:
-   ```lua
-   local CustomAction = Class(BehaviorNode, function(self, inst, ...)
-       BehaviorNode._ctor(self, "CustomAction")
-       self.inst = inst
-       -- Store other parameters
-   end)
-   ```
+### 1. Derive from BehaviorNode
 
-2. **Implement Visit function**:
-   ```lua
-   function CustomAction:Visit()
-       if self.status == READY then
-           self.status = RUNNING
-       end
-       
-       if self.status == RUNNING then
-           -- Implement action logic here
-           -- Set status to SUCCESS or FAILURE based on result
-       end
-       
-       return self.status
-   end
-   ```
+```lua
+local CustomAction = Class(BehaviorNode, function(self, inst, ...)
+    BehaviorNode._ctor(self, "CustomAction")
+    self.inst = inst
+    -- Store other parameters
+end)
+```
 
-3. **Optional: Implement OnStop function**:
-   ```lua
-   function CustomAction:OnStop()
-       -- Clean up any resources or states
-   end
-   ```
+### 2. Implement Visit function
+
+```lua
+function CustomAction:Visit()
+    if self.status == READY then
+        self.status = RUNNING
+    end
+    
+    if self.status == RUNNING then
+        -- Implement action logic here
+        -- Set status to SUCCESS or FAILURE based on result
+    end
+    
+    return self.status
+end
+```
+
+### 3. Implement OnStop function (optional)
+
+```lua
+function CustomAction:OnStop()
+    -- Clean up any resources or states
+end
+```
 
 ## Example: Patrol Action
+
+Here's a complete example of a custom action node that makes an entity patrol between points:
 
 ```lua
 local Patrol = Class(BehaviorNode, function(self, inst, patrol_points, pause_time)
@@ -203,40 +352,7 @@ function Patrol:OnStop()
 end
 ```
 
-## Integration with Other Node Types
-
-Action nodes work with other node types to create complex behaviors:
-
-- **Priority Nodes**: Choose which action to perform based on priority
-- **Sequence Nodes**: Perform a series of actions in order
-- **Decorator Nodes**: Modify how actions are performed
-- **Condition Nodes**: Determine if actions can be performed
-
-```lua
--- Example combining multiple node types
-local behavior = PriorityNode(
-{
-    -- Run away if health is low (Condition + Action)
-    IfNode(function() return inst.components.health:GetPercent() < 0.3 end,
-        RunAway(inst, function() return FindClosestThreat(inst) end, 10, 15)
-    ),
-    
-    -- Chase and attack if target exists (Condition + Action)
-    IfNode(function() return inst.components.combat and inst.components.combat.target end,
-        ChaseAndAttack(inst, 10)
-    ),
-    
-    -- Otherwise patrol between points (Action)
-    Patrol(inst, {
-        Vector3(10, 0, 10),
-        Vector3(10, 0, -10),
-        Vector3(-10, 0, -10),
-        Vector3(-10, 0, 10)
-    }, 3)
-}, 0.5)
-```
-
-## Action Node Performance Considerations
+## Performance Considerations
 
 - Keep action logic simple for better performance
 - Avoid expensive calculations in frequently called actions

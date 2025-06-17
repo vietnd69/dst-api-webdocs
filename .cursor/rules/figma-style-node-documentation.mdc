@@ -1,446 +1,251 @@
 ---
-description: This document outlines the standards for documenting Don't Starve Together node types using a format similar to Figma's API documentation. This format emphasizes clarity, consistency, and comprehensive property/method documentation.
+description: This guide outlines the standards for documenting Don't Starve Together node types using a format inspired by Figma's comprehensive API documentation approach.
 globs: 
 alwaysApply: false
 ---
-# Figma-Style Node Documentation Standards
+# Figma-Style Node Documentation Guide
 
-This document outlines the standards for documenting Don't Starve Together node types using a format similar to Figma's API documentation. This format emphasizes clarity, consistency, and comprehensive property/method documentation.
+This guide outlines the standards for documenting Don't Starve Together node types using a format inspired by Figma's comprehensive API documentation approach.
 
 ## Document Structure
 
-Each node type documentation file should follow this structure:
+Each node type documentation should include:
 
-1. **Frontmatter & Introduction**:
-   ```md
-   ---
-   id: node-name
-   title: NodeName
-   sidebar_position: X
-   last_updated: YYYY-MM-DD
-   version: API_VERSION
-   ---
-   *Last Update: YYYY-MM-DD*
-   # NodeName
-
-   *API Version: API_VERSION*
-
-   Brief description of what the node type is and its purpose in the game's architecture.
-   ```
-
-2. **Core Properties and Methods Overview**:
-   ```md
-   ## NodeName properties and methods
-
-   NodeName provides the following key properties and methods:
-
-   - **Properties**
-     - `property1` - Brief description
-     - `property2` - Brief description
-   
-   - **Methods**
-     - `method1()` - Brief description
-     - `method2(param)` - Brief description
-   ```
-
-## Property Documentation
-
-Properties should be documented with the Figma-style format:
+### 1. Frontmatter
 
 ```md
-## Property section
-
-### property1: Type <span style={{color: "#888"}}>[readonly]</span>
-
-Detailed description of the property, explaining what it does, when and how to use it.
-
 ---
-
-### property2: Type | OtherType
-
-Detailed description of the property with explanation about different possible types.
-
+id: node-type-name
+title: Node Type Name
+sidebar_position: X
+last_updated: YYYY-MM-DD
+version: 619045
 ---
-
-### property3: 'VALUE1' | 'VALUE2' | 'VALUE3'
-
-Detailed description of enumerated property options.
-
 ```
 
-Key elements:
-- H3 heading with property name, type, and [readonly] in gray color using `<span style={{color: "#888"}}>[readonly]</span>`
-- Detailed description
-- Horizontal rule (---) between properties for clear separation
-
-## Property References and Links
-
-When a property references another type or component, link to its documentation:
+### 2. Title and Introduction
 
 ```md
-### components: {[name: string]: [Component](mdc:dst-api-webdocs/dst-api-webdocs/component.md)} <span style={{color: "#888"}}>[readonly]</span>
+*Last Update: YYYY-MM-DD*
+# Node Type Name
 
-Table of components attached to this entity. Each component provides specific functionality.
+*API Version: 619045*
 
----
-
-### brain: [Brain](mdc:dst-api-webdocs/dst-api-webdocs/brain.md) | null
-
-Reference to the brain controlling this entity's AI behavior. Can be null if the entity has no AI.
-
+Brief introduction explaining what this node type is and its purpose in the DST system.
 ```
 
-Key practices:
-- Use Markdown links to reference other documented types: `[TypeName](mdc:dst-api-webdocs/dst-api-webdocs/type-name.md)`
-- Link component names to their respective documentation pages
-- Link method parameter types and return types to their documentation
+### 3. Properties and Methods Overview
 
-## Method Documentation
-
-Methods should be documented with the Figma-style format:
+Provide a quick overview of the node's key properties and methods:
 
 ```md
-## Method section
+## Node Type properties and methods
 
-### methodName(param1: Type, param2: Type): ReturnType
+Node Type provides the following key properties and methods:
 
-Detailed description of what the method does and when to use it.
+- **Properties**
+  - `property1` - Brief description
+  - `property2` - Brief description
 
-Example:
+- **Methods**
+  - `method1()` - Brief description
+  - `method2()` - Brief description
+```
+
+### 4. Detailed Properties Section
+
+For each property, provide detailed documentation:
+
+```md
+## Properties
+
+### property1: Type
+
+Description of what this property does and how it's used.
+
 ```lua
--- Example usage of the method
-node:methodName("value", 123)
+-- Example code showing property usage
+local value = node.property1
 ```
 
 ---
+```
 
-### complexMethod(options: {param1: Type, param2: Type}): ReturnType
+**Important**: For readonly properties, use this format to avoid MDX parsing errors:
 
-Detailed description of the complex method.
+```md
+### property1: Type `[readonly]`
 
-Example with explanation:
+Description of what this property does and how it's used.
+```
+
+**Avoid using JSX spans** like `<span style={{color: "#888"}}>[readonly]</span>` as this causes MDX compilation errors.
+
+### 5. Detailed Methods Section
+
+For each method, provide detailed documentation:
+
+```md
+## Methods
+
+### method1(param1: Type, param2: Type): ReturnType
+
+Description of what this method does and how it's used.
+
 ```lua
--- Configure complex options
-local options = {
-    param1 = "value",
-    param2 = 100
-}
-
--- Call the method with options
-node:complexMethod(options)
+-- Example code showing method usage
+node:method1("value", 123)
 ```
 
 ---
 ```
 
-Key elements:
-- H3 heading with method signature including parameter types and return type
-- Detailed description
-- Example code showing usage
-- Horizontal rule (---) between methods for clear separation
-
-## Grouping Properties and Methods
-
-Group related properties and methods into logical sections:
+**Important**: For type annotations in method signatures, use simple formats like:
 
 ```md
-## Core Properties
-
-### property1: Type <span style={{color: "#888"}}>[readonly]</span>
-...
-
----
-
-### property2: Type
-...
-
----
-
-## Behavioral Methods
-
-### method1(): ReturnType
-...
-
----
-
-### method2(): ReturnType
-...
-
----
-
-## Event Handling
-
-### addEventListener(event: String, callback: Function): void
-...
-
----
+### method1(param1: string, param2: number): boolean
 ```
 
-## State Documentation
-
-For nodes with states, document them clearly:
+**Avoid complex type annotations** with special characters like `Array<{chance: number, node: [BehaviorNode](mdc:dst-api-webdocs/behavior-node.md)}>` as these cause MDX parsing errors. Instead use:
 
 ```md
-## States
-
-The NodeName can be in one of these states:
-
-### 'READY' | 'RUNNING' | 'SUCCESS' | 'FAILURE'
-
-Detailed explanation of the state system and what each state represents.
-
-State transitions occur based on the following rules:
-- READY → RUNNING: When the node starts execution
-- RUNNING → SUCCESS: When the execution completes successfully
-- RUNNING → FAILURE: When the execution fails
+### method1(param1: string, nodes: NodeArray): boolean
 ```
 
-## Special UI Elements
+And explain the complex types in the description.
 
-Use these special formatting elements when appropriate:
+### 6. Examples and Usage Patterns
 
-1. **Note boxes**:
-   ```md
-   > **Note:** Important information that users should be aware of when using this property.
-   ```
-
-2. **Warning boxes**:
-   ```md
-   > **Warning:** Critical information about potential issues or limitations.
-   ```
-
-3. **Code tabs** (for multi-language examples):
-   ```md
-   <Tabs>
-   <TabItem value="lua" label="Lua">
-
-   ```lua
-   -- Lua implementation
-   ```
-
-   </TabItem>
-   <TabItem value="pseudocode" label="Pseudocode">
-
-   ```
-   // Pseudocode implementation
-   ```
-
-   </TabItem>
-   </Tabs>
-   ```
-
-4. **"View more"** for expandable content:
-   ```md
-   <details>
-   <summary>View more details</summary>
-
-   Additional detailed information that doesn't need to be visible by default.
-
-   </details>
-   ```
-
-## Styling Text with JSX
-
-When using JSX components in Docusaurus, use proper object syntax for the style prop:
-
-```jsx
-<span style={{color: '#888'}}>[readonly]</span>
-```
-
-For standard Markdown files that don't use JSX components, continue using HTML style attributes:
-
-```html
-<span style="color: #888">[readonly]</span>
-```
-
-Choose the approach based on whether your documentation uses JSX components or standard HTML/Markdown.
-
-## Complete Property Example
+Include comprehensive examples showing common usage patterns:
 
 ```md
-### children: Array<[BehaviorNode](mdc:dst-api-webdocs/dst-api-webdocs/behavior-node.md)> <span style={{color: "#888"}}>[readonly]</span>
+## Common Usage Patterns
 
-The list of child nodes contained within this node. This is used to construct behavior trees hierarchically.
+### Pattern Name
 
-The order of children matters for:
-- **PriorityNodes**: Earlier children have higher priority
-- **SequenceNodes**: Children are executed in sequence
+Description of the pattern.
 
-Example:
 ```lua
--- Create a priority node with ordered children
-local root = PriorityNode({
-    -- First child has highest priority
-    RunAway(inst, "character", 4, 6), 
-    -- Second child is only considered if first fails
-    ChaseAndAttack(inst, 10),
-    -- Last child is the fallback behavior
-    Wander(inst)
-})
-
--- Access children property
-for i, child in ipairs(root.children) do
-    print("Child " .. i .. ": " .. child.name)
+-- Example code implementing the pattern
+local function ExampleFunction(inst)
+    -- Implementation
 end
 ```
-
-Children cannot be modified directly after creation. To change the structure, create a new node.
-
----
 ```
 
-## Complete Method Example
+### 7. See Also Section
+
+End with links to related documentation:
 
 ```md
-### Visit(): [Status](mdc:dst-api-webdocs/dst-api-webdocs/status.md)
+## See also
 
-Evaluates the node and returns its current status. This is the core method that drives behavior tree execution.
+- [Related Node Type 1](mdc:dst-api-webdocs/related-node-1.md) - Brief description
+- [Related Node Type 2](mdc:dst-api-webdocs/related-node-2.md) - Brief description
+```
 
-The Visit method:
-1. Checks if the node is in `READY` state and initializes if needed
-2. Performs the node's specific logic
-3. Returns the current status (`RUNNING`, `SUCCESS`, or `FAILURE`)
+## Style Guidelines
 
-Example:
+1. **Consistency**: Use consistent terminology and formatting across all node type documentation
+2. **Examples**: Always include practical code examples for each property and method
+3. **Clarity**: Explain concepts clearly, assuming the reader has basic DST modding knowledge
+4. **Completeness**: Document all public properties and methods
+5. **MDX Compatibility**: Avoid JSX syntax and complex type annotations that might cause MDX parsing errors
+
+## MDX Compatibility Notes
+
+To avoid MDX compilation errors:
+
+1. Don't use JSX syntax like `<span>` tags
+2. Use backticks for readonly markers: `[readonly]` instead of styled spans
+3. Simplify type annotations that contain special characters like `[`, `{`, `<`, `>`
+4. Use triple backticks (```) for code blocks, not indentation
+5. Ensure all links use proper Markdown format: `[text](mdc:dst-api-webdocs/link)`
+
+## Example Documentation
+
+Here's a simplified example of a properly formatted node type documentation:
+
+```md
+---
+id: example-node
+title: Example Node
+sidebar_position: 1
+last_updated: 2023-08-15
+version: 619045
+---
+*Last Update: 2023-08-15*
+# Example Node
+
+*API Version: 619045*
+
+Example Nodes are specialized nodes that demonstrate the documentation format.
+
+## Example Node properties and methods
+
+Example Node provides the following key properties and methods:
+
+- **Properties**
+  - `inst` - Reference to the entity this node controls
+  - `status` - Current execution status of the node
+
+- **Methods**
+  - `Visit()` - Evaluates the node
+  - `Reset()` - Resets the node to initial state
+
+## Properties
+
+### inst: Entity `[readonly]`
+
+A reference to the entity that this node is controlling.
+
 ```lua
--- Custom node implementation
-function MyNode:Visit()
-    if self.status == READY then
-        self.status = RUNNING
-        -- Initialize logic
-    end
-    
-    if self.status == RUNNING then
-        -- Perform node logic
-        local result = self:PerformAction()
-        
-        if result then
-            self.status = SUCCESS
-        else
-            self.status = FAILURE
-        end
-    end
-    
-    return self.status
-end
+-- Access the node's entity
+local health = example_node.inst.components.health
+```
 
--- Usage in behavior tree
-local status = node:Visit()
-if status == SUCCESS then
+---
+
+### status: string `[readonly]`
+
+The current execution status of the node.
+
+```lua
+-- Check the current status
+if example_node.status == "SUCCESS" then
     print("Node completed successfully")
 end
 ```
 
-The Visit method is automatically called by the behavior tree system during execution.
-
----
-```
-
-## Navigation and Reference
-
-Include these elements to improve navigation:
-
-1. **See also** section at the bottom:
-   ```md
-   ## See also
-
-   - [Brain](mdc:dst-api-webdocs/dst-api-webdocs/brain.md) - Controls entity AI using behavior nodes
-   - [ActionNode](mdc:dst-api-webdocs/dst-api-webdocs/action-nodes.md) - Lowest level behavior tree nodes
-   - [BehaviorTree](mdc:dst-api-webdocs/dst-api-webdocs/behavior-tree.md) - Complete behavior tree system
-   ```
-
-## Best Practices
-
-1. **Property Format**: Always follow the pattern `propertyName: Type <span style="color: #888">[readonly]</span>` with consistent formatting
-2. **Method Format**: Always follow the pattern `methodName(param: Type): ReturnType`
-3. **Type References**: Always link to other type documentation using `[TypeName](mdc:dst-api-webdocs/dst-api-webdocs/type-name.md)` format
-4. **Consistency**: Use consistent terminology across all node type documentation
-5. **Examples**: Include working code examples for every property and method
-6. **Separation**: Use horizontal rules (---) between properties and methods for clarity
-7. **Completeness**: Document all properties and methods, even if they seem obvious
-8. **Versioning**: Include API version information for compatibility tracking
-
-## Example Page Structure
-
-```md
----
-id: priority-node
-title: PriorityNode
-sidebar_position: 5
-last_updated: 2023-08-15
-version: 624447
----
-*Last Update: 2023-08-15*
-# PriorityNode
-
-*API Version: 624447*
-
-PriorityNode is a behavior tree node that executes its children in order until one succeeds or all fail. It functions as a logical "OR" operation in the behavior tree.
-
-
-## PriorityNode properties
-
-### children: Array<[BehaviorNode](mdc:dst-api-webdocs/dst-api-webdocs/behavior-node.md)> <span style={{color: "#888"}}>[readonly]</span>
-
-The list of child nodes that will be executed in priority order.
-
 ---
 
-### status: [Status](mdc:dst-api-webdocs/dst-api-webdocs/status.md) <span style={{color: "#888"}}>[readonly]</span>
+## Methods
 
-The current execution status of the node (READY, RUNNING, SUCCESS, or FAILURE).
+### Visit(): string
 
----
-
-### period: number
-
-Time between re-evaluations of the priority list, in seconds. A value of 0 means evaluate every frame.
-
----
-
-## PriorityNode methods
-
-### Visit(): [Status](mdc:dst-api-webdocs/dst-api-webdocs/status.md)
-
-Evaluates the priority node by attempting to execute children in order.
-
----
-
-### Stop(): void
-
-Stops execution of this node and all its running children.
-
----
-
-## States
-
-PriorityNode can be in one of four states:
-
-### 'READY' | 'RUNNING' | 'SUCCESS' | 'FAILURE'
-
-- **READY**: Node is ready to begin evaluation
-- **RUNNING**: Node is currently executing a child node
-- **SUCCESS**: A child node has succeeded
-- **FAILURE**: All child nodes have failed
-
----
-
-## Examples
-
-### Basic Usage
+Evaluates the node and returns its status.
 
 ```lua
-local root = PriorityNode(
-{
-    RunAway(inst, "character", 4, 6),
-    ChaseAndAttack(inst, 10),
-    Wander(inst)
-}, 0.5)
+function ExampleNode:Visit()
+    -- Implementation
+    return "SUCCESS"
+end
 ```
+
+---
+
+### Reset(): void
+
+Resets the node to its initial state.
+
+```lua
+function ExampleNode:Reset()
+    -- Implementation
+end
+```
+
+---
 
 ## See also
 
-- [Brain](mdc:dst-api-webdocs/dst-api-webdocs/brain.md) - For brain implementation using behavior trees
-
-
-- [SequenceNode](mdc:dst-api-webdocs/dst-api-webdocs/sequence-nodes.md) - For executing actions in sequence
+- [Related Node](mdc:dst-api-webdocs/related-node.md) - Description of related node

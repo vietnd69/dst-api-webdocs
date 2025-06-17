@@ -12,17 +12,90 @@ version: 619045
 
 Sequence Nodes are essential components in Don't Starve Together's behavior tree system that execute child nodes in order until one fails or all succeed. They act as a logical "AND" operation, executing each child node sequentially and only succeeding if all children succeed.
 
-## Basic Usage
+## Sequence Node properties and methods
+
+Sequence Nodes provide the following key properties and methods:
+
+- **Properties**
+  - `inst` - Reference to the entity this node controls
+  - `children` - Array of child nodes to execute in sequence
+  - `current_child` - Index of the currently executing child node
+  - `status` - Current execution status of the node
+
+- **Methods**
+  - `Visit()` - Evaluates the sequence node and its children
+  - `Stop()` - Stops execution of this node and all children
+  - `Reset()` - Resets this node and all children to READY state
+
+## Properties
+
+### inst: Entity `[readonly]`
+
+A reference to the entity that this sequence node is controlling.
 
 ```lua
--- Basic sequence node structure
-local MySequence = Class(BehaviorNode, function(self, inst, children)
-    BehaviorNode._ctor(self, "MySequence")
-    self.inst = inst
-    self.children = children
-    self.current_child = 1
-end)
+-- Access the sequence node's entity
+local health = sequence_node.inst.components.health
+```
 
+---
+
+### children: `Array<BehaviorNode>` `[readonly]`
+
+List of child nodes to execute in sequence. Children are executed in the order they appear in this array.
+
+```lua
+-- Create sequence node with ordered steps
+local sequence_node = SequenceNode(inst, {
+    FindFood(inst),         -- First find food
+    GoToFood(inst),         -- Then go to it
+    EatFood(inst)           -- Finally eat it
+})
+
+-- Access a specific child
+local first_child = sequence_node.children[1]
+```
+
+---
+
+### current_child: number `[readonly]`
+
+Index of the currently executing child node in the children array. This value starts at 1 and increments as each child succeeds.
+
+```lua
+-- Check which step we're on
+print("Currently executing step " .. sequence_node.current_child .. " of " .. #sequence_node.children)
+```
+
+---
+
+### status: 'READY' | 'RUNNING' | 'SUCCESS' | 'FAILURE' `[readonly]`
+
+The current execution status of the sequence node:
+
+- **READY**: Node is ready to begin executing children
+- **RUNNING**: Node is currently executing one of its children
+- **SUCCESS**: All child nodes have executed successfully
+- **FAILURE**: One of the child nodes has failed
+
+```lua
+-- Check the current status
+if sequence_node.status == SUCCESS then
+    print("All sequence steps completed successfully")
+elseif sequence_node.status == FAILURE then
+    print("Sequence failed at step " .. sequence_node.current_child)
+end
+```
+
+---
+
+## Methods
+
+### Visit(): 'READY' | 'RUNNING' | 'SUCCESS' | 'FAILURE'
+
+Evaluates the sequence node by executing children in order until one fails or all succeed.
+
+```lua
 function MySequence:Visit()
     if self.status == READY then
         self.status = RUNNING
@@ -52,44 +125,76 @@ function MySequence:Visit()
     
     return self.status
 end
-
--- Used in a behavior tree
-local root = MySequence(inst, {
-    FindFood(inst),
-    GoToFood(inst),
-    EatFood(inst)
-})
 ```
 
-## Sequence Node States
+---
 
-Sequence nodes can be in one of several states:
+### Stop(): void
 
-| State | Description |
-|-------|-------------|
-| `READY` | Node is ready to begin executing children |
-| `RUNNING` | Node is currently executing one of its children |
-| `SUCCESS` | All child nodes have executed successfully |
-| `FAILURE` | One of the child nodes has failed |
+Stops execution of this sequence node and all its children.
+
+```lua
+function MySequence:Stop()
+    for i = 1, #self.children do
+        self.children[i]:Stop()
+    end
+    self.status = READY
+    self.current_child = 1
+end
+```
+
+---
+
+### Reset(): void
+
+Resets the sequence node and all its children to READY state.
+
+```lua
+function MySequence:Reset()
+    for i = 1, #self.children do
+        self.children[i]:Reset()
+    end
+    self.status = READY
+    self.current_child = 1
+end
+```
+
+---
+
+## States
+
+SequenceNode can be in one of four states:
+
+### 'READY' | 'RUNNING' | 'SUCCESS' | 'FAILURE'
+
+- **READY**: Node is ready to begin execution
+- **RUNNING**: Node is currently executing a child node
+- **SUCCESS**: All child nodes have executed successfully
+- **FAILURE**: A child node has failed, stopping execution
+
+```lua
+-- Check current sequence status
+if sequence_node.status == SUCCESS then
+    print("Entire sequence completed successfully")
+elseif sequence_node.status == FAILURE then
+    print("Sequence failed during execution")
+end
+```
 
 ## Built-in Sequence Nodes
 
 Don't Starve Together includes several pre-defined sequence nodes:
 
-### SequenceNode
+### SequenceNode(inst: Entity, children: `Array<BehaviorNode>`): SequenceNode
 
 The basic sequence node that executes children in order until one fails or all succeed.
 
-```lua
--- Basic format
-SequenceNode(inst, {
-    child_node1,
-    child_node2,
-    child_node3
-})
+- **inst**: Entity the node controls
+- **children**: Array of child nodes to execute in sequence
 
--- Example: Find, go to, and eat food
-SequenceNode(inst, {
+```lua
+-- Find, go to, and eat food
+local node = SequenceNode(inst, {
     FindFood(inst, {"fruit", "veggie"}, 20),
     GoToEntity(inst, function() return inst.components.eater.foodtarget end, 1),
     DoAction(inst, function(inst) 
@@ -98,20 +203,19 @@ SequenceNode(inst, {
 })
 ```
 
-### DoWhileNode
+---
+
+### DoWhileNode(inst: Entity, condition_fn: Function, children: `Array<BehaviorNode>`): SequenceNode
 
 Executes a sequence of nodes while a condition remains true.
 
-```lua
--- Basic format
-DoWhileNode(inst, condition_fn, {
-    child_node1,
-    child_node2,
-    ...
-})
+- **inst**: Entity the node controls
+- **condition_fn**: Function that returns true or false
+- **children**: Array of child nodes to execute in sequence
 
--- Example: Keep gathering resources while inventory has space
-DoWhileNode(inst, 
+```lua
+-- Keep gathering resources while inventory has space
+local node = DoWhileNode(inst, 
     function() 
         -- Continue while inventory has space
         return not inst.components.inventory:IsFull() 
@@ -127,20 +231,18 @@ DoWhileNode(inst,
 )
 ```
 
-### ParallelNodeAny
+---
+
+### ParallelNodeAny(inst: Entity, children: `Array<BehaviorNode>`): SequenceNode
 
 Executes multiple nodes in parallel and succeeds if any child succeeds.
 
-```lua
--- Basic format
-ParallelNodeAny(inst, {
-    child_node1,
-    child_node2,
-    ...
-})
+- **inst**: Entity the node controls
+- **children**: Array of child nodes to execute in parallel
 
--- Example: Try multiple ways to get food in parallel
-ParallelNodeAny(inst, {
+```lua
+-- Try multiple ways to get food in parallel
+local node = ParallelNodeAny(inst, {
     -- Try to find dropped food
     SequenceNode(inst, {
         FindItem(inst, function(item) 
@@ -168,20 +270,18 @@ ParallelNodeAny(inst, {
 })
 ```
 
-### ParallelNodeAll
+---
+
+### ParallelNodeAll(inst: Entity, children: `Array<BehaviorNode>`): SequenceNode
 
 Executes multiple nodes in parallel and only succeeds if all children succeed.
 
-```lua
--- Basic format
-ParallelNodeAll(inst, {
-    child_node1,
-    child_node2,
-    ...
-})
+- **inst**: Entity the node controls
+- **children**: Array of child nodes to execute in parallel
 
--- Example: Track multiple conditions simultaneously
-ParallelNodeAll(inst, {
+```lua
+-- Track multiple conditions simultaneously
+local node = ParallelNodeAll(inst, {
     -- Monitor health
     DoAction(inst, function() 
         return inst.components.health:GetPercent() > 0.25 
@@ -197,11 +297,15 @@ ParallelNodeAll(inst, {
 })
 ```
 
+---
+
 ## Common Sequence Patterns
 
 Sequence nodes are often used for these common patterns:
 
 ### Multi-step Actions
+
+Breaking a complex task into sequential steps:
 
 ```lua
 -- Break a task into sequential steps
@@ -238,6 +342,8 @@ SequenceNode(inst, {
 
 ### Validation Chains
 
+Checking multiple conditions before taking action:
+
 ```lua
 -- Check multiple conditions before taking action
 SequenceNode(inst, {
@@ -266,91 +372,61 @@ SequenceNode(inst, {
 })
 ```
 
-### State Machines
-
-```lua
--- Implement a simple state machine
-SequenceNode(inst, {
-    -- State: Hungry
-    IfNode(function() 
-        return inst.components.hunger:GetPercent() < 0.5 
-    end,
-        SequenceNode(inst, {
-            FindFood(inst),
-            GoToFood(inst),
-            EatFood(inst)
-        })
-    ),
-    
-    -- State: Tired
-    IfNode(function() 
-        return inst.components.sleeper:IsVeryTired() 
-    end,
-        SequenceNode(inst, {
-            FindSleepLocation(inst),
-            GoToSleepLocation(inst),
-            Sleep(inst)
-        })
-    ),
-    
-    -- State: Default gathering
-    SequenceNode(inst, {
-        FindResources(inst),
-        GatherResources(inst)
-    })
-})
-```
-
 ## Creating Custom Sequence Nodes
 
 To create a custom sequence node:
 
-1. **Derive from BehaviorNode**:
-   ```lua
-   local CustomSequence = Class(BehaviorNode, function(self, inst, children, ...)
-       BehaviorNode._ctor(self, "CustomSequence")
-       self.inst = inst
-       self.children = children
-       self.current_child = 1
-       -- Store other parameters
-   end)
-   ```
+### 1. Derive from BehaviorNode
 
-2. **Implement Visit function**:
-   ```lua
-   function CustomSequence:Visit()
-       if self.status == READY then
-           self.status = RUNNING
-           self.current_child = 1
-           self.children[self.current_child]:Start()
-       end
-       
-       if self.status == RUNNING then
-           local status = self.children[self.current_child]:Visit()
-           
-           -- Implement custom sequence logic here
-           -- Decide how to handle SUCCESS and FAILURE of children
-           -- Update self.current_child as needed
-       end
-       
-       return self.status
-   end
-   ```
+```lua
+local CustomSequence = Class(BehaviorNode, function(self, inst, children, ...)
+    BehaviorNode._ctor(self, "CustomSequence")
+    self.inst = inst
+    self.children = children
+    self.current_child = 1
+    -- Store other parameters
+end)
+```
 
-3. **Optional: Implement Stop function**:
-   ```lua
-   function CustomSequence:Stop()
-       for i = 1, #self.children do
-           self.children[i]:Stop()
-       end
-       self.status = READY
-   end
-   ```
+### 2. Implement Visit function
+
+```lua
+function CustomSequence:Visit()
+    if self.status == READY then
+        self.status = RUNNING
+        self.current_child = 1
+        self.children[self.current_child]:Start()
+    end
+    
+    if self.status == RUNNING then
+        local status = self.children[self.current_child]:Visit()
+        
+        -- Implement custom sequence logic here
+        -- Decide how to handle SUCCESS and FAILURE of children
+        -- Update self.current_child as needed
+    end
+    
+    return self.status
+end
+```
+
+### 3. Implement Stop function
+
+```lua
+function CustomSequence:Stop()
+    for i = 1, #self.children do
+        self.children[i]:Stop()
+    end
+    self.status = READY
+    self.current_child = 1
+end
+```
 
 ## Example: Interruptible Sequence
 
+A sequence node that can be interrupted by a condition:
+
 ```lua
--- A sequence node that can be interrupted by a condition
 local InterruptibleSequence = Class(BehaviorNode, function(self, inst, children, interrupt_fn)
     BehaviorNode._ctor(self, "InterruptibleSequence")
     self.inst = inst
@@ -420,8 +496,9 @@ local behavior = InterruptibleSequence(inst,
 
 ## Example: Retry Sequence
 
+A sequence node that retries failed children a certain number of times:
+
 ```lua
--- A sequence node that retries failed children a certain number of times
 local RetrySequence = Class(BehaviorNode, function(self, inst, children, max_retries)
     BehaviorNode._ctor(self, "RetrySequence")
     self.inst = inst

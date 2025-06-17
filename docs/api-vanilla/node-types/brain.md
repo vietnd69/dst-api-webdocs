@@ -13,8 +13,25 @@ version: 624447
 
 The Brain node type controls entity AI decision-making through behavior trees. It serves as the central controller for non-player entities, determining their actions based on behavior tree nodes, events, and world conditions.
 
+## Brain properties and methods
 
-## Brain properties
+Brain provides the following key properties and methods:
+
+- **Properties**
+  - `inst` - Reference to the entity this brain controls
+  - `events` - Table of registered event handlers
+  - `bt` - The behavior tree that defines decision-making
+  - `currentbehaviour` - Name of the currently executing behavior
+  - `thinkperiod` - Time between brain updates in seconds
+
+- **Methods**
+  - `OnStart()` - Called when the brain starts
+  - `OnStop()` - Called when the brain stops
+  - `Start()` - Activates the brain
+  - `Stop()` - Deactivates the brain
+  - `AddEventHandler()` - Registers an event handler
+
+## Properties
 
 ### inst: [Entity](entity.md) <span style={{color: "#888"}}>[readonly]</span>
 
@@ -79,7 +96,7 @@ brain.thinkperiod = 0.25  -- Update 4 times per second
 
 ---
 
-## Brain methods
+## Methods
 
 ### OnStart(): void
 
@@ -159,8 +176,6 @@ Brain nodes respond to these common events:
 | `newcombattarget` | Combat component acquires target | Switch to attack behavior |
 | `entitysleep` | Entity is removed from active world | Pause brain processing |
 | `entitywake` | Entity is added to active world | Resume brain processing |
-
----
 
 ## Usage Examples
 

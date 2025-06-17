@@ -12,16 +12,69 @@ version: 619045
 
 Condition Nodes are specialized nodes in Don't Starve Together's behavior tree system that evaluate conditions and determine whether other nodes should execute. They act as decision points in AI behavior trees, enabling entities to make choices based on their state and environment.
 
-## Basic Usage
+## Condition Node properties and methods
+
+Condition Nodes provide the following key properties and methods:
+
+- **Properties**
+  - `inst` - Reference to the entity this node controls
+  - `status` - Current evaluation status of the node
+  - `fn` - Function that evaluates the condition
+
+- **Methods**
+  - `Visit()` - Evaluates the condition and returns the result status
+
+## Properties
+
+### inst: [Entity](entity.md) <span style={{color: "#888"}}>[readonly]</span>
+
+A reference to the entity that this condition node is controlling.
 
 ```lua
--- Basic condition node structure
-local MyCondition = Class(BehaviorNode, function(self, inst, fn)
-    BehaviorNode._ctor(self, "MyCondition")
-    self.inst = inst
-    self.fn = fn
-end)
+-- Access the condition node's entity
+local health = condition_node.inst.components.health
+```
 
+---
+
+### status: 'READY' | 'SUCCESS' | 'FAILURE' <span style={{color: "#888"}}>[readonly]</span>
+
+The current evaluation status of the node:
+
+- **READY**: Node is ready to be evaluated
+- **SUCCESS**: Condition evaluated to true
+- **FAILURE**: Condition evaluated to false
+
+```lua
+-- Check the current status
+if condition_node.status == SUCCESS then
+    print("Condition is true")
+end
+```
+
+---
+
+### fn: Function <span style={{color: "#888"}}>[readonly]</span>
+
+The function that evaluates the condition. It should return true for success and false for failure.
+
+```lua
+-- Define a condition function
+local health_low = function(inst)
+    return inst.components.health:GetPercent() < 0.3
+end
+```
+
+---
+
+## Methods
+
+### Visit(): 'READY' | 'SUCCESS' | 'FAILURE'
+
+Evaluates the condition and returns the current status.
+
+```lua
+-- Custom condition node implementation
 function MyCondition:Visit()
     if self.status == READY then
         if self.fn(self.inst) then
@@ -33,61 +86,43 @@ function MyCondition:Visit()
     
     return self.status
 end
-
--- Used in a behavior tree
-local root = PriorityNode(
-{
-    -- Execute child node only if condition is true
-    IfNode(function(inst) 
-        return inst.components.health:GetPercent() < 0.5 
-    end,
-        RunAway(inst, "character", TUNING.SCARY_DIST, TUNING.SAFE_DIST)
-    ),
-    -- Otherwise, execute this branch
-    Wander(inst)
-}, 0.5) -- Run every 0.5 seconds
 ```
 
-## Condition Node States
-
-Like other behavior nodes, condition nodes can be in one of several states:
-
-| State | Description |
-|-------|-------------|
-| `READY` | Node is ready to be evaluated |
-| `SUCCESS` | Condition evaluated to true |
-| `FAILURE` | Condition evaluated to false |
+---
 
 ## Built-in Condition Nodes
 
 Don't Starve Together includes several pre-defined condition nodes:
 
-### IfNode
+### IfNode(condition_fn: Function, success_node: [BehaviorNode](behavior-node.md)): ConditionNode
 
-The most common condition node that evaluates a condition and executes a child node if the condition is true.
+Evaluates a condition and executes a child node if the condition is true.
+
+- **condition_fn**: Function that evaluates to true or false
+- **success_node**: Node to execute if condition is true
 
 ```lua
--- Basic format
-IfNode(condition_fn, success_node)
-
--- Example: Run away if health is low
-IfNode(function(inst) 
+-- Run away if health is low
+local if_low_health = IfNode(function(inst) 
     return inst.components.health:GetPercent() < 0.25 
 end,
     RunAway(inst, "character", 6, 8)
 )
 ```
 
-### IfThenElseNode
+---
+
+### IfThenElseNode(condition_fn: Function, success_node: [BehaviorNode](behavior-node.md), failure_node: [BehaviorNode](behavior-node.md)): ConditionNode
 
 Executes one node if the condition is true and another if it's false.
 
-```lua
--- Basic format
-IfThenElseNode(condition_fn, success_node, failure_node)
+- **condition_fn**: Function that evaluates to true or false
+- **success_node**: Node to execute if condition is true
+- **failure_node**: Node to execute if condition is false
 
--- Example: Run away if health is low, otherwise attack
-IfThenElseNode(function(inst) 
+```lua
+-- Run away if health is low, otherwise attack
+local conditional_behavior = IfThenElseNode(function(inst) 
     return inst.components.health:GetPercent() < 0.3 
 end,
     RunAway(inst, "character", 6, 8),
@@ -95,44 +130,58 @@ end,
 )
 ```
 
-### AndNode
+---
 
-Succeeds only if all child nodes succeed.
+### AndNode(...conditions: Function[]): ConditionNode
+
+Succeeds only if all child conditions succeed.
+
+- **conditions**: Multiple condition functions that all must return true
 
 ```lua
--- Example: Multiple conditions must be true
-AndNode(
+-- Check multiple conditions
+local all_conditions = AndNode(
     function(inst) return inst.components.health:GetPercent() > 0.5 end,
     function(inst) return inst.components.hunger:GetPercent() > 0.25 end,
     function(inst) return TheWorld.state.isday end
 )
 ```
 
-### OrNode
+---
 
-Succeeds if any child node succeeds.
+### OrNode(...conditions: Function[]): ConditionNode
+
+Succeeds if any child condition succeeds.
+
+- **conditions**: Multiple condition functions where at least one must return true
 
 ```lua
--- Example: At least one condition must be true
-OrNode(
+-- Check if any condition is true
+local any_condition = OrNode(
     function(inst) return inst.components.health:GetPercent() < 0.25 end,
     function(inst) return inst.components.combat:HasTarget() end,
     function(inst) return TheWorld.state.isnight end
 )
 ```
 
-### NotNode
+---
 
-Inverts the result of its child node.
+### NotNode(condition: Function): ConditionNode
+
+Inverts the result of its child condition.
+
+- **condition**: Function whose result will be inverted
 
 ```lua
--- Example: Invert a condition
-NotNode(function(inst) 
+-- Invert a condition
+local not_daytime = NotNode(function(inst) 
     return TheWorld.state.isday 
 end)
 ```
 
-## Common Condition Tests
+---
+
+## Common Condition Patterns
 
 Here are some commonly used conditions in Don't Starve Together AI:
 
@@ -198,35 +247,38 @@ end
 
 To create a custom condition node:
 
-1. **Derive from BehaviorNode**:
-   ```lua
-   local CustomCondition = Class(BehaviorNode, function(self, inst, ...)
-       BehaviorNode._ctor(self, "CustomCondition")
-       self.inst = inst
-       -- Store other parameters
-   end)
-   ```
+### 1. Derive from BehaviorNode
 
-2. **Implement Visit function**:
-   ```lua
-   function CustomCondition:Visit()
-       if self.status == READY then
-           -- Evaluate condition and set status
-           if SomeCondition() then
-               self.status = SUCCESS
-           else
-               self.status = FAILURE
-           end
-       end
-       
-       return self.status
-   end
-   ```
+```lua
+local CustomCondition = Class(BehaviorNode, function(self, inst, ...)
+    BehaviorNode._ctor(self, "CustomCondition")
+    self.inst = inst
+    -- Store other parameters
+end)
+```
+
+### 2. Implement Visit function
+
+```lua
+function CustomCondition:Visit()
+    if self.status == READY then
+        -- Evaluate condition and set status
+        if SomeCondition() then
+            self.status = SUCCESS
+        else
+            self.status = FAILURE
+        end
+    end
+    
+    return self.status
+end
+```
 
 ## Example: Time-Based Condition Node
 
+A condition node that succeeds at certain times of day:
+
 ```lua
--- A condition node that succeeds at certain times of day
 local TimeCondition = Class(BehaviorNode, function(self, inst, daytime, dusktime, nighttime)
     BehaviorNode._ctor(self, "TimeCondition")
     self.inst = inst
@@ -267,10 +319,11 @@ local behavior = PriorityNode(
 }, 0.5)
 ```
 
-## Example: Advanced Safety Condition
+## Example: Safety Condition
+
+A condition that evaluates if an entity is in danger:
 
 ```lua
--- A condition that evaluates if an entity is in danger
 local SafetyCondition = Class(BehaviorNode, function(self, inst, danger_dist)
     BehaviorNode._ctor(self, "SafetyCondition")
     self.inst = inst
@@ -310,45 +363,6 @@ function SafetyCondition:Visit()
     
     return self.status
 end
-```
-
-## Integration with Other Node Types
-
-Condition nodes work with other node types to create complex behaviors:
-
-```lua
--- Complex behavior tree with conditions
-local behavior = PriorityNode(
-{
-    -- If health is low, find food
-    IfNode(function() 
-        return inst.components.health:GetPercent() < 0.5 
-    end,
-        PriorityNode({
-            -- First try to find healing items
-            FindAndEatFood(inst, {"healing"}),
-            -- Otherwise run away from threats
-            RunAway(inst, "monster", 10, 15)
-        }, 0.5)
-    ),
-    
-    -- If hungry, find food
-    IfNode(function() 
-        return inst.components.hunger:GetPercent() < 0.25 
-    end,
-        FindAndEatFood(inst)
-    ),
-    
-    -- If it's night, go home
-    IfNode(function() 
-        return TheWorld.state.isnight 
-    end,
-        GoHome(inst)
-    ),
-    
-    -- Otherwise wander around
-    Wander(inst)
-}, 0.5)
 ```
 
 ## Performance Considerations
