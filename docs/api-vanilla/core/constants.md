@@ -189,7 +189,7 @@ end)
 
 ## TUNING Constants
 
-TUNING is a special table containing game balance values that are widely used:
+TUNING is a special table containing game balance values that are widely used throughout Don't Starve Together:
 
 ```lua
 -- Typical values in TUNING
@@ -219,6 +219,8 @@ TUNING = {
     ANTLION_DEAGGRO_DIST = 30  -- Distance at which Antlion deaggros (Added in API 624447)
 }
 ```
+
+For a complete documentation of the TUNING system, see [TUNING System](tuning.md).
 
 ## Customizing Constants in Mods
 

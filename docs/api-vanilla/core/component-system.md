@@ -18,7 +18,7 @@ Components are self-contained modules that define specific behaviors and propert
 
 ### Component Evolution
 
-Components can change between API versions as new features are added or existing functionality is modified. To stay updated on component changes, refer to the [API Changelog](../getting-started/api-changelog.md) which documents all significant component changes between versions.
+Components can change between API versions as new features are added or existing functionality is modified. To stay updated on component changes, refer to the [API Changelog](../updates/api-changelog.md) which documents all significant component changes between versions.
 
 ## Core Concepts
 

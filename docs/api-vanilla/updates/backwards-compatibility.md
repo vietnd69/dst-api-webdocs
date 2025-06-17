@@ -2,9 +2,9 @@
 id: backwards-compatibility
 title: Backwards Compatibility
 sidebar_position: 9
-last_updated: 2023-08-01
+last_updated: 2024-08-22
 ---
-*Last Update: 2023-08-01*
+*Last Update: 2024-08-22*
 # Backwards Compatibility
 
 This guide focuses on maintaining backwards compatibility in your Don't Starve Together mods, allowing them to work across multiple game versions. Creating mods that function correctly on both older and newer versions of the game improves user experience and reduces maintenance overhead.
@@ -68,6 +68,35 @@ else
     -- Use older API
 end
 ```
+
+### Release ID Detection
+
+Don't Starve Together provides mod release IDs that make version detection more semantic. This is often preferable to checking raw version numbers:
+
+```lua
+-- Check if a specific release ID exists
+local function IsReleaseAvailable(release_id)
+    return ReleaseID ~= nil and ReleaseID[release_id] ~= nil
+end
+
+-- Using release IDs for feature checks
+if IsReleaseAvailable("R35_SANITYTROUBLES") then
+    -- Use features from the Sanity Troubles update
+    -- This is safer than checking raw version numbers
+elseif IsReleaseAvailable("R34_OCEANQOL_WINONAWURT") then
+    -- Use features from the Winona and Wurt update
+else
+    -- Use pre-R34 features and implementations
+end
+
+-- Check which is the current release ID
+local current_release = ReleaseID and ReleaseID.Current or nil
+if current_release == "R35_SANITYTROUBLES" then
+    -- Specific behavior for the current release
+end
+```
+
+For a complete list of release IDs, see the [Mod Release IDs](mod-release-ids.md) document.
 
 ### Feature Detection
 

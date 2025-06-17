@@ -507,5 +507,5 @@ jobs:
 
 - [Git Integration](git-integration.md) - For version control setup
 - [Useful Extensions and Tools](useful-extensions.md) - For additional development tools
-- [Testing Environment](testing-environment.md) - For setting up a testing environment
+- [Testing Environment](../debugging-and-testing/testing-environment.md) - For setting up a testing environment
 - [Project Management Tools](project-management.md) - For integrating with project management 

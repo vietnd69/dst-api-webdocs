@@ -1,0 +1,222 @@
+---
+description: This document outlines the standard format for documenting Don't Starve Together node types, inspired by Figma's comprehensive API documentation approach.
+globs: 
+alwaysApply: false
+---
+# Node Type Documentation Standards
+
+This document outlines the standard format for documenting Don't Starve Together node types, inspired by Figma's comprehensive API documentation approach.
+
+## Node Type Documentation Structure
+
+Each node type documentation file should follow this consistent structure:
+
+1. **Frontmatter**:
+   ```md
+   ---
+   id: node-name
+   title: Node Name
+   sidebar_position: X
+   last_updated: YYYY-MM-DD
+   version: API_VERSION
+   ---
+   ```
+
+2. **Title and Version Information**:
+   ```md
+   *Last Update: YYYY-MM-DD*
+   # Node Name
+
+   *API Version: API_VERSION*
+
+   Brief description of what the node type is and its purpose in the game's architecture.
+   ```
+
+3. **Basic Usage**:
+   ```md
+   ## Basic Usage
+
+   ```lua
+   -- Example showing how to create and use this node type
+   local myNode = NodeType(inst, param1, param2)
+   
+   -- Basic usage pattern
+   myNode:SomeMethod(parameters)
+   ```
+
+4. **Node States/Properties Table**:
+   ```md
+   ## Node States
+
+   | State | Description |
+   |-------|-------------|
+   | `STATE_NAME` | Description of the state |
+   | `ANOTHER_STATE` | Description of another state |
+
+   ## Properties
+
+   | Property | Type | Description |
+   |----------|------|-------------|
+   | `property1` | Type | Description of the property |
+   | `property2` | Type | Description of the property |
+   ```
+
+5. **Key Methods with Parameter Details**:
+   ```md
+   ## Key Methods
+
+   ### NodeType:MethodName(param1, param2)
+
+   Description of what the method does.
+
+   #### Parameters
+
+   - `param1` (Type): Description of the parameter
+   - `param2` (Type): Description of the parameter
+
+   #### Returns
+
+   - (ReturnType): Description of the return value
+
+   #### Example
+
+   ```lua
+   -- Example code showing how to use the method
+   node:MethodName("value", 123)
+   ```
+   ```
+
+6. **Built-in Variations**:
+   ```md
+   ## Built-in Variations
+
+   ```lua
+   -- Specific variations of this node type
+   SpecializedNodeType(inst, param)
+   AnotherNodeType(inst, param1, param2)
+   ```
+
+   ### SpecializedNodeType
+
+   Description of this specialized version.
+   
+   ### AnotherNodeType
+   
+   Description of another specialized version.
+   ```
+
+7. **Common Patterns**:
+   ```md
+   ## Common Patterns
+
+   ```lua
+   -- Pattern 1: Common use case
+   NodeType(inst, function()
+       -- Common implementation pattern
+   end)
+
+   -- Pattern 2: Another common use case
+   NodeType(inst, {
+       option1 = value1,
+       option2 = value2
+   })
+   ```
+   ```
+
+8. **Creating Custom Extensions**:
+   ```md
+   ## Creating Custom Extensions
+
+   To extend or customize this node type:
+
+   1. **Derive from BaseClass**:
+      ```lua
+      local CustomNode = Class(BaseClass, function(self, inst, ...)
+          BaseClass._ctor(self, "CustomNode")
+          self.inst = inst
+          -- Initialize custom properties
+      end)
+      ```
+
+   2. **Implement Required Methods**:
+      ```lua
+      function CustomNode:RequiredMethod()
+          -- Implementation
+      end
+      ```
+
+   3. **Register or Use**:
+      ```lua
+      -- How to use the custom node
+      ```
+   ```
+
+9. **Example Implementation**:
+   ```md
+   ## Example: Complete Implementation
+
+   ```lua
+   -- A complete, working example showing how to use this node type
+   local function CreateCompleteExample()
+       -- Setup code
+       
+       -- Node creation and configuration
+       local node = NodeType(...)
+       
+       -- Usage example
+       
+       return node
+   end
+   ```
+   ```
+
+10. **Integration with Other Node Types**:
+    ```md
+    ## Integration with Other Node Types
+
+    This node type often works with:
+
+    - [RelatedNode](mdc:dst-api-webdocs/related-node.md): Description of relationship
+    - [AnotherNode](mdc:dst-api-webdocs/another-node.md): Description of relationship
+    ```
+
+11. **Performance Considerations**:
+    ```md
+    ## Performance Considerations
+
+    - Specific optimization tips
+    - Potential bottlenecks
+    - Best practices for efficient use
+    ```
+
+12. **See Also Section**:
+    ```md
+    ## See also
+
+    - [Related Node Type](mdc:dst-api-webdocs/related-node.md)
+    - [Relevant System](mdc:dst-api-webdocs/relevant-system.md)
+    ```
+
+## Best Practices for Node Type Documentation
+
+1. **Complete Examples**: Provide working examples that demonstrate the node type in real use cases
+2. **Method Signatures**: Clearly document parameters and return values
+3. **State Documentation**: Clearly explain all possible states and transitions
+4. **Cross-References**: Link to related node types and systems
+5. **Hierarchical Structure**: Show inheritance and relationships between node types
+6. **Visual Clarity**: Use tables, code blocks, and lists for better readability
+7. **Consistent API Version**: Specify which API version the documentation applies to
+
+## Example Node Type Documentation
+
+See [Action Nodes](mdc:dst-api-webdocs/dst-api-webdocs/docs/api-vanilla/node-types/action-nodes.md) for a well-structured example of node type documentation.
+
+## Versioning and Updates
+
+When documenting changes to node types across API versions:
+
+```md
+> **API Change:** This property/method was added/modified/removed in API version X.Y.Z.
+> The previous behavior was: [explanation]
+```
+

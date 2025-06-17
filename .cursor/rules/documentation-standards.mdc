@@ -1,0 +1,268 @@
+---
+description: This document outlines the complete standards and workflow for the Don't Starve Together API documentation.
+globs: 
+alwaysApply: false
+---
+# Documentation Standards and Workflow
+
+This document outlines the complete standards and workflow for the Don't Starve Together API documentation.
+
+## Documentation Structure
+
+Each documentation file should follow a consistent structure:
+
+### Front Matter
+
+Every document must include front matter with these properties:
+
+```markdown
+---
+id: document-id                    # Unique ID for the document
+title: Descriptive Title           # User-facing title
+sidebar_position: 1                # Optional position in sidebar
+description: Brief description     # SEO-friendly description
+last_updated: YYYY-MM-DD           # Date of last significant update
+---
+```
+
+### Content Structure
+
+Documentation files should follow this standard format:
+
+1. **Title and Overview**
+   ```markdown
+   # Title
+   
+   Brief overview paragraph explaining the purpose of the document and its context within the API.
+   ```
+
+2. **Main Sections**
+   ```markdown
+   ## Major Section
+   
+   Content explaining the section with enough detail for understanding.
+   
+   ### Subsection
+   
+   More specific content related to the subsection.
+   ```
+
+3. **Code Examples**
+   ```markdown
+   ## Examples
+   
+   ```lua
+   -- Example code with comments
+   local example = function()
+       print("This demonstrates the concept")
+   end
+   ```
+
+4. **Related Components/Systems**
+   ```markdown
+   ## Related Components
+   
+   - [Component Name](mdc:path/to/component.md) - Brief description of relationship
+   - [Another Component](mdc:path/to/another-component.md) - How it interacts
+   ```
+
+## Document Types and Templates
+
+### Component Documentation
+
+Components must be documented using the [component template](mdc:dst-api-webdocs/dst-api-webdocs/community/templates/component-template.md):
+
+```markdown
+# ComponentName
+
+Brief description of what the component does.
+
+## Overview
+
+Detailed explanation of the component's purpose and when to use it.
+
+## Properties
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| name | string | nil | Description of the property |
+
+## Methods
+
+### ComponentName:MethodName(param1, param2)
+
+Description of what the method does.
+
+#### Parameters
+
+- `param1` (type): Description of the parameter
+- `param2` (type): Description of the parameter
+
+#### Returns
+
+- (return_type): Description of the return value
+
+#### Example
+
+```lua
+-- Example code showing how to use the method
+```
+
+## Events
+
+### Events Fired
+
+| Event Name | Parameters | Description |
+|------------|------------|-------------|
+| event_name | param1, param2 | Description of when the event is fired |
+
+### Events Handled
+
+| Event Name | Description |
+|------------|-------------|
+| event_name | How the component responds to this event |
+```
+
+### Core System Documentation
+
+Core systems must be documented using the [core system template](mdc:dst-api-webdocs/dst-api-webdocs/community/templates/core-system-template.md).
+
+### API Updates Documentation
+
+API updates must be documented using the [API update template](mdc:dst-api-webdocs/dst-api-webdocs/community/templates/api-update-template.md).
+
+## Code Examples
+
+### Lua Code Examples
+
+Lua code examples must follow these standards:
+
+1. **Always include comments** to explain complex logic
+2. **Use consistent indentation** (2 spaces preferred)
+3. **Include complete, working examples** that can be copy-pasted
+4. **Highlight key concepts** with comments
+5. **Use consistent naming conventions**:
+   - Functions: `lowercase_with_underscores`
+   - Variables: `lowercase_with_underscores`
+   - Constants: `UPPERCASE_WITH_UNDERSCORES`
+   - Classes: `PascalCase`
+
+Example:
+
+```lua
+-- Example of inventory manipulation
+local function give_player_items(player, item_prefab, count)
+    -- Ensure parameters are valid
+    if not player or not player.components.inventory then
+        return false
+    end
+    
+    -- Default to 1 item if count not specified
+    count = count or 1
+    
+    -- Add items to inventory
+    for i = 1, count do
+        local item = SpawnPrefab(item_prefab)
+        if item then
+            player.components.inventory:GiveItem(item)
+        end
+    end
+    
+    return true
+end
+```
+
+## Documentation Workflow
+
+### Creating New Documentation
+
+1. **Identify documentation needs**:
+   - Missing API documentation
+   - Outdated information
+   - Unclear explanations
+   - Missing examples
+
+2. **Select appropriate template** from [community/templates](mdc:dst-api-webdocs/dst-api-webdocs/community/templates)
+
+3. **Create markdown file** in appropriate directory:
+   - Components: `/docs/api-vanilla/components/`
+   - Core systems: `/docs/api-vanilla/core/`
+   - Data types: `/docs/api-vanilla/data-types/`
+   - Examples: `/docs/api-vanilla/examples/`
+   - etc.
+
+4. **Write documentation** following the structure guidelines
+
+5. **Add to sidebar** by updating [sidebars.ts](mdc:dst-api-webdocs/dst-api-webdocs/sidebars.ts) if needed
+
+### Updating Existing Documentation
+
+1. **Identify outdated or incorrect information**
+
+2. **Make targeted updates** preserving the existing structure
+
+3. **Update the `last_updated` field** in the front matter
+
+4. **Add versioning information** if API has changed:
+   ```markdown
+   > **API Change:** This method was modified in API version X.Y.Z.
+   > The previous behavior was: [explanation]
+   ```
+
+### Review Process
+
+1. **Self-review checklist**:
+   - [ ] Documentation follows template guidelines
+   - [ ] Code examples are correct and tested
+   - [ ] Links to other documentation are correct
+   - [ ] Spelling and grammar are correct
+   - [ ] Technical accuracy has been verified
+
+2. **Submit for peer review**:
+   - Create a pull request
+   - Request review from knowledgeable team members
+   - Address feedback iteratively
+
+## Writing Style Guide
+
+1. **Be clear and concise**:
+   - Use simple, direct language
+   - Avoid jargon unless necessary
+   - Explain technical terms when first used
+
+2. **Use consistent terminology**:
+   - Refer to concepts using the same terms throughout
+   - Match terminology used in the codebase
+
+3. **Write in present tense**:
+   - "The component manages inventory" not "The component will manage inventory"
+
+4. **Use active voice when possible**:
+   - "The function returns a value" not "A value is returned by the function"
+
+5. **Address the reader directly**:
+   - "You can configure the component" not "The user can configure the component"
+
+6. **Use descriptive link text**:
+   - "See the [Inventory component](mdc:components/inventory.md)" not "Click [here](mdc:components/inventory.md)"
+
+## SEO Best Practices
+
+1. **Use descriptive titles** that include key terms
+2. **Include a meta description** in front matter
+3. **Use proper heading hierarchy** (H1 → H2 → H3)
+4. **Include relevant keywords** naturally in content
+5. **Write comprehensive content** that fully explains the topic
+
+## Final Quality Checklist
+
+Before submitting documentation:
+
+- [ ] **Accuracy**: All information is technically correct
+- [ ] **Completeness**: All aspects of the topic are covered
+- [ ] **Structure**: Content follows the recommended structure
+- [ ] **Examples**: Code examples are included and correct
+- [ ] **Links**: All internal and external links work
+- [ ] **Formatting**: Markdown formatting is correct
+- [ ] **Proofreading**: No spelling or grammatical errors
+

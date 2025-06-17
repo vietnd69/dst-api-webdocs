@@ -1,0 +1,98 @@
+---
+description: This guide explains the file structure and organization of the Don't Starve Together API documentation.
+globs: 
+alwaysApply: false
+---
+# Documentation File Structure and Organization
+
+This guide explains the file structure and organization of the Don't Starve Together API documentation.
+
+## Directory Structure
+
+The documentation is organized in the `/docs/api-vanilla/` directory with these key subdirectories:
+
+```
+docs/
+└── api-vanilla/
+    ├── characters/       - All function and skill tree of character
+    ├── components/       - Game component documentation
+    ├── core/             - Core game systems and architecture
+    ├── data-types/       - Lua data types used in the API
+    ├── debugging-and-testing/ - Debugging and testing tools
+    ├── development-tools/ - Development tools and workflows
+    ├── entity-framework/ - Entity system documentation  
+    ├── examples/         - Code examples and case studies
+    │   └── snippets/     - Small code snippets
+    ├── getting-started/  - Installation and basic guides
+    ├── global-objects/   - Global objects like TheWorld, ThePlayer
+    ├── localization/     - Translation and localization
+    ├── node-types/       - Node types for AI and behaviors
+    ├── prefabs/          - Prefab documentation
+    ├── recipes/          - Crafting and cooking systems
+    ├── shared-properties/ - Properties shared across entities
+    ├── stategraphs/      - State machine system docs
+    ├── updates/          - API changelog and updates
+    ├── utils/            - Utility functions
+    └── world/            - World generation and management
+```
+
+## File Naming Conventions
+
+1. **Index Files**: Each directory should contain an `index.md` file that provides an overview of the topic
+2. **Component Files**: Component documentation uses the component name (e.g., `health.md`, `combat.md`)
+3. **System Files**: System documentation uses descriptive names (e.g., `network-system.md`)
+4. **Example Files**: Example documentation uses descriptive names with prefixes:
+   - `case-`: For case studies (e.g., `case-forge.md`)
+   - `custom-`: For custom implementation examples (e.g., `custom-component.md`)
+
+## File Structure
+
+Each documentation file should follow this structure:
+
+```markdown
+---
+id: unique-id
+title: Human-Readable Title
+sidebar_position: priority-number
+last_updated: YYYY-MM-DD
+---
+*Last Update: YYYY-MM-DD*
+# Title of Document
+
+Brief introduction/overview
+
+## Section 1
+
+Content...
+
+## Section 2
+
+Content...
+```
+
+## Category Configuration
+
+Each directory should contain a `_category_.json` file with metadata:
+
+```json
+{
+  "label": "Category Label",
+  "position": 3,
+  "link": {
+    "type": "generated-index",
+    "description": "Brief description of this category"
+  }
+}
+```
+
+## Sidebar Organization
+
+The sidebar navigation is defined in [sidebars.ts](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/sidebars.ts) and follows a hierarchical structure:
+
+1. Top-level categories (Getting Started, Core Systems, etc.)
+2. Subcategories within major sections
+3. Individual documentation pages
+
+When adding new documentation, ensure it's properly linked in the sidebar for discoverability.
+
+

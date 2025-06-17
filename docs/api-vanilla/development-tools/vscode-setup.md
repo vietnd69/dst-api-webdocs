@@ -220,7 +220,7 @@ If the DST API extension isn't working:
 
 ## See also
 
-- [Installation](installation.md) - For setting up the basic DST modding environment
-- [First Mod](first-mod.md) - For creating your first DST mod
-- [Debugging and Testing](debugging-and-testing.md) - For testing your mods
-- [Troubleshooting Guide](troubleshooting-guide.md) - For resolving common modding issues 
+- [Installation](../getting-started/installation.md) - For setting up the basic DST modding environment
+- [First Mod](../getting-started/first-mod.md) - For creating your first DST mod
+- [Debugging and Testing](../debugging-and-testing/debugging-and-testing.md) - For testing your mods
+- [Troubleshooting Guide](../debugging-and-testing/troubleshooting-guide.md) - For resolving common modding issues 

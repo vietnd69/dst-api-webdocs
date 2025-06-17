@@ -1,140 +1,167 @@
 ---
-description: This document outlines the standards for code examples in the Don't Starve Together API documentation.
+description: This guide outlines the standards for writing code examples in the Don't Starve Together API documentation.
 globs: 
 alwaysApply: false
 ---
-# Code Examples Standards
+# Code Example Standards
 
-This document outlines the standards for code examples in the Don't Starve Together API documentation.
+This guide outlines the standards for writing code examples in the Don't Starve Together API documentation.
 
-## General Guidelines
+## General Principles
 
-- All code examples should be valid, runnable Lua code
-- Use proper syntax highlighting with the `lua` language tag
-- Include comments to explain complex or non-obvious parts
-- Follow consistent naming conventions
-- Keep examples focused on demonstrating the specific API being documented
+1. **Clarity Over Brevity**: Prioritize clear, understandable code over concise but cryptic code
+2. **Completeness**: Examples should be complete enough to run without additional code when possible
+3. **Context**: Provide sufficient context for the example's purpose and expected outcome
+4. **Comments**: Use comments to explain complex logic or non-obvious behavior
+5. **Best Practices**: Demonstrate recommended patterns and best practices
 
-## Lua Style Guidelines
+## Lua Code Standards
 
-- Use 4 spaces for indentation (not tabs)
-- Use camelCase for local variables and functions
-- Use PascalCase for global functions and constants
-- Use snake_case for component methods and properties (to match the game's style)
-- Place spaces around operators: `x = y + z` not `x=y+z`
-- Use meaningful variable names that indicate purpose
+### Naming Conventions
 
-## Example Structure
+- **Variables**: Use descriptive `snake_case` names:
+  ```lua
+  local player_position = Vector3(0, 0, 0)  -- Good
+  local pos = Vector3(0, 0, 0)              -- Avoid: too brief
+  ```
 
-### Basic Examples
+- **Functions**: Use descriptive `snake_case` names with verb-noun pattern:
+  ```lua
+  local function spawn_creature(prefab, position)  -- Good
+  local function sc(p, pos)                        -- Avoid: unclear
+  ```
+
+- **Constants**: Use `UPPER_CASE` names:
+  ```lua
+  local MAX_ITEMS = 16                       -- Good
+  local max_items = 16                       -- Avoid: should be uppercase
+  ```
+
+- **Classes/Components**: Use `PascalCase` names:
+  ```lua
+  local MyCustomComponent = Class(function(self, inst)  -- Good
+  local my_custom_component = Class(function(self, inst)  -- Avoid: should be PascalCase
+  ```
+
+### Formatting
+
+- **Indentation**: Use 4 spaces for indentation (not tabs)
+- **Line Length**: Keep lines under 80 characters when possible
+- **Spacing**: Use spaces around operators and after commas:
+  ```lua
+  local x = a + b * (c - d)  -- Good
+  local x=a+b*(c-d)          -- Avoid: hard to read
+  ```
+- **Function Calls**: No spaces between function name and parentheses:
+  ```lua
+  spawn_prefab("beefalo")    -- Good
+  spawn_prefab ("beefalo")   -- Avoid: space between name and parentheses
+  ```
+- **Function Definitions**: Space after `function` keyword:
+  ```lua
+  function DoSomething()     -- Good
+  function DoSomething ()    -- Good
+  function  DoSomething()    -- Avoid: extra space after function
+  ```
+
+### Comments
+
+- **Purpose Comments**: Begin examples with a comment explaining purpose:
+  ```lua
+  -- Example of how to spawn and configure a creature
+  local function spawn_creature(prefab, position, health)
+      -- Function code here
+  end
+  ```
+
+- **Section Comments**: Use section headers for longer examples:
+  ```lua
+  -- 1. Setup initial conditions
+  local player = ThePlayer
+  
+  -- 2. Prepare inventory items
+  local item = SpawnPrefab("spear")
+  ```
+
+- **Inline Comments**: Explain non-obvious code:
+  ```lua
+  local damage = base_damage * (1 + strength / 100)  -- Apply strength bonus as percentage
+  ```
+
+### Error Handling
+
+- **Include Error Checking**: Demonstrate proper error handling:
+  ```lua
+  local function give_item(player, item_prefab)
+      if not player or not player.components.inventory then
+          print("Error: Invalid player or missing inventory component")
+          return false
+      end
+      
+      local item = SpawnPrefab(item_prefab)
+      if not item then
+          print("Error: Could not spawn item " .. tostring(item_prefab))
+          return false
+      end
+      
+      return player.components.inventory:GiveItem(item)
+  end
+  ```
+
+## Example Types
+
+### Basic Usage Examples
+
+Simple examples showing core functionality:
 
 ```lua
--- Simple example showing basic usage
-local entity = CreateEntity()
-entity:AddComponent("componentname")
-
--- Configure the component
-local component = entity.components.componentname
-component:SetSomeProperty(value)
-```
-
-### Complete Function Examples
-
-```lua
--- Function that creates an entity with the component
-local function MakeEntityWithComponent()
-    local inst = CreateEntity()
+-- Basic example of using the Combat component
+function attack_nearest_enemy(player, range)
+    -- Get player position
+    local x, y, z = player.Transform:GetWorldPosition()
     
-    -- Add required components
-    inst.entity:AddTransform()
-    inst.entity:AddAnimState()
-    inst.entity:AddNetwork()
+    -- Find nearby entities
+    local entities = TheSim:FindEntities(x, y, z, range, {"_combat"}, {"player", "companion"})
     
-    -- Add our component
-    inst:AddComponent("componentname")
+    -- Attack the first enemy found
+    if #entities > 0 and player.components.combat then
+        player.components.combat:SetTarget(entities[1])
+        return true
+    end
     
-    -- Configure the component
-    local component = inst.components.componentname
-    component:SetSomeProperty(value)
-    
-    -- Add event handlers if needed
-    inst:ListenForEvent("eventname", function(inst, data)
-        -- Handle event
-    end)
-    
-    return inst
+    return false
 end
 ```
 
-## Common Patterns to Demonstrate
+### Component Integration Examples
 
-### Component Addition
-
-```lua
-entity:AddComponent("componentname")
-```
-
-### Component Configuration
+Examples showing how multiple components work together:
 
 ```lua
-local component = entity.components.componentname
-component:SetProperty(value)
-component:Configure(options)
-```
-
-### Event Handling
-
-```lua
-inst:ListenForEvent("eventname", function(inst, data)
-    -- Handle event
-end)
-```
-
-### Component Interaction
-
-```lua
--- Show how components interact with each other
-if inst.components.health ~= nil and inst.components.combat ~= nil then
-    inst.components.health:SetMaxHealth(100)
+-- Example of integrating Combat and Health components
+function make_vulnerable_fighter(inst)
+    -- Add combat component if it doesn't exist
+    if not inst.components.combat then
+        inst:AddComponent("combat")
+    end
+    
+    -- Configure combat
     inst.components.combat:SetDefaultDamage(10)
-end
-```
-
-## Best Practices
-
-1. **Completeness**: Include all necessary code for the example to work
-2. **Simplicity**: Keep examples as simple as possible while still being useful
-3. **Context**: Provide enough context to understand what the code is doing
-4. **Error Handling**: Include error handling where appropriate
-5. **Performance**: Demonstrate efficient coding practices
-6. **Comments**: Use comments to explain the "why" not just the "what"
-
-## Example Code Blocks
-
-### Good Example
-
-```lua
--- Create an entity with the health component
-local function MakeCreature()
-    local inst = CreateEntity()
+    inst.components.combat:SetAttackPeriod(2)
     
-    -- Add required components
-    inst.entity:AddTransform()
-    inst.entity:AddAnimState()
-    
-    -- Add health component
-    inst:AddComponent("health")
-    local health = inst.components.health
+    -- Add health component if it doesn't exist
+    if not inst.components.health then
+        inst:AddComponent("health")
+    end
     
     -- Configure health
-    health:SetMaxHealth(100)
-    health:SetCurrentHealth(100)
+    inst.components.health:SetMaxHealth(50)
     
-    -- Add death callback
+    -- Link components with event handlers
     inst:ListenForEvent("death", function(inst)
-        -- Spawn loot on death
-        if inst.components.lootdropper ~= nil then
-            inst.components.lootdropper:DropLoot()
+        -- Drop weapons on death
+        if inst.components.inventory then
+            inst.components.inventory:DropEverything()
         end
     end)
     
@@ -142,12 +169,143 @@ local function MakeCreature()
 end
 ```
 
-### Bad Example (Avoid)
+### Event Handling Examples
+
+Examples demonstrating how to use the event system:
 
 ```lua
--- Too vague and incomplete
-local e = CreateEntity()
-e:AddComponent("health")
-e.components.health:SetMax(100)
+-- Example of event handling
+function setup_hunger_warnings(player)
+    -- Early warning at 50% hunger
+    player:ListenForEvent("hungerdelta", function(inst, data)
+        local hunger_percent = inst.components.hunger:GetPercent()
+        if hunger_percent <= 0.5 and hunger_percent > 0.49 then
+            player.components.talker:Say("I should find food soon.")
+        elseif hunger_percent <= 0.25 and hunger_percent > 0.24 then
+            player.components.talker:Say("I'm very hungry!")
+        end
+    end)
+end
 ```
+
+### Modding Examples
+
+Examples showing how to create mods:
+
+```lua
+-- Example of a basic mod that adds a new recipe
+local MYMOD_RECIPE = Recipe("spear", 
+    {Ingredient("twigs", 2), Ingredient("flint", 1)}, 
+    RECIPETABS.TOOLS, 
+    {SCIENCE = 1},
+    nil, nil, nil, nil, 
+    "modmain")
+
+-- Make recipe available to Wilson only
+MYMOD_RECIPE.character_specific = {"wilson"}
+
+-- Register the recipe
+AddRecipe(MYMOD_RECIPE)
+```
+
+### Network Replication Examples
+
+Examples showing proper networking for multiplayer:
+
+```lua
+-- Example of network variable replication
+local MyNetworkedComponent = Class(function(self, inst)
+    self.inst = inst
+    
+    -- Define networked variables
+    self.max_uses = net_uint(inst.GUID, "mycomponent.max_uses", "max_uses_dirty")
+    self.current_uses = net_uint(inst.GUID, "mycomponent.current_uses", "uses_dirty")
+    
+    -- Initialize on server
+    if TheWorld.ismastersim then
+        self:SetMaxUses(10)
+        self:SetUses(10)
+    end
+    
+    -- Handle network events
+    inst:ListenForEvent("max_uses_dirty", function()
+        -- Client-side response to max_uses change
+        print("Max uses updated to: " .. self.max_uses:value())
+    end)
+end)
+
+function MyNetworkedComponent:SetMaxUses(amount)
+    if TheWorld.ismastersim then
+        self.max_uses:set(amount)
+    end
+end
+
+function MyNetworkedComponent:SetUses(amount)
+    if TheWorld.ismastersim then
+        self.current_uses:set(amount)
+    end
+end
+
+return MyNetworkedComponent
+```
+
+## Code Example Templates
+
+Use these templates as starting points for different types of examples:
+
+### Component Usage Template
+
+```lua
+-- Example of using the [ComponentName] component
+local function use_component_example(inst)
+    -- Check if component exists
+    if not inst.components.[componentname] then
+        print("Entity doesn't have the [ComponentName] component!")
+        return
+    end
+    
+    -- Use component functionality
+    inst.components.[componentname]:MethodName(parameters)
+    
+    -- Check results or state changes
+    local result = inst.components.[componentname]:GetValue()
+    print("Result: " .. tostring(result))
+end
+```
+
+### Component Creation Template
+
+```lua
+-- Example of creating and adding a custom component
+local MyComponent = Class(function(self, inst)
+    self.inst = inst
+    self.value = 0
+end)
+
+function MyComponent:SetValue(val)
+    self.value = val
+    -- Trigger event when value changes
+    self.inst:PushEvent("valuechanged", {new_value = val})
+end
+
+function MyComponent:GetValue()
+    return self.value
+end
+
+-- Register component
+return Prefabs."mycomponent", MyComponent
+```
+
+## Best Practices Checklist
+
+Before including a code example, ensure it meets these criteria:
+
+1. **Correctness**: Code runs without errors and demonstrates correct usage
+2. **Completeness**: Includes all necessary parts to understand the concept
+3. **Clarity**: Is readable and uses descriptive names
+4. **Consistency**: Follows the naming and formatting conventions
+5. **Comments**: Includes helpful comments for complex parts
+6. **Context**: Clearly demonstrates the purpose of the example
+7. **Best Practices**: Demonstrates recommended patterns
+8. **Error Handling**: Shows proper error checking when appropriate
 

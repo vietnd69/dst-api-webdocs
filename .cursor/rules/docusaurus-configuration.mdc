@@ -1,0 +1,148 @@
+---
+description: This document outlines the complete Docusaurus configuration and structure for the Don't Starve Together API documentation site.
+globs: 
+alwaysApply: false
+---
+# Docusaurus Configuration and Structure
+
+This document outlines the complete Docusaurus configuration and structure for the Don't Starve Together API documentation site.
+
+## Project Structure
+
+The documentation follows the standard Docusaurus structure with TypeScript support:
+
+```
+dst-api-webdocs/
+├── docs/                       # Documentation markdown files
+│   └── api-vanilla/            # API documentation organized by module
+│       ├── components/         # Component documentation
+│       ├── core/               # Core systems documentation
+│       └── [other categories]  # Other API categories
+├── src/                        # Source code
+│   ├── pages/                  # React components for custom pages
+│   │   └── index.tsx           # Homepage (redirects to docs)
+│   └── css/                    # Custom CSS files
+├── static/                     # Static assets
+│   ├── img/                    # Images including logo and favicon
+│   └── 404.html                # Custom 404 page
+├── docusaurus.config.ts        # Main configuration file
+├── sidebars.ts                 # Sidebar navigation definition
+├── tsconfig.json               # TypeScript configuration
+└── package.json                # Dependencies and scripts
+```
+
+## Key Configuration Files
+
+### docusaurus.config.ts
+
+The [docusaurus.config.ts](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/docusaurus.config.ts) file defines the site settings, plugins, and theme options:
+
+```typescript
+const config: Config = {
+  title: "Don't Starve Together API Documentation",
+  url: "https://vietnd69.github.io",
+  baseUrl: "/dst-api-webdocs/",
+  organizationName: "vietnd69",
+  projectName: "dst-api-webdocs",
+  // ... other configuration options
+};
+```
+
+Key configuration sections include:
+- Site metadata (title, URL, etc.)
+- Theme configuration
+- Plugin configuration
+- Navbar and footer structure
+- GitHub Pages deployment settings
+
+### sidebars.ts
+
+The [sidebars.ts](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/sidebars.ts) file defines the sidebar navigation structure:
+
+```typescript
+const sidebars: SidebarsConfig = {
+  docs: [
+    {
+      type: "category",
+      label: "Getting Started",
+      items: [
+        "api-vanilla/getting-started/introduction",
+        "api-vanilla/getting-started/installation",
+        // ...
+      ],
+    },
+    // ... other categories
+  ],
+};
+```
+
+## TypeScript Integration
+
+The project uses TypeScript for enhanced type safety:
+- React components use `.tsx` extension
+- Configuration files use `.ts` extension
+- Type definitions are provided by Docusaurus packages
+
+```typescript
+// Example of type imports
+import type {Config} from '@docusaurus/types';
+import type * as Preset from '@docusaurus/preset-classic';
+```
+
+## Development Workflow
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm start
+
+# Build the site
+npm run build
+
+# Test the production build locally
+npm run serve
+
+# Deploy to GitHub Pages
+npm run deploy
+```
+
+## GitHub Pages Deployment
+
+The site is configured for automatic deployment to GitHub Pages:
+
+- **Base URL**: `/dst-api-webdocs/`
+- **Organization**: `vietnd69`
+- **Project**: `dst-api-webdocs`
+- **Deployment Branch**: `gh-pages`
+
+The deployment is configured in [docusaurus.config.ts](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/docusaurus.config.ts) and automated via GitHub Actions.
+
+### URL Handling
+
+When deploying to GitHub Pages, all URLs must take into account the base URL:
+
+1. **Internal Links**: Use relative paths without the baseUrl prefix
+   - Example: `/docs/api-vanilla/getting-started` (not `/dst-api-webdocs/docs/api-vanilla/getting-started`)
+   - Docusaurus will automatically add the baseUrl in production
+
+2. **React Components**: Use the `useBaseUrl` hook
+   ```tsx
+   import useBaseUrl from '@docusaurus/useBaseUrl';
+   const docsPath = useBaseUrl('/docs/api-vanilla/getting-started');
+   ```
+
+3. **External References**: Use the full URL when needed
+   - Example: `https://vietnd69.github.io/dst-api-webdocs/docs/api-vanilla/getting-started`
+
+### Special Pages
+
+#### 404 Page
+The [static/404.html](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/static/404.html) file includes client-side routing scripts for GitHub Pages:
+
+1. Script to handle client-side routing
+2. Fallback meta refresh redirect to the documentation
+3. Visible link for users without JavaScript
+
+

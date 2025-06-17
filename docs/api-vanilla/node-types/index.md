@@ -2,50 +2,107 @@
 id: node-types-overview
 title: Node Types Overview
 sidebar_position: 1
-last_updated: 2023-07-06
+last_updated: 2023-08-15
 slug: /api/node-types
 ---
-*Last Update: 2023-07-06*
+*Last Update: 2023-08-15*
 # Node Types Overview
 
-Don't Starve Together's game architecture is built around a variety of specialized node types that work together to create the game experience. Each node type serves a specific purpose in the game's ecosystem.
+Don't Starve Together's game architecture is built around a robust system of specialized node types that work together to create the game experience. Each node type serves a specific purpose in the game's ecosystem, with its own properties, methods, and interactions with other nodes.
 
-## Core Node Types
+## Node Type Categories
 
-The DST codebase is structured around these fundamental node types:
+DST's node types are organized into the following categories:
 
-### [Entity](/docs/api-vanilla/node-types/entity)
-Entities are the fundamental objects in the game world. Everything from characters and creatures to items and structures are entities. They serve as containers for components and provide the foundation for the entity-component system.
+### Entity Framework Nodes
+These nodes form the foundation of all game objects:
 
-### [Component](/docs/api-vanilla/node-types/component)
-Components are reusable modules that provide specific behaviors and properties to entities. They implement discrete functionality that can be attached to entities to give them capabilities like health, inventory, combat, and more.
+| Node Type | Description | Key Properties |
+|-----------|-------------|----------------|
+| [Entity](/docs/api-vanilla/node-types/entity) | Base object in the game world | Transform, AnimState, Tags |
+| [Component](/docs/api-vanilla/node-types/component) | Reusable modules for entity behaviors | Component-specific properties |
+| [Prefab](/docs/api-vanilla/node-types/prefab) | Templates for entity creation | Assets, Functions |
 
-### [Prefab](/docs/api-vanilla/node-types/prefab)
-Prefabs are templates or blueprints for creating entities. They define which components an entity should have and set initial values for those components. Prefabs allow for consistent creation of similar entities.
+### Behavioral AI Nodes
+These nodes control entity decision-making and state management:
 
-## Behavioral Node Types
+| Node Type | Description | Key Properties |
+|-----------|-------------|----------------|
+| [Brain](/docs/api-vanilla/node-types/brain) | Controls AI decision-making | BehaviorTree, UpdatePeriod |
+| [Action Nodes](/docs/api-vanilla/node-types/action-nodes) | Performs specific actions in behavior trees | Status, Visit Function |
+| [Condition Nodes](/docs/api-vanilla/node-types/condition-nodes) | Evaluates conditions in behavior trees | Status, Condition Function |
+| [Sequence Nodes](/docs/api-vanilla/node-types/sequence-nodes) | Executes multiple nodes in sequence | Children, CurrentChild |
+| [Priority Nodes](/docs/api-vanilla/node-types/priority-nodes) | Selects highest priority action | Children, Priorities |
+| [Decorator Nodes](/docs/api-vanilla/node-types/decorator-nodes) | Modifies behavior of other nodes | Child, Decorator Function |
 
-These node types handle AI, movement, and state management:
+### Animation and State Nodes
+These nodes manage entity animations and states:
 
-### [Brain](/docs/api-vanilla/node-types/brain)
-Brains control the AI behavior of entities, defining how they make decisions and respond to the environment. They use behavior trees to create complex decision-making processes.
+| Node Type | Description | Key Properties |
+|-----------|-------------|----------------|
+| [Stategraph](/docs/api-vanilla/node-types/stategraph) | Manages entity state and animations | States, Events, Timeline |
 
-### [Stategraph](/docs/api-vanilla/node-types/stategraph)
-Stategraphs manage animations, sounds, and state-based behaviors for entities. They define the states an entity can be in and the transitions between those states.
+### UI and Interface Nodes
+These nodes create and control the user interface:
 
-## Interface Node Types
+| Node Type | Description | Key Properties |
+|-----------|-------------|----------------|
+| [Widget](/docs/api-vanilla/node-types/widget) | UI elements for game interface | Position, Scale, Children |
 
-These node types handle the user interface:
+### Network Communication Nodes
+These nodes handle multiplayer functionality:
 
-### [Widget](/docs/api-vanilla/node-types/widget)
-Widgets are UI elements that make up the game's interface. They handle rendering, input, and animation for UI components.
+| Node Type | Description | Key Properties |
+|-----------|-------------|----------------|
+| [Network](/docs/api-vanilla/node-types/network) | Synchronizes game state across clients | NetVars, Replication |
 
-## Networking Node Types
+## Common Node Properties and Methods
 
-These node types handle multiplayer functionality:
+While each node type has its own specific properties and methods, there are some common patterns across many node types:
 
-### [Network](/docs/api-vanilla/node-types/network)
-Network nodes manage the synchronization of game state between server and clients, allowing for multiplayer gameplay.
+### Common Properties
+- **GUID**: Unique identifier for node instances
+- **parent/children**: Hierarchical relationships between nodes
+- **tags**: Labels that identify node characteristics
+- **components**: Attached functionality modules (for Entity nodes)
+
+### Common Methods
+- **AddChild/RemoveChild**: Manage node hierarchy
+- **AddTag/RemoveTag**: Manage node identification tags
+- **AddComponent/RemoveComponent**: Manage entity components
+- **OnUpdate**: Called during update cycle
+
+## Working with Node Types
+
+When developing mods or extensions for Don't Starve Together, you'll typically work with these node types in these ways:
+
+1. **Creation**: Instantiating new nodes
+2. **Configuration**: Setting properties and connecting nodes
+3. **Behavior**: Defining how nodes respond to events and conditions
+4. **Integration**: Making nodes work with the existing game systems
+
+## Node Type Inheritance
+
+Many node types inherit properties and methods from parent classes:
+
+```
+Entity
+  ├── Character
+  ├── Item
+  └── Structure
+
+BehaviorNode
+  ├── ActionNode
+  ├── ConditionNode
+  ├── SequenceNode
+  ├── PriorityNode
+  └── DecoratorNode
+
+Widget
+  ├── Button
+  ├── Text
+  └── Image
+```
 
 ## System Interaction
 
@@ -54,7 +111,7 @@ All these node types interact to create the complete game experience:
 1. **Prefabs** define what an entity is and which components it has
 2. **Entities** provide the foundation for game objects
 3. **Components** provide specific behaviors to entities
-4. **Brains** control AI decision-making
+4. **Brains** control AI decision-making using various node types
 5. **Stategraphs** manage animations and state-based behaviors
 6. **Widgets** create the user interface
 7. **Network** nodes synchronize the game state for multiplayer

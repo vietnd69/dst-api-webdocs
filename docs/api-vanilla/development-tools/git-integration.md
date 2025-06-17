@@ -295,6 +295,6 @@ git revert commit_hash
 ## See also
 
 - [VSCode Setup](vscode-setup.md) - For setting up VSCode with Git integration
-- [First Mod](first-mod.md) - For creating your first DST mod
-- [Troubleshooting Guide](troubleshooting-guide.md) - For resolving common modding issues
-- [API Updates](api-updates.md) - For tracking changes to the DST API 
+- [First Mod](../getting-started/first-mod.md) - For creating your first DST mod
+- [Troubleshooting Guide](../debugging-and-testing/troubleshooting-guide.md) - For resolving common modding issues
+- [API Updates](../updates/api-updates.md) - For tracking changes to the DST API 

@@ -42,7 +42,7 @@ This guide provides solutions for common errors and issues you might encounter w
 | Component functions not working | Using server-side components on client | Remember that most components only exist on the server side |
 | Component state not saving | Missing OnSave/OnLoad implementation | Implement proper serialization with OnSave and OnLoad functions |
 | Component conflicts | Multiple mods modifying the same component | Use component postinits instead of replacing components |
-| API has changed | Using outdated component methods or properties | Check the [API Changelog](api-changelog.md) for component changes and update your code |
+| API has changed | Using outdated component methods or properties | Check the [API Changelog](../updates/api-changelog.md) for component changes and update your code |
 
 ### Network Synchronization Issues
 

@@ -221,4 +221,4 @@ For testing multiplayer mods:
 
 Now that your environment is set up, you're ready to create your first mod. Continue to the [First Mod](first-mod.md) guide to get started with actual mod development.
 
-For more advanced setup options, including version control and automated testing, refer to the [Debugging and Testing](debugging-and-testing.md) guide.
+For more advanced setup options, including version control and automated testing, refer to the [Debugging and Testing](../debugging-and-testing/debugging-and-testing.md) guide.

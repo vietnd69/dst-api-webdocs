@@ -1,131 +1,201 @@
 ---
-description: This document outlines the standards for documenting updates to the Don't Starve Together API.
+description: This document outlines the complete process for documenting updates, changes, and versioning in the Don't Starve Together API documentation.
 globs: 
 alwaysApply: false
 ---
-# API Updates Documentation Standards
+# API Updates Documentation Guidelines
 
-This document outlines the standards for documenting updates to the Don't Starve Together API.
+This document outlines the complete process for documenting updates, changes, and versioning in the Don't Starve Together API documentation.
 
-## API Update Documentation
+## API Version Tracking
 
-When documenting API updates, follow these guidelines to ensure consistency and clarity:
+The Don't Starve Together API uses release IDs (numeric values) to identify specific game versions. These release IDs should be tracked and referenced in documentation.
 
-## Update File Structure
+### Version Format
 
-API update documentation should be placed in the `/docs/api-vanilla/getting-started/` directory and follow this structure:
+When referring to API versions in documentation, use the release ID format:
 
-1. **Frontmatter**:
-   ```md
-   ---
-   id: update-[version]
-   title: API Update [Version]
-   sidebar_position: X
-   ---
-   ```
+```markdown
+API Version: 624447
+```
 
-2. **Title and Overview**:
-   ```md
-   # API Update [Version]
+All version-dependent features should clearly indicate the minimum version required.
 
-   Brief description of the update scope and significance.
-   ```
+## Documenting API Updates
 
-3. **Update Summary**:
-   ```md
-   ## Summary
+### API Changelog
 
-   - Added X new components
-   - Modified Y existing components
-   - Deprecated Z functions
-   - [Other significant changes]
-   ```
+All API changes must be documented in [api-vanilla/updates/api-changelog.md](mdc:dst-api-webdocs/dst-api-webdocs/docs/api-vanilla/updates/api-changelog.md) with:
 
-4. **New Features**:
-   ```md
-   ## New Features
+1. **Version header**: API Release ID and date
+2. **Change categories**: 
+   - Added: New functions, components, or features
+   - Modified: Changed behavior of existing functionality
+   - Deprecated: Features marked for future removal
+   - Removed: Functionality that has been eliminated
+   
+Example Changelog Entry:
 
-   ### Feature Name
+```markdown
+## API Version 624447 (2023-08-15)
 
-   Description of the new feature with code examples:
+### Added
+- `ThePlayer.components.builder:CanLearn(recipe)` - Checks if a player can learn a recipe
+- `TheWorld:HasTag(tag)` - Checks if the world has a specific tag
 
-   ```lua
-   -- Example of new feature usage
-   ```
-   ```
+### Modified
+- `TheInventory:GetItems()` - Now returns an additional parameter for item quality
 
-5. **Modified Features**:
-   ```md
-   ## Modified Features
+### Deprecated
+- `TheSim:GetPosition()` - Use `TheSim:GetScreenPos()` instead
 
-   ### Feature Name
+### Removed
+- `TheNet:GetServerEvent()` - This function has been removed entirely
+```
 
-   Description of changes to existing features:
+### Component-Level Version Documentation
 
-   **Before:**
-   ```lua
-   -- Old usage
-   ```
+Each component documentation file should indicate version-specific changes directly in the relevant sections:
 
-   **After:**
-   ```lua
-   -- New usage
-   ```
-   ```
+```markdown
+### Component:Method(params)
 
-6. **Deprecated Features**:
-   ```md
-   ## Deprecated Features
+*Available since API Version: 486578*
 
-   ### Feature Name
+Description of the method...
 
-   Description of deprecated feature and recommended alternatives:
+> **API Change (624447)**: This method now returns an additional boolean parameter indicating success.
+```
 
-   **Deprecated:**
-   ```lua
-   -- Deprecated code
-   ```
+## Migration Guide Documentation
 
-   **Recommended Alternative:**
-   ```lua
-   -- Alternative approach
-   ```
-   ```
+For significant API changes, create dedicated migration guides in [api-vanilla/updates/migration-guides.md](mdc:dst-api-webdocs/dst-api-webdocs/docs/api-vanilla/updates/migration-guides.md):
 
-7. **Breaking Changes**:
-   ```md
-   ## Breaking Changes
+1. **Version transition**: Clearly identify the versions involved
+2. **Breaking changes**: List all functionality that requires code updates
+3. **Code examples**: Show before and after examples
+4. **Step-by-step migration**: Provide clear steps for updating code
 
-   ### Change Description
+Example Migration Section:
 
-   Details about breaking changes and migration steps:
+```markdown
+## Migrating from API 486578 to API 624447
 
-   **Migration Steps:**
-   1. Step 1
-   2. Step 2
-   3. Step 3
-   ```
+### Breaking Changes
 
-8. **Compatibility Notes**:
-   ```md
-   ## Compatibility Notes
+#### TheInventory:GetItems() Return Value Changed
 
-   Information about backwards compatibility and minimum game version requirements.
-   ```
+**Before:**
+```lua
+local items = TheInventory:GetItems()
+for _, item in ipairs(items) do
+    print(item.item_id, item.name)
+end
+```
 
-## Best Practices
+**After:**
+```lua
+local items = TheInventory:GetItems()
+for _, item in ipairs(items) do
+    print(item.item_id, item.name, item.quality) -- quality is new
+end
+```
+```
 
-1. **Version Numbers**: Use clear version numbers that match the game update version
-2. **Complete Examples**: Provide working code examples for all new or changed features
-3. **Migration Guides**: Include step-by-step migration guides for breaking changes
-4. **Cross-References**: Link to detailed documentation for new features
-5. **Changelog**: Maintain a master changelog that links to individual update documents
+## Backwards Compatibility Documentation
 
-## Example API Update Documentation
+Document backwards compatibility considerations in [api-vanilla/updates/backwards-compatibility.md](mdc:dst-api-webdocs/dst-api-webdocs/docs/api-vanilla/updates/backwards-compatibility.md):
 
-See [API Update Example](mdc:dst-api-webdocs/dst-api-webdocs/docs/api-vanilla/getting-started/api-update-example.md) for a well-structured example of API update documentation.
+1. **Compatibility promise**: What guarantees are made about API stability
+2. **Version support**: Which versions are officially supported
+3. **Deprecation policy**: How features are deprecated before removal
+4. **Compatibility patterns**: How to write code that works across versions
 
-## API Changelog
+Example:
 
-The [API Changelog](mdc:dst-api-webdocs/dst-api-webdocs/docs/api-vanilla/getting-started/api-changelog.md) provides a chronological list of all API updates with links to detailed documentation for each update.
+```markdown
+## Checking Feature Availability
+
+For features that may not exist in all API versions, use feature detection:
+
+```lua
+-- Safe feature detection pattern
+if ThePlayer.components.builder and ThePlayer.components.builder.CanLearn then
+    local can_learn = ThePlayer.components.builder:CanLearn(recipe)
+else
+    -- Fallback for older API versions
+    local can_learn = ThePlayer.components.builder:KnowsRecipe(recipe) == false
+end
+```
+```
+
+## Deprecated Features Documentation
+
+Deprecated features should be clearly marked in [api-vanilla/updates/deprecated-features.md](mdc:dst-api-webdocs/dst-api-webdocs/docs/api-vanilla/updates/deprecated-features.md):
+
+1. **Deprecation notice**: When the feature was deprecated
+2. **Removal timeline**: When the feature will likely be removed
+3. **Replacement**: What alternative should be used instead
+4. **Migration pattern**: How to replace the deprecated functionality
+
+Example:
+
+```markdown
+## TheSim:GetPosition()
+
+**Deprecated in API Version: 486578**  
+**Will be removed in API Version: 728000**
+
+This method has been deprecated and will be removed in a future version.
+
+### Replacement
+
+Use `TheSim:GetScreenPos()` instead:
+
+```lua
+-- Old code
+local x, y = TheSim:GetPosition()
+
+-- New code
+local x, y = TheSim:GetScreenPos()
+```
+```
+
+## Documenting Mod Update Requirements
+
+For each significant API change, document the impact on mods in [api-vanilla/updates/mod-updating-guide.md](mdc:dst-api-webdocs/dst-api-webdocs/docs/api-vanilla/updates/mod-updating-guide.md):
+
+1. **Version requirement**: What version of the API is required
+2. **Compatibility layer**: How to support multiple API versions
+3. **Testing advice**: How to test mods against the new API
+
+Example:
+
+```markdown
+## Supporting Both Old and New Inventory API
+
+If your mod needs to work across API versions, you can use this pattern:
+
+```lua
+local function GetItemQuality(item)
+    local items = TheInventory:GetItems()
+    for _, inv_item in ipairs(items) do
+        if inv_item.item_id == item.item_id then
+            -- New API provides quality directly
+            return inv_item.quality or 0 -- Default to 0 for older API versions
+        end
+    end
+    return 0
+end
+```
+```
+
+## API Update Template
+
+Use the [api-update-template.md](mdc:dst-api-webdocs/dst-api-webdocs/community/templates/api-update-template.md) for documenting new API releases:
+
+1. Create new update document when API version changes
+2. Include all changes categorized appropriately
+3. Provide code examples for significant changes
+4. Add migration guidance for breaking changes
 

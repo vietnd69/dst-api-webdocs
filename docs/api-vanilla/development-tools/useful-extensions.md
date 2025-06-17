@@ -260,5 +260,5 @@ For serious modders, consider setting up a complete environment with these tools
 
 - [VSCode Setup](vscode-setup.md) - For basic VSCode configuration
 - [Git Integration](git-integration.md) - For version control setup
-- [Debugging and Testing](debugging-and-testing.md) - For testing your mods
-- [First Mod](first-mod.md) - For creating your first DST mod 
+- [Debugging and Testing](../debugging-and-testing/debugging-and-testing.md) - For testing your mods
+- [First Mod](../getting-started/first-mod.md) - For creating your first DST mod 

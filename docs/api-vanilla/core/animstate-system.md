@@ -2,13 +2,13 @@
 id: animstate-system
 title: AnimState System
 sidebar_position: 5
-last_updated: 2023-07-12
-version: 619045
+last_updated: 2024-08-08
+version: 625420
 ---
-*Last Update: 2023-07-12*
+*Last Update: 2024-08-08*
 # AnimState System
 
-*API Version: 619045*
+*API Version: 625420*
 
 The AnimState system is responsible for managing entity animations, visual appearances, and graphic effects in Don't Starve Together. It provides the interface between the game's logic and the visual representation of entities.
 
@@ -112,6 +112,9 @@ entity.AnimState:Show("ARM")
 -- Set render layer (depth)
 entity.AnimState:SetLayer(LAYER_BACKGROUND)
 entity.AnimState:SetSortOrder(3)
+
+-- Force single pass rendering (added in API 625420)
+entity.AnimState:SetForceSinglePass(true) -- For UIAnims with alpha fades on clients without stencil buffers
 ```
 
 ## Animation Events

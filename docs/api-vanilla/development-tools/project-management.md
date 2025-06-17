@@ -298,4 +298,4 @@ A craftable staff that allows players to cast light and deal damage.
 - [Git Integration](git-integration.md) - For version control setup
 - [CI/CD Workflow](cicd-workflow.md) - For automated testing and deployment
 - [Useful Extensions and Tools](useful-extensions.md) - For additional development tools
-- [Testing Environment](testing-environment.md) - For setting up a testing environment 
+- [Testing Environment](../debugging-and-testing/testing-environment.md) - For setting up a testing environment 

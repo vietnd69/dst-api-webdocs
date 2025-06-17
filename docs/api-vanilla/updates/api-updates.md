@@ -2,16 +2,16 @@
 id: api-updates
 title: API Updates and Changes
 sidebar_position: 5
-last_updated: 2023-08-01
+last_updated: 2024-08-22
 ---
-*Last Update: 2023-08-01*
+*Last Update: 2024-08-22*
 # API Updates and Changes
 
 The Don't Starve Together API evolves over time as Klei Entertainment adds new features, fixes bugs, and makes balance changes. This page explains how API changes are documented and how to keep your mods updated.
 
 ## API Versioning
 
-Don't Starve Together uses the game build number as its API version. The current documented API version is **624447** (as of August 1, 2023).
+Don't Starve Together uses the game build number as its API version. The current documented API version is **627870** (as of August 22, 2024).
 
 ## Finding API Changes
 
@@ -21,14 +21,19 @@ API changes are typically announced in these locations:
 
 2. **API Changelog**: For a comprehensive list of all API changes, check the [API Changelog](api-changelog.md) document.
 
-3. **Discord Server**: Join the [Klei Discord](https://discord.gg/klei) to discuss API changes with other modders.
+3. **Mod Release IDs**: For tracking game updates and mod compatibility, check the [Mod Release IDs](mod-release-ids.md) document.
+
+4. **Discord Server**: Join the [Klei Discord](https://discord.gg/klei) to discuss API changes with other modders.
 
 ## Recent API Changes
 
-### API Version 624447 (August 1, 2023)
-- Added support for recipes unlocked by skill tree skills
-- All existing skill tree builder tags have been removed in favor of builder skills
-- Added missing TUNING.ANTLION_DEAGGRO_DIST value
+### API Version 627870 (August 22, 2024)
+- Added new mod release ID: `R35_SANITYTROUBLES`
+- Added support for Winona's vine bridges in the Caves
+- Added support for ghosts to float over gaps in the Caves
+
+### API Version 625420 (August 8, 2024)
+- Added new method `AnimState:SetForceSinglePass(bool)` for UIAnims with alpha fades for clients without stencil buffers
 
 [See complete changelog](api-changelog.md)
 

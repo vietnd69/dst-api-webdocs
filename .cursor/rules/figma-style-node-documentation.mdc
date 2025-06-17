@@ -1,0 +1,446 @@
+---
+description: This document outlines the standards for documenting Don't Starve Together node types using a format similar to Figma's API documentation. This format emphasizes clarity, consistency, and comprehensive property/method documentation.
+globs: 
+alwaysApply: false
+---
+# Figma-Style Node Documentation Standards
+
+This document outlines the standards for documenting Don't Starve Together node types using a format similar to Figma's API documentation. This format emphasizes clarity, consistency, and comprehensive property/method documentation.
+
+## Document Structure
+
+Each node type documentation file should follow this structure:
+
+1. **Frontmatter & Introduction**:
+   ```md
+   ---
+   id: node-name
+   title: NodeName
+   sidebar_position: X
+   last_updated: YYYY-MM-DD
+   version: API_VERSION
+   ---
+   *Last Update: YYYY-MM-DD*
+   # NodeName
+
+   *API Version: API_VERSION*
+
+   Brief description of what the node type is and its purpose in the game's architecture.
+   ```
+
+2. **Core Properties and Methods Overview**:
+   ```md
+   ## NodeName properties and methods
+
+   NodeName provides the following key properties and methods:
+
+   - **Properties**
+     - `property1` - Brief description
+     - `property2` - Brief description
+   
+   - **Methods**
+     - `method1()` - Brief description
+     - `method2(param)` - Brief description
+   ```
+
+## Property Documentation
+
+Properties should be documented with the Figma-style format:
+
+```md
+## Property section
+
+### property1: Type <span style={{color: "#888"}}>[readonly]</span>
+
+Detailed description of the property, explaining what it does, when and how to use it.
+
+---
+
+### property2: Type | OtherType
+
+Detailed description of the property with explanation about different possible types.
+
+---
+
+### property3: 'VALUE1' | 'VALUE2' | 'VALUE3'
+
+Detailed description of enumerated property options.
+
+```
+
+Key elements:
+- H3 heading with property name, type, and [readonly] in gray color using `<span style={{color: "#888"}}>[readonly]</span>`
+- Detailed description
+- Horizontal rule (---) between properties for clear separation
+
+## Property References and Links
+
+When a property references another type or component, link to its documentation:
+
+```md
+### components: {[name: string]: [Component](mdc:dst-api-webdocs/dst-api-webdocs/component.md)} <span style={{color: "#888"}}>[readonly]</span>
+
+Table of components attached to this entity. Each component provides specific functionality.
+
+---
+
+### brain: [Brain](mdc:dst-api-webdocs/dst-api-webdocs/brain.md) | null
+
+Reference to the brain controlling this entity's AI behavior. Can be null if the entity has no AI.
+
+```
+
+Key practices:
+- Use Markdown links to reference other documented types: `[TypeName](mdc:dst-api-webdocs/dst-api-webdocs/type-name.md)`
+- Link component names to their respective documentation pages
+- Link method parameter types and return types to their documentation
+
+## Method Documentation
+
+Methods should be documented with the Figma-style format:
+
+```md
+## Method section
+
+### methodName(param1: Type, param2: Type): ReturnType
+
+Detailed description of what the method does and when to use it.
+
+Example:
+```lua
+-- Example usage of the method
+node:methodName("value", 123)
+```
+
+---
+
+### complexMethod(options: {param1: Type, param2: Type}): ReturnType
+
+Detailed description of the complex method.
+
+Example with explanation:
+```lua
+-- Configure complex options
+local options = {
+    param1 = "value",
+    param2 = 100
+}
+
+-- Call the method with options
+node:complexMethod(options)
+```
+
+---
+```
+
+Key elements:
+- H3 heading with method signature including parameter types and return type
+- Detailed description
+- Example code showing usage
+- Horizontal rule (---) between methods for clear separation
+
+## Grouping Properties and Methods
+
+Group related properties and methods into logical sections:
+
+```md
+## Core Properties
+
+### property1: Type <span style={{color: "#888"}}>[readonly]</span>
+...
+
+---
+
+### property2: Type
+...
+
+---
+
+## Behavioral Methods
+
+### method1(): ReturnType
+...
+
+---
+
+### method2(): ReturnType
+...
+
+---
+
+## Event Handling
+
+### addEventListener(event: String, callback: Function): void
+...
+
+---
+```
+
+## State Documentation
+
+For nodes with states, document them clearly:
+
+```md
+## States
+
+The NodeName can be in one of these states:
+
+### 'READY' | 'RUNNING' | 'SUCCESS' | 'FAILURE'
+
+Detailed explanation of the state system and what each state represents.
+
+State transitions occur based on the following rules:
+- READY → RUNNING: When the node starts execution
+- RUNNING → SUCCESS: When the execution completes successfully
+- RUNNING → FAILURE: When the execution fails
+```
+
+## Special UI Elements
+
+Use these special formatting elements when appropriate:
+
+1. **Note boxes**:
+   ```md
+   > **Note:** Important information that users should be aware of when using this property.
+   ```
+
+2. **Warning boxes**:
+   ```md
+   > **Warning:** Critical information about potential issues or limitations.
+   ```
+
+3. **Code tabs** (for multi-language examples):
+   ```md
+   <Tabs>
+   <TabItem value="lua" label="Lua">
+
+   ```lua
+   -- Lua implementation
+   ```
+
+   </TabItem>
+   <TabItem value="pseudocode" label="Pseudocode">
+
+   ```
+   // Pseudocode implementation
+   ```
+
+   </TabItem>
+   </Tabs>
+   ```
+
+4. **"View more"** for expandable content:
+   ```md
+   <details>
+   <summary>View more details</summary>
+
+   Additional detailed information that doesn't need to be visible by default.
+
+   </details>
+   ```
+
+## Styling Text with JSX
+
+When using JSX components in Docusaurus, use proper object syntax for the style prop:
+
+```jsx
+<span style={{color: '#888'}}>[readonly]</span>
+```
+
+For standard Markdown files that don't use JSX components, continue using HTML style attributes:
+
+```html
+<span style="color: #888">[readonly]</span>
+```
+
+Choose the approach based on whether your documentation uses JSX components or standard HTML/Markdown.
+
+## Complete Property Example
+
+```md
+### children: Array<[BehaviorNode](mdc:dst-api-webdocs/dst-api-webdocs/behavior-node.md)> <span style={{color: "#888"}}>[readonly]</span>
+
+The list of child nodes contained within this node. This is used to construct behavior trees hierarchically.
+
+The order of children matters for:
+- **PriorityNodes**: Earlier children have higher priority
+- **SequenceNodes**: Children are executed in sequence
+
+Example:
+```lua
+-- Create a priority node with ordered children
+local root = PriorityNode({
+    -- First child has highest priority
+    RunAway(inst, "character", 4, 6), 
+    -- Second child is only considered if first fails
+    ChaseAndAttack(inst, 10),
+    -- Last child is the fallback behavior
+    Wander(inst)
+})
+
+-- Access children property
+for i, child in ipairs(root.children) do
+    print("Child " .. i .. ": " .. child.name)
+end
+```
+
+Children cannot be modified directly after creation. To change the structure, create a new node.
+
+---
+```
+
+## Complete Method Example
+
+```md
+### Visit(): [Status](mdc:dst-api-webdocs/dst-api-webdocs/status.md)
+
+Evaluates the node and returns its current status. This is the core method that drives behavior tree execution.
+
+The Visit method:
+1. Checks if the node is in `READY` state and initializes if needed
+2. Performs the node's specific logic
+3. Returns the current status (`RUNNING`, `SUCCESS`, or `FAILURE`)
+
+Example:
+```lua
+-- Custom node implementation
+function MyNode:Visit()
+    if self.status == READY then
+        self.status = RUNNING
+        -- Initialize logic
+    end
+    
+    if self.status == RUNNING then
+        -- Perform node logic
+        local result = self:PerformAction()
+        
+        if result then
+            self.status = SUCCESS
+        else
+            self.status = FAILURE
+        end
+    end
+    
+    return self.status
+end
+
+-- Usage in behavior tree
+local status = node:Visit()
+if status == SUCCESS then
+    print("Node completed successfully")
+end
+```
+
+The Visit method is automatically called by the behavior tree system during execution.
+
+---
+```
+
+## Navigation and Reference
+
+Include these elements to improve navigation:
+
+1. **See also** section at the bottom:
+   ```md
+   ## See also
+
+   - [Brain](mdc:dst-api-webdocs/dst-api-webdocs/brain.md) - Controls entity AI using behavior nodes
+   - [ActionNode](mdc:dst-api-webdocs/dst-api-webdocs/action-nodes.md) - Lowest level behavior tree nodes
+   - [BehaviorTree](mdc:dst-api-webdocs/dst-api-webdocs/behavior-tree.md) - Complete behavior tree system
+   ```
+
+## Best Practices
+
+1. **Property Format**: Always follow the pattern `propertyName: Type <span style="color: #888">[readonly]</span>` with consistent formatting
+2. **Method Format**: Always follow the pattern `methodName(param: Type): ReturnType`
+3. **Type References**: Always link to other type documentation using `[TypeName](mdc:dst-api-webdocs/dst-api-webdocs/type-name.md)` format
+4. **Consistency**: Use consistent terminology across all node type documentation
+5. **Examples**: Include working code examples for every property and method
+6. **Separation**: Use horizontal rules (---) between properties and methods for clarity
+7. **Completeness**: Document all properties and methods, even if they seem obvious
+8. **Versioning**: Include API version information for compatibility tracking
+
+## Example Page Structure
+
+```md
+---
+id: priority-node
+title: PriorityNode
+sidebar_position: 5
+last_updated: 2023-08-15
+version: 624447
+---
+*Last Update: 2023-08-15*
+# PriorityNode
+
+*API Version: 624447*
+
+PriorityNode is a behavior tree node that executes its children in order until one succeeds or all fail. It functions as a logical "OR" operation in the behavior tree.
+
+
+## PriorityNode properties
+
+### children: Array<[BehaviorNode](mdc:dst-api-webdocs/dst-api-webdocs/behavior-node.md)> <span style={{color: "#888"}}>[readonly]</span>
+
+The list of child nodes that will be executed in priority order.
+
+---
+
+### status: [Status](mdc:dst-api-webdocs/dst-api-webdocs/status.md) <span style={{color: "#888"}}>[readonly]</span>
+
+The current execution status of the node (READY, RUNNING, SUCCESS, or FAILURE).
+
+---
+
+### period: number
+
+Time between re-evaluations of the priority list, in seconds. A value of 0 means evaluate every frame.
+
+---
+
+## PriorityNode methods
+
+### Visit(): [Status](mdc:dst-api-webdocs/dst-api-webdocs/status.md)
+
+Evaluates the priority node by attempting to execute children in order.
+
+---
+
+### Stop(): void
+
+Stops execution of this node and all its running children.
+
+---
+
+## States
+
+PriorityNode can be in one of four states:
+
+### 'READY' | 'RUNNING' | 'SUCCESS' | 'FAILURE'
+
+- **READY**: Node is ready to begin evaluation
+- **RUNNING**: Node is currently executing a child node
+- **SUCCESS**: A child node has succeeded
+- **FAILURE**: All child nodes have failed
+
+---
+
+## Examples
+
+### Basic Usage
+
+```lua
+local root = PriorityNode(
+{
+    RunAway(inst, "character", 4, 6),
+    ChaseAndAttack(inst, 10),
+    Wander(inst)
+}, 0.5)
+```
+
+## See also
+
+- [Brain](mdc:dst-api-webdocs/dst-api-webdocs/brain.md) - For brain implementation using behavior trees
+
+
+- [SequenceNode](mdc:dst-api-webdocs/dst-api-webdocs/sequence-nodes.md) - For executing actions in sequence

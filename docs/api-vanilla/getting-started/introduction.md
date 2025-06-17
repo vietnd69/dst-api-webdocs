@@ -57,7 +57,7 @@ To begin modding Don't Starve Together:
 1. Install the game and set up the modding environment
 2. Learn the basic structure of a mod
 3. Understand how to use the API documentation
-4. Stay informed about [API changes and updates](api-changelog.md)
+4. Stay informed about [API changes and updates](../updates/api-changelog.md)
 5. Start with simple modifications before moving to complex features
 
 The following sections in this documentation will guide you through these steps and provide detailed information about the DST API components.

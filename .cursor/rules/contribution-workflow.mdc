@@ -1,0 +1,65 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# DST API Documentation Contribution Workflow
+
+This guide outlines the complete workflow for contributing to the Don't Starve Together API documentation.
+
+## Contribution Process
+
+1. **Identify Documentation Needs**:
+   - Missing API documentation
+   - Outdated information
+   - Unclear explanations
+   - Missing examples
+
+2. **Setup Development Environment**:
+   - Fork the repository
+   - Clone your fork locally
+   - Install dependencies (`npm install`)
+   - Start development server (`npm start`)
+
+3. **Create or Update Documentation**:
+   - Follow the [documentation standards](mdc:dst-api-webdocs/dst-api-webdocs/community/documentation-standards.md)
+   - Use appropriate [templates](mdc:dst-api-webdocs/dst-api-webdocs/community/templates/README.md) for new content
+   - Place files in the correct directory under `/docs/api-vanilla/`
+   - Update sidebar navigation in [sidebars.ts](mdc:dst-api-webdocs/dst-api-webdocs/sidebars.ts) if adding new pages
+
+4. **Test Your Changes**:
+   - Verify documentation renders correctly in the development server
+   - Check that links work properly
+   - Ensure code examples are complete and functional
+   - Validate markdown formatting
+
+5. **Submit Changes**:
+   - Create a focused branch (`git checkout -b add-component-docs`)
+   - Commit changes with descriptive messages
+   - Push to your fork
+   - Open a pull request using the [PR template](mdc:dst-api-webdocs/dst-api-webdocs/community/pr-template.md)
+
+6. **Review Process**:
+   - Address reviewer feedback
+   - Make requested changes
+   - Request re-review when updates are complete
+
+## Quality Checklist
+
+Before submitting documentation, ensure it meets these quality standards:
+
+- [ ] **Accuracy**: Information is technically accurate and up-to-date
+- [ ] **Completeness**: All relevant aspects of the API are documented
+- [ ] **Clarity**: Explanations are clear and understandable
+- [ ] **Examples**: Includes working code examples
+- [ ] **Formatting**: Follows the project's markdown formatting standards
+- [ ] **Cross-References**: Links to related documentation where appropriate
+- [ ] **Versioning**: Includes API version information if applicable
+
+## Resources
+
+- [Documentation Standards](mdc:dst-api-webdocs/dst-api-webdocs/community/documentation-standards.md)
+- [Code of Conduct](mdc:dst-api-webdocs/dst-api-webdocs/community/code-of-conduct.md)
+- [Areas Needing Contributions](mdc:dst-api-webdocs/dst-api-webdocs/community/areas-needing-contributions.md)
+- [Templates](mdc:dst-api-webdocs/dst-api-webdocs/community/templates/README.md)
+

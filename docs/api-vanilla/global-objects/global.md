@@ -21,7 +21,7 @@ local TheWorld = GLOBAL.TheWorld
 
 -- Access global tables
 local STRINGS = GLOBAL.STRINGS
-local TUNING = GLOBAL.TUNING
+local TUNING = GLOBAL.TUNING  -- See [TUNING System](../core/tuning.md) for details
 local ACTIONS = GLOBAL.ACTIONS
 
 -- Access game classes
@@ -66,7 +66,7 @@ GLOBAL.MY_MOD_DATA = {
 You can modify game constants through the GLOBAL table:
 
 ```lua
--- Modify tuning values
+-- Modify tuning values (see [TUNING System](../core/tuning.md) for all available values)
 GLOBAL.TUNING.WILSON_HEALTH = 200         -- Change Wilson's health
 GLOBAL.TUNING.HAMMER_LOOT_PERCENT = 1.0   -- Always drop full loot when hammering
 

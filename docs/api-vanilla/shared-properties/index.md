@@ -37,7 +37,7 @@ inst.entity:SetPristine()
 
 ### Tags
 
-The [Tags](./tags.md) system provides a lightweight and efficient way to categorize entities and identify their characteristics. Tags are used extensively for entity queries, targeting, and implementing game mechanics.
+The [Tags](../entity-framework/tags.md) system provides a lightweight and efficient way to categorize entities and identify their characteristics. Tags are used extensively for entity queries, targeting, and implementing game mechanics.
 
 ```lua
 -- Basic Tags usage

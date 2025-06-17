@@ -2,14 +2,28 @@
 id: api-changelog
 title: API Changelog
 sidebar_position: 2
-last_updated: 2023-08-01
+last_updated: 2024-08-22
 ---
-*Last Update: 2023-08-01*
+*Last Update: 2024-08-22*
 # API Changelog
 
 This document tracks significant API changes between Don't Starve Together versions.
 
-## API Version 624447 (2023-08-01)
+## [API Version 627870 (2024-08-22)](https://forums.kleientertainment.com/game-updates/dst/627870-r2385/)
+
+### [Mod Release ID](mod-release-ids#complete-release-id-list)
+- Added new mod release ID: `R35_SANITYTROUBLES`
+
+### Cave System Changes
+- Added support for Winona's vine bridges in the Caves
+- Added support for ghosts to float over gaps in the Caves
+
+## [API Version 625420 (2024-08-08)](https://forums.kleientertainment.com/game-updates/dst/625420-r2381/)
+
+### [AnimState System Changes](../core/animstate-system.md#visibility-and-layers)
+- Added new method `AnimState:SetForceSinglePass(bool)` for UIAnims with alpha fades for clients without stencil buffers
+
+## [API Version 624447 (2023-08-01)](https://forums.kleientertainment.com/game-updates/dst/624447-r2377/)
 
 ### Builder Component Changes
 - Added support for recipes unlocked by skill tree skills
@@ -19,7 +33,7 @@ This document tracks significant API changes between Don't Starve Together versi
   - `builder:RemoveBuilderSkill(skill_name)` - Remove a builder skill
   - `builder:HasBuilderSkill(skill_name)` - Check if builder has a specific skill
 
-### Recipe System Changes
+### [Recipe System Changes](../components/builder.md#builder-skills)
 - Recipe configuration now prefers `builder_skill` over `builder_tag` for skill tree integration
 - Example update:
   ```lua
