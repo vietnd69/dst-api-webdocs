@@ -1,0 +1,396 @@
+---
+description: This document provides comprehensive guidance for creating, formatting, and maintaining consistent node-types documentation for the Don't Starve Together API.
+globs: 
+alwaysApply: false
+---
+# Don't Starve Together API Documentation Guide
+
+This document provides comprehensive guidance for creating, formatting, and maintaining consistent node-types documentation for the Don't Starve Together API.
+
+## Document Structure
+
+Each API documentation file should follow this consistent structure:
+
+### 1. Frontmatter
+
+```md
+---
+id: element-name
+title: Element Name
+sidebar_position: X
+last_updated: YYYY-MM-DD
+version: 624447
+---
+```
+
+### 2. Title and Version Information
+
+```md
+*Last Update: YYYY-MM-DD*
+# Element Name
+
+*API Version: 624447*
+
+Brief description of what this element is and its purpose in the game's architecture.
+```
+
+### 3. Properties and Methods Overview
+
+Provide a quick overview of the element's key properties and methods:
+
+```md
+## Element properties and methods
+
+Element provides the following key properties and methods:
+
+- **Properties**
+  - `property1` - Brief description
+  - `property2` - Brief description
+
+- **Methods**
+  - `method1()` - Brief description
+  - `method2()` - Brief description
+```
+
+## Type Formatting Standards
+
+When documenting API methods, parameters, properties, and return types, follow these formatting rules:
+
+### Method Signature Format
+
+```md
+#### MethodName(param1: `TypeName1`, param2: `TypeName2`): `ReturnType`
+```
+
+All type names should be wrapped in backticks (``) except for entity links, which should use Markdown link format:
+
+```md
+#### MethodName(entity: [Entity](mdc:dst-api-webdocs/entity.md), param2: `TypeName2`): `ReturnType`
+```
+
+### Common Type Names
+
+Common type names should be formatted with backticks consistently:
+
+- Basic types: `number`, `string`, `boolean`, `Function`, `Object`, `Array`
+- Complex types: `Array<string>`, `Set<Entity>`, `Map<string, number>`
+- Custom types: `ActionNode`, `Vector3`, `ComponentContainer`, `Function[]`
+
+### Nested Types
+
+For nested types, maintain backticks around each distinct type:
+
+```md
+items: `Array<{id: string, count: number}>`: An array of item objects
+callback: `(result: boolean) => void`: A callback function
+```
+
+## Detailed Properties Section
+
+For each property, provide detailed documentation:
+
+```md
+## Properties
+
+### property1: `Type` `[readonly]`
+
+Description of what this property does and how it's used.
+
+```lua
+-- Example code showing property usage
+local value = node.property1
+```
+
+---
+```
+
+## Detailed Methods Section
+
+For each method, provide detailed documentation:
+
+```md
+## Methods
+
+### method1(param1: `Type`, param2: `Type`): `ReturnType`
+
+Description of what this method does and how it's used.
+
+```lua
+-- Example code showing method usage
+node:method1("value", 123)
+```
+
+---
+```
+
+## Text Formatting
+
+### Basic Markdown Formatting
+
+```md
+**Bold text** or **Bold text**
+*Italic text* or *Italic text*
+`Inline code` or `Inline code`
+~~Strikethrough~~
+```
+
+### Color Formatting
+
+Use `<span>` tags with inline styles to apply color to text:
+
+```md
+<span style={{color: "#888"}}>[readonly]</span>
+<span style={{color: "#ff5555"}}>Important warning</span>
+<span style={{color: "#55aa55"}}>Success message</span>
+<span style={{color: "#5555ff"}}>Information note</span>
+```
+
+#### Standard Color Scheme
+
+For consistency across documentation, use these standard colors:
+
+- `#888` - Gray text for secondary information (e.g., [readonly] tags)
+- `#ff5555` - Red text for warnings and critical information
+- `#55aa55` - Green text for success states and positive information
+- `#5555ff` - Blue text for informational notes
+- `#aa55aa` - Purple text for special features or advanced topics
+
+### Admonitions (Note Boxes)
+
+Docusaurus supports special callout boxes called admonitions:
+
+```md
+:::note
+This is a note
+:::
+
+:::tip
+This is a tip
+:::
+
+:::info
+This is info
+:::
+
+:::caution
+This is a caution
+:::
+
+:::danger
+This is a danger warning
+:::
+```
+
+## Code Blocks and Examples
+
+### Code Block Format
+
+Use triple backticks with language identifier for syntax highlighting:
+
+````md
+```lua
+function MyFunction(param)
+    -- This is Lua code with syntax highlighting
+    return param * 2
+end
+```
+````
+
+### Line Highlighting
+
+Highlight specific lines in code blocks:
+
+````md
+```lua {2-4,6}
+function MyFunction(param)
+    -- These lines will be highlighted
+    local result = param * 2
+    print("Result: " .. result)
+    
+    return result -- This line will also be highlighted
+end
+```
+````
+
+### Common Example Patterns
+
+Always include working examples for:
+
+1. **Basic Usage**: Simple, minimal examples of how to use the element
+2. **Common Patterns**: Show typical implementation patterns
+3. **Advanced Usage**: More complex or specialized usage scenarios
+4. **Integration**: How this element works with other parts of the API
+
+## Tables
+
+Format tables with proper header alignment:
+
+```md
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | `string` | The name of the entity |
+| `position` | `Vector3` | The world position |
+| `health` | `number` | Current health value |
+```
+
+## Node Type Relationships
+
+When documenting related node types, consider the hierarchical relationships between them:
+
+### Core Engine Types
+
+- **Entity** - Base game object with transform, animations, and components
+- **Component** - Modular functionality attachable to entities
+- **Brain** - AI controller that uses behavior trees
+- **Stategraph** - State machine controller for entity animations and behavior
+- **Widget** - UI element for screens and menus
+- **Network** - Remote synchronization and replication handler
+
+### Behavior Tree Types
+
+- **BehaviorNode** - Abstract base class for all AI behavior nodes
+- **ActionNode** - Performs specific entity actions
+- **ConditionNode** - Tests conditions and controls flow
+- **PriorityNode** - Selects highest priority successful child
+- **SequenceNode** - Executes children in sequence
+- **DecoratorNode** - Modifies behavior of a single child node
+
+## Links and References
+
+### Internal Links
+
+Link to other documentation pages:
+
+```md
+[Entity System](mdc:dst-api-webdocs/entity-system.md)
+```
+
+### Anchor Links
+
+Link to specific sections within a page:
+
+```md
+[See Properties Section](mdc:dst-api-webdocs/element-name.md#properties)
+```
+
+### "See Also" Section
+
+End each document with related links:
+
+```md
+## See also
+
+- [Related Element 1](mdc:dst-api-webdocs/related-element-1.md) - Brief description of relationship
+- [Related Element 2](mdc:dst-api-webdocs/related-element-2.md) - Brief description of relationship
+```
+
+## MDX Compatibility Notes
+
+To avoid MDX compilation errors in Docusaurus v3:
+
+1. Don't use JSX syntax like `<span>` tags where possible
+2. Use backticks for readonly markers: `[readonly]` instead of styled spans
+3. Simplify type annotations that contain special characters like `[`, `{`, `<`, `>`
+4. Use triple backticks (```) for code blocks, not indentation
+5. Ensure all links use proper Markdown format: `[text](mdc:dst-api-webdocs/link)`
+6. Add `{/* prettier-ignore */}` before complex elements that Prettier might misformat
+
+## Example Documentation
+
+Here's an abbreviated example of properly formatted node type documentation:
+
+```md
+---
+id: example-node
+title: Example Node
+sidebar_position: 1
+last_updated: 2023-08-15
+version: 624447
+---
+*Last Update: 2023-08-15*
+# Example Node
+
+*API Version: 624447*
+
+Example Nodes are specialized nodes that demonstrate the documentation format.
+
+## Example Node properties and methods
+
+Example Node provides the following key properties and methods:
+
+- **Properties**
+  - `inst` - Reference to the entity this node controls
+  - `status` - Current execution status of the node
+
+- **Methods**
+  - `Visit()` - Evaluates the node
+  - `Reset()` - Resets the node to initial state
+
+## Properties
+
+### inst: [Entity](mdc:dst-api-webdocs/entity.md) `[readonly]`
+
+A reference to the entity that this node is controlling.
+
+```lua
+-- Access the node's entity
+local health = example_node.inst.components.health
+```
+
+---
+
+### status: `string` `[readonly]`
+
+The current execution status of the node.
+
+```lua
+-- Check the current status
+if example_node.status == "SUCCESS" then
+    print("Node completed successfully")
+end
+```
+
+---
+
+## Methods
+
+### Visit(): `string`
+
+Evaluates the node and returns its status.
+
+```lua
+function ExampleNode:Visit()
+    -- Implementation
+    return "SUCCESS"
+end
+```
+
+---
+
+### Reset(): `void`
+
+Resets the node to its initial state.
+
+```lua
+function ExampleNode:Reset()
+    -- Implementation
+end
+```
+
+---
+
+## See also
+
+- [Related Node](mdc:dst-api-webdocs/related-node.md) - Description of related node
+```
+
+## Best Practices
+
+1. **Consistency**: Use consistent terminology and formatting throughout the documentation
+2. **Completeness**: Document all public properties, methods, and important states
+3. **Brevity**: Be concise but thorough; avoid unnecessary explanations
+4. **Examples**: Include practical, working code examples for all features
+5. **Cross-References**: Link to related documentation when appropriate
+6. **Version Tracking**: Clearly indicate which API version the documentation applies to
+7. **Regular Updates**: Update the last_updated date whenever documentation changes
+

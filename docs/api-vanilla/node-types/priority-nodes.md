@@ -77,7 +77,7 @@ priority_node.period = 1.0  -- Re-evaluate every second
 
 ---
 
-### lasttime: number `[readonly]`
+### lasttime: `number` `[readonly]`
 
 Timestamp of the last evaluation, used to determine when the next evaluation should occur based on the period.
 
@@ -181,7 +181,7 @@ end
 
 ---
 
-### Stop(): void
+### Stop(): `void`
 
 Stops execution of this priority node and all its children.
 
@@ -197,7 +197,7 @@ end
 
 ---
 
-### Reset(): void
+### Reset(): `void`
 
 Resets the priority node and all its children to READY state.
 
@@ -217,7 +217,7 @@ end
 
 Don't Starve Together includes several pre-defined priority node types:
 
-### PriorityNode(inst: Entity, children: `Array<BehaviorNode>`, period?: number): PriorityNode
+### PriorityNode(inst: Entity, children: `Array<BehaviorNode>`, period?: `number`): `PriorityNode`
 
 The basic priority node that executes children in order until one succeeds or all fail.
 
@@ -236,7 +236,7 @@ local node = PriorityNode(inst, {
 
 ---
 
-### BrainPriorityNode(inst: Entity, children: `Array<BehaviorNode>`, period?: number): PriorityNode
+### BrainPriorityNode(inst: `Entity`, children: `Array<BehaviorNode>`, period?: `number`): `PriorityNode`
 
 A priority node that's specifically designed for use in brain components. It works the same as a regular PriorityNode but includes additional brain-specific functionality.
 

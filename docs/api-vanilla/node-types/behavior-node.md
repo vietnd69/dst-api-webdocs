@@ -30,7 +30,7 @@ BehaviorNode provides the following key properties and methods:
 
 ## Properties
 
-### name: string `[readonly]`
+### name: `string` `[readonly]`
 
 A descriptive name for the node. Used primarily for debugging and logging.
 
@@ -85,7 +85,7 @@ end
 
 ---
 
-### inst: Entity `[readonly]`
+### inst: [Entity](entity.md) `[readonly]`
 
 Reference to the entity that this behavior node is controlling.
 
@@ -126,7 +126,7 @@ end
 
 ---
 
-### Start(): void
+### Start(): `void`
 
 Initializes the node before its first execution. Typically sets the status to RUNNING and performs any necessary setup.
 
@@ -139,7 +139,7 @@ end
 
 ---
 
-### Stop(): void
+### Stop(): `void`
 
 Stops the node's execution. Resets the status to READY and cleans up any resources.
 
@@ -152,7 +152,7 @@ end
 
 ---
 
-### Reset(): void
+### Reset(): `void`
 
 Resets the node to its initial state. Similar to Stop, but may perform additional reset logic.
 

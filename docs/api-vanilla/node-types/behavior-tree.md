@@ -30,7 +30,7 @@ Behavior Tree provides the following key properties and methods:
 
 ## Properties
 
-### inst: [Entity](entity.md) <span style={{color: "#888"}}>[readonly]</span>
+### inst: [Entity](entity.md) `[readonly]`
 
 A reference to the entity that this behavior tree is controlling.
 
@@ -41,7 +41,7 @@ local health = behaviorTree.inst.components.health
 
 ---
 
-### root: [BehaviorNode](behavior-node.md) <span style={{color: "#888"}}>[readonly]</span>
+### root: [BehaviorNode](behavior-node.md) `[readonly]`
 
 The root node of the behavior tree. This is typically a PriorityNode or SequenceNode that forms the starting point for evaluating the tree.
 
@@ -56,7 +56,7 @@ local behaviorTree = BehaviorTree(inst, root)
 
 ---
 
-### currentnode: [BehaviorNode](behavior-node.md) <span style={{color: "#888"}}>[readonly]</span>
+### currentnode: [BehaviorNode](behavior-node.md) `[readonly]`
 
 The node currently being executed in the behavior tree. Updated during tree evaluation.
 
@@ -69,7 +69,7 @@ end
 
 ---
 
-### lastresult: 'READY' | 'RUNNING' | 'SUCCESS' | 'FAILURE' <span style={{color: "#888"}}>[readonly]</span>
+### lastresult: 'READY' | 'RUNNING' | 'SUCCESS' | 'FAILURE' `[readonly]`
 
 Result of the last tree evaluation. One of READY, RUNNING, SUCCESS, or FAILURE.
 
@@ -119,7 +119,7 @@ end
 
 ---
 
-### Reset(): void
+### Reset(): `void`
 
 Resets the behavior tree to its initial state, clearing the current node and last result.
 
@@ -135,7 +135,7 @@ end
 
 ---
 
-### Stop(): void
+### Stop(): `void`
 
 Stops the behavior tree's execution, resetting the current node.
 
@@ -150,7 +150,7 @@ end
 
 ---
 
-### GetTreeString(): string
+### GetTreeString(): `string`
 
 Returns a string representation of the tree structure, useful for debugging and visualization.
 

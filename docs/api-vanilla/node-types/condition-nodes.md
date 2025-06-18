@@ -26,7 +26,7 @@ Condition Nodes provide the following key properties and methods:
 
 ## Properties
 
-### inst: [Entity](entity.md) <span style={{color: "#888"}}>[readonly]</span>
+### inst: [Entity](entity.md) `[readonly]`
 
 A reference to the entity that this condition node is controlling.
 
@@ -37,7 +37,7 @@ local health = condition_node.inst.components.health
 
 ---
 
-### status: 'READY' | 'SUCCESS' | 'FAILURE' <span style={{color: "#888"}}>[readonly]</span>
+### status: 'READY' | 'SUCCESS' | 'FAILURE' `[readonly]`
 
 The current evaluation status of the node:
 
@@ -54,7 +54,7 @@ end
 
 ---
 
-### fn: Function <span style={{color: "#888"}}>[readonly]</span>
+### fn: `Function` `[readonly]`
 
 The function that evaluates the condition. It should return true for success and false for failure.
 
@@ -94,7 +94,7 @@ end
 
 Don't Starve Together includes several pre-defined condition nodes:
 
-### IfNode(condition_fn: Function, success_node: [BehaviorNode](behavior-node.md)): ConditionNode
+### IfNode(condition_fn: `Function`, success_node: [BehaviorNode](behavior-node.md)): ConditionNode
 
 Evaluates a condition and executes a child node if the condition is true.
 
@@ -112,7 +112,7 @@ end,
 
 ---
 
-### IfThenElseNode(condition_fn: Function, success_node: [BehaviorNode](behavior-node.md), failure_node: [BehaviorNode](behavior-node.md)): ConditionNode
+### IfThenElseNode(condition_fn: `Function`, success_node: [BehaviorNode](behavior-node.md), failure_node: [BehaviorNode](behavior-node.md)): ConditionNode
 
 Executes one node if the condition is true and another if it's false.
 
@@ -132,7 +132,7 @@ end,
 
 ---
 
-### AndNode(...conditions: Function[]): ConditionNode
+### AndNode(...conditions: `Function[]`): ConditionNode
 
 Succeeds only if all child conditions succeed.
 
@@ -149,7 +149,7 @@ local all_conditions = AndNode(
 
 ---
 
-### OrNode(...conditions: Function[]): ConditionNode
+### OrNode(...conditions: `Function[]`): ConditionNode
 
 Succeeds if any child condition succeeds.
 
@@ -166,7 +166,7 @@ local any_condition = OrNode(
 
 ---
 
-### NotNode(condition: Function): ConditionNode
+### NotNode(condition: `Function`): ConditionNode
 
 Inverts the result of its child condition.
 

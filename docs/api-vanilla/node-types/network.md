@@ -3,11 +3,27 @@ id: network
 title: Network
 sidebar_position: 8
 last_updated: 2023-07-06
+version: 624447
 ---
 *Last Update: 2023-07-06*
 # Network
 
+*API Version: 624447*
+
 Network nodes handle the synchronization of game state between server and clients in Don't Starve Together's multiplayer environment.
+
+## Network properties and methods
+
+Network provides the following key properties and methods:
+
+- **Properties**
+  - `NetVars` - Network variables that are automatically synchronized
+  - `NetEvents` - Events triggered when network variables change
+
+- **Methods**
+  - `set()` - Sets a network variable value on server side
+  - `value()` - Gets a network variable value on client side
+  - `ListenForEvent()` - Registers a listener for network events
 
 ## Overview
 
@@ -49,6 +65,34 @@ self.inst:ListenForEvent("isopendirty", function()
     -- Update client-side presentation based on isopen value
 end)
 ```
+
+## Methods
+
+### set(value: `any`): `void`
+
+Sets the value of a network variable on the server side.
+
+```lua
+-- Set a network variable value
+self.isopen:set(true)
+self.health:set(50)
+self.playername:set("Player1")
+```
+
+---
+
+### value(): `any`
+
+Gets the current value of a network variable on the client side.
+
+```lua
+-- Get a network variable value
+local isopen = self.isopen:value()
+local health = self.health:value()
+local playername = self.playername:value()
+```
+
+---
 
 ## Replication
 
@@ -130,8 +174,8 @@ else
 end
 ```
 
-## Related Systems
+## See also
 
-- Entity replication system
-- Event system
-- Mod RPC system 
+- [Entity](mdc:dst-api-webdocs/docs/api-vanilla/node-types/entity.md) - Entities that can be networked
+- [Component](mdc:dst-api-webdocs/docs/api-vanilla/node-types/component.md) - Components that can be replicated
+- [Prefab](mdc:dst-api-webdocs/docs/api-vanilla/node-types/prefab.md) - Prefabs that define networked entities 

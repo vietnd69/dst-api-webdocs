@@ -28,7 +28,7 @@ Decorator Nodes provide the following key properties and methods:
 
 ## Properties
 
-### inst: Entity `[readonly]`
+### inst: `Entity` `[readonly]`
 
 A reference to the entity that this decorator node is controlling.
 
@@ -39,7 +39,7 @@ local health = decorator_node.inst.components.health
 
 ---
 
-### child: BehaviorNode `[readonly]`
+### child: `BehaviorNode` `[readonly]`
 
 The behavior node that this decorator is modifying.
 
@@ -133,7 +133,7 @@ end
 
 Don't Starve Together includes several pre-defined decorator node types:
 
-### NotDecorator(inst: Entity, child: BehaviorNode): DecoratorNode
+### NotDecorator(inst: `Entity`, child: `BehaviorNode`): `DecoratorNode`
 
 Inverts the result of its child node - SUCCESS becomes FAILURE and vice versa.
 
@@ -150,7 +150,7 @@ local node = NotDecorator(inst,
 
 ---
 
-### FailIfRunningDecorator(inst: Entity, child: BehaviorNode): DecoratorNode
+### FailIfRunningDecorator(inst: `Entity`, child: `BehaviorNode`): `DecoratorNode`
 
 Converts RUNNING status to FAILURE, useful for nodes that need immediate results.
 
@@ -166,7 +166,7 @@ local node = FailIfRunningDecorator(inst,
 
 ---
 
-### SuccessIfRunningDecorator(inst: Entity, child: BehaviorNode): DecoratorNode
+### SuccessIfRunningDecorator(inst: `Entity`, child: `BehaviorNode`): `DecoratorNode`
 
 Converts RUNNING status to SUCCESS, useful for fire-and-forget behaviors.
 
@@ -182,7 +182,7 @@ local node = SuccessIfRunningDecorator(inst,
 
 ---
 
-### LoopDecorator(inst: Entity, child: BehaviorNode, max_loops?: number): DecoratorNode
+### LoopDecorator(inst: `Entity`, child: `BehaviorNode`, max_loops?: `number`): `DecoratorNode`
 
 Repeatedly executes its child node until it fails or reaches the maximum loop count.
 
@@ -203,7 +203,7 @@ local node = LoopDecorator(inst,
 
 ---
 
-### WhileNode(inst: Entity, cond_fn: Function, child: BehaviorNode): DecoratorNode
+### WhileNode(inst: `Entity`, cond_fn: `Function`, child: `BehaviorNode`): `DecoratorNode`
 
 Executes its child node repeatedly as long as a condition function returns true.
 
@@ -221,7 +221,7 @@ local node = WhileNode(inst,
 
 ---
 
-### RandomNode(nodes: `Array<{chance: number, node: BehaviorNode}>`): DecoratorNode
+### RandomNode(nodes: `Array<{chance: number, node: BehaviorNode}>`): `DecoratorNode`
 
 Randomly selects from its children nodes, based on weighted probabilities.
 

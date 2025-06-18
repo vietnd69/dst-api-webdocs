@@ -3,9 +3,12 @@ id: component
 title: Component
 sidebar_position: 3
 last_updated: 2023-07-06
+version: 624447
 ---
 *Last Update: 2023-07-06*
 # Component
+
+*API Version: 624447*
 
 Components are functional modules attached to entities to provide specific behaviors and properties.
 
@@ -24,7 +27,7 @@ Components provide the following key properties and methods:
 
 ## Properties
 
-### inst: [Entity](entity.md) <span style={{color: "#888"}}>[readonly]</span>
+### inst: [Entity](entity.md) `[readonly]`
 
 A reference to the entity that this component is attached to. This property is set automatically when the component is added to an entity.
 
@@ -44,7 +47,7 @@ end
 
 ## Methods
 
-### OnSave(): Table
+### OnSave(): `Table`
 
 Called when the game is saving. Return a table containing any data that should be saved.
 
@@ -59,7 +62,7 @@ end
 
 ---
 
-### OnLoad(data: Table): void
+### OnLoad(data: `Table`): `void`
 
 Called when the game is loading. The data parameter contains the table returned by OnSave.
 
@@ -72,7 +75,7 @@ end
 
 ---
 
-### GetDebugString(): String
+### GetDebugString(): `String`
 
 Called when debugging information is requested. Return a string containing debug information.
 
@@ -84,7 +87,7 @@ end
 
 ---
 
-### OnRemoveFromEntity(): void
+### OnRemoveFromEntity(): `void`
 
 Called when the component is removed from its entity. Use this to clean up any resources or event listeners.
 

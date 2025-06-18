@@ -27,7 +27,7 @@ Action Nodes provide the following key properties and methods:
 
 ## Properties
 
-### inst: [Entity](entity.md) <span style={{color: "#888"}}>[readonly]</span>
+### inst: [Entity](entity.md) `[readonly]`
 
 A reference to the entity that this action node is controlling.
 
@@ -38,7 +38,7 @@ local health = action_node.inst.components.health
 
 ---
 
-### status: 'READY' | 'RUNNING' | 'SUCCESS' | 'FAILURE' <span style={{color: "#888"}}>[readonly]</span>
+### status: 'READY' | 'RUNNING' | 'SUCCESS' | 'FAILURE' `[readonly]`
 
 The current execution status of the node. Action nodes progress through states as they execute:
 
@@ -56,7 +56,7 @@ end
 
 ---
 
-### action_fn: Function <span style={{color: "#888"}}>[readonly]</span>
+### action_fn: `Function` `[readonly]`
 
 The function that performs the actual action. It should return true for success and false for failure.
 
@@ -96,7 +96,7 @@ end
 
 ---
 
-### OnStop(): void
+### OnStop(): `void`
 
 Called when the node stops execution. Use this to clean up any resources or states.
 
@@ -115,7 +115,7 @@ Don't Starve Together includes several pre-defined action nodes for common behav
 
 ### Movement Actions
 
-#### GoToEntity(inst: [Entity](entity.md), target_fn: Function, max_distance: number): ActionNode
+#### GoToEntity(inst: [Entity](entity.md), target_fn: `Function`, max_distance: `number`): `ActionNode`
 
 Creates a node that moves the entity toward a target entity.
 
@@ -132,7 +132,7 @@ end, 2)
 
 ---
 
-#### GoToPoint(inst: [Entity](entity.md), point_fn: Function): ActionNode
+#### GoToPoint(inst: [Entity](entity.md), point_fn: `Function`): `ActionNode`
 
 Creates a node that moves the entity to a specific point.
 
@@ -148,7 +148,7 @@ end)
 
 ---
 
-#### Wander(inst: [Entity](entity.md), center_point: Function, max_distance: number, min_time: number, max_time: number): ActionNode
+#### Wander(inst: [Entity](entity.md), center_point: `Function`, max_distance: `number`, min_time: `number`, max_time: `number`): `ActionNode`
 
 Creates a node that makes the entity wander around randomly.
 
@@ -167,7 +167,7 @@ end, 20, 2, 6)
 
 ---
 
-#### Follow(inst: [Entity](entity.md), target_fn: Function, min_dist: number, target_dist: number, max_dist: number): ActionNode
+#### Follow(inst: [Entity](entity.md), target_fn: `Function`, min_dist: `number`, target_dist: `number`, max_dist: `number`): `ActionNode`
 
 Creates a node that makes the entity follow another entity at a distance.
 
@@ -186,7 +186,7 @@ end, 2, 4, 10)
 
 ---
 
-#### RunAway(inst: [Entity](entity.md), threat_fn: Function, threat_distance: number, safe_distance: number): ActionNode
+#### RunAway(inst: [Entity](entity.md), threat_fn: `Function`, threat_distance: `number`, safe_distance: `number`): `ActionNode`
 
 Creates a node that makes the entity run away from threats.
 
@@ -204,7 +204,7 @@ local run_away = RunAway(inst, "player", 5, 10)
 
 ### Combat Actions
 
-#### ChaseAndAttack(inst: [Entity](entity.md), max_chase_time: number, give_up_distance: number): ActionNode
+#### ChaseAndAttack(inst: [Entity](entity.md), max_chase_time: `number`, give_up_distance: `number`): `ActionNode`
 
 Creates a node that chases and attacks a target.
 
@@ -219,7 +219,7 @@ local chase = ChaseAndAttack(inst, 10, 20)
 
 ---
 
-#### AttackTarget(inst: [Entity](entity.md), target_fn: Function): ActionNode
+#### AttackTarget(inst: [Entity](entity.md), target_fn: `Function`): `ActionNode`
 
 Creates a node that attacks a specific target.
 
@@ -235,9 +235,7 @@ end)
 
 ---
 
-### FindTarget
-```ts
-(inst: Entity, distance: number, canattack_fn: Function, tags: Array<string>) => ActionNode
+#### FindTarget(inst: [Entity](entity.md), distance: `number`, canattack_fn: `Function`, tags: `Array<string>`): `ActionNode`
 
 Creates a node that finds and sets a target to attack.
 

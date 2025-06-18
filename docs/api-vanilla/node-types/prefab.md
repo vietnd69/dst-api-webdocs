@@ -3,11 +3,27 @@ id: prefab
 title: Prefab
 sidebar_position: 4
 last_updated: 2023-07-06
+version: 624447
 ---
 *Last Update: 2023-07-06*
 # Prefab
 
+*API Version: 624447*
+
 Prefabs are blueprints for creating entities, with predefined components and properties.
+
+## Prefab properties and methods
+
+Prefabs provide the following key properties and methods:
+
+- **Properties**
+  - `assets` - Resources needed by the prefab
+  - `prefabfunction` - Function that constructs the entity
+  - `prefabs` - List of prefabs this prefab depends on
+
+- **Methods**
+  - `Prefab()` - Creates a prefab definition
+  - `SpawnPrefab()` - Instantiates a prefab into the game world
 
 ## Overview
 
@@ -60,19 +76,47 @@ return Prefab("myitem", fn, assets)
 - **Component Setup**: Adding and configuring components
 - **Animation Setup**: Setting up the visual appearance
 
-## Prefab Registration
+## Methods
 
-Prefabs are registered with the game engine:
+### Prefab(name: `string`, fn: `Function`, assets: `Array`, dependencies: `Array`): `PrefabDef`
+
+Creates a prefab definition that can be registered with the game engine.
 
 ```lua
-return Prefab("prefabname", fn, assets, prefabs)
+-- Create a prefab definition
+local myprefab = Prefab("prefabname", createfn, assets, dependencies)
+
+-- Example with all parameters
+return Prefab(
+    "myitem",               -- Unique prefab name
+    fn,                     -- Creation function
+    assets,                 -- List of assets
+    {"dependency1"}         -- List of dependent prefabs
+)
 ```
 
 Parameters:
-- `prefabname`: Unique identifier for the prefab
+- `name`: Unique identifier for the prefab
 - `fn`: Function that creates and configures the entity
 - `assets`: List of assets needed by the prefab
-- `prefabs`: List of other prefabs that this prefab depends on
+- `dependencies`: List of other prefabs that this prefab depends on
+
+---
+
+### SpawnPrefab(name: `string`): [Entity](mdc:dst-api-webdocs/docs/api-vanilla/node-types/entity.md)
+
+Instantiates a prefab into the game world.
+
+```lua
+-- Spawn a prefab at the current position
+local inst = SpawnPrefab("myitem")
+
+-- Spawn and position a prefab
+local inst = SpawnPrefab("myitem")
+inst.Transform:SetPosition(x, y, z)
+```
+
+---
 
 ## Spawning Prefabs
 
@@ -149,9 +193,8 @@ end
 
 The `SetPristine()` call marks the entity as ready for network replication, and the `ismastersim` check ensures server-specific code only runs on the server.
 
-## Related Systems
+## See also
 
-- Entity system
-- Component system
-- Asset loading system
-- Spawning system 
+- [Entity](mdc:dst-api-webdocs/docs/api-vanilla/node-types/entity.md) - Entities created from prefabs
+- [Component](mdc:dst-api-webdocs/docs/api-vanilla/node-types/component.md) - Components used in prefabs
+- [Network](mdc:dst-api-webdocs/docs/api-vanilla/node-types/network.md) - Network replication for prefab entities 

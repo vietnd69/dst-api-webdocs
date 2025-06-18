@@ -3,9 +3,12 @@ id: entity
 title: Entity
 sidebar_position: 2
 last_updated: 2023-07-06
+version: 624447
 ---
 *Last Update: 2023-07-06*
 # Entity
+
+*API Version: 624447*
 
 Entity is the most basic node type in Don't Starve Together, representing all objects in the game from characters and items to structures.
 
@@ -30,7 +33,7 @@ Entity provides the following key properties and methods:
 
 ## Properties
 
-### entity: EntityObject `[readonly]`
+### entity: `EntityObject` `[readonly]`
 
 The low-level entity object that provides core functionality. You use this object to add basic parts to the entity.
 
@@ -44,7 +47,7 @@ entity.entity:SetPristine()
 
 ---
 
-### Transform: TransformComponent `[readonly]`
+### Transform: `TransformComponent` `[readonly]`
 
 Controls the entity's position, rotation, and scale in the world.
 
@@ -64,7 +67,7 @@ entity.Transform:SetScale(1.5, 1.5, 1.5)
 
 ---
 
-### AnimState: AnimStateComponent `[readonly]`
+### AnimState: `AnimStateComponent` `[readonly]`
 
 Controls the entity's visual appearance and animations.
 
@@ -81,7 +84,7 @@ entity.AnimState:SetTime(0.5)  -- set animation time
 
 ---
 
-### components: ComponentTable `[readonly]`
+### components: `ComponentTable` `[readonly]`
 
 Table containing all components attached to this entity. Each component provides specific functionality.
 
@@ -100,7 +103,7 @@ end
 
 ---
 
-### tags: TagTable `[readonly]`
+### tags: `TagTable` `[readonly]`
 
 Set of tags attached to this entity. Tags are used for quick identification of entity characteristics.
 
@@ -120,7 +123,7 @@ end
 
 ## Methods
 
-### AddTag(tag: string): void
+### AddTag(tag: `string`): `void`
 
 Adds a tag to the entity. Tags are lightweight markers used to identify entity characteristics.
 
@@ -133,7 +136,7 @@ entity:AddTag("character")
 
 ---
 
-### RemoveTag(tag: string): void
+### RemoveTag(tag: `string`): `void`
 
 Removes a tag from the entity.
 
@@ -144,7 +147,7 @@ entity:RemoveTag("scarytoprey")
 
 ---
 
-### HasTag(tag: string): boolean
+### HasTag(tag: `string`): `boolean`
 
 Checks if the entity has the specified tag.
 
@@ -157,7 +160,7 @@ end
 
 ---
 
-### AddComponent(name: string): Component
+### AddComponent(name: `string`): `Component`
 
 Adds a component to the entity and returns the newly created component.
 
@@ -172,7 +175,7 @@ combat:SetDefaultDamage(10)
 
 ---
 
-### RemoveComponent(name: string): void
+### RemoveComponent(name: `string`): `void`
 
 Removes a component from the entity.
 
@@ -183,7 +186,7 @@ entity:RemoveComponent("burnable")
 
 ---
 
-### Remove(): void
+### Remove(): `void`
 
 Removes the entity from the game world. The entity will be destroyed and can no longer be used.
 

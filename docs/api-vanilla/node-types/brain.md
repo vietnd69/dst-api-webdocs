@@ -33,7 +33,7 @@ Brain provides the following key properties and methods:
 
 ## Properties
 
-### inst: [Entity](entity.md) <span style={{color: "#888"}}>[readonly]</span>
+### inst: [Entity](entity.md) `[readonly]`
 
 A reference to the entity that this Brain is controlling.
 
@@ -44,7 +44,7 @@ local health = brain.inst.components.health
 
 ---
 
-### events: Table <span style={{color: "#888"}}>[readonly]</span>
+### events: `Table` `[readonly]`
 
 Table of event handlers registered for this brain. Events are used to react to various stimuli in the game world.
 
@@ -57,7 +57,7 @@ end
 
 ---
 
-### bt: [BehaviorTree](behavior-tree.md) <span style={{color: "#888"}}>[readonly]</span>
+### bt: [BehaviorTree](behavior-tree.md) `[readonly]`
 
 The behavior tree that defines this brain's decision-making process. The BehaviorTree contains the root node of the behavior tree hierarchy.
 
@@ -68,7 +68,7 @@ local status = brain.bt.root:GetStatus()
 
 ---
 
-### currentbehaviour: String | null <span style={{color: "#888"}}>[readonly]</span>
+### currentbehaviour: `String` | null `[readonly]`
 
 The name of the behavior currently being executed, or nil if no behavior is active.
 
@@ -83,7 +83,7 @@ end
 
 ---
 
-### thinkperiod: Number
+### thinkperiod: `Number`
 
 Time between brain updates in seconds. Lower values make the AI more responsive but increase performance cost.
 
@@ -98,7 +98,7 @@ brain.thinkperiod = 0.25  -- Update 4 times per second
 
 ## Methods
 
-### OnStart(): void
+### OnStart(): `void`
 
 Virtual method called when the brain starts. Override this in your custom brain implementation to set up the behavior tree.
 
@@ -116,7 +116,7 @@ end
 
 ---
 
-### OnStop(): void
+### OnStop(): `void`
 
 Virtual method called when the brain stops. Override this to clean up any resources or states when the brain deactivates.
 
@@ -129,7 +129,7 @@ end
 
 ---
 
-### Start(): void
+### Start(): `void`
 
 Activates the brain, initializing the behavior tree and beginning the AI's decision-making process.
 
@@ -140,7 +140,7 @@ brain:Start()
 
 ---
 
-### Stop(): void
+### Stop(): `void`
 
 Deactivates the brain, stopping all AI behaviors and pausing the behavior tree evaluation.
 
@@ -151,7 +151,7 @@ brain:Stop()
 
 ---
 
-### AddEventHandler(event: String, fn: Function): void
+### AddEventHandler(event: `String`, fn: `Function`): `void`
 
 Registers a handler for the specified event name. The handler will be called when the event occurs.
 
