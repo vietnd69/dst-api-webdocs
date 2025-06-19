@@ -1,8 +1,0 @@
-{
-    "label": "Entity Framework",
-    "position": 4,
-    "link": {
-        "type": "generated-index",
-        "description": "Components of the entity system that define game objects in Don't Starve Together"
-    }
-}
