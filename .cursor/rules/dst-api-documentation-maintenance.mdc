@@ -1,0 +1,140 @@
+---
+description: This rule defines procedures for maintaining and updating API documentation as the DST codebase evolves.
+globs: 
+alwaysApply: false
+---
+# DST API Documentation Maintenance
+
+This rule defines procedures for maintaining and updating API documentation as the DST codebase evolves.
+
+## Version Tracking
+
+### Build Version Format
+
+The `build_version` field in documentation front matter should always match the game build version the documentation describes.
+
+Current documentation is based on build version: **675312**
+
+### Documentation Update Workflow
+
+1. When a new DST build is released:
+   - Update all `build_version` fields in front matter
+   - Review changed files in the update
+   - Flag affected documentation with appropriate `change_status`
+
+2. For each changed script file:
+   - Review the changes to determine impact on API
+   - Update corresponding documentation with new/modified/deprecated functionality
+   - Add entry to the Version History table
+   - Update `last_updated` date
+
+## Change Status Guidelines
+
+Use these status markers consistently:
+
+| Status | When to Use | Required Actions |
+|--------|-------------|-----------------|
+| `stable` | No significant changes | None needed |
+| `added` | New functionality | Document fully, add examples, link from related modules |
+| `modified` | Changed behavior/parameters | Document changes, update examples, highlight differences |
+| `deprecated` | Planned for removal | Note replacement functionality, add warnings |
+| `removed` | No longer available | Move documentation to archive, redirect references |
+
+## Modified API Documentation
+
+When documenting modified APIs:
+
+1. Keep the original documentation when possible
+2. Clearly mark what has changed with specific version numbers
+3. Include both old and new usage examples for comparison
+4. Add clear migration guidance for transitioning code
+
+Example:
+```markdown
+### inst.components.example:doSomething(value)
+
+**Status:** `modified in build 675312`
+
+**Description:**
+This method performs an example action.
+
+**Parameters:**
+- `value` (number): **Prior to build 675312**: Value was percentage (0-1)
+- `value` (number): **Since build 675312**: Value is now absolute amount (0-100)
+
+**Version History:**
+- Modified in build 675312: Changed parameter from relative to absolute values
+```
+
+## Deprecated API Documentation
+
+When documenting deprecated APIs:
+
+1. Add a prominent warning banner
+2. Specify when the functionality will be removed
+3. Provide clear migration path to replacement functionality
+4. Keep full documentation for backward compatibility
+
+Example:
+```markdown
+### inst.components.legacy:oldMethod()
+
+**Status:** `deprecated in build 675312`
+
+> ⚠️ **Deprecation Warning**: This method will be removed in build 690000. Use `inst.components.new:newMethod()` instead.
+
+**Description:**
+This legacy method will be removed in a future update.
+
+**Migration Example:**
+```lua
+-- Old code (deprecated)
+inst.components.legacy:oldMethod()
+
+-- New code (recommended)
+inst.components.new:newMethod()
+```
+```
+
+## Removed API Documentation
+
+When documenting removed APIs:
+
+1. Move documentation to archive section
+2. Create a redirect/stub in the original location
+3. Include final version where API was available
+4. Provide guidance on alternatives
+
+Example:
+```markdown
+### inst.components.removed:deletedMethod()
+
+**Status:** `removed in build 675312`
+
+> ❌ **Removed**: This method was removed in build 675312. Use `inst.components.replacement:newMethod()` instead.
+
+**Last Available:** Build 659421
+
+**Migration Path:**
+See [Replacement Method](mdc:replacement/new-method.md) for current functionality.
+```
+
+## Documentation Quality Assurance
+
+Before committing documentation updates:
+
+1. **Verify accuracy** against current code implementation
+2. **Test code examples** in-game to confirm they work
+3. **Check cross-references** to ensure they point to correct locations
+4. **Review status tags** to ensure they accurately reflect current state
+5. **Validate build numbers** to ensure they match actual change versions
+
+## Documentation Review Checklist
+
+- [ ] All modified APIs have updated status indicators
+- [ ] Version history tables reflect actual changes
+- [ ] Code examples match current implementation
+- [ ] Cross-references are updated to reflect any moved/renamed APIs
+- [ ] New functionality is fully documented with examples
+- [ ] Build version numbers are accurate and consistent
+

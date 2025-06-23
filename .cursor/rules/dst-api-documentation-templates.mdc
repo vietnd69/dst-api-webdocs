@@ -1,0 +1,360 @@
+---
+description: This rule provides specific templates for documenting different types of DST script modules.
+globs: 
+alwaysApply: false
+---
+# DST API Documentation Templates
+
+This rule provides specific templates for documenting different types of DST script modules.
+
+## Component Template
+
+Use this template for documenting components:
+
+```markdown
+---
+title: [Component Name]
+description: Component responsible for [primary functionality]
+sidebar_position: [Number]
+slug: components-[component-name]
+last_updated: YYYY-MM-DD
+build_version: 675312
+change_status: stable
+---
+
+# [Component Name]
+
+## Version History
+| Build Version | Change Date | Change Type | Description |
+|---------------|-------------|-------------|-------------|
+| 675312 | 2023-11-15 | stable | Current version |
+
+## Overview
+
+The `[Component Name]` component provides [primary functionality]. It is typically used on [entity types] to enable [behavior/feature].
+
+## Component Properties
+
+### inst.[property_name]
+
+**Type:** `[type]`
+
+**Status:** `stable` | `added in build 675312` | `modified in build 675312` | `deprecated in build 675312`
+
+**Description:** [Property description]
+
+### inst.[property_name2]
+
+**Type:** `[type]`
+
+**Status:** `stable` | `added in build 675312` | `modified in build 675312` | `deprecated in build 675312`
+
+**Description:** [Property description]
+
+## Component Methods
+
+### inst.components.[component_name]:[methodName](mdc:dst-api-webdocs/param1, param2)
+
+**Status:** `stable` | `added in build 675312` | `modified in build 675312` | `deprecated in build 675312`
+
+**Description:**
+[Method description]
+
+**Parameters:**
+- `param1` ([type]): [Parameter description]
+- `param2` ([type]): [Parameter description]
+
+**Returns:**
+- ([return_type]): [Return value description]
+
+**Example:**
+```lua
+local entity = TheWorld.entity
+entity.components.[component_name]:[methodName](mdc:dst-api-webdocs/"example", 5)
+```
+
+## Events
+
+### "[event_name]"
+
+**Status:** `stable` | `added in build 675312` | `modified in build 675312` | `deprecated in build 675312`
+
+**Description:**
+[When this event is triggered and what it signifies]
+
+**Parameters:**
+- `data.param1` ([type]): [Description]
+- `data.param2` ([type]): [Description]
+
+**Example:**
+```lua
+inst:ListenForEvent("[event_name]", function(inst, data)
+    -- Handle event
+end)
+```
+
+## Common Uses
+
+[Explain common scenarios where this component is used]
+
+## Related Components
+
+- [[Related Component]](./[related-component].md): [Relationship description]
+```
+
+## Stategraph Template
+
+Use this template for documenting stategraphs:
+
+```markdown
+---
+title: [Stategraph Name]
+description: Stategraph for [entity/behavior description]
+sidebar_position: [Number]
+slug: stategraphs-[stategraph-name]
+last_updated: YYYY-MM-DD
+build_version: 675312
+change_status: stable
+---
+
+# [Stategraph Name]
+
+## Version History
+| Build Version | Change Date | Change Type | Description |
+|---------------|-------------|-------------|-------------|
+| 675312 | 2023-11-15 | stable | Current version |
+
+## Overview
+
+The `[Stategraph Name]` defines the behavior and animations for [entity type]. It controls [primary behaviors].
+
+## States
+
+### "[state_name]"
+
+**Status:** `stable` | `added in build 675312` | `modified in build 675312` | `deprecated in build 675312`
+
+**Description:**
+[State description and purpose]
+
+**Entry Function:**
+```lua
+[Entry function code example]
+```
+
+**Timeline:**
+[Timeline events, if any]
+
+**Events:**
+[Events that can occur in this state]
+
+**Tags:**
+- `[tag1]`: [Tag purpose]
+- `[tag2]`: [Tag purpose]
+
+**Transitions:**
+- To `[next_state1]`: [Condition]
+- To `[next_state2]`: [Condition]
+
+### "[state_name2]"
+
+[Similar structure for other states]
+
+## Events
+
+### "[event_name]"
+
+**Status:** `stable` | `added in build 675312` | `modified in build 675312` | `deprecated in build 675312`
+
+**Description:**
+[Event purpose and when it's triggered]
+
+**Handler:**
+```lua
+[Event handler code example]
+```
+
+## Common State Sequences
+
+[Describe common sequences of state transitions]
+
+## Related Stategraphs
+
+- [[Related Stategraph]](./[related-stategraph].md): [Relationship description]
+```
+
+## Brain Template
+
+Use this template for documenting brain behaviors:
+
+```markdown
+---
+title: [Brain Name]
+description: AI brain for [entity type]
+sidebar_position: [Number]
+slug: brains-[brain-name]
+last_updated: YYYY-MM-DD
+build_version: 675312
+change_status: stable
+---
+
+# [Brain Name]
+
+## Version History
+| Build Version | Change Date | Change Type | Description |
+|---------------|-------------|-------------|-------------|
+| 675312 | 2023-11-15 | stable | Current version |
+
+## Overview
+
+The `[Brain Name]` defines the AI behavior for [entity type]. It prioritizes [primary behaviors/goals].
+
+## Brain Structure
+
+```lua
+-- Brain structure example
+BrainCommon.AddNode(
+    WhileNode(function() 
+        return [condition] 
+    end, "Priority Node",
+    PriorityNode({
+        [Node examples...]
+    }))
+)
+```
+
+## Behaviors
+
+### [Behavior Name]
+
+**Status:** `stable` | `added in build 675312` | `modified in build 675312` | `deprecated in build 675312`
+
+**Description:**
+[Behavior description and purpose]
+
+**Conditions:**
+[When this behavior activates]
+
+**Actions:**
+[What actions the entity takes]
+
+**Example:**
+```lua
+[Code example of this behavior node]
+```
+
+## Memory Variables
+
+### self.inst.[memory_var]
+
+**Type:** `[type]`
+
+**Status:** `stable` | `added in build 675312` | `modified in build 675312` | `deprecated in build 675312`
+
+**Description:**
+[Description of what this memory variable tracks]
+
+## Target Selection
+
+[Description of how the brain selects targets]
+
+## Common Behavioral Patterns
+
+[Description of common behavior sequences]
+
+## Related Brains
+
+- [[Related Brain]](./[related-brain].md): [Relationship description]
+```
+
+## Prefab Template
+
+Use this template for documenting prefabs:
+
+```markdown
+---
+title: [Prefab Name]
+description: [Short description of this prefab's purpose]
+sidebar_position: [Number]
+slug: prefabs-[prefab-name]
+last_updated: YYYY-MM-DD
+build_version: 675312
+change_status: stable
+---
+
+# [Prefab Name]
+
+## Version History
+| Build Version | Change Date | Change Type | Description |
+|---------------|-------------|-------------|-------------|
+| 675312 | 2023-11-15 | stable | Current version |
+
+## Overview
+
+The `[Prefab Name]` prefab represents [entity description] in the game. It [primary purpose/functionality].
+
+## Creation
+
+```lua
+-- How to spawn this prefab
+local inst = SpawnPrefab("[prefab_name]")
+```
+
+## Properties
+
+### Base Properties
+
+- **Prefab Name:** `[prefab_name]`
+- **Tags:** `[tag1]`, `[tag2]`, `[tag3]`
+- **Asset Type:** [Character/Item/Structure/etc.]
+
+### Default Components
+
+| Component | Purpose |
+|-----------|---------|
+| [`[component1]`](../components/[component1].md) | [Purpose in this prefab] |
+| [`[component2]`](../components/[component2].md) | [Purpose in this prefab] |
+| [`[component3]`](../components/[component3].md) | [Purpose in this prefab] |
+
+## Functions
+
+### [function_name](mdc:dst-api-webdocs/param1, param2)
+
+**Status:** `stable` | `added in build 675312` | `modified in build 675312` | `deprecated in build 675312`
+
+**Description:**
+[Function description]
+
+**Parameters:**
+- `param1` ([type]): [Parameter description]
+- `param2` ([type]): [Parameter description]
+
+**Example:**
+```lua
+[Example code]
+```
+
+## Events
+
+### "[event_name]"
+
+**Status:** `stable` | `added in build 675312` | `modified in build 675312` | `deprecated in build 675312`
+
+**Description:**
+[Event description and when it triggers]
+
+## Stategraph
+
+This prefab uses the [[Stategraph Name]](../stategraphs/[stategraph-name].md) stategraph.
+
+## Brain
+
+This prefab uses the [[Brain Name]](../brains/[brain-name].md) brain.
+
+## Related Prefabs
+
+- [[Related Prefab]](./[related-prefab].md): [Relationship description]
+```
+
+Use these templates as starting points for documenting different types of DST script modules. Adjust as needed for specific modules while maintaining the consistent format defined in the general API documentation format rule.
+

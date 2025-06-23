@@ -1,6 +1,7 @@
 {
   "name": "dst-api-webdocs",
-  "version": "0.5.2",
+  "version": "1.0",
+  "build version": "676042",
   "private": true,
   "scripts": {
     "docusaurus": "docusaurus",
