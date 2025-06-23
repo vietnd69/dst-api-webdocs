@@ -1,25 +1,24 @@
 ---
+id: constants
 title: Constants System
 description: Comprehensive documentation of Don't Starve Together global constants and configuration values
 sidebar_position: 3
-slug: /constants
-last_updated: 2024-12-28
-build_version: 675312
+slug: core-systems-constants
+last_updated: 2025-06-21
+build_version: 676042
 change_status: stable
 ---
 
 # Constants System
 
-The Constants system provides global values that define fundamental game properties, from mathematical constants to control mappings, character definitions, and UI configurations. These constants are essential for game mechanics, mod development, and system integration.
-
 ## Version History
-
-| Date | Build | Changes |
-|------|-------|---------|
-| 2024-12-28 | 675312 | Complete documentation of all constants |
-| 2023-06-15 | 675312 | Initial constants system |
+| Build Version | Change Date | Change Type | Description |
+|---|----|----|----|
+| 676042 | 2025-06-21 | stable | Current version |
 
 ## Overview
+
+## Core Categories
 
 The constants system consists of several categories of global values:
 
@@ -353,7 +352,7 @@ MAXITEMSLOTS = 15  -- Maximum inventory slots
 
 ### Ground Types (Legacy)
 
-The GROUND table contains legacy ground type constants:
+⚠️ **Deprecated**: The GROUND table is deprecated and should not be used. Nothing should add to or reference this table.
 
 ```lua
 GROUND = {
@@ -365,8 +364,7 @@ GROUND = {
     SAVANNA = 5,
     GRASS = 6,
     FOREST = 7,
-    -- ... many more ground types
-}
+    -- ... many more ground types (deprecated)
 ```
 
 ### Ocean Depth
@@ -598,6 +596,7 @@ PRIVACY_TYPE = {
 ```lua
 -- Use mathematical constants
 local circle_area = PI * radius * radius
+local angle_in_radians = 45 * DEGREES
 
 -- Check facing direction
 if entity.Transform:GetFacing() == FACING_RIGHT then
@@ -607,6 +606,9 @@ end
 -- Get screen dimensions
 local screen_width = RESOLUTION_X
 local screen_height = RESOLUTION_Y
+
+-- Use frames for timing
+local update_frequency = FRAMES -- 1/30 second
 ```
 
 ### Using Control Constants
@@ -645,6 +647,27 @@ local function GetCharacterGender(prefab)
         end
     end
     return "NEUTRAL"
+end
+```
+
+### Working with Special Events
+
+```lua
+-- Check if a special event is active
+if IsSpecialEventActive(SPECIAL_EVENTS.WINTERS_FEAST) then
+    -- Winter's Feast is currently active
+    print("Ho ho ho!")
+end
+
+-- Check if any special event is active
+if IsAnySpecialEventActive() then
+    local active_event = GetFirstActiveSpecialEvent()
+    print("Active event:", active_event)
+end
+
+-- Check if it's a Year of the X event
+if IsAny_YearOfThe_EventActive() then
+    -- Some year-of-the-creature event is active
 end
 ```
 
@@ -712,10 +735,31 @@ The constants system integrates with:
 - **[Tuning System](./tuning)**: Provides game balance values
 - **[Networking System](./networking)**: Uses user flags and privacy constants
 
-## Notes
+## Implementation Notes
 
-- Constants are loaded early in game initialization
+### Loading and Initialization
+
+- Constants are loaded early in game initialization via `require "util"` and `TechTree`
 - Most constants should not be modified after game start
 - Some constants are used by the C++ engine and cannot be changed
 - Event constants are automatically updated based on active events
-- Technology constants work with the TechTree system for crafting requirements
+
+### Engine Integration
+
+- Rendering layers must match `game\render\RenderLayer.h`
+- Control constants must match `DontStarveInputHandler.h`
+- Sort order constants match `scenegraphnode.h`
+- Physics constants sync with C++ collision system
+
+### Special Considerations
+
+- **GROUND table**: Deprecated - do not add to or reference
+- **Character lists**: Must stay synchronized with `scrapbookpartitions.lua`
+- **Technology constants**: Work with TechTree system for crafting requirements
+- **Special events**: Controlled by server configuration and season timing
+
+### Beta and Branch Differences
+
+- `IS_BETA` flag affects certain constant values
+- Branch-specific constants may differ between `dev`, `staging`, and `release`
+- Event constants change based on active special events

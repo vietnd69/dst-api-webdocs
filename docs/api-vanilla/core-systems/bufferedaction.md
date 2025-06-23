@@ -2,9 +2,9 @@
 title: Buffered Action System
 description: Documentation of the Don't Starve Together buffered action system for deferred action execution and validation
 sidebar_position: 4
-slug: /bufferedaction
-last_updated: 2024-12-19
-build_version: 675312
+slug: /api-vanilla/core-systems/bufferedaction
+last_updated: 2025-06-21
+build_version: 676042
 change_status: stable
 ---
 
@@ -16,8 +16,7 @@ The Buffered Action system in Don't Starve Together provides a framework for man
 
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 675312 | 2024-12-19 | stable | Updated documentation to match current implementation |
-| 642130 | 2023-06-10 | added | Initial buffered action system documentation |
+| 675312 | 2025-06-21 | stable | Updated documentation to match current implementation |
 
 ## Overview
 

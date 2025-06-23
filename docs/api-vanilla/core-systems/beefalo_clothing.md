@@ -2,9 +2,9 @@
 title: Beefalo Clothing System
 description: Documentation of the Don't Starve Together beefalo clothing system for cosmetic beefalo customization
 sidebar_position: 3
-slug: /beefalo-clothing
-last_updated: 2024-12-19
-build_version: 675312
+slug: /api-vanilla/core-systems/beefalo-clothing
+last_updated: 2025-06-21
+build_version: 676042
 change_status: stable
 ---
 
@@ -16,9 +16,7 @@ The Beefalo Clothing system in Don't Starve Together provides cosmetic customiza
 
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 675312 | 2024-12-19 | stable | Updated documentation to match current implementation |
-| 658421 | 2023-09-15 | modified | Added lunar and shadow woven clothing sets |
-| 642130 | 2023-06-10 | added | Initial comprehensive beefalo clothing system documentation |
+| 676042 | 2025-06-21 | stable | Updated documentation to match current implementation and corrected symbol override details |
 
 ## Overview
 
@@ -70,7 +68,7 @@ The beefalo clothing system covers five distinct body parts:
 |------|------|-------------|------------------|
 | `beef_body` | Body | Main torso clothing | `beefalo_body`, `beefalo_body_heat` |
 | `beef_feet` | Feet | Hoof coverings | `beefalo_hoof` |
-| `beef_head` | Head | Facial modifications | `beefalo_beard`, `beefalo_eye`, `beefalo_facebase`, etc. |
+| `beef_head` | Head | Facial modifications | `beefalo_beard`, `beefalo_facebase`, `beefalo_headbase`, etc. |
 | `beef_horn` | Horn | Horn decorations | `beefalo_antler` |
 | `beef_tail` | Tail | Tail accessories | `beefalo_tail` |
 
@@ -81,46 +79,46 @@ All clothing items are organized into thematic sets:
 #### Beast Theme
 Wild, primitive appearance with natural materials.
 
-| Slot | Item Name | Rarity |
-|------|-----------|--------|
-| Body | `beefalo_body_beast` | Complimentary |
-| Feet | `beefalo_feet_beast` | Complimentary |
-| Head | `beefalo_head_beast` | Complimentary |
-| Horn | `beefalo_horn_beast` | Complimentary |
-| Tail | `beefalo_tail_beast` | Complimentary |
+| Slot | Item Name | Rarity | Special Notes |
+|------|-----------|--------|---------------|
+| Body | `beefalo_body_beast` | Complimentary | |
+| Feet | `beefalo_feet_beast` | Complimentary | |
+| Head | `beefalo_head_beast` | Complimentary | Includes `beefalo_eye` override |
+| Horn | `beefalo_horn_beast` | Complimentary | |
+| Tail | `beefalo_tail_beast` | Complimentary | |
 
 #### Doll Theme
 Cute, toy-like appearance with fabric textures.
 
-| Slot | Item Name | Rarity |
-|------|-----------|--------|
-| Body | `beefalo_body_doll` | Complimentary |
-| Feet | `beefalo_feet_doll` | Complimentary |
-| Head | `beefalo_head_doll` | Complimentary |
-| Horn | `beefalo_horn_doll` | Complimentary |
-| Tail | `beefalo_tail_doll` | Complimentary |
+| Slot | Item Name | Rarity | Special Notes |
+|------|-----------|--------|---------------|
+| Body | `beefalo_body_doll` | Complimentary | |
+| Feet | `beefalo_feet_doll` | Complimentary | |
+| Head | `beefalo_head_doll` | Complimentary | Does not override `beefalo_eye` |
+| Horn | `beefalo_horn_doll` | Complimentary | |
+| Tail | `beefalo_tail_doll` | Complimentary | |
 
 #### Festive Theme
 Holiday-themed decorations and colors.
 
-| Slot | Item Name | Rarity |
-|------|-----------|--------|
-| Body | `beefalo_body_festive` | Complimentary |
-| Feet | `beefalo_feet_festive` | Complimentary |
-| Head | `beefalo_head_festive` | Complimentary |
-| Horn | `beefalo_horn_festive` | Complimentary |
-| Tail | `beefalo_tail_festive` | Complimentary |
+| Slot | Item Name | Rarity | Special Notes |
+|------|-----------|--------|---------------|
+| Body | `beefalo_body_festive` | Complimentary | |
+| Feet | `beefalo_feet_festive` | Complimentary | |
+| Head | `beefalo_head_festive` | Complimentary | Does not override `beefalo_eye` |
+| Horn | `beefalo_horn_festive` | Complimentary | |
+| Tail | `beefalo_tail_festive` | Complimentary | |
 
 #### Formal Theme
 Elegant, dress-up appearance for special occasions.
 
-| Slot | Item Name | Rarity |
-|------|-----------|--------|
-| Body | `beefalo_body_formal` | Complimentary |
-| Feet | `beefalo_feet_formal` | Complimentary |
-| Head | `beefalo_head_formal` | Complimentary |
-| Horn | `beefalo_horn_formal` | Complimentary |
-| Tail | `beefalo_tail_formal` | Complimentary |
+| Slot | Item Name | Rarity | Special Notes |
+|------|-----------|--------|---------------|
+| Body | `beefalo_body_formal` | Complimentary | |
+| Feet | `beefalo_feet_formal` | Complimentary | |
+| Head | `beefalo_head_formal` | Complimentary | Does not override `beefalo_eye` |
+| Horn | `beefalo_horn_formal` | Complimentary | |
+| Tail | `beefalo_tail_formal` | Complimentary | |
 
 #### Ice Theme
 Frozen, crystalline appearance with cool colors.
@@ -136,13 +134,13 @@ Frozen, crystalline appearance with cool colors.
 #### Lunar Theme ⭐
 Premium woven set with celestial motifs.
 
-| Slot | Item Name | Rarity | Modifier |
-|------|-----------|--------|----------|
-| Body | `beefalo_body_lunar` | Distinguished | Woven |
-| Feet | `beefalo_feet_lunar` | Spiffy | Woven |
-| Head | `beefalo_head_lunar` | Elegant | Woven |
-| Horn | `beefalo_horn_lunar` | Distinguished | Woven |
-| Tail | `beefalo_tail_lunar` | Spiffy | Woven |
+| Slot | Item Name | Rarity | Modifier | Special Notes |
+|------|-----------|--------|----------|---------------|
+| Body | `beefalo_body_lunar` | Distinguished | Woven | |
+| Feet | `beefalo_feet_lunar` | Spiffy | Woven | |
+| Head | `beefalo_head_lunar` | Elegant | Woven | Does not override `beefalo_eye` |
+| Horn | `beefalo_horn_lunar` | Distinguished | Woven | |
+| Tail | `beefalo_tail_lunar` | Spiffy | Woven | |
 
 #### Nature Theme
 Natural, plant-based appearance with earthy tones.
@@ -158,46 +156,46 @@ Natural, plant-based appearance with earthy tones.
 #### Robot Theme
 Mechanical, futuristic appearance with metallic textures.
 
-| Slot | Item Name | Rarity |
-|------|-----------|--------|
-| Body | `beefalo_body_robot` | Complimentary |
-| Feet | `beefalo_feet_robot` | Complimentary |
-| Head | `beefalo_head_robot` | Complimentary |
-| Horn | `beefalo_horn_robot` | Complimentary |
-| Tail | `beefalo_tail_robot` | Complimentary |
+| Slot | Item Name | Rarity | Special Notes |
+|------|-----------|--------|---------------|
+| Body | `beefalo_body_robot` | Complimentary | |
+| Feet | `beefalo_feet_robot` | Complimentary | |
+| Head | `beefalo_head_robot` | Complimentary | Does not override `beefalo_eye` |
+| Horn | `beefalo_horn_robot` | Complimentary | |
+| Tail | `beefalo_tail_robot` | Complimentary | |
 
 #### Shadow Theme ⭐
 Premium woven set with dark, mystical appearance.
 
-| Slot | Item Name | Rarity | Modifier |
-|------|-----------|--------|----------|
-| Body | `beefalo_body_shadow` | Distinguished | Woven |
-| Feet | `beefalo_feet_shadow` | Spiffy | Woven |
-| Head | `beefalo_head_shadow` | Elegant | Woven |
-| Horn | `beefalo_horn_shadow` | Distinguished | Woven |
-| Tail | `beefalo_tail_shadow` | Spiffy | Woven |
+| Slot | Item Name | Rarity | Modifier | Special Notes |
+|------|-----------|--------|----------|---------------|
+| Body | `beefalo_body_shadow` | Distinguished | Woven | |
+| Feet | `beefalo_feet_shadow` | Spiffy | Woven | |
+| Head | `beefalo_head_shadow` | Elegant | Woven | Does not override `beefalo_eye` |
+| Horn | `beefalo_horn_shadow` | Distinguished | Woven | |
+| Tail | `beefalo_tail_shadow` | Spiffy | Woven | |
 
 #### Victorian Theme
 Classic, vintage appearance with period-appropriate styling.
 
-| Slot | Item Name | Rarity |
-|------|-----------|--------|
-| Body | `beefalo_body_victorian` | Complimentary |
-| Feet | `beefalo_feet_victorian` | Complimentary |
-| Head | `beefalo_head_victorian` | Complimentary |
-| Horn | `beefalo_horn_victorian` | Complimentary |
-| Tail | `beefalo_tail_victorian` | Complimentary |
+| Slot | Item Name | Rarity | Special Notes |
+|------|-----------|--------|---------------|
+| Body | `beefalo_body_victorian` | Complimentary | |
+| Feet | `beefalo_feet_victorian` | Complimentary | |
+| Head | `beefalo_head_victorian` | Complimentary | Does not override `beefalo_eye` |
+| Horn | `beefalo_horn_victorian` | Complimentary | |
+| Tail | `beefalo_tail_victorian` | Complimentary | |
 
 #### War Theme
 Military, armored appearance with battle-ready styling.
 
-| Slot | Item Name | Rarity |
-|------|-----------|--------|
-| Body | `beefalo_body_war` | Complimentary |
-| Feet | `beefalo_feet_war` | Complimentary |
-| Head | `beefalo_head_war` | Complimentary |
-| Horn | `beefalo_horn_war` | Complimentary |
-| Tail | `beefalo_tail_war` | Complimentary |
+| Slot | Item Name | Rarity | Special Notes |
+|------|-----------|--------|---------------|
+| Body | `beefalo_body_war` | Complimentary | |
+| Feet | `beefalo_feet_war` | Complimentary | |
+| Head | `beefalo_head_war` | Complimentary | Does not override `beefalo_eye` |
+| Horn | `beefalo_horn_war` | Complimentary | |
+| Tail | `beefalo_tail_war` | Complimentary | |
 
 ## Rarity System
 
@@ -301,7 +299,7 @@ local woven_items = GetItemsByRarity(nil, "Woven")
 
 ### Symbol Override System
 
-The clothing system uses symbol overrides to replace beefalo graphics:
+The clothing system uses symbol overrides to replace beefalo graphics. Each head item has a different set of symbol overrides:
 
 ```lua
 -- Access symbol override data
@@ -314,6 +312,17 @@ end
 local function IsClothingSymbol(symbol)
     return BEEFALO_CLOTHING_SYMBOLS[symbol] == true
 end
+
+-- Example: Compare head item symbol overrides
+local beast_head = BEEFALO_CLOTHING["beefalo_head_beast"]
+local doll_head = BEEFALO_CLOTHING["beefalo_head_doll"]
+
+print("Beast head symbols:", table.concat(beast_head.symbol_overrides, ", "))
+-- Output: beefalo_beard, beefalo_eye, beefalo_facebase, beefalo_headbase, beefalo_jowls, beefalo_lip_crease, beefalo_mouthmouth, beefalo_nose, beffalo_lips
+
+print("Doll head symbols:", table.concat(doll_head.symbol_overrides, ", "))
+-- Output: beefalo_beard, beefalo_facebase, beefalo_headbase, beefalo_jowls, beefalo_lip_crease, beefalo_mouthmouth, beefalo_nose, beffalo_lips
+-- Note: Does not include beefalo_eye
 ```
 
 ### Symbol Hiding System

@@ -4,7 +4,7 @@ description: Introduction to Don't Starve Together modding and API usage
 sidebar_position: 1
 slug: /getting-started
 last_updated: 2023-06-15
-build_version: 675312
+build_version: 676042
 change_status: stable
 ---
 

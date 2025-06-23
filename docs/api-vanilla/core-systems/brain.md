@@ -2,9 +2,9 @@
 title: Brain System
 description: Documentation of the Don't Starve Together brain system for AI entity control and behavior management
 sidebar_position: 3
-slug: /brain
-last_updated: 2024-12-19
-build_version: 675312
+slug: /api-vanilla/core-systems/brain
+last_updated: 2025-06-21
+build_version: 676042
 change_status: stable
 ---
 
@@ -16,8 +16,8 @@ The Brain system in Don't Starve Together provides centralized AI management for
 
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 675312 | 2024-12-19 | stable | Updated documentation to match current implementation |
-| 642130 | 2023-06-10 | added | Initial brain system documentation |
+| 675312 | 2025-06-21 | stable | Updated documentation to match current implementation |
+
 
 ## Overview
 

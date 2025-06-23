@@ -2,9 +2,9 @@
 title: Built-in User Commands System
 description: Documentation of the Don't Starve Together built-in user commands for player interaction and server administration
 sidebar_position: 5
-slug: /builtinusercommands
-last_updated: 2024-12-19
-build_version: 675312
+slug: /api-vanilla/core-systems/builtinusercommands
+last_updated: 2025-06-21
+build_version: 676042
 change_status: stable
 ---
 
@@ -16,8 +16,7 @@ The Built-in User Commands system in Don't Starve Together provides a comprehens
 
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 675312 | 2024-12-19 | stable | Updated documentation to match current implementation |
-| 642130 | 2023-06-10 | added | Initial built-in user commands documentation |
+| 675312 | 2025-06-21 | stable | Updated documentation to match current implementation |
 
 ## Overview
 

@@ -1,25 +1,24 @@
 ---
-title: Crafting Sorting System
-description: Documentation of the Don't Starve Together crafting menu sorting system that organizes and prioritizes crafting recipes
+id: crafting-sorting
+title: "Crafting Sorting System"
+description: "Documentation of the Don't Starve Together crafting menu sorting system that organizes and prioritizes crafting recipes"
 sidebar_position: 6
-slug: /crafting-sorting
-last_updated: 2024-12-19
-build_version: 675312
+slug: /api-vanilla/core-systems/crafting-sorting
+last_updated: 2025-06-21
+build_version: 676042
 change_status: stable
 ---
 
-# Crafting Sorting System
-
-The Crafting Sorting system in Don't Starve Together provides multiple methods for organizing and displaying crafting recipes in the crafting menu. This system enables players to view recipes sorted by craftability, favorites, alphabetical order, or custom filter-based arrangements.
+# Crafting Sorting System 🟢
 
 ## Version History
-
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 675312 | 2024-12-19 | stable | Updated documentation to match current implementation |
-| 642130 | 2023-06-10 | added | Initial crafting sorting system documentation |
+| 676042 | 2025-06-21 | stable | Current stable implementation with MetaClass-based sorting classes |
 
 ## Overview
+
+The Crafting Sorting system in Don't Starve Together provides multiple methods for organizing and displaying crafting recipes in the crafting menu. This system enables players to view recipes sorted by craftability, favorites, alphabetical order, or custom filter-based arrangements.
 
 The crafting sorting system serves multiple purposes:
 - **Recipe Organization**: Provides different ways to sort and display crafting recipes
@@ -76,9 +75,13 @@ local defaultSort = DefaultSort(widget)
 | `unsorted` | Table | Global unsorted recipes lookup |
 | `fullupdate` | Boolean | Flag indicating a full refresh is needed |
 
-### Core Methods
+### Methods
 
-#### BuildFavoriteTable()
+#### BuildFavoriteTable() {#default-sort-build-favorite-table}
+
+**Status:** `stable`
+
+**Description:**
 Rebuilds the favorites filter table when favorites change.
 
 ```lua
@@ -90,15 +93,53 @@ function DefaultSort:BuildFavoriteTable()
 end
 ```
 
-#### OnFavoriteChanged(recipe_name, is_favorite_recipe)
+#### OnFavoriteChanged(recipe_name, is_favorite_recipe) {#default-sort-on-favorite-changed}
+
+**Status:** `stable`
+
+**Description:**
 Handles favorite status changes for recipes.
 
 **Parameters:**
-- `recipe_name`: String identifier of the recipe
-- `is_favorite_recipe`: Boolean indicating new favorite status
+- `recipe_name` (string): String identifier of the recipe
+- `is_favorite_recipe` (boolean): Boolean indicating new favorite status
 
-#### GetSorted() / GetUnsorted()
-Returns sorted or unsorted recipe arrays for the current filter.
+#### GetSorted() {#default-sort-get-sorted}
+
+**Status:** `stable`
+
+**Description:**
+Returns sorted recipe array for the current filter.
+
+**Returns:**
+- (table): Array of sorted recipe names for current filter
+
+#### GetUnsorted() {#default-sort-get-unsorted}
+
+**Status:** `stable`
+
+**Description:**
+Returns unsorted recipe lookup table for the current filter.
+
+**Returns:**
+- (table): Lookup table of unsorted recipe names for current filter
+
+#### Refresh() {#default-sort-refresh}
+
+**Status:** `stable`
+
+**Description:**
+Refreshes the sorting system when full update is needed and applies filters to widget.
+
+**Returns:**
+- (boolean): True if full update was performed
+
+#### OnSelected() {#default-sort-on-selected}
+
+**Status:** `stable`
+
+**Description:**
+Called when this sorter is selected as the active sorting method. Rebuilds favorite table.
 
 ```lua
 function DefaultSort:GetSorted()
@@ -169,10 +210,17 @@ local build_state_sorting = {
 }
 ```
 
-### Core Methods
+### Methods
 
-#### BuildCraftableTable()
+#### BuildCraftableTable() {#craftable-sort-build-craftable-table}
+
+**Status:** `stable`
+
+**Description:**
 Updates recipe categorization based on current crafting state.
+
+**Returns:**
+- (boolean): True if any category was changed and requires UI refresh
 
 ```lua
 function CraftableSort:BuildCraftableTable()
@@ -190,13 +238,71 @@ function CraftableSort:BuildCraftableTable()
 end
 ```
 
-#### FillSortedTable(recipes, validator, output)
+#### FillSortedTable(recipes, validator, output) {#craftable-sort-fill-sorted-table}
+
+**Status:** `stable`
+
+**Description:**
 Populates output table with sorted recipes that match the validator.
 
 **Parameters:**
-- `recipes`: Array of recipe names in sorted order
-- `validator`: Table used as set for validation
-- `output`: Array to populate with matching recipes
+- `recipes` (table): Array of recipe names in sorted order
+- `validator` (table): Table used as set for validation
+- `output` (table): Array to populate with matching recipes
+
+#### FillUnsortedTable(recipes, validator, output) {#craftable-sort-fill-unsorted-table}
+
+**Status:** `stable`
+
+**Description:**
+Populates output table with unsorted recipes that match the validator.
+
+**Parameters:**
+- `recipes` (table): Table of recipe names as keys
+- `validator` (table): Table used as set for validation  
+- `output` (table): Array to populate with matching recipes
+
+#### ClearSortTables() {#craftable-sort-clear-sort-tables}
+
+**Status:** `stable`
+
+**Description:**
+Clears cached sorted/unsorted tables when filter changes to force rebuild.
+
+#### Refresh() {#craftable-sort-refresh}
+
+**Status:** `stable`
+
+**Description:**
+Refreshes craftable table and delegates to default sorter. Applies filters if changes occurred.
+
+**Returns:**
+- (boolean): True if UI update was triggered
+
+#### OnSelected() {#craftable-sort-on-selected}
+
+**Status:** `stable`
+
+**Description:**
+Called when this sorter is selected. Clears tables and rebuilds craftable categorization.
+
+#### OnSelectFilter() {#craftable-sort-on-select-filter}
+
+**Status:** `stable`
+
+**Description:**
+Called when filter changes. Clears cached sort tables to force rebuild.
+
+#### OnFavoriteChanged(recipe_name, is_favorite_recipe) {#craftable-sort-on-favorite-changed}
+
+**Status:** `stable`
+
+**Description:**
+Delegates favorite change handling to the default sorter.
+
+**Parameters:**
+- `recipe_name` (string): Recipe identifier 
+- `is_favorite_recipe` (boolean): New favorite status
 
 ## FavoriteSort Class
 
@@ -210,7 +316,11 @@ local favoriteSort = FavoriteSort(widget, defaultsort)
 
 ### Core Methods
 
-#### BuildFavoriteTable()
+#### BuildFavoriteTable() {#favorite-sort-build-favorite-table}
+
+**Status:** `stable`
+
+**Description:**
 Synchronizes favorite status with the crafting menu profile.
 
 ```lua
@@ -227,8 +337,71 @@ function FavoriteSort:BuildFavoriteTable()
 end
 ```
 
-#### OnFavoriteChanged(recipe_name, is_favorite_recipe)
+#### OnFavoriteChanged(recipe_name, is_favorite_recipe) {#favorite-sort-on-favorite-changed}
+
+**Status:** `stable`
+
+**Description:**
 Handles real-time favorite status changes with optimized table updates.
+
+**Parameters:**
+- `recipe_name` (string): Recipe identifier to update
+- `is_favorite_recipe` (boolean): New favorite status
+
+#### ClearSortTables() {#favorite-sort-clear-sort-tables}
+
+**Status:** `stable`
+
+**Description:**
+Clears cached sorted/unsorted tables when filter changes to force rebuild.
+
+#### Refresh() {#favorite-sort-refresh}
+
+**Status:** `stable`
+
+**Description:**
+Refreshes favorite sorting by clearing cached tables if full update is needed, then delegates to default sorter.
+
+**Returns:**
+- (boolean): True if UI update was triggered
+
+#### OnSelected() {#favorite-sort-on-selected}
+
+**Status:** `stable`
+
+**Description:**
+Called when this sorter is selected. Clears tables and rebuilds favorite categorization.
+
+#### OnSelectFilter() {#favorite-sort-on-select-filter}
+
+**Status:** `stable`
+
+**Description:**
+Called when filter changes. Clears cached sort tables to force rebuild.
+
+#### FillSortedTable(recipes, validator, output) {#favorite-sort-fill-sorted-table}
+
+**Status:** `stable`
+
+**Description:**
+Populates output table with sorted recipes that match the validator.
+
+**Parameters:**
+- `recipes` (table): Array of recipe names in sorted order
+- `validator` (table): Table used as set for validation
+- `output` (table): Array to populate with matching recipes
+
+#### FillUnsortedTable(recipes, validator, output) {#favorite-sort-fill-unsorted-table}
+
+**Status:** `stable`
+
+**Description:**
+Populates output table with unsorted recipes that match the validator.
+
+**Parameters:**
+- `recipes` (table): Table of recipe names as keys
+- `validator` (table): Table used as set for validation  
+- `output` (table): Array to populate with matching recipes
 
 ```lua
 function FavoriteSort:OnFavoriteChanged(recipe_name, is_favorite_recipe)
@@ -456,20 +629,22 @@ return {
 }
 ```
 
-## Status Indicators
-
-🟢 **Stable**: Core sorting functionality is well-established and reliable  
-🟢 **Stable**: Integration with crafting menu system  
-🟢 **Stable**: Performance optimizations and lazy evaluation  
-🟢 **Stable**: User preference handling and persistence
-
 ## Related Modules
 
-- [**Recipes**](./recipes.md) - Recipe definitions and crafting requirements
-- [**Cooking**](./cooking.md) - Cooking recipe management system  
-- [**Constants**](./constants.md) - Game constants including crafting filters
-- [**Components**](./components/index.md) - Component system for crafting functionality
+- **[Recipes](./recipes.md)** - Recipe definitions and crafting requirements
+- **[Cooking](./cooking.md)** - Cooking recipe management system  
+- **[Constants](./constants.md)** - Game constants including crafting filters
+- **[MetaClass](./metaclass.md)** - Object-oriented programming framework
+
+## Technical Notes
+
+- Core sorting functionality provides stable API across game updates
+- MetaClass pattern enables object-oriented design with inheritance
+- Performance optimizations through lazy evaluation and coroutine-based iteration
+- Incremental updates minimize unnecessary UI refreshes
+- Integration with crafting filters and user preference systems
+- Coroutine-based iterators prevent UI blocking on large recipe lists
 
 ---
 
-**Note**: This documentation covers the core sorting algorithms used by the crafting menu. For information about recipe definitions themselves, see the [Recipes documentation](./recipes.md).
+*This documentation covers the Crafting Sorting System as of build 676042. The system provides comprehensive recipe organization and prioritization for the crafting menu interface.*

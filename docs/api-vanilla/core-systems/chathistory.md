@@ -1,89 +1,144 @@
 ---
-title: "ChatHistory"
-description: "Chat history management system for storing, synchronizing, and filtering chat messages"
+id: chathistory
+title: ChatHistory
+description: Chat history management system for storing, synchronizing, and filtering chat messages
 sidebar_position: 10
 slug: /api-vanilla/core-systems/chathistory
-last_updated: "2024-01-15"
-build_version: "675312"
-change_status: "stable"
+last_updated: 2025-06-21
+build_version: 676042
+change_status: stable
 ---
 
-# ChatHistory System
+# ChatHistory
 
-The **ChatHistory** system manages chat message storage, synchronization, and filtering in Don't Starve Together. It provides a circular buffer for chat messages, network synchronization between clients and server, word filtering, and support for multiple chat types including player messages, emotes, announcements, and NPC chatter.
+## Version History
+| Build Version | Change Date | Change Type | Description |
+|---|----|----|----|
+| 676042 | 2025-06-21 | stable | Current version |
 
 ## Overview
 
-The ChatHistoryManager class implements a sophisticated chat system that handles message storage with a circular buffer, network synchronization for joining players, word filtering for appropriate content, and listener notifications for UI updates. It supports various chat types and provides efficient duplicate filtering for NPC chatter.
+The **ChatHistory** system manages chat message storage, synchronization, and filtering in Don't Starve Together. It provides a circular buffer for chat messages with network synchronization between clients and server, word filtering for content moderation, and support for multiple chat types including player messages, emotes, announcements, and NPC chatter.
 
-## Version History
+## Usage Example
 
-| Version | Changes | Status |
-|---------|---------|--------|
-| 675312  | Current stable implementation | 🟢 **Stable** |
-| Earlier | Initial chat history implementation | - |
+```lua
+-- Add a system message
+ChatHistory:OnSystemMessage("Player Wilson has joined the game")
+
+-- Add chat listener for UI updates
+local function UpdateChatUI(chatMessage)
+    if chatMessage.type == ChatTypes.Message then
+        print(string.format("%s says: %s", chatMessage.sender, chatMessage.message))
+    end
+end
+ChatHistory:AddChatHistoryListener(UpdateChatUI)
+
+-- Get recent messages
+for i = 1, 5 do
+    local msg = ChatHistory:GetChatMessageAtIndex(i)
+    if msg then
+        print("Message:", msg.message)
+    end
+end
+```
 
 ## Constants
 
-### Chat Limits
+### MAX_CHAT_HISTORY
+
+**Value:** `100`
+
+**Status:** stable
+
+**Description:** Maximum number of chat messages stored in the circular buffer.
+
+### NPC_CHATTER_MAX_CHAT_NO_DUPES
+
+**Value:** `20`
+
+**Status:** stable
+
+**Description:** Maximum range for checking duplicate NPC chatter messages to prevent spam.
+
+## Enumerations
+
+### ChatTypes
+
+**Status:** stable
+
+**Description:** Enumeration defining different types of chat messages.
+
+**Values:**
+- `ChatTypes.Message` (1): Regular player chat messages
+- `ChatTypes.Emote` (2): Player emote actions  
+- `ChatTypes.Announcement` (3): Server announcements
+- `ChatTypes.SkinAnnouncement` (4): Skin unlock announcements
+- `ChatTypes.SystemMessage` (5): System-generated messages
+- `ChatTypes.CommandResponse` (6): Responses to admin commands
+- `ChatTypes.ChatterMessage` (7): NPC/creature chatter (client-side only)
+
+**Example:**
 ```lua
-MAX_CHAT_HISTORY = 100  -- Maximum messages stored in history
-NPC_CHATTER_MAX_CHAT_NO_DUPES = 20  -- Range for duplicate filtering of NPC messages
+if chatMessage.type == ChatTypes.Announcement then
+    print("Server announcement:", chatMessage.message)
+end
 ```
 
-### ChatTypes Enumeration
-```lua
-ChatTypes = {
-    Message = 1,           -- Regular player chat messages
-    Emote = 2,            -- Player emote actions
-    Announcement = 3,      -- Server announcements
-    SkinAnnouncement = 4,  -- Skin unlock announcements
-    SystemMessage = 5,     -- System-generated messages
-    CommandResponse = 6,   -- Responses to admin commands
-    ChatterMessage = 7,    -- NPC/creature chatter (client-side only)
-}
-```
+### NoWordFilterForChatType
 
-## Core Class: ChatHistoryManager
+**Status:** stable
 
-### Constructor
-```lua
-ChatHistoryManager = Class(function(self)
-```
+**Description:** Table defining which chat types bypass word filtering.
 
-Creates a new chat history manager with:
-- Empty listener table for UI notifications
-- Circular message buffer
-- History start index tracking
-- Request history management for joining players
+**Values:**
+- `[ChatTypes.SkinAnnouncement]` = false
+- `[ChatTypes.CommandResponse]` = true
 
-## Core Methods
+## Classes/Components
 
-### Message Addition
+### ChatHistoryManager
 
-#### AddToHistory(type, sender_userid, sender_netid, sender_name, message, colour, icondata, whisper, localonly, text_filter_context)
-Adds a new chat message to the history buffer.
+**Status:** stable
 
-```lua
-function ChatHistoryManager:AddToHistory(type, sender_userid, sender_netid, sender_name, message, colour, icondata, whisper, localonly, text_filter_context) -> table
-```
+**Description:** Main class managing chat history storage, network synchronization, and message filtering using a circular buffer system.
+
+**Version History:**
+- Current implementation in build 676042
+
+#### Properties
+- `listeners` (table): Registered callback functions for message notifications
+- `history` (table): Circular buffer storing chat messages
+- `history_start` (number): Current position in circular buffer
+- `request_history_start` (number): Starting index for history requests
+- `join_server` (boolean): Flag indicating if player is joining server
+- `max_chat_history_plus_one` (table): Last overwritten message reference
+
+#### Methods
+
+##### AddToHistory(type, sender_userid, sender_netid, sender_name, message, colour, icondata, whisper, localonly, text_filter_context) {#add-to-history}
+
+**Status:** stable
+
+**Description:**
+Adds a new chat message to the history buffer with duplicate filtering for NPC chatter and automatic listener notification.
 
 **Parameters:**
-- `type` (number): Chat type from ChatTypes enum
-- `sender_userid` (string): Unique user identifier
-- `sender_netid` (number): Network entity ID
-- `sender_name` (string): Display name of sender
-- `message` (string): Chat message content
-- `colour` (table): Color data for message display
+- `type` (number): Chat type from ChatTypes enumeration
+- `sender_userid` (string): Unique user identifier for the sender
+- `sender_netid` (number): Network entity ID of the sender
+- `sender_name` (string): Display name of the message sender
+- `message` (string): Chat message content text
+- `colour` (table): Color data for message display (RGBA format)
 - `icondata` (string/table): Profile icon or vanity data
-- `whisper` (boolean): Whether message is a whisper
-- `localonly` (boolean): Whether message stays on local client
-- `text_filter_context` (number): Context for word filtering
+- `whisper` (boolean): Whether message is a private whisper
+- `localonly` (boolean): Whether message stays on local client only
+- `text_filter_context` (number): Context for content filtering system
 
 **Returns:**
-- `table`: Generated chat message object, or nil if filtered out
+- (table): Generated chat message object, or nil if filtered out
 
-**Usage:**
+**Example:**
 ```lua
 -- Add regular player message
 local chatMsg = ChatHistory:AddToHistory(
@@ -100,17 +155,53 @@ local chatMsg = ChatHistory:AddToHistory(
 )
 ```
 
-#### GenerateChatMessage(type, sender_userid, sender_netid, sender_name, message, colour, icondata, whisper, localonly, text_filter_context)
-Creates a formatted chat message object without adding to history.
+**Version History:**
+- Stable implementation since build 676042
 
-```lua
-function ChatHistoryManager:GenerateChatMessage(type, sender_userid, sender_netid, sender_name, message, colour, icondata, whisper, localonly, text_filter_context) -> table
-```
+##### GetChatMessageAtIndex(idx) {#get-chat-message-at-index}
+
+**Status:** stable
+
+**Description:**
+Retrieves a chat message by its position in history, where index 1 returns the newest message.
+
+**Parameters:**
+- `idx` (number): History index (1 = newest, MAX_CHAT_HISTORY = oldest)
 
 **Returns:**
-- `table`: Formatted chat message with all display properties
+- (table): Chat message object, or nil if no message exists at index
 
-**Usage:**
+**Example:**
+```lua
+-- Get most recent message
+local latest = ChatHistory:GetChatMessageAtIndex(1)
+if latest then
+    print("Latest message:", latest.message)
+end
+
+-- Display recent chat history
+for i = 1, 10 do
+    local msg = ChatHistory:GetChatMessageAtIndex(i)
+    if msg then
+        print(string.format("[%d] %s: %s", i, msg.sender or "System", msg.message))
+    end
+end
+```
+
+##### GenerateChatMessage(type, sender_userid, sender_netid, sender_name, message, colour, icondata, whisper, localonly, text_filter_context) {#generate-chat-message}
+
+**Status:** stable
+
+**Description:**
+Creates a formatted chat message object without adding it to history. Applies word filtering and color formatting.
+
+**Parameters:**
+- Same as AddToHistory method
+
+**Returns:**
+- (table): Formatted chat message with all display properties
+
+**Example:**
 ```lua
 -- Generate message object for processing
 local msgObj = ChatHistory:GenerateChatMessage(
@@ -122,78 +213,28 @@ local msgObj = ChatHistory:GenerateChatMessage(
 )
 ```
 
-### Message Retrieval
+##### OnSay(guid, userid, netid, name, prefab, message, colour, whisper, isemote, user_vanity) {#on-say}
 
-#### GetChatMessageAtIndex(idx)
-Retrieves a chat message by its position in history.
+**Status:** stable
 
-```lua
-function ChatHistoryManager:GetChatMessageAtIndex(idx) -> table
-```
+**Description:**
+Handles regular player chat messages and emotes with distance-based filtering for whispers.
 
 **Parameters:**
-- `idx` (number): History index (1 = newest, MAX_CHAT_HISTORY = oldest)
-
-**Returns:**
-- `table`: Chat message object, or nil if no message at index
-
-**Usage:**
-```lua
--- Get most recent message
-local latest = ChatHistory:GetChatMessageAtIndex(1)
-if latest then
-    print("Latest message:", latest.message)
-end
-
--- Get older messages
-for i = 1, 10 do
-    local msg = ChatHistory:GetChatMessageAtIndex(i)
-    if msg then
-        print(string.format("[%d] %s: %s", i, msg.sender or "System", msg.message))
-    end
-end
-```
-
-#### GetLastDeletedChatMessage()
-Returns the message that was overwritten when the circular buffer wrapped.
-
-```lua
-function ChatHistoryManager:GetLastDeletedChatMessage() -> table
-```
-
-**Usage:**
-```lua
--- Check what message was lost due to buffer overflow
-local deleted = ChatHistory:GetLastDeletedChatMessage()
-if deleted then
-    print("Oldest message was deleted:", deleted.message)
-end
-```
-
-### Chat Type Handlers
-
-#### OnSay(guid, userid, netid, name, prefab, message, colour, whisper, isemote, user_vanity)
-Handles regular player chat messages and emotes.
-
-```lua
-function ChatHistoryManager:OnSay(guid, userid, netid, name, prefab, message, colour, whisper, isemote, user_vanity)
-```
-
-**Parameters:**
-- `guid` (number): Entity GUID
+- `guid` (number): Entity GUID of the speaker
 - `userid` (string): Player user ID
-- `netid` (number): Network ID
-- `name` (string): Player name
-- `prefab` (string): Character prefab
-- `message` (string): Chat message
-- `colour` (table): Message color
+- `netid` (number): Network ID of the player
+- `name` (string): Player display name
+- `prefab` (string): Character prefab name
+- `message` (string): Chat message content
+- `colour` (table): Message color data
 - `whisper` (boolean): Is whisper message
 - `isemote` (boolean): Is emote action
 - `user_vanity` (table): Vanity items data
 
-**Usage:**
+**Example:**
 ```lua
--- Called automatically by network events
+-- Typically called by network events
 ChatHistory:OnSay(
     player.GUID,
     player.userid,
@@ -208,14 +249,19 @@ ChatHistory:OnSay(
 )
 ```
 
-#### OnAnnouncement(message, colour, announce_type)
-Handles server announcements.
+##### OnAnnouncement(message, colour, announce_type) {#on-announcement}
 
-```lua
-function ChatHistoryManager:OnAnnouncement(message, colour, announce_type)
-```
+**Status:** stable
 
-**Usage:**
+**Description:**
+Handles server announcements with special formatting and color coding.
+
+**Parameters:**
+- `message` (string): Announcement message text
+- `colour` (table): Message color data
+- `announce_type` (string): Type of announcement for icon display
+
+**Example:**
 ```lua
 -- Add server announcement
 ChatHistory:OnAnnouncement(
@@ -225,25 +271,41 @@ ChatHistory:OnAnnouncement(
 )
 ```
 
-#### OnChatterMessage(inst, name_colour, message, colour, user_vanity, user_vanity_bg, priority)
-Handles NPC and creature chatter with duplicate filtering.
+##### OnSystemMessage(message) {#on-system-message}
 
-```lua
-function ChatHistoryManager:OnChatterMessage(inst, name_colour, message, colour, user_vanity, user_vanity_bg, priority)
-```
+**Status:** stable
+
+**Description:**
+Adds system-generated messages with standard formatting.
 
 **Parameters:**
-- `inst` (Entity): Creature/NPC entity
-- `name_colour` (table): Name display color
-- `message` (string): Chatter message
-- `colour` (table): Message color
-- `user_vanity` (string): Icon data
-- `user_vanity_bg` (string): Icon background
-- `priority` (number): Chat priority level
+- `message` (string): System message content
 
-**Usage:**
+**Example:**
 ```lua
--- Add creature chatter (typically called by creature AI)
+-- Add system notification
+ChatHistory:OnSystemMessage("Player Wilson has joined the game")
+```
+
+##### OnChatterMessage(inst, name_colour, message, colour, user_vanity, user_vanity_bg, priority) {#on-chatter-message}
+
+**Status:** stable
+
+**Description:**
+Handles NPC and creature chatter with duplicate filtering and priority-based display control.
+
+**Parameters:**
+- `inst` (Entity): Creature/NPC entity instance
+- `name_colour` (table): Name display color
+- `message` (string): Chatter message text
+- `colour` (table): Message color data
+- `user_vanity` (string): Icon data for the creature
+- `user_vanity_bg` (string): Icon background data
+- `priority` (number): Chat priority level for filtering
+
+**Example:**
+```lua
+-- Add creature chatter
 local spider = GetClosestInstWithTag("spider", ThePlayer, 10)
 if spider then
     ChatHistory:OnChatterMessage(
@@ -258,118 +320,129 @@ if spider then
 end
 ```
 
-#### OnSystemMessage(message)
-Adds system-generated messages.
+##### AddChatHistoryListener(fn) {#add-chat-history-listener}
 
-```lua
-function ChatHistoryManager:OnSystemMessage(message)
-```
+**Status:** stable
 
-**Usage:**
-```lua
--- Add system notification
-ChatHistory:OnSystemMessage("Player Wilson has joined the game")
-```
-
-### Listener Management
-
-#### AddChatHistoryListener(fn)
-Registers a callback function to receive chat message notifications.
-
-```lua
-function ChatHistoryManager:AddChatHistoryListener(fn)
-```
+**Description:**
+Registers a callback function to receive notifications when new chat messages are added.
 
 **Parameters:**
 - `fn` (function): Callback function that receives chat message objects
 
-**Usage:**
+**Example:**
 ```lua
 -- Register UI update listener
 local function UpdateChatUI(chatMessage)
     if chatMessage.type == ChatTypes.Message then
-        print(string.format("%s says: %s", 
-                          chatMessage.sender, 
-                          chatMessage.message))
+        print(string.format("%s says: %s", chatMessage.sender, chatMessage.message))
     end
 end
 
 ChatHistory:AddChatHistoryListener(UpdateChatUI)
 ```
 
-#### RemoveChatHistoryListener(fn)
-Unregisters a chat message listener.
+##### RemoveChatHistoryListener(fn) {#remove-chat-history-listener}
 
-```lua
-function ChatHistoryManager:RemoveChatHistoryListener(fn)
-```
+**Status:** stable
 
-**Usage:**
+**Description:**
+Unregisters a chat message listener to prevent memory leaks.
+
+**Parameters:**
+- `fn` (function): Previously registered callback function
+
+**Example:**
 ```lua
 -- Clean up listener when UI is destroyed
 ChatHistory:RemoveChatHistoryListener(UpdateChatUI)
 ```
 
-### Network Synchronization
+##### SendCommandResponse(messages) {#send-command-response}
 
-#### RequestChatHistory()
-Requests chat history from server when joining a game.
+**Status:** stable
 
+**Description:**
+Adds command response messages to chat history, supporting both single strings and arrays.
+
+**Parameters:**
+- `messages` (string/table): Single message or array of messages
+
+**Example:**
 ```lua
-function ChatHistoryManager:RequestChatHistory()
+-- Single response
+ChatHistory:SendCommandResponse("Current day: " .. TheWorld.state.cycles)
+
+-- Multiple responses  
+ChatHistory:SendCommandResponse({
+    "Command executed successfully",
+    "Result: 42 items processed"
+})
 ```
 
-**Usage:**
+##### RequestChatHistory() {#request-chat-history}
+
+**Status:** stable
+
+**Description:**
+Requests chat history from server when joining a game session for synchronization.
+
+**Example:**
 ```lua
 -- Automatically called when joining server
--- Players will receive recent chat history
 ChatHistory:RequestChatHistory()
 ```
 
-#### SendChatHistory(userid, last_message_hash, first_message_hash)
-Sends chat history to a requesting client (server-side).
+##### SendChatHistory(userid, last_message_hash, first_message_hash) {#send-chat-history}
 
-```lua
-function ChatHistoryManager:SendChatHistory(userid, last_message_hash, first_message_hash)
-```
+**Status:** stable
 
-#### RecieveChatHistory(chat_history)
-Receives and processes chat history from server (client-side).
+**Description:**
+Sends chat history to a requesting client with hash-based deduplication (server-side).
 
-```lua
-function ChatHistoryManager:RecieveChatHistory(chat_history)
-```
+**Parameters:**
+- `userid` (string): Target user ID to send history to
+- `last_message_hash` (number): Hash of the last message client has
+- `first_message_hash` (number): Hash of the first message client has
 
-### Save/Load System
+##### RecieveChatHistory(chat_history) {#receive-chat-history}
 
-#### GetChatHistory()
-Serializes chat history for saving.
+**Status:** stable
 
-```lua
-function ChatHistoryManager:GetChatHistory() -> string
-```
+**Description:**
+Receives and processes compressed chat history from server (client-side).
+
+**Parameters:**
+- `chat_history` (string): Compressed and encoded chat history data
+
+##### GetChatHistory() {#get-chat-history}
+
+**Status:** stable
+
+**Description:**
+Serializes current chat history for saving to disk with compression.
 
 **Returns:**
-- `string`: Compressed and encoded chat history data
+- (string): Compressed and encoded chat history data
 
-**Usage:**
+**Example:**
 ```lua
 -- Save chat history (typically in save system)
 local historyData = ChatHistory:GetChatHistory()
 -- Store historyData in save file
 ```
 
-#### SetChatHistory(history)
-Loads chat history from saved data.
+##### SetChatHistory(history) {#set-chat-history}
 
-```lua
-function ChatHistoryManager:SetChatHistory(history)
-```
+**Status:** stable
+
+**Description:**
+Loads chat history from saved data with decompression and validation.
 
 **Parameters:**
-- `history` (string): Compressed chat history data
+- `history` (string): Compressed chat history data from save file
 
-**Usage:**
+**Example:**
 ```lua
 -- Load chat history on game start
 if savedData.chatHistory then
@@ -377,16 +450,17 @@ if savedData.chatHistory then
 end
 ```
 
-### Utility Methods
+##### HasHistory() {#has-history}
 
-#### HasHistory()
-Checks if any chat messages exist in history.
+**Status:** stable
 
-```lua
-function ChatHistoryManager:HasHistory() -> boolean
-```
+**Description:**
+Checks if any chat messages exist in the history buffer.
 
-**Usage:**
+**Returns:**
+- (boolean): True if history contains messages, false otherwise
+
+**Example:**
 ```lua
 -- Check if chat UI should be visible
 if ChatHistory:HasHistory() then
@@ -394,18 +468,55 @@ if ChatHistory:HasHistory() then
 end
 ```
 
-#### JoinServer()
-Marks that the player is joining a server (prevents message processing during join).
+##### JoinServer() {#join-server}
 
+**Status:** stable
+
+**Description:**
+Sets flag indicating player is joining server to prevent message processing during synchronization.
+
+**Example:**
 ```lua
-function ChatHistoryManager:JoinServer()
+-- Called when starting to join a server
+ChatHistory:JoinServer()
 ```
 
-#### GetDisplayName(name, prefab)
-Sanitizes display names for chat.
+##### GetDisplayName(name, prefab) {#get-display-name}
 
+**Status:** stable
+
+**Description:**
+Sanitizes and formats display names for chat, providing fallback for empty names.
+
+**Parameters:**
+- `name` (string): Player name to sanitize
+- `prefab` (string): Character prefab name
+
+**Returns:**
+- (string): Sanitized display name or fallback text
+
+**Example:**
 ```lua
-function ChatHistoryManager:GetDisplayName(name, prefab) -> string
+local displayName = ChatHistory:GetDisplayName(player.name, player.prefab)
+```
+
+##### GetLastDeletedChatMessage() {#get-last-deleted-chat-message}
+
+**Status:** stable
+
+**Description:**
+Returns the message that was overwritten when the circular buffer wrapped around.
+
+**Returns:**
+- (table): Last overwritten chat message object, or nil
+
+**Example:**
+```lua
+-- Check what message was lost due to buffer overflow
+local deleted = ChatHistory:GetLastDeletedChatMessage()
+if deleted then
+    print("Oldest message was deleted:", deleted.message)
+end
 ```
 
 ## Message Object Structure
@@ -414,25 +525,40 @@ Chat message objects contain the following fields:
 
 ```lua
 {
-    type = ChatTypes.Message,           -- Message type
+    type = ChatTypes.Message,           -- Message type from ChatTypes enum
     sender = "Wilson",                  -- Sender display name
-    sender_userid = "player123",        -- Sender user ID
-    sender_netid = 456,                -- Sender network ID
+    sender_userid = "player123",        -- Sender user ID  
+    sender_netid = 456,                 -- Sender network ID
     message = "Hello everyone!",        -- Message content
-    s_colour = {1, 1, 1, 1},          -- Sender name color
-    m_colour = {0.8, 0.8, 0.8, 1},    -- Message text color
-    icondata = "default",              -- Profile icon
-    icondatabg = "bg_default",         -- Icon background
-    localonly = false,                 -- Local-only flag
-    text_filter_context = TEXT_FILTER_CTX_CHAT  -- Filter context
+    s_colour = {1, 1, 1, 1},           -- Sender name color (RGBA)
+    m_colour = {0.8, 0.8, 0.8, 1},     -- Message text color (RGBA)
+    icondata = "default",               -- Profile icon identifier
+    icondatabg = "bg_default",          -- Icon background identifier
+    localonly = false,                  -- Local-only message flag
+    text_filter_context = TEXT_FILTER_CTX_CHAT  -- Word filter context
 }
 ```
 
-## Usage Examples
+## Global Instance
 
-### Basic Chat System Setup
+### ChatHistory
+
+**Status:** stable
+
+**Description:** Global singleton instance of ChatHistoryManager available throughout the game.
+
+**Example:**
 ```lua
--- Initialize chat system listeners
+-- Global access to chat history system
+ChatHistory:OnSystemMessage("Game started")
+local recentMessage = ChatHistory:GetChatMessageAtIndex(1)
+```
+
+## Common Uses
+
+### Basic Chat System Integration
+```lua
+-- Initialize chat system with listeners
 local function SetupChatSystem()
     local function OnChatMessage(chatMsg)
         -- Update UI with new message
@@ -451,9 +577,40 @@ local function SetupChatSystem()
 end
 ```
 
+### NPC Chatter with Filtering
+```lua
+-- Add creature chatter with proper filtering
+local function AddCreatureChatter(creature, message, priority)
+    if not creature or not creature:IsValid() then
+        return
+    end
+    
+    -- Check if chatter is enabled in settings
+    if not Profile:GetNPCChatEnabled() then
+        return
+    end
+    
+    -- Check priority level against user preferences
+    priority = priority or 0
+    if Profile:GetNPCChatLevel() > priority then
+        return
+    end
+    
+    ChatHistory:OnChatterMessage(
+        creature,
+        CREATURE_NAME_COLOR,
+        message,
+        CREATURE_CHAT_COLOR,
+        nil,  -- No vanity icon
+        nil,  -- No background
+        priority
+    )
+end
+```
+
 ### Chat History Display
 ```lua
--- Display recent chat history
+-- Display recent chat messages
 local function ShowRecentChat(numMessages)
     numMessages = numMessages or 10
     
@@ -462,205 +619,24 @@ local function ShowRecentChat(numMessages)
         local msg = ChatHistory:GetChatMessageAtIndex(i)
         if not msg then break end
         
-        local timestamp = os.date("%H:%M:%S")
         local sender = msg.sender or "System"
         local content = msg.message
         
         if msg.type == ChatTypes.Emote then
-            print(string.format("[%s] * %s", timestamp, content))
+            print("* " .. content)
         elseif msg.type == ChatTypes.Announcement then
-            print(string.format("[%s] [ANNOUNCEMENT] %s", timestamp, content))
+            print("[ANNOUNCEMENT] " .. content)
         else
-            print(string.format("[%s] %s: %s", timestamp, sender, content))
+            print(sender .. ": " .. content)
         end
     end
 end
 ```
 
-### Custom Chat Commands
-```lua
--- Add command response to chat
-local function HandleChatCommand(command, args)
-    local response = ""
-    
-    if command == "time" then
-        response = "Current day: " .. TheWorld.state.cycles
-    elseif command == "players" then
-        local count = #AllPlayers
-        response = string.format("Players online: %d", count)
-    else
-        response = "Unknown command: " .. command
-    end
-    
-    ChatHistory:SendCommandResponse(response)
-end
-```
+## Related Modules
 
-### NPC Chatter Integration
-```lua
--- Add creature chatter with proper filtering
-local function AddCreatureChatter(creature, message, priority)
-    if not creature or not creature:IsValid() then
-        return
-    end
-    
-    -- Check if chatter is enabled
-    if not Profile:GetNPCChatEnabled() then
-        return
-    end
-    
-    -- Check priority level
-    priority = priority or 0
-    if Profile:GetNPCChatLevel() > priority then
-        return
-    end
-    
-    local name_colour = CREATURE_NAME_COLORS[creature.prefab] or DEFAULT_CREATURE_COLOR
-    local msg_colour = CREATURE_CHAT_COLORS[creature.prefab] or DEFAULT_CHAT_COLOR
-    
-    ChatHistory:OnChatterMessage(
-        creature,
-        name_colour,
-        message,
-        msg_colour,
-        nil,  -- No vanity icon
-        nil,  -- No background
-        priority
-    )
-end
-```
-
-### Message Filtering and Moderation
-```lua
--- Example of message filtering integration
-local function FilterChatMessage(chatMsg)
-    -- Check for inappropriate content
-    if chatMsg.text_filter_context then
-        local filtered = ApplyLocalWordFilter(
-            chatMsg.message, 
-            chatMsg.text_filter_context, 
-            chatMsg.sender_netid
-        )
-        
-        if filtered ~= chatMsg.message then
-            print("Message was filtered for player:", chatMsg.sender)
-            chatMsg.message = filtered
-        end
-    end
-    
-    -- Additional custom filtering
-    if string.find(chatMsg.message:lower(), "spam") then
-        -- Handle spam detection
-        return false  -- Block message
-    end
-    
-    return true  -- Allow message
-end
-```
-
-## Best Practices
-
-### Performance Optimization
-- **Listener Management**: Remove listeners when UI components are destroyed
-- **Message Filtering**: Use appropriate priority levels for NPC chatter to reduce spam
-- **History Limits**: The circular buffer automatically manages memory usage
-- **Network Efficiency**: Only sync necessary messages for joining players
-
-### Message Handling
-- **Type Checking**: Always check message type before special processing
-- **Color Consistency**: Use standard color schemes for different message types
-- **Icon Management**: Provide fallback icons for missing vanity items
-- **Text Filtering**: Apply appropriate filtering contexts for content moderation
-
-### Network Considerations
-- **Join Timing**: Handle the join server flag to prevent message duplication
-- **Local Messages**: Use local-only flag for client-side notifications
-- **Compression**: History data is automatically compressed for network efficiency
-- **Sync Safety**: Network sync handles hash-based deduplication
-
-## Common Patterns
-
-### Safe Message Addition
-```lua
-local function SafeAddMessage(type, sender, message, colour)
-    if not ChatHistory or not message or message == "" then
-        return
-    end
-    
-    colour = colour or DEFAULT_CHAT_COLOR
-    
-    ChatHistory:AddToHistory(
-        type,
-        nil,  -- No user ID for system messages
-        nil,  -- No net ID
-        sender,
-        message,
-        colour,
-        nil,  -- No icon
-        false,  -- Not whisper
-        true,  -- Local only
-        nil   -- No filtering needed
-    )
-end
-```
-
-### Message Type Utilities
-```lua
-local function IsPlayerMessage(chatMsg)
-    return chatMsg.type == ChatTypes.Message or chatMsg.type == ChatTypes.Emote
-end
-
-local function IsSystemMessage(chatMsg)
-    return chatMsg.type == ChatTypes.Announcement or 
-           chatMsg.type == ChatTypes.SystemMessage or
-           chatMsg.type == ChatTypes.CommandResponse
-end
-
-local function IsNPCMessage(chatMsg)
-    return chatMsg.type == ChatTypes.ChatterMessage
-end
-```
-
-## Related Systems
-
-- **[Networking](../networking.md)**: Message synchronization and RPC calls
-- **[Text Filtering](../text-filtering.md)**: Content moderation and word filtering
-- **[UI System](../../widgets/)**: Chat display widgets and panels
-- **[Player Management](../player-management.md)**: Player identification and display names
-- **[Save System](../save-system.md)**: Chat history persistence
-- **[Localization](../localization.md)**: Message text localization
-
-## Technical Notes
-
-- **Circular Buffer**: Uses modular arithmetic for efficient memory management
-- **Thread Safety**: Single-threaded design, not thread-safe
-- **Memory Usage**: Automatically limits memory through message count caps
-- **Compression**: Uses ZIP compression for save data and network sync
-- **Hash-based Sync**: Prevents duplicate messages during network synchronization
-- **Word Filtering**: Integrates with game's content filtering system
-
-## Troubleshooting
-
-### Messages Not Appearing
-- Verify listeners are properly registered
-- Check if join server flag is preventing message processing
-- Ensure message type is supported by UI system
-- Validate color data is properly formatted
-
-### Network Sync Issues
-- Confirm RPC handlers are properly registered
-- Check network connectivity between client and server
-- Verify hash-based deduplication is working correctly
-- Ensure compressed data is not corrupted
-
-### Performance Problems
-- Remove unused listeners to prevent memory leaks
-- Adjust NPC chatter priority levels to reduce spam
-- Monitor circular buffer wraparound for excessive message volume
-- Check word filtering performance with large messages
-
-### Save/Load Errors
-- Verify save data format matches expected structure
-- Check compression/decompression integrity
-- Ensure proper error handling for corrupted save data
-- Validate history indices after loading
+- [Networking](mdc:dst-api-webdocs/docs/api-vanilla/core-systems/networking.md): Message synchronization and RPC calls
+- [UI Widgets](mdc:dst-api-webdocs/docs/api-vanilla/widgets/): Chat display widgets and panels
+- [Text Filtering](mdc:dst-api-webdocs/docs/api-vanilla/core-systems/text-filtering.md): Content moderation system
+- [Player Management](mdc:dst-api-webdocs/docs/api-vanilla/core-systems/player-management.md): Player identification
+- [Save System](mdc:dst-api-webdocs/docs/api-vanilla/core-systems/save-system.md): Chat history persistence

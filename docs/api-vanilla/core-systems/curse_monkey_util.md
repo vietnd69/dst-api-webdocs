@@ -1,28 +1,49 @@
 ---
-title: "Curse Monkey Util"
-description: "Utility module for managing monkey curse transformation mechanics and visual effects in Don't Starve Together"
+id: curse-monkey-util
+title: Curse Monkey Util
+description: Utility module for managing monkey curse transformation mechanics and visual effects in Don't Starve Together
 sidebar_position: 8
-slug: /api-vanilla/core-systems/curse_monkey_util
-last_updated: "2024-12-28"
-build_version: "675312"
-change_status: "stable"
+slug: /api-vanilla/core-systems/curse-monkey-util
+last_updated: 2025-06-21
+build_version: 676042
+change_status: stable
 ---
 
 # Curse Monkey Util
 
-The `curse_monkey_util` module provides utility functions for managing the monkey curse transformation system in Don't Starve Together. This module handles the progressive transformation of players into monkey form based on collected monkey tokens, including visual effects and state management.
+## Version History
+| Build Version | Change Date | Change Type | Description |
+|---|----|----|----|
+| 676042 | 2025-06-21 | stable | Current version |
 
 ## Overview
 
+The `curse_monkey_util` module provides utility functions for managing the monkey curse transformation system in Don't Starve Together. This module handles the progressive transformation of players into monkey form based on collected monkey tokens, including visual effects and state management.
+
 The monkey curse system is a progressive transformation mechanic where players gradually take on monkey characteristics (feet, hands, tail) before potentially transforming into a full monkey (wonkey). The curse is triggered by collecting cursed monkey tokens and can be reversed by various means.
 
-## API Reference
+## Usage Example
 
-### Functions
+```lua
+local CURSE_MONKEY_UTIL = require("curse_monkey_util")
 
-#### `docurse(owner, numitems)`
+-- Apply curse based on player's monkey token count
+local token_count = player.components.inventory:GetItemCount("monkeytoken")
+CURSE_MONKEY_UTIL.docurse(player, token_count)
 
-Applies or progresses the monkey curse on a player based on the number of cursed items they possess.
+-- Remove curse when player loses monkey tokens
+local remaining_tokens = player.components.inventory:GetItemCount("monkeytoken")
+CURSE_MONKEY_UTIL.uncurse(player, remaining_tokens)
+```
+
+## Functions
+
+### docurse(owner, numitems) {#docurse}
+
+**Status:** `stable`
+
+**Description:**
+Applies or progresses the monkey curse on a player based on the number of cursed items they possess. Handles progressive transformation through 4 distinct levels with appropriate visual effects and announcements.
 
 **Parameters:**
 - `owner` (EntityScript): The player entity to apply the curse to
@@ -30,13 +51,16 @@ Applies or progresses the monkey curse on a player based on the number of cursed
 
 **Behavior:**
 - **Level 1** (> `TUNING.MONKEY_TOKEN_COUNTS.LEVEL_1`): Applies monkey feet
-- **Level 2** (> `TUNING.MONKEY_TOKEN_COUNTS.LEVEL_2`): Adds monkey hands
+- **Level 2** (> `TUNING.MONKEY_TOKEN_COUNTS.LEVEL_2`): Adds monkey hands  
 - **Level 3** (> `TUNING.MONKEY_TOKEN_COUNTS.LEVEL_3`): Adds monkey tail
 - **Level 4** (≥ `TUNING.MONKEY_TOKEN_COUNTS.LEVEL_4`): Triggers full wonkey transformation
 
 **Visual Effects:**
 - Spawns `monkey_morphin_power_players_fx` particle effect
-- Triggers curse announcement for first-time curse application
+- Triggers curse announcement for first-time curse application (non-wonkey players)
+
+**Returns:**
+- (void): No return value
 
 **Example:**
 ```lua
@@ -47,9 +71,15 @@ local token_count = player.components.inventory:GetItemCount("monkeytoken")
 CURSE_MONKEY_UTIL.docurse(player, token_count)
 ```
 
-#### `uncurse(owner, num)`
+**Version History:**
+- Current in build 676042: Progressive 4-level curse system
 
-Removes or reduces the monkey curse on a player.
+### uncurse(owner, num) {#uncurse}
+
+**Status:** `stable`
+
+**Description:**
+Removes or reduces the monkey curse on a player based on the remaining number of cursed items. Handles reverse transformation with appropriate visual effects and state management.
 
 **Parameters:**
 - `owner` (EntityScript): The player entity to remove curse from
@@ -68,6 +98,9 @@ Removes or reduces the monkey curse on a player.
 **Visual Effects:**
 - Spawns `monkey_de_morphin_fx` particle effect
 
+**Returns:**
+- (void): No return value
+
 **Example:**
 ```lua
 local CURSE_MONKEY_UTIL = require("curse_monkey_util")
@@ -77,7 +110,49 @@ local remaining_tokens = player.components.inventory:GetItemCount("monkeytoken")
 CURSE_MONKEY_UTIL.uncurse(player, remaining_tokens)
 ```
 
-## Curse Levels
+**Version History:**
+- Current in build 676042: Supports progressive curse reduction
+
+## Constants
+
+### Curse Level Thresholds
+
+The module relies on tuning constants for curse progression:
+
+| Constant | Purpose | Usage |
+|----------|---------|-------|
+| `TUNING.MONKEY_TOKEN_COUNTS.LEVEL_1` | Monkey feet threshold | Triggers first curse level |
+| `TUNING.MONKEY_TOKEN_COUNTS.LEVEL_2` | Monkey hands threshold | Triggers second curse level |
+| `TUNING.MONKEY_TOKEN_COUNTS.LEVEL_3` | Monkey tail threshold | Triggers third curse level |
+| `TUNING.MONKEY_TOKEN_COUNTS.LEVEL_4` | Full transformation threshold | Triggers wonkey transformation |
+
+## Events
+
+### "monkeycursehit"
+
+**Status:** `stable`
+
+**Parameters:**
+- `data.uncurse` (boolean): `true` when removing curse, `false` when applying curse
+
+**Description:**
+Triggered when curse level changes, providing information about the transformation direction.
+
+**Example:**
+```lua
+inst:ListenForEvent("monkeycursehit", function(inst, data)
+    if data.uncurse then
+        print("Player curse was reduced")
+    else
+        print("Player curse was applied/increased")
+    end
+end)
+```
+
+**Version History:**
+- Current in build 676042: Provides curse change direction
+
+## Curse Progression System
 
 ### Level 1: Monkey Feet
 - **Trigger**: More than `TUNING.MONKEY_TOKEN_COUNTS.LEVEL_1` tokens
@@ -107,11 +182,9 @@ CURSE_MONKEY_UTIL.uncurse(player, remaining_tokens)
   - Initiates full wonkey transformation
   - Uses state graph transition to "monkeychanger_pre"
 
-## Transformation Logic
+## Transformation Restrictions
 
-### Transformation Restrictions
-
-The transformation process includes several safety checks to prevent transformation during inappropriate states:
+The transformation process includes safety checks to prevent transformation during inappropriate states:
 
 - **nomorph**: Prevents any morphing
 - **silentmorph**: Prevents morphing but without announcement
@@ -130,84 +203,9 @@ For Woodie character, transformation is prevented during were-forms:
 
 When transformation conditions aren't met, the system uses a periodic task (`_trymonkeychangetask`) that retries transformation every 0.1 seconds until conditions are suitable.
 
-## Events
+## Related Modules
 
-### monkeycursehit
-
-Triggered when curse level changes, providing information about the transformation:
-
-```lua
-owner:PushEvent("monkeycursehit", { uncurse = boolean })
-```
-
-- `uncurse`: `true` when removing curse, `false` when applying curse
-
-## Dependencies
-
-### Required Components
-- `skinner`: For applying visual curse effects
-- `talker`: For curse announcements
-- `inventory`: For tracking monkey tokens (external usage)
-
-### Required Systems
-- State graph system for transformation states
-- Tuning constants for curse thresholds
-- Prefab system for visual effects
-
-## Usage Examples
-
-### Basic Curse Application
-```lua
-local CURSE_MONKEY_UTIL = require("curse_monkey_util")
-
--- Check player's monkey token count and apply appropriate curse level
-local function UpdateMonkeyCurse(player)
-    local token_count = player.components.inventory:GetItemCount("monkeytoken")
-    CURSE_MONKEY_UTIL.docurse(player, token_count)
-end
-```
-
-### Curse Removal
-```lua
-local CURSE_MONKEY_UTIL = require("curse_monkey_util")
-
--- Remove curse when player drops or loses monkey tokens
-local function OnTokenLost(player)
-    local remaining_tokens = player.components.inventory:GetItemCount("monkeytoken")
-    CURSE_MONKEY_UTIL.uncurse(player, remaining_tokens)
-end
-```
-
-### Event Handling
-```lua
--- Listen for curse changes
-local function OnMonkeyCurseHit(player, data)
-    if data.uncurse then
-        print("Player curse was reduced")
-    else
-        print("Player curse was applied/increased")
-    end
-end
-
-player:ListenForEvent("monkeycursehit", OnMonkeyCurseHit)
-```
-
-## Version History
-
-| Version | Changes |
-|---------|---------|
-| 675312  | Current implementation with 4-level curse system |
-
-## Related Systems
-
-- [State Graphs](/api-vanilla/stategraphs/) - For transformation animations
-- [Components](/api-vanilla/core-systems/components/) - Skinner and Talker components
-- [Tuning](/api-vanilla/core-systems/tuning/) - Curse threshold constants
-- [Prefabs](/api-vanilla/core-systems/prefabs/) - Visual effect prefabs
-
-## Notes
-
-- The curse system is designed to be progressive and reversible
-- Visual effects are automatically handled by the utility functions
-- Transformation safety checks prevent issues during combat or other activities
-- The system integrates with the existing character skin system for visual changes
+- [State Graphs](mdc:dst-api-webdocs/stategraphs/index.md): For transformation animations
+- [Components](mdc:dst-api-webdocs/core-systems/componentutil.md): Skinner and Talker components
+- [Tuning](mdc:dst-api-webdocs/core-systems/tuning.md): Curse threshold constants
+- [Prefabs](mdc:dst-api-webdocs/core-systems/prefabs.md): Visual effect prefabs

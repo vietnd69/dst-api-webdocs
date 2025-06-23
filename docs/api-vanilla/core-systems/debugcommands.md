@@ -1,37 +1,54 @@
 ---
-title: "Debug Commands"
-description: "Collection of debug utility functions for development, testing, and troubleshooting in Don't Starve Together"
-sidebar_position: 11
-slug: /api-vanilla/core-systems/debugcommands
-last_updated: "2024-12-28"
-build_version: "675312"
-change_status: "stable"
+id: debugcommands
+title: Debug Commands
+description: Collection of debug utility functions for development, testing, and troubleshooting in Don't Starve Together
+sidebar_position: 33
+slug: core-systems-debugcommands
+last_updated: 2025-06-21
+build_version: 676042
+change_status: stable
 ---
 
 # Debug Commands
 
-The `debugcommands` module provides a comprehensive collection of debug utility functions for development, testing, and troubleshooting in Don't Starve Together. These functions are primarily used for spawning items, manipulating world state, testing game mechanics, and debugging various systems.
+## Version History
+| Build Version | Change Date | Change Type | Description |
+|---|----|----|----|
+| 676042 | 2025-06-21 | stable | Current stable implementation |
 
 ## Overview
 
-Debug commands enable developers and testers to:
-- Spawn prefabs and items in organized patterns
-- Manipulate world state and game systems
-- Test game mechanics and performance
-- Debug entity interactions and behaviors
-- Generate test scenarios and content
-- Analyze game data and performance metrics
+The `debugcommands` module provides a comprehensive collection of debug utility functions for development, testing, and troubleshooting in Don't Starve Together. These functions enable developers and testers to spawn items, manipulate world state, test game mechanics, debug entity interactions, and generate test scenarios.
 
 :::warning Development Only
 These functions are intended for development and testing purposes only. They should not be used in production gameplay as they can significantly alter game balance and progression.
 :::
 
-## API Reference
+## Usage Example
 
-### Spawning Functions
+```lua
+-- Basic item spawning
+d_spawnlist({"log", "rocks", "cutgrass"})
 
-#### `d_spawnlist(list, spacing, fn)`
+-- Complete character testing setup
+d_unlockaffinities()  -- Unlock skill trees
+d_resetskilltree()    -- Reset and max out skills
+d_allsongs()          -- Give all battle songs
+d_playeritems()       -- Spawn all craftable items
 
+-- World state testing
+d_fullmoon()          -- Set moon phase
+d_lunarrift()         -- Create lunar rift
+d_exploreland()       -- Reveal map
+```
+
+## Functions
+
+### d_spawnlist(list, spacing, fn) {#d-spawnlist}
+
+**Status:** `stable`
+
+**Description:**
 Spawns a list of prefabs in a grid pattern at the console cursor position.
 
 **Parameters:**
@@ -40,7 +57,7 @@ Spawns a list of prefabs in a grid pattern at the console cursor position.
 - `fn` (function, optional): Function to call on each spawned instance
 
 **Returns:**
-- `table`: Array of created instances
+- (table): Array of created instances
 
 **Example:**
 ```lua
@@ -58,8 +75,14 @@ local items = {
 d_spawnlist(items, 2, function(inst) inst.persists = false end)
 ```
 
-#### `d_playeritems()`
+**Version History:**
+- Current implementation since build 676042
 
+### d_playeritems() {#d-playeritems}
+
+**Status:** `stable`
+
+**Description:**
 Spawns all craftable items organized by builder tags (character-specific items).
 
 **Behavior:**
@@ -74,8 +97,14 @@ d_playeritems()
 -- Spawns all character-specific craftable items
 ```
 
-#### `d_allmutators()`
+**Version History:**
+- Current implementation since build 676042
 
+### d_allmutators() {#d-allmutators}
+
+**Status:** `stable`
+
+**Description:**
 Gives the player all available spider mutators for testing.
 
 **Spawned Mutators:**
@@ -92,8 +121,14 @@ d_allmutators()
 -- Player receives all spider mutator items
 ```
 
-#### `d_allcircuits()`
+**Version History:**
+- Current implementation since build 676042
 
+### d_allcircuits() {#d-allcircuits}
+
+**Status:** `stable`
+
+**Description:**
 Spawns all WX-78 circuit modules in a grid pattern.
 
 **Behavior:**
@@ -107,8 +142,14 @@ d_allcircuits()
 -- Spawns all WX-78 upgrade modules for testing
 ```
 
-#### `d_allheavy()`
+**Version History:**
+- Current implementation since build 676042
 
+### d_allheavy() {#d-allheavy}
+
+**Status:** `stable`
+
+**Description:**
 Spawns heavy objects that require special handling for movement.
 
 **Heavy Objects Spawned:**
@@ -131,8 +172,14 @@ d_allheavy()
 -- Spawns various heavy objects for physics testing
 ```
 
-#### `d_spiders()`
+**Version History:**
+- Current implementation since build 676042
 
+### d_spiders() {#d-spiders}
+
+**Status:** `stable`
+
+**Description:**
 Spawns all spider variants as followers and gives water spider item.
 
 **Spider Types:**
@@ -154,8 +201,14 @@ d_spiders()
 -- Spawns spider army following the player
 ```
 
-#### `d_particles()`
+**Version History:**
+- Current implementation since build 676042
 
+### d_particles() {#d-particles}
+
+**Status:** `stable`
+
+**Description:**
 Spawns emitting particle effects in a grid with labels and movement.
 
 **Features:**
@@ -170,10 +223,14 @@ d_particles()
 -- Spawns moving particle effects with labels for visual testing
 ```
 
-### World Manipulation Functions
+**Version History:**
+- Current implementation since build 676042
 
-#### `d_fullmoon()`
+### d_fullmoon() {#d-fullmoon}
 
+**Status:** `stable`
+
+**Description:**
 Sets the moon phase to full moon.
 
 **Example:**
@@ -182,8 +239,14 @@ d_fullmoon()
 -- Changes moon phase to full for testing lunar mechanics
 ```
 
-#### `d_newmoon()`
+**Version History:**
+- Current implementation since build 676042
 
+### d_newmoon() {#d-newmoon}
+
+**Status:** `stable`
+
+**Description:**
 Sets the moon phase to new moon.
 
 **Example:**
@@ -192,8 +255,14 @@ d_newmoon()
 -- Changes moon phase to new for testing mechanics
 ```
 
-#### `d_lunarrift()`
+**Version History:**
+- Current implementation since build 676042
 
+### d_lunarrift() {#d-lunarrift}
+
+**Status:** `stable`
+
+**Description:**
 Spawns a lunar rift at the console cursor position.
 
 **Behavior:**
@@ -207,8 +276,14 @@ d_lunarrift()
 -- Creates lunar rift for testing
 ```
 
-#### `d_shadowrift()`
+**Version History:**
+- Current implementation since build 676042
 
+### d_shadowrift() {#d-shadowrift}
+
+**Status:** `stable`
+
+**Description:**
 Spawns a shadow rift at the console cursor position.
 
 **Behavior:**
@@ -222,8 +297,14 @@ d_shadowrift()
 -- Creates shadow rift for testing
 ```
 
-#### `d_riftspawns()`
+**Version History:**
+- Current implementation since build 676042
 
+### d_riftspawns() {#d-riftspawns}
+
+**Status:** `stable`
+
+**Description:**
 Triggers mass rift spawning for stress testing.
 
 **Behavior:**
@@ -238,10 +319,14 @@ d_riftspawns()
 -- Mass spawns rifts for performance testing
 ```
 
-### Exploration and Map Functions
+**Version History:**
+- Current implementation since build 676042
 
-#### `d_exploreland()`
+### d_exploreland() {#d-exploreland}
 
+**Status:** `stable`
+
+**Description:**
 Reveals all land tiles on the map.
 
 **Behavior:**
@@ -255,8 +340,14 @@ d_exploreland()
 -- Reveals all land areas on the map
 ```
 
-#### `d_exploreocean()`
+**Version History:**
+- Current implementation since build 676042
 
+### d_exploreocean() {#d-exploreocean}
+
+**Status:** `stable`
+
+**Description:**
 Reveals all ocean tiles on the map.
 
 **Example:**
@@ -265,8 +356,14 @@ d_exploreocean()
 -- Reveals all ocean areas on the map
 ```
 
-#### `d_explore_printunseentiles()`
+**Version History:**
+- Current implementation since build 676042
 
+### d_explore_printunseentiles() {#d-explore-printunseentiles}
+
+**Status:** `stable`
+
+**Description:**
 Prints coordinates of all unseen tiles for debugging.
 
 **Behavior:**
@@ -280,10 +377,14 @@ d_explore_printunseentiles()
 -- Outputs coordinates of unexplored areas
 ```
 
-### Character and Skill Functions
+**Version History:**
+- Current implementation since build 676042
 
-#### `d_unlockaffinities()`
+### d_unlockaffinities() {#d-unlockaffinities}
 
+**Status:** `stable`
+
+**Description:**
 Unlocks character affinities by marking required bosses as defeated.
 
 **Unlocked Affinities:**
@@ -297,8 +398,14 @@ d_unlockaffinities()
 -- Unlocks all character skill tree affinities
 ```
 
-#### `d_resetskilltree()`
+**Version History:**
+- Current implementation since build 676042
 
+### d_resetskilltree() {#d-resetskilltree}
+
+**Status:** `stable`
+
+**Description:**
 Resets the player's skill tree and grants maximum skill points.
 
 **Behavior:**
@@ -313,8 +420,14 @@ d_resetskilltree()
 -- Resets skills and grants maximum XP
 ```
 
-#### `d_reloadskilltreedefs()`
+**Version History:**
+- Current implementation since build 676042
 
+### d_reloadskilltreedefs() {#d-reloadskilltreedefs}
+
+**Status:** `stable`
+
+**Description:**
 Reloads skill tree definitions for development.
 
 **Example:**
@@ -323,8 +436,14 @@ d_reloadskilltreedefs()
 -- Hot-reloads skill tree changes during development
 ```
 
-#### `d_printskilltreestringsforcharacter(character)`
+**Version History:**
+- Current implementation since build 676042
 
+### d_printskilltreestringsforcharacter(character) {#d-printskilltreestringsforcharacter}
+
+**Status:** `stable`
+
+**Description:**
 Generates missing localization strings for character skill trees.
 
 **Parameters:**
@@ -336,10 +455,14 @@ d_printskilltreestringsforcharacter("wilson")
 -- Outputs missing localization strings for Wilson's skills
 ```
 
-### Transportation Functions
+**Version History:**
+- Current implementation since build 676042
 
-#### `d_teleportboat(x, y, z)`
+### d_teleportboat(x, y, z) {#d-teleportboat}
 
+**Status:** `stable`
+
+**Description:**
 Teleports the player's boat to specified coordinates.
 
 **Parameters:**
@@ -360,10 +483,14 @@ d_teleportboat()
 d_teleportboat(100, 0, 200)
 ```
 
-### Boss and Event Functions
+**Version History:**
+- Current implementation since build 676042
 
-#### `d_rabbitking(kind)`
+### d_rabbitking(kind) {#d-rabbitking}
 
+**Status:** `stable`
+
+**Description:**
 Spawns a Rabbit King for the current player.
 
 **Parameters:**
@@ -378,8 +505,14 @@ d_rabbitking()
 d_rabbitking("aggressive")
 ```
 
-#### `d_oceanarena()`
+**Version History:**
+- Current implementation since build 676042
 
+### d_oceanarena() {#d-oceanarena}
+
+**Status:** `stable`
+
+**Description:**
 Triggers ocean arena placement for shark boi events.
 
 **Behavior:**
@@ -393,139 +526,14 @@ d_oceanarena()
 -- Triggers shark boi ocean arena event
 ```
 
-### Audio Testing Functions
+**Version History:**
+- Current implementation since build 676042
 
-#### `d_testsound(soundpath, loopname, volume)`
+### d_allsongs() {#d-allsongs}
 
-Plays a sound effect for testing.
+**Status:** `stable`
 
-**Parameters:**
-- `soundpath` (string): Path to sound file
-- `loopname` (string, optional): Loop identifier for continuous sounds
-- `volume` (number, optional): Volume level
-
-**Example:**
-```lua
-d_testsound("dontstarve/creatures/spider/attack")
-d_testsound("dontstarve/music/music_epicfight", "combat_music", 0.5)
-```
-
-#### `d_stopsound(loopname)`
-
-Stops a looping sound effect.
-
-**Parameters:**
-- `loopname` (string): Loop identifier to stop
-
-**Example:**
-```lua
-d_stopsound("combat_music")
-```
-
-### Performance and Analysis Functions
-
-#### `d_testdps(time, target)`
-
-Measures damage per second output against a target.
-
-**Parameters:**
-- `time` (number, optional): Test duration in seconds (default: 5)
-- `target` (Entity, optional): Target entity (defaults to entity under mouse)
-
-**Behavior:**
-- Monitors damage events on target entity
-- Calculates and reports DPS after test period
-- Automatically cleans up event listeners
-
-**Example:**
-```lua
--- Test DPS on entity under mouse for 5 seconds
-d_testdps()
-
--- Test for 10 seconds on specific target
-local target = c_sel()
-d_testdps(10, target)
-```
-
-#### `d_mapstatistics(count_cutoff, item_cutoff, density_cutoff)`
-
-Analyzes map content and generates statistics report.
-
-**Parameters:**
-- `count_cutoff` (number, optional): Minimum count for prefab reporting (default: 200)
-- `item_cutoff` (number, optional): Minimum count for item reporting (default: 200)
-- `density_cutoff` (number, optional): Minimum density for location reporting (default: 100)
-
-**Reports:**
-- Most common prefabs by count
-- Most common items and inventory status
-- High-density entity locations
-- Total counts and statistics
-
-**Example:**
-```lua
--- Default analysis
-d_mapstatistics()
-
--- Custom thresholds
-d_mapstatistics(100, 50, 50)
-```
-
-### Utility Functions
-
-#### `d_decodedata(path)`
-
-Decodes and saves persistent data files for debugging.
-
-**Parameters:**
-- `path` (string): Path to persistent data file
-
-**Behavior:**
-- Loads encoded persistent data
-- Saves decoded version with "_decoded" suffix
-- Useful for examining save file contents
-
-**Example:**
-```lua
-d_decodedata("client_save/survival_1")
--- Creates "client_save/survival_1_decoded" with readable data
-```
-
-#### `d_require(file)`
-
-Forces module reload by clearing cache and re-requiring.
-
-**Parameters:**
-- `file` (string): Module path to reload
-
-**Example:**
-```lua
-d_require("components/health")
--- Forces reload of health component for development
-```
-
-#### `d_timeddebugprefab(x, y, z, lifetime, prefab)`
-
-Spawns a temporary debug marker that auto-removes.
-
-**Parameters:**
-- `x, y, z` (numbers): World position
-- `lifetime` (number, optional): Duration in seconds (default: 7)
-- `prefab` (string, optional): Prefab to spawn (default: "log")
-
-**Returns:**
-- `Entity`: Spawned debug entity
-
-**Example:**
-```lua
--- Mark a location for 10 seconds
-d_timeddebugprefab(100, 0, 200, 10, "telelocator_staff")
-```
-
-## Item and Content Functions
-
-#### `d_allsongs()`
-
+**Description:**
 Gives the player all battle songs for testing.
 
 **Songs Provided:**
@@ -542,22 +550,32 @@ d_allsongs()
 -- Player receives all Wigfrid battle songs
 ```
 
-#### `d_prizepouch(prefab, nugget_count)`
+**Version History:**
+- Current implementation since build 676042
 
-Creates a prize pouch with specified contents.
+### d_decodedata(path) {#d-decodedata}
+
+**Status:** `stable`
+
+**Description:**
+Decodes and saves persistent data files for debugging.
 
 **Parameters:**
-- `prefab` (string, optional): Pouch type (default: "redpouch")
-- `nugget_count` (number, optional): Number of gold nuggets to include (default: 0)
+- `path` (string): Path to persistent data file
+
+**Behavior:**
+- Loads encoded persistent data
+- Saves decoded version with "_decoded" suffix
+- Useful for examining save file contents
 
 **Example:**
 ```lua
--- Empty red pouch
-d_prizepouch()
-
--- Green pouch with 5 gold nuggets
-d_prizepouch("greenpouch", 5)
+d_decodedata("client_save/survival_1")
+-- Creates "client_save/survival_1_decoded" with readable data
 ```
+
+**Version History:**
+- Current implementation since build 676042
 
 ## Usage Guidelines
 
@@ -583,7 +601,6 @@ d_lunarrift()         -- Create lunar rift
 d_exploreland()       -- Reveal map
 
 -- Performance testing
-d_mapstatistics()     -- Analyze current state
 d_riftspawns()        -- Stress test with multiple rifts
 ```
 
@@ -608,18 +625,11 @@ d_riftspawns()        -- Stress test with multiple rifts
 - `SpawnPrefab()`: Create entity instances
 - `c_give()`, `c_spawn()`, `c_sel()`: Console utility functions
 
-## Version History
+## Related Modules
 
-| Version | Changes |
-|---------|---------|
-| 675312  | Current implementation with comprehensive debug command set |
-
-## Related Systems
-
-- [Console Commands](/api-vanilla/core-systems/consolecommands/) - Built-in console command system
-- [Prefabs](/api-vanilla/core-systems/prefabs/) - Entity spawning and management
-- [World Management](/api-vanilla/core-systems/world-management/) - World state manipulation
-- [Components](/api-vanilla/core-systems/components/) - Entity component systems
+- [Console Commands](./consolecommands.md): Built-in console command system
+- [Prefabs](./prefabs.md): Entity spawning and management
+- [Main Functions](./mainfunctions.md): Core game functions
 
 ## Notes
 

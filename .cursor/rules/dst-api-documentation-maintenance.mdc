@@ -1,7 +1,7 @@
 ---
-description: This rule defines procedures for maintaining and updating API documentation as the DST codebase evolves.
+description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 # DST API Documentation Maintenance
 
@@ -13,7 +13,19 @@ This rule defines procedures for maintaining and updating API documentation as t
 
 The `build_version` field in documentation front matter should always match the game build version the documentation describes.
 
-Current documentation is based on build version: **675312**
+`build_version` and `updated time` are stored in `package.json`
+
+Example:
+```json
+{
+  "build-version": "676042",              // Current DST scripts build number
+  "updated-time": "2025-06-21",           // Date of the latest update
+  "previous-version": "none",             // Previous build number
+  "previous-updated-time": "none"         // Date of the previous update
+}
+```
+
+Current documentation is based on build version: **676042**
 
 ### Documentation Update Workflow
 
@@ -116,7 +128,7 @@ Example:
 **Last Available:** Build 659421
 
 **Migration Path:**
-See [Replacement Method](mdc:replacement/new-method.md) for current functionality.
+See [Replacement Method](./replacement/new-method.md) for current functionality.
 ```
 
 ## Documentation Quality Assurance

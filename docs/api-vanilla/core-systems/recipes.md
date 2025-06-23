@@ -4,7 +4,7 @@ description: Documentation of the Don't Starve Together crafting recipes system
 sidebar_position: 5
 slug: /recipes
 last_updated: 2023-06-15
-build_version: 675312
+build_version: 676042
 change_status: stable
 ---
 

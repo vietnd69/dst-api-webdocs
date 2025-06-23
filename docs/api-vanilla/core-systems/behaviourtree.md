@@ -2,9 +2,9 @@
 title: Behaviour Tree System
 description: Documentation of the Don't Starve Together behaviour tree system for AI state management and decision making
 sidebar_position: 2
-slug: /behaviourtree
-last_updated: 2024-12-19
-build_version: 675312
+slug: /api-vanilla/core-systems/behaviourtree
+last_updated: 2025-06-21
+build_version: 676042
 change_status: stable
 ---
 
@@ -16,8 +16,7 @@ The Behaviour Tree system in Don't Starve Together provides a hierarchical frame
 
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 675312 | 2024-12-19 | stable | Updated documentation to match current implementation |
-| 642130 | 2023-06-10 | added | Initial behaviour tree system documentation |
+| 676042 | 2025-06-21 | stable | Updated documentation to match current implementation and added missing node types |
 
 ## Overview
 
@@ -62,6 +61,7 @@ end)
 | `Reset()` | Resets the entire tree to initial state |
 | `Stop()` | Stops execution and cleans up resources |
 | `GetSleepTime()` | Returns optimal sleep duration for performance |
+| `__tostring()` | Returns string representation of tree for debugging |
 
 ## Node Types
 
@@ -77,6 +77,13 @@ BehaviourNode = Class(function(self, name, children)
     self.lastresult = READY
     self.nextupdatetick = 0
     self.id = NODE_COUNT  -- Unique identifier for debugging
+    
+    -- Set parent references for all children
+    if children then
+        for i, k in pairs(children) do
+            k.parent = self
+        end
+    end
 end)
 ```
 
@@ -89,6 +96,13 @@ end)
 | `Step()` | Update child nodes after execution |
 | `Stop()` | Clean up resources and stop execution |
 | `Sleep(t)` | Put node to sleep for specified time |
+| `SaveStatus()` | Save current status as last result |
+| `GetSleepTime()` | Calculate how long this node should sleep |
+| `GetTreeSleepTime()` | Calculate sleep time for entire subtree |
+| `GetString()` | Get string representation for debugging |
+| `GetTreeString(indent)` | Get formatted tree string with indentation |
+| `DBString()` | Get debug string for node-specific information |
+| `DoToParents(fn)` | Execute function on all parent nodes |
 
 ### Composite Nodes
 
@@ -145,6 +159,19 @@ end)
 
 **Behavior**: Succeeds when all children succeed, fails if any child fails.
 
+#### ParallelNodeAny
+
+Parallel node that succeeds when any child completes:
+
+```lua
+ParallelNodeAny = Class(ParallelNode, function(self, children)
+    ParallelNode._ctor(self, children, "Parallel(Any)")
+    self.stoponanycomplete = true
+end)
+```
+
+**Behavior**: Executes all children simultaneously, succeeds when the first child succeeds or fails.
+
 #### RandomNode
 
 Randomly selects a child to execute:
@@ -156,6 +183,21 @@ end)
 ```
 
 **Behavior**: Picks random child on first execution, retries failed children randomly.
+
+#### LoopNode
+
+Repeats execution of children for a specified number of iterations:
+
+```lua
+LoopNode = Class(BehaviourNode, function(self, children, maxreps)
+    BehaviourNode._ctor(self, "Sequence", children)
+    self.idx = 1
+    self.maxreps = maxreps
+    self.rep = 0
+end)
+```
+
+**Behavior**: Executes children sequentially, resetting and repeating until `maxreps` is reached or a child fails.
 
 ### Leaf Nodes
 
@@ -182,6 +224,20 @@ ConditionNode = Class(BehaviourNode, function(self, fn, name)
     self.fn = fn  -- Function that returns boolean
 end)
 ```
+
+#### MultiConditionNode
+
+Evaluates different conditions for start and continue logic:
+
+```lua
+MultiConditionNode = Class(BehaviourNode, function(self, start, continue, name)
+    BehaviourNode._ctor(self, name or "Condition")
+    self.start = start      -- Initial condition function
+    self.continue = continue -- Continuing condition function
+end)
+```
+
+**Behavior**: Uses `start` condition on first execution, then switches to `continue` condition for subsequent evaluations.
 
 #### ConditionWaitNode
 
@@ -369,14 +425,17 @@ local brain = BT(inst,
                "Low Health",
                ActionNode(function() FindHealing() end, "Seek Healing")),
         
-        -- Combat: enemy nearby
-        WhileNode(function() return FindNearbyEnemy() ~= nil end,
-                 "In Combat",
-                 SequenceNode({
-                     ActionNode(function() MoveToEnemy() end, "Approach"),
-                     ActionNode(function() Attack() end, "Attack"),
-                     WaitNode(1.0)  -- Attack cooldown
-                 })),
+        -- Combat: Start fighting if enemy seen, continue while able to fight
+        IfThenDoWhileNode(
+            function() return FindNearbyEnemy() ~= nil end,  -- Start condition
+            function() return CanContinueFighting() end,     -- Continue condition
+            "Combat State",
+            SequenceNode({
+                ActionNode(function() MoveToEnemy() end, "Approach"),
+                ActionNode(function() Attack() end, "Attack"),
+                WaitNode(1.0)  -- Attack cooldown
+            })
+        ),
         
         -- Maintenance: repair if damaged
         IfNode(function() return NeedsRepair() end,
@@ -387,7 +446,7 @@ local brain = BT(inst,
         LoopNode({
             ActionNode(function() MoveToNextPoint() end, "Move"),
             WaitNode(2.0)
-        }, 5)  -- Patrol 5 points
+        }, 5)  -- Patrol 5 points then stop
     })
 )
 ```
@@ -430,10 +489,12 @@ The system provides string representation for debugging:
 -- Print current tree state
 print(tostring(brain))
 
--- Output format:
--- Sequence>0.00
---    >Condition - SUCCESS <SUCCESS> ()
---    >Action - RUNNING <READY> (doing something)
+-- Output format shows node hierarchy with sleep times:
+-- Priority>0.00
+--    >Sequence - RUNNING <READY> ()
+--       >Condition - SUCCESS <SUCCESS> ()
+--       >Action - RUNNING <READY> (doing something)
+--    >Wait - READY <READY> ()
 ```
 
 ### Node Identification

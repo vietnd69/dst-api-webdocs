@@ -1,7 +1,7 @@
 ---
-description: This rule provides specific templates for documenting different types of DST script modules.
+description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 # DST API Documentation Templates
 
@@ -13,12 +13,13 @@ Use this template for documenting components:
 
 ```markdown
 ---
+id: [Id]
 title: [Component Name]
 description: Component responsible for [primary functionality]
 sidebar_position: [Number]
-slug: components-[component-name]
+slug: api-vanilla/core-systems/[component-name]
 last_updated: YYYY-MM-DD
-build_version: 675312
+build_version: 676042
 change_status: stable
 ---
 
@@ -53,7 +54,7 @@ The `[Component Name]` component provides [primary functionality]. It is typical
 
 ## Component Methods
 
-### inst.components.[component_name]:[methodName](mdc:dst-api-webdocs/param1, param2)
+### inst.components.[component_name]:[methodName](./dst-api-webdocs/param1, param2)
 
 **Status:** `stable` | `added in build 675312` | `modified in build 675312` | `deprecated in build 675312`
 
@@ -70,7 +71,7 @@ The `[Component Name]` component provides [primary functionality]. It is typical
 **Example:**
 ```lua
 local entity = TheWorld.entity
-entity.components.[component_name]:[methodName](mdc:dst-api-webdocs/"example", 5)
+entity.components.[component_name]:[methodName](./dst-api-webdocs/"example", 5)
 ```
 
 ## Events
@@ -108,12 +109,13 @@ Use this template for documenting stategraphs:
 
 ```markdown
 ---
+id: [Id]
 title: [Stategraph Name]
 description: Stategraph for [entity/behavior description]
 sidebar_position: [Number]
 slug: stategraphs-[stategraph-name]
 last_updated: YYYY-MM-DD
-build_version: 675312
+build_version: 676042
 change_status: stable
 ---
 
@@ -189,12 +191,13 @@ Use this template for documenting brain behaviors:
 
 ```markdown
 ---
+id: [Id]
 title: [Brain Name]
 description: AI brain for [entity type]
 sidebar_position: [Number]
 slug: brains-[brain-name]
 last_updated: YYYY-MM-DD
-build_version: 675312
+build_version: 676042
 change_status: stable
 ---
 
@@ -273,12 +276,13 @@ Use this template for documenting prefabs:
 
 ```markdown
 ---
+id: [Id]
 title: [Prefab Name]
 description: [Short description of this prefab's purpose]
 sidebar_position: [Number]
 slug: prefabs-[prefab-name]
 last_updated: YYYY-MM-DD
-build_version: 675312
+build_version: 676042
 change_status: stable
 ---
 
@@ -318,7 +322,7 @@ local inst = SpawnPrefab("[prefab_name]")
 
 ## Functions
 
-### [function_name](mdc:dst-api-webdocs/param1, param2)
+### [function_name](./dst-api-webdocs/param1, param2)
 
 **Status:** `stable` | `added in build 675312` | `modified in build 675312` | `deprecated in build 675312`
 

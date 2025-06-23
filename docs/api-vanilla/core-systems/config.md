@@ -1,112 +1,236 @@
 ---
-title: "Config"
-description: "Platform configuration management system for Don't Starve Together"
+id: config
+title: Config
+description: Platform configuration management system for Don't Starve Together with platform-specific overrides
 sidebar_position: 8
-slug: /api-vanilla/core-systems/config
-last_updated: "2024-12-19"
-build_version: "675312"
-change_status: "stable"
+slug: core-systems-config
+last_updated: 2025-06-21
+build_version: 676042
+change_status: stable
 ---
 
-# Config Module 🟢
+# Config
 
-The **Config** module provides a flexible platform configuration management system for Don't Starve Together. It handles platform-specific settings and options that control various aspects of the game's behavior across different platforms.
+## Version History
+| Build Version | Change Date | Change Type | Description |
+|---|----|----|----|
+| 676042 | 2025-06-21 | stable | Current version |
 
 ## Overview
 
-The Config module implements a class-based system for managing configuration options with platform-specific overrides. It provides a centralized way to handle settings that may vary between platforms like desktop, mobile, and web browsers.
+The **Config** module provides a flexible platform configuration management system for Don't Starve Together. It implements a class-based system for managing configuration options with platform-specific overrides, enabling centralized control over settings that vary between desktop, mobile, and web platforms.
 
-## Global Instance
+This system is essential for handling platform differences in UI rendering, performance optimizations, and feature availability across different deployment targets.
 
-The module creates a global instance `TheConfig` that is used throughout the codebase to access configuration settings.
+## Usage Example
 
 ```lua
--- Global configuration instance
-TheConfig = Config(defaults)
+-- Check if vignette should be hidden (mobile platforms)
+if TheConfig:IsEnabled("hide_vignette") then
+    -- Mobile optimization: remove performance-heavy vignette
+    HideVignetteEffects()
+end
+
+-- Enable netbook mode for compact UI
+if TheConfig:IsEnabled("force_netbookmode") then
+    -- Use compact layout for smaller screens
+    SetCompactUIMode()
+end
+
+-- Runtime configuration changes
+TheConfig:Enable("debug_mode")
+TheConfig:SetOptions({
+    new_feature = true,
+    performance_mode = false
+})
 ```
 
 ## Class Definition
 
-### Config Class
+### Config(options) {#config-constructor}
 
+**Status:** `stable`
+
+**Description:**
+Creates a new Config instance with optional initial configuration options. The constructor initializes an empty options table and applies any provided options.
+
+**Parameters:**
+- `options` (table, optional): Initial configuration options to set as key-value pairs
+
+**Returns:**
+- (Config): New Config instance
+
+**Example:**
 ```lua
-local Config = Class(function(self, options)
-    self.options = {}
-    if options then
-        self:SetOptions(options)
-    end
-end)
+-- Create config with initial options
+local config = Config({
+    hide_vignette = true,
+    force_netbookmode = false,
+    custom_option = "value"
+})
+
+-- Create empty config
+local empty_config = Config()
 ```
 
 ## Methods
 
-### SetOptions(options)
+### SetOptions(options) {#setoptions}
 
-Sets multiple configuration options at once.
+**Status:** `stable`
+
+**Description:**
+Sets multiple configuration options at once by merging the provided options table with existing options. Existing options with the same keys will be overwritten.
 
 **Parameters:**
-- `options` (table): A table of key-value pairs representing configuration options
+- `options` (table): Table of key-value pairs representing configuration options
 
-**Usage:**
+**Example:**
 ```lua
-local config = Config()
-config:SetOptions({
+-- Set multiple options at once
+TheConfig:SetOptions({
     hide_vignette = true,
-    force_netbookmode = false
+    force_netbookmode = false,
+    new_feature = "enabled",
+    debug_level = 2
 })
+
+-- Options are merged, not replaced
+TheConfig:SetOptions({additional_setting = true})
 ```
 
-### IsEnabled(option)
+### IsEnabled(option) {#isenabled}
 
-Checks if a specific configuration option is enabled.
+**Status:** `stable`
+
+**Description:**
+Checks if a specific configuration option is enabled. Returns the value of the option or nil if not set. This is the primary method for checking configuration state.
 
 **Parameters:**
-- `option` (string): The name of the configuration option to check
+- `option` (string): Name of the configuration option to check
 
 **Returns:**
-- (any): The value of the option, or `nil` if not set
+- (any): Value of the option, or `nil` if not set
 
-**Usage:**
+**Example:**
 ```lua
-if TheConfig:IsEnabled("hide_vignette") then
-    -- Hide vignette effects
+-- Check boolean options
+local vignetteHidden = TheConfig:IsEnabled("hide_vignette")
+if vignetteHidden then
+    ApplyMobileUISettings()
+end
+
+-- Check any value type
+local debugLevel = TheConfig:IsEnabled("debug_level")
+if debugLevel and debugLevel > 1 then
+    ShowAdvancedDebugInfo()
+end
+
+-- Handle missing options
+local customSetting = TheConfig:IsEnabled("nonexistent_option")
+if customSetting == nil then
+    print("Option not configured")
 end
 ```
 
-### Enable(option)
+### Enable(option) {#enable}
 
-Enables a specific configuration option by setting it to `true`.
+**Status:** `stable`
+
+**Description:**
+Enables a specific configuration option by setting it to `true`. This is a convenience method for boolean configuration options.
 
 **Parameters:**
-- `option` (string): The name of the configuration option to enable
+- `option` (string): Name of the configuration option to enable
 
-**Usage:**
+**Example:**
 ```lua
+-- Enable features at runtime
 TheConfig:Enable("force_netbookmode")
+TheConfig:Enable("debug_mode")
+
+-- Check the result
+if TheConfig:IsEnabled("debug_mode") then
+    print("Debug mode now enabled")
+end
 ```
 
-### Disable(option)
+### Disable(option) {#disable}
 
-Disables a specific configuration option by setting it to `nil`.
+**Status:** `stable`
+
+**Description:**
+Disables a specific configuration option by setting it to `nil`. This effectively removes the option from the configuration.
 
 **Parameters:**
-- `option` (string): The name of the configuration option to disable
+- `option` (string): Name of the configuration option to disable
 
-**Usage:**
+**Example:**
 ```lua
+-- Disable features
 TheConfig:Disable("hide_vignette")
+TheConfig:Disable("experimental_feature")
+
+-- Option is now nil
+local disabled = TheConfig:IsEnabled("hide_vignette")
+assert(disabled == nil, "Option should be nil after disable")
 ```
 
-### __tostring()
+### __tostring() {#tostring}
 
-Returns a string representation of all configuration options for debugging purposes.
+**Status:** `stable`
+
+**Description:**
+Returns a formatted string representation of all configuration options for debugging and inspection purposes. This metamethod is automatically called when the config object is converted to a string.
 
 **Returns:**
-- (string): Formatted string showing all options and their values
+- (string): Multi-line string showing all options and their values
+
+**Example:**
+```lua
+-- Print all configuration options
+print(tostring(TheConfig))
+
+-- Example output:
+-- PLATFORM CONFIGURATION OPTIONS
+-- hide_vignette = true
+-- force_netbookmode = true
+-- custom_option = value
+
+-- Use in debugging
+local configDebug = tostring(TheConfig)
+WriteToLogFile("Current config: " .. configDebug)
+```
+
+## Global Instance
+
+### TheConfig {#theconfig}
+
+**Status:** `stable`
+
+**Description:**
+Global configuration instance automatically created with default values and platform-specific overrides applied. This is the primary interface for accessing configuration throughout the game.
+
+**Type:** `Config`
+
+**Example:**
+```lua
+-- TheConfig is globally available everywhere
+if TheConfig:IsEnabled("force_netbookmode") then
+    SetCompactLayout()
+end
+
+-- Access from any module
+local function ApplyPlatformSettings()
+    if TheConfig:IsEnabled("hide_vignette") then
+        RemoveVignetteEffects()
+    end
+end
+```
 
 ## Default Configuration
 
-The module defines default configuration values that apply to all platforms:
+The module defines default configuration values applied to all platforms before platform-specific overrides:
 
 ```lua
 local defaults = {
@@ -119,21 +243,36 @@ local defaults = {
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `hide_vignette` | boolean | `false` | Controls whether vignette effects are hidden |
-| `force_netbookmode` | boolean | `false` | Forces the game into netbook mode for smaller screens |
+| `hide_vignette` | boolean | `false` | Controls whether vignette effects are hidden for performance on mobile platforms |
+| `force_netbookmode` | boolean | `false` | Forces compact UI layout for smaller screens and web platforms |
 
 ## Platform Overrides
 
-The module supports platform-specific configuration overrides:
+The system applies platform-specific configuration overrides based on the global `PLATFORM` variable:
 
-### NACL Platform
+### NACL Platform {#nacl-platform}
+
+**Status:** `stable`
+
+**Description:**
+Chrome Native Client platform configuration.
+
 ```lua
 NACL = {
     force_netbookmode = true,
 }
 ```
 
-### Android Platform
+**Overrides:**
+- `force_netbookmode = true`: Enables compact UI for web browser constraints
+
+### Android Platform {#android-platform}
+
+**Status:** `stable`
+
+**Description:**
+Android mobile platform configuration.
+
 ```lua
 ANDROID = {
     hide_vignette = true,
@@ -141,7 +280,17 @@ ANDROID = {
 }
 ```
 
-### iOS Platform
+**Overrides:**
+- `hide_vignette = true`: Removes vignette effects for better mobile performance
+- `force_netbookmode = true`: Uses compact UI layout for mobile screens
+
+### iOS Platform {#ios-platform}
+
+**Status:** `stable`
+
+**Description:**
+iOS mobile platform configuration.
+
 ```lua
 IOS = {
     hide_vignette = true,
@@ -149,71 +298,225 @@ IOS = {
 }
 ```
 
-## Usage Examples
+**Overrides:**
+- `hide_vignette = true`: Removes vignette effects for better mobile performance  
+- `force_netbookmode = true`: Uses compact UI layout for mobile screens
 
-### Basic Configuration Check
+## Implementation Details
+
+### Platform Override Application
+
+The configuration system automatically applies platform overrides during module initialization:
+
 ```lua
--- Check if vignette should be hidden
+TheConfig = Config(defaults)
+if platform_overrides[PLATFORM] then
+    TheConfig:SetOptions(platform_overrides[PLATFORM])
+end
+```
+
+**Process:**
+1. Create Config instance with default values
+2. Check if current platform has specific overrides
+3. Apply platform overrides using `SetOptions`
+4. Global `TheConfig` instance is ready for use
+
+### Option Storage
+
+All configuration options are stored in the `options` table within each Config instance:
+
+```lua
+function Config:SetOptions(options)
+    for k,v in pairs(options) do
+        self.options[k] = v
+    end
+end
+```
+
+**Storage Characteristics:**
+- Direct table storage for fast access
+- Supports any value type (boolean, number, string, table)
+- Options can be added, modified, or removed at runtime
+- Memory efficient with minimal overhead
+
+## Common Usage Patterns
+
+### Platform-Specific UI Adjustments
+
+```lua
+-- Apply mobile-specific optimizations
 if TheConfig:IsEnabled("hide_vignette") then
-    -- Apply UI adjustments for mobile platforms
-    HideVignetteEffects()
+    -- Remove performance-heavy vignette overlay
+    RemoveVignetteOverlay()
+    SetMobileRenderingMode()
 end
-```
 
-### Netbook Mode Detection
-```lua
--- Adjust UI layout based on netbook mode
 if TheConfig:IsEnabled("force_netbookmode") then
-    -- Use compact UI layout
-    SetCompactUIMode()
-else
-    -- Use full UI layout
-    SetFullUIMode()
+    -- Compact UI for smaller screens
+    SetCompactButtonLayout()
+    SetSmallUIScale()
+    EnableScrollableMenus()
 end
 ```
 
-### Runtime Configuration Changes
+### Runtime Configuration Management
+
 ```lua
--- Enable an option at runtime
-TheConfig:Enable("some_new_option")
+-- Enable experimental features dynamically
+TheConfig:Enable("experimental_ai")
+TheConfig:Enable("beta_ui")
 
--- Disable an option at runtime
-TheConfig:Disable("some_option")
-
--- Set multiple options
+-- Batch configuration updates
 TheConfig:SetOptions({
-    new_feature = true,
-    experimental_mode = false
+    performance_mode = true,
+    high_quality_audio = false,
+    debug_rendering = true,
+    log_level = 3
 })
+
+-- Conditional feature activation
+if PlayerHasBetaAccess() then
+    TheConfig:Enable("beta_features")
+end
 ```
 
-## Platform Detection
+### Configuration-Driven Features
 
-The configuration system automatically applies platform-specific overrides based on the global `PLATFORM` variable:
+```lua
+-- UI scaling based on configuration
+local function ApplyUIScaling()
+    if TheConfig:IsEnabled("force_netbookmode") then
+        SetUIScale(0.8)  -- Compact scale
+    else
+        SetUIScale(1.0)  -- Normal scale
+    end
+end
 
-- **Desktop**: Uses default configuration
-- **NACL**: Enables netbook mode for Chrome Native Client
-- **Android**: Hides vignette and enables netbook mode
-- **iOS**: Hides vignette and enables netbook mode
+-- Performance adjustments
+local function OptimizeGraphics()
+    if TheConfig:IsEnabled("hide_vignette") then
+        DisablePostProcessing()
+    end
+    
+    local perfMode = TheConfig:IsEnabled("performance_mode")
+    if perfMode then
+        ReduceParticleEffects()
+        LowerShadowQuality()
+    end
+end
+```
 
-## Version History
+### Debugging and Diagnostics
 
-| Version | Date | Changes |
-|---------|------|---------|
-| 675312 | 2024-12-19 | Current stable implementation |
+```lua
+-- Configuration state inspection
+local function DumpConfig()
+    print("=== CURRENT CONFIGURATION ===")
+    print(tostring(TheConfig))
+    print("===============================")
+end
 
-## Related Modules
+-- Conditional debugging
+if TheConfig:IsEnabled("debug_mode") then
+    DumpConfig()
+    EnableVerboseLogging()
+end
 
-- **[Class](class.md)** - Base class system used by Config
-- **[Constants](constants.md)** - Platform constants and definitions
+-- Configuration validation
+local function ValidateConfig()
+    local requiredOptions = {"hide_vignette", "force_netbookmode"}
+    for _, option in ipairs(requiredOptions) do
+        local value = TheConfig:IsEnabled(option)
+        if value == nil then
+            print("Warning: Missing required config option:", option)
+        end
+    end
+end
+```
+
+## Constants
+
+### PLATFORM
+
+**Status:** `stable`
+
+**Description:** Global variable containing the current platform identifier used for applying platform-specific overrides.
+
+**Possible Values:**
+- `"NACL"`: Chrome Native Client
+- `"ANDROID"`: Android mobile
+- `"IOS"`: iOS mobile  
+- `"WINDOWS"`: Windows desktop
+- `"LINUX"`: Linux desktop
+- `"OSX"`: macOS desktop
+
+## Best Practices
+
+### ✅ Recommended Usage
+
+- Use `TheConfig:IsEnabled()` for all configuration checks
+- Group related options using `SetOptions()` for batch updates
+- Check for nil values when options might not be set
+- Use descriptive option names that indicate their purpose
+- Apply platform-specific optimizations through configuration
+- Use configuration for feature flags and experimental features
+
+### ❌ Usage Warnings
+
+- Don't access `self.options` directly; use provided methods
+- Don't assume options exist without checking for nil
+- Don't use configuration for frequently changing values
+- Don't store complex objects that might cause memory issues
+- Don't modify platform override tables at runtime
+- Don't use configuration for security-sensitive settings
+
+## Error Handling
+
+### Safe Configuration Access
+
+```lua
+-- Always check for nil when option might not exist
+local customSetting = TheConfig:IsEnabled("optional_feature")
+if customSetting ~= nil then
+    ApplyCustomSetting(customSetting)
+end
+
+-- Provide defaults for missing options
+local debugLevel = TheConfig:IsEnabled("debug_level") or 0
+SetDebugLevel(debugLevel)
+```
+
+### Validation Patterns
+
+```lua
+-- Validate configuration state
+local function ValidateRequiredConfig()
+    local required = {"hide_vignette", "force_netbookmode"}
+    for _, option in ipairs(required) do
+        if TheConfig:IsEnabled(option) == nil then
+            error("Required configuration option missing: " .. option)
+        end
+    end
+end
+```
+
+## Related Systems
+
+- **[Class](./class.md)**: Base class system used by Config
+- **[Constants](./constants.md)**: Platform constants and global definitions  
+- **[Main](./main.md)**: Game initialization and platform detection
+- **[Frontend](./frontend.md)**: UI system that uses platform configuration
 
 ## Technical Notes
 
-- The Config class extends the base `Class` system
-- Configuration options are stored in the `options` table
-- Platform overrides are applied during module initialization
-- The `__tostring` method provides debugging information
+- Config extends the base Class system for object-oriented functionality
+- Platform detection relies on the global `PLATFORM` variable set during initialization
+- Configuration options are applied in order: defaults first, then platform overrides
+- The `__tostring` metamethod enables easy debugging of configuration state
+- All option values are stored in the `options` table for O(1) access
+- Memory usage is minimal as only set options consume memory
+- No persistence; configuration is rebuilt on each game start
 
 ---
 
-*This documentation covers the Config module as of build 675312. For the most current API information, please refer to the latest game files.*
+*These configuration utilities provide platform-aware settings management essential for cross-platform deployment of Don't Starve Together.*

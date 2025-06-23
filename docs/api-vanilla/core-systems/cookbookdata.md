@@ -3,8 +3,8 @@ title: "Cookbook Data"
 description: "Recipe discovery and food knowledge management system for Don't Starve Together"
 sidebar_position: 11
 slug: /api-vanilla/core-systems/cookbookdata
-last_updated: "2024-12-19"
-build_version: "675312"
+last_updated: "2025-06-21"
+build_version: "676042"
 change_status: "stable"
 ---
 
@@ -526,7 +526,7 @@ end
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 675312 | 2024-12-19 | Current stable implementation with online sync support |
+| 676042 | 2025-06-21 | Current stable implementation with online sync support |
 
 ## Related Modules
 
@@ -544,4 +544,4 @@ end
 
 ---
 
-*This documentation covers the CookbookData module as of build 675312. The cookbook system enables players to track cooking discoveries and build comprehensive recipe knowledge.*
+*This documentation covers the CookbookData module as of build 676042. The cookbook system enables players to track cooking discoveries and build comprehensive recipe knowledge.*

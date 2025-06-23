@@ -1,14 +1,22 @@
 ---
+id: cooking
 title: "Cooking"
 description: "Cooking system for ingredient processing and recipe management in Don't Starve Together"
 sidebar_position: 5
 slug: /api-vanilla/core-systems/cooking
-last_updated: 2024-12-19
-build_version: 675312
+last_updated: 2025-06-21
+build_version: 676042
 change_status: stable
 ---
 
-# Cooking
+# Cooking 🟢
+
+## Version History
+| Build Version | Change Date | Change Type | Description |
+|---|----|----|----|
+| 676042 | 2025-06-21 | stable | Current stable implementation with mod integration |
+
+## Overview
 
 The cooking system manages ingredient processing, recipe calculation, and prepared food creation in Don't Starve Together. It provides the foundation for all cooking mechanics including crock pots, spice stations, and custom cooking devices.
 
@@ -21,10 +29,13 @@ The cooking module provides:
 - **Cookbook Integration**: Recipe display and categorization
 - **Mod Support**: Extensible framework for custom recipes and ingredients
 
-## Core Functions
+## Functions
 
-### AddCookerRecipe(cooker, recipe, is_mod_food)
+### AddCookerRecipe(cooker, recipe, is_mod_food) {#add-cooker-recipe}
 
+**Status:** `stable`
+
+**Description:**
 Registers a recipe for a specific cooking device type.
 
 **Parameters:**
@@ -53,8 +64,11 @@ AddCookerRecipe("portablecookpot", my_recipe)
 AddCookerRecipe("archive_cookpot", my_recipe)
 ```
 
-### AddIngredientValues(names, tags, cancook, candry)
+### AddIngredientValues(names, tags, cancook, candry) {#add-ingredient-values}
 
+**Status:** `stable`
+
+**Description:**
 Defines cooking properties for ingredient items.
 
 **Parameters:**
@@ -89,8 +103,11 @@ AddIngredientValues(
 )
 ```
 
-### CalculateRecipe(cooker, names)
+### CalculateRecipe(cooker, names) {#calculate-recipe}
 
+**Status:** `stable`
+
+**Description:**
 Determines which recipe to produce from given ingredients.
 
 **Parameters:**
@@ -109,8 +126,11 @@ local recipe_name, cooktime = CalculateRecipe("cookpot",
 -- Returns: "meatballs", 1
 ```
 
-### IsCookingIngredient(prefabname)
+### IsCookingIngredient(prefabname) {#is-cooking-ingredient}
 
+**Status:** `stable`
+
+**Description:**
 Checks if an item can be used in cooking.
 
 **Parameters:**
@@ -128,6 +148,91 @@ end
 if IsCookingIngredient("log") then
     print("This won't print - logs aren't ingredients")
 end
+```
+
+### GetCandidateRecipes(cooker, ingdata) {#get-candidate-recipes}
+
+**Status:** `stable`
+
+**Description:**
+Finds and prioritizes all recipes that match the given ingredients.
+
+**Parameters:**
+- `cooker` (string): Cooker type identifier
+- `ingdata` (table): Processed ingredient data with names and tags
+
+**Returns:**
+- (table): Array of recipe candidates sorted by priority
+
+**Usage:**
+```lua
+local ingdata = GetIngredientValues({"meat", "meat", "berries", "twigs"})
+local candidates = GetCandidateRecipes("cookpot", ingdata)
+for _, recipe in ipairs(candidates) do
+    print("Recipe:", recipe.name, "Priority:", recipe.priority or 0)
+end
+```
+
+### IsModCookingProduct(cooker, name) {#is-mod-cooking-product}
+
+**Status:** `stable`
+
+**Description:**
+Checks if a recipe name is provided by an enabled mod for a specific cooker type.
+
+**Parameters:**
+- `cooker` (string): Cooker type identifier
+- `name` (string): Recipe name to check
+
+**Returns:**
+- (boolean): True if recipe is from an enabled mod
+
+### HasModCookerFood() {#has-mod-cooker-food}
+
+**Status:** `stable`
+
+**Description:**
+Checks if any mod-added recipes are currently available in the cookbook.
+
+**Returns:**
+- (boolean): True if mod recipes exist in cookbook
+
+### IsModCookerFood(prefab) {#is-mod-cooker-food}
+
+**Status:** `stable`
+
+**Description:**
+Determines if a food item is from a mod rather than the base game.
+
+**Parameters:**
+- `prefab` (string): Food prefab name
+
+**Returns:**
+- (boolean): True if food is mod-added
+
+### AddRecipeCard(cooker, recipe) {#add-recipe-card}
+
+**Status:** `stable`
+
+**Description:**
+Registers a recipe card for cookbook display. Used internally when recipes have card_def defined.
+
+**Parameters:**
+- `cooker` (string): Cooker type identifier
+- `recipe` (table): Recipe definition with card_def
+
+**Usage:**
+```lua
+-- Automatically called for recipes with card_def
+local recipe = {
+    name = "meatballs",
+    card_def = {
+        ingredients = {{"meat", 2}, {"berries", 1}}
+    },
+    -- ... other properties
+}
+AddCookerRecipe("cookpot", recipe)
+-- AddRecipeCard is called automatically if card_def exists
 ```
 
 ## Ingredient Tag System
@@ -541,14 +646,46 @@ local recipe = {
 -- Prefab must exist in prefabs/meatballs.lua
 ```
 
-## Version History
+## Constants
 
-| Version | Date | Changes |
-|---------|------|---------|
-| 675312 | 2024-12-19 | Current stable implementation |
-| 650000 | 2024-06-15 | Added portable spicer support |
-| 600000 | 2024-01-20 | Enhanced ocean fish integration |
-| 550000 | 2023-09-10 | Improved mod recipe system |
+### MOD_COOKBOOK_CATEGORY
+
+**Value:** `"mod"`
+
+**Status:** `stable`
+
+**Description:** Category identifier for mod-added recipes in the cookbook system.
+
+### Official Foods Table
+
+**Description:** Internal table tracking official (non-mod) food recipes for cookbook categorization and online synchronization.
+
+## Module Exports
+
+The cooking module returns a table with the following API:
+
+```lua
+return {
+    CalculateRecipe = CalculateRecipe,
+    IsCookingIngredient = IsCookingIngredient,
+    recipes = cookerrecipes,
+    ingredients = ingredients,
+    GetRecipe = GetRecipe,
+    cookbook_recipes = cookbook_recipes,
+    recipe_cards = recipe_cards,
+    HasModCookerFood = HasModCookerFood,
+    IsModCookerFood = IsModCookerFood
+}
+```
+
+### Exported Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `recipes` | table | All cooker recipe tables indexed by cooker type |
+| `ingredients` | table | All ingredient definitions with tags and properties |
+| `cookbook_recipes` | table | Cookbook-visible recipes organized by category |
+| `recipe_cards` | table | Recipe card definitions for cookbook display |
 
 ## Related Modules
 
@@ -557,14 +694,15 @@ local recipe = {
 - **[Components](./components/)** - Cookable and stewer components
 - **[Tuning](./tuning.md)** - Cooking time and spoilage constants
 
-## Notes
+## Technical Notes
 
-🟢 **Stable API**: Core cooking functions are stable across game updates.
+- Core cooking functions provide stable API across game updates
+- Recipe priority system prevents conflicts with base game recipes
+- Extensive mod support through ingredient and recipe registration
+- Recipe calculation optimized for real-time cooking decisions
+- Ingredient aliases handle naming convention inconsistencies
+- Ocean fish integration uses dynamic ingredient value system
 
-⚠️ **Recipe Priority**: Always set appropriate priorities to avoid conflicts with base recipes.
+---
 
-🔧 **Mod Support**: Extensive mod support through ingredient and recipe registration systems.
-
-📊 **Performance**: Recipe calculation is optimized for real-time cooking decisions.
-
-🍳 **Testing**: Use the built-in TestRecipes function during development to verify recipe logic.
+*This documentation covers the Cooking module as of build 676042. The cooking system provides comprehensive ingredient processing and recipe management for all cooking mechanics.*

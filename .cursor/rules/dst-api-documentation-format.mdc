@@ -1,7 +1,7 @@
 ---
-description: This rule defines the standardized format for documenting Don't Starve Together API scripts. Follow this format consistently when creating or updating API documentation.
+description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 # DST API Documentation Format
 
@@ -21,12 +21,13 @@ All documentation files must include the following front matter:
 
 ```markdown
 ---
+id: [Id]
 title: [Module Name]
 description: [Short description of what this module/file does]
 sidebar_position: [Number]
 slug: [custom-url-slug]
 last_updated: YYYY-MM-DD
-build_version: 675312
+build_version: 676042
 change_status: stable | added | modified | deprecated | removed
 ---
 ```
@@ -39,11 +40,12 @@ Index files should follow this structure:
 
 ```markdown
 ---
+id: [Id]
 title: [Category Name] Overview
 sidebar_position: 1
 slug: [category-slug]
 last_updated: YYYY-MM-DD
-build_version: 675312
+build_version: 676042
 ---
 
 # [Category] API Overview
@@ -64,10 +66,10 @@ Last updated: **YYYY-MM-DD**
 
 | Build | Date | Component | Change Type | Description |
 |-------|------|-----------|-------------|-------------|
-| 675312 | 2023-11-15 | [Component A](mdc:dst-api-webdocs/component-a.md) | added | Added new functionality X |
-| 675312 | 2023-11-15 | [Component B](mdc:dst-api-webdocs/component-b.md) | modified | Changed parameter structure |
-| 659421 | 2023-08-22 | [Component C](mdc:dst-api-webdocs/component-c.md) | deprecated | Will be removed in build 690000 |
-| 659421 | 2023-08-22 | [Component D](mdc:dst-api-webdocs/component-d.md) | removed | Replaced by [Component E](mdc:dst-api-webdocs/component-e.md) |
+| 675312 | 2023-11-15 | [Component A](./component-a.md) | added | Added new functionality X |
+| 675312 | 2023-11-15 | [Component B](./component-b.md) | modified | Changed parameter structure |
+| 659421 | 2023-08-22 | [Component C](./component-c.md) | deprecated | Will be removed in build 690000 |
+| 659421 | 2023-08-22 | [Component D](./component-d.md) | removed | Replaced by [Component E](./component-e.md) |
 
 ## Common Usage Patterns
 
@@ -77,10 +79,10 @@ Last updated: **YYYY-MM-DD**
 
 | Module | Status | Description |
 |--------|--------|-------------|
-| [ModuleName](mdc:dst-api-webdocs/module-name.md) | stable | Brief description |
-| [NewModule](mdc:dst-api-webdocs/new-module.md) | added in 675312 | Brief description |
-| [ChangedModule](mdc:dst-api-webdocs/changed-module.md) | modified in 675312 | Brief description |
-| [DeprecatedModule](mdc:dst-api-webdocs/deprecated-module.md) | deprecated in 675312 | Brief description |
+| [ModuleName](./module-name.md) | stable | Brief description |
+| [NewModule](./new-module.md) | added in 675312 | Brief description |
+| [ChangedModule](./changed-module.md) | modified in 675312 | Brief description |
+| [DeprecatedModule](./deprecated-module.md) | deprecated in 675312 | Brief description |
 ```
 
 ### Module Documentation Files
@@ -89,12 +91,13 @@ Module-specific files should follow this structure:
 
 ```markdown
 ---
+id: [Id]
 title: [Module Name]
 description: [Short description of what this module/file does]
 sidebar_position: [Number]
 slug: [custom-url-slug]
 last_updated: YYYY-MM-DD
-build_version: 675312
+build_version: 676042
 change_status: stable
 ---
 
@@ -207,7 +210,7 @@ end)
 
 ## Related Modules
 
-- [OtherModule](mdc:path/to/module.md): Brief description of relationship
+- [OtherModule](mdc:dst-api-webdocs/path/to/module.md): Brief description of relationship
 ```
 
 ## Status Indicators

@@ -1,113 +1,129 @@
 ---
-title: "CameraShake"
-description: "Camera shake system for creating visual feedback effects"
+id: camerashake
+title: CameraShake
+description: Camera shake system for creating visual feedback effects during gameplay events
 sidebar_position: 8
-slug: /api-vanilla/core-systems/camerashake
-last_updated: "2024-01-15"
-build_version: "675312"
-change_status: "stable"
+slug: core-systems-camerashake
+last_updated: 2025-06-21
+build_version: 676042
+change_status: stable
 ---
 
-# CameraShake System
+# CameraShake
 
-The **CameraShake** system provides functionality for creating camera shake effects to enhance visual feedback during gameplay events such as explosions, impacts, earthquakes, and other dramatic moments.
+## Version History
+| Build Version | Change Date | Change Type | Description |
+|---|----|----|----|
+| 676042 | 2025-06-21 | stable | Current version |
 
 ## Overview
 
-The CameraShake class creates smooth camera movement patterns using predefined shake directions and easing functions. It supports multiple shake modes (full, horizontal, vertical) and provides configurable duration, speed, and intensity parameters.
+The `CameraShake` class provides functionality for creating camera shake effects to enhance visual feedback during gameplay events such as explosions, impacts, earthquakes, and other dramatic moments. The system uses predefined shake direction patterns with configurable timing and intensity parameters.
 
-## Version History
-
-| Version | Changes | Status |
-|---------|---------|--------|
-| 675312  | Current stable implementation | 🟢 **Stable** |
-| Earlier | Initial implementation | - |
-
-## Shake Modes
-
-The system supports three primary shake modes defined in the `CAMERASHAKE` constants:
-
-### CAMERASHAKE.FULL
-Creates shake movement in all 8 directions around the camera center:
-- **Directions**: Up, Down, Left, Right, and 4 diagonal directions
-- **Use Case**: Explosions, major impacts, earthquakes
-- **Pattern**: Circular shake pattern with maximum visual impact
-
-### CAMERASHAKE.SIDE  
-Creates horizontal-only shake movement:
-- **Directions**: Left and Right only
-- **Use Case**: Side impacts, lateral forces, character movement effects
-- **Pattern**: Linear horizontal oscillation
-
-### CAMERASHAKE.VERTICAL
-Creates vertical-only shake movement:
-- **Directions**: Up and Down only  
-- **Use Case**: Landing impacts, vertical forces, building collapses
-- **Pattern**: Linear vertical oscillation
-
-## Class Constructor
+## Usage Example
 
 ```lua
-CameraShake = Class(function(self, mode, duration, speed, scale)
+-- Create a strong explosion shake effect
+local explosionShake = CameraShake(CAMERASHAKE.FULL, 0.8, 0.04, 3.0)
+
+-- Update in game loop
+local shakeOffset = explosionShake:Update(dt)
+if shakeOffset then
+    -- Apply shake offset to camera position
+    camera:ApplyShakeOffset(shakeOffset)
+end
 ```
 
-### Parameters
+## Constructor
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `mode` | number | `CAMERASHAKE.FULL` | Shake pattern mode (FULL/SIDE/VERTICAL) |
-| `duration` | number | 1 | Total shake duration in seconds |
-| `speed` | number | 0.05 | Speed of individual shake movements |
-| `scale` | number | 1 | Intensity scaling factor |
+### CameraShake(mode, duration, speed, scale) {#constructor}
+
+**Status:** `stable`
+
+**Description:**
+Creates a new camera shake instance with specified parameters.
+
+**Parameters:**
+- `mode` (number): Shake pattern mode (CAMERASHAKE.FULL/SIDE/VERTICAL)
+- `duration` (number): Total shake duration in seconds (default: 1)
+- `speed` (number): Speed of individual shake movements (default: 0.05)
+- `scale` (number): Intensity scaling factor (default: 1)
+
+**Returns:**
+- (CameraShake): New camera shake instance
+
+**Example:**
+```lua
+-- Full directional shake for explosion
+local explosionShake = CameraShake(CAMERASHAKE.FULL, 0.6, 0.04, 2.5)
+
+-- Horizontal shake for side impact
+local sideShake = CameraShake(CAMERASHAKE.SIDE, 0.4, 0.03, 1.2)
+
+-- Vertical shake for landing impact
+local landingShake = CameraShake(CAMERASHAKE.VERTICAL, 0.3, 0.02, 1.8)
+```
 
 ## Methods
 
-### StopShaking()
-Immediately stops the current shake effect and resets all parameters.
+### inst:StopShaking() {#stop-shaking}
 
-```lua
-function CameraShake:StopShaking()
-```
+**Status:** `stable`
 
-**Usage:**
-```lua
-local shake = CameraShake(CAMERASHAKE.FULL, 2.0, 0.05, 1.5)
--- Later...
-shake:StopShaking() -- Immediately stop shaking
-```
-
-### Update(dt)
-Updates the shake effect and returns the current shake offset vector.
-
-```lua
-function CameraShake:Update(dt) -> Vector3
-```
+**Description:**
+Immediately stops the current shake effect and resets all internal parameters.
 
 **Parameters:**
-- `dt` (number): Delta time since last update
+None
 
 **Returns:**
-- `Vector3`: Current shake offset, or nil if shake is complete
+None
 
-**Usage:**
+**Example:**
+```lua
+local shake = CameraShake(CAMERASHAKE.FULL, 2.0, 0.05, 1.5)
+-- Later, stop the shake immediately
+shake:StopShaking()
+```
+
+### inst:Update(dt) {#update}
+
+**Status:** `stable`
+
+**Description:**
+Updates the shake effect and returns the current shake offset vector. Returns nil when the shake effect is complete.
+
+**Parameters:**
+- `dt` (number): Delta time since last update in seconds
+
+**Returns:**
+- (Vector3 or nil): Current shake offset vector, or nil if shake is complete
+
+**Example:**
 ```lua
 local shake = CameraShake(CAMERASHAKE.FULL, 1.0, 0.05, 2.0)
 
 -- In update loop
 local shakeOffset = shake:Update(dt)
 if shakeOffset then
-    -- Apply shake offset to camera position
     camera.position = camera.basePosition + shakeOffset
+else
+    -- Shake effect has completed
+    shake = nil
 end
 ```
 
-## Implementation Details
+## Constants
 
-### Shake Patterns
+### CAMERASHAKE.FULL
 
-The system uses predefined direction vectors for each shake mode:
+**Value:** Constant defined in game engine
 
-**FULL Mode (8 directions):**
+**Status:** `stable`
+
+**Description:** Creates shake movement in all 8 directions around the camera center (up, down, left, right, and 4 diagonal directions). Used for explosions, major impacts, and earthquakes.
+
+**Usage Pattern:**
 ```
     4
  7     1  
@@ -116,140 +132,120 @@ The system uses predefined direction vectors for each shake mode:
     0
 ```
 
-**SIDE Mode (2 directions):**
+### CAMERASHAKE.SIDE
+
+**Value:** Constant defined in game engine
+
+**Status:** `stable`
+
+**Description:** Creates horizontal-only shake movement (left and right). Used for side impacts, lateral forces, and character movement effects.
+
+**Usage Pattern:**
 ```
 0   S   1
 ```
 
-**VERTICAL Mode (2 directions):**
+### CAMERASHAKE.VERTICAL
+
+**Value:** Constant defined in game engine
+
+**Status:** `stable`
+
+**Description:** Creates vertical-only shake movement (up and down). Used for landing impacts, vertical forces, and building collapses.
+
+**Usage Pattern:**
 ```
     0
     S  
     1
 ```
 
-### Timing and Easing
+## Implementation Details
+
+### Shake Timing Phases
 
 The shake effect follows a three-phase timeline:
 
-1. **Ramp-up Phase** (`0` to `speed`): Smooth transition from zero to first shake position
-2. **Active Phase** (`speed` to `duration + speed`): Cyclic movement through shake pattern
-3. **Ramp-down Phase** (`duration + speed` to `duration + 2*speed`): Smooth return to zero
+1. **Ramp-up Phase** (0 to speed): Smooth transition from zero to first shake position
+2. **Active Phase** (speed to duration + speed): Cyclic movement through shake pattern
+3. **Ramp-down Phase** (duration + speed to duration + 2*speed): Smooth return to zero
 
-The intensity scales linearly from full scale to zero over the duration using easing functions.
+### Direction Vectors
 
-## Usage Examples
+Each shake mode uses normalized Vector3 directions:
 
-### Basic Explosion Effect
+**FULL Mode (8 directions):**
+- Vector3(0, -1), Vector3(1, 1), Vector3(-1, 0), Vector3(1, -1)
+- Vector3(0, 1), Vector3(-1, -1), Vector3(1, 0), Vector3(-1, 1)
+
+**SIDE Mode (2 directions):**
+- Vector3(-1, 0), Vector3(1, 0)
+
+**VERTICAL Mode (2 directions):**
+- Vector3(0, 1), Vector3(0, -1)
+
+## Common Usage Patterns
+
+### Explosion Effects
 ```lua
--- Create a strong, short explosion shake
+-- Strong, short explosion shake
 local explosionShake = CameraShake(CAMERASHAKE.FULL, 0.8, 0.04, 3.0)
-
--- Update in game loop
-local function UpdateCamera(dt)
-    local offset = explosionShake:Update(dt)
-    if offset then
-        camera:ApplyShakeOffset(offset)
-    end
-end
 ```
 
-### Earthquake Effect
+### Earthquake Effects
 ```lua
--- Create a long, moderate earthquake shake
+-- Long, moderate earthquake shake
 local earthquakeShake = CameraShake(CAMERASHAKE.FULL, 5.0, 0.08, 1.5)
-
--- Continuous update
-while earthquakeActive do
-    local offset = earthquakeShake:Update(dt)
-    if offset then
-        camera:ApplyShakeOffset(offset)
-    else
-        earthquakeActive = false -- Shake completed
-    end
-end
 ```
 
-### Landing Impact
+### Impact Feedback
 ```lua
--- Create a vertical-only landing shake
+-- Quick vertical landing impact
 local landingShake = CameraShake(CAMERASHAKE.VERTICAL, 0.3, 0.03, 2.0)
 
--- Quick impact effect
-local function OnPlayerLanded()
-    landingShake = CameraShake(CAMERASHAKE.VERTICAL, 0.3, 0.03, 2.0)
-end
+-- Horizontal weapon hit feedback
+local hitShake = CameraShake(CAMERASHAKE.SIDE, 0.4, 0.04, 1.2)
 ```
 
-### Weapon Hit Feedback
+### Ambient Environmental Effects
 ```lua
--- Create a horizontal shake for weapon impacts
-local hitShake = CameraShake(CAMERASHAKE.SIDE, 0.4, 0.04, 1.2)
-
--- Apply on weapon hit
-local function OnWeaponHit()
-    if hitShake then
-        hitShake:StopShaking() -- Stop any existing shake
-    end
-    hitShake = CameraShake(CAMERASHAKE.SIDE, 0.4, 0.04, 1.2)
-end
+-- Subtle background rumble
+local ambientShake = CameraShake(CAMERASHAKE.FULL, 3.0, 0.08, 0.8)
 ```
 
 ## Best Practices
 
-### Performance Considerations
-- **Reuse Objects**: Create shake instances as needed rather than keeping permanent references
-- **Stop When Complete**: The Update method automatically stops when duration is exceeded
-- **Check Return Value**: Always check if Update() returns a value before applying offset
-
-### Visual Design Guidelines
+### Parameter Guidelines
 - **Duration**: Keep most shakes under 1 second for best user experience
 - **Scale**: Use scale values between 0.5-3.0 for realistic effects
 - **Speed**: Faster speeds (0.02-0.04) for intense effects, slower (0.06-0.10) for subtle effects
 - **Mode Selection**: Choose appropriate mode based on the cause of the shake
 
-### Common Patterns
+### Performance Considerations
+- Create shake instances as needed rather than keeping permanent references
+- Always check if Update() returns a value before applying offset
+- Stop unused shake effects with StopShaking() to free resources
+- The Update method automatically stops when duration is exceeded
+
+### Integration Tips
 ```lua
--- Standard explosion shake
-CameraShake(CAMERASHAKE.FULL, 0.6, 0.04, 2.5)
-
--- Subtle ambient shake
-CameraShake(CAMERASHAKE.FULL, 3.0, 0.08, 0.8)
-
--- Quick impact feedback
-CameraShake(CAMERASHAKE.SIDE, 0.2, 0.03, 1.5)
-
--- Environmental rumble
-CameraShake(CAMERASHAKE.VERTICAL, 1.5, 0.06, 1.0)
+-- Proper integration pattern
+local function ApplyCameraShake(shakeInstance, dt)
+    if not shakeInstance then return end
+    
+    local offset = shakeInstance:Update(dt)
+    if offset then
+        -- Apply shake to camera
+        TheCamera:ApplyShake(offset)
+    else
+        -- Shake completed, clean up reference
+        shakeInstance = nil
+    end
+end
 ```
 
-## Related Systems
+## Related Modules
 
-- **[Camera System](../cameras/)**: Camera management and positioning
-- **[Input System](../input/)**: Controller vibration integration
-- **[Effects System](../effects/)**: Visual effect coordination
-- **[Easing Functions](../util/easing.md)**: Mathematical easing for smooth animations
-
-## Technical Notes
-
-- **Coordinate System**: Uses normalized Vector3 directions for platform independence
-- **Thread Safety**: Single-threaded design, not thread-safe
-- **Memory Management**: Minimal allocation during runtime, safe for frequent use
-- **Precision**: Uses floating-point calculations suitable for smooth visual effects
-
-## Troubleshooting
-
-### Shake Not Visible
-- Verify camera system is applying the returned offset
-- Check scale parameter is not too small
-- Ensure Update() is being called with valid dt values
-
-### Shake Too Intense/Subtle
-- Adjust scale parameter (1.0 = baseline intensity)
-- Modify speed for faster/slower oscillation
-- Change shake mode for different movement patterns
-
-### Performance Issues
-- Avoid creating new CameraShake objects every frame
-- Stop unused shake effects with StopShaking()
-- Consider reducing update frequency for background effects
+- [Easing](./easing.md): Mathematical easing functions used for smooth shake transitions
+- [Input System](./input.md): Controller vibration integration
+- [Vector3](./vector3.md): 3D vector mathematics for shake calculations

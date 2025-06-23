@@ -1,249 +1,346 @@
 ---
+id: entityreplica
 title: Entity Replica System
-description: Documentation of the Don't Starve Together entity replica system for client-server component synchronization
-sidebar_position: 8
-slug: /entityreplica
-last_updated: 2024-12-19
-build_version: 675312
+description: Network component replication system for client-server synchronization in Don't Starve Together
+sidebar_position: 16
+slug: api-vanilla/core-systems/entityreplica
+last_updated: 2025-01-27
+build_version: 676042
 change_status: stable
 ---
 
 # Entity Replica System
 
-The Entity Replica system in Don't Starve Together provides a mechanism for synchronizing entity component data between the server (master simulation) and clients. This system enables clients to access read-only versions of server-side component data for UI updates, predictions, and client-side logic without compromising game security.
-
 ## Version History
-
 | Build Version | Change Date | Change Type | Description |
-|---|----|----|----|
-| 675312 | 2024-12-19 | stable | Updated documentation to match current implementation |
-| 642130 | 2023-06-10 | added | Initial comprehensive replica system documentation |
+|---|---|---|---|
+| 676042 | 2025-01-27 | stable | Current version |
 
 ## Overview
 
-The replica system addresses the fundamental client-server architecture challenge in DST:
-- **Server Authority**: All game logic and authoritative component data exists on the server
-- **Client Needs**: Clients need access to certain component data for UI, predictions, and responsive gameplay
-- **Security**: Direct access to server components would compromise game integrity
+The Entity Replica system extends EntityScript with network functionality that enables component data synchronization between server (master simulation) and clients. This system provides controlled access to server-side component data on clients while maintaining authoritative server-side game logic and security.
 
-Replica components provide a controlled way to expose specific server data to clients while maintaining the authoritative server-side logic.
-
-## Core Architecture
-
-### Replica Container
-
-Each entity has a `replica` container that holds all replica components:
+## Usage Example
 
 ```lua
--- In EntityScript constructor
-self.replica = { _ = {}, inst = self }
-setmetatable(self.replica, replica_mt)
-```
+-- On server: Component automatically creates replica when added
+inst:AddComponent("health")
+inst:AddComponent("inventory")
 
-### Replica Metatable
-
-The replica system uses a custom metatable to validate and control access to replica components:
-
-```lua
-local replica_mt = {
-    __index = function(t, k)
-        return rawget(t, "inst"):ValidateReplicaComponent(k, rawget(t, "_")[k])
-    end,
-}
-```
-
-When accessing `entity.replica.componentname`, the metatable:
-1. Calls `ValidateReplicaComponent` to ensure the component is valid
-2. Returns the cached replica component or `nil` if invalid
-
-## Key Methods
-
-The replica system provides several methods for managing component replication:
-
-### ValidateReplicaComponent
-
-```lua
-function EntityScript:ValidateReplicaComponent(name, component)
-    -- Validates that a replica component is still valid
-    -- Returns the component if valid, nil otherwise
+-- On client: Access replica data
+local health_replica = inst.replica.health
+if health_replica then
+    local current_health = health_replica:GetCurrent()
+    local max_health = health_replica:GetMax()
 end
 ```
 
-Validates that a replica component is still accessible and the entity is in a valid state for replication.
+## Replicatable Components
 
-### ReplicateComponent
+### REPLICATABLE_COMPONENTS {#replicatable-components}
 
+**Type:** `table`
+
+**Status:** `stable`
+
+**Description:** Table defining which components can be replicated to clients.
+
+**Available Components:**
+- `builder`: Building and crafting capabilities
+- `combat`: Combat stats and targeting
+- `container`: Container contents and state
+- `constructionsite`: Construction progress
+- `equippable`: Equipment slot and restrictions
+- `fishingrod`: Fishing rod state
+- `follower`: Following behavior and target
+- `health`: Health values and state
+- `hunger`: Hunger values and rates
+- `inventory`: Inventory contents and state
+- `inventoryitem`: Item properties and state
+- `moisture`: Wetness and drying
+- `named`: Custom entity names
+- `oceanfishingrod`: Ocean fishing rod state
+- `rider`: Mount/riding state
+- `sanity`: Sanity values and rates
+- `sheltered`: Shelter protection state
+- `stackable`: Stack size and limits
+- `writeable`: Text content for signs/books
+
+## Core Functions
+
+### inst:ValidateReplicaComponent(name, cmp) {#validate-replica-component}
+
+**Status:** `stable`
+
+**Description:**
+Validates that a replica component is accessible and the entity has the appropriate replication tag.
+
+**Parameters:**
+- `name` (string): Name of the replica component
+- `cmp` (Component): The replica component instance
+
+**Returns:**
+- (Component or nil): The component if valid, nil otherwise
+
+**Example:**
 ```lua
-function EntityScript:ReplicateComponent(name)
-    -- Sets up replication for a server component to clients
-    -- Called automatically when adding components that have replicas
+local health_replica = inst.replica.health
+local validated = inst:ValidateReplicaComponent("health", health_replica)
+if validated then
+    print("Health replica is valid")
 end
 ```
 
-Establishes the connection between a server-side component and its client-side replica.
+**Version History:**
+- Available since initial implementation
 
-### UnreplicateComponent
+### inst:ReplicateComponent(name) {#replicate-component}
 
+**Status:** `stable`
+
+**Description:**
+Sets up replication for a component, creating the client-side replica and managing replication tags.
+
+**Parameters:**
+- `name` (string): Name of the component to replicate
+
+**Example:**
 ```lua
-function EntityScript:UnreplicateComponent(name)
-    -- Removes replication for a component
-    -- Called when components are removed or entities are cleaned up
+-- Automatically called when adding components
+inst:AddComponent("health") -- Calls ReplicateComponent internally
+
+-- Manual replication (rarely needed)
+inst:ReplicateComponent("health")
+```
+
+**Implementation Details:**
+- Checks if component is in REPLICATABLE_COMPONENTS table
+- Adds "_componentname" tag on server
+- Loads and creates replica component instance
+- Handles tag state management for unreplication
+
+### inst:UnreplicateComponent(name) {#unreplicate-component}
+
+**Status:** `stable`
+
+**Description:**
+Removes replication for a component, typically called when components are removed.
+
+**Parameters:**
+- `name` (string): Name of the component to stop replicating
+
+**Example:**
+```lua
+-- Automatically called when removing components
+inst:RemoveComponent("health") -- Calls UnreplicateComponent internally
+```
+
+**Implementation Details:**
+- Removes "_componentname" tag
+- Adds "__componentname" tag to mark as unreplicated
+- Only executes on master simulation
+
+### inst:PrereplicateComponent(name) {#prereplicate-component}
+
+**Status:** `stable`
+
+**Description:**
+Sets up component for replication and immediately marks it as unreplicated. Used for initialization sequences.
+
+**Parameters:**
+- `name` (string): Name of the component to prereplicate
+
+**Example:**
+```lua
+-- Used during entity initialization
+inst:PrereplicateComponent("health")
+```
+
+### inst:ReplicateEntity() {#replicate-entity}
+
+**Status:** `stable`
+
+**Description:**
+Replicates all eligible components for an entity. Called on clients after initial tag deserialization.
+
+**Example:**
+```lua
+-- Automatically called during entity network setup
+-- Manually trigger full replication (rarely needed)
+inst:ReplicateEntity()
+```
+
+**Implementation Details:**
+- Iterates through all REPLICATABLE_COMPONENTS
+- Checks for "_componentname" or "__componentname" tags
+- Calls ReplicateComponent for each eligible component
+- Triggers OnEntityReplicated callback if defined
+
+### inst:TryAttachClassifiedToReplicaComponent(classified, name) {#try-attach-classified}
+
+**Status:** `stable`
+
+**Description:**
+Attempts to attach a classified data object to a replica component for additional data synchronization.
+
+**Parameters:**
+- `classified` (object): Classified data object to attach
+- `name` (string): Name of the replica component
+
+**Returns:**
+- (boolean): True if attachment was successful
+
+**Example:**
+```lua
+-- Attach player-specific classified data
+local success = inst:TryAttachClassifiedToReplicaComponent(player_classified, "health")
+if success then
+    print("Classified data attached to health replica")
 end
 ```
 
-Cleans up replication data when components are removed or entities are destroyed.
+## Mod Support
 
-### PrereplicateEntity
+### AddReplicableComponent(name) {#add-replicable-component}
 
+**Status:** `stable`
+
+**Description:**
+Allows mods to register new components as replicatable.
+
+**Parameters:**
+- `name` (string): Name of the component to make replicatable
+
+**Example:**
 ```lua
-function EntityScript:PrereplicateEntity()
-    -- Prepares an entity for replication setup
-    -- Used during entity initialization on clients
-end
+-- In mod code: Make custom component replicatable
+AddReplicableComponent("mycustomcomponent")
+
+-- Now the component can be replicated
+inst:AddComponent("mycustomcomponent")
+-- Replica will be available as inst.replica.mycustomcomponent
 ```
 
-Prepares the entity's replica system during the initial network synchronization.
+## Tag System
 
-### ReplicateEntity
+### Replication Tags
 
+The replica system uses specific tags to manage replication state:
+
+| Tag Pattern | Purpose | When Added |
+|-------------|---------|------------|
+| `_componentname` | Component is actively replicated | During ReplicateComponent |
+| `__componentname` | Component was unreplicated | During UnreplicateComponent |
+
+**Example:**
 ```lua
-function EntityScript:ReplicateEntity()
-    -- Completes entity replication setup
-    -- Finalizes all component replicas for an entity
-end
-```
-
-Finalizes the replication setup after all components have been added and configured.
-
-## Common Usage Patterns
-
-### Accessing Replica Components
-
-```lua
--- Check if replica exists before accessing
-local inventory_replica = entity.replica.inventory
-if inventory_replica then
-    local active_item = inventory_replica:GetActiveItem()
-    local equipped_tool = inventory_replica:GetEquippedItem(EQUIPSLOTS.HANDS)
+-- Check replication status via tags
+if inst:HasTag("_health") then
+    print("Health component is replicated")
 end
 
--- Safe pattern for optional components
-local health_replica = entity.replica.health
-local current_health = health_replica and health_replica:GetCurrent() or 0
-```
-
-### Component-Specific Replicas
-
-Many core components have replica counterparts:
-
-| Server Component | Replica Component | Primary Use |
-|------------------|-------------------|-------------|
-| `inventory` | `inventory` | UI display, item queries |
-| `health` | `health` | Health bars, death state |
-| `hunger` | `hunger` | Hunger meter display |
-| `sanity` | `sanity` | Sanity meter display |
-| `equippable` | `equippable` | Equipment slot information |
-| `stackable` | `stackable` | Stack size display |
-| `perishable` | `perishable` | Spoilage timers |
-| `combat` | `combat` | Combat UI, targeting |
-
-### Client-Side Validation
-
-```lua
--- Example: Checking if an item can be equipped (client-side)
-local function CanEquipItem(player, item)
-    local inventory_replica = player.replica.inventory
-    local equippable_replica = item.replica.equippable
-    
-    if not inventory_replica or not equippable_replica then
-        return false
-    end
-    
-    local slot = equippable_replica:EquipSlot()
-    return inventory_replica:CanAcceptCount(item, 1, slot)
+if inst:HasTag("__health") then
+    print("Health component was unreplicated")
 end
 ```
 
 ## Network Synchronization
 
-### Dirty State Management
-
-Replica components automatically handle dirty state tracking:
+### Automatic Replication
 
 ```lua
--- Server-side: When component data changes
-self.health:SetVal(new_health)  -- Marks replica as dirty
+-- Server: Adding component automatically sets up replication
+local inst = CreateEntity()
+inst:AddComponent("health")
+-- Health replica will be available on clients
 
--- Client-side: Automatic updates
--- Client receives network update and replica reflects new value
-local current_health = entity.replica.health:GetCurrent()
+-- Client: Access replicated data
+inst:ListenForEvent("healthdelta", function(inst, data)
+    local replica = inst.replica.health
+    if replica then
+        UpdateHealthUI(replica:GetPercent())
+    end
+end)
+```
+
+### Manual Replication Control
+
+```lua
+-- Advanced: Manual replication management
+function SetupCustomReplication(inst)
+    -- Prereplicate for initialization
+    inst:PrereplicateComponent("inventory")
+    
+    -- Later enable full replication
+    inst:ReplicateComponent("inventory")
+    
+    -- Custom callback after replication
+    inst.OnEntityReplicated = function(inst)
+        print("Entity fully replicated")
+        inst:PushEvent("replication_complete")
+    end
+end
+```
+
+## Common Usage Patterns
+
+### Safe Replica Access
+
+```lua
+-- Always check replica existence
+local function GetHealthPercent(inst)
+    local health_replica = inst.replica.health
+    return health_replica and health_replica:GetPercent() or 0
+end
+
+-- Use with UI updates
+local function UpdateHealthBar(inst)
+    local health_replica = inst.replica.health
+    if health_replica then
+        local percent = health_replica:GetPercent()
+        self.health_bar:SetPercent(percent)
+    end
+end
 ```
 
 ### Event-Driven Updates
 
-Replica components often use events for immediate client updates:
-
 ```lua
--- Client listens for replica events
-entity:ListenForEvent("healthdelta", function(entity, data)
-    -- Update UI immediately when health changes
-    UpdateHealthBar(entity.replica.health:GetPercent())
-end)
-```
-
-## Best Practices
-
-### 1. Always Check for Existence
-
-```lua
--- Good: Check before accessing
-local replica = entity.replica.componentname
-if replica then
-    local value = replica:GetSomeValue()
-end
-
--- Bad: Direct access without checking
-local value = entity.replica.componentname:GetSomeValue() -- May error!
-```
-
-### 2. Use Replicas for Read-Only Operations
-
-```lua
--- Good: Using replica for display
-local health_percent = entity.replica.health:GetPercent()
-UpdateHealthBar(health_percent)
-
--- Bad: Trying to modify through replica (won't work)
-entity.replica.health:SetPercent(1.0) -- This method doesn't exist!
-```
-
-### 3. Handle Network Lag
-
-```lua
--- Account for potential network delays
-local function GetDisplayHealth(entity)
-    local replica = entity.replica.health
-    if replica then
-        return replica:GetCurrent()
+-- Listen for replica changes
+inst:ListenForEvent("inventorydirty", function(inst)
+    local inventory_replica = inst.replica.inventory
+    if inventory_replica then
+        RefreshInventoryDisplay()
     end
-    -- Fallback for when replica isn't available yet
-    return entity.components.health and entity.components.health.currenthealth or 0
+end)
+
+-- Batch UI updates
+local pending_updates = {}
+inst:ListenForEvent("healthdelta", function(inst)
+    pending_updates.health = true
+end)
+
+-- Update UI once per frame
+local function OnUpdate()
+    if pending_updates.health then
+        UpdateHealthDisplay()
+        pending_updates.health = nil
+    end
 end
 ```
 
-### 4. Optimize UI Updates
+### Component Validation
 
 ```lua
--- Use events to update UI only when needed
-entity:ListenForEvent("inventorydirty", function()
-    RefreshInventoryUI()
-end)
+-- Robust component checking
+local function HasValidReplica(inst, component_name)
+    local replica = inst.replica[component_name]
+    return replica and inst:ValidateReplicaComponent(component_name, replica)
+end
 
--- Avoid polling replica values every frame
--- Bad:
-function OnUpdate()
-    local health = entity.replica.health:GetCurrent() -- Called every frame!
-    UpdateHealthDisplay(health)
+-- Usage
+if HasValidReplica(inst, "inventory") then
+    local active_item = inst.replica.inventory:GetActiveItem()
 end
 ```
 
@@ -251,107 +348,68 @@ end
 
 ### Memory Management
 
-Replica components are automatically cleaned up when entities are removed:
-
-```lua
--- In EntityScript:Remove()
-for k, v in pairs(rawget(self.replica, "_")) do
-    if v and type(v) == "table" and v.OnRemoveEntity then
-        v:OnRemoveEntity()
-    end
-end
-```
+- Replica components are automatically cleaned up when entities are removed
+- Proxy objects are cached to reduce allocation overhead
+- Tag-based validation minimizes unnecessary component access
 
 ### Network Efficiency
 
-- Replica updates only send changed data
-- Batched updates reduce network overhead
-- Client prediction reduces perceived lag
+- Only changed data is synchronized between server and clients
+- Batch updates reduce network message overhead
+- Client prediction reduces perceived input lag
 
-## Related Systems
+## Debugging
 
-The replica system integrates with several other core systems:
-
-### Component Actions
-
-Components that provide actions automatically handle replica integration:
+### Replica State Inspection
 
 ```lua
--- Component actions work with both server components and replicas
-local actions = entity:CollectActions("SCENE", player)
-```
-
-### State Graphs
-
-State graphs can access replica data for client-side state decisions:
-
-```lua
--- In a state graph condition
-local function HasLowHealth(inst)
-    local health_replica = inst.replica.health
-    return health_replica and health_replica:GetPercent() < 0.25
-end
-```
-
-### UI Systems
-
-Most UI elements rely heavily on replica data:
-
-```lua
--- Widget updates using replica data
-function HealthBadge:OnUpdate()
-    local health_replica = self.owner.replica.health
-    if health_replica then
-        self:SetPercent(health_replica:GetPercent())
+-- Check replica availability
+local function DebugReplicaState(inst)
+    print("=== Replica Debug for", inst, "===")
+    
+    for name, _ in pairs(REPLICATABLE_COMPONENTS) do
+        local has_tag = inst:HasTag("_"..name)
+        local has_unreplicated_tag = inst:HasTag("__"..name)
+        local replica = inst.replica[name]
+        
+        print(string.format("%s: tag=%s, unreplicated=%s, replica=%s",
+            name, tostring(has_tag), tostring(has_unreplicated_tag), tostring(replica ~= nil)))
     end
 end
 ```
 
-## Troubleshooting
-
 ### Common Issues
 
-**Replica is nil**: Entity may not be fully initialized or component doesn't have a replica
+**Replica is nil:**
+- Component may not be replicatable
+- Entity may not be fully initialized
+- Check for proper component addition on server
 
+**Stale replica data:**
+- Network lag may cause temporary desync
+- Use events for immediate UI updates
+- Consider client-side prediction where appropriate
+
+## Events
+
+### "replication_complete"
+
+**Status:** `stable`
+
+**Description:**
+Custom event that can be triggered after entity replication is complete.
+
+**Example:**
 ```lua
--- Wait for entity to be fully replicated
-if entity:IsValid() and entity.replica.health then
-    -- Safe to access
-end
-```
-
-**Stale data**: Client may have outdated information due to network lag
-
-```lua
--- Use events for immediate updates
-entity:ListenForEvent("healthdelta", OnHealthChanged)
-```
-
-**Memory leaks**: Ensure proper cleanup of event listeners
-
-```lua
--- Clean up listeners when UI is destroyed
-widget:OnDestroy(function()
-    entity:RemoveEventCallback("healthdelta", OnHealthChanged)
+inst:ListenForEvent("replication_complete", function(inst)
+    print("All replica components are ready")
+    InitializeUI(inst)
 end)
 ```
 
-### Debugging
+## Related Modules
 
-```lua
--- Check replica state
-print("Health replica exists:", entity.replica.health ~= nil)
-print("Health value:", entity.replica.health and entity.replica.health:GetCurrent())
-
--- Compare server vs replica (on server)
-if TheWorld.ismastersim then
-    print("Server health:", entity.components.health.currenthealth)
-    print("Replica health:", entity.replica.health:GetCurrent())
-end
-```
-
-## See Also
-
-- [Components System](components/) - Understanding the underlying component architecture
-- [Networking](networking) - Network synchronization details
-- [Entity Script](../getting-started#entity-script) - Core entity functionality
+- [EntityScript](./entityscript.md): Core entity functionality and component system
+- [EntityScript Proxy](./entityscriptproxy.md): Proxy system for entity wrapping
+- [Components Overview](./index.md): Individual component functionality
+- [Networking](./networking.md): Network synchronization details

@@ -1,80 +1,74 @@
 ---
-title: "Custom Presets"
-description: "System for creating, managing, and storing custom world generation and settings presets in Don't Starve Together"
+id: custom-presets
+title: Custom Presets
+description: System for creating, managing, and storing custom world generation and settings presets in Don't Starve Together
 sidebar_position: 9
-slug: /api-vanilla/core-systems/custompresets
-last_updated: "2024-12-28"
-build_version: "675312"
-change_status: "stable"
+slug: /api-vanilla/core-systems/custom-presets
+last_updated: 2025-06-21
+build_version: 676042
+change_status: stable
 ---
 
 # Custom Presets
 
-The `CustomPresets` system provides functionality for creating, managing, and storing custom world generation and settings presets in Don't Starve Together. This system allows players to save their preferred world configurations and share them with others.
+## Version History
+| Build Version | Change Date | Change Type | Description |
+|---|----|----|----|
+| 676042 | 2025-06-21 | stable | Current version |
 
 ## Overview
 
-Custom presets enable players to create personalized world configurations by:
-- Saving custom combinations of world settings and generation parameters
-- Managing preset files with persistent storage
-- Migrating presets from older profile systems
-- Providing validation and integrity checking for preset data
+The `CustomPresets` system provides functionality for creating, managing, and storing custom world generation and settings presets in Don't Starve Together. This system allows players to save their preferred world configurations and share them with others.
 
-The system supports two types of presets:
-- **Settings Presets** (`.wsp` files): Player experience settings like PvP, day length, etc.
-- **World Generation Presets** (`.wgp` files): World generation parameters like resource frequency, biome settings, etc.
+Custom presets enable players to create personalized world configurations by saving custom combinations of world settings and generation parameters, managing preset files with persistent storage, and migrating presets from older profile systems.
 
-## Class Definition
-
-### CustomPresets
+## Usage Example
 
 ```lua
-CustomPresets = Class(function(self)
-    self.presets = {
-        [LEVELCATEGORY.SETTINGS] = {},
-        [LEVELCATEGORY.WORLDGEN] = {},
-    }
-    self.presetIDs = {
-        [LEVELCATEGORY.SETTINGS] = {},
-        [LEVELCATEGORY.WORLDGEN] = {},
-    }
-end)
+local customPresets = CustomPresets()
+customPresets:Load()
+
+-- Create a relaxed gameplay preset
+local success = customPresets:SaveCustomPreset(
+    LEVELCATEGORY.SETTINGS,
+    "CUSTOM_RELAXED_SURVIVAL",
+    "SURVIVAL_TOGETHER",
+    {
+        day = "longday",
+        pvp = false,
+        ghost_sanity_drain = false
+    },
+    "Relaxed Survival",
+    "Extended days with reduced penalties"
+)
+
+-- Load and use a preset
+local preset = customPresets:LoadCustomPreset(LEVELCATEGORY.SETTINGS, "CUSTOM_RELAXED_SURVIVAL")
+if preset then
+    print("Loaded preset:", preset.name)
+end
 ```
 
-**Properties:**
-- `presets`: Table storing loaded preset data by category
-- `presetIDs`: Table storing available preset IDs by category
+## Functions
 
-## Constants
+### Load() {#load}
 
-### File System Constants
-```lua
-local WORLD_PRESETS_FOLDER = "world_presets/"
-local PRESET_PREFIX = "CUSTOM_"
-local EXTENSIONS = {
-    [LEVELCATEGORY.SETTINGS] = ".wsp",
-    [LEVELCATEGORY.WORLDGEN] = ".wgp",
-}
-```
+**Status:** `stable`
 
-## API Reference
+**Description:**
+Initializes the custom presets system by loading preset IDs and migrating legacy profile presets. Automatically converts presets from the old Profile-based system to the new file-based format.
 
-### Core Methods
+**Parameters:**
+- None
 
-#### `Load()`
-
-Initializes the custom presets system by loading preset IDs and migrating legacy profile presets.
+**Returns:**
+- (void): No return value
 
 **Behavior:**
 - Retrieves preset file lists from the simulation
-- Migrates presets from the old Profile system if present
+- Migrates presets from `Profile:GetWorldCustomizationPresets()` if present
 - Converts legacy customization presets to the new format
 - Cleans up old profile data after successful migration
-
-**Legacy Migration:**
-- Automatically converts presets from `Profile:GetWorldCustomizationPresets()`
-- Handles both forest and cave location presets
-- Maintains backward compatibility with existing user presets
 
 **Example:**
 ```lua
@@ -82,16 +76,22 @@ local customPresets = CustomPresets()
 customPresets:Load()
 ```
 
-#### `LoadCustomPreset(category, presetid)`
+**Version History:**
+- Current in build 676042: File-based storage with legacy migration
 
-Loads a specific custom preset from persistent storage.
+### LoadCustomPreset(category, presetid) {#load-custom-preset}
+
+**Status:** `stable`
+
+**Description:**
+Loads a specific custom preset from persistent storage. Validates preset structure, applies upgrade logic for older versions, and caches loaded presets for performance.
 
 **Parameters:**
 - `category` (LEVELCATEGORY): Either `LEVELCATEGORY.SETTINGS` or `LEVELCATEGORY.WORLDGEN`
 - `presetid` (string): Preset identifier (must start with `"CUSTOM_"`)
 
 **Returns:**
-- `presetdata` (table): Loaded preset data with overrides and metadata, or `nil` if loading fails
+- (table|nil): Loaded preset data with overrides and metadata, or `nil` if loading fails
 
 **Behavior:**
 - Validates preset ID format and existence
@@ -109,16 +109,22 @@ if presetData then
 end
 ```
 
-#### `IsValidPreset(category, presetid)`
+**Version History:**
+- Current in build 676042: Supports version upgrades and validation
 
-Validates whether a custom preset exists and has valid structure.
+### IsValidPreset(category, presetid) {#is-valid-preset}
+
+**Status:** `stable`
+
+**Description:**
+Validates whether a custom preset exists and has valid structure. Performs comprehensive validation checks including ID format, existence, and data structure integrity.
 
 **Parameters:**
 - `category` (LEVELCATEGORY): Preset category to check, or `LEVELCATEGORY.COMBINED` for both
 - `presetid` (string): Preset identifier to validate
 
 **Returns:**
-- `boolean`: `true` if preset is valid, `false` otherwise
+- (boolean): `true` if preset is valid, `false` otherwise
 
 **Validation Checks:**
 - Preset ID format (must start with `"CUSTOM_"`)
@@ -129,14 +135,20 @@ Validates whether a custom preset exists and has valid structure.
 **Example:**
 ```lua
 if customPresets:IsValidPreset(LEVELCATEGORY.SETTINGS, "CUSTOM_SURVIVAL_PLUS") then
-    -- Preset is valid and can be loaded
     local preset = customPresets:LoadCustomPreset(LEVELCATEGORY.SETTINGS, "CUSTOM_SURVIVAL_PLUS")
+    -- Use preset safely
 end
 ```
 
-#### `SaveCustomPreset(category, presetid, basepreset, overrides, name, desc)`
+**Version History:**
+- Current in build 676042: Comprehensive validation logic
 
-Creates or updates a custom preset with the specified configuration.
+### SaveCustomPreset(category, presetid, basepreset, overrides, name, desc) {#save-custom-preset}
+
+**Status:** `stable`
+
+**Description:**
+Creates or updates a custom preset with the specified configuration. Validates all input parameters, creates preset data structure with version information, and saves to persistent storage.
 
 **Parameters:**
 - `category` (LEVELCATEGORY): Preset category
@@ -147,7 +159,7 @@ Creates or updates a custom preset with the specified configuration.
 - `desc` (string): Description of the preset
 
 **Returns:**
-- `boolean`: `true` if save was successful, `false` otherwise
+- (boolean): `true` if save was successful, `false` otherwise
 
 **Behavior:**
 - Validates all input parameters
@@ -155,18 +167,6 @@ Creates or updates a custom preset with the specified configuration.
 - Calculates playstyle for settings presets
 - Saves preset to persistent storage
 - Updates internal preset tracking
-
-**Preset Structure:**
-```lua
-{
-    baseid = "SURVIVAL_TOGETHER",
-    overrides = { dayTime = "longday", pvp = false },
-    name = "My Custom Preset",
-    desc = "A preset with longer days and no PvP",
-    playstyle = "social", -- calculated for settings presets
-    version = 1
-}
-```
 
 **Example:**
 ```lua
@@ -184,9 +184,15 @@ local success = customPresets:SaveCustomPreset(
 )
 ```
 
-#### `MoveCustomPreset(category, oldid, presetid, name, desc)`
+**Version History:**
+- Current in build 676042: Includes playstyle calculation
 
-Renames or moves a custom preset to a new identifier.
+### MoveCustomPreset(category, oldid, presetid, name, desc) {#move-custom-preset}
+
+**Status:** `stable`
+
+**Description:**
+Renames or moves a custom preset to a new identifier. Preserves existing overrides and base preset while updating metadata and maintaining preset order.
 
 **Parameters:**
 - `category` (LEVELCATEGORY): Preset category
@@ -196,13 +202,7 @@ Renames or moves a custom preset to a new identifier.
 - `desc` (string): New description
 
 **Returns:**
-- `presetdata` (table): Updated preset data, or `nil` if operation failed
-
-**Behavior:**
-- Preserves existing overrides and base preset
-- Creates new preset with updated metadata
-- Deletes old preset if ID changed
-- Maintains preset order in the system
+- (table|nil): Updated preset data, or `nil` if operation failed
 
 **Example:**
 ```lua
@@ -215,34 +215,44 @@ local movedPreset = customPresets:MoveCustomPreset(
 )
 ```
 
-#### `DeleteCustomPreset(category, presetid)`
+**Version History:**
+- Current in build 676042: Supports preset renaming
 
-Permanently removes a custom preset from the system.
+### DeleteCustomPreset(category, presetid) {#delete-custom-preset}
+
+**Status:** `stable`
+
+**Description:**
+Permanently removes a custom preset from the system. Removes preset from memory cache, deletes preset file from persistent storage, and updates preset ID tracking lists.
 
 **Parameters:**
 - `category` (LEVELCATEGORY): Preset category
 - `presetid` (string): Preset identifier to delete
 
-**Behavior:**
-- Removes preset from memory cache
-- Deletes preset file from persistent storage
-- Updates preset ID tracking lists
+**Returns:**
+- (void): No return value
 
 **Example:**
 ```lua
 customPresets:DeleteCustomPreset(LEVELCATEGORY.SETTINGS, "CUSTOM_UNUSED_PRESET")
 ```
 
-#### `PresetIDExists(category, presetid)`
+**Version History:**
+- Current in build 676042: Complete preset removal
 
-Checks whether a preset ID exists in the specified category.
+### PresetIDExists(category, presetid) {#preset-id-exists}
+
+**Status:** `stable`
+
+**Description:**
+Checks whether a preset ID exists in the specified category. Supports checking both individual categories and combined category validation.
 
 **Parameters:**
 - `category` (LEVELCATEGORY): Preset category, or `LEVELCATEGORY.COMBINED` for both
 - `presetid` (string): Preset identifier to check
 
 **Returns:**
-- `boolean`: `true` if preset ID exists, `false` otherwise
+- (boolean): `true` if preset ID exists, `false` otherwise
 
 **Example:**
 ```lua
@@ -251,8 +261,14 @@ if customPresets:PresetIDExists(LEVELCATEGORY.SETTINGS, "CUSTOM_MY_PRESET") then
 end
 ```
 
-#### `IsCustomPreset(category, presetid)`
+**Version History:**
+- Current in build 676042: Supports combined category checking
 
+### IsCustomPreset(category, presetid) {#is-custom-preset}
+
+**Status:** `stable`
+
+**Description:**
 Alias for `PresetIDExists()`. Checks if a preset is a custom preset.
 
 **Parameters:**
@@ -260,17 +276,23 @@ Alias for `PresetIDExists()`. Checks if a preset is a custom preset.
 - `presetid` (string): Preset identifier to check
 
 **Returns:**
-- `boolean`: `true` if it's a custom preset, `false` otherwise
+- (boolean): `true` if it's a custom preset, `false` otherwise
 
-#### `GetPresetIDs(category)`
+**Version History:**
+- Current in build 676042: Alias for PresetIDExists
 
-Retrieves all preset IDs for a specific category.
+### GetPresetIDs(category) {#get-preset-ids}
+
+**Status:** `stable`
+
+**Description:**
+Retrieves all preset IDs for a specific category, sorted alphabetically.
 
 **Parameters:**
 - `category` (LEVELCATEGORY): Preset category
 
 **Returns:**
-- `table`: Array of preset IDs sorted alphabetically
+- (table): Array of preset IDs sorted alphabetically
 
 **Example:**
 ```lua
@@ -280,50 +302,66 @@ for i, presetid in ipairs(settingsPresets) do
 end
 ```
 
-## Preset Categories
+**Version History:**
+- Current in build 676042: Returns sorted preset list
 
-### LEVELCATEGORY.SETTINGS
+## Constants
 
-Settings presets control gameplay parameters that affect player experience:
+### File System Constants
 
-**Common Override Fields:**
-- `day`: Day length ("default", "longday", "shortday")
-- `pvp`: Player vs Player combat (true/false)
-- `ghost_sanity_drain`: Ghost sanity penalties (true/false)
-- `player_health_penalty`: Death health penalties ("always", "never")
-- `resurrect_penalty`: Resurrection penalties (true/false)
+| Constant | Value | Purpose |
+|----------|-------|---------|
+| `WORLD_PRESETS_FOLDER` | `"world_presets/"` | Storage directory for preset files |
+| `PRESET_PREFIX` | `"CUSTOM_"` | Required prefix for custom preset IDs |
+| `EXTENSIONS.SETTINGS` | `".wsp"` | File extension for settings presets |
+| `EXTENSIONS.WORLDGEN` | `".wgp"` | File extension for worldgen presets |
 
-**File Extension:** `.wsp` (World Settings Preset)
+### Preset Categories
 
-### LEVELCATEGORY.WORLDGEN
+| Category | Purpose | File Extension |
+|----------|---------|----------------|
+| `LEVELCATEGORY.SETTINGS` | Gameplay parameters and player experience | `.wsp` |
+| `LEVELCATEGORY.WORLDGEN` | World generation and creation parameters | `.wgp` |
+| `LEVELCATEGORY.COMBINED` | Both categories for validation | N/A |
 
-World generation presets control how the world is initially created:
+## Classes
 
-**Common Override Fields:**
-- `world_size`: World size ("small", "medium", "large", "huge")
-- `branching`: World complexity ("never", "least", "default", "most")
-- `loop`: World connectivity ("never", "default", "always")
-- Resource frequencies (e.g., `flint`, `grass`, `sapling`)
-- Creature spawning (e.g., `beefaloherd`, `pigtown`, `spiders`)
+### CustomPresets
 
-**File Extension:** `.wgp` (World Generation Preset)
+**Status:** `stable`
 
-## File System Structure
+**Description:**
+Main class for managing custom world and settings presets. Provides functionality for loading, saving, validating, and organizing custom presets.
 
-### Storage Location
+**Properties:**
+- `presets` (table): Table storing loaded preset data by category
+- `presetIDs` (table): Table storing available preset IDs by category
+
+**Constructor:**
+```lua
+CustomPresets = Class(function(self)
+    self.presets = {
+        [LEVELCATEGORY.SETTINGS] = {},
+        [LEVELCATEGORY.WORLDGEN] = {},
+    }
+    self.presetIDs = {
+        [LEVELCATEGORY.SETTINGS] = {},
+        [LEVELCATEGORY.WORLDGEN] = {},
+    }
+end)
 ```
-world_presets/
-├── CUSTOM_PRESET_NAME.wsp    # Settings preset
-├── CUSTOM_PRESET_NAME.wgp    # World generation preset
-├── CUSTOM_ANOTHER_PRESET.wsp
-└── CUSTOM_ANOTHER_PRESET.wgp
-```
+
+**Version History:**
+- Current in build 676042: File-based preset management
+
+## Preset Structure
 
 ### File Format
+
 Preset files are stored as Lua data structures using `DataDumper`:
 
 ```lua
-return {
+{
     baseid = "SURVIVAL_TOGETHER",
     overrides = {
         day = "longday",
@@ -332,210 +370,55 @@ return {
     },
     name = "Peaceful Extended Days",
     desc = "Longer days with reduced difficulty",
-    playstyle = "social",
+    playstyle = "social", -- calculated for settings presets
     version = 1
 }
 ```
 
-## Usage Examples
+### Storage Structure
 
-### Creating a Custom Settings Preset
-```lua
-local customPresets = CustomPresets()
-customPresets:Load()
-
--- Create a relaxed gameplay preset
-local success = customPresets:SaveCustomPreset(
-    LEVELCATEGORY.SETTINGS,
-    "CUSTOM_RELAXED_SURVIVAL",
-    "SURVIVAL_TOGETHER",
-    {
-        day = "longday",
-        season_length = "verylong",
-        pvp = false,
-        ghost_sanity_drain = false,
-        player_health_penalty = "never",
-        resurrect_penalty = false
-    },
-    "Relaxed Survival",
-    "Extended seasons and reduced penalties for casual play"
-)
-
-if success then
-    print("Preset saved successfully!")
-end
 ```
-
-### Loading and Using a Preset
-```lua
--- Load an existing custom preset
-local preset = customPresets:LoadCustomPreset(LEVELCATEGORY.SETTINGS, "CUSTOM_RELAXED_SURVIVAL")
-
-if preset then
-    print("Preset Name:", preset.name)
-    print("Description:", preset.desc)
-    print("Base Preset:", preset.baseid)
-    
-    -- Access specific overrides
-    local dayLength = preset.overrides.day
-    local pvpEnabled = preset.overrides.pvp
-    
-    print("Day Length:", dayLength)
-    print("PvP Enabled:", pvpEnabled)
-end
-```
-
-### Managing Multiple Presets
-```lua
--- Get all available custom presets
-local settingsPresets = customPresets:GetPresetIDs(LEVELCATEGORY.SETTINGS)
-local worldgenPresets = customPresets:GetPresetIDs(LEVELCATEGORY.WORLDGEN)
-
-print("Available Settings Presets:")
-for i, presetid in ipairs(settingsPresets) do
-    if customPresets:IsValidPreset(LEVELCATEGORY.SETTINGS, presetid) then
-        local preset = customPresets:LoadCustomPreset(LEVELCATEGORY.SETTINGS, presetid)
-        print("  " .. presetid .. ": " .. preset.name)
-    end
-end
-
-print("\nAvailable Worldgen Presets:")
-for i, presetid in ipairs(worldgenPresets) do
-    if customPresets:IsValidPreset(LEVELCATEGORY.WORLDGEN, presetid) then
-        local preset = customPresets:LoadCustomPreset(LEVELCATEGORY.WORLDGEN, presetid)
-        print("  " .. presetid .. ": " .. preset.name)
-    end
-end
-```
-
-### Preset Validation and Error Handling
-```lua
-local function SafeLoadPreset(category, presetid)
-    -- Validate before attempting to load
-    if not customPresets:IsValidPreset(category, presetid) then
-        print("Invalid preset:", presetid)
-        return nil
-    end
-    
-    -- Attempt to load
-    local preset = customPresets:LoadCustomPreset(category, presetid)
-    if not preset then
-        print("Failed to load preset:", presetid)
-        return nil
-    end
-    
-    -- Verify required fields
-    if not preset.name or not preset.desc or not preset.overrides then
-        print("Corrupted preset data:", presetid)
-        return nil
-    end
-    
-    return preset
-end
-
--- Usage
-local preset = SafeLoadPreset(LEVELCATEGORY.SETTINGS, "CUSTOM_MY_PRESET")
-if preset then
-    -- Safe to use preset
-    print("Successfully loaded:", preset.name)
-end
+world_presets/
+├── CUSTOM_PRESET_NAME.wsp    # Settings preset
+├── CUSTOM_PRESET_NAME.wgp    # World generation preset
+├── CUSTOM_ANOTHER_PRESET.wsp
+└── CUSTOM_ANOTHER_PRESET.wgp
 ```
 
 ## Migration System
 
 ### Legacy Profile Migration
 
-The system automatically migrates presets from the old Profile-based system:
+**Status:** `stable`
 
+**Description:**
+Automatic migration from the old Profile-based system to the new file-based format.
+
+**Migration Process:**
+- Converts presets from `Profile:GetWorldCustomizationPresets()`
+- Handles both forest and cave location presets
+- Maintains backward compatibility with existing user presets
+- Cleans up old profile data after successful migration
+
+**Example:**
 ```lua
--- Automatic migration from Profile.customizationpresets
+-- Automatic migration during Load()
 local profilepresets = Profile:GetWorldCustomizationPresets()
 if profilepresets ~= nil and not IsTableEmpty(profilepresets) then
+    -- Convert each preset to new format
     for i, level in pairs(profilepresets) do
-        -- Convert to new format
         local id = "CUSTOM_" .. (level.id):gsub("_", " ")
         -- Save as both settings and worldgen presets
-        customPresets:SaveCustomPreset(LEVELCATEGORY.SETTINGS, id, basepreset, settingsoverrides, level.name, level.desc)
-        customPresets:SaveCustomPreset(LEVELCATEGORY.WORLDGEN, id, basepreset, worldgenoverrides, level.name, level.desc)
+        self:SaveCustomPreset(LEVELCATEGORY.SETTINGS, id, basepreset, settingsoverrides, level.name, level.desc)
+        self:SaveCustomPreset(LEVELCATEGORY.WORLDGEN, id, basepreset, worldgenoverrides, level.name, level.desc)
     end
-    -- Clean up old data
     Profile:SetValue("customizationpresets", nil)
 end
 ```
 
-### Version Upgrades
+## Related Modules
 
-The system supports upgrading preset formats:
-
-```lua
-local function UpgradeCustomPresets(custompreset)
-    local upgraded = false
-    local savefileupgrades = require "savefileupgrades"
-    
-    -- Future upgrade logic would go here
-    -- if custompreset.version == 1 then
-    --     savefileupgrades.utilities.UpgradeCustomPresetFromV1toV2(custompreset)
-    --     upgraded = true
-    -- end
-    
-    return upgraded
-end
-```
-
-## Dependencies
-
-### Required Systems
-- **Map/Levels**: For base preset data and level categories
-- **Map/Customize**: For world settings and generation options
-- **TheSim**: For persistent storage operations
-- **Profile System**: For legacy preset migration
-
-### Required Constants
-- `LEVELCATEGORY.SETTINGS`: Settings preset category
-- `LEVELCATEGORY.WORLDGEN`: World generation preset category
-- `LEVELCATEGORY.COMBINED`: Both categories for validation
-
-## Error Handling
-
-### Common Validation Checks
-- Preset ID must start with `"CUSTOM_"` prefix
-- Base preset cannot be another custom preset
-- All required fields must be present (baseid, name, desc, overrides)
-- Preset files must contain valid Lua data structures
-
-### Safe Operation Patterns
-```lua
--- Always validate before operations
-if customPresets:IsValidPreset(category, presetid) then
-    local preset = customPresets:LoadCustomPreset(category, presetid)
-    -- Use preset safely
-end
-
--- Check existence before saving
-if not customPresets:PresetIDExists(category, presetid) then
-    customPresets:SaveCustomPreset(category, presetid, base, overrides, name, desc)
-else
-    print("Preset already exists")
-end
-```
-
-## Version History
-
-| Version | Changes |
-|---------|---------|
-| 675312  | Current implementation with file-based storage system |
-
-## Related Systems
-
-- [Map/Levels](/api-vanilla/map/levels/) - Base preset definitions and level categories
-- [Map/Customize](/api-vanilla/map/customize/) - World customization options
-- [Profile System](/api-vanilla/core-systems/profile/) - Legacy preset storage
-- [Save File Upgrades](/api-vanilla/core-systems/savefileupgrades/) - Preset version migration
-
-## Notes
-
-- All custom presets must have the `"CUSTOM_"` prefix to distinguish them from built-in presets
-- The system maintains separate storage for settings and world generation presets
-- Legacy migration ensures backward compatibility with older save formats
-- Preset validation prevents corruption and ensures data integrity
-- File-based storage allows for easy preset sharing between players
+- [Map/Levels](mdc:dst-api-webdocs/map/levels.md): Base preset definitions and level categories
+- [Map/Customize](mdc:dst-api-webdocs/map/customize.md): World customization options
+- [Save File Upgrades](mdc:dst-api-webdocs/core-systems/savefileupgrades.md): Preset version migration
+- [Profile System](mdc:dst-api-webdocs/core-systems/profile.md): Legacy preset storage

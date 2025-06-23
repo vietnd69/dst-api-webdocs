@@ -1,60 +1,29 @@
 ---
-title: "Class"
-description: "Object-oriented programming system providing inheritance, property management, and instance tracking"
+id: class
+title: Class
+description: Object-oriented programming system providing inheritance, property management, and instance tracking
 sidebar_position: 11
 slug: /api-vanilla/core-systems/class
-last_updated: "2024-01-15"
-build_version: "675312"
-change_status: "stable"
+last_updated: 2025-06-21
+build_version: 676042
+change_status: stable
 ---
 
-# Class System
+# Class
 
-The **Class** system provides object-oriented programming capabilities for Don't Starve Together's Lua environment. It implements inheritance, property management with setters/getters, read-only properties, instance tracking, and hot reloading support. This system enables structured code organization and reusable component patterns throughout the game.
+## Version History
+| Build Version | Change Date | Change Type | Description |
+|---|----|----|----|
+| 676042 | 2025-06-21 | stable | Current version |
 
 ## Overview
 
-The Class system transforms Lua's prototype-based object model into a familiar class-based system. It uses metatables to implement inheritance, method dispatch, and property access control. The system supports single inheritance, constructor functions, property validation, and optional instance tracking for memory debugging.
+The **Class** system provides object-oriented programming capabilities for Don't Starve Together's Lua environment. It implements inheritance, property management with setters/getters, read-only properties, instance tracking, and hot reloading support. This system enables structured code organization and reusable component patterns throughout the game.
 
-## Version History
+The Class system is compatible with Lua 5.1 and uses metatables to implement inheritance and method dispatch. It supports single inheritance, constructor functions, property validation, and optional instance tracking for memory debugging.
 
-| Version | Changes | Status |
-|---------|---------|--------|
-| 675312  | Current stable implementation | 🟢 **Stable** |
-| Earlier | Initial class system implementation | - |
+## Usage Example
 
-## Global Configuration
-
-### Class Tracking
-```lua
-TrackClassInstances = false  -- Enable/disable instance tracking for debugging
-ClassTrackingInterval = 100  -- Frames between tracking reports
-ClassRegistry = {}           -- Registry of all defined classes
-```
-
-### Instance Tracking Tables
-```lua
-ClassTrackingTable = {}      -- Weak-keyed table tracking instances per class
-```
-
-## Core Function: Class()
-
-### Class(base, _ctor, props)
-Creates a new class with optional inheritance, constructor, and property management.
-
-```lua
-function Class(base, _ctor, props) -> table
-```
-
-**Parameters:**
-- `base` (table/function, optional): Base class for inheritance, or constructor if no inheritance
-- `_ctor` (function, optional): Constructor function called when creating instances
-- `props` (table, optional): Property definitions with setter functions
-
-**Returns:**
-- `table`: New class object with metatable configured for inheritance
-
-**Usage:**
 ```lua
 -- Simple class with constructor
 local Player = Class(function(self, name, health)
@@ -68,6 +37,47 @@ local Warrior = Class(Player, function(self, name, health, weapon)
     Player._ctor(self, name, health)  -- Call parent constructor
     self.weapon = weapon or "sword"
     self.armor = 50
+end)
+
+-- Create instances
+local player = Player("Wilson", 150)
+local warrior = Warrior("Wigfrid", 200, "spear")
+
+-- Check inheritance
+print(player:is_a(Player))    -- true
+print(warrior:is_a(Player))   -- true (inheritance)
+print(warrior:is_a(Warrior))  -- true
+```
+
+## Functions
+
+### Class(base, _ctor, props) {#class}
+
+**Status:** `stable`
+
+**Description:**
+Creates a new class with optional inheritance, constructor, and property management.
+
+**Parameters:**
+- `base` (table/function, optional): Base class for inheritance, or constructor if no inheritance
+- `_ctor` (function, optional): Constructor function called when creating instances  
+- `props` (table, optional): Property definitions with setter functions
+
+**Returns:**
+- (table): New class object with metatable configured for inheritance
+
+**Example:**
+```lua
+-- Simple class
+local Animal = Class(function(self, name)
+    self.name = name
+    self.health = 100
+end)
+
+-- Class with inheritance
+local Dog = Class(Animal, function(self, name, breed)
+    Animal._ctor(self, name)
+    self.breed = breed
 end)
 
 -- Class with property management
@@ -86,94 +96,25 @@ end, {
 })
 ```
 
-## Class Instance Methods
+**Version History:**
+- Added in initial implementation
+- Supports Lua 5.1 compatibility
 
-### is_a(klass)
-Checks if an instance is derived from a specific class.
+### makereadonly(t, k) {#makereadonly}
 
-```lua
-function instance:is_a(klass) -> boolean
-```
+**Status:** `stable`
 
-**Parameters:**
-- `klass` (table): Class to check inheritance against
-
-**Returns:**
-- `boolean`: `true` if instance inherits from the class
-
-**Usage:**
-```lua
-local player = Player("Wilson", 150)
-local warrior = Warrior("Wigfrid", 200, "spear")
-
-print(player:is_a(Player))    -- true
-print(warrior:is_a(Player))   -- true (inheritance)
-print(warrior:is_a(Warrior))  -- true
-print(player:is_a(Warrior))   -- false
-```
-
-### is_class()
-Checks if an object is a class definition rather than an instance.
-
-```lua
-function object:is_class() -> boolean
-```
-
-**Returns:**
-- `boolean`: `true` if object is a class, `false` if instance
-
-**Usage:**
-```lua
-print(Player:is_class())        -- true
-print(player:is_class())        -- false
-
--- Useful for validation
-local function ProcessObject(obj)
-    if obj:is_class() then
-        print("This is a class definition")
-    else
-        print("This is an instance")
-    end
-end
-```
-
-### is_instance(obj)
-Class method to check if an object is an instance of this specific class.
-
-```lua
-function Class:is_instance(obj) -> boolean
-```
-
-**Parameters:**
-- `obj` (any): Object to test
-
-**Returns:**
-- `boolean`: `true` if object is an instance of this class
-
-**Usage:**
-```lua
-local player = Player("Wilson")
-local number = 42
-
-print(Player:is_instance(player))  -- true
-print(Player:is_instance(number))  -- false
-print(Warrior:is_instance(player)) -- false (different class)
-```
-
-## Property Management
-
-### makereadonly(t, k)
+**Description:**
 Makes a property read-only, preventing modification after initial assignment.
-
-```lua
-function makereadonly(t, k)
-```
 
 **Parameters:**
 - `t` (table): Instance to modify
 - `k` (string): Property name to make read-only
 
-**Usage:**
+**Returns:**
+- (void): No return value
+
+**Example:**
 ```lua
 local Config = Class(function(self, version)
     self.version = version
@@ -190,19 +131,25 @@ print(config.version)  -- "1.0.0"
 -- config.version = "2.0.0"  -- Error: Cannot change read only property
 ```
 
-### addsetter(t, k, fn)
-Adds a setter function that validates or transforms property assignments.
+**Version History:**
+- Added in initial implementation
 
-```lua
-function addsetter(t, k, fn)
-```
+### addsetter(t, k, fn) {#addsetter}
+
+**Status:** `stable`
+
+**Description:**
+Adds a setter function that validates or transforms property assignments.
 
 **Parameters:**
 - `t` (table): Instance to modify
 - `k` (string): Property name
-- `fn` (function): Setter function `(self, new_value, old_value)`
+- `fn` (function): Setter function with signature `(self, new_value, old_value)`
 
-**Usage:**
+**Returns:**
+- (void): No return value
+
+**Example:**
 ```lua
 local Character = Class(function(self, name)
     self.name = name
@@ -229,27 +176,232 @@ player.health = 150  -- Automatically clamped to 100
 player.health = -10  -- Automatically clamped to 0, triggers OnDeath
 ```
 
-### removesetter(t, k)
-Removes a property setter, restoring direct property access.
+**Version History:**
+- Added in initial implementation
 
-```lua
-function removesetter(t, k)
-```
+### removesetter(t, k) {#removesetter}
+
+**Status:** `stable`
+
+**Description:**
+Removes a property setter, restoring direct property access.
 
 **Parameters:**
 - `t` (table): Instance to modify
 - `k` (string): Property name
 
-**Usage:**
+**Returns:**
+- (void): No return value
+
+**Example:**
 ```lua
 -- Remove the health setter for direct access
 removesetter(player, "health")
 player.health = 75  -- Now sets directly without validation
 ```
 
-## Advanced Usage Examples
+**Version History:**
+- Added in initial implementation
 
-### Complex Inheritance Hierarchy
+## Instance Methods
+
+### inst:is_a(klass) {#is-a}
+
+**Status:** `stable`
+
+**Description:**
+Checks if an instance is derived from a specific class.
+
+**Parameters:**
+- `klass` (table): Class to check inheritance against
+
+**Returns:**
+- (boolean): `true` if instance inherits from the class
+
+**Example:**
+```lua
+local player = Player("Wilson", 150)
+local warrior = Warrior("Wigfrid", 200, "spear")
+
+print(player:is_a(Player))    -- true
+print(warrior:is_a(Player))   -- true (inheritance)
+print(warrior:is_a(Warrior))  -- true
+print(player:is_a(Warrior))   -- false
+```
+
+**Version History:**
+- Added in initial implementation
+
+### inst:is_class() {#is-class}
+
+**Status:** `stable`
+
+**Description:**
+Checks if an object is a class definition rather than an instance.
+
+**Parameters:**
+- None
+
+**Returns:**
+- (boolean): `true` if object is a class, `false` if instance
+
+**Example:**
+```lua
+print(Player:is_class())        -- true
+print(player:is_class())        -- false
+
+-- Useful for validation
+local function ProcessObject(obj)
+    if obj:is_class() then
+        print("This is a class definition")
+    else
+        print("This is an instance")
+    end
+end
+```
+
+**Version History:**
+- Added in initial implementation
+
+### Class:is_instance(obj) {#is-instance}
+
+**Status:** `stable`
+
+**Description:**
+Class method to check if an object is an instance of this specific class.
+
+**Parameters:**
+- `obj` (any): Object to test
+
+**Returns:**
+- (boolean): `true` if object is an instance of this class
+
+**Example:**
+```lua
+local player = Player("Wilson")
+local number = 42
+
+print(Player:is_instance(player))  -- true
+print(Player:is_instance(number))  -- false
+print(Warrior:is_instance(player)) -- false (different class)
+```
+
+**Version History:**
+- Added in initial implementation
+
+## Global Configuration
+
+### TrackClassInstances
+
+**Value:** `false`
+
+**Status:** `stable`
+
+**Description:** Enable/disable instance tracking for debugging purposes.
+
+**Example:**
+```lua
+-- Enable in class.lua for development
+local TrackClassInstances = true
+```
+
+**Version History:**
+- Added in initial implementation
+
+### ClassRegistry
+
+**Type:** `table`
+
+**Status:** `stable`
+
+**Description:** Registry of all defined classes for hot reloading support.
+
+**Version History:**
+- Added in initial implementation
+
+### ClassTrackingTable
+
+**Type:** `table`
+
+**Status:** `stable`
+
+**Description:** Weak-keyed table tracking instances per class when tracking is enabled.
+
+**Version History:**
+- Added in initial implementation
+
+### ClassTrackingInterval
+
+**Value:** `100`
+
+**Status:** `stable`
+
+**Description:** Frames between tracking reports when instance tracking is enabled.
+
+**Version History:**
+- Added in initial implementation
+
+## Advanced Functions
+
+### HandleClassInstanceTracking() {#handle-class-instance-tracking}
+
+**Status:** `stable`
+
+**Description:**
+Provides periodic reports on class instance counts for memory debugging. Must be called from main game loop when tracking is enabled.
+
+**Parameters:**
+- None
+
+**Returns:**
+- (void): No return value
+
+**Example:**
+```lua
+-- Enable tracking (set at top of class.lua)
+local TrackClassInstances = true
+ClassTrackingInterval = 60  -- Report every 60 frames
+
+-- In main game loop
+function Update(dt)
+    HandleClassInstanceTracking()
+    -- ... other update logic
+end
+
+-- Output will show top 10 classes by instance count:
+-- 1 : Monster - 1500
+-- 2 : Component - 800  
+-- 3 : Player - 4
+```
+
+**Version History:**
+- Added in initial implementation
+
+### ReloadedClass(mt) {#reloaded-class}
+
+**Status:** `stable`
+
+**Description:**
+Cleans up class registry during hot reloading to prevent memory leaks.
+
+**Parameters:**
+- `mt` (table): Class metatable to remove from registry
+
+**Returns:**
+- (void): No return value
+
+**Example:**
+```lua
+-- Called automatically during mod hot reload
+-- Removes old class definitions from registry
+```
+
+**Version History:**
+- Added in initial implementation
+
+## Common Usage Patterns
+
+### Basic Inheritance
 ```lua
 -- Base entity class
 local Entity = Class(function(self, x, y)
@@ -261,10 +413,6 @@ end)
 function Entity:AddComponent(name, component)
     self.components[name] = component
     component.inst = self
-end
-
-function Entity:GetComponent(name)
-    return self.components[name]
 end
 
 -- Living entity with health
@@ -280,47 +428,14 @@ function Living:TakeDamage(amount)
         self:Die()
     end
 end
-
-function Living:Die()
-    print(self.name .. " has died!")
-end
-
--- Player character
-local Player = Class(Living, function(self, name, x, y)
-    Living._ctor(self, x, y, 150)  -- Players start with 150 health
-    self.name = name
-    self.inventory = {}
-    self.experience = 0
-end)
-
-function Player:AddExperience(amount)
-    self.experience = self.experience + amount
-    print(self.name .. " gained " .. amount .. " experience!")
-end
-
--- Monster
-local Monster = Class(Living, function(self, type, x, y, health, damage)
-    Living._ctor(self, x, y, health)
-    self.type = type
-    self.damage = damage or 10
-    self.aggro_range = 5
-end)
-
-function Monster:Attack(target)
-    if target:is_a(Living) then
-        target:TakeDamage(self.damage)
-        print(self.type .. " attacks " .. (target.name or "target"))
-    end
-end
 ```
 
-### Property Validation System
+### Property Validation
 ```lua
 local ValidatedCharacter = Class(function(self, name)
     self.name = name
     self._level = 1
     self._health = 100
-    self._mana = 50
     
     -- Level validation (1-100)
     addsetter(self, "level", function(self, value, old)
@@ -330,9 +445,8 @@ local ValidatedCharacter = Class(function(self, name)
         value = math.max(1, math.min(100, math.floor(value)))
         self._level = value
         
-        -- Scale health and mana with level
+        -- Scale health with level
         self.max_health = 100 + (value * 10)
-        self.max_mana = 50 + (value * 5)
     end)
     
     -- Health validation
@@ -344,29 +458,10 @@ local ValidatedCharacter = Class(function(self, name)
             self:OnDeath()
         end
     end)
-    
-    -- Mana validation
-    addsetter(self, "mana", function(self, value, old)
-        value = math.max(0, math.min(value, self.max_mana))
-        self._mana = value
-    end)
 end)
-
--- Custom getter methods
-function ValidatedCharacter:GetLevel()
-    return self._level
-end
-
-function ValidatedCharacter:GetHealth()
-    return self._health
-end
-
-function ValidatedCharacter:GetMana()
-    return self._mana
-end
 ```
 
-### Component System Implementation
+### Component System
 ```lua
 -- Base component class
 local Component = Class(function(self)
@@ -387,144 +482,43 @@ function Health:TakeDamage(amount)
     end
     self.inst:PushEvent("healthdelta", {old = self.current_health + amount, new = self.current_health})
 end
-
--- Movement component
-local Movement = Class(Component, function(self, speed)
-    Component._ctor(self)
-    self.speed = speed or 1
-    self.x = 0
-    self.y = 0
-end)
-
-function Movement:MoveTo(x, y)
-    self.x = x
-    self.y = y
-    self.inst:PushEvent("moved", {x = x, y = y})
-end
-
--- Entity using components
-local GameObject = Class(function(self)
-    self.components = {}
-    self.event_listeners = {}
-end)
-
-function GameObject:AddComponent(name, component)
-    self.components[name] = component
-    component.inst = self
-    return component
-end
-
-function GameObject:GetComponent(name)
-    return self.components[name]
-end
-
-function GameObject:PushEvent(event, data)
-    local listeners = self.event_listeners[event]
-    if listeners then
-        for _, fn in ipairs(listeners) do
-            fn(self, data)
-        end
-    end
-end
-
--- Usage
-local player = GameObject()
-local health = player:AddComponent("health", Health(150))
-local movement = player:AddComponent("movement", Movement(3))
-
--- Listen for events
-player.event_listeners["death"] = {
-    function(inst, data)
-        print("Player died!")
-    end
-}
 ```
 
-### Factory Pattern with Classes
+## Implementation Details
+
+The Class system uses several Lua metatable features:
+
+- **`__index`**: For method lookup and property getters
+- **`__newindex`**: For property setters and validation
+- **`__call`**: For constructor invocation
+- **Weak references**: For memory-safe instance tracking
+
+### Metatable Structure
 ```lua
--- Abstract factory
-local EntityFactory = Class(function(self)
-    self.blueprints = {}
-end)
+-- Class metatable provides inheritance chain
+local c = {}  -- Class table
+c._base = base_class  -- Parent class reference
+c.__index = c  -- Method lookup
+c._ctor = constructor  -- Constructor function
 
-function EntityFactory:RegisterBlueprint(name, class_type, default_params)
-    self.blueprints[name] = {
-        class_type = class_type,
-        params = default_params or {}
-    }
-end
-
-function EntityFactory:Create(blueprint_name, custom_params)
-    local blueprint = self.blueprints[blueprint_name]
-    if not blueprint then
-        error("Unknown blueprint: " .. blueprint_name)
-    end
-    
-    -- Merge default and custom parameters
-    local params = {}
-    for k, v in pairs(blueprint.params) do
-        params[k] = v
-    end
-    if custom_params then
-        for k, v in pairs(custom_params) do
-            params[k] = v
-        end
-    end
-    
-    return blueprint.class_type(unpack(params))
-end
-
--- Usage with previous classes
-local factory = EntityFactory()
-factory:RegisterBlueprint("basic_player", Player, {"DefaultPlayer", 0, 0})
-factory:RegisterBlueprint("strong_warrior", Warrior, {"DefaultWarrior", 200, "battleaxe"})
-factory:RegisterBlueprint("spider", Monster, {"Spider", 0, 0, 50, 15})
-
--- Create instances
-local player1 = factory:Create("basic_player", {"Wilson"})
-local warrior1 = factory:Create("strong_warrior", {"Wigfrid", 250})
-local spider1 = factory:Create("spider")
+-- Instance tracking (when enabled)
+ClassTrackingTable[mt] = {}  -- Weak-keyed instance table
 ```
 
-## Instance Tracking and Debugging
+## Related Modules
 
-### HandleClassInstanceTracking()
-Provides periodic reports on class instance counts for memory debugging.
+- **[Components](../components/)**: Component-based entity architecture built on Class system
+- **[Prefabs](../prefabs.md)**: Entity creation using Class-based components
+- **[EntityScript](../entityscript.md)**: Core entity functionality using Class inheritance
+- **[Mod System](../mods.md)**: Hot reloading support for class modifications
 
-```lua
-function HandleClassInstanceTracking()
-```
+## Technical Notes
 
-**Usage:**
-```lua
--- Enable tracking (set at top of class.lua)
-TrackClassInstances = true
-ClassTrackingInterval = 60  -- Report every 60 frames
-
--- In main game loop
-function Update(dt)
-    HandleClassInstanceTracking()
-    -- ... other update logic
-end
-
--- Output will show top 10 classes by instance count:
--- 1 : Monster - 1500
--- 2 : Component - 800  
--- 3 : Player - 4
-```
-
-### ReloadedClass(mt)
-Cleans up class registry during hot reloading.
-
-```lua
-function ReloadedClass(mt)
-```
-
-**Usage:**
-```lua
--- Called automatically during mod hot reload
--- Removes old class definitions from registry
-```
+- **Lua Version**: Compatible with Lua 5.1, not compatible with Lua 5.0
+- **Memory Management**: Uses weak references for instance tracking to prevent memory leaks
+- **Performance**: Minimal overhead for method dispatch through metatable chains
+- **Inheritance**: Single inheritance only, no multiple inheritance support
+- **Hot Reloading**: Full support for class redefinition during development
 
 ## Best Practices
 
@@ -549,7 +543,7 @@ local Monster = Class(function(self, config)
 end)
 ```
 
-### Inheritance Best Practices
+### Inheritance Guidelines
 ```lua
 -- Good: Always call parent constructor
 local Derived = Class(Base, function(self, ...)
@@ -592,118 +586,3 @@ function ValidatedClass:GetDisplayValue()
     return string.format("%.2f", self._private_value)
 end
 ```
-
-## Common Patterns
-
-### Singleton Pattern
-```lua
-local Singleton = Class(function(self)
-    if Singleton._instance then
-        error("Singleton already exists")
-    end
-    Singleton._instance = self
-    self.data = {}
-end)
-
-function Singleton:GetInstance()
-    if not Singleton._instance then
-        Singleton._instance = Singleton()
-    end
-    return Singleton._instance
-end
-```
-
-### Observer Pattern
-```lua
-local Observable = Class(function(self)
-    self.observers = {}
-end)
-
-function Observable:AddObserver(observer)
-    table.insert(self.observers, observer)
-end
-
-function Observable:RemoveObserver(observer)
-    for i, obs in ipairs(self.observers) do
-        if obs == observer then
-            table.remove(self.observers, i)
-            break
-        end
-    end
-end
-
-function Observable:NotifyObservers(event, data)
-    for _, observer in ipairs(self.observers) do
-        if observer.OnNotify then
-            observer:OnNotify(event, data)
-        end
-    end
-end
-```
-
-### State Machine Pattern
-```lua
-local StateMachine = Class(function(self, initial_state)
-    self.current_state = initial_state
-    self.states = {}
-end)
-
-function StateMachine:AddState(name, state_object)
-    self.states[name] = state_object
-    state_object.machine = self
-end
-
-function StateMachine:ChangeState(new_state)
-    local old_state = self.states[self.current_state]
-    local next_state = self.states[new_state]
-    
-    if old_state and old_state.OnExit then
-        old_state:OnExit()
-    end
-    
-    self.current_state = new_state
-    
-    if next_state and next_state.OnEnter then
-        next_state:OnEnter()
-    end
-end
-```
-
-## Related Systems
-
-- **[Components](../components/)**: Component-based entity architecture
-- **[Prefabs](../prefabs.md)**: Entity creation and management
-- **[Mod System](../mod-system/)**: Hot reloading and class modifications
-- **[Memory Management](../memory.md)**: Instance tracking and garbage collection
-- **[Event System](../events.md)**: Object communication patterns
-
-## Technical Notes
-
-- **Lua Compatibility**: Designed for Lua 5.1, not compatible with Lua 5.0
-- **Metatable Usage**: Heavily relies on metatables for inheritance and property management
-- **Memory Management**: Optional instance tracking helps identify memory leaks
-- **Hot Reloading**: Supports mod development with class reloading capabilities
-- **Single Inheritance**: Only supports single inheritance, not multiple inheritance
-- **Performance**: Minimal overhead for method dispatch through metatable chains
-
-## Troubleshooting
-
-### Class Creation Issues
-- **Constructor Not Called**: Ensure constructor function is properly passed to Class()
-- **Inheritance Problems**: Always call parent constructor in derived classes
-- **Property Access Errors**: Check if property setters are properly configured
-
-### Memory Leaks
-- **Enable Tracking**: Set `TrackClassInstances = true` to monitor instance counts
-- **Check References**: Look for circular references preventing garbage collection
-- **Component Cleanup**: Ensure components are properly removed when entities are destroyed
-
-### Property Management
-- **Setter Errors**: Validate that setter functions handle all edge cases
-- **Read-only Issues**: Verify read-only properties are set after makereadonly() call
-- **Type Validation**: Add proper type checking in property setters
-
-### Performance Issues
-- **Deep Inheritance**: Avoid excessively deep inheritance chains
-- **Property Overhead**: Use direct access for frequently accessed properties
-- **Instance Creation**: Pool objects when creating many short-lived instances

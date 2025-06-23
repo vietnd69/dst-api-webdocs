@@ -1,29 +1,72 @@
 ---
-title: "Console Screen Settings"
-description: "Console history and settings persistence system for Don't Starve Together"
+id: consolescreensettings
+title: Console Screen Settings
+description: Console history and settings persistence system for Don't Starve Together
 sidebar_position: 10
-slug: /api-vanilla/core-systems/consolescreensettings
-last_updated: "2024-12-19"
-build_version: "675312"
-change_status: "stable"
+slug: core-systems-consolescreensettings
+last_updated: 2025-06-21
+build_version: 676042
+change_status: stable
 ---
 
-# Console Screen Settings 🟢
+# Console Screen Settings
 
-The **ConsoleScreenSettings** module manages persistent settings and command history for the console interface in Don't Starve Together. It provides functionality for storing command history, UI preferences, and automatic save/load operations.
+## Version History
+| Build Version | Change Date | Change Type | Description |
+|---|----|----|----|
+| 676042 | 2025-06-21 | stable | Current version |
 
 ## Overview
 
-ConsoleScreenSettings handles:
-- **Command History**: Persistent storage of executed console commands
-- **UI State**: Console widget expansion states and preferences  
-- **Data Persistence**: Automatic saving and loading of console settings
-- **History Management**: Intelligent deduplication and command storage
-- **Migration Support**: Backwards compatibility with older save formats
+The `ConsoleScreenSettings` class manages persistent settings and command history for the console interface in Don't Starve Together. It handles console command history storage, UI state persistence, and automatic save/load operations for user preferences.
 
-## Class Definition
+## Usage Example
 
-### ConsoleScreenSettings Class
+```lua
+-- Initialize console settings
+local console = ConsoleScreenSettings()
+
+-- Load existing settings
+console:Load(function(success)
+    if success then
+        print("Console settings loaded successfully")
+    end
+end)
+
+-- Add commands to history
+console:AddLastExecutedCommand("c_spawn('wilson')")
+console:AddLastExecutedCommand("c_godmode()", true) -- Remote command
+
+-- Access command history
+local history = console:GetConsoleHistory()
+for i, entry in ipairs(history) do
+    print(i, entry.str, entry.remote and "(remote)" or "(local)")
+end
+```
+
+## Constants
+
+### MAX_SAVED_COMMANDS
+
+**Value:** `20`
+
+**Status:** `stable`
+
+**Description:** Maximum number of commands stored in console history to prevent excessive memory usage.
+
+## Classes/Components
+
+### ConsoleScreenSettings
+
+**Status:** `stable`
+
+**Description:**
+Main class for managing console settings and command history persistence.
+
+**Version History:**
+- Current implementation in build 676042
+
+#### Constructor
 
 ```lua
 ConsoleScreenSettings = Class(function(self)
@@ -33,176 +76,284 @@ ConsoleScreenSettings = Class(function(self)
 end)
 ```
 
-**Properties:**
-- `persistdata` (table): Stored console settings and history
+#### Properties
+
+- `persistdata` (table): Stored console settings and command history data
 - `profanityservers` (table): Server-specific profanity filter settings
-- `dirty` (boolean): Flag indicating unsaved changes
+- `dirty` (boolean): Flag indicating whether settings have unsaved changes
 
-## Core Methods
+## Functions
 
-### History Management
+### Reset() {#reset}
 
-#### GetConsoleHistory()
-Returns the stored console command history.
+**Status:** `stable`
+
+**Description:**
+Resets all console settings to default values, sets the dirty flag, and immediately saves the changes.
+
+**Parameters:** None
+
+**Returns:** None
+
+**Behavior:**
+- Clears all persistent data
+- Sets dirty flag to true
+- Automatically calls Save() to persist changes
+
+**Example:**
+```lua
+console:Reset()
+```
+
+**Version History:**
+- Current implementation in build 676042
+
+### GetConsoleHistory() {#get-console-history}
+
+**Status:** `stable`
+
+**Description:**
+Returns the stored console command history as an array of command entries from the persistdata.
+
+**Parameters:** None
 
 **Returns:**
-- (table): Array of command history entries
+- (table): Array of history entries with structure `{str = "command", remote = boolean|nil}`, or empty table if no history exists
 
+**Example:**
 ```lua
-local history = ConsoleScreenSettings:GetConsoleHistory()
+local history = console:GetConsoleHistory()
 for i, entry in ipairs(history) do
-    print(i, entry.str, entry.remote and "(remote)" or "(local)")
+    local remote_status = entry.remote and " [REMOTE]" or " [LOCAL]"
+    print(string.format("%d: %s%s", i, entry.str, remote_status))
 end
 ```
 
-**History Entry Format:**
-```lua
-{
-    str = "command_string",      -- The executed command
-    remote = true/false/nil      -- Whether it was executed remotely
-}
-```
+**Version History:**
+- Current implementation in build 676042
 
-#### AddLastExecutedCommand(command_str, toggle_remote_execute)
-Adds a command to the persistent history with intelligent deduplication.
+### AddLastExecutedCommand(command_str, toggle_remote_execute) {#add-last-executed-command}
+
+**Status:** `stable`
+
+**Description:**
+Adds a command to the persistent history with intelligent deduplication and remote execution tracking.
 
 **Parameters:**
-- `command_str` (string): The command string to add
-- `toggle_remote_execute` (boolean, optional): Whether command was executed remotely
+- `command_str` (string): The command string to add to history
+- `toggle_remote_execute` (boolean, optional): Whether the command was executed remotely
+
+**Returns:** None
 
 **Behavior:**
-- Trims whitespace from commands
-- Ignores empty strings and `c_repeatlastcommand()`
-- Moves duplicate commands to end of history
-- Maintains maximum history size (20 commands)
-- Updates remote execution flag if needed
+- Trims leading and trailing whitespace from commands
+- Ignores empty strings and `c_repeatlastcommand()` commands
+- Moves duplicate commands to the end of history
+- Updates remote execution flag for existing commands
+- Maintains maximum history size limit
 
+**Example:**
 ```lua
 -- Add local command
-ConsoleScreenSettings:AddLastExecutedCommand("c_spawn('wilson')")
+console:AddLastExecutedCommand("c_spawn('wilson')")
 
 -- Add remote command
-ConsoleScreenSettings:AddLastExecutedCommand("c_godmode()", true)
+console:AddLastExecutedCommand("c_godmode()", true)
 
--- Ignored commands
-ConsoleScreenSettings:AddLastExecutedCommand("")  -- Empty string ignored
-ConsoleScreenSettings:AddLastExecutedCommand("c_repeatlastcommand()")  -- Ignored
+-- These are ignored
+console:AddLastExecutedCommand("")  -- Empty string
+console:AddLastExecutedCommand("c_repeatlastcommand()")  -- Special command
 ```
 
-### UI State Management
+**Version History:**
+- Current implementation in build 676042
 
-#### IsWordPredictionWidgetExpanded()
-Checks if the word prediction widget is currently expanded.
+### IsWordPredictionWidgetExpanded() {#is-word-prediction-widget-expanded}
+
+**Status:** `stable`
+
+**Description:**
+Checks whether the word prediction widget is currently in expanded state.
+
+**Parameters:** None
 
 **Returns:**
 - (boolean): True if widget is expanded, false otherwise
 
+**Example:**
 ```lua
-if ConsoleScreenSettings:IsWordPredictionWidgetExpanded() then
+if console:IsWordPredictionWidgetExpanded() then
     -- Show expanded prediction interface
-    ShowExpandedPredictions()
+    ShowExpandedView()
 else
     -- Show compact prediction interface
-    ShowCompactPredictions()
+    ShowCompactView()
 end
 ```
 
-#### SetWordPredictionWidgetExpanded(value)
-Sets the expansion state of the word prediction widget.
+**Version History:**
+- Current implementation in build 676042
+
+### SetWordPredictionWidgetExpanded(value) {#set-word-prediction-widget-expanded}
+
+**Status:** `stable`
+
+**Description:**
+Sets the expansion state of the word prediction widget and marks settings as dirty for saving.
 
 **Parameters:**
 - `value` (boolean): True to expand widget, false to collapse
 
-```lua
--- Expand word prediction widget
-ConsoleScreenSettings:SetWordPredictionWidgetExpanded(true)
+**Returns:** None
 
--- Collapse word prediction widget
-ConsoleScreenSettings:SetWordPredictionWidgetExpanded(false)
+**Example:**
+```lua
+-- Expand the prediction widget
+console:SetWordPredictionWidgetExpanded(true)
+
+-- Collapse the prediction widget
+console:SetWordPredictionWidgetExpanded(false)
 ```
 
-### Data Persistence
+**Version History:**
+- Current implementation in build 676042
 
-#### Reset()
-Resets all console settings to defaults and saves immediately.
+### GetSaveName() {#get-save-name}
 
+**Status:** `stable`
+
+**Description:**
+Returns the appropriate save file name based on the current game branch.
+
+**Parameters:** None
+
+**Returns:**
+- (string): Save file name ("consolescreen" for release, "consolescreen_[branch]" for development)
+
+**Example:**
 ```lua
-ConsoleScreenSettings:Reset()  -- Clear all history and settings
+local filename = console:GetSaveName()
+-- Returns: "consolescreen" or "consolescreen_dev"
 ```
 
-#### Save(callback)
-Saves current settings to persistent storage.
+**Version History:**
+- Current implementation in build 676042
+
+### Save(callback) {#save}
+
+**Status:** `stable`
+
+**Description:**
+Saves current settings to persistent storage if changes have been made (dirty flag is set).
 
 **Parameters:**
-- `callback` (function, optional): Callback function called after save
+- `callback` (function, optional): Callback function called after save operation
 
 **Callback Parameters:**
-- `success` (boolean): Whether save operation succeeded
+- `success` (boolean): Whether the save operation succeeded
 
+**Returns:** None
+
+**Behavior:**
+- Only saves when `dirty` flag is true (changes were made)
+- Sets `dirty` flag to false after successful save operation
+- Uses JSON encoding for data serialization
+- Calls SavePersistentString with filename from GetSaveName()
+- If not dirty, immediately calls callback with success=true
+
+**Example:**
 ```lua
 -- Save with callback
-ConsoleScreenSettings:Save(function(success)
+console:Save(function(success)
     if success then
-        print("Console settings saved successfully")
+        print("Settings saved successfully")
     else
-        print("Failed to save console settings")
+        print("Failed to save settings")
     end
 end)
 
 -- Save without callback
-ConsoleScreenSettings:Save()
+console:Save()
 ```
 
-#### Load(callback)
-Loads settings from persistent storage.
+**Version History:**
+- Current implementation in build 676042
+
+### Load(callback) {#load}
+
+**Status:** `stable`
+
+**Description:**
+Loads settings from persistent storage using the platform's persistent string system.
 
 **Parameters:**
-- `callback` (function, optional): Callback function called after load
+- `callback` (function, optional): Callback function called after load operation
 
+**Returns:** None
+
+**Behavior:**
+- Uses TheSim:GetPersistentString() to retrieve saved data
+- Ignores the load_success parameter, only checks if string content exists
+- Delegates actual data processing to OnLoad() method
+- Passes callback through to OnLoad for completion notification
+
+**Example:**
 ```lua
-ConsoleScreenSettings:Load(function(success)
+console:Load(function(success)
     if success then
-        print("Console settings loaded")
-        local history = ConsoleScreenSettings:GetConsoleHistory()
+        print("Settings loaded successfully")
+        local history = console:GetConsoleHistory()
         print("Loaded", #history, "command entries")
     else
-        print("Failed to load console settings")
+        print("Failed to load settings")
     end
 end)
 ```
 
-#### OnLoad(str, callback)
-Internal method for processing loaded data string.
+**Version History:**
+- Current implementation in build 676042
+
+### OnLoad(str, callback) {#on-load}
+
+**Status:** `stable`
+
+**Description:**
+Internal method that processes loaded data string and handles legacy save data migration.
 
 **Parameters:**
-- `str` (string): JSON-encoded settings data
+- `str` (string): JSON-encoded settings data string
 - `callback` (function, optional): Completion callback
 
-## Configuration
+**Returns:** None
 
-### History Limits
+**Behavior:**
+- Decodes JSON data into persistdata table using TrackedAssert for error handling
+- Handles migration from legacy save format (history + localremotehistory arrays)
+- Sets dirty flag to false after successful load
+- Converts old format to new historylines structure if needed
+- Prints load status and string length to console
+- Automatically sets dirty flag to true if migration occurs
 
+**Example:**
 ```lua
-local MAX_SAVED_COMMANDS = 20
+-- This is typically called internally by Load()
+-- Manual usage not recommended
 ```
 
-The system maintains a maximum of 20 commands in history to prevent excessive memory usage and save file bloat.
+**Version History:**
+- Current implementation in build 676042
+- Includes CONSOLE_HISTORY_REFACTOR migration support
 
-### Save File Naming
+## Data Structures
 
-#### GetSaveName()
-Returns the appropriate save file name based on game branch.
-
-**Returns:**
-- (string): Save file name
+### History Entry Format
 
 ```lua
--- Production: "consolescreen"
--- Development: "consolescreen_dev"
-local filename = ConsoleScreenSettings:GetSaveName()
+{
+    str = "command_string",      -- The executed command
+    remote = true|false|nil      -- Remote execution status (nil = local)
+}
 ```
-
-## Data Format
 
 ### Persistent Data Structure
 
@@ -211,25 +362,24 @@ persistdata = {
     historylines = {
         { str = "c_spawn('wilson')", remote = nil },
         { str = "c_godmode()", remote = true },
-        { str = "c_give('log', 20)", remote = false },
         -- ... up to MAX_SAVED_COMMANDS entries
     },
-    expanded = true  -- Word prediction widget state
+    expanded = true  -- Word prediction widget expansion state
 }
 ```
 
 ### Legacy Data Migration
 
-The system automatically migrates old save data formats:
+The system automatically converts old save formats:
 
 ```lua
--- Old format (deprecated)
+-- Old format (converted automatically)
 {
-    history = { "command1", "command2", ... },
-    localremotehistory = { true, false, ... }
+    history = { "command1", "command2" },
+    localremotehistory = { true, false }
 }
 
--- New format (current)
+-- Becomes new format
 {
     historylines = {
         { str = "command1", remote = true },
@@ -238,215 +388,31 @@ The system automatically migrates old save data formats:
 }
 ```
 
-## Usage Examples
+## Implementation Details
 
-### Basic History Management
+### Command Deduplication Logic
 
-```lua
--- Initialize console settings
-local console = ConsoleScreenSettings()
+1. **Whitespace Trimming**: Commands are trimmed of leading/trailing whitespace
+2. **Empty Command Filtering**: Empty strings and `c_repeatlastcommand()` are ignored
+3. **Duplicate Detection**: Exact string matching identifies duplicate commands
+4. **Position Management**: Duplicates are moved to end of history array
+5. **Remote Flag Updates**: Remote execution status is updated for existing commands
 
--- Load existing settings
-console:Load(function(success)
-    if success then
-        print("Settings loaded successfully")
-    end
-end)
+### History Size Management
 
--- Add commands to history
-console:AddLastExecutedCommand("c_spawn('deerclops')")
-console:AddLastExecutedCommand("c_teleport(100, 0, 200)", true)
-
--- Get command history
-local history = console:GetConsoleHistory()
-print("Command history:")
-for i, entry in ipairs(history) do
-    local remote_indicator = entry.remote and " [REMOTE]" or ""
-    print(string.format("%d: %s%s", i, entry.str, remote_indicator))
-end
-
--- Save settings
-console:Save()
-```
-
-### UI State Management
-
-```lua
--- Check current widget state
-local isExpanded = ConsoleScreenSettings:IsWordPredictionWidgetExpanded()
-print("Prediction widget expanded:", isExpanded)
-
--- Toggle widget state
-ConsoleScreenSettings:SetWordPredictionWidgetExpanded(not isExpanded)
-
--- Save the new state
-ConsoleScreenSettings:Save()
-```
-
-### Command History Analysis
-
-```lua
-local function AnalyzeCommandHistory()
-    local history = ConsoleScreenSettings:GetConsoleHistory()
-    local stats = {
-        total = #history,
-        local_commands = 0,
-        remote_commands = 0,
-        spawn_commands = 0
-    }
-    
-    for _, entry in ipairs(history) do
-        if entry.remote then
-            stats.remote_commands = stats.remote_commands + 1
-        else
-            stats.local_commands = stats.local_commands + 1
-        end
-        
-        if entry.str:find("c_spawn") then
-            stats.spawn_commands = stats.spawn_commands + 1
-        end
-    end
-    
-    return stats
-end
-
--- Usage
-local stats = AnalyzeCommandHistory()
-print(string.format("Total: %d, Local: %d, Remote: %d, Spawns: %d",
-    stats.total, stats.local_commands, stats.remote_commands, stats.spawn_commands))
-```
-
-### Backup and Restore
-
-```lua
-local function BackupConsoleSettings()
-    local history = ConsoleScreenSettings:GetConsoleHistory()
-    local expanded = ConsoleScreenSettings:IsWordPredictionWidgetExpanded()
-    
-    return {
-        history = history,
-        expanded = expanded,
-        timestamp = os.time()
-    }
-end
-
-local function RestoreConsoleSettings(backup)
-    ConsoleScreenSettings:Reset()
-    
-    -- Restore history
-    for _, entry in ipairs(backup.history) do
-        ConsoleScreenSettings:AddLastExecutedCommand(entry.str, entry.remote)
-    end
-    
-    -- Restore UI state
-    ConsoleScreenSettings:SetWordPredictionWidgetExpanded(backup.expanded)
-    
-    -- Save restored settings
-    ConsoleScreenSettings:Save()
-end
-```
-
-## Technical Implementation Details
-
-### Command Deduplication
-
-The system implements intelligent command deduplication:
-
-1. **Exact Match Detection**: Commands are compared by exact string match
-2. **Position Management**: Duplicate commands move to end of history
-3. **Remote Flag Updates**: Remote execution status updates for existing commands
-4. **History Preservation**: Original command order maintained except for duplicates
+- **Maximum Limit**: 20 commands maximum (MAX_SAVED_COMMANDS)
+- **Overflow Handling**: Oldest commands are removed when limit is exceeded
+- **Efficient Storage**: Minimal data structure for optimal performance
 
 ### Persistence Strategy
 
 - **Dirty Flag System**: Only saves when changes are detected
-- **JSON Encoding**: Uses game's JSON encoder for cross-platform compatibility
-- **Error Handling**: Graceful fallback for corrupt or missing save files
+- **JSON Encoding**: Cross-platform compatible data serialization
 - **Branch Isolation**: Separate save files for different game branches
-
-### Memory Management
-
-- **Fixed History Size**: Maximum 20 commands prevents unbounded growth
-- **Automatic Cleanup**: Oldest commands removed when limit exceeded
-- **Lazy Loading**: Settings loaded only when needed
-- **Efficient Storage**: Minimal data structure for optimal performance
-
-## Integration Points
-
-### Console Screen Integration
-
-```lua
--- Console screen uses these methods for history management
-local function OnCommandExecuted(command, is_remote)
-    ConsoleScreenSettings:AddLastExecutedCommand(command, is_remote)
-    ConsoleScreenSettings:Save()
-end
-
-local function GetCommandSuggestions()
-    local history = ConsoleScreenSettings:GetConsoleHistory()
-    -- Process history for autocomplete suggestions
-    return suggestions
-end
-```
-
-### Settings Synchronization
-
-```lua
--- Ensure settings are saved before game exit
-local function OnGameShutdown()
-    ConsoleScreenSettings:Save(function(success)
-        if success then
-            print("Console settings saved on shutdown")
-        end
-    end)
-end
-```
-
-## Error Handling
-
-### Load Failures
-
-```lua
-function ConsoleScreenSettings:OnLoad(str, callback)
-    if str == nil or string.len(str) == 0 then
-        print("ConsoleScreenSettings could not load " .. self:GetSaveName())
-        if callback then
-            callback(false)
-        end
-        return
-    end
-    
-    -- Proceed with loading...
-end
-```
-
-### Save Failures
-
-The system handles save failures gracefully:
-- Dirty flag remains set on failure
-- Retry mechanisms can be implemented
-- Callback notifications for error handling
-
-## Version History
-
-| Version | Date | Changes |
-|---------|------|---------|
-| 675312 | 2024-12-19 | Current implementation with history refactor support |
+- **Error Handling**: Graceful fallback for corrupt or missing save files
 
 ## Related Modules
 
-- **[Console Commands](consolecommands.md)** - Commands that use this history system
-- **[Class](class.md)** - Base class system
-- **[Networking](networking.md)** - Remote command execution
-
-## Technical Notes
-
-- Settings are automatically saved when modified
-- History maintains execution context (local vs remote)
-- Branch-specific save files prevent conflicts
-- Legacy data migration ensures backwards compatibility
-- Maximum history size prevents memory issues
-
----
-
-*This documentation covers the ConsoleScreenSettings module as of build 675312. The module provides essential infrastructure for console usability and command persistence.*
+- [Console Commands](consolecommands.md): Commands that utilize this history system
+- [Class](class.md): Base class inheritance system
+- [JSON](json.md): Data encoding/decoding utilities
