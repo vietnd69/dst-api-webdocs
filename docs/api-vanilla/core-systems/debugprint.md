@@ -4,7 +4,7 @@ title: Debug Print
 description: Enhanced print functions with source line tracking and logger management for debugging purposes
 sidebar_position: 36
 slug: api-vanilla/core-systems/debugprint
-last_updated: 2025-01-21
+last_updated: 2025-06-21
 build_version: 676042
 change_status: stable
 ---
@@ -14,7 +14,7 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-01-21 | stable | Current version |
+| 676042 | 2025-06-21 | stable | Current version |
 
 ## Overview
 

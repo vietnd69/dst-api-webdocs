@@ -4,7 +4,7 @@ title: Debug Menu
 description: Framework for creating text-based debug menu systems with navigation and interaction capabilities
 sidebar_position: 35
 slug: api-vanilla/core-systems/debugmenu
-last_updated: 2025-01-21
+last_updated: 2025-06-21
 build_version: 676042
 change_status: stable
 ---
@@ -14,7 +14,7 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-01-21 | stable | Current version |
+| 676042 | 2025-06-21 | stable | Current version |
 
 ## Overview
 

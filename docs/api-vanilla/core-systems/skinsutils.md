@@ -480,6 +480,294 @@ local wilson_filter = GetAffinityFilterForHero("wilson")
 local can_use = wilson_filter("wilson_formal") -- Returns true
 ```
 
+### GetWeaveableSkinFilter() {#get-weaveable-skin-filter}
+
+**Status:** `stable`
+
+**Description:**
+Creates a filter function that only allows items that can be woven.
+
+**Returns:**
+- (function): Filter function for weaveable items
+
+**Example:**
+```lua
+local weaveable_filter = GetWeaveableSkinFilter()
+local can_weave = weaveable_filter("wilson_formal")
+```
+
+### GetLockedSkinFilter() {#get-locked-skin-filter}
+
+**Status:** `stable`
+
+**Description:**
+Creates a filter function that only allows default skins or owned items.
+
+**Returns:**
+- (function): Filter function for owned/default items
+
+## Sorting and Comparison Functions
+
+### CompareItemDataForSortByRelease(item_key_a, item_key_b) {#compare-item-data-for-sort-by-release}
+
+**Status:** `stable`
+
+**Description:**
+Compares two items for sorting by release group, then rarity, then name.
+
+**Parameters:**
+- `item_key_a` (string): First item key
+- `item_key_b` (string): Second item key
+
+**Returns:**
+- (boolean): True if item_key_a should come before item_key_b
+
+### CompareItemDataForSortByRarity(item_key_a, item_key_b) {#compare-item-data-for-sort-by-rarity}
+
+**Status:** `stable`
+
+**Description:**
+Compares two items for sorting by rarity, then name.
+
+**Parameters:**
+- `item_key_a` (string): First item key
+- `item_key_b` (string): Second item key
+
+**Returns:**
+- (boolean): True if item_key_a should come before item_key_b
+
+### CompareItemDataForSortByName(item_key_a, item_key_b) {#compare-item-data-for-sort-by-name}
+
+**Status:** `stable`
+
+**Description:**
+Compares two items for sorting by name.
+
+**Parameters:**
+- `item_key_a` (string): First item key
+- `item_key_b` (string): Second item key
+
+**Returns:**
+- (boolean): True if item_key_a should come before item_key_b
+
+### CompareItemDataForSortByCount(item_key_a, item_key_b, item_counts) {#compare-item-data-for-sort-by-count}
+
+**Status:** `stable`
+
+**Description:**
+Compares two items for sorting by owned count.
+
+**Parameters:**
+- `item_key_a` (string): First item key
+- `item_key_b` (string): Second item key
+- `item_counts` (table): Map of item_key to count
+
+**Returns:**
+- (boolean): True if item_key_a should come before item_key_b
+
+## Build and Asset Functions
+
+### GetBuildForItem(name) {#get-build-for-item}
+
+**Status:** `stable`
+
+**Description:**
+Gets the build name for an item, using override if available.
+
+**Parameters:**
+- `name` (string): Item key
+
+**Returns:**
+- (string): Build name for the item
+
+### GetBigPortraitAnimForItem(item_key) {#get-big-portrait-anim-for-item}
+
+**Status:** `stable`
+
+**Description:**
+Gets the big portrait animation data for an item.
+
+**Parameters:**
+- `item_key` (string): Item key
+
+**Returns:**
+- (table|nil): Animation data or nil if not available
+
+### GetPortraitNameForItem(item_key) {#get-portrait-name-for-item}
+
+**Status:** `stable`
+
+**Description:**
+Gets the portrait name for display purposes.
+
+**Parameters:**
+- `item_key` (string): Item key
+
+**Returns:**
+- (string): Portrait name
+
+### GetSkinInvIconName(item) {#get-skin-inv-icon-name}
+
+**Status:** `stable`
+
+**Description:**
+Gets the inventory icon name for a skin item.
+
+**Parameters:**
+- `item` (string): Item key
+
+**Returns:**
+- (string): Icon name for inventory display
+
+## Collection and Set Functions
+
+### GetItemCollectionName(item_type) {#get-item-collection-name}
+
+**Status:** `stable`
+
+**Description:**
+Gets the collection name for an item if it belongs to a collection.
+
+**Parameters:**
+- `item_type` (string): Item key
+
+**Returns:**
+- (string|nil): Collection name or nil if not in collection
+
+### IsItemInCollection(item_type) {#is-item-in-collection}
+
+**Status:** `stable`
+
+**Description:**
+Checks if an item is part of a collection/ensemble.
+
+**Parameters:**
+- `item_type` (string): Item key
+
+**Returns:**
+- (boolean): True if item is in collection
+- (string): Bonus item key if in collection
+
+### WillUnravelBreakEnsemble(item_type) {#will-unravel-break-ensemble}
+
+**Status:** `stable`
+
+**Description:**
+Checks if unraveling an item would break a completed ensemble.
+
+**Parameters:**
+- `item_type` (string): Item key
+
+**Returns:**
+- (boolean): True if unraveling would break ensemble
+
+### GetSkinCollectionCompletionForHero(herocharacter) {#get-skin-collection-completion-for-hero}
+
+**Status:** `stable`
+
+**Description:**
+Gets collection completion status for a character.
+
+**Parameters:**
+- `herocharacter` (string): Character name
+
+**Returns:**
+- (number): Count of owned items
+- (number): Count of needed items
+- (boolean): Has heirloom bonus
+
+## Mystery Box Functions
+
+### GetMysteryBoxCounts() {#get-mystery-box-counts}
+
+**Status:** `stable`
+
+**Description:**
+Gets count of mystery boxes by type.
+
+**Returns:**
+- (table): Map of box type to count
+
+### GetTotalMysteryBoxCount() {#get-total-mystery-box-count}
+
+**Status:** `stable`
+
+**Description:**
+Gets total count of all mystery boxes.
+
+**Returns:**
+- (number): Total mystery box count
+
+### GetMysteryBoxItemID(item_type) {#get-mystery-box-item-id}
+
+**Status:** `stable`
+
+**Description:**
+Gets the item ID for a specific mystery box type.
+
+**Parameters:**
+- `item_type` (string): Mystery box type
+
+**Returns:**
+- (number): Item ID or 0 if not found
+
+## Shop and Commerce Functions
+
+### CalculateShopHash() {#calculate-shop-hash}
+
+**Status:** `stable`
+
+**Description:**
+Calculates a hash representing the current shop state.
+
+**Returns:**
+- (string): Shop hash for comparison
+
+### IsShopNew(user_profile) {#is-shop-new}
+
+**Status:** `stable`
+
+**Description:**
+Checks if the shop has new items since last visit.
+
+**Parameters:**
+- `user_profile` (table): User profile data
+
+**Returns:**
+- (boolean): True if shop has new items
+
+### IsAnyItemNew(user_profile) {#is-any-item-new}
+
+**Status:** `stable`
+
+**Description:**
+Checks if any items are new since last collection check.
+
+**Parameters:**
+- `user_profile` (table): User profile data
+
+**Returns:**
+- (boolean): True if any items are new
+
+## UI Layout Functions
+
+### GetBoxPopupLayoutDetails(num_item_types) {#get-box-popup-layout-details}
+
+**Status:** `stable`
+
+**Description:**
+Calculates layout parameters for item box popups.
+
+**Parameters:**
+- `num_item_types` (number): Number of items to display
+
+**Returns:**
+- (number): Number of columns
+- (boolean): Should resize root
+- (boolean): Should resize small
+- (boolean): Should resize small higher
+- (boolean): Should resize really big
+
 ## Utility Functions
 
 ### DoesItemHaveTag(item, tag) {#does-item-have-tag}
@@ -522,11 +810,158 @@ Creates a deep copy of a skins list.
 **Returns:**
 - (table): Deep copy of the list
 
+### GetSkinDescription(item) {#get-skin-description}
+
+**Status:** `stable`
+
+**Description:**
+Gets the description text for a skin item.
+
+**Parameters:**
+- `item` (string): Item key
+
+**Returns:**
+- (string): Localized description text
+
+### GetFirstOwnedItemId(item_key) {#get-first-owned-item-id}
+
+**Status:** `stable`
+
+**Description:**
+Gets the item ID of the first owned instance of an item.
+
+**Parameters:**
+- `item_key` (string): Item key to search for
+
+**Returns:**
+- (number|nil): Item ID of first owned instance
+
+## Advanced Features
+
+### Pack Management
+
+The module provides comprehensive pack management functionality:
+
+```lua
+-- Check pack contents and bundle status
+local output_items = GetPurchasePackOutputItems("pack_winter_2019")
+local is_bundle, total_value = IsPackABundle("pack_winter_2019")
+
+-- Check pack ownership and restrictions
+local owns_pack = OwnsSkinPack("pack_winter_2019")
+local collection_name = GetPackCollection("pack_winter_2019")
+```
+
+### Character State Management
+
+Advanced character state handling for complex characters:
+
+```lua
+-- Get all available skin modes for Woodie
+local woodie_modes = GetSkinModes("woodie")
+-- Returns: normal, ghost, werebeaver, weremoose, weregoose modes
+
+-- Get badge display data for different states
+local bank, anim, skin_type, scale, offset = GetPlayerBadgeData("woodie", false, true, false, false)
+-- Returns werebeaver display data
+```
+
+### Collection Completion Tracking
+
+Track collection progress and ensemble completions:
+
+```lua
+-- Check collection completion for a character
+local owned, needed, has_heirloom = GetSkinCollectionCompletionForHero("wilson")
+print("Wilson collection: " .. owned .. "/" .. (owned + needed))
+
+-- Check if unraveling would break ensembles
+if WillUnravelBreakEnsemble("forge_wilson_body") then
+    -- Warn user about breaking ensemble
+end
+```
+
+### Advanced Filtering
+
+Create dynamic filters for different UI contexts:
+
+```lua
+-- Create character-specific filter
+local wilson_filter = GetAffinityFilterForHero("wilson")
+
+-- Create commerce filters
+local weaveable_filter = GetWeaveableSkinFilter()
+local owned_filter = GetLockedSkinFilter()
+
+-- Combine filters for complex queries
+local function combined_filter(item_key)
+    return wilson_filter(item_key) and weaveable_filter(item_key)
+end
+```
+
+## Performance Considerations
+
+### Expensive Operations
+
+Several functions are marked as expensive and should be used carefully:
+
+- **GetOwnedItemCounts()**: Very expensive, avoid calling multiple times per frame
+- **GetInventorySkinsList()**: Expensive when sorting is enabled
+- **Collection functions**: Can be expensive with large inventories
+
+### Optimization Strategies
+
+```lua
+-- Cache expensive operations
+local item_counts = GetOwnedItemCounts() -- Cache this result
+
+-- Use efficient sorting
+local skins = GetInventorySkinsList(false) -- Sort manually if needed
+table.sort(skins, function(a, b)
+    return CompareItemDataForSortByRarity(a.item, b.item)
+end)
+
+-- Batch validation operations
+ValidateItemsLocal(character, all_selected_skins) -- Single validation call
+```
+
+## Error Handling
+
+The module includes robust error handling:
+
+- **Missing Data**: Functions return safe defaults for missing items
+- **Invalid Keys**: Gracefully handles malformed item keys
+- **Ownership Checks**: Safe handling of offline/online inventory states
+- **Collection Validation**: Prevents crashes from corrupted collection data
+
+## Debug and Development
+
+When `SKIN_DEBUGGING` is enabled:
+
+```lua
+-- Debug mode returns raw item keys instead of localized names
+SKIN_DEBUGGING = true
+local name = GetSkinName("wilson_formal") -- Returns "wilson_formal" instead of "The Dapper"
+```
+
 ## Related Modules
 
-- [Item Blacklist](./item_blacklist.md): Used for filtering displayable items
-- [Prefabs](./prefabs.md): Contains skin definitions
-- [Clothing](./clothing.md): Clothing item definitions
-- [Misc Items](./misc_items.md): Miscellaneous item definitions
-- [Skin Affinity Info](./skin_affinity_info.md): Character-item relationships
-- [Skin Set Info](./skin_set_info.md): Item set and collection data
+- [`skinsfiltersutils`](./skinsfiltersutils.md): Filtering utilities for skins lists
+- [`skinstradeutils`](./skinstradeutils.md): Trading-specific utilities
+- [`item_blacklist`](./item_blacklist.md): Items excluded from display
+- [`skin_affinity_info`](./skin_affinity_info.md): Character-item relationships
+- [`skin_set_info`](./skin_set_info.md): Item set and collection definitions
+- [`skin_assets`](./skin_assets.md): Asset and texture definitions
+- [`clothing`](./clothing.md): Clothing item definitions
+- [`misc_items`](./misc_items.md): Miscellaneous item definitions
+
+## Constants Reference
+
+The module defines several important constant tables:
+
+- **SKIN_RARITY_COLORS**: Color definitions for UI display
+- **RARITY_ORDER**: Numerical ordering for sorting operations
+- **EVENT_ICONS**: Mapping of tags to event icons
+- **DEFAULT_SKIN_COLOR**: Fallback color for unknown items
+
+These constants ensure consistent behavior across the entire skin system.

@@ -1,22 +1,24 @@
 ---
+id: recipes
 title: Recipes System
-description: Documentation of the Don't Starve Together crafting recipes system
-sidebar_position: 5
-slug: /recipes
-last_updated: 2023-06-15
+description: Complete recipe definitions and implementation system for Don't Starve Together crafting
+sidebar_position: 85
+slug: api-vanilla/core-systems/recipes
+last_updated: 2025-06-21
 build_version: 676042
 change_status: stable
 ---
 
 # Recipes System
 
-The Recipes system in Don't Starve Together defines how items can be crafted in the game. It provides a framework for specifying ingredients, tech requirements, builder restrictions, and other properties that determine how and when players can craft items.
-
 ## Version History
+| Build Version | Change Date | Change Type | Description |
+|---|----|----|----|
+| 676042 | 2025-06-21 | stable | Current version - comprehensive recipe system |
 
-| Date | Build | Changes |
-|------|-------|---------|
-| 2023-06-15 | 675312 | Initial documentation |
+## Overview
+
+The Recipes system in Don't Starve Together defines how items can be crafted in the game. It provides a framework for specifying ingredients, tech requirements, builder restrictions, and other properties that determine how and when players can craft items.
 
 ## Overview
 
@@ -407,11 +409,28 @@ Recipe2("turf_carpetfloor",
 )
 ```
 
-## Related Systems
+## Implementation Notes
 
-- **Builder Component**: Handles the actual crafting of items
-- **Crafting Menu**: UI for selecting and crafting recipes
-- **Tech Tree**: Defines technology requirements
-- **Prototypers**: Structures that provide tech levels
-- **Placers**: Handle the placement of structures
-- **Skill Trees**: Character-specific abilities that unlock recipes
+### Performance Considerations
+- Recipe lookup uses hash-based indexing for fast access
+- Builder tag recipes are cached separately for character filtering
+- Image atlases are resolved lazily to reduce memory usage
+
+### Mod Compatibility
+- Recipe post-initialization hooks ensure mod compatibility
+- RPC ID system prevents hash collisions in multiplayer
+- Character-specific recipes integrate with skill tree system
+
+### Build Version Compatibility
+- Recipe definitions are validated against current game build (676042)
+- Tech tree integration ensures compatibility with prototype system
+- Event recipes are properly gated by seasonal availability
+
+## Related Modules
+
+- [Recipe System Core](./recipe.md): Core Recipe and Ingredient classes
+- [Recipe Filters](./recipes_filter.md): Crafting menu categorization
+- [Tech Tree](./techtree.md): Technology requirements and progression
+- [Builder Component](../components/builder.md): Recipe crafting implementation
+- [Constants](./constants.md): Tech levels and ingredient types
+- [Crafting Menu Profile](./craftingmenuprofile.md): User preferences and favorites

@@ -4,7 +4,7 @@ title: DLC Support Strings
 description: String handling system for DLC content with prefix/suffix management and adjective construction
 sidebar_position: 43
 slug: api-vanilla/core-systems/dlcsupport-strings
-last_updated: 2025-01-21
+last_updated: 2025-06-21
 build_version: 676042
 change_status: stable
 ---
@@ -14,7 +14,7 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-01-21 | stable | Current version |
+| 676042 | 2025-06-21 | stable | Current version |
 
 ## Overview
 
