@@ -1,0 +1,175 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# DST API Documentation Example Accuracy
+
+This rule ensures all code examples in DST API documentation are accurate and verified against the actual source code implementation.
+
+## Example Verification Process
+
+When writing or updating documentation examples, you MUST:
+
+### 1. Source Code Verification
+- **Always verify examples against actual source code** in [dst-scripts/](mdc:dst-api-webdocs/dst-scripts) directory
+- **Cross-reference function signatures** to ensure parameter names, types, and usage are correct
+- **Validate data structures** used in examples match the actual implementation
+- **Check return values** and their types against source code
+
+### 2. Function Parameter Accuracy
+- **Parameter names** must match exactly as defined in source code
+- **Parameter types** must be documented correctly (string, number, table, function, etc.)
+- **Optional parameters** must be clearly marked and demonstrate correct usage
+- **Default values** should be mentioned when relevant
+
+### 3. Data Structure Examples
+- **Table structures** must reflect actual implementation, not assumptions
+- **Object properties** should match the real data structure from source code
+- **Nested structures** must be accurately represented
+- **Array vs object** distinctions must be correct
+
+### 4. Common Example Errors to Avoid
+
+#### ❌ Incorrect Examples
+```lua
+-- WRONG: AddModCharacter modes parameter
+AddModCharacter("mycharacter", "FEMALE", {"forest", "cave"})
+
+-- WRONG: Assumed data structure
+local config = {
+    setting1 = "value1",
+    setting2 = "value2"
+}
+
+-- WRONG: Incorrect function signature
+inst.components.health:SetHealth(100, true)
+```
+
+#### ✅ Correct Examples
+```lua
+-- CORRECT: AddModCharacter with proper skin modes
+AddModCharacter("mycharacter", "FEMALE", {
+    { type = "normal_skin", play_emotes = true },
+    { type = "ghost_skin", anim_bank = "ghost", idle_anim = "idle" }
+})
+
+-- CORRECT: Verified data structure from source
+local level_overrides = {
+    {"worldsettingspresets", "SURVIVAL_TOGETHER"},
+    {"difficulty", "easy"}
+}
+
+-- CORRECT: Actual function signature
+inst.components.health:SetVal(100)
+```
+
+## Verification Workflow
+
+### Before Writing Examples
+1. **Locate source file** in [dst-scripts/](mdc:dst-api-webdocs/dst-scripts) directory
+2. **Read function implementation** to understand exact behavior
+3. **Check parameter usage** in existing game code
+4. **Verify data structures** used by the function
+
+### During Example Creation
+1. **Use grep search** to find actual usage patterns in codebase
+2. **Check constants and enums** for valid values
+3. **Verify object property names** and structure
+4. **Test complex examples** against multiple source references
+
+### After Writing Examples
+1. **Cross-reference with related functions** for consistency
+2. **Verify examples work together** when showing workflows
+3. **Check for deprecated patterns** or outdated usage
+4. **Ensure examples reflect current build version** (676042)
+
+## Source Code Reference Patterns
+
+### Function Definition Verification
+```lua
+-- Check actual function signature in source
+grep -n "function.*FunctionName" dst-scripts/**/*.lua
+
+-- Verify parameter usage
+grep -A 10 -B 2 "function.*FunctionName" dst-scripts/**/*.lua
+```
+
+### Data Structure Verification
+```lua
+-- Find actual data structure usage
+grep -n "MODCHARACTERMODES\|skinmodes" dst-scripts/**/*.lua
+
+-- Check constant definitions
+grep -n "CONSTANT_NAME.*=" dst-scripts/**/*.lua
+```
+
+### Usage Pattern Verification
+```lua
+-- Find real-world usage examples
+grep -n "FunctionName.*(" dst-scripts/**/*.lua
+
+-- Check integration patterns
+grep -B 5 -A 5 "FunctionName" dst-scripts/**/*.lua
+```
+
+## Integration with Documentation Standards
+
+This rule works together with:
+- [DST API Documentation Format](mdc:dst-api-webdocs/.cursor/rules/dst-api-documentation-format.mdc)
+- [DST API Documentation Overview](mdc:dst-api-webdocs/.cursor/rules/dst-api-documentation-overview.mdc)
+- [DST API Documentation Templates](mdc:dst-api-webdocs/.cursor/rules/dst-api-documentation-templates.mdc)
+
+## Quality Checklist for Examples
+
+Before publishing documentation, verify:
+
+- [ ] **Function signatures** match source code exactly
+- [ ] **Parameter types** are correctly documented
+- [ ] **Data structures** reflect actual implementation
+- [ ] **Return values** are accurately described
+- [ ] **Usage patterns** follow real codebase conventions
+- [ ] **Constants and enums** use actual defined values
+- [ ] **Error handling** reflects actual behavior
+- [ ] **Integration examples** show realistic workflows
+- [ ] **Build version compatibility** is confirmed (676042)
+- [ ] **Cross-references** between examples are consistent
+
+## Example Documentation Pattern
+
+For each function, provide:
+
+```markdown
+### FunctionName(param1, param2) {#function-name}
+
+**Status:** `stable`
+
+**Description:**
+[Verified description from source code comments and implementation]
+
+**Parameters:**
+- `param1` (type): [Verified from actual parameter usage]
+- `param2` (type): [Verified from actual parameter usage]
+
+**Returns:**
+- (return_type): [Verified from actual return statements]
+
+**Example:**
+```lua
+-- [Comment explaining the realistic use case]
+local result = FunctionName(verified_param1, verified_param2)
+-- [Comment explaining expected result based on source]
+```
+
+**Source Reference:**
+[Reference to specific file and line numbers where function is defined]
+```
+
+## Continuous Accuracy Maintenance
+
+- **Review examples** when game updates occur
+- **Verify compatibility** with new build versions
+- **Update deprecated patterns** when source code changes
+- **Cross-check examples** across related documentation
+- **Maintain consistency** between similar function examples
+
