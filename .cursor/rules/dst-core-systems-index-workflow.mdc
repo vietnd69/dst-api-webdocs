@@ -1,0 +1,313 @@
+---
+description: 
+globs: docs/api-vanilla/**/index.md
+alwaysApply: false
+---
+# DST Core Systems Index Workflow
+
+This rule defines the complete workflow for creating, updating, and maintaining index.md files within the DST core-systems documentation structure. It integrates format standards, templates, and quality assurance procedures.
+
+## Workflow Overview
+
+The core-systems index workflow consists of four main phases:
+
+1. **Analysis Phase**: Understand the system category and its components
+2. **Template Selection**: Choose appropriate format and structure
+3. **Content Development**: Create comprehensive documentation content
+4. **Quality Assurance**: Verify accuracy and integration
+
+## Phase 1: Analysis Phase
+
+### System Category Assessment
+
+Before creating any index.md file, perform these analysis steps:
+
+#### 1.1 Directory Structure Analysis
+- Examine the current directory structure using [list_dir](mdc:dst-api-webdocs/dst-api-webdocs) tool
+- Identify all subdirectories and existing documentation files
+- Map the relationship between system components
+- Determine the hierarchical organization
+
+#### 1.2 Component Inventory
+```bash
+# Use these commands to understand the system structure
+find ./docs/api-vanilla/core-systems/[system-category] -name "*.md" -type f
+ls -la ./docs/api-vanilla/core-systems/[system-category]/
+```
+
+#### 1.3 Source Code Verification
+- Cross-reference documentation with actual source code in [scripts/](mdc:dst-api-webdocs/dst-api-webdocs/scripts) directory
+- Verify component existence and current functionality
+- Check for recent changes in build version 676042
+- Identify deprecated or removed components
+
+#### 1.4 Dependency Mapping
+- Map dependencies between system categories
+- Identify integration points with other core systems
+- Document cross-system communication patterns
+- Verify API compatibility requirements
+
+### System Classification
+
+Classify the system category using this decision tree:
+
+```
+Is this the main core-systems index?
+├─ YES → Use Main Index Template
+└─ NO → Analyze system purpose
+    ├─ Character/Player focused → Character Systems Template
+    ├─ Gameplay mechanics → Game Mechanics Template  
+    ├─ Developer tools → Development Tools Template
+    └─ Technical infrastructure → Infrastructure Template
+```
+
+## Phase 2: Template Selection and Customization
+
+### 2.1 Template Selection
+
+Choose the appropriate template from [DST Core Systems Index Templates](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-core-systems-index-templates.mdc):
+
+| System Type | Template | Key Characteristics |
+|-------------|----------|-------------------|
+| Main Overview | Main Index Template | Top-level system organization |
+| Character Systems | Character Systems Template | Player/character functionality |
+| Game Mechanics | Game Mechanics Template | Gameplay features |
+| Development Tools | Development Tools Template | Developer utilities |
+| Infrastructure | Infrastructure Template | Low-level technical systems |
+
+### 2.2 Template Customization
+
+#### Front Matter Customization
+```markdown
+---
+id: [system-category]-overview
+title: [System Category Name] Overview
+description: Overview of [specific system functionality] in DST API
+sidebar_position: [determined by system hierarchy]
+slug: core-systems/[category-slug]
+last_updated: [current date]
+build_version: 676042
+change_status: stable
+category_type: [system-type]
+system_scope: [brief functional scope]
+---
+```
+
+#### Content Section Mapping
+1. **System Purpose**: Define the specific role of this system category
+2. **Architecture Overview**: Document the technical organization
+3. **Module Inventory**: List all components with current status
+4. **Integration Patterns**: Show how systems connect
+5. **Development Guidelines**: Provide implementation guidance
+
+### 2.3 Format Compliance
+
+Ensure compliance with [DST Core Systems Index Format](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-core-systems-index-format.mdc):
+
+- Use consistent heading hierarchy (H1 > H2 > H3 > H4)
+- Include required sections in specified order
+- Apply proper markdown formatting for tables and code blocks
+- Maintain cross-reference link consistency
+- Follow established terminology conventions
+
+## Phase 3: Content Development
+
+### 3.1 Content Research and Verification
+
+#### Source Code Analysis
+Use these commands to gather accurate information:
+
+```bash
+# Find relevant source files
+grep -r "component_name" scripts/ --include="*.lua"
+find scripts/ -name "*[system-name]*" -type f
+grep -r "function.*[SystemName]" scripts/ --include="*.lua"
+```
+
+#### Module Documentation Verification
+- Verify each listed module exists in the source code
+- Check component status against actual implementation
+- Validate code examples against current build (676042)
+- Confirm integration patterns with source analysis
+
+#### Cross-Reference Validation
+- Verify all internal links point to existing documentation
+- Check that cross-system references are accurate
+- Validate external links and dependencies
+- Ensure consistent terminology across documentation
+
+### 3.2 Content Writing Guidelines
+
+#### Technical Accuracy
+- All code examples must be verified against source code
+- Function signatures must match actual implementation
+- Data structures must reflect current API design
+- Integration patterns must demonstrate real functionality
+
+#### Writing Standards
+Follow [DST API Documentation Format](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-format.mdc):
+- Use active voice for instructions
+- Maintain professional but accessible tone
+- Include clear, tested code examples
+- Provide sufficient context for all technical concepts
+
+#### Content Organization
+- Structure information in logical progression
+- Use tables for comparative information
+- Include visual elements (code blocks, lists) for clarity
+- Maintain consistent formatting throughout
+
+### 3.3 Integration Content Development
+
+#### System Dependencies
+Document dependencies with this structure:
+```markdown
+### Required Systems
+- [System Name](mdc:system-path/index.md): [Technical reason for dependency]
+
+### Optional Systems
+- [System Name](mdc:system-path/index.md): [Enhancement provided by integration]
+```
+
+#### Cross-System Integration
+- Document how systems communicate
+- Explain shared data structures
+- Show integration code patterns
+- Identify common integration challenges
+
+## Phase 4: Quality Assurance
+
+### 4.1 Content Verification
+
+#### Accuracy Checklist
+- [ ] All module references exist in source code
+- [ ] Code examples execute successfully
+- [ ] Function signatures match implementation
+- [ ] Data structures reflect current API
+- [ ] Build version information is current (676042)
+- [ ] Change history accurately reflects system evolution
+
+#### Integration Verification
+- [ ] All internal links resolve correctly
+- [ ] Cross-references are bidirectional where appropriate
+- [ ] System dependency information is accurate
+- [ ] Integration patterns reflect real usage
+- [ ] Terminology is consistent across all index files
+
+#### Format Compliance
+- [ ] Front matter includes all required fields
+- [ ] Document structure follows template requirements
+- [ ] Markdown formatting is correct and consistent
+- [ ] Code blocks use appropriate syntax highlighting
+- [ ] Tables are properly formatted and aligned
+
+### 4.2 Cross-Documentation Testing
+
+#### Link Validation
+```bash
+# Test internal links
+find docs/ -name "*.md" -exec grep -l "](./[path]" {} \;
+
+# Verify cross-references
+grep -r "\[.*\](\.\./" docs/api-vanilla/core-systems/
+```
+
+#### Content Consistency
+- Verify terminology consistency across all index files
+- Check that system descriptions align with related documentation
+- Ensure code examples use consistent patterns
+- Validate that integration information is mutual
+
+### 4.3 Performance and Usability Testing
+
+#### Navigation Testing
+- Verify that users can navigate between related systems easily
+- Test that the system hierarchy makes logical sense
+- Ensure that search functionality will work with current content
+- Validate that cross-references enhance rather than confuse navigation
+
+#### Content Usability
+- Test that code examples can be copied and used successfully
+- Verify that troubleshooting information addresses real issues
+- Ensure that development guidelines are actionable
+- Check that system overviews provide sufficient context for decision-making
+
+## Maintenance Workflow
+
+### 4.4 Ongoing Maintenance
+
+#### Build Version Updates
+When DST updates to a new build version:
+1. Update `build_version` field in front matter
+2. Review changed components in the update
+3. Update module status indicators as needed
+4. Add entries to Recent Changes table
+5. Update `last_updated` date
+
+#### Content Evolution
+Monitor for these maintenance triggers:
+- New modules added to system category
+- Existing modules modified or deprecated
+- New integration patterns discovered
+- Performance characteristics changed
+- Development best practices evolved
+
+#### Quality Monitoring
+Regular quality assurance tasks:
+- Quarterly link validation across all index files
+- Semi-annual code example verification
+- Build-based accuracy validation
+- User feedback incorporation
+
+## Integration with Documentation Standards
+
+### Related Rules
+This workflow integrates with:
+- [DST API Documentation Format](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-format.mdc)
+- [DST Core Systems Index Format](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-core-systems-index-format.mdc)
+- [DST Core Systems Index Templates](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-core-systems-index-templates.mdc)
+- [DST API Documentation Example Accuracy](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-example-accuracy.mdc)
+
+### Documentation Ecosystem
+Core-systems index files serve as:
+- **Navigation Hubs**: Entry points for system exploration
+- **Architecture Guides**: High-level system understanding
+- **Integration Maps**: Cross-system relationship documentation
+- **Quality Standards**: Examples of documentation excellence
+
+## Success Metrics
+
+### Immediate Quality Indicators
+- All links resolve correctly without 404 errors
+- Code examples execute without syntax or runtime errors
+- Module inventories accurately reflect current source code
+- System descriptions enable informed decision-making
+
+### Long-term Value Indicators
+- Reduced time for developers to understand system relationships
+- Increased confidence in system integration decisions
+- Decreased support requests about system architecture
+- Improved onboarding experience for new team members
+
+### Continuous Improvement
+- Regular user feedback collection
+- Documentation usage analytics monitoring
+- Integration with development workflow feedback
+- Adaptation to evolving documentation needs
+
+## Tools and Automation
+
+### Recommended Tools
+- **Link Validation**: Use automated link checking during CI/CD
+- **Code Example Testing**: Integrate example validation in build process
+- **Content Consistency**: Use terminology checking tools
+- **Source Synchronization**: Automate module inventory updates
+
+### Automation Opportunities
+- Automated module discovery from source code
+- Build version synchronization across documentation
+- Cross-reference validation in pull requests
+- Documentation coverage reporting
+
+This workflow ensures that core-systems index.md files maintain high quality, accuracy, and usefulness throughout the documentation lifecycle.
+

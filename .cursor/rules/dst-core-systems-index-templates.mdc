@@ -1,0 +1,1100 @@
+---
+description: 
+globs: docs/api-vanilla/**/index.md
+alwaysApply: false
+---
+# DST Core Systems Index Templates
+
+This rule provides specific templates for different types of index.md files within the core-systems directory structure. Each template is optimized for its specific system category and purpose.
+
+## Template Selection Guide
+
+Choose the appropriate template based on your system category:
+
+| System Category | Template | Purpose |
+|-----------------|----------|---------|
+| Top-level Core Systems | [Main Index Template](mdc:dst-api-webdocs/#main-index-template) | Overall core-systems overview |
+| Character Systems | [Character Systems Template](mdc:dst-api-webdocs/#character-systems-template) | Player/character related functionality |
+| Game Mechanics | [Game Mechanics Template](mdc:dst-api-webdocs/#game-mechanics-template) | Gameplay systems and mechanics |
+| Development Tools | [Development Tools Template](mdc:dst-api-webdocs/#development-tools-template) | Developer utilities and debugging |
+| Technical Infrastructure | [Infrastructure Template](mdc:dst-api-webdocs/#infrastructure-template) | Low-level system components |
+
+## Main Index Template
+
+Use this template for the main core-systems/index.md file:
+
+```markdown
+---
+id: core-systems-overview
+title: Core Systems Overview
+description: Overview of all core systems in the DST API
+sidebar_position: 0
+slug: core-systems
+last_updated: 2024-XX-XX
+build_version: 676042
+change_status: stable
+category_type: main-index
+system_scope: all core systems
+---
+
+# Core Systems Overview
+
+## Build Information
+Current documentation based on build version: **676042**
+Last updated: **2024-XX-XX**
+
+## Core Systems Architecture
+
+The DST API is organized into several interconnected core systems that provide the foundation for all game functionality. These systems work together to create the complete Don't Starve Together experience.
+
+### System Categories
+
+The core systems are organized into these major categories:
+
+#### Game Foundation
+Systems that provide the basic building blocks for all game functionality.
+
+#### Player Experience  
+Systems that directly impact how players interact with the game world.
+
+#### Content Management
+Systems that handle game assets, data, and content organization.
+
+#### Development Support
+Systems that assist with development, debugging, and maintenance.
+
+## System Categories
+
+### [Character Systems](mdc:dst-api-webdocs/character-systems/index.md)
+Manages all aspects of character behavior, customization, and progression.
+
+| System | Purpose | Key Components |
+|--------|---------|----------------|
+| [Core Character Systems](mdc:dst-api-webdocs/character-systems/core/index.md) | Base character functionality | Character utilities, player deaths |
+| [Customization](mdc:dst-api-webdocs/character-systems/customization/index.md) | Character appearance and clothing | Beefalo clothing, player clothing |
+| [Emotes](mdc:dst-api-webdocs/character-systems/emotes/index.md) | Character expressions | Emote items, emoji items |
+| [Progression](mdc:dst-api-webdocs/character-systems/progression/index.md) | Character advancement | Skill trees, progression constants |
+| [Speech](mdc:dst-api-webdocs/character-systems/speech/index.md) | Character dialogue | Character-specific speech patterns |
+
+### [Data Management](mdc:dst-api-webdocs/data-management/index.md)
+Handles all data persistence, assets, and file operations.
+
+| System | Purpose | Key Components |
+|--------|---------|----------------|
+| [Assets](mdc:dst-api-webdocs/data-management/assets/index.md) | Asset loading and management | JSON handling, KLUMP files |
+| [Saves](mdc:dst-api-webdocs/data-management/saves/index.md) | Save file operations | Save file upgrades, save indexing |
+| [Utilities](mdc:dst-api-webdocs/data-management/utilities/index.md) | Data processing utilities | Platform post-load, scheduler |
+
+### [Development Tools](mdc:dst-api-webdocs/development-tools/index.md)
+Provides debugging, profiling, and development utilities.
+
+| System | Purpose | Key Components |
+|--------|---------|----------------|
+| [Console](mdc:dst-api-webdocs/development-tools/console/index.md) | Console commands and reload | Console commands, hot reload |
+| [Debugging](mdc:dst-api-webdocs/development-tools/debugging/index.md) | Debug utilities and helpers | Debug commands, debug keys |
+| [Profiling](mdc:dst-api-webdocs/development-tools/profiling/index.md) | Performance analysis | Profiler, memory analysis |
+| [Utilities](mdc:dst-api-webdocs/development-tools/utilities/index.md) | Development utilities | Dumper, string fixes |
+
+### [Fundamentals](mdc:dst-api-webdocs/fundamentals/index.md)
+Core building blocks that other systems depend on.
+
+| System | Purpose | Key Components |
+|--------|---------|----------------|
+| [Actions](mdc:dst-api-webdocs/fundamentals/actions/index.md) | Player and entity actions | Action system, buffered actions |
+| [AI Systems](mdc:dst-api-webdocs/fundamentals/ai-systems/index.md) | Artificial intelligence | Behavior trees, brains |
+| [Core](mdc:dst-api-webdocs/fundamentals/core/index.md) | Base classes and entities | Entity script, class system |
+| [Utilities](mdc:dst-api-webdocs/fundamentals/utilities/index.md) | Shared utility functions | Common utilities |
+
+### [Game Mechanics](mdc:dst-api-webdocs/game-mechanics/index.md)
+Implements specific gameplay features and systems.
+
+| System | Purpose | Key Components |
+|--------|---------|----------------|
+| [Achievements](mdc:dst-api-webdocs/game-mechanics/achievements/index.md) | Achievement system | Achievement tracking |
+| [Containers](mdc:dst-api-webdocs/game-mechanics/containers/index.md) | Container functionality | Container widgets |
+| [Cooking](mdc:dst-api-webdocs/game-mechanics/cooking/index.md) | Cooking and recipes | Recipe system |
+| [Crafting](mdc:dst-api-webdocs/game-mechanics/crafting/index.md) | Crafting system | Recipe management |
+| [Special Events](mdc:dst-api-webdocs/game-mechanics/special-events/index.md) | Time-limited events | Event systems |
+
+## System Integration Patterns
+
+### Data Flow Architecture
+```
+User Input → Actions → Core Systems → Game State → World Updates
+     ↓           ↓           ↓           ↓           ↓
+Networking → Character → Fundamentals → Data Mgmt → UI Updates
+```
+
+### Common Integration Points
+- **Entity System**: All systems interact through the core entity framework
+- **Event System**: Systems communicate via global and local events  
+- **Component System**: Modular functionality through component attachment
+- **Save System**: State persistence across all game systems
+
+## Recent Global Changes
+
+| Build | Date | Category | Change Type | Description |
+|-------|------|----------|-------------|-------------|
+| 676042 | 2024-XX-XX | Multiple | stability | General stability improvements |
+| 675312 | 2023-11-15 | Character Systems | enhanced | Improved character customization |
+| 675312 | 2023-11-15 | Game Mechanics | added | New cooking recipes |
+
+## Development Guidelines
+
+### System Dependencies
+- **Core Dependencies**: Fundamentals must be initialized first
+- **Layer Dependencies**: Higher-level systems depend on lower-level infrastructure
+- **Optional Dependencies**: Some systems provide enhanced functionality when available
+
+### Performance Considerations
+- **Memory Management**: Each system has specific memory usage patterns
+- **Update Frequency**: Systems update at different frequencies based on need
+- **Resource Sharing**: Systems share common resources efficiently
+
+### Best Practices
+- Always initialize fundamentals before other systems
+- Use the event system for loose coupling between systems
+- Follow the component pattern for modular functionality
+- Maintain clear separation of concerns between system categories
+
+## Troubleshooting
+
+### Common System Issues
+| Issue | Affected Systems | Solution |
+|-------|------------------|----------|
+| Initialization order | Fundamentals, All | Ensure core systems load first |
+| Memory leaks | Data Management | Follow proper cleanup procedures |
+| Performance drops | All | Check profiling tools |
+
+### Debugging Workflow
+1. Identify which system category contains the issue
+2. Use development tools to isolate the problem
+3. Check system-specific documentation for solutions
+4. Follow integration guidelines for cross-system issues
+
+## Contributing to Core Systems
+
+### Adding New Systems
+1. Determine appropriate category placement
+2. Follow established architectural patterns
+3. Document integration points clearly
+4. Provide comprehensive testing
+
+### Modifying Existing Systems
+1. Understand current dependencies
+2. Maintain backward compatibility
+3. Update related documentation
+4. Test integration impacts
+
+## Related Documentation
+
+- [DST API Documentation Format](mdc:../.cursor/rules/dst-api-documentation-format.mdc)
+- [Component Documentation](mdc:components/index.md)
+- [Prefab Documentation](mdc:prefabs/index.md)
+- [Stategraph Documentation](mdc:stategraphs/index.md)
+```
+
+## Character Systems Template
+
+Use this template for character-systems/index.md:
+
+```markdown
+---
+id: character-systems-overview
+title: Character Systems Overview
+description: Overview of character-related functionality in DST API
+sidebar_position: 0
+slug: core-systems/character-systems
+last_updated: 2024-XX-XX
+build_version: 676042
+change_status: stable
+category_type: character-system
+system_scope: player and character functionality
+---
+
+# Character Systems Overview
+
+## Build Information
+Current documentation based on build version: **676042**
+Last updated: **2024-XX-XX**
+
+## System Purpose
+
+The Character Systems category encompasses all functionality related to players, characters, and character-based interactions in Don't Starve Together. These systems work together to provide the complete character experience from creation to progression.
+
+### Key Responsibilities
+- Character creation and customization
+- Character behavior and animations
+- Character progression and skill development
+- Character-specific dialogue and expressions
+- Character state management and persistence
+
+### System Scope
+This system category includes all aspects of character functionality but excludes general entity behavior (handled by Fundamentals) and world interactions (handled by Game Mechanics).
+
+## Architecture Overview
+
+### System Components
+Character systems are built on a layered architecture where core functionality provides the foundation for specialized features like customization and progression.
+
+### Data Flow
+```
+Character Creation → Core Systems → Customization → Progression
+       ↓                ↓              ↓              ↓
+   Base Setup → Animation State → Visual Updates → Save Data
+```
+
+### Integration Points
+- **Fundamentals**: Core entity and component systems
+- **Game Mechanics**: Character interactions with world systems
+- **Data Management**: Character data persistence and loading
+- **User Interface**: Character selection and customization screens
+
+## Recent Changes
+
+| Build | Date | Component | Change Type | Description |
+|-------|------|-----------|-------------|-------------|
+| 676042 | 2024-XX-XX | [Core](mdc:dst-api-webdocs/core/index.md) | stable | Current stable version |
+| 675312 | 2023-11-15 | [Customization](mdc:dst-api-webdocs/customization/index.md) | enhanced | Improved clothing system |
+
+## Core Character Modules
+
+### [Core Character Systems](mdc:dst-api-webdocs/core/index.md)
+Foundation systems that provide basic character functionality.
+
+| Module | Status | Description | Key Features |
+|--------|--------|-------------|--------------|
+| [Character Utilities](mdc:dst-api-webdocs/core/characterutil.md) | stable | Character helper functions | Character creation, utilities |
+| [Player Deaths](mdc:dst-api-webdocs/core/playerdeaths.md) | stable | Death and resurrection system | Death handling, ghost mode |
+
+### [Customization Systems](mdc:dst-api-webdocs/customization/index.md)
+Systems for character appearance and visual customization.
+
+| Module | Status | Description | Key Features |
+|--------|--------|-------------|--------------|
+| [Clothing](mdc:dst-api-webdocs/customization/clothing.md) | stable | Player clothing system | Clothing items, visual customization |
+| [Beefalo Clothing](mdc:dst-api-webdocs/customization/beefalo_clothing.md) | stable | Beefalo customization | Mount customization |
+
+### [Emote Systems](mdc:dst-api-webdocs/emotes/index.md)
+Character expression and communication systems.
+
+| Module | Status | Description | Key Features |
+|--------|--------|-------------|--------------|
+| [Emotes](mdc:dst-api-webdocs/emotes/emotes.md) | stable | Character emote system | Expressions, animations |
+| [Emote Items](mdc:dst-api-webdocs/emotes/emote_items.md) | stable | Emote-related items | Item-based emotes |
+| [Emoji Items](mdc:dst-api-webdocs/emotes/emoji_items.md) | stable | Emoji functionality | Text-based expressions |
+
+### [Progression Systems](mdc:dst-api-webdocs/progression/index.md)
+Character advancement and skill development.
+
+| Module | Status | Description | Key Features |
+|--------|--------|-------------|--------------|
+| [Skill Tree Data](mdc:dst-api-webdocs/progression/skilltreedata.md) | stable | Skill tree definitions | Character skills, progression paths |
+| [Progression Constants](mdc:dst-api-webdocs/progression/progressionconstants.md) | stable | Progression system constants | XP values, skill requirements |
+
+### [Speech Systems](mdc:dst-api-webdocs/speech/index.md)
+Character-specific dialogue and voice lines.
+
+| Module | Status | Description | Key Features |
+|--------|--------|-------------|--------------|
+| [Character Speech](mdc:dst-api-webdocs/speech) | stable | Character-specific dialogue | Multiple character voice lines |
+
+## Common Character Patterns
+
+### Character Creation
+```lua
+-- Standard character creation pattern
+local character = CreateCharacter("charactername")
+character:AddComponent("health")
+character:AddComponent("sanity")
+character:AddComponent("hunger")
+character:SetCustomizationOptions(customization_data)
+```
+
+### Character Customization
+```lua
+-- Character clothing and appearance
+local clothing_item = CreateClothingItem("item_name")
+character:EquipClothing(clothing_item)
+character:UpdateVisualState()
+```
+
+### Character Progression
+```lua
+-- Skill tree progression
+local skilltree = character.components.skilltree
+skilltree:AddSkillXP("skill_name", xp_amount)
+skilltree:UnlockSkill("skill_id")
+```
+
+## Character System Dependencies
+
+### Required Systems
+- [Fundamentals](mdc:fundamentals/index.md): Core entity and component framework
+- [Data Management](mdc:data-management/index.md): Character data persistence
+- [User Interface](mdc:user-interface/index.md): Character interaction screens
+
+### Optional Systems
+- [Game Mechanics](mdc:game-mechanics/index.md): Enhanced character-world interactions
+- [Networking](mdc:networking-communication/index.md): Multiplayer character synchronization
+
+## Performance Considerations
+
+### Memory Usage
+- Character systems maintain persistent data for all active characters
+- Clothing and customization data uses texture memory efficiently
+- Speech systems load dialogue data on demand
+
+### Performance Optimizations
+- Character updates use delta compression for network efficiency
+- Visual updates batch rendering operations
+- Skill tree calculations cache frequently accessed data
+
+### Scaling Considerations
+- Systems support multiple simultaneous characters
+- Customization options scale with available content
+- Speech systems handle multiple languages efficiently
+
+## Development Guidelines
+
+### Best Practices
+- Always validate character data before applying changes
+- Use the component system for character feature additions
+- Follow the established customization data format
+- Test character systems with multiple concurrent characters
+
+### Common Pitfalls
+- Modifying character data without proper validation
+- Bypassing the component system for character features
+- Not considering multiplayer synchronization requirements
+
+### Testing Strategies
+- Test character creation with all available options
+- Verify character persistence across save/load cycles
+- Test multiplayer character synchronization
+
+## Character System Integration
+
+### With Game Mechanics
+Character systems provide the foundation for all gameplay interactions:
+- Health/Sanity/Hunger affect character behavior
+- Skills influence crafting and interaction capabilities
+- Character appearance affects certain gameplay elements
+
+### With User Interface
+Character systems drive UI presentations:
+- Character selection screens
+- Customization interfaces
+- Progression tracking displays
+- Emote selection menus
+
+### With World Systems
+Characters interact with world systems through:
+- Position and movement systems
+- Inventory and container interactions
+- World object manipulations
+- Environmental effect responses
+
+## Troubleshooting Character Issues
+
+### Common Character Problems
+| Issue | Symptoms | Solution |
+|-------|----------|----------|
+| Customization not saving | Visual changes revert | Check data persistence |
+| Skills not unlocking | Progression blocked | Verify XP calculations |
+| Emotes not working | Animation failures | Check animation data |
+
+### Debugging Character Systems
+- Use character debug commands to inspect state
+- Check component data for corruption
+- Verify network synchronization in multiplayer
+- Review save data for character persistence issues
+
+## Migration and Compatibility
+
+### Character Data Migration
+When updating character systems:
+- Maintain compatibility with existing save data
+- Provide migration paths for changed data structures
+- Test character loading from previous versions
+
+### Backward Compatibility
+- Support legacy character customization formats
+- Maintain existing character behavior patterns
+- Preserve character progression data integrity
+```
+
+## Game Mechanics Template
+
+Use this template for game-mechanics/index.md:
+
+```markdown
+---
+id: game-mechanics-overview
+title: Game Mechanics Overview
+description: Overview of gameplay mechanics and systems in DST API
+sidebar_position: 0
+slug: core-systems/game-mechanics
+last_updated: 2024-XX-XX
+build_version: 676042
+change_status: stable
+category_type: gameplay-system
+system_scope: gameplay features and mechanics
+---
+
+# Game Mechanics Overview
+
+## Build Information
+Current documentation based on build version: **676042**
+Last updated: **2024-XX-XX**
+
+## System Purpose
+
+The Game Mechanics category implements specific gameplay features that define the Don't Starve Together experience. These systems transform basic interactions into engaging gameplay through rules, progression, and structured activities.
+
+### Key Responsibilities
+- Implement core gameplay loops (crafting, cooking, survival)
+- Manage player achievements and progression tracking
+- Handle container and inventory mechanics
+- Control special events and seasonal content
+- Provide structured activities and challenges
+
+### System Scope
+This category includes gameplay-specific mechanics but excludes underlying character systems (handled by Character Systems) and basic interactions (handled by Fundamentals).
+
+## Architecture Overview
+
+### System Components
+Game mechanics are implemented as specialized systems that use the fundamental frameworks to create specific gameplay experiences.
+
+### Data Flow
+```
+Player Action → Game Mechanics → Rule Validation → State Change
+      ↓              ↓               ↓                ↓
+   Input Event → Recipe Check → Resource Check → World Update
+```
+
+### Integration Points
+- **Character Systems**: Player stats and capabilities affect mechanics
+- **Fundamentals**: Basic entity and action systems provide foundation
+- **World Systems**: Mechanics interact with world state and entities
+- **Data Management**: Recipe data, achievements, and progression persistence
+
+## Recent Changes
+
+| Build | Date | Component | Change Type | Description |
+|-------|------|-----------|-------------|-------------|
+| 676042 | 2024-XX-XX | [Cooking](mdc:dst-api-webdocs/cooking/index.md) | stable | Current cooking system |
+| 675312 | 2023-11-15 | [Crafting](mdc:dst-api-webdocs/crafting/index.md) | enhanced | New recipe categories |
+| 675312 | 2023-11-15 | [Achievements](mdc:dst-api-webdocs/achievements/index.md) | added | Additional achievement types |
+
+## Core Gameplay Modules
+
+### [Achievement Systems](mdc:dst-api-webdocs/achievements/index.md)
+Player accomplishment tracking and progression systems.
+
+| Module | Status | Description | Key Features |
+|--------|--------|-------------|--------------|
+| [Achievement Manager](mdc:dst-api-webdocs/achievements) | stable | Achievement tracking | Progress tracking, unlocks |
+
+### [Container Systems](mdc:dst-api-webdocs/containers/index.md)
+Inventory and storage mechanics.
+
+| Module | Status | Description | Key Features |
+|--------|--------|-------------|--------------|
+| [Container Widgets](mdc:dst-api-webdocs/containers) | stable | Container UI and logic | Inventory management, storage |
+
+### [Cooking Systems](mdc:dst-api-webdocs/cooking/index.md)
+Food preparation and recipe mechanics.
+
+| Module | Status | Description | Key Features |
+|--------|--------|-------------|--------------|
+| [Recipe System](mdc:dst-api-webdocs/cooking) | stable | Cooking recipes and mechanics | Food preparation, nutrition |
+
+### [Crafting Systems](mdc:dst-api-webdocs/crafting/index.md)
+Item creation and recipe management.
+
+| Module | Status | Description | Key Features |
+|--------|--------|-------------|--------------|
+| [Recipe Manager](mdc:dst-api-webdocs/crafting) | stable | Crafting recipes and requirements | Item creation, resource management |
+
+### [Special Events](mdc:dst-api-webdocs/special-events/index.md)
+Time-limited and seasonal content systems.
+
+| Module | Status | Description | Key Features |
+|--------|--------|-------------|--------------|
+| [Event Manager](mdc:dst-api-webdocs/special-events) | stable | Event system management | Seasonal content, special mechanics |
+
+## Common Gameplay Patterns
+
+### Recipe Validation
+```lua
+-- Standard recipe checking pattern
+local recipe = GetRecipe("item_name")
+if recipe and recipe:CanPlayerCraft(player) then
+    local item = recipe:Craft(player)
+    player.components.inventory:GiveItem(item)
+end
+```
+
+### Achievement Progression
+```lua
+-- Achievement tracking pattern
+local achievement = GetAchievementData("achievement_id")
+if achievement:CheckCondition(player, data) then
+    achievement:Award(player)
+    player:PushEvent("achievement_unlocked", achievement)
+end
+```
+
+### Container Interactions
+```lua
+-- Container manipulation pattern
+local container = inst.components.container
+if container and container:CanPlayerInteract(player) then
+    container:Open(player)
+    container:MoveItemToSlot(item, slot)
+end
+```
+
+## Gameplay System Dependencies
+
+### Required Systems
+- [Fundamentals](mdc:fundamentals/index.md): Actions and entity framework
+- [Character Systems](mdc:character-systems/index.md): Player capabilities and stats
+- [Data Management](mdc:data-management/index.md): Recipe and achievement data
+
+### Optional Systems
+- [World Systems](mdc:world-systems/index.md): Enhanced environmental interactions
+- [User Interface](mdc:user-interface/index.md): Gameplay UI elements
+- [Networking](mdc:networking-communication/index.md): Multiplayer gameplay synchronization
+
+## Performance Considerations
+
+### Memory Usage
+- Recipe systems cache frequently accessed data
+- Achievement systems track progress efficiently
+- Container systems optimize inventory operations
+
+### Performance Optimizations
+- Recipe validation uses fast lookup tables
+- Achievement checking batches related conditions
+- Container operations minimize UI updates
+
+### Scaling Considerations
+- Systems support multiple simultaneous players
+- Recipe complexity scales with available content
+- Achievement systems handle large progression trees
+
+## Development Guidelines
+
+### Best Practices
+- Validate all player inputs before processing gameplay actions
+- Use consistent data structures for recipes and requirements
+- Implement proper error handling for failed actions
+- Design mechanics to be multiplayer-compatible from the start
+
+### Common Pitfalls
+- Not validating resource requirements before crafting
+- Implementing mechanics that don't scale to multiplayer
+- Bypassing achievement validation for development convenience
+- Creating mechanics that conflict with existing gameplay systems
+
+### Testing Strategies
+- Test all recipe combinations and edge cases
+- Verify achievement progression with various gameplay paths
+- Test container operations with full and empty inventories
+- Validate multiplayer synchronization for all mechanics
+
+## Gameplay Integration Patterns
+
+### With Character Systems
+Gameplay mechanics respect character capabilities:
+- Crafting requires appropriate skills and tools
+- Cooking uses character hunger and cooking abilities
+- Achievements track character-specific accomplishments
+- Containers respect character inventory limitations
+
+### With World Systems
+Mechanics interact with the game world:
+- Crafting stations affect available recipes
+- Cooking requires appropriate fuel and environment
+- Achievements may depend on world exploration
+- Containers exist as world entities with spatial properties
+
+### With User Interface
+Mechanics drive player interface elements:
+- Recipe browsers show available crafting options
+- Achievement panels display progress and unlocks
+- Container interfaces manage inventory interactions
+- Event interfaces communicate special content
+
+## Balancing Considerations
+
+### Resource Economy
+- Crafting costs balance resource acquisition with utility
+- Cooking recipes balance nutritional value with ingredient rarity
+- Container capacities balance convenience with inventory management
+- Achievement requirements balance challenge with accessibility
+
+### Progression Pacing
+- Recipe unlocks follow logical progression paths
+- Achievement difficulty scales appropriately
+- Special events maintain excitement without overwhelming
+- Container upgrades provide meaningful progression
+
+## Troubleshooting Gameplay Issues
+
+### Common Gameplay Problems
+| Issue | Symptoms | Solution |
+|-------|----------|----------|
+| Recipes not available | Crafting options missing | Check unlock conditions |
+| Achievements not progressing | Progress stuck | Verify condition tracking |
+| Containers not working | Interaction failures | Check component state |
+| Events not triggering | Missing seasonal content | Verify event conditions |
+
+### Debugging Gameplay Systems
+- Use recipe debug commands to verify availability
+- Check achievement progress with debug tools
+- Inspect container states for proper initialization
+- Review event conditions and timing
+
+## Performance Monitoring
+
+### Key Metrics
+- Recipe validation time per player action
+- Achievement check frequency and duration
+- Container operation latency
+- Event system update performance
+
+### Optimization Strategies
+- Cache frequently accessed recipe data
+- Batch achievement checks when possible
+- Optimize container UI update frequency
+- Minimize event system overhead during normal gameplay
+
+## Future Development
+
+### Extensibility Design
+- Recipe systems support easy addition of new items
+- Achievement framework accommodates new progression types
+- Container systems adapt to new storage mechanisms
+- Event systems handle diverse content types
+
+### Integration Planning
+- New mechanics should leverage existing frameworks
+- Consider multiplayer implications for all new features
+- Plan for data migration when changing core systems
+- Design for mod compatibility and extension
+```
+
+## Development Tools Template
+
+Use this template for development-tools/index.md:
+
+```markdown
+---
+id: development-tools-overview
+title: Development Tools Overview
+description: Overview of development, debugging, and profiling tools in DST API
+sidebar_position: 0
+slug: core-systems/development-tools
+last_updated: 2024-XX-XX
+build_version: 676042
+change_status: stable
+category_type: development-system
+system_scope: developer utilities and debugging
+---
+
+# Development Tools Overview
+
+## Build Information
+Current documentation based on build version: **676042**
+Last updated: **2024-XX-XX**
+
+## System Purpose
+
+The Development Tools category provides essential utilities for DST development, debugging, and performance analysis. These systems enable efficient development workflows and help maintain high-quality code throughout the development process.
+
+### Key Responsibilities
+- Provide debugging and diagnostic capabilities
+- Enable performance monitoring and optimization
+- Support development workflow automation
+- Facilitate code inspection and analysis
+- Enable runtime modification and testing
+
+### System Scope
+This category includes all developer-facing tools but excludes production game features and player-facing functionality.
+
+## Architecture Overview
+
+### System Components
+Development tools are designed as non-intrusive systems that can be enabled/disabled without affecting core game functionality.
+
+### Data Flow
+```
+Developer Input → Tool Command → System Analysis → Result Display
+       ↓              ↓               ↓               ↓
+   Console Input → Debug Hook → Data Collection → Output Format
+```
+
+### Integration Points
+- **All Core Systems**: Tools can inspect and debug any system
+- **Console Interface**: Command-line access to tool functions
+- **File System**: Tools read/write debug data and logs
+- **Performance Counters**: Integration with engine performance monitoring
+
+## Recent Changes
+
+| Build | Date | Component | Change Type | Description |
+|-------|------|-----------|-------------|-------------|
+| 676042 | 2024-XX-XX | [Console](mdc:dst-api-webdocs/console/index.md) | stable | Current console system |
+| 675312 | 2023-11-15 | [Debugging](mdc:dst-api-webdocs/debugging/index.md) | enhanced | Additional debug commands |
+| 675312 | 2023-11-15 | [Profiling](mdc:dst-api-webdocs/profiling/index.md) | improved | Better performance analysis |
+
+## Development Tool Modules
+
+### [Console Tools](mdc:dst-api-webdocs/console/index.md)
+Interactive command-line interface for development.
+
+| Module | Status | Description | Key Features |
+|--------|--------|-------------|--------------|
+| [Console Commands](mdc:dst-api-webdocs/console/consolecommands.md) | stable | Development console commands | Command execution, script running |
+| [Reload System](mdc:dst-api-webdocs/console/reload.md) | stable | Hot reload functionality | Live code updates, module reloading |
+
+### [Debugging Tools](mdc:dst-api-webdocs/debugging/index.md)
+Comprehensive debugging and diagnostic utilities.
+
+| Module | Status | Description | Key Features |
+|--------|--------|-------------|--------------|
+| [Debug Commands](mdc:dst-api-webdocs/debugging/debugcommands.md) | stable | Debug command system | System inspection, state modification |
+| [Debug Helpers](mdc:dst-api-webdocs/debugging/debughelpers.md) | stable | Debug utility functions | Helper functions, data inspection |
+| [Debug Keys](mdc:dst-api-webdocs/debugging/debugkeys.md) | stable | Keyboard debug shortcuts | Quick debug access, hotkeys |
+
+### [Profiling Tools](mdc:dst-api-webdocs/profiling/index.md)
+Performance analysis and optimization utilities.
+
+| Module | Status | Description | Key Features |
+|--------|--------|-------------|--------------|
+| [Profiler](mdc:dst-api-webdocs/profiling/profiler.md) | stable | Performance profiling system | CPU profiling, bottleneck identification |
+| [Memory Analysis](mdc:dst-api-webdocs/profiling/miser.md) | stable | Memory usage analysis | Memory tracking, leak detection |
+
+### [Development Utilities](mdc:dst-api-webdocs/utilities/index.md)
+Miscellaneous development support tools.
+
+| Module | Status | Description | Key Features |
+|--------|--------|-------------|--------------|
+| [Dumper](mdc:dst-api-webdocs/utilities/dumper.md) | stable | Data dumping utilities | Object inspection, data export |
+| [String Fixes](mdc:dst-api-webdocs/utilities/fix_character_strings.md) | stable | String manipulation tools | Text processing, character fixes |
+| [Generic KV](mdc:dst-api-webdocs/utilities/generickv.md) | stable | Key-value data utilities | Data storage, configuration |
+
+## Common Development Patterns
+
+### Console Command Usage
+```lua
+-- Register a custom debug command
+RegisterConsoleCommand("mycommand", function(param1, param2)
+    print("Executing command with params:", param1, param2)
+    -- Command implementation
+end, "Description of what this command does")
+```
+
+### Debug Information Display
+```lua
+-- Display debug information
+local function ShowDebugInfo(entity)
+    if entity and entity:IsValid() then
+        print("Entity:", entity.prefab)
+        print("Position:", entity.Transform:GetWorldPosition())
+        print("Components:", table.concat(entity.components, ", "))
+    end
+end
+```
+
+### Performance Profiling
+```lua
+-- Profile a function
+ProfilerStart("my_function")
+DoExpensiveOperation()
+ProfilerEnd("my_function")
+
+-- Get profiling results
+local results = GetProfilerResults()
+print("Function took:", results["my_function"].time, "ms")
+```
+
+## Development Tool Dependencies
+
+### Required Systems
+- [System Core](mdc:system-core/index.md): Engine integration and console access
+- [Data Management](mdc:data-management/index.md): Tool data persistence
+- [Fundamentals](mdc:fundamentals/index.md): Entity inspection capabilities
+
+### Optional Systems
+- [User Interface](mdc:user-interface/index.md): Debug UI overlays
+- [Networking](mdc:networking-communication/index.md): Network debugging tools
+
+## Performance Considerations
+
+### Tool Impact
+- Development tools minimize performance impact during normal gameplay
+- Profiling tools use sampling to reduce measurement overhead
+- Debug displays update only when actively viewed
+- Console commands execute efficiently without blocking game updates
+
+### Memory Usage
+- Debug tools avoid memory leaks during extended development sessions
+- Profiling data uses circular buffers to limit memory growth
+- Tool state cleanup happens automatically when tools are disabled
+
+### Resource Management
+- Tools respect system resources and don't interfere with game performance
+- File operations from tools use async I/O when possible
+- Debug output is rate-limited to prevent spam
+
+## Development Guidelines
+
+### Best Practices
+- Always disable debugging tools in release builds
+- Use descriptive names for console commands and debug functions
+- Include help text for all custom commands
+- Clean up debug state when switching between tools
+- Document any persistent debug settings
+
+### Common Pitfalls
+- Leaving debug tools enabled in production builds
+- Creating debug commands that can crash the game
+- Not cleaning up profiling data after analysis
+- Implementing tools that significantly impact performance
+
+### Testing Strategies
+- Test all debug commands with various parameter combinations
+- Verify profiling tools don't affect measured performance
+- Test tool behavior with corrupted or invalid data
+- Ensure tools work correctly in multiplayer environments
+
+## Tool Integration Workflows
+
+### Development Workflow
+1. **Initial Development**: Use console commands for rapid iteration
+2. **Debugging Phase**: Apply debug tools to identify and fix issues
+3. **Performance Optimization**: Use profiling tools to find bottlenecks
+4. **Quality Assurance**: Validate with debugging utilities
+
+### Debugging Workflow
+1. **Issue Identification**: Use debug overlays to spot problems
+2. **State Inspection**: Apply debug commands to examine system state
+3. **Root Cause Analysis**: Use profiling to understand performance issues
+4. **Solution Validation**: Test fixes with debugging tools
+
+### Performance Workflow
+1. **Baseline Measurement**: Establish performance baselines with profiler
+2. **Bottleneck Identification**: Use profiling tools to find slow areas
+3. **Optimization Implementation**: Apply optimizations guided by profiler data
+4. **Validation**: Confirm improvements with follow-up profiling
+
+## Tool Security Considerations
+
+### Access Control
+- Console commands require appropriate development mode
+- Debug tools are disabled in production builds
+- File system access is limited to safe directories
+- Network debugging tools respect security boundaries
+
+### Safe Usage Guidelines
+- Never expose player data through debug tools
+- Validate all inputs to debug commands
+- Limit file system access to development-only paths
+- Ensure tool commands can't be exploited by players
+
+## Troubleshooting Development Tools
+
+### Common Tool Issues
+| Issue | Symptoms | Solution |
+|-------|----------|----------|
+| Console not responding | Commands don't execute | Check console initialization |
+| Profiler data corruption | Invalid performance readings | Reset profiler state |
+| Debug overlays not showing | Visual debug missing | Verify debug mode enabled |
+| Commands causing crashes | Game instability | Review command implementation |
+
+### Tool Debugging Process
+- Check tool initialization and setup
+- Verify development mode is properly enabled
+- Review tool-specific configuration settings
+- Test tools with minimal game state
+
+## Advanced Tool Features
+
+### Custom Tool Development
+- Framework for creating custom debugging tools
+- Integration patterns for new profiling metrics
+- Guidelines for safe console command implementation
+- Best practices for debug visualization
+
+### Tool Extension Points
+- Plugin system for custom debug commands
+- Extensible profiling metric collection
+- Customizable debug display options
+- Integration hooks for external tools
+
+## Maintenance and Updates
+
+### Tool Maintenance
+- Regular validation of tool functionality with new builds
+- Performance impact assessment for all development tools
+- Documentation updates for new features and commands
+- Cleanup of deprecated debugging utilities
+
+### Tool Evolution
+- Addition of new debugging capabilities based on development needs
+- Performance improvements for frequently used tools
+- Enhanced integration with external development tools
+- Better user experience for complex debugging workflows
+```
+
+## Infrastructure Template
+
+Use this template for technical infrastructure systems:
+
+```markdown
+---
+id: [system-category]-overview
+title: [System Category Name] Overview  
+description: Overview of [system category description] in DST API
+sidebar_position: [position]
+slug: core-systems/[category-slug]
+last_updated: 2024-XX-XX
+build_version: 676042
+change_status: stable
+category_type: infrastructure-system
+system_scope: [technical scope description]
+---
+
+# [System Category Name] Overview
+
+## Build Information
+Current documentation based on build version: **676042**
+Last updated: **2024-XX-XX**
+
+## System Purpose
+
+[Detailed explanation of what this infrastructure category provides to DST. Focus on technical foundations and low-level services.]
+
+### Key Responsibilities
+- [Primary infrastructure responsibility 1]
+- [Primary infrastructure responsibility 2] 
+- [Primary infrastructure responsibility 3]
+
+### System Scope
+[Define what technical components are included and excluded from this infrastructure category]
+
+## Architecture Overview
+
+### System Components
+[Technical overview of how infrastructure components are organized and interact]
+
+### Data Flow
+```
+[Technical data flow diagram]
+Low-Level Service → Core Infrastructure → System APIs → Application Layer
+```
+
+### Integration Points
+[How this infrastructure integrates with other technical systems]
+
+## Recent Changes
+
+| Build | Date | Component | Change Type | Description |
+|-------|------|-----------|-------------|-------------|
+| 676042 | 2024-XX-XX | [Component](mdc:dst-api-webdocs/component.md) | stable | Current version |
+
+## Core Infrastructure Modules
+
+### [Module Category 1](mdc:dst-api-webdocs/category1/index.md)
+[Description of module category]
+
+| Module | Status | Description | Key Features |
+|--------|--------|-------------|--------------|
+| [Module A](mdc:dst-api-webdocs/category1/module-a.md) | stable | Brief description | Feature 1, Feature 2 |
+
+## Common Infrastructure Patterns
+
+### Pattern 1: [Infrastructure Pattern Name]
+```lua
+-- Technical implementation example
+local service = InfrastructureService.Initialize()
+service:ConfigureWithDefaults()
+service:StartService()
+```
+
+## Infrastructure Dependencies
+
+### Required Systems
+- [Required System]: [Technical reason]
+
+### Optional Systems  
+- [Optional System]: [Enhancement provided]
+
+## Performance Considerations
+
+### System Performance
+[Technical performance characteristics and considerations]
+
+### Resource Usage
+[Memory, CPU, and other resource usage patterns]
+
+### Scaling Characteristics
+[How this infrastructure scales with system load]
+
+## Development Guidelines
+
+### Best Practices
+- [Infrastructure-specific best practice 1]
+- [Infrastructure-specific best practice 2]
+
+### Common Pitfalls
+- [Technical pitfall 1 and prevention]
+- [Technical pitfall 2 and prevention]
+
+### Testing Strategies
+[Testing approaches for infrastructure components]
+
+## Related Systems
+
+| System | Relationship | Integration Points |
+|--------|--------------|-------------------|
+| [System A](mdc:other/index.md) | [Technical relationship] | [Integration details] |
+
+## Troubleshooting
+
+### Common Infrastructure Issues
+| Issue | Symptoms | Solution |
+|-------|----------|----------|
+| [Technical issue 1] | [System symptoms] | [Technical solution] |
+
+### Debugging Infrastructure
+[Technical debugging approaches for this infrastructure category]
+```
+
+## Usage Guidelines
+
+### Template Selection
+1. **Identify System Category**: Determine which category your index.md file belongs to
+2. **Choose Appropriate Template**: Select the template that best matches your system type
+3. **Customize Content**: Replace placeholder content with system-specific information
+4. **Verify Integration**: Ensure all cross-references and links are correct
+
+### Content Adaptation
+- **System-Specific Details**: Replace generic descriptions with actual system functionality
+- **Module Lists**: Update module tables with real components and their current status
+- **Code Examples**: Provide actual code patterns from the system being documented
+- **Integration Points**: Document real dependencies and relationships
+
+### Quality Checklist
+- [ ] All placeholders replaced with actual content
+- [ ] Module tables include all relevant components
+- [ ] Code examples are tested and functional
+- [ ] Cross-references link to existing documentation
+- [ ] Build version and dates are current
+- [ ] System architecture accurately reflects implementation
+
