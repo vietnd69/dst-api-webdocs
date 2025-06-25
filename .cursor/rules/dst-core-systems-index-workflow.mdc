@@ -1,6 +1,6 @@
 ---
 description: 
-globs: docs/api-vanilla/**/index.md
+globs: docs/game-scripts/**/index.md
 alwaysApply: false
 ---
 # DST Core Systems Index Workflow
@@ -23,7 +23,7 @@ The core-systems index workflow consists of four main phases:
 Before creating any index.md file, perform these analysis steps:
 
 #### 1.1 Directory Structure Analysis
-- Examine the current directory structure using [list_dir](mdc:dst-api-webdocs/dst-api-webdocs) tool
+- Examine the current directory structure using [list_dir](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs) tool
 - Identify all subdirectories and existing documentation files
 - Map the relationship between system components
 - Determine the hierarchical organization
@@ -31,12 +31,12 @@ Before creating any index.md file, perform these analysis steps:
 #### 1.2 Component Inventory
 ```bash
 # Use these commands to understand the system structure
-find ./docs/api-vanilla/core-systems/[system-category] -name "*.md" -type f
-ls -la ./docs/api-vanilla/core-systems/[system-category]/
+find ./docs/game-scripts/core-systems/[system-category] -name "*.md" -type f
+ls -la ./docs/game-scripts/core-systems/[system-category]/
 ```
 
 #### 1.3 Source Code Verification
-- Cross-reference documentation with actual source code in [scripts/](mdc:dst-api-webdocs/dst-api-webdocs/scripts) directory
+- Cross-reference documentation with actual source code in [scripts/](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/scripts) directory
 - Verify component existence and current functionality
 - Check for recent changes in build version 676042
 - Identify deprecated or removed components
@@ -65,7 +65,7 @@ Is this the main core-systems index?
 
 ### 2.1 Template Selection
 
-Choose the appropriate template from [DST Core Systems Index Templates](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-core-systems-index-templates.mdc):
+Choose the appropriate template from [DST Core Systems Index Templates](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-core-systems-index-templates.mdc):
 
 | System Type | Template | Key Characteristics |
 |-------------|----------|-------------------|
@@ -84,7 +84,7 @@ id: [system-category]-overview
 title: [System Category Name] Overview
 description: Overview of [specific system functionality] in DST API
 sidebar_position: [determined by system hierarchy]
-slug: core-systems/[category-slug]
+slug: game-scripts/core-systems/[category-slug]
 last_updated: [current date]
 build_version: 676042
 change_status: stable
@@ -102,7 +102,7 @@ system_scope: [brief functional scope]
 
 ### 2.3 Format Compliance
 
-Ensure compliance with [DST Core Systems Index Format](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-core-systems-index-format.mdc):
+Ensure compliance with [DST Core Systems Index Format](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-core-systems-index-format.mdc):
 
 - Use consistent heading hierarchy (H1 > H2 > H3 > H4)
 - Include required sections in specified order
@@ -145,7 +145,7 @@ grep -r "function.*[SystemName]" scripts/ --include="*.lua"
 - Integration patterns must demonstrate real functionality
 
 #### Writing Standards
-Follow [DST API Documentation Format](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-format.mdc):
+Follow [DST API Documentation Format](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-format.mdc):
 - Use active voice for instructions
 - Maintain professional but accessible tone
 - Include clear, tested code examples
@@ -163,10 +163,10 @@ Follow [DST API Documentation Format](mdc:dst-api-webdocs/dst-api-webdocs/.curso
 Document dependencies with this structure:
 ```markdown
 ### Required Systems
-- [System Name](mdc:system-path/index.md): [Technical reason for dependency]
+- [System Name](mdc:dst-api-webdocs/system-path/index.md): [Technical reason for dependency]
 
 ### Optional Systems
-- [System Name](mdc:system-path/index.md): [Enhancement provided by integration]
+- [System Name](mdc:dst-api-webdocs/system-path/index.md): [Enhancement provided by integration]
 ```
 
 #### Cross-System Integration
@@ -209,7 +209,7 @@ Document dependencies with this structure:
 find docs/ -name "*.md" -exec grep -l "](./[path]" {} \;
 
 # Verify cross-references
-grep -r "\[.*\](\.\./" docs/api-vanilla/core-systems/
+grep -r "\[.*\](\.\./" docs/game-scripts/core-systems/
 ```
 
 #### Content Consistency
@@ -263,10 +263,10 @@ Regular quality assurance tasks:
 
 ### Related Rules
 This workflow integrates with:
-- [DST API Documentation Format](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-format.mdc)
-- [DST Core Systems Index Format](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-core-systems-index-format.mdc)
-- [DST Core Systems Index Templates](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-core-systems-index-templates.mdc)
-- [DST API Documentation Example Accuracy](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-example-accuracy.mdc)
+- [DST API Documentation Format](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-format.mdc)
+- [DST Core Systems Index Format](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-core-systems-index-format.mdc)
+- [DST Core Systems Index Templates](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-core-systems-index-templates.mdc)
+- [DST API Documentation Example Accuracy](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-example-accuracy.mdc)
 
 ### Documentation Ecosystem
 Core-systems index files serve as:

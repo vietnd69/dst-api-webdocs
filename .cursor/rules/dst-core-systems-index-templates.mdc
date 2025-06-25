@@ -1,6 +1,6 @@
 ---
 description: 
-globs: docs/api-vanilla/**/index.md
+globs: docs/game-scripts/**/index.md
 alwaysApply: false
 ---
 # DST Core Systems Index Templates
@@ -13,11 +13,11 @@ Choose the appropriate template based on your system category:
 
 | System Category | Template | Purpose |
 |-----------------|----------|---------|
-| Top-level Core Systems | [Main Index Template](mdc:dst-api-webdocs/#main-index-template) | Overall core-systems overview |
-| Character Systems | [Character Systems Template](mdc:dst-api-webdocs/#character-systems-template) | Player/character related functionality |
-| Game Mechanics | [Game Mechanics Template](mdc:dst-api-webdocs/#game-mechanics-template) | Gameplay systems and mechanics |
-| Development Tools | [Development Tools Template](mdc:dst-api-webdocs/#development-tools-template) | Developer utilities and debugging |
-| Technical Infrastructure | [Infrastructure Template](mdc:dst-api-webdocs/#infrastructure-template) | Low-level system components |
+| Top-level Core Systems | [Main Index Template](mdc:dst-api-webdocs/dst-api-webdocs/#main-index-template) | Overall core-systems overview |
+| Character Systems | [Character Systems Template](mdc:dst-api-webdocs/dst-api-webdocs/#character-systems-template) | Player/character related functionality |
+| Game Mechanics | [Game Mechanics Template](mdc:dst-api-webdocs/dst-api-webdocs/#game-mechanics-template) | Gameplay systems and mechanics |
+| Development Tools | [Development Tools Template](mdc:dst-api-webdocs/dst-api-webdocs/#development-tools-template) | Developer utilities and debugging |
+| Technical Infrastructure | [Infrastructure Template](mdc:dst-api-webdocs/dst-api-webdocs/#infrastructure-template) | Low-level system components |
 
 ## Main Index Template
 
@@ -29,7 +29,7 @@ id: core-systems-overview
 title: Core Systems Overview
 description: Overview of all core systems in the DST API
 sidebar_position: 0
-slug: core-systems
+slug: game-scripts/core-systems
 last_updated: 2024-XX-XX
 build_version: 676042
 change_status: stable
@@ -65,56 +65,56 @@ Systems that assist with development, debugging, and maintenance.
 
 ## System Categories
 
-### [Character Systems](mdc:dst-api-webdocs/character-systems/index.md)
+### [Character Systems](mdc:dst-api-webdocs/dst-api-webdocs/character-systems/index.md)
 Manages all aspects of character behavior, customization, and progression.
 
 | System | Purpose | Key Components |
 |--------|---------|----------------|
-| [Core Character Systems](mdc:dst-api-webdocs/character-systems/core/index.md) | Base character functionality | Character utilities, player deaths |
-| [Customization](mdc:dst-api-webdocs/character-systems/customization/index.md) | Character appearance and clothing | Beefalo clothing, player clothing |
-| [Emotes](mdc:dst-api-webdocs/character-systems/emotes/index.md) | Character expressions | Emote items, emoji items |
-| [Progression](mdc:dst-api-webdocs/character-systems/progression/index.md) | Character advancement | Skill trees, progression constants |
-| [Speech](mdc:dst-api-webdocs/character-systems/speech/index.md) | Character dialogue | Character-specific speech patterns |
+| [Core Character Systems](mdc:dst-api-webdocs/dst-api-webdocs/character-systems/core/index.md) | Base character functionality | Character utilities, player deaths |
+| [Customization](mdc:dst-api-webdocs/dst-api-webdocs/character-systems/customization/index.md) | Character appearance and clothing | Beefalo clothing, player clothing |
+| [Emotes](mdc:dst-api-webdocs/dst-api-webdocs/character-systems/emotes/index.md) | Character expressions | Emote items, emoji items |
+| [Progression](mdc:dst-api-webdocs/dst-api-webdocs/character-systems/progression/index.md) | Character advancement | Skill trees, progression constants |
+| [Speech](mdc:dst-api-webdocs/dst-api-webdocs/character-systems/speech/index.md) | Character dialogue | Character-specific speech patterns |
 
-### [Data Management](mdc:dst-api-webdocs/data-management/index.md)
+### [Data Management](mdc:dst-api-webdocs/dst-api-webdocs/data-management/index.md)
 Handles all data persistence, assets, and file operations.
 
 | System | Purpose | Key Components |
 |--------|---------|----------------|
-| [Assets](mdc:dst-api-webdocs/data-management/assets/index.md) | Asset loading and management | JSON handling, KLUMP files |
-| [Saves](mdc:dst-api-webdocs/data-management/saves/index.md) | Save file operations | Save file upgrades, save indexing |
-| [Utilities](mdc:dst-api-webdocs/data-management/utilities/index.md) | Data processing utilities | Platform post-load, scheduler |
+| [Assets](mdc:dst-api-webdocs/dst-api-webdocs/data-management/assets/index.md) | Asset loading and management | JSON handling, KLUMP files |
+| [Saves](mdc:dst-api-webdocs/dst-api-webdocs/data-management/saves/index.md) | Save file operations | Save file upgrades, save indexing |
+| [Utilities](mdc:dst-api-webdocs/dst-api-webdocs/data-management/utilities/index.md) | Data processing utilities | Platform post-load, scheduler |
 
-### [Development Tools](mdc:dst-api-webdocs/development-tools/index.md)
+### [Development Tools](mdc:dst-api-webdocs/dst-api-webdocs/development-tools/index.md)
 Provides debugging, profiling, and development utilities.
 
 | System | Purpose | Key Components |
 |--------|---------|----------------|
-| [Console](mdc:dst-api-webdocs/development-tools/console/index.md) | Console commands and reload | Console commands, hot reload |
-| [Debugging](mdc:dst-api-webdocs/development-tools/debugging/index.md) | Debug utilities and helpers | Debug commands, debug keys |
-| [Profiling](mdc:dst-api-webdocs/development-tools/profiling/index.md) | Performance analysis | Profiler, memory analysis |
-| [Utilities](mdc:dst-api-webdocs/development-tools/utilities/index.md) | Development utilities | Dumper, string fixes |
+| [Console](mdc:dst-api-webdocs/dst-api-webdocs/development-tools/console/index.md) | Console commands and reload | Console commands, hot reload |
+| [Debugging](mdc:dst-api-webdocs/dst-api-webdocs/development-tools/debugging/index.md) | Debug utilities and helpers | Debug commands, debug keys |
+| [Profiling](mdc:dst-api-webdocs/dst-api-webdocs/development-tools/profiling/index.md) | Performance analysis | Profiler, memory analysis |
+| [Utilities](mdc:dst-api-webdocs/dst-api-webdocs/development-tools/utilities/index.md) | Development utilities | Dumper, string fixes |
 
-### [Fundamentals](mdc:dst-api-webdocs/fundamentals/index.md)
+### [Fundamentals](mdc:dst-api-webdocs/dst-api-webdocs/fundamentals/index.md)
 Core building blocks that other systems depend on.
 
 | System | Purpose | Key Components |
 |--------|---------|----------------|
-| [Actions](mdc:dst-api-webdocs/fundamentals/actions/index.md) | Player and entity actions | Action system, buffered actions |
-| [AI Systems](mdc:dst-api-webdocs/fundamentals/ai-systems/index.md) | Artificial intelligence | Behavior trees, brains |
-| [Core](mdc:dst-api-webdocs/fundamentals/core/index.md) | Base classes and entities | Entity script, class system |
-| [Utilities](mdc:dst-api-webdocs/fundamentals/utilities/index.md) | Shared utility functions | Common utilities |
+| [Actions](mdc:dst-api-webdocs/dst-api-webdocs/fundamentals/actions/index.md) | Player and entity actions | Action system, buffered actions |
+| [AI Systems](mdc:dst-api-webdocs/dst-api-webdocs/fundamentals/ai-systems/index.md) | Artificial intelligence | Behavior trees, brains |
+| [Core](mdc:dst-api-webdocs/dst-api-webdocs/fundamentals/core/index.md) | Base classes and entities | Entity script, class system |
+| [Utilities](mdc:dst-api-webdocs/dst-api-webdocs/fundamentals/utilities/index.md) | Shared utility functions | Common utilities |
 
-### [Game Mechanics](mdc:dst-api-webdocs/game-mechanics/index.md)
+### [Game Mechanics](mdc:dst-api-webdocs/dst-api-webdocs/game-mechanics/index.md)
 Implements specific gameplay features and systems.
 
 | System | Purpose | Key Components |
 |--------|---------|----------------|
-| [Achievements](mdc:dst-api-webdocs/game-mechanics/achievements/index.md) | Achievement system | Achievement tracking |
-| [Containers](mdc:dst-api-webdocs/game-mechanics/containers/index.md) | Container functionality | Container widgets |
-| [Cooking](mdc:dst-api-webdocs/game-mechanics/cooking/index.md) | Cooking and recipes | Recipe system |
-| [Crafting](mdc:dst-api-webdocs/game-mechanics/crafting/index.md) | Crafting system | Recipe management |
-| [Special Events](mdc:dst-api-webdocs/game-mechanics/special-events/index.md) | Time-limited events | Event systems |
+| [Achievements](mdc:dst-api-webdocs/dst-api-webdocs/game-mechanics/achievements/index.md) | Achievement system | Achievement tracking |
+| [Containers](mdc:dst-api-webdocs/dst-api-webdocs/game-mechanics/containers/index.md) | Container functionality | Container widgets |
+| [Cooking](mdc:dst-api-webdocs/dst-api-webdocs/game-mechanics/cooking/index.md) | Cooking and recipes | Recipe system |
+| [Crafting](mdc:dst-api-webdocs/dst-api-webdocs/game-mechanics/crafting/index.md) | Crafting system | Recipe management |
+| [Special Events](mdc:dst-api-webdocs/dst-api-webdocs/game-mechanics/special-events/index.md) | Time-limited events | Event systems |
 
 ## System Integration Patterns
 
@@ -188,10 +188,10 @@ Networking → Character → Fundamentals → Data Mgmt → UI Updates
 
 ## Related Documentation
 
-- [DST API Documentation Format](mdc:../.cursor/rules/dst-api-documentation-format.mdc)
-- [Component Documentation](mdc:components/index.md)
-- [Prefab Documentation](mdc:prefabs/index.md)
-- [Stategraph Documentation](mdc:stategraphs/index.md)
+- [DST API Documentation Format](mdc:.cursor/rules/dst-api-documentation-format.mdc)
+- [Component Documentation](mdc:dst-api-webdocs/components/index.md)
+- [Prefab Documentation](mdc:dst-api-webdocs/prefabs/index.md)
+- [Stategraph Documentation](mdc:dst-api-webdocs/stategraphs/index.md)
 ```
 
 ## Character Systems Template
@@ -204,7 +204,7 @@ id: character-systems-overview
 title: Character Systems Overview
 description: Overview of character-related functionality in DST API
 sidebar_position: 0
-slug: core-systems/character-systems
+slug: game-scripts/core-systems/character-systems
 last_updated: 2024-XX-XX
 build_version: 676042
 change_status: stable
@@ -254,50 +254,50 @@ Character Creation → Core Systems → Customization → Progression
 
 | Build | Date | Component | Change Type | Description |
 |-------|------|-----------|-------------|-------------|
-| 676042 | 2024-XX-XX | [Core](mdc:dst-api-webdocs/core/index.md) | stable | Current stable version |
-| 675312 | 2023-11-15 | [Customization](mdc:dst-api-webdocs/customization/index.md) | enhanced | Improved clothing system |
+| 676042 | 2024-XX-XX | [Core](mdc:dst-api-webdocs/dst-api-webdocs/core/index.md) | stable | Current stable version |
+| 675312 | 2023-11-15 | [Customization](mdc:dst-api-webdocs/dst-api-webdocs/customization/index.md) | enhanced | Improved clothing system |
 
 ## Core Character Modules
 
-### [Core Character Systems](mdc:dst-api-webdocs/core/index.md)
+### [Core Character Systems](mdc:dst-api-webdocs/dst-api-webdocs/core/index.md)
 Foundation systems that provide basic character functionality.
 
 | Module | Status | Description | Key Features |
 |--------|--------|-------------|--------------|
-| [Character Utilities](mdc:dst-api-webdocs/core/characterutil.md) | stable | Character helper functions | Character creation, utilities |
-| [Player Deaths](mdc:dst-api-webdocs/core/playerdeaths.md) | stable | Death and resurrection system | Death handling, ghost mode |
+| [Character Utilities](mdc:dst-api-webdocs/dst-api-webdocs/core/characterutil.md) | stable | Character helper functions | Character creation, utilities |
+| [Player Deaths](mdc:dst-api-webdocs/dst-api-webdocs/core/playerdeaths.md) | stable | Death and resurrection system | Death handling, ghost mode |
 
-### [Customization Systems](mdc:dst-api-webdocs/customization/index.md)
+### [Customization Systems](mdc:dst-api-webdocs/dst-api-webdocs/customization/index.md)
 Systems for character appearance and visual customization.
 
 | Module | Status | Description | Key Features |
 |--------|--------|-------------|--------------|
-| [Clothing](mdc:dst-api-webdocs/customization/clothing.md) | stable | Player clothing system | Clothing items, visual customization |
-| [Beefalo Clothing](mdc:dst-api-webdocs/customization/beefalo_clothing.md) | stable | Beefalo customization | Mount customization |
+| [Clothing](mdc:dst-api-webdocs/dst-api-webdocs/customization/clothing.md) | stable | Player clothing system | Clothing items, visual customization |
+| [Beefalo Clothing](mdc:dst-api-webdocs/dst-api-webdocs/customization/beefalo_clothing.md) | stable | Beefalo customization | Mount customization |
 
-### [Emote Systems](mdc:dst-api-webdocs/emotes/index.md)
+### [Emote Systems](mdc:dst-api-webdocs/dst-api-webdocs/emotes/index.md)
 Character expression and communication systems.
 
 | Module | Status | Description | Key Features |
 |--------|--------|-------------|--------------|
-| [Emotes](mdc:dst-api-webdocs/emotes/emotes.md) | stable | Character emote system | Expressions, animations |
-| [Emote Items](mdc:dst-api-webdocs/emotes/emote_items.md) | stable | Emote-related items | Item-based emotes |
-| [Emoji Items](mdc:dst-api-webdocs/emotes/emoji_items.md) | stable | Emoji functionality | Text-based expressions |
+| [Emotes](mdc:dst-api-webdocs/dst-api-webdocs/emotes/emotes.md) | stable | Character emote system | Expressions, animations |
+| [Emote Items](mdc:dst-api-webdocs/dst-api-webdocs/emotes/emote_items.md) | stable | Emote-related items | Item-based emotes |
+| [Emoji Items](mdc:dst-api-webdocs/dst-api-webdocs/emotes/emoji_items.md) | stable | Emoji functionality | Text-based expressions |
 
-### [Progression Systems](mdc:dst-api-webdocs/progression/index.md)
+### [Progression Systems](mdc:dst-api-webdocs/dst-api-webdocs/progression/index.md)
 Character advancement and skill development.
 
 | Module | Status | Description | Key Features |
 |--------|--------|-------------|--------------|
-| [Skill Tree Data](mdc:dst-api-webdocs/progression/skilltreedata.md) | stable | Skill tree definitions | Character skills, progression paths |
-| [Progression Constants](mdc:dst-api-webdocs/progression/progressionconstants.md) | stable | Progression system constants | XP values, skill requirements |
+| [Skill Tree Data](mdc:dst-api-webdocs/dst-api-webdocs/progression/skilltreedata.md) | stable | Skill tree definitions | Character skills, progression paths |
+| [Progression Constants](mdc:dst-api-webdocs/dst-api-webdocs/progression/progressionconstants.md) | stable | Progression system constants | XP values, skill requirements |
 
-### [Speech Systems](mdc:dst-api-webdocs/speech/index.md)
+### [Speech Systems](mdc:dst-api-webdocs/dst-api-webdocs/speech/index.md)
 Character-specific dialogue and voice lines.
 
 | Module | Status | Description | Key Features |
 |--------|--------|-------------|--------------|
-| [Character Speech](mdc:dst-api-webdocs/speech) | stable | Character-specific dialogue | Multiple character voice lines |
+| [Character Speech](mdc:dst-api-webdocs/dst-api-webdocs/speech) | stable | Character-specific dialogue | Multiple character voice lines |
 
 ## Common Character Patterns
 
@@ -330,13 +330,13 @@ skilltree:UnlockSkill("skill_id")
 ## Character System Dependencies
 
 ### Required Systems
-- [Fundamentals](mdc:fundamentals/index.md): Core entity and component framework
-- [Data Management](mdc:data-management/index.md): Character data persistence
-- [User Interface](mdc:user-interface/index.md): Character interaction screens
+- [Fundamentals](mdc:dst-api-webdocs/fundamentals/index.md): Core entity and component framework
+- [Data Management](mdc:dst-api-webdocs/data-management/index.md): Character data persistence
+- [User Interface](mdc:dst-api-webdocs/user-interface/index.md): Character interaction screens
 
 ### Optional Systems
-- [Game Mechanics](mdc:game-mechanics/index.md): Enhanced character-world interactions
-- [Networking](mdc:networking-communication/index.md): Multiplayer character synchronization
+- [Game Mechanics](mdc:dst-api-webdocs/game-mechanics/index.md): Enhanced character-world interactions
+- [Networking](mdc:dst-api-webdocs/networking-communication/index.md): Multiplayer character synchronization
 
 ## Performance Considerations
 
@@ -434,7 +434,7 @@ id: game-mechanics-overview
 title: Game Mechanics Overview
 description: Overview of gameplay mechanics and systems in DST API
 sidebar_position: 0
-slug: core-systems/game-mechanics
+slug: game-scripts/core-systems/game-mechanics
 last_updated: 2024-XX-XX
 build_version: 676042
 change_status: stable
@@ -484,46 +484,46 @@ Player Action → Game Mechanics → Rule Validation → State Change
 
 | Build | Date | Component | Change Type | Description |
 |-------|------|-----------|-------------|-------------|
-| 676042 | 2024-XX-XX | [Cooking](mdc:dst-api-webdocs/cooking/index.md) | stable | Current cooking system |
-| 675312 | 2023-11-15 | [Crafting](mdc:dst-api-webdocs/crafting/index.md) | enhanced | New recipe categories |
-| 675312 | 2023-11-15 | [Achievements](mdc:dst-api-webdocs/achievements/index.md) | added | Additional achievement types |
+| 676042 | 2024-XX-XX | [Cooking](mdc:dst-api-webdocs/dst-api-webdocs/cooking/index.md) | stable | Current cooking system |
+| 675312 | 2023-11-15 | [Crafting](mdc:dst-api-webdocs/dst-api-webdocs/crafting/index.md) | enhanced | New recipe categories |
+| 675312 | 2023-11-15 | [Achievements](mdc:dst-api-webdocs/dst-api-webdocs/achievements/index.md) | added | Additional achievement types |
 
 ## Core Gameplay Modules
 
-### [Achievement Systems](mdc:dst-api-webdocs/achievements/index.md)
+### [Achievement Systems](mdc:dst-api-webdocs/dst-api-webdocs/achievements/index.md)
 Player accomplishment tracking and progression systems.
 
 | Module | Status | Description | Key Features |
 |--------|--------|-------------|--------------|
-| [Achievement Manager](mdc:dst-api-webdocs/achievements) | stable | Achievement tracking | Progress tracking, unlocks |
+| [Achievement Manager](mdc:dst-api-webdocs/dst-api-webdocs/achievements) | stable | Achievement tracking | Progress tracking, unlocks |
 
-### [Container Systems](mdc:dst-api-webdocs/containers/index.md)
+### [Container Systems](mdc:dst-api-webdocs/dst-api-webdocs/containers/index.md)
 Inventory and storage mechanics.
 
 | Module | Status | Description | Key Features |
 |--------|--------|-------------|--------------|
-| [Container Widgets](mdc:dst-api-webdocs/containers) | stable | Container UI and logic | Inventory management, storage |
+| [Container Widgets](mdc:dst-api-webdocs/dst-api-webdocs/containers) | stable | Container UI and logic | Inventory management, storage |
 
-### [Cooking Systems](mdc:dst-api-webdocs/cooking/index.md)
+### [Cooking Systems](mdc:dst-api-webdocs/dst-api-webdocs/cooking/index.md)
 Food preparation and recipe mechanics.
 
 | Module | Status | Description | Key Features |
 |--------|--------|-------------|--------------|
-| [Recipe System](mdc:dst-api-webdocs/cooking) | stable | Cooking recipes and mechanics | Food preparation, nutrition |
+| [Recipe System](mdc:dst-api-webdocs/dst-api-webdocs/cooking) | stable | Cooking recipes and mechanics | Food preparation, nutrition |
 
-### [Crafting Systems](mdc:dst-api-webdocs/crafting/index.md)
+### [Crafting Systems](mdc:dst-api-webdocs/dst-api-webdocs/crafting/index.md)
 Item creation and recipe management.
 
 | Module | Status | Description | Key Features |
 |--------|--------|-------------|--------------|
-| [Recipe Manager](mdc:dst-api-webdocs/crafting) | stable | Crafting recipes and requirements | Item creation, resource management |
+| [Recipe Manager](mdc:dst-api-webdocs/dst-api-webdocs/crafting) | stable | Crafting recipes and requirements | Item creation, resource management |
 
-### [Special Events](mdc:dst-api-webdocs/special-events/index.md)
+### [Special Events](mdc:dst-api-webdocs/dst-api-webdocs/special-events/index.md)
 Time-limited and seasonal content systems.
 
 | Module | Status | Description | Key Features |
 |--------|--------|-------------|--------------|
-| [Event Manager](mdc:dst-api-webdocs/special-events) | stable | Event system management | Seasonal content, special mechanics |
+| [Event Manager](mdc:dst-api-webdocs/dst-api-webdocs/special-events) | stable | Event system management | Seasonal content, special mechanics |
 
 ## Common Gameplay Patterns
 
@@ -560,14 +560,14 @@ end
 ## Gameplay System Dependencies
 
 ### Required Systems
-- [Fundamentals](mdc:fundamentals/index.md): Actions and entity framework
-- [Character Systems](mdc:character-systems/index.md): Player capabilities and stats
-- [Data Management](mdc:data-management/index.md): Recipe and achievement data
+- [Fundamentals](mdc:dst-api-webdocs/fundamentals/index.md): Actions and entity framework
+- [Character Systems](mdc:dst-api-webdocs/character-systems/index.md): Player capabilities and stats
+- [Data Management](mdc:dst-api-webdocs/data-management/index.md): Recipe and achievement data
 
 ### Optional Systems
-- [World Systems](mdc:world-systems/index.md): Enhanced environmental interactions
-- [User Interface](mdc:user-interface/index.md): Gameplay UI elements
-- [Networking](mdc:networking-communication/index.md): Multiplayer gameplay synchronization
+- [World Systems](mdc:dst-api-webdocs/world-systems/index.md): Enhanced environmental interactions
+- [User Interface](mdc:dst-api-webdocs/user-interface/index.md): Gameplay UI elements
+- [Networking](mdc:dst-api-webdocs/networking-communication/index.md): Multiplayer gameplay synchronization
 
 ## Performance Considerations
 
@@ -698,7 +698,7 @@ id: development-tools-overview
 title: Development Tools Overview
 description: Overview of development, debugging, and profiling tools in DST API
 sidebar_position: 0
-slug: core-systems/development-tools
+slug: game-scripts/core-systems/development-tools
 last_updated: 2024-XX-XX
 build_version: 676042
 change_status: stable
@@ -748,45 +748,45 @@ Developer Input → Tool Command → System Analysis → Result Display
 
 | Build | Date | Component | Change Type | Description |
 |-------|------|-----------|-------------|-------------|
-| 676042 | 2024-XX-XX | [Console](mdc:dst-api-webdocs/console/index.md) | stable | Current console system |
-| 675312 | 2023-11-15 | [Debugging](mdc:dst-api-webdocs/debugging/index.md) | enhanced | Additional debug commands |
-| 675312 | 2023-11-15 | [Profiling](mdc:dst-api-webdocs/profiling/index.md) | improved | Better performance analysis |
+| 676042 | 2024-XX-XX | [Console](mdc:dst-api-webdocs/dst-api-webdocs/console/index.md) | stable | Current console system |
+| 675312 | 2023-11-15 | [Debugging](mdc:dst-api-webdocs/dst-api-webdocs/debugging/index.md) | enhanced | Additional debug commands |
+| 675312 | 2023-11-15 | [Profiling](mdc:dst-api-webdocs/dst-api-webdocs/profiling/index.md) | improved | Better performance analysis |
 
 ## Development Tool Modules
 
-### [Console Tools](mdc:dst-api-webdocs/console/index.md)
+### [Console Tools](mdc:dst-api-webdocs/dst-api-webdocs/console/index.md)
 Interactive command-line interface for development.
 
 | Module | Status | Description | Key Features |
 |--------|--------|-------------|--------------|
-| [Console Commands](mdc:dst-api-webdocs/console/consolecommands.md) | stable | Development console commands | Command execution, script running |
-| [Reload System](mdc:dst-api-webdocs/console/reload.md) | stable | Hot reload functionality | Live code updates, module reloading |
+| [Console Commands](mdc:dst-api-webdocs/dst-api-webdocs/console/consolecommands.md) | stable | Development console commands | Command execution, script running |
+| [Reload System](mdc:dst-api-webdocs/dst-api-webdocs/console/reload.md) | stable | Hot reload functionality | Live code updates, module reloading |
 
-### [Debugging Tools](mdc:dst-api-webdocs/debugging/index.md)
+### [Debugging Tools](mdc:dst-api-webdocs/dst-api-webdocs/debugging/index.md)
 Comprehensive debugging and diagnostic utilities.
 
 | Module | Status | Description | Key Features |
 |--------|--------|-------------|--------------|
-| [Debug Commands](mdc:dst-api-webdocs/debugging/debugcommands.md) | stable | Debug command system | System inspection, state modification |
-| [Debug Helpers](mdc:dst-api-webdocs/debugging/debughelpers.md) | stable | Debug utility functions | Helper functions, data inspection |
-| [Debug Keys](mdc:dst-api-webdocs/debugging/debugkeys.md) | stable | Keyboard debug shortcuts | Quick debug access, hotkeys |
+| [Debug Commands](mdc:dst-api-webdocs/dst-api-webdocs/debugging/debugcommands.md) | stable | Debug command system | System inspection, state modification |
+| [Debug Helpers](mdc:dst-api-webdocs/dst-api-webdocs/debugging/debughelpers.md) | stable | Debug utility functions | Helper functions, data inspection |
+| [Debug Keys](mdc:dst-api-webdocs/dst-api-webdocs/debugging/debugkeys.md) | stable | Keyboard debug shortcuts | Quick debug access, hotkeys |
 
-### [Profiling Tools](mdc:dst-api-webdocs/profiling/index.md)
+### [Profiling Tools](mdc:dst-api-webdocs/dst-api-webdocs/profiling/index.md)
 Performance analysis and optimization utilities.
 
 | Module | Status | Description | Key Features |
 |--------|--------|-------------|--------------|
-| [Profiler](mdc:dst-api-webdocs/profiling/profiler.md) | stable | Performance profiling system | CPU profiling, bottleneck identification |
-| [Memory Analysis](mdc:dst-api-webdocs/profiling/miser.md) | stable | Memory usage analysis | Memory tracking, leak detection |
+| [Profiler](mdc:dst-api-webdocs/dst-api-webdocs/profiling/profiler.md) | stable | Performance profiling system | CPU profiling, bottleneck identification |
+| [Memory Analysis](mdc:dst-api-webdocs/dst-api-webdocs/profiling/miser.md) | stable | Memory usage analysis | Memory tracking, leak detection |
 
-### [Development Utilities](mdc:dst-api-webdocs/utilities/index.md)
+### [Development Utilities](mdc:dst-api-webdocs/dst-api-webdocs/utilities/index.md)
 Miscellaneous development support tools.
 
 | Module | Status | Description | Key Features |
 |--------|--------|-------------|--------------|
-| [Dumper](mdc:dst-api-webdocs/utilities/dumper.md) | stable | Data dumping utilities | Object inspection, data export |
-| [String Fixes](mdc:dst-api-webdocs/utilities/fix_character_strings.md) | stable | String manipulation tools | Text processing, character fixes |
-| [Generic KV](mdc:dst-api-webdocs/utilities/generickv.md) | stable | Key-value data utilities | Data storage, configuration |
+| [Dumper](mdc:dst-api-webdocs/dst-api-webdocs/utilities/dumper.md) | stable | Data dumping utilities | Object inspection, data export |
+| [String Fixes](mdc:dst-api-webdocs/dst-api-webdocs/utilities/fix_character_strings.md) | stable | String manipulation tools | Text processing, character fixes |
+| [Generic KV](mdc:dst-api-webdocs/dst-api-webdocs/utilities/generickv.md) | stable | Key-value data utilities | Data storage, configuration |
 
 ## Common Development Patterns
 
@@ -826,13 +826,13 @@ print("Function took:", results["my_function"].time, "ms")
 ## Development Tool Dependencies
 
 ### Required Systems
-- [System Core](mdc:system-core/index.md): Engine integration and console access
-- [Data Management](mdc:data-management/index.md): Tool data persistence
-- [Fundamentals](mdc:fundamentals/index.md): Entity inspection capabilities
+- [System Core](mdc:dst-api-webdocs/system-core/index.md): Engine integration and console access
+- [Data Management](mdc:dst-api-webdocs/data-management/index.md): Tool data persistence
+- [Fundamentals](mdc:dst-api-webdocs/fundamentals/index.md): Entity inspection capabilities
 
 ### Optional Systems
-- [User Interface](mdc:user-interface/index.md): Debug UI overlays
-- [Networking](mdc:networking-communication/index.md): Network debugging tools
+- [User Interface](mdc:dst-api-webdocs/user-interface/index.md): Debug UI overlays
+- [Networking](mdc:dst-api-webdocs/networking-communication/index.md): Network debugging tools
 
 ## Performance Considerations
 
@@ -962,7 +962,7 @@ id: [system-category]-overview
 title: [System Category Name] Overview  
 description: Overview of [system category description] in DST API
 sidebar_position: [position]
-slug: core-systems/[category-slug]
+slug: game-scripts/core-systems/[category-slug]
 last_updated: 2024-XX-XX
 build_version: 676042
 change_status: stable
@@ -1006,16 +1006,16 @@ Low-Level Service → Core Infrastructure → System APIs → Application Layer
 
 | Build | Date | Component | Change Type | Description |
 |-------|------|-----------|-------------|-------------|
-| 676042 | 2024-XX-XX | [Component](mdc:dst-api-webdocs/component.md) | stable | Current version |
+| 676042 | 2024-XX-XX | [Component](mdc:dst-api-webdocs/dst-api-webdocs/component.md) | stable | Current version |
 
 ## Core Infrastructure Modules
 
-### [Module Category 1](mdc:dst-api-webdocs/category1/index.md)
+### [Module Category 1](mdc:dst-api-webdocs/dst-api-webdocs/category1/index.md)
 [Description of module category]
 
 | Module | Status | Description | Key Features |
 |--------|--------|-------------|--------------|
-| [Module A](mdc:dst-api-webdocs/category1/module-a.md) | stable | Brief description | Feature 1, Feature 2 |
+| [Module A](mdc:dst-api-webdocs/dst-api-webdocs/category1/module-a.md) | stable | Brief description | Feature 1, Feature 2 |
 
 ## Common Infrastructure Patterns
 
@@ -1063,7 +1063,7 @@ service:StartService()
 
 | System | Relationship | Integration Points |
 |--------|--------------|-------------------|
-| [System A](mdc:other/index.md) | [Technical relationship] | [Integration details] |
+| [System A](mdc:dst-api-webdocs/other/index.md) | [Technical relationship] | [Integration details] |
 
 ## Troubleshooting
 

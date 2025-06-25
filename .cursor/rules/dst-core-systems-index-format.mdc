@@ -1,6 +1,6 @@
 ---
 description: 
-globs: docs/api-vanilla/**/index.md
+globs: docs/game-scripts/**/index.md
 alwaysApply: false
 ---
 # DST Core Systems Index Format
@@ -27,7 +27,7 @@ id: [system-category-id]
 title: [System Category Name] Overview
 description: Overview of [system category] functionality in DST API
 sidebar_position: 0
-slug: core-systems/[category-slug]
+slug: game-scripts/core-systems/[category-slug]
 last_updated: YYYY-MM-DD
 build_version: 676042
 change_status: stable
@@ -72,9 +72,9 @@ Last updated: **YYYY-MM-DD**
 
 | Build | Date | Component | Change Type | Description |
 |-------|------|-----------|-------------|-------------|
-| 676042 | 2024-XX-XX | [Component A](mdc:dst-api-webdocs/subdir/component-a.md) | added | Added new functionality X |
-| 676042 | 2024-XX-XX | [Component B](mdc:dst-api-webdocs/subdir/component-b.md) | modified | Changed parameter structure |
-| 675312 | 2023-11-15 | [Component C](mdc:dst-api-webdocs/subdir/component-c.md) | deprecated | Will be removed in build 690000 |
+| 676042 | 2024-XX-XX | [Component A](mdc:dst-api-webdocs/dst-api-webdocs/subdir/component-a.md) | added | Added new functionality X |
+| 676042 | 2024-XX-XX | [Component B](mdc:dst-api-webdocs/dst-api-webdocs/subdir/component-b.md) | modified | Changed parameter structure |
+| 675312 | 2023-11-15 | [Component C](mdc:dst-api-webdocs/dst-api-webdocs/subdir/component-c.md) | deprecated | Will be removed in build 690000 |
 
 ## Core Modules
 
@@ -83,16 +83,16 @@ Last updated: **YYYY-MM-DD**
 
 | Module | Status | Description | Key Features |
 |--------|--------|-------------|--------------|
-| [Module A](mdc:dst-api-webdocs/subcategory1/module-a.md) | stable | Brief description | Feature 1, Feature 2 |
-| [Module B](mdc:dst-api-webdocs/subcategory1/module-b.md) | added in 676042 | Brief description | Feature 1, Feature 2 |
+| [Module A](mdc:dst-api-webdocs/dst-api-webdocs/subcategory1/module-a.md) | stable | Brief description | Feature 1, Feature 2 |
+| [Module B](mdc:dst-api-webdocs/dst-api-webdocs/subcategory1/module-b.md) | added in 676042 | Brief description | Feature 1, Feature 2 |
 
 ### [Subcategory 2 Name]
 [Brief description of subcategory purpose]
 
 | Module | Status | Description | Key Features |
 |--------|--------|-------------|--------------|
-| [Module C](mdc:dst-api-webdocs/subcategory2/module-c.md) | stable | Brief description | Feature 1, Feature 2 |
-| [Module D](mdc:dst-api-webdocs/subcategory2/module-d.md) | modified in 676042 | Brief description | Feature 1, Feature 2 |
+| [Module C](mdc:dst-api-webdocs/dst-api-webdocs/subcategory2/module-c.md) | stable | Brief description | Feature 1, Feature 2 |
+| [Module D](mdc:dst-api-webdocs/dst-api-webdocs/subcategory2/module-d.md) | modified in 676042 | Brief description | Feature 1, Feature 2 |
 
 ## Common Usage Patterns
 
@@ -151,8 +151,8 @@ systemA:ConnectTo(systemB)
 
 | System | Relationship | Integration Points |
 |--------|--------------|-------------------|
-| [System A](mdc:other-category/index.md) | [Type of relationship] | [How they connect] |
-| [System B](mdc:other-category/index.md) | [Type of relationship] | [How they connect] |
+| [System A](mdc:dst-api-webdocs/other-category/index.md) | [Type of relationship] | [How they connect] |
+| [System B](mdc:dst-api-webdocs/other-category/index.md) | [Type of relationship] | [How they connect] |
 
 ## Troubleshooting
 
@@ -256,9 +256,9 @@ systemA:ConnectTo(systemB)
 ## Integration with Documentation Standards
 
 This rule works with:
-- [DST API Documentation Format](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-format.mdc)
-- [DST API Documentation Templates](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-templates.mdc)
-- [DST API Documentation Example Accuracy](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-example-accuracy.mdc)
+- [DST API Documentation Format](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-format.mdc)
+- [DST API Documentation Templates](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-templates.mdc)
+- [DST API Documentation Example Accuracy](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-example-accuracy.mdc)
 
 ## Validation Checklist
 

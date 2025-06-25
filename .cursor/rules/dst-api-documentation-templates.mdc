@@ -17,7 +17,7 @@ id: [Id]
 title: [Component Name]
 description: Component responsible for [primary functionality]
 sidebar_position: [Number]
-slug: api-vanilla/core-systems/[component-name]
+slug: game-scripts/core-systems/[component-name]
 last_updated: YYYY-MM-DD
 build_version: 676042
 change_status: stable

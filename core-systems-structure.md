@@ -3,7 +3,7 @@
 ## Cấu trúc thư mục tối ưu
 
 ```
-docs/api-vanilla/core-systems/
+docs/game-scripts/core-systems/
 ├── index.md                                    # sidebar_position: 1
 ├── fundamentals/                               # sidebar_position: 10
 │   ├── index.md                               # Tổng quan hệ thống cơ bản

@@ -41,7 +41,7 @@ All DST API documentation should consistently include:
 ## Documentation File Organization
 
 ```
-docs/api-vanilla/
+docs/game-scripts/
   |-- [module-category]/
       |-- index.md           # Category overview documentation
       |-- [module-name].md   # Specific module documentation

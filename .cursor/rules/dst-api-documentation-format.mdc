@@ -10,7 +10,7 @@ This rule defines the standardized format for documenting Don't Starve Together 
 ## File Structure
 
 ```
-docs/api-vanilla/[module-category]/
+docs/game-scripts/[module-category]/
   |-- index.md             # Overview of module category
   |-- [specific-file].md   # Documentation for specific module/file
 ```
