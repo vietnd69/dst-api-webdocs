@@ -16,6 +16,7 @@ When writing or updating documentation examples, you MUST:
 - **Cross-reference function signatures** to ensure parameter names, types, and usage are correct
 - **Validate data structures** used in examples match the actual implementation
 - **Check return values** and their types against source code
+- **Follow source reference standards** as defined in [DST Scripts Documentation Structure](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-scripts-documentation-structure.mdc)
 
 ### 2. Function Parameter Accuracy
 - **Parameter names** must match exactly as defined in source code
@@ -67,10 +68,11 @@ inst.components.health:SetVal(100)
 ## Verification Workflow
 
 ### Before Writing Examples
-1. **Locate source file** in [dst-scripts/](mdc:dst-api-webdocs/dst-scripts) directory
+1. **Locate source file** in [dst-scripts/](mdc:dst-api-webdocs/dst-scripts) directory using the directory mapping from [DST Scripts Documentation Structure](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-scripts-documentation-structure.mdc)
 2. **Read function implementation** to understand exact behavior
 3. **Check parameter usage** in existing game code
 4. **Verify data structures** used by the function
+5. **Reference the actual source file** using the proper mdc: link format
 
 ### During Example Creation
 1. **Use grep search** to find actual usage patterns in codebase
@@ -116,9 +118,10 @@ grep -B 5 -A 5 "FunctionName" dst-scripts/**/*.lua
 ## Integration with Documentation Standards
 
 This rule works together with:
-- [DST API Documentation Format](mdc:dst-api-webdocs/.cursor/rules/dst-api-documentation-format.mdc)
-- [DST API Documentation Overview](mdc:dst-api-webdocs/.cursor/rules/dst-api-documentation-overview.mdc)
-- [DST API Documentation Templates](mdc:dst-api-webdocs/.cursor/rules/dst-api-documentation-templates.mdc)
+- [DST Scripts Documentation Structure](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-scripts-documentation-structure.mdc): Provides directory mapping and source reference standards
+- [DST API Documentation Format](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-format.mdc): Defines general documentation formatting
+- [DST API Documentation Overview](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-overview.mdc): Provides comprehensive documentation overview
+- [DST API Documentation Templates](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-templates.mdc): Offers templates for different module types
 
 ## Quality Checklist for Examples
 
@@ -144,6 +147,8 @@ For each function, provide:
 
 **Status:** `stable`
 
+**Source:** [dst-scripts/path/filename.lua](mdc:dst-api-webdocs/dst-scripts/path/filename.lua)
+
 **Description:**
 [Verified description from source code comments and implementation]
 
@@ -162,7 +167,7 @@ local result = FunctionName(verified_param1, verified_param2)
 ```
 
 **Source Reference:**
-[Reference to specific file and line numbers where function is defined]
+Function defined in [dst-scripts/path/filename.lua](mdc:dst-api-webdocs/dst-scripts/path/filename.lua) at approximately line [line_number]
 ```
 
 ## Continuous Accuracy Maintenance

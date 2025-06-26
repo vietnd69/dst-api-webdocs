@@ -54,12 +54,14 @@ The `[Component Name]` component provides [primary functionality]. It is typical
 
 ## Component Methods
 
-### inst.components.[component_name]:[methodName](./dst-api-webdocs/param1, param2)
+### inst.components.[component_name]:[methodName](mdc:dst-api-webdocs/param1, param2)
 
 **Status:** `stable` | `added in build 675312` | `modified in build 675312` | `deprecated in build 675312`
 
+**Source:** [dst-scripts/components/[component_name].lua](mdc:dst-scripts/components/[component_name].lua)
+
 **Description:**
-[Method description]
+[Method description verified against source code]
 
 **Parameters:**
 - `param1` ([type]): [Parameter description]
@@ -71,7 +73,7 @@ The `[Component Name]` component provides [primary functionality]. It is typical
 **Example:**
 ```lua
 local entity = TheWorld.entity
-entity.components.[component_name]:[methodName](./dst-api-webdocs/"example", 5)
+entity.components.[component_name]:[methodName](mdc:dst-api-webdocs/"example", 5)
 ```
 
 ## Events
@@ -322,12 +324,14 @@ local inst = SpawnPrefab("[prefab_name]")
 
 ## Functions
 
-### [function_name](./dst-api-webdocs/param1, param2)
+### [function_name](mdc:dst-api-webdocs/param1, param2)
 
 **Status:** `stable` | `added in build 675312` | `modified in build 675312` | `deprecated in build 675312`
 
+**Source:** [dst-scripts/prefabs/[prefab_name].lua](mdc:dst-scripts/prefabs/[prefab_name].lua)
+
 **Description:**
-[Function description]
+[Function description verified against source code]
 
 **Parameters:**
 - `param1` ([type]): [Parameter description]
@@ -335,7 +339,7 @@ local inst = SpawnPrefab("[prefab_name]")
 
 **Example:**
 ```lua
-[Example code]
+[Example code verified against source implementation]
 ```
 
 ## Events

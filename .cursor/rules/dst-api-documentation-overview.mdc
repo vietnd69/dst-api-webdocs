@@ -11,9 +11,11 @@ This document provides an overview of all rules related to documenting the Don't
 
 | Rule Name | File | Purpose |
 |-----------|------|---------|
-| Documentation Format | [dst-api-documentation-format.mdc](./dst-api-webdocs/dst-api-documentation-format.mdc) | Defines the general structure and format for all DST API documentation |
-| Documentation Templates | [dst-api-documentation-templates.mdc](./dst-api-webdocs/dst-api-documentation-templates.mdc) | Provides specific templates for different types of API modules |
-| Documentation Maintenance | [dst-api-documentation-maintenance.mdc](./dst-api-webdocs/dst-api-documentation-maintenance.mdc) | Explains procedures for maintaining and updating documentation |
+| Documentation Format | [dst-api-documentation-format.mdc](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-documentation-format.mdc) | Defines the general structure and format for all DST API documentation |
+| Documentation Templates | [dst-api-documentation-templates.mdc](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-documentation-templates.mdc) | Provides specific templates for different types of API modules |
+| Documentation Maintenance | [dst-api-documentation-maintenance.mdc](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-documentation-maintenance.mdc) | Explains procedures for maintaining and updating documentation |
+| Scripts Documentation Structure | [dst-scripts-documentation-structure.mdc](mdc:dst-api-webdocs/dst-api-webdocs/dst-scripts-documentation-structure.mdc) | Defines the relationship between source code and documentation structure |
+| Example Accuracy | [dst-api-documentation-example-accuracy.mdc](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-documentation-example-accuracy.mdc) | Ensures all code examples are verified against actual source code |
 
 ## Key Documentation Elements
 
@@ -72,8 +74,8 @@ The documentation uses these status indicators:
 
 To start documenting the DST API:
 
-1. Use the [Documentation Format](./dst-api-webdocs/dst-api-documentation-format.mdc) rule to understand the general structure
-2. Select appropriate template from [Documentation Templates](./dst-api-webdocs/dst-api-documentation-templates.mdc) for your module type
-3. Follow the [Documentation Maintenance](./dst-api-webdocs/dst-api-documentation-maintenance.mdc) rule for updates
+1. Use the [Documentation Format](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-documentation-format.mdc) rule to understand the general structure
+2. Select appropriate template from [Documentation Templates](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-documentation-templates.mdc) for your module type
+3. Follow the [Documentation Maintenance](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-documentation-maintenance.mdc) rule for updates
 4. Ensure all documentation follows consistent conventions
 
