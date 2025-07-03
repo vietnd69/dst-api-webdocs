@@ -4,9 +4,9 @@ title: Willow Speech
 description: Character-specific dialogue and speech responses for Willow, the Firestarter
 sidebar_position: 2
 slug: /game-scripts/core-systems/speech-willow
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 ---
 
 # Willow Speech
@@ -14,7 +14,8 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Added Rift 5 speech lines: ANNOUNCE_FLOATER_HELD, ANNOUNCE_FLOATER_LETGO |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 
@@ -116,6 +117,15 @@ Her relationship with Bernie shows her softer side:
 - Emotional attachment to stuffed animal
 - Protective instincts toward her companion
 - Shows vulnerability beneath rebellious exterior
+
+### Rift 5 Content
+Willow's responses to new Rift 5 mechanics with her characteristic fire-focused perspective:
+```lua
+-- Rift 5 - New floating mechanics with pyrotechnic observations
+ANNOUNCE_FLOATER_HELD = "Something touched my foot."
+ANNOUNCE_FLOATER_LETGO = "I hate waiting!"
+ANNOUNCE_LUNARGUARDIAN_INCOMING = "Ugh, not again!"
+```
 
 ## Fallback Mechanism
 

@@ -4,9 +4,9 @@ title: Wickerbottom Speech
 description: Character-specific dialogue and speech responses for Wickerbottom, the Librarian
 sidebar_position: 6
 slug: /game-scripts/core-systems/speech-wickerbottom
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 ---
 
 # Wickerbottom Speech
@@ -14,7 +14,8 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Added Rift 5 speech lines: ANNOUNCE_FLOATER_HELD, ANNOUNCE_FLOATER_LETGO |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 
@@ -118,6 +119,15 @@ COOK = {
     INUSE = "Mmm, smells lovely, dear.",
     TOOFAR = "It is not within my reach."
 }
+```
+
+### Rift 5 Content
+Wickerbottom's responses to new Rift 5 mechanics with her characteristic scholarly perspective:
+```lua
+-- Rift 5 - New floating mechanics with academic observations
+ANNOUNCE_FLOATER_HELD = "Hmm, rather convenient."
+ANNOUNCE_FLOATER_LETGO = "Time for a dip!"
+ANNOUNCE_LUNARGUARDIAN_INCOMING = "Not you again!"
 ```
 
 ## Fallback Mechanism

@@ -4,9 +4,9 @@ title: Utility Functions
 description: Collection of utility functions for table manipulation, string processing, math calculations, and data structures
 sidebar_position: 1
 slug: game-scripts/core-systems/util
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified in build 676312
 ---
 
 # Utility Functions
@@ -14,11 +14,31 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Removed loadstring from sandbox environment for security |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 
 The **Utility Functions** module provides a comprehensive collection of helper functions for common programming tasks in Don't Starve Together. It includes table manipulation, string processing, mathematical calculations, data structures, debugging tools, and specialized game utilities.
+
+## Recent Changes
+
+### Build 676312 Security Enhancement
+
+In build 676312, the sandbox environment for executing untrusted code was enhanced by removing the `loadstring` function from the allowed environment:
+
+```lua
+-- Previous environment (before 676312)
+local env = {
+    loadstring=loadstring -- functions can get serialized to text, this is required to turn them back into functions
+}
+
+-- Current environment (676312+)
+local env = {  -- add functions you know are safe here
+}
+```
+
+**Security Impact:** This change prevents untrusted code executed through `RunInSandbox()` from dynamically generating and executing arbitrary code strings. While this removes some functionality for serialized function restoration, it significantly improves security by preventing potential code injection attacks through string-based code generation.
 
 ## Usage Example
 

@@ -4,9 +4,9 @@ title: Speech - Woodie
 description: Speech dialogue system for Woodie, the Canadian lumberjack character
 sidebar_position: 7
 slug: game-scripts/core-systems/speech-woodie
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 ---
 
 # Speech - Woodie
@@ -14,7 +14,8 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Added Rift 5 speech lines: ANNOUNCE_FLOATER_HELD, ANNOUNCE_FLOATER_LETGO |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 

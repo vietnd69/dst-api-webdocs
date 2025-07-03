@@ -4,9 +4,9 @@ title: Speech Systems Overview
 description: Overview of character-specific dialogue and speech systems in DST API
 sidebar_position: 0
 slug: gams-scripts/core-systems/character-systems/speech
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 category_type: character-system
 system_scope: character dialogue and speech responses
 ---
@@ -14,8 +14,8 @@ system_scope: character dialogue and speech responses
 # Speech Systems Overview
 
 ## Build Information
-Current documentation based on build version: **676042**
-Last updated: **2025-06-21**
+Current documentation based on build version: **676312**
+Last updated: **2025-06-25**
 
 ## System Purpose
 
@@ -53,7 +53,8 @@ Wilson Template → Character Override → Localization → Player Display
 
 | Build | Date | Component | Change Type | Description |
 |----|---|-----|----|----|
-| 676042 | 2025-06-21 | [All Characters](.) | stable | Current stable versions across all speech systems |
+| 676312 | 2025-06-25 | [Multiple Characters](.) | modified | Added Rift 5 speech lines: ANNOUNCE_FLOATER_HELD, ANNOUNCE_FLOATER_LETGO |
+| 676042 | 2025-06-21 | [All Characters](.) | stable | Previous stable versions across all speech systems |
 
 ## Character Speech Modules
 
@@ -61,38 +62,38 @@ Wilson Template → Character Override → Localization → Player Display
 
 | Module | Status | Description | Key Features |
 |-----|-----|----|-----|
-| [Wilson Speech](./speech_wilson.md) | stable | Master speech template | Base responses, fallback system, complete coverage |
+| [Wilson Speech](./speech_wilson.md) | modified in 676312 | Master speech template | Base responses, fallback system, complete coverage |
 
 ### Main Cast Characters
 
 | Module | Status | Description | Key Features |
 |-----|-----|----|-----|
-| [Willow Speech](./speech_willow.md) | stable | The Firestarter | Fire obsession, Bernie references, destructive enthusiasm |
-| [Wolfgang Speech](./speech_wolfgang.md) | stable | The Strongman | Germanic accent, strength focus, performance energy |
-| [Wendy Speech](./speech_wendy.md) | stable | The Bereaved | Melancholic poetry, Abigail connection, gothic sensibility |
-| [WX-78 Speech](./speech_wx78.md) | stable | The Automaton | Robotic superiority, technical terminology, fleshling disdain |
-| [Wickerbottom Speech](./speech_wickerbottom.md) | stable | The Librarian | Academic language, polite courtesy, educational tone |
-| [Woodie Speech](./speech_woodie.md) | stable | The Lumberjack | Canadian politeness, Lucy interactions, outdoor expertise |
+| [Willow Speech](./speech_willow.md) | modified in 676312 | The Firestarter | Fire obsession, Bernie references, destructive enthusiasm |
+| [Wolfgang Speech](./speech_wolfgang.md) | modified in 676312 | The Strongman | Germanic accent, strength focus, performance energy |
+| [Wendy Speech](./speech_wendy.md) | modified in 676312 | The Bereaved | Melancholic poetry, Abigail connection, gothic sensibility |
+| [WX-78 Speech](./speech_wx78.md) | modified in 676312 | The Automaton | Robotic superiority, technical terminology, fleshling disdain |
+| [Wickerbottom Speech](./speech_wickerbottom.md) | modified in 676312 | The Librarian | Academic language, polite courtesy, educational tone |
+| [Woodie Speech](./speech_woodie.md) | modified in 676312 | The Lumberjack | Canadian politeness, Lucy interactions, outdoor expertise |
 
 ### Extended Cast Characters
 
 | Module | Status | Description | Key Features |
 |-----|-----|----|-----|
-| [Maxwell Speech](./speech_waxwell.md) | stable | The Puppet Master | Aristocratic arrogance, magical expertise, condescending tone |
-| [Wigfrid Speech](./speech_wathgrithr.md) | stable | The Performance Artist | Norse warrior persona, archaic English, theatrical drama |
-| [Webber Speech](./speech_webber.md) | stable | The Indigestible | Child innocence, spider friendship, plural identity |
-| [Winona Speech](./speech_winona.md) | stable | The Handywoman | Engineering expertise, practical solutions, work ethic |
-| [Wortox Speech](./speech_wortox.md) | stable | The Soul Starved | Mischievous wordplay, supernatural perspective, theatrical nature |
-| [Wormwood Speech](./speech_wormwood.md) | stable | The Sprouted | Simple vocabulary, plant perspective, innocent nature |
+| [Maxwell Speech](./speech_waxwell.md) | modified in 676312 | The Puppet Master | Aristocratic arrogance, magical expertise, condescending tone |
+| [Wigfrid Speech](./speech_wathgrithr.md) | modified in 676312 | The Performance Artist | Norse warrior persona, archaic English, theatrical drama |
+| [Webber Speech](./speech_webber.md) | modified in 676312 | The Indigestible | Child innocence, spider friendship, plural identity |
+| [Winona Speech](./speech_winona.md) | modified in 676312 | The Handywoman | Engineering expertise, practical solutions, work ethic |
+| [Wortox Speech](./speech_wortox.md) | modified in 676312 | The Soul Starved | Mischievous wordplay, supernatural perspective, theatrical nature |
+| [Wormwood Speech](./speech_wormwood.md) | modified in 676312 | The Sprouted | Simple vocabulary, plant perspective, innocent nature |
 
 ### Recent Addition Characters
 
 | Module | Status | Description | Key Features |
 |-----|-----|----|-----|
-| [Warly Speech](./speech_warly.md) | stable | The Cuisinier | French expressions, culinary expertise, polite courtesy |
-| [Wurt Speech](./speech_wurt.md) | stable | The Merm | Aquatic focus, childlike energy, merm vocalizations |
-| [Walter Speech](./speech_walter.md) | stable | The Fearless Scout | Scout enthusiasm, Woby companion, safety awareness |
-| [Wanda Speech](./speech_wanda.md) | stable | The Clockmaker | Time obsession, temporal confusion, clockmaking expertise |
+| [Warly Speech](./speech_warly.md) | modified in 676312 | The Cuisinier | French expressions, culinary expertise, polite courtesy |
+| [Wurt Speech](./speech_wurt.md) | modified in 676312 | The Merm | Aquatic focus, childlike energy, merm vocalizations |
+| [Walter Speech](./speech_walter.md) | modified in 676312 | The Fearless Scout | Scout enthusiasm, Woby companion, safety awareness |
+| [Wanda Speech](./speech_wanda.md) | modified in 676312 | The Clockmaker | Time obsession, temporal confusion, clockmaking expertise |
 
 ## Speech System Architecture
 
@@ -168,6 +169,39 @@ ACORN = "Ooh! Can we plant it?!"
 -- Speech files support translation
 STRINGS.CHARACTERS.WILSON.DESCRIBE.ACORN = "It's an acorn."
 -- Translated through language files
+```
+
+### Rift 5 Content Updates
+Recent additions include new floating mechanics dialogue:
+```lua
+-- New Rift 5 speech patterns added across multiple characters
+ANNOUNCE_FLOATER_HELD = "Character-specific response to being held by floater"
+ANNOUNCE_FLOATER_LETGO = "Character-specific response to being released by floater"
+ANNOUNCE_LUNARGUARDIAN_INCOMING = "Character-specific response to lunar guardian return"
+```
+
+#### Character-Specific Rift 5 Examples
+```lua
+-- Walter (Scout enthusiasm)
+ANNOUNCE_FLOATER_HELD = "I knew I'd come out on top!"
+
+-- Wanda (Time perspective)  
+ANNOUNCE_FLOATER_HELD = "I saw my life flash before my eyes... not in any particular order."
+
+-- Wathgrithr (Norse warrior)
+ANNOUNCE_FLOATER_HELD = "Aye, I deny thee, Njord!"
+
+-- Maxwell (Aristocratic disdain)
+ANNOUNCE_FLOATER_HELD = "There are unspeakable horrors below."
+
+-- Webber (Child innocence)
+ANNOUNCE_FLOATER_HELD = "We float!"
+
+-- Wendy (Melancholic acceptance)
+ANNOUNCE_FLOATER_HELD = "What now?"
+
+-- Warly (Culinary metaphor)
+ANNOUNCE_FLOATER_HELD = "I feel like a dumpling!"
 ```
 
 ## Speech System Dependencies

@@ -4,9 +4,9 @@ title: Prefab Skins Data
 description: Auto-generated database of all prefab skin mappings in Don't Starve Together
 sidebar_position: 6
 slug: game-scripts/core-systems/prefabskins
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 ---
 
 # Prefab Skins Data
@@ -14,7 +14,8 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Added berrybush_waxed and dug_berrybush_waxed skin mappings |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 

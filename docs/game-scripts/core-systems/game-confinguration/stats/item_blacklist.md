@@ -4,9 +4,9 @@ title: Item Blacklist
 description: Blacklist system for controlling item display visibility in the UI
 sidebar_position: 2
 slug: gams-scripts/core-systems/item-blacklist
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 ---
 
 # Item Blacklist
@@ -14,7 +14,8 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Added blacklist entries for waxed berrybush variants |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 
@@ -34,7 +35,7 @@ end
 
 ### ITEM_DISPLAY_BLACKLIST
 
-**Status:** `stable`
+**Status:** `modified in build 676312`
 
 **Description:**
 A table that maps item keys to `true` values for items that should be hidden from display in the UI. This blacklist is automatically generated and includes various skin variants, builder items, and other items that shouldn't be shown to players.
@@ -74,6 +75,15 @@ end
 - Skin variants for various items
 - Internal boat and dock components
 - Upgraded versions of base items
+
+**New Blacklist Additions (Build 676312):**
+The following waxed berrybush variants have been added to the blacklist:
+- `berrybush_waxed_cawnival`: Waxed carnival berrybush variant
+- `berrybush_waxed_mystical`: Waxed mystical berrybush variant  
+- `dug_berrybush_waxed_cawnival`: Dug waxed carnival berrybush
+- `dug_berrybush_waxed_mystical`: Dug waxed mystical berrybush
+
+These items are blacklisted to prevent display duplication since they represent functional variants of existing berrybush items rather than distinct player-accessible items.
 
 ## Related Modules
 

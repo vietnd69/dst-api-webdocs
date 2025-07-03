@@ -4,9 +4,9 @@ title: Walter Speech
 description: Character-specific dialogue and speech responses for Walter, the Fearless Scout
 sidebar_position: 16
 slug: /game-scripts/core-systems/speech-walter
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 ---
 
 # Walter Speech
@@ -14,7 +14,8 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Added Rift 5 speech lines: ANNOUNCE_FLOATER_HELD, ANNOUNCE_FLOATER_LETGO |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 
@@ -134,6 +135,15 @@ COOK = {
 -- Shows excitement about discoveries
 EMPTY_CATCOONDEN = "It's empty? Well now I feel kind of bad..."
 KITCOON_HIDEANDSEEK_NOT_ENOUGH_HIDERS = "It would be a pretty short game, maybe I should find more first."
+```
+
+### Rift 5 Content
+Walter's responses to new Rift 5 mechanics show his adventurous spirit:
+```lua
+-- Rift 5 - New floating mechanics
+ANNOUNCE_FLOATER_HELD = "I knew I'd come out on top!"
+ANNOUNCE_FLOATER_LETGO = "Submerging!"
+ANNOUNCE_LUNARGUARDIAN_INCOMING = "Incoming... again?"
 ```
 
 ## Unique Character Elements

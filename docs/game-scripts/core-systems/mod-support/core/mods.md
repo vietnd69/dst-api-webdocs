@@ -4,9 +4,9 @@ title: Mods System
 description: Core mod loading and management system for Don't Starve Together
 sidebar_position: 1
 slug: /core-systems/mods
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified in build 676312
 ---
 
 # Mods System
@@ -14,11 +14,40 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Improved mod priority parsing and sorting stability |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 
 The `mods` module provides the core mod loading and management system for Don't Starve Together. It handles mod discovery, environment creation, loading sequences, and integration with the game's prefab and asset systems.
+
+## Recent Changes
+
+### Build 676312 Mod Loading Improvements
+
+The mod loading system was enhanced in build 676312 with better error handling for mod priority values:
+
+#### Priority Parsing Enhancement
+```lua
+-- Previous implementation (could fail on invalid strings)
+return tonumber(priority)
+
+-- Current implementation (676312 - provides fallback)
+return tonumber(priority) or 0
+```
+
+**Improvement:** The priority parsing now provides a fallback value of `0` when `tonumber()` fails to parse a string priority, preventing mod loading failures due to invalid priority specifications.
+
+#### Mod Name Sorting Stability
+```lua
+-- Enhanced name handling in mod sorting
+local bname = b.modinfo.name
+if type(bname) ~= "string" then
+    bname = b.modname
+end
+```
+
+**Improvement:** The mod sorting algorithm now has more robust handling of mod name types, ensuring stable sorting behavior even when mod info contains unexpected data types.
 
 ## Usage Example
 

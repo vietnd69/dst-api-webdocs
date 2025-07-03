@@ -4,9 +4,9 @@ title: Prefab Skins
 description: Visual skin system for customizing prefab appearance and functionality
 sidebar_position: 5
 slug: game-scripts/core-systems/prefabskin
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 ---
 
 # Prefab Skins
@@ -14,7 +14,8 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Added flotationcushion and sisturn skin functions |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 
@@ -299,6 +300,70 @@ Applies skin to tornado staff and sets up linked skin name for tornado effects.
 
 **Description:**
 Applies skin to potted succulents with plant component clearing.
+
+#### flotationcushion_init_fn(inst, build_name) {#flotationcushion-init-fn}
+
+**Status:** `added in 676312`
+
+**Source:** [dst-scripts/prefabskin.lua](mdc:dst-api-webdocs/dst-scripts/prefabskin.lua)
+
+**Description:**
+Applies skin to flotation cushion items. Uses basic initialization with default "flotationcushion" build.
+
+**Parameters:**
+- `inst` (EntityScript): The flotation cushion instance
+- `build_name` (string): Name of the skin build to apply
+
+**Example:**
+```lua
+flotationcushion_init_fn(inst, "flotationcushion_formal")
+```
+
+#### flotationcushion_clear_fn(inst, build_name) {#flotationcushion-clear-fn}
+
+**Status:** `added in 676312`
+
+**Description:**
+Removes skin from flotation cushion and reverts to default appearance.
+
+**Parameters:**
+- `inst` (EntityScript): The flotation cushion instance
+- `build_name` (string): Build name (unused but maintains function signature)
+
+#### sisturn_init_fn(inst, build_name) {#sisturn-init-fn}
+
+**Status:** `modified in 676312`
+
+**Source:** [dst-scripts/prefabskin.lua](mdc:dst-api-webdocs/dst-scripts/prefabskin.lua)
+
+**Description:**
+Applies skin to sister turn decorative furniture. Enhanced to include flower decoration updates alongside sound effects.
+
+**Parameters:**
+- `inst` (EntityScript): The sister turn instance
+- `build_name` (string): Name of the skin build to apply
+
+**Example:**
+```lua
+sisturn_init_fn(inst, "sisturn_marble")
+-- Updates both visual skin and flower decorations
+```
+
+**Version History:**
+- Modified in build 676312: Added `UpdateFlowerDecor()` call for proper decoration synchronization
+
+#### sisturn_clear_fn(inst) {#sisturn-clear-fn}
+
+**Status:** `modified in 676312`
+
+**Description:**
+Removes skin from sister turn and reverts to default appearance. Enhanced to update flower decorations when clearing skins.
+
+**Parameters:**
+- `inst` (EntityScript): The sister turn instance
+
+**Version History:**
+- Modified in build 676312: Added `UpdateFlowerDecor()` call to ensure decorations are properly reset
 
 ## Character Equipment Skins
 

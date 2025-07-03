@@ -4,9 +4,9 @@ title: World Generation Main
 description: Core world generation system for creating game worlds with terrain, entities, and set pieces
 sidebar_position: 1
 slug: game-scripts/core-systems/worldgen_main
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified in build 676312
 ---
 
 # World Generation Main
@@ -14,7 +14,8 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|---|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Added ValidateLineNumber utility function |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 
@@ -279,6 +280,42 @@ print("Map validation passed!")
 **Version History:**
 - Current implementation in build 676042
 
+### ValidateLineNumber(num) {#validate-line-number}
+
+**Status:** `added in build 676312`
+
+**Description:**
+A placeholder utility function that provides a consistent API for line number validation across different execution contexts. In the world generation environment, this function performs no operations but maintains compatibility with debugging tools that may call it.
+
+**Parameters:**
+- `num` (number): Line number to validate (parameter is ignored)
+
+**Returns:**
+- (void): No return value
+
+**Implementation:**
+```lua
+function ValidateLineNumber(num)
+    --do nothing
+end
+```
+
+**Purpose:**
+This function serves as a compatibility shim for debugging and development tools that expect line number validation functionality. While it performs no actual validation in the world generation context, it prevents errors when debugging tools attempt to call it.
+
+**Example:**
+```lua
+-- Called by debugging tools, but does nothing in worldgen
+ValidateLineNumber(42)
+
+-- Safe to call without effect
+local line_num = 100
+ValidateLineNumber(line_num)
+```
+
+**Version History:**
+- Added in build 676312 for debugging tool compatibility
+
 ## Set Piece Management
 
 ### AddSetPeices(level) {#add-set-pieces}
@@ -538,3 +575,18 @@ savedata = {
 - [`rooms`](../map/rooms.md): Room placement and connectivity
 - [`worldentities`](./worldentities.md): World entity injection system
 - [`mods`](./mods.md): Mod loading and integration system
+
+## Recent Changes
+
+### Build 676312 Utility Addition
+
+A new utility function was added to support debugging and development workflows:
+
+#### ValidateLineNumber Function
+```lua
+function ValidateLineNumber(num)
+    --do nothing
+end
+```
+
+**Purpose:** This placeholder function provides a consistent API for line number validation across different execution contexts. In the world generation environment, it performs no operations but maintains compatibility with debugging tools that may call it.

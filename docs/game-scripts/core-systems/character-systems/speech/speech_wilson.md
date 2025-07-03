@@ -4,9 +4,9 @@ title: Wilson Speech
 description: Character-specific dialogue and speech responses for Wilson, the Gentleman Scientist
 sidebar_position: 1
 slug: /game-scripts/core-systems/speech-wilson
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 ---
 
 # Wilson Speech
@@ -14,7 +14,8 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Added Rift 5 speech lines: ANNOUNCE_FLOATER_HELD, ANNOUNCE_FLOATER_LETGO |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 
@@ -139,6 +140,15 @@ When other character files don't define specific responses, the game falls back 
 - Opening and closing brackets on separate lines
 - Consistent unnamed string counts across all characters
 - Proper commenting for character-specific responses
+
+### Rift 5 Content
+Wilson's responses to new Rift 5 mechanics with his characteristic scientific curiosity:
+```lua
+-- Rift 5 - New floating mechanics with scientific observations
+ANNOUNCE_FLOATER_HELD = "I was busy drowning but something came up... me!"
+ANNOUNCE_FLOATER_LETGO = "I hate being kept in susp-"
+ANNOUNCE_LUNARGUARDIAN_INCOMING = "It's back!"
+```
 
 ## Related Files
 

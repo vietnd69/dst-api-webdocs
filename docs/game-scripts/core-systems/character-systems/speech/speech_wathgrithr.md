@@ -4,9 +4,9 @@ title: Wigfrid Speech
 description: Character-specific dialogue and speech responses for Wigfrid, the Performance Artist (Wathgrithr)
 sidebar_position: 9
 slug: /game-scripts/core-systems/speech-wathgrithr
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 ---
 
 # Wigfrid Speech
@@ -14,7 +14,8 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Added Rift 5 speech lines: ANNOUNCE_FLOATER_HELD, ANNOUNCE_FLOATER_LETGO |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 
@@ -168,6 +169,15 @@ CHANGEIN = {
     NOOCCUPANT = "I cannot groom without a beast."
     NOTENOUGHHAIR = "First the beast must grow back its mane."
 }
+```
+
+### Rift 5 Content
+Wathgrithr's responses to new Rift 5 mechanics with her characteristic Norse warrior flair:
+```lua
+-- Rift 5 - New floating mechanics with Norse references
+ANNOUNCE_FLOATER_HELD = "Aye, I deny thee, Njord!"
+ANNOUNCE_FLOATER_LETGO = "Curse thee, Njord!"
+ANNOUNCE_LUNARGUARDIAN_INCOMING = "Thou return'st!"
 ```
 
 ## Archaic Language Patterns

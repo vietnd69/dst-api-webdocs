@@ -4,9 +4,9 @@ title: Speech - Wormwood
 description: Speech dialogue system for Wormwood, the plant-based character with limited vocabulary
 sidebar_position: 13
 slug: game-scripts/core-systems/speech-wormwood
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 ---
 
 # Speech - Wormwood
@@ -14,7 +14,8 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Added Rift 5 speech lines: ANNOUNCE_FLOATER_HELD, ANNOUNCE_FLOATER_LETGO |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 
@@ -103,6 +104,15 @@ ANNOUNCE_COLD = "Brrr! Too cold!",
 - Trusting of others initially
 - Simple emotional expressions
 - Wonder at world around him
+
+### Rift 5 Content
+Wormwood's responses to new Rift 5 mechanics with his characteristic plant-like simplicity:
+```lua
+-- Rift 5 - New floating mechanics with innocent plant observations
+ANNOUNCE_FLOATER_HELD = "Good baby floater"
+ANNOUNCE_FLOATER_LETGO = "Bye, baby flo-"
+ANNOUNCE_LUNARGUARDIAN_INCOMING = "Night Ball ball back!"
+```
 
 ## Technical Implementation
 

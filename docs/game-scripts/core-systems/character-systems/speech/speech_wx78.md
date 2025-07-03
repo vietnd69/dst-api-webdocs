@@ -4,9 +4,9 @@ title: Speech - WX-78
 description: Speech dialogue system for WX-78, the robotic automaton character
 sidebar_position: 5
 slug: game-scripts/core-systems/speech-wx78
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 ---
 
 # Speech - WX-78
@@ -14,7 +14,8 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Added Rift 5 speech lines: ANNOUNCE_FLOATER_HELD, ANNOUNCE_FLOATER_LETGO |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 
@@ -103,6 +104,15 @@ ANNOUNCE_DISCHARGE = "WARNING: POWER DEPLETED",
 - Practical approach to problems
 - No emotional investment in relationships
 - Focus on efficiency and function
+
+### Rift 5 Content
+WX-78's responses to new Rift 5 mechanics with his characteristic robotic analysis:
+```lua
+-- Rift 5 - New floating mechanics with technical error messages
+ANNOUNCE_FLOATER_HELD = "ERROR: WHY WHHHY!"
+ANNOUNCE_FLOATER_LETGO = "I WILL RETURN"
+ANNOUNCE_LUNARGUARDIAN_INCOMING = "YOU'RE BACK!"
+```
 
 ## Technical Implementation
 

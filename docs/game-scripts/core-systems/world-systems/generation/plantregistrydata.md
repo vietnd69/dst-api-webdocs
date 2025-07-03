@@ -4,9 +4,9 @@ title: Plant Registry Data
 description: Data management system for tracking discovered plants, growth stages, fertilizers, and oversized plant pictures in the farming system
 sidebar_position: 6
 slug: game-scripts/core-systems/plantregistrydata
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 ---
 
 # Plant Registry Data
@@ -14,7 +14,8 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Enhanced data loading with better error handling and safety |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 
@@ -448,16 +449,24 @@ registry:Save(true) -- Force immediate save
 
 ### Load() {#load}
 
-**Status:** `stable`
+**Status:** `modified in 676312`
+
+**Source:** [dst-scripts/plantregistrydata.lua](mdc:dst-api-webdocs/dst-scripts/plantregistrydata.lua)
 
 **Description:**
-Loads plant registry data from persistent storage asynchronously. Data is restored to the instance when loading completes.
+Loads plant registry data from persistent storage asynchronously. Enhanced with improved error handling and data validation. Data is restored to the instance when loading completes. If corrupted data is detected, it will be automatically cleared and resaved.
 
 **Example:**
 ```lua
 registry:Load()
 -- Data will be available after the async operation completes
+-- Corrupted data will be automatically cleaned up
 ```
+
+**Version History:**
+- Modified in build 676312: Enhanced data loading with better error handling and `RunInSandboxSafe()` usage
+- Added automatic data clearing when corrupted data is detected
+- Improved initialization to ensure clean state before loading
 
 ### ApplyOnlineProfileData() {#apply-online-profile-data}
 

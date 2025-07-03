@@ -4,9 +4,9 @@ title: Core Systems Overview
 description: Overview of all core systems in the DST API
 sidebar_position: 0
 slug: game-scripts/core-systems
-last_updated: 2025-01-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 category_type: main-index
 system_scope: all core systems
 ---
@@ -14,8 +14,8 @@ system_scope: all core systems
 # Core Systems Overview
 
 ## Build Information
-Current documentation based on build version: **676042**
-Last updated: **2025-01-21**
+Current documentation based on build version: **676312**
+Last updated: **2025-06-25**
 
 ## Core Systems Architecture
 
@@ -48,7 +48,7 @@ Manages all aspects of character behavior, customization, and progression.
 | [Customization](./character-systems/customization/index.md) | Character appearance and clothing | Beefalo clothing, player clothing |
 | [Emotes](./character-systems/emotes/index.md) | Character expressions | Emote items, emoji items |
 | [Progression](./character-systems/progression/index.md) | Character advancement | Skill trees, progression constants |
-| [Speech](./character-systems/speech/index.md) | Character dialogue | Character-specific speech patterns |
+| [Speech](./character-systems/speech/index.md) | Character dialogue | Character-specific speech patterns, Rift 5 updates |
 
 ### [Data Management](./data-management/index.md)
 Handles all data persistence, assets, and file operations.
@@ -172,9 +172,12 @@ Networking → Character → Fundamentals → Data Mgmt → UI Updates
 
 | Build | Date | Category | Change Type | Description |
 |----|---|----|----|----|
+| 676312 | 2025-06-25 | [Game Configuration](./game-confinguration/index.md) | modified | Enhanced error recovery in console settings and cookbook data |
+| 676312 | 2025-06-25 | [User Interface](./user-interface/index.md) | modified | Added validation line numbers in frontend and input systems |
+| 676312 | 2025-06-25 | [Game Configuration](./game-confinguration/index.md) | modified | Simplified tile conversion logic in game logic |
+| 676312 | 2025-06-25 | [Game Configuration](./game-confinguration/index.md) | modified | Added waxed berrybush variants to item blacklist |
+| 676312 | 2025-06-25 | [Character Systems](./character-systems/index.md) | modified | Added Rift 5 speech lines across multiple characters |
 | 676042 | 2025-01-21 | Multiple | stability | General stability improvements |
-| 675312 | 2023-11-15 | Character Systems | enhanced | Improved character customization |
-| 675312 | 2023-11-15 | Game Mechanics | added | New cooking recipes |
 
 ## Development Guidelines
 

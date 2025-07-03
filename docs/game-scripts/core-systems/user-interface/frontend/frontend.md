@@ -4,9 +4,9 @@ title: Frontend
 description: Core frontend system managing UI screens, input handling, and visual effects
 sidebar_position: 1
 slug: game-scripts/core-systems/frontend
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 ---
 
 # Frontend
@@ -14,7 +14,8 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Added validation line numbers for debugging and development |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 
@@ -236,10 +237,10 @@ end
 
 ### OnControl(control, down) {#on-control}
 
-**Status:** `stable`
+**Status:** `modified in build 676312`
 
 **Description:**
-Handles control input events and routes them to appropriate handlers.
+Handles control input events and routes them to appropriate handlers. Enhanced with validation line numbers for debugging and development purposes.
 
 **Parameters:**
 - `control` (number): Control constant (CONTROL_PRIMARY, CONTROL_ACCEPT, etc.)
@@ -248,11 +249,18 @@ Handles control input events and routes them to appropriate handlers.
 **Returns:**
 - (boolean): True if input was handled
 
+**Development Enhancement (Build 676312):**
+- Added `ValidateLineNumber(411)` and `ValidateLineNumber(490)` calls for code verification
+- These validation calls help ensure code integrity during development and debugging
+
 **Example:**
 ```lua
 -- Internal usage - called by input system
 local handled = TheFrontEnd:OnControl(CONTROL_PRIMARY, true)
 ```
+
+**Technical Details:**
+The OnControl method now includes validation checkpoints at specific line numbers (411 and 490) to assist with debugging and development validation processes.
 
 ### SetFadeLevel(alpha, time, time_total) {#set-fade-level}
 

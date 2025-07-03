@@ -4,9 +4,9 @@ title: Game Logic
 description: Core game initialization, world management, and main game loop functionality
 sidebar_position: 1
 slug: game-scripts/core-systems/gamelogic
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 ---
 
 # Game Logic
@@ -14,7 +14,8 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Removed GemCore tile data integration, simplified tile conversion logic |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 
@@ -163,10 +164,10 @@ end
 
 ### PopulateWorld(savedata, profile) {#populate-world}
 
-**Status:** `stable`
+**Status:** `modified in build 676312`
 
 **Description:**
-Creates and populates the game world with all entities, components, and systems based on save data. This is the core world instantiation function.
+Creates and populates the game world with all entities, components, and systems based on save data. This is the core world instantiation function. Simplified tile conversion logic in build 676312.
 
 **Parameters:**
 - `savedata` (table): Complete world save data including map, entities, and metadata
@@ -178,6 +179,24 @@ Creates and populates the game world with all entities, components, and systems 
 - Instantiates all saved entities
 - Runs post-load passes for entity references
 - Executes scenario scripts
+
+**Tile Conversion Simplification (Build 676312):**
+- Removed dependency on GemCore mod tile data
+- Simplified tile ID conversion to use only old_static_id from tile info
+- Eliminated complex third-party mod integration for tile mapping
+
+```lua
+-- Previous implementation included GemCore integration
+-- TryGetGemCoreTileData() and complex fallback logic
+
+-- Simplified implementation (Build 676312)
+for name, id in pairs(GetWorldTileMap()) do
+    local tile_info = GetTileInfo(id)
+    if tile_info and tile_info.old_static_id ~= nil and tile_info.old_static_id ~= id then
+        tile_id_conversion_map[tile_info.old_static_id] = id
+    end
+end
+```
 
 ### DoInitGame(savedata, profile) {#do-init-game}
 

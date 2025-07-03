@@ -4,9 +4,9 @@ title: Main Entry Point
 description: Core game initialization script containing platform detection, system setup, and asset loading
 sidebar_position: 1
 slug: game-scripts/core-systems/main
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 ---
 
 # Main Entry Point
@@ -14,7 +14,8 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Added ValidateLineNumber function |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 
@@ -127,6 +128,27 @@ Checks if the game is running on Steam Deck.
 
 **Returns:**
 - (boolean): True if running on Steam Deck
+
+### ValidateLineNumber(num) {#validate-line-number}
+
+**Status:** `added in 676312`
+
+**Source:** [dst-scripts/main.lua](mdc:dst-api-webdocs/dst-scripts/main.lua)
+
+**Description:**
+Validates line numbers for debugging purposes. This function is called by the simulation system to ensure proper line number tracking.
+
+**Parameters:**
+- `num` (number): Line number to validate
+
+**Example:**
+```lua
+-- Called internally by simulation system
+ValidateLineNumber(42)
+```
+
+**Version History:**
+- Added in build 676312: New debugging utility function
 
 ## Game Configuration Constants
 

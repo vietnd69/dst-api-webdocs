@@ -4,9 +4,9 @@ title: Console Screen Settings
 description: Console history and settings persistence system for Don't Starve Together
 sidebar_position: 9
 slug: core-systems-consolescreensettings
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 ---
 
 # Console Screen Settings
@@ -14,7 +14,8 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Improved type checking in OnLoad method for better error handling |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 
@@ -315,10 +316,10 @@ end)
 
 ### OnLoad(str, callback) {#on-load}
 
-**Status:** `stable`
+**Status:** `modified in build 676312`
 
 **Description:**
-Internal method that processes loaded data string and handles legacy save data migration.
+Internal method that processes loaded data string and handles legacy save data migration. Enhanced with improved type checking for better error handling.
 
 **Parameters:**
 - `str` (string): JSON-encoded settings data string
@@ -327,12 +328,22 @@ Internal method that processes loaded data string and handles legacy save data m
 **Returns:** None
 
 **Behavior:**
+- **Enhanced Type Checking**: Validates that `str` is a string type before checking length (improved in 676312)
 - Decodes JSON data into persistdata table using TrackedAssert for error handling
 - Handles migration from legacy save format (history + localremotehistory arrays)
 - Sets dirty flag to false after successful load
 - Converts old format to new historylines structure if needed
 - Prints load status and string length to console
 - Automatically sets dirty flag to true if migration occurs
+
+**Type Safety Enhancement (Build 676312):**
+```lua
+-- Previous validation (could fail with non-string types)
+if str == nil or string.len(str) == 0 then
+
+-- Enhanced validation (now includes type checking)
+if str == nil or type(str) ~= "string" or string.len(str) == 0 then
+```
 
 **Example:**
 ```lua
@@ -341,6 +352,7 @@ Internal method that processes loaded data string and handles legacy save data m
 ```
 
 **Version History:**
+- Modified in build 676312: Enhanced type checking for better error handling
 - Current implementation in build 676042
 - Includes CONSOLE_HISTORY_REFACTOR migration support
 

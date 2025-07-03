@@ -4,9 +4,9 @@ title: Winona Speech
 description: Character-specific dialogue and speech responses for Winona, the Handywoman
 sidebar_position: 11
 slug: /game-scripts/core-systems/speech-winona
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 ---
 
 # Winona Speech
@@ -14,7 +14,8 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Added Rift 5 speech lines: ANNOUNCE_FLOATER_HELD, ANNOUNCE_FLOATER_LETGO |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 
@@ -116,6 +117,15 @@ Shows her analytical mindset:
 - Technical solutions to complex problems
 - Understanding of cause and effect relationships
 - Practical approach to challenges
+
+### Rift 5 Content
+Winona's responses to new Rift 5 mechanics with her characteristic engineering practicality:
+```lua
+-- Rift 5 - New floating mechanics with technical observations
+ANNOUNCE_FLOATER_HELD = "Thank goodness for this!"
+ANNOUNCE_FLOATER_LETGO = "Like a bag of rocks!"
+ANNOUNCE_LUNARGUARDIAN_INCOMING = "Again!?"
+```
 
 ## Fallback Mechanism
 

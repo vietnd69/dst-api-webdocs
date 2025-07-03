@@ -4,9 +4,9 @@ title: Input System
 description: Comprehensive input handling for keyboard, mouse, controllers, and virtual controls
 sidebar_position: 1
 slug: game-scripts/core-systems/input
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 ---
 
 # Input System
@@ -14,7 +14,8 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Enhanced player validation in ResolveVirtualControls and added validation line numbers |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 
@@ -275,16 +276,27 @@ Gets the analog value for a control (useful for analog sticks, triggers).
 
 #### TheInput:ResolveVirtualControls(control)
 
-**Status:** `stable`
+**Status:** `modified in build 676312`
 
 **Description:**
-Resolves virtual controls to actual control inputs based on current control scheme and game state.
+Resolves virtual controls to actual control inputs based on current control scheme and game state. Enhanced with improved player validation for better stability.
 
 **Parameters:**
 - `control` (number): Virtual control ID or regular control ID
 
 **Returns:**
 - (number|nil): Resolved control ID or nil if control should be ignored
+
+**Player Validation Enhancement (Build 676312):**
+Improved null-checking for player entities to prevent potential crashes when HUD components are not available.
+
+```lua
+-- Previous validation (could access HUD on nil player)
+if not (player and player.HUD and player.HUD:IsCraftingOpen()) then
+
+-- Enhanced validation (ensures player exists before HUD access)
+if player and not (player.HUD and player.HUD:IsCraftingOpen()) then
+```
 
 **Virtual Control Categories:**
 - **Camera Controls**: VIRTUAL_CONTROL_CAMERA_ZOOM_IN to VIRTUAL_CONTROL_CAMERA_ROTATE_RIGHT
@@ -522,6 +534,9 @@ function OnInputText(text)          -- Text input events
 function OnGesture(gesture)         -- Touch/gesture events
 function OnControlMapped(deviceId, controlId, inputId, hasChanged)  -- Control mapping
 ```
+
+**Development Enhancement (Build 676312):**
+The OnControl function now includes validation line numbers (`ValidateLineNumber(162)` and `ValidateLineNumber(171)`) for debugging and development verification purposes. These checkpoints assist in ensuring code integrity during development phases.
 
 ## Common Usage Patterns
 

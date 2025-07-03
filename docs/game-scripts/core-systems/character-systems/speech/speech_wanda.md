@@ -4,9 +4,9 @@ title: Wanda Speech
 description: Character-specific dialogue and speech responses for Wanda, the Clockmaker
 sidebar_position: 17
 slug: /game-scripts/core-systems/speech-wanda
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 ---
 
 # Wanda Speech
@@ -14,7 +14,8 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Added Rift 5 speech lines: ANNOUNCE_FLOATER_HELD, ANNOUNCE_FLOATER_LETGO |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 
@@ -196,6 +197,15 @@ CHANGEIN = {
 COMPARE_WEIGHABLE = {
     OVERSIZEDVEGGIES_TOO_SMALL = "Too small. I guess I shouldn't have picked it so early..."
 }
+```
+
+### Rift 5 Content
+Wanda's responses to new Rift 5 mechanics reflect her temporal perspective:
+```lua
+-- Rift 5 - New floating mechanics with time-related responses
+ANNOUNCE_FLOATER_HELD = "I saw my life flash before my eyes... not in any particular order."
+ANNOUNCE_FLOATER_LETGO = "I hate this part!"
+ANNOUNCE_LUNARGUARDIAN_INCOMING = "Right on cue."
 ```
 
 ## Technical Implementation

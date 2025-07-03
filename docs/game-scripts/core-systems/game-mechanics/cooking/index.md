@@ -40,6 +40,7 @@ Special systems like spiced foods automatically generate variants of base recipe
 | Build | Date | Component | Change Type | Description |
 |----|---|-----|----|----|
 | 676042 | 2025-06-21 | [Cooking](./cooking.md) | stable | Core cooking system with mod integration |
+| 676312 | 2025-06-25 | [Cookbook Data](./cookbookdata.md) | modified | Enhanced error recovery in Load() method with type validation |
 | 676042 | 2025-06-21 | [Cookbook Data](./cookbookdata.md) | stable | Recipe discovery and persistence system |
 | 676042 | 2025-06-21 | [Prepared Foods](./preparedfoods.md) | stable | Standard cookpot recipes collection |
 | 676042 | 2025-06-21 | [Prepared Foods Warly](./preparedfoods_warly.md) | stable | Warly-exclusive portable cookpot recipes |

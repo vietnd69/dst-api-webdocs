@@ -3,12 +3,12 @@ title: "Cookbook Data"
 description: "Recipe discovery and food knowledge management system for Don't Starve Together"
 sidebar_position: 2
 slug: /game-scripts/core-systems/cookbookdata
-last_updated: "2025-06-21"
-build_version: "676042"
-change_status: "stable"
+last_updated: "2025-06-25"
+build_version: "676312"
+change_status: "modified"
 ---
 
-# Cookbook Data 🟢
+# Cookbook Data 🔄
 
 The **CookbookData** module manages the cookbook system in Don't Starve Together, tracking discovered recipes, food preparation knowledge, and providing persistent storage for cooking-related data. It serves as the backend for the in-game cookbook interface.
 
@@ -242,10 +242,35 @@ CookbookData:Save(true)
 ```
 
 #### Load()
-Loads cookbook data from persistent storage.
+Loads cookbook data from persistent storage with enhanced error recovery.
+
+**Enhanced Error Recovery (Build 676312):**
+- Improved type checking for preparedfoods and filters data
+- Automatic fallback to online profile data when local save is corrupted
+- Automatic save recovery when successfully applying online cache
+
+**Error Handling Flow:**
+1. **Primary Load**: Attempts to load from local save file
+2. **Type Validation**: Validates that preparedfoods is a table structure  
+3. **Recovery Mode**: Falls back to online profile data if local data is corrupted
+4. **Automatic Repair**: Saves corrected data back to local storage
 
 ```lua
-CookbookData:Load()  -- Load saved cookbook data
+CookbookData:Load()  -- Load saved cookbook data with error recovery
+```
+
+**Technical Enhancement Details:**
+```lua
+-- Enhanced validation in Load() method (Build 676312)
+if type(recipe_book.preparedfoods) == "table" then
+    self.preparedfoods = recipe_book.preparedfoods
+    if type(recipe_book.filters) == "table" then
+        self.filters = recipe_book.filters
+    end
+else
+    print("Failed to load preparedfoods table in cookbook!")
+    -- Automatic recovery attempt using online cache
+end
 ```
 
 #### ApplyOnlineProfileData()
@@ -508,17 +533,48 @@ end
 
 ```lua
 function CookbookData:Load()
+    self.preparedfoods = {}
+    self.filters = {}
+    local needs_save = false
+    local really_bad_state = false
+    
     TheSim:GetPersistentString("cookbook", function(load_success, data)
         if load_success and data ~= nil then
             local status, recipe_book = pcall(function() return json.decode(data) end)
+            
             if status and recipe_book then
-                self.preparedfoods = recipe_book.preparedfoods or {}
-                self.filters = recipe_book.filters or {}
+                -- Enhanced type validation (Build 676312)
+                if type(recipe_book.preparedfoods) == "table" then
+                    self.preparedfoods = recipe_book.preparedfoods
+                    if type(recipe_book.filters) == "table" then
+                        self.filters = recipe_book.filters
+                    end
+                else
+                    really_bad_state = true
+                    print("Failed to load preparedfoods table in cookbook!")
+                end
             else
+                really_bad_state = true
                 print("Failed to load the cookbook!", status, recipe_book)
             end
         end
     end)
+    
+    -- Enhanced error recovery (Build 676312)
+    if really_bad_state then
+        print("Trying to apply online cache of cookbook data..")
+        if self:ApplyOnlineProfileData() then
+            print("Was a success, using preparedfoods values")
+            needs_save = true
+        else
+            print("Which also failed. This error is unrecoverable. Cookbook will be cleared.")
+        end
+    end
+    
+    if needs_save then
+        print("Saving cookbook file as a fixup.")
+        self:Save(true)
+    end
 end
 ```
 
@@ -526,7 +582,8 @@ end
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 676042 | 2025-06-21 | Current stable implementation with online sync support |
+| 676312 | 2025-06-25 | Enhanced error recovery in Load() method with type validation and automatic online cache fallback |
+| 676042 | 2025-06-21 | Stable implementation with online sync support |
 
 ## Related Modules
 
@@ -544,4 +601,4 @@ end
 
 ---
 
-*This documentation covers the CookbookData module as of build 676042. The cookbook system enables players to track cooking discoveries and build comprehensive recipe knowledge.*
+*This documentation covers the CookbookData module as of build 676312. The cookbook system enables players to track cooking discoveries and build comprehensive recipe knowledge with enhanced error recovery.*

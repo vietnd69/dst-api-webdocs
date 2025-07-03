@@ -4,9 +4,9 @@ title: Speech - Wortox
 description: Speech dialogue system for Wortox, the mischievous imp character
 sidebar_position: 12
 slug: game-scripts/core-systems/speech-wortox
-last_updated: 2025-06-21
-build_version: 676042
-change_status: stable
+last_updated: 2025-06-25
+build_version: 676312
+change_status: modified
 ---
 
 # Speech - Wortox
@@ -14,7 +14,8 @@ change_status: stable
 ## Version History
 | Build Version | Change Date | Change Type | Description |
 |---|----|----|----|
-| 676042 | 2025-06-21 | stable | Current version |
+| 676312 | 2025-06-25 | modified | Added Rift 5 speech lines: ANNOUNCE_FLOATER_HELD, ANNOUNCE_FLOATER_LETGO |
+| 676042 | 2025-06-21 | stable | Previous version |
 
 ## Overview
 
@@ -102,6 +103,15 @@ DESCRIBE = {
 - Performance-like delivery
 - Exaggerated emotional responses
 - Entertainment-focused interactions
+
+### Rift 5 Content
+Wortox's responses to new Rift 5 mechanics with his characteristic theatrical wordplay:
+```lua
+-- Rift 5 - New floating mechanics with mischievous rhyming
+ANNOUNCE_FLOATER_HELD = "Wet fur? What for?"
+ANNOUNCE_FLOATER_LETGO = "No time to rhy-"
+ANNOUNCE_LUNARGUARDIAN_INCOMING = "Ack! It's back!"
+```
 
 ## Technical Implementation
 
