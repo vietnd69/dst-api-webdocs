@@ -455,8 +455,8 @@ Comprehensive validation of character skill tree state.
 
 **Validation Checks:**
 1. **Character has skill tree**: Prefab exists in SKILLTREE_DEFS
-2. **Experience range**: XP >= 0 and within limits
-3. **Point allocation**: Activated skills <= available points from XP
+2. **Experience range**: XP `>=` 0 and within limits
+3. **Point allocation**: Activated skills `<=` available points from XP
 4. **Skill existence**: All activated skills exist in character's tree
 5. **Prerequisites**: `must_have_one_of` dependencies satisfied
 6. **Requirements**: `must_have_all_of` dependencies satisfied

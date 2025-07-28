@@ -1,4 +1,5 @@
 ---
+id: bebeefalo-clothing
 title: Beefalo Clothing System
 description: Documentation of the Don't Starve Together beefalo clothing system for cosmetic beefalo customization
 sidebar_position: 2

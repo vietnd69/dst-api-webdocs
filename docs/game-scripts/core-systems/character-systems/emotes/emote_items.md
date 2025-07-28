@@ -1,5 +1,5 @@
 ---
-id: emote_items
+id: emote-items
 title: Emote Items
 description: Purchasable and unlockable emote item definitions for premium player expressions
 sidebar_position: 2

@@ -1,5 +1,5 @@
 ---
-id: core-systems-stategraph
+id: stategraph
 title: Stategraph
 description: Core state machine system for managing entity behaviors and animations
 sidebar_position: 3

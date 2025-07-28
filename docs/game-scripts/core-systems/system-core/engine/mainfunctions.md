@@ -3,7 +3,7 @@ id: mainfunctions
 title: Main Functions
 description: Core game functions for save/load operations, entity management, time functions, and game flow control
 sidebar_position: 2
-slug: game-scripts/core-systems/mainfunctions
+slug: game-scripts/core-systems/system-core/mainfunctions
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

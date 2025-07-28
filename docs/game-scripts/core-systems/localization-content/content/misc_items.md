@@ -1,5 +1,5 @@
 ---
-id: misc_items
+id: misc-items
 title: Misc Items
 description: Comprehensive catalog of miscellaneous cosmetic items, emojis, loading screens, and purchasable content
 sidebar_position: 1

@@ -1,4 +1,5 @@
 ---
+id: builtinusercommands
 title: Built-in User Commands System
 description: Documentation of the Don't Starve Together built-in user commands for player interaction and server administration
 sidebar_position: 3
@@ -206,7 +207,7 @@ AddUserCommand("roll", {
 
 **Usage**:
 - `/roll` - Rolls 1d100
-- `/roll <sides>` - Rolls 1d<sides>
+- `/roll <sides>` - Rolls 1d `<sides>`
 - `/roll <dice>d<sides>` - Rolls multiple dice
 
 **Features**:

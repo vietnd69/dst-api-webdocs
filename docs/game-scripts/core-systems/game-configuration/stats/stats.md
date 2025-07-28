@@ -1,5 +1,5 @@
 ---
-id: core-systems-stats
+id: stats
 title: Stats
 description: Statistics and metrics collection system for tracking game events and performance data
 sidebar_position: 1

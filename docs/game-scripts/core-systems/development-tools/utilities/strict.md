@@ -1,5 +1,5 @@
 ---
-id: core-systems-strict
+id: strict
 title: Strict
 description: Lua strict mode implementation preventing access to undeclared global variables
 sidebar_position: 2

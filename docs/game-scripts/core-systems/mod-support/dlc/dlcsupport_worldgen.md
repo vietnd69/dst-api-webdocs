@@ -1,5 +1,5 @@
 ---
-id: dlcsupport_worldgen
+id: dlcsupport-worldgen
 title: DLC Support Worldgen
 description: DLC support system specialized for world generation with parameter-based DLC state management
 sidebar_position: 3

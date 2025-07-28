@@ -1,5 +1,5 @@
 ---
-id: core-systems-strings-stageactor
+id: strings-stageactor
 title: Strings Stage Actor
 description: Dialogue content and performance scripts for theatrical stage actor events and character performances
 sidebar_position: 3

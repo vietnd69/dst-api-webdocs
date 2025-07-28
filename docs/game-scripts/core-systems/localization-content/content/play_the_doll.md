@@ -1,7 +1,7 @@
 ---
 id: play-the-doll
 title: Play The Doll
-description: "The Enchanted Doll" theatrical performance implementation for the stage play system
+description: "The Enchanted Doll theatrical performance implementation for the stage play system"
 sidebar_position: 8
 slug: game-scripts/core-systems/play-the-doll
 last_updated: 2025-06-21

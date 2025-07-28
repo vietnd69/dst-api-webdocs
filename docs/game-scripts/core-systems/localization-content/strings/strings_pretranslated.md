@@ -1,5 +1,5 @@
 ---
-id: core-systems-strings-pretranslated
+id: strings-pretranslated
 title: Strings Pretranslated
 description: Pre-translated language strings and localization support for multi-language user interfaces
 sidebar_position: 2

@@ -3,7 +3,7 @@ id: main
 title: Main Entry Point
 description: Core game initialization script containing platform detection, system setup, and asset loading
 sidebar_position: 1
-slug: game-scripts/core-systems/main
+slug: game-scripts/core-systems/system-core/main
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

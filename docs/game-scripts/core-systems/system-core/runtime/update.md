@@ -3,7 +3,7 @@ id: update
 title: Update System
 description: Core update loop system that handles game simulation timing and component updates
 sidebar_position: 1
-slug: game-scripts/core-systems/update
+slug: game-scripts/core-systems/runtime/update
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -1,5 +1,5 @@
 ---
-id: skins_defs_data
+id: skins-defs-data
 title: Skins Definitions Data
 description: Auto-generated skin definitions, configurations, and asset mappings for the inventory system
 sidebar_position: 3

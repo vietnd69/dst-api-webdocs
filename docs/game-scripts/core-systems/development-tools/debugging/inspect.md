@@ -1,5 +1,5 @@
 ---
-id: core-systems-inspect
+id: inspect
 title: Inspect
 description: Library for creating human-readable representations of Lua tables and values
 sidebar_position: 8

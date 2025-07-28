@@ -3,7 +3,7 @@ id: maputil
 title: Map Utilities
 description: Map topology utilities for pathfinding, node manipulation, convex hull calculations, and map visualization
 sidebar_position: 4
-slug: game-scripts/core-systems/maputil
+slug: game-scripts/core-systems/system-core/maputil
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable
@@ -103,9 +103,9 @@ ShowClosestNodeToPlayer()
 Calculates the cross product of vectors for geometric calculations.
 
 **Parameters:**
-- `o` (table): Origin point {x, y}
-- `a` (table): First point {x, y}
-- `b` (table): Second point {x, y}
+- `o` (table): Origin point `{x, y}`
+- `a` (table): First point `{x, y}`
+- `b` (table): Second point `{x, y}`
 
 **Returns:**
 - (number): Cross product value
@@ -118,7 +118,7 @@ Calculates the cross product of vectors for geometric calculations.
 Computes the convex hull of a set of 2D points using Andrew's algorithm.
 
 **Parameters:**
-- `points` (table): Array of point coordinates {{x1, y1}, {x2, y2}, ...}
+- `points` (table): Array of point coordinates `{{x1, y1}, {x2, y2}, ...}`
 
 **Returns:**
 - (table): Array of points forming the convex hull

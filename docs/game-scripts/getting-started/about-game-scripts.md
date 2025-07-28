@@ -11,6 +11,20 @@ change_status: stable
 
 # About Don't Starve Together Game Scripts
 
+> **Note**:  
+> This document is AI-generated based on the base scripts of the Don't Starve Together game, which can be found at:  
+> `SteamLibrary\steamapps\common\Don't Starve Together\data\databundles\scripts.zip`  
+> > ⚠️ **Disclaimer**: The information in this documentation may not be fully accurate and should be verified.  
+>  
+> A regularly updated and cleaned-up fork of the DST scripts is maintained at:  
+> 🔗 [https://github.com/vietnd69/dst-scripts](https://github.com/vietnd69/dst-scripts)  
+>  
+
+>  
+> Contributions, fixes, and collaborative development are welcome at:  
+> 📘 [https://github.com/vietnd69/dst-api-webdocs](https://github.com/vietnd69/dst-api-webdocs)
+
+
 ## What Are DST Game Scripts?
 
 Don't Starve Together (DST) is built on a comprehensive Lua scripting system that defines virtually every aspect of the game's behavior. These scripts form the backbone of DST's gameplay mechanics, user interface, artificial intelligence, world generation, and modding capabilities.

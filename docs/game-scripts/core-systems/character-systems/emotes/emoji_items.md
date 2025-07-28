@@ -1,5 +1,5 @@
 ---
-id: emoji_items
+id: emoji-items
 title: Emoji Items
 description: Emoji item definitions and configuration data for in-game emoji system
 sidebar_position: 3

@@ -3,7 +3,7 @@ id: physics
 title: Physics System
 description: Physics collision handling, entity launching, and area destruction utilities for Don't Starve Together
 sidebar_position: 3
-slug: game-scripts/core-systems/physics
+slug: game-scripts/core-systems/system-core/physics
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

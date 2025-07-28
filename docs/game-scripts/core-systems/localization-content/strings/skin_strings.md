@@ -1,9 +1,9 @@
 ---
-id: skin_strings
+id: skin-strings
 title: Skin Strings
 description: Auto-generated localization strings for character skin quotes and item names
 sidebar_position: 3
-slug: game-scripts/core-systems/skin_strings
+slug: game-scripts/core-systems/skin-strings
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

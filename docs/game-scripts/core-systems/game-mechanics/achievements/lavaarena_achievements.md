@@ -130,8 +130,8 @@ High-level encore achievements available to any character, focusing on advanced 
 - `anycharacter = true`: Available to all characters
 
 **Key Achievements:**
-- `encore_boarons`: Complete round 2 with minimal team damage (<800)
-- `encore_boarons_hard`: Complete round 2 with very minimal team damage (<600)
+- `encore_boarons`: Complete round 2 with minimal team damage `(<800)`
+- `encore_boarons_hard`: Complete round 2 with very minimal team damage `(<600)`
 - `encore_turtillus`: Complete round 3 with limited special ability usage
 - `encore_turtillus_hard`: Complete round 3 without using special abilities
 - `encore_peghook`: Complete without failing peghook mechanics
@@ -216,7 +216,7 @@ Achievements specific to Wendy, focusing on precision and damage avoidance.
 
 **Achievements:**
 - `wendy_guardsbroken`: Break 5+ enemy guards using ranged attacks
-- `wendy_outofharmsway`: Fire 150+ blowdarts while taking <100 damage in round 4
+- `wendy_outofharmsway`: Fire 150+ blowdarts while taking `<100` damage in round 4
 - `wendy_victory`: Achieve victory as Wendy
 
 ### wx78

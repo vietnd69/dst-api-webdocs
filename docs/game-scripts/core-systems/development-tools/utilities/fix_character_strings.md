@@ -1,5 +1,5 @@
 ---
-id: fix_character_strings
+id: fix-character-strings
 title: Fix Character Strings
 description: Utility script for alphabetically sorting and standardizing character speech files
 sidebar_position: 5
