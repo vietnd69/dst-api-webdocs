@@ -1,9 +1,9 @@
 ---
-id: worldgen_main
+id: worldgen-main
 title: World Generation Main
 description: Core world generation system for creating game worlds with terrain, entities, and set pieces
 sidebar_position: 1
-slug: game-scripts/core-systems/worldgen_main
+slug: game-scripts/core-systems/worldgen-main
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified in build 676312
