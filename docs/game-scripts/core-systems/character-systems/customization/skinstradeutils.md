@@ -3,7 +3,7 @@ id: skinstradeutils
 title: Skins Trade Utils
 description: Utility functions for skin trading interface and recipe matching
 sidebar_position: 9
-slug: game-scripts/core-systems/skinstradeutils
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: builtinusercommands
 title: Built-in User Commands System
 description: Documentation of the Don't Starve Together built-in user commands for player interaction and server administration
 sidebar_position: 3
-slug: /game-scripts/core-systems/builtinusercommands
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

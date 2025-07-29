@@ -3,7 +3,7 @@ id: modcompatability
 title: Mod Compatibility
 description: System for handling mod compatibility and version upgrades
 sidebar_position: 4
-slug: /core-systems/modcompatability
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

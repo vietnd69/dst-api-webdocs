@@ -3,7 +3,7 @@ id: worldsettings_overrides
 title: World Settings Overrides
 description: Comprehensive world configuration override system for customizing Don't Starve Together gameplay settings
 sidebar_position: 3
-slug: game-scripts/core-systems/worldsettings_overrides
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

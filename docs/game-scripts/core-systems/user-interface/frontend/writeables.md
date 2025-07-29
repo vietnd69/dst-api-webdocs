@@ -3,7 +3,7 @@ id: writeables
 title: Writeables
 description: User interface system for text input on signs, beefalo naming, and gravestone epitaphs
 sidebar_position: 5
-slug: game-scripts/core-systems/writeables
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: class
 title: Class
 description: Object-oriented programming system providing inheritance, property management, and instance tracking
 sidebar_position: 1
-slug: /game-scripts/core-systems/class
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

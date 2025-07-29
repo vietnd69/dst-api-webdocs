@@ -3,7 +3,7 @@ id: localization-content-content-overview
 title: Content Systems Overview
 description: Overview of game content, scripts, and procedural generation systems in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/localization-content/content
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: stategraph
 title: Stategraph
 description: Core state machine system for managing entity behaviors and animations
 sidebar_position: 3
-slug: game-scripts/core-systems/stategraph
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

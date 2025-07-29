@@ -3,7 +3,7 @@ id: signgenerator
 title: Sign Generator
 description: Utility module for generating random sign descriptions based on ground type and predefined string patterns
 sidebar_position: 4
-slug: game-scripts/core-systems/signgenerator
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

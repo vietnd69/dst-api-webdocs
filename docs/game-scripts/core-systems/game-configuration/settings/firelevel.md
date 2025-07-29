@@ -3,7 +3,7 @@ id: firelevel
 title: Fire Level
 description: Class for defining fire intensity levels with fuel consumption, visual effects, and heat spreading properties
 sidebar_position: 10
-slug: core-systems-firelevel
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

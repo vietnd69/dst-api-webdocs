@@ -3,7 +3,7 @@ id: upsell
 title: Upsell System
 description: Demo version purchase screen and trial time management system
 sidebar_position: 4
-slug: game-scripts/core-systems/upsell
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

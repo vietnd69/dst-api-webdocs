@@ -3,7 +3,7 @@ id: tilemanager
 title: TileManager
 description: Core module for managing ground tiles, falloff textures, and ground creep in the world generation system
 sidebar_position: 3
-slug: game-scripts/core-systems/tilemanager
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

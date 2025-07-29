@@ -3,7 +3,7 @@ id: tilegroups
 title: TileGroups
 description: Tile categorization and validation system for checking tile types and managing tile group relationships
 sidebar_position: 2
-slug: game-scripts/core-systems/tilegroups
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

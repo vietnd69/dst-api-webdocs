@@ -3,7 +3,7 @@ id: stringutil
 title: String Utilities
 description: Utility functions for string manipulation, character speech, and text formatting in Don't Starve Together
 sidebar_position: 3
-slug: game-scripts/core-systems/stringutil
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: entityscriptproxy
 title: EntityScript Proxy System
 description: Proxy wrapper system for EntityScript instances providing transparent access control and memory management
 sidebar_position: 4
-slug: game-scripts/core-systems/entityscriptproxy
+
 last_updated: 2025-01-27
 build_version: 676042
 change_status: stable

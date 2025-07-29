@@ -3,7 +3,7 @@ id: worldtiledefs
 title: World Tile Definitions
 description: Ground tile system for terrain properties, footstep sounds, and visual assets management
 sidebar_position: 4
-slug: game-scripts/core-systems/worldtiledefs
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

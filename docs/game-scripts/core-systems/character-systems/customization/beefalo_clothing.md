@@ -3,7 +3,7 @@ id: bebeefalo-clothing
 title: Beefalo Clothing System
 description: Documentation of the Don't Starve Together beefalo clothing system for cosmetic beefalo customization
 sidebar_position: 2
-slug: /game-scripts/core-systems/beefalo-clothing
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

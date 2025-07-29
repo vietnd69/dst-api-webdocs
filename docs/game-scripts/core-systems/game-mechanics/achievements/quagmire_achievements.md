@@ -3,7 +3,7 @@ id: quagmire_achievements
 title: Quagmire Achievements
 description: Achievement system definitions for the Quagmire seasonal event with WXP rewards and completion criteria
 sidebar_position: 6
-slug: game-scripts/core-systems/quagmire_achievements
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

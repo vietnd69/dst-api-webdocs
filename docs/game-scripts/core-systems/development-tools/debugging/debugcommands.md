@@ -3,7 +3,7 @@ id: debugcommands
 title: Debug Commands
 description: Collection of debug utility functions for development, testing, and troubleshooting in Don't Starve Together
 sidebar_position: 1
-slug: core-systems-debugcommands
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

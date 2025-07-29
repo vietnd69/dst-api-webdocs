@@ -3,7 +3,7 @@ id: core-systems-overview
 title: Core Systems Overview
 description: Overview of all core systems in the DST API
 sidebar_position: 0
-slug: game-scripts/core-systems
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

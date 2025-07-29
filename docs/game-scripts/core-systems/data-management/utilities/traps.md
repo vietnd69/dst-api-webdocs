@@ -3,7 +3,7 @@ id: traps
 title: Traps
 description: Legacy redirection file pointing to trap functionality now located in scenarios folder
 sidebar_position: 3
-slug: game-scripts/core-systems/traps
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

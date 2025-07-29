@@ -3,7 +3,7 @@ id: shardsaveindex
 title: Shard Save Index
 description: Multi-shard save slot management system for cluster save organization and data retrieval
 sidebar_position: 3
-slug: /game-scripts/core-systems/shardsaveindex
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

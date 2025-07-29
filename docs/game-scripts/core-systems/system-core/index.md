@@ -3,7 +3,7 @@ id: system-core-overview
 title: System Core Overview  
 description: Overview of fundamental system core infrastructure including engine services and runtime management in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/system-core
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

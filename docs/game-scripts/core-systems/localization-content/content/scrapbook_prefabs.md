@@ -3,7 +3,7 @@ id: scrapbook-prefabs
 title: Scrapbook Prefabs
 description: Registry of all prefabs that can be discovered and documented in the in-game scrapbook
 sidebar_position: 2
-slug: gams-scripts/core-systems/scrapbook-prefabs
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

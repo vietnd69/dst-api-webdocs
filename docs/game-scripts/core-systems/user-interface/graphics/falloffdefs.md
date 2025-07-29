@@ -3,7 +3,7 @@ id: falloffdefs
 title: Falloff Definitions
 description: Module that defines tile falloff texture configurations for visual transitions between different terrain types
 sidebar_position: 7
-slug: core-systems-falloffdefs
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

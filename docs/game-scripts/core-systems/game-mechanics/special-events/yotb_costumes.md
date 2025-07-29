@@ -3,7 +3,7 @@ id: yotb-costumes
 title: YOTB Costumes
 description: Year of the Beefalo costume definitions and pattern matching system
 sidebar_position: 3
-slug: game-scripts/core-systems/yotb-costumes
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

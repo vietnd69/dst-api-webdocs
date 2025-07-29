@@ -3,7 +3,7 @@ id: prefablist
 title: Prefab List
 description: Generated list of all prefab files in Don't Starve Together
 sidebar_position: 2
-slug: game-scripts/core-systems/prefablist
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

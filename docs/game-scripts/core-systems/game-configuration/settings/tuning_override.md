@@ -3,7 +3,7 @@ id: tuning-override
 title: Tuning Override
 description: System for overriding and disabling specific game mechanics and events through dummy function replacements
 sidebar_position: 4
-slug: game-scripts/core-systems/tuning-override
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

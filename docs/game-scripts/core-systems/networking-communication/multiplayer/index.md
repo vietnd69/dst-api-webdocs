@@ -3,7 +3,7 @@ id: multiplayer-overview
 title: Multiplayer Overview
 description: Overview of multiplayer-specific systems for server management, content delivery, and player experience
 sidebar_position: 0
-slug: game-scripts/core-systems/networking-communication/multiplayer
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

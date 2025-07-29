@@ -3,7 +3,7 @@ id: speech-wickerbottom
 title: Wickerbottom Speech
 description: Character-specific dialogue and speech responses for Wickerbottom, the Librarian
 sidebar_position: 6
-slug: /game-scripts/core-systems/speech-wickerbottom
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

@@ -3,7 +3,7 @@ id: input
 title: Input System
 description: Comprehensive input handling for keyboard, mouse, controllers, and virtual controls
 sidebar_position: 1
-slug: game-scripts/core-systems/input
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

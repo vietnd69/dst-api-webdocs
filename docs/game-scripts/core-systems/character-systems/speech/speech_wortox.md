@@ -3,7 +3,7 @@ id: speech-wortox
 title: Speech - Wortox
 description: Speech dialogue system for Wortox, the mischievous imp character
 sidebar_position: 12
-slug: game-scripts/core-systems/speech-wortox
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

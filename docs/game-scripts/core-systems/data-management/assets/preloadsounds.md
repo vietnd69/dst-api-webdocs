@@ -3,7 +3,7 @@ id: preloadsounds
 title: Preload Sounds
 description: Sound file preloading system for optimized audio performance in DST
 sidebar_position: 5
-slug: game-scripts/core-systems/preloadsounds
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

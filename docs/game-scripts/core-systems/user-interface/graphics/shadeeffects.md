@@ -3,7 +3,7 @@ id: shadeeffects
 title: Shade Effects
 description: Visual shade rendering system for environmental lighting effects and canopy shadows
 sidebar_position: 6
-slug: /game-scripts/core-systems/shadeeffects
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

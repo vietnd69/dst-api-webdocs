@@ -3,7 +3,7 @@ id: popupmanager
 title: PopupManager
 description: System for managing game UI popups and screen overlays with RPC communication
 sidebar_position: 2
-slug: game-scripts/core-systems/popupmanager
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

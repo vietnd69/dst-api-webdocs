@@ -3,7 +3,7 @@ id: emoji-items
 title: Emoji Items
 description: Emoji item definitions and configuration data for in-game emoji system
 sidebar_position: 3
-slug: core-systems-emoji-items
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

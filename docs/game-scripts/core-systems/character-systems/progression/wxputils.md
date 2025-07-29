@@ -3,7 +3,7 @@ id: wxputils
 title: WXP Utils
 description: Utility functions for managing Winter's Feast Experience Points (WXP) including level calculation, progress tracking, and festival event handling
 sidebar_position: 4
-slug: gams-scripts/core-systems/wxputils
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

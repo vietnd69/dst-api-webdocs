@@ -3,7 +3,7 @@ id: equipslotutil
 title: Equip Slot Utilities
 description: Utility module for managing equipment slot identifiers and conversions
 sidebar_position: 4
-slug: game-scripts/core-systems/equipslotutil
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

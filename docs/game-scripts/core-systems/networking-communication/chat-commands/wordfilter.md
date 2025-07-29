@@ -3,7 +3,7 @@ id: wordfilter
 title: Word Filter
 description: Content filtering system for chat and text input validation
 sidebar_position: 5
-slug: game-scripts/core-systems/wordfilter
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

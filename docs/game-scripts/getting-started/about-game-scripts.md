@@ -3,7 +3,7 @@ id: about-game-scripts
 title: About Don't Starve Together Game Scripts
 description: Introduction to DST's Lua-based game scripts and their role in defining gameplay mechanics, UI systems, and mod support
 sidebar_position: 2
-slug: getting-started/about-game-scripts
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

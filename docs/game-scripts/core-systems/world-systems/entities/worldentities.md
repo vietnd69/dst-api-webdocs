@@ -3,7 +3,7 @@ id: worldentities
 title: World Entities
 description: World entity injection system for ensuring required entities exist across all worlds and shards
 sidebar_position: 4
-slug: game-scripts/core-systems/worldentities
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

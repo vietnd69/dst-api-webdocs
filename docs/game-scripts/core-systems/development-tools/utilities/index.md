@@ -3,7 +3,7 @@ id: development-utilities-overview
 title: Development Utilities Overview
 description: Overview of miscellaneous development support tools and utilities in DST API
 sidebar_position: 0
-slug: gams-scripts/core-systems/development-tools/utilities
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

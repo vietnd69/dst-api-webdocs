@@ -3,7 +3,7 @@ id: savefileupgrades
 title: Save File Upgrades
 description: Save data migration and upgrade system for maintaining compatibility across game versions
 sidebar_position: 2
-slug: /game-scripts/core-systems/savefileupgrades
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

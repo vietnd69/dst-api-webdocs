@@ -3,7 +3,7 @@ id: debugtools
 title: Debug Tools
 description: Comprehensive collection of debugging utilities including stack traces, table inspection, and conditional debugging
 sidebar_position: 2
-slug: game-scripts/core-systems/debugtools
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: strict
 title: Strict
 description: Lua strict mode implementation preventing access to undeclared global variables
 sidebar_position: 2
-slug: game-scripts/core-systems/strict
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

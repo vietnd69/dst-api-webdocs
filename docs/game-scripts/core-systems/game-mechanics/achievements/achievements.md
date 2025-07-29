@@ -3,7 +3,7 @@ id: achievements
 title: Achievements
 description: Achievement definitions and platform integration for Don't Starve Together
 sidebar_position: 1
-slug: /game-scripts/core-systems/achievements
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

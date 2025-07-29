@@ -3,7 +3,7 @@ id: world-systems-overview
 title: World Systems Overview
 description: Overview of core world infrastructure including entities, terrain, generation, and ocean systems in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/world-systems
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

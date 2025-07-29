@@ -3,7 +3,7 @@ id: reload
 title: Reload System
 description: Hot-swapping and live reloading system for development and debugging
 sidebar_position: 2
-slug: /game-scripts/core-systems/reload
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

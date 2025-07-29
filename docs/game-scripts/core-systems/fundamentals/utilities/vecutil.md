@@ -3,7 +3,7 @@ id: vecutil
 title: VecUtil
 description: Utility functions for 2D vector operations on the XZ plane
 sidebar_position: 5
-slug: game-scripts/core-systems/vecutil
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

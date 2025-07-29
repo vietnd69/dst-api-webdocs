@@ -3,7 +3,7 @@ id: tiles-terrain-overview
 title: Tiles & Terrain Overview
 description: Overview of ground tile management, terrain properties, and world generation systems in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/world-systems/tiles-terrain
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

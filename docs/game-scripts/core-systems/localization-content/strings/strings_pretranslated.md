@@ -3,7 +3,7 @@ id: strings-pretranslated
 title: Strings Pretranslated
 description: Pre-translated language strings and localization support for multi-language user interfaces
 sidebar_position: 2
-slug: game-scripts/core-systems/strings-pretranslated
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

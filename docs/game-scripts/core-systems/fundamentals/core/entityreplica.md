@@ -3,7 +3,7 @@ id: entityreplica
 title: Entity Replica System
 description: Network component replication system for client-server synchronization in Don't Starve Together
 sidebar_position: 5
-slug: game-scripts/core-systems/entityreplica
+
 last_updated: 2025-01-27
 build_version: 676042
 change_status: stable

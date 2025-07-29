@@ -3,7 +3,7 @@ id: skilltreedata
 title: Skill Tree Data
 description: Class for managing character skill tree data including skill activation, experience tracking, validation, and persistence
 sidebar_position: 2
-slug: game-scripts/core-systems/skilltreedata
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

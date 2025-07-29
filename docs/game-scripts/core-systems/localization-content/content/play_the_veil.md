@@ -3,7 +3,7 @@ id: play-the-veil
 title: Play The Veil
 description: "The Veil theatrical performance implementation for the stage play system"
 sidebar_position: 9
-slug: game-scripts/core-systems/play-the-veil
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: character-systems-overview
 title: Character Systems Overview
 description: Overview of character-related functionality in DST API
 sidebar_position: 0
-slug: gams-scripts/core-systems/character-systems
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

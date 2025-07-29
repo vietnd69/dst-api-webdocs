@@ -3,7 +3,7 @@ id: fundamentals-utilities-overview
 title: Fundamentals Utilities Overview
 description: Overview of utility functions and helper systems that provide foundational support for DST game mechanics
 sidebar_position: 0
-slug: game-scripts/core-systems/fundamentals/utilities
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

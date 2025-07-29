@@ -3,7 +3,7 @@ id: vec3util
 title: Vec3Util
 description: Utility functions for 3D vector operations without object instantiation
 sidebar_position: 6
-slug: game-scripts/core-systems/vec3util
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: perfutil
 title: Performance Utilities
 description: Performance monitoring, profiling, and debugging utilities for Don't Starve Together
 sidebar_position: 10
-slug: game-scripts/core-systems/perfutil
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: debugprint
 title: Debug Print
 description: Enhanced print functions with source line tracking and logger management for debugging purposes
 sidebar_position: 6
-slug: game-scripts/core-systems/debugprint
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

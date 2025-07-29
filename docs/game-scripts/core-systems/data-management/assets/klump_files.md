@@ -3,7 +3,7 @@ id: klump_files
 title: Klump Files
 description: Auto-generated registry of encrypted klump files for festival events
 sidebar_position: 3
-slug: game-scripts/core-systems/klump-files
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

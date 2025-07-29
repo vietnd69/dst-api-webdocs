@@ -3,7 +3,7 @@ id: debugging-tools-overview
 title: Debugging Tools Overview
 description: Comprehensive debugging and diagnostic utilities for DST development and troubleshooting
 sidebar_position: 0
-slug: gams-scripts/core-systems/development-tools/debugging
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

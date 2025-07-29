@@ -3,7 +3,7 @@ id: motdmanager
 title: MOTD Manager
 description: Message of the Day management system for downloading and displaying game announcements
 sidebar_position: 1
-slug: /core-systems/motdmanager
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

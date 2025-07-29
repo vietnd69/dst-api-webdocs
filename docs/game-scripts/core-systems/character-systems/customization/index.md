@@ -3,7 +3,7 @@ id: character-customization-overview
 title: Character Customization Overview
 description: Overview of character customization and cosmetic systems in DST API
 sidebar_position: 0
-slug: gams-scripts/core-systems/character-systems/customization
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

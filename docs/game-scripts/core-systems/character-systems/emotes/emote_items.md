@@ -3,7 +3,7 @@ id: emote-items
 title: Emote Items
 description: Purchasable and unlockable emote item definitions for premium player expressions
 sidebar_position: 2
-slug: core-systems-emote-items
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

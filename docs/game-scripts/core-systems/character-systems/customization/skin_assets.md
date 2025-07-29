@@ -3,7 +3,7 @@ id: skin-assets
 title: Skin Assets
 description: Asset loading definitions for character skins and themed items in Don't Starve Together
 sidebar_position: 5
-slug: game-scripts/core-systems/skin-assets
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

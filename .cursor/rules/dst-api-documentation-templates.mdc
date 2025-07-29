@@ -17,7 +17,7 @@ id: [Id]
 title: [Component Name]
 description: Component responsible for [primary functionality]
 sidebar_position: [Number]
-slug: game-scripts/core-systems/[component-name]
+
 last_updated: YYYY-MM-DD
 build_version: 676042
 change_status: stable
@@ -115,7 +115,7 @@ id: [Id]
 title: [Stategraph Name]
 description: Stategraph for [entity/behavior description]
 sidebar_position: [Number]
-slug: stategraphs-[stategraph-name]
+
 last_updated: YYYY-MM-DD
 build_version: 676042
 change_status: stable
@@ -197,7 +197,7 @@ id: [Id]
 title: [Brain Name]
 description: AI brain for [entity type]
 sidebar_position: [Number]
-slug: brains-[brain-name]
+
 last_updated: YYYY-MM-DD
 build_version: 676042
 change_status: stable
@@ -282,7 +282,7 @@ id: [Id]
 title: [Prefab Name]
 description: [Short description of this prefab's purpose]
 sidebar_position: [Number]
-slug: prefabs-[prefab-name]
+
 last_updated: YYYY-MM-DD
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: wx78-moduledefs
 title: WX78 Module Definitions
 description: System for defining and managing WX-78 character upgrade modules including health, sanity, speed, and special ability modules
 sidebar_position: 3
-slug: gams-scripts/core-systems/wx78-moduledefs
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

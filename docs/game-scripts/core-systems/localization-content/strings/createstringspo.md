@@ -3,7 +3,7 @@ id: createstringspo
 title: Create Strings POT
 description: Main game POT file generation tool for localization workflows across multiple platforms
 sidebar_position: 4
-slug: game-scripts/core-systems/createstringspo
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: game-configuration-settings-overview
 title: Game Configuration Settings Overview
 description: Overview of core configuration systems, global constants, and platform-specific settings in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/game-configuration/settings
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

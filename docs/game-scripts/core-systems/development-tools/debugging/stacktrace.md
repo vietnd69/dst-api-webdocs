@@ -3,7 +3,7 @@ id: stacktrace
 title: Stack Trace
 description: Debug stack trace and error handling utilities for Lua error analysis and debugging
 sidebar_position: 9
-slug: gams-scripts/core-systems/stacktrace
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: networkclientrpc
 title: Network Client RPC
 description: Remote procedure call system for client-server communication
 sidebar_position: 2
-slug: game-scripts/core-systems/networkclientrpc
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

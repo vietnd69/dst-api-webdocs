@@ -3,7 +3,7 @@ id: entityscript
 title: EntityScript
 description: Core class representing all game entities and their behavior management system
 sidebar_position: 3
-slug: game-scripts/core-systems/entityscript
+
 last_updated: 2025-01-27
 build_version: 676042
 change_status: stable

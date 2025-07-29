@@ -3,7 +3,7 @@ id: speech-wanda
 title: Wanda Speech
 description: Character-specific dialogue and speech responses for Wanda, the Clockmaker
 sidebar_position: 17
-slug: /game-scripts/core-systems/speech-wanda
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

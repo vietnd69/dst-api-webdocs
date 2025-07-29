@@ -3,7 +3,7 @@ id: tuning
 title: Tuning
 description: Central game balance and configuration system controlling gameplay parameters across Don't Starve Together
 sidebar_position: 3
-slug: game-scripts/core-systems/tuning
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

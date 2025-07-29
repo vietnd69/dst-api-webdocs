@@ -3,7 +3,7 @@ id: debugkeys
 title: Debug Keys
 description: Debug key binding system for developer tools, game manipulation, and testing functionality in Don't Starve Together
 sidebar_position: 4
-slug: core-systems-debugkeys
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

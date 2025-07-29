@@ -3,7 +3,7 @@ id: curse-monkey-util
 title: Curse Monkey Util
 description: Utility module for managing monkey curse transformation mechanics and visual effects in Don't Starve Together
 sidebar_position: 2
-slug: /game-scripts/core-systems/curse-monkey-util
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

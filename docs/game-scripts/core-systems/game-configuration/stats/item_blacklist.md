@@ -3,7 +3,7 @@ id: item-blacklist
 title: Item Blacklist
 description: Blacklist system for controlling item display visibility in the UI
 sidebar_position: 2
-slug: gams-scripts/core-systems/item-blacklist
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

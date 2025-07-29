@@ -3,7 +3,7 @@ id: lavaarena-achievements
 title: Lava Arena Achievements
 description: Character-specific achievement definitions for Lava Arena events
 sidebar_position: 3
-slug: core-systems-lavaarena-achievements
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

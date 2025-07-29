@@ -3,7 +3,7 @@ id: groundcreepdefs
 title: Ground Creep Definitions
 description: Defines ground creep configurations for terrain overlay effects
 sidebar_position: 6
-slug: game-scripts/core-systems/groundcreepdefs
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

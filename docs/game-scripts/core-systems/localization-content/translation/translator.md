@@ -3,7 +3,7 @@ id: translator
 title: Translator
 description: Localization and translation system for managing multi-language support in Don't Starve Together
 sidebar_position: 1
-slug: game-scripts/core-systems/translator
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

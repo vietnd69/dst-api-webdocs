@@ -3,7 +3,7 @@ id: standardcomponents
 title: Standard Components
 description: Standard component creation utilities and default behaviors for Don't Starve Together prefabs
 sidebar_position: 6
-slug: gams-scripts/core-systems/standardcomponents
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

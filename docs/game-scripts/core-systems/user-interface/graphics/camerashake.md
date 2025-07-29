@@ -3,7 +3,7 @@ id: camerashake
 title: CameraShake
 description: Camera shake system for creating visual feedback effects during gameplay events
 sidebar_position: 4
-slug: core-systems-camerashake
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

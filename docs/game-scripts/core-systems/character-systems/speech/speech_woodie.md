@@ -3,7 +3,7 @@ id: speech-woodie
 title: Speech - Woodie
 description: Speech dialogue system for Woodie, the Canadian lumberjack character
 sidebar_position: 7
-slug: game-scripts/core-systems/speech-woodie
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

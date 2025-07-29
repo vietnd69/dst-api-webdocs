@@ -3,7 +3,7 @@ id: dlcsupport-strings
 title: DLC Support Strings
 description: String handling system for DLC content with prefix/suffix management and adjective construction
 sidebar_position: 2
-slug: game-scripts/core-systems/dlcsupport-strings
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

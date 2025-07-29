@@ -3,7 +3,7 @@ id: achievements-overview
 title: Achievements Overview
 description: Overview of achievement systems and tracking in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/game-mechanics/achievements
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

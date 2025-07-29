@@ -3,7 +3,7 @@ id: character-emotes-overview
 title: Character Emotes Overview
 description: Overview of character emotes and expression systems in DST API
 sidebar_position: 3
-slug: gams-scripts/core-systems/character-systems/emotes
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

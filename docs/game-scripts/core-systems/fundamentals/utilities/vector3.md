@@ -3,7 +3,7 @@ id: vector3
 title: Vector3
 description: Object-oriented 3D vector class with operator overloading and advanced vector operations
 sidebar_position: 4
-slug: game-scripts/core-systems/vector3
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

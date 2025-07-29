@@ -3,7 +3,7 @@ id: speech-waxwell
 title: Maxwell Speech
 description: Character-specific dialogue and speech responses for Maxwell, the Puppet Master
 sidebar_position: 8
-slug: /game-scripts/core-systems/speech-waxwell
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

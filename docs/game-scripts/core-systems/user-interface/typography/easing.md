@@ -3,7 +3,7 @@ id: easing
 title: Easing
 description: Mathematical easing functions for smooth animations and transitions
 sidebar_position: 3
-slug: core-systems-easing
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

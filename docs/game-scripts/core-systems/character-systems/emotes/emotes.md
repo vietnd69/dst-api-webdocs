@@ -3,7 +3,7 @@ id: emotes
 title: Emotes
 description: Core emote system and basic emote definitions for player expressions and actions
 sidebar_position: 1
-slug: core-systems-emotes
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

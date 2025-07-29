@@ -3,7 +3,7 @@ id: mods
 title: Mods System
 description: Core mod loading and management system for Don't Starve Together
 sidebar_position: 1
-slug: /core-systems/mods
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified in build 676312

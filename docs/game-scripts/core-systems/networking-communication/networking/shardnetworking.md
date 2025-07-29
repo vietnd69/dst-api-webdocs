@@ -3,7 +3,7 @@ id: shardnetworking
 title: Shard Networking
 description: Inter-shard communication and synchronization system for cluster management and portal connectivity
 sidebar_position: 4
-slug: /game-scripts/core-systems/shardnetworking
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

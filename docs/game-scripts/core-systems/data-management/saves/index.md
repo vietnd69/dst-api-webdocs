@@ -3,7 +3,7 @@ id: saves-overview
 title: Saves Overview
 description: Overview of save data management and persistence infrastructure in DST API
 sidebar_position: 0
-slug: gams-scripts/core-systems/data-management/saves
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

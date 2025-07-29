@@ -3,7 +3,7 @@ id: dumper
 title: Data Dumper
 description: Advanced Lua data serialization utility for converting complex data structures to executable Lua code
 sidebar_position: 1
-slug: game-scripts/core-systems/dumper
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: skin-set-info
 title: Skin Set Info
 description: Coordinated skin set definitions for emotes and themed item collections in Don't Starve Together
 sidebar_position: 6
-slug: game-scripts/core-systems/skin-set-info
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: globalvariableoverrides
 title: Global Variable Overrides
 description: Base configuration file for overriding global variables in DST
 sidebar_position: 5
-slug: core-systems-globalvariableoverrides
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

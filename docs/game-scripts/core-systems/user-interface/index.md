@@ -3,7 +3,7 @@ id: user-interface-overview
 title: User Interface Systems Overview
 description: Overview of all user interface systems in the DST API including frontend, graphics, input, and typography
 sidebar_position: 0
-slug: game-scripts/core-systems/user-interface
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

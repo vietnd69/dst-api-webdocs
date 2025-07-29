@@ -3,7 +3,7 @@ id: speech-wurt
 title: Speech - Wurt
 description: Speech dialogue system for Wurt, the young merm character
 sidebar_position: 15
-slug: game-scripts/core-systems/speech-wurt
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

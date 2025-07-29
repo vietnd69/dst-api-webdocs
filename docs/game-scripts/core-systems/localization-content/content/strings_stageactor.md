@@ -3,7 +3,7 @@ id: strings-stageactor
 title: Strings Stage Actor
 description: Dialogue content and performance scripts for theatrical stage actor events and character performances
 sidebar_position: 3
-slug: game-scripts/core-systems/strings-stageactor
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

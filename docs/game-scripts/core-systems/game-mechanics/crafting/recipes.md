@@ -3,7 +3,7 @@ id: recipes
 title: Recipes System
 description: Complete recipe definitions and implementation system for Don't Starve Together crafting
 sidebar_position: 2
-slug: game-scripts/core-systems/recipes
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

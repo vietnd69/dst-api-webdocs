@@ -3,7 +3,7 @@ id: speech-wormwood
 title: Speech - Wormwood
 description: Speech dialogue system for Wormwood, the plant-based character with limited vocabulary
 sidebar_position: 13
-slug: game-scripts/core-systems/speech-wormwood
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

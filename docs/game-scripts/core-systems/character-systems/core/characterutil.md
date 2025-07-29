@@ -3,7 +3,7 @@ id: characterutil
 title: CharacterUtil
 description: Utility functions for loading character portraits, avatars, names, and managing character metadata
 sidebar_position: 1
-slug: /game-scripts/core-systems/characterutil
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

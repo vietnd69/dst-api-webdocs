@@ -3,7 +3,7 @@ id: debughelpers
 title: Debug Helpers
 description: Debug utility functions for inspecting and analyzing entities, components, and function upvalues in Don't Starve Together
 sidebar_position: 3
-slug: core-systems-debughelpers
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

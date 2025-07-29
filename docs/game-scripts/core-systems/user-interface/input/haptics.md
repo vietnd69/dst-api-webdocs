@@ -3,7 +3,7 @@ id: haptics
 title: Haptic Effects
 description: Defines haptic feedback and vibration effects for game events
 sidebar_position: 2
-slug: game-scripts/core-systems/haptics
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

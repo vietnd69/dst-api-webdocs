@@ -3,7 +3,7 @@ id: componentactions
 title: Component Actions
 description: DST component action system for handling interactive behaviors and player actions on entities
 sidebar_position: 3
-slug: core-systems-componentactions
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

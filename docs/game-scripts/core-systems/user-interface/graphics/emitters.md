@@ -3,7 +3,7 @@ id: emitters
 title: Emitters
 description: Particle emitter management system and geometric emitter creation functions
 sidebar_position: 3
-slug: core-systems-emitters
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

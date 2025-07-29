@@ -3,7 +3,7 @@ id: prefabskins
 title: Prefab Skins Data
 description: Auto-generated database of all prefab skin mappings in Don't Starve Together
 sidebar_position: 6
-slug: game-scripts/core-systems/prefabskins
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

@@ -3,7 +3,7 @@ id: speech-wendy
 title: Wendy Speech  
 description: Character-specific dialogue and speech responses for Wendy, the Bereaved
 sidebar_position: 4
-slug: /game-scripts/core-systems/speech-wendy
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

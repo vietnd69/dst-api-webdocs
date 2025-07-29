@@ -3,7 +3,7 @@ id: fundamentals-core-overview
 title: Core Fundamentals Overview
 description: Overview of core foundation systems and infrastructure in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/fundamentals/core
+
 last_updated: 2025-01-27
 build_version: 676042
 change_status: stable

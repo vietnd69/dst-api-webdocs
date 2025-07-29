@@ -3,7 +3,7 @@ id: mod-support-dlc-overview
 title: DLC Support Overview
 description: Overview of DLC management and support systems in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/mod-support/dlc
+
 last_updated: 2025-01-22
 build_version: 676042
 change_status: stable

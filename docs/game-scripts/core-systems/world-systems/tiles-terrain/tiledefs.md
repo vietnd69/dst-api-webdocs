@@ -3,7 +3,7 @@ id: tiledefs
 title: TileDefs
 description: Complete definitions of all vanilla ground tiles including ocean, land, impassable, and noise tiles with their properties
 sidebar_position: 1
-slug: game-scripts/core-systems/tiledefs
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

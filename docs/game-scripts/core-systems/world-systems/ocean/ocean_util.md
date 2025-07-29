@@ -3,7 +3,7 @@ id: ocean-util
 title: Ocean Utilities
 description: Utility functions for ocean mechanics, water depth, wave spawning, and entity sinking in Don't Starve Together
 sidebar_position: 1
-slug: game-scripts/core-systems/ocean-util
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

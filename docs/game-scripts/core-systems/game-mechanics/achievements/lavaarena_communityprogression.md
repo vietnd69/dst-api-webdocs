@@ -3,7 +3,7 @@ id: lavaarena-communityprogression
 title: Lava Arena Community Progression
 description: Manages community-wide progression tracking and unlock system for Lava Arena events
 sidebar_position: 5
-slug: core-systems-lavaarena-communityprogression
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: fileutil
 title: File Utilities
 description: Utility functions for managing persistent file operations including deletion and existence checking
 sidebar_position: 9
-slug: core-systems-fileutil
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

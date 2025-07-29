@@ -2,7 +2,7 @@
 title: "Cookbook Data"
 description: "Recipe discovery and food knowledge management system for Don't Starve Together"
 sidebar_position: 2
-slug: /game-scripts/core-systems/cookbookdata
+
 last_updated: "2025-06-25"
 build_version: "676312"
 change_status: "modified"

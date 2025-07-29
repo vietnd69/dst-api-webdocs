@@ -3,7 +3,7 @@ id: fonthelper
 title: Font Helper
 description: Utility function for adding font assets to asset tables
 sidebar_position: 2
-slug: core-systems-fonthelper
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

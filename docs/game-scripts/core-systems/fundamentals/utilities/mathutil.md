@@ -3,7 +3,7 @@ id: mathutil
 title: Math Utilities
 description: Mathematical utility functions for sine waves, interpolation, rounding, clamping, distance calculations, and angle operations
 sidebar_position: 2
-slug: game-scripts/core-systems/mathutil
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

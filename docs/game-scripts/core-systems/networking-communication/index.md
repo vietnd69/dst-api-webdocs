@@ -3,7 +3,7 @@ id: networking-communication-overview
 title: Networking & Communication Overview
 description: Overview of network infrastructure, multiplayer systems, and communication frameworks for DST
 sidebar_position: 0
-slug: game-scripts/core-systems/networking-communication
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

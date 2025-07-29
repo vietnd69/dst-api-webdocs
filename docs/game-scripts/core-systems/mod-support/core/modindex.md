@@ -3,7 +3,7 @@ id: modindex
 title: Mod Index
 description: Mod registry and management system for tracking installed and enabled mods
 sidebar_position: 2
-slug: /core-systems/modindex
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: createstringspo_dlc
 title: Create Strings POT DLC
 description: DLC-specific POT file generation tool for localization workflows, particularly for Reign of Giants
 sidebar_position: 5
-slug: game-scripts/core-systems/createstringspo_dlc
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

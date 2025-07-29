@@ -3,7 +3,7 @@ id: globalvariableoverrides-monkey
 title: Global Variable Overrides (Monkey)
 description: Mod testing configuration with enabled warnings and mod support
 sidebar_position: 7
-slug: core-systems-globalvariableoverrides-monkey
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

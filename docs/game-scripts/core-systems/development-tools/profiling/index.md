@@ -3,7 +3,7 @@ id: profiling-tools-overview
 title: Profiling Tools Overview
 description: Overview of performance analysis and profiling utilities in DST API
 sidebar_position: 0
-slug: gams-scripts/core-systems/development-tools/profiling
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

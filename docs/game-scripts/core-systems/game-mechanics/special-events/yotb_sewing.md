@@ -3,7 +3,7 @@ id: yotb-sewing
 title: YOTB Sewing
 description: Year of the Beefalo sewing system for costume recipe calculation and validation
 sidebar_position: 4
-slug: game-scripts/core-systems/yotb-sewing
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

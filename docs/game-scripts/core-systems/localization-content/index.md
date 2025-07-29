@@ -3,7 +3,7 @@ id: localization-content-overview
 title: Localization Content Overview
 description: Overview of localization content, string management, and translation systems in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/localization-content
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

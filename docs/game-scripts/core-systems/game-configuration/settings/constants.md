@@ -3,7 +3,7 @@ id: constants
 title: Constants System
 description: Comprehensive documentation of Don't Starve Together global constants and configuration values
 sidebar_position: 2
-slug: core-systems-constants
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: stats
 title: Stats
 description: Statistics and metrics collection system for tracking game events and performance data
 sidebar_position: 1
-slug: game-scripts/core-systems/stats
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

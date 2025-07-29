@@ -3,7 +3,7 @@ id: saveindex
 title: SaveIndex
 description: Save game management system for slot-based save data and session handling
 sidebar_position: 1
-slug: /game-scripts/core-systems/saveindex
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

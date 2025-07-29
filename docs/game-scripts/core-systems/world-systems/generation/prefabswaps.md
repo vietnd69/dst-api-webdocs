@@ -3,7 +3,7 @@ id: prefabswaps
 title: Prefab Swaps
 description: World generation prefab variation system for diversifying game worlds
 sidebar_position: 7
-slug: game-scripts/core-systems/prefabswaps
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

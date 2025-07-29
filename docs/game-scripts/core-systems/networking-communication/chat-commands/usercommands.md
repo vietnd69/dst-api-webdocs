@@ -3,7 +3,7 @@ id: usercommands
 title: User Commands System
 description: Slash command execution, permission management, and voting system for player commands
 sidebar_position: 2
-slug: game-scripts/core-systems/usercommands
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

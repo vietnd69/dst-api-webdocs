@@ -3,7 +3,7 @@ id: crafting-overview
 title: Crafting Systems Overview
 description: Overview of crafting mechanics and recipe management systems in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/game-mechanics/crafting
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

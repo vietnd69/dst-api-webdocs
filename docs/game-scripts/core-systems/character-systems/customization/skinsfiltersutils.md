@@ -3,7 +3,7 @@ id: skinsfiltersutils
 title: Skins Filters Utils
 description: Utility functions for filtering skins lists in inventory and trading interfaces
 sidebar_position: 8
-slug: game-scripts/core-systems/skinsfiltersutils
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

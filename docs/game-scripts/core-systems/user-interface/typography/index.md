@@ -3,7 +3,7 @@ id: typography-systems-overview
 title: Typography Systems Overview
 description: Overview of font management, text rendering infrastructure, and animation easing utilities in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/user-interface/typography
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

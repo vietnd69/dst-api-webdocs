@@ -3,7 +3,7 @@ id: loadingtipsdata
 title: Loading Tips Data
 description: Manages loading screen tips with weighted selection and persistence system
 sidebar_position: 3
-slug: core-systems-loadingtipsdata
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

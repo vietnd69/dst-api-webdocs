@@ -3,7 +3,7 @@ id: consolescreensettings
 title: Console Screen Settings
 description: Console history and settings persistence system for Don't Starve Together
 sidebar_position: 9
-slug: core-systems-consolescreensettings
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

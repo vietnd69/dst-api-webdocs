@@ -3,7 +3,7 @@ id: speech-walter
 title: Walter Speech
 description: Character-specific dialogue and speech responses for Walter, the Fearless Scout
 sidebar_position: 16
-slug: /game-scripts/core-systems/speech-walter
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

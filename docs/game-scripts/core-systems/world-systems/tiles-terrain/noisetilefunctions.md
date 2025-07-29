@@ -3,7 +3,7 @@ id: noisetilefunctions
 title: Noise Tile Functions
 description: Functions for converting noise values to specific world tile types in Don't Starve Together
 sidebar_position: 5
-slug: game-scripts/core-systems/noisetilefunctions
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

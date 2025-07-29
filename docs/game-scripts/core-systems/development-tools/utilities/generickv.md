@@ -3,7 +3,7 @@ id: generickv
 title: Generic Key-Value Store
 description: Wrapper for TheInventory synchronization providing persistent key-value storage
 sidebar_position: 4
-slug: game-scripts/core-systems/generickv
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

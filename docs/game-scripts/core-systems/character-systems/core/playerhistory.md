@@ -3,7 +3,7 @@ id: playerhistory
 title: PlayerHistory
 description: System for tracking and managing history of players encountered during gameplay
 sidebar_position: 3
-slug: game-scripts/core-systems/playerhistory
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

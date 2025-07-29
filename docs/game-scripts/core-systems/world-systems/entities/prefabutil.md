@@ -3,7 +3,7 @@ id: prefabutil
 title: Prefab Utilities
 description: Helper functions and utilities for creating and managing prefabs
 sidebar_position: 3
-slug: game-scripts/core-systems/prefabutil
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

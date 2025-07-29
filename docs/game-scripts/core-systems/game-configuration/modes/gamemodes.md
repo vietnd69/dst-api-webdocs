@@ -3,7 +3,7 @@ id: gamemodes
 title: Game Modes
 description: System for managing different game modes and their configurations in Don't Starve Together
 sidebar_position: 2
-slug: game-scripts/core-systems/gamemodes
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

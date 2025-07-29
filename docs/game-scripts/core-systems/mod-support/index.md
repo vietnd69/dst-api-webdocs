@@ -3,7 +3,7 @@ id: mod-support-overview
 title: Mod Support Overview
 description: Overview of mod and DLC support systems in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/mod-support
+
 last_updated: 2025-01-22
 build_version: 676042
 change_status: stable

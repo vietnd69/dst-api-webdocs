@@ -40,7 +40,6 @@ const config: Config = {
 
 	// Thêm plugins
 	plugins: [
-
 		[
 			"@docusaurus/plugin-client-redirects",
 			{
@@ -50,8 +49,8 @@ const config: Config = {
 				],
 				createRedirects: function (existingPath) {
 					// Redirect to /docs/introduction from /docs
-					if (existingPath.includes("/docs")) {
-						return [existingPath.replace("/docs", "")];
+					if (existingPath.includes("docs/game-scripts/getting-started/about-game-scripts")) {
+						return [existingPath.replace("docs/game-scripts/getting-started/about-game-scripts", "")];
 					}
 					return undefined; // Return undefined if no redirect needed
 				},
@@ -118,7 +117,7 @@ const config: Config = {
 							label: "DST Vanilla",
 							// Sử dụng đường dẫn tương đối so với baseUrl
 							// Docusaurus sẽ tự động thêm baseUrl vào đường dẫn này
-							to: "/docs/getting-started",
+							to: "/docs/game-scripts/getting-started/about-game-scripts",
 						},
 					],
 				},

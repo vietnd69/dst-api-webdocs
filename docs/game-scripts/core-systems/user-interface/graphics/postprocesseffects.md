@@ -3,7 +3,7 @@ id: postprocesseffects
 title: Post Process Effects
 description: Visual post-processing effects system for screen-space rendering
 sidebar_position: 5
-slug: game-scripts/core-systems/postprocesseffects
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

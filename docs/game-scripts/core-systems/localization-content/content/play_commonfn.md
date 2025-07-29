@@ -3,7 +3,7 @@ id: play-commonfn
 title: Play Common Functions
 description: Common utility functions for the stage play system in Don't Starve Together
 sidebar_position: 6
-slug: game-scripts/core-systems/play-commonfn
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

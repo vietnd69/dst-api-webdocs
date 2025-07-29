@@ -3,7 +3,7 @@ id: playerprofile
 title: PlayerProfile
 description: Comprehensive player profile and settings management system
 sidebar_position: 2
-slug: game-scripts/core-systems/playerprofile
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: quagmire_recipebook
 title: Quagmire Recipe Book
 description: Class for managing recipe discovery, storage, and unlocking in the Quagmire seasonal event
 sidebar_position: 2
-slug: game-scripts/core-systems/quagmire_recipebook
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

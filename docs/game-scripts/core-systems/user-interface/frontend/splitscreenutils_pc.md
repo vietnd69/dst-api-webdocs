@@ -3,7 +3,7 @@ id: splitscreenutils-pc
 title: Split Screen Utils PC
 description: PC-specific split screen utility functions and instance management for Don't Starve Together
 sidebar_position: 4
-slug: gams-scripts/core-systems/splitscreenutils-pc
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

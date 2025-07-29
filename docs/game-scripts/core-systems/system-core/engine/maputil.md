@@ -3,7 +3,7 @@ id: maputil
 title: Map Utilities
 description: Map topology utilities for pathfinding, node manipulation, convex hull calculations, and map visualization
 sidebar_position: 4
-slug: game-scripts/core-systems/system-core/maputil
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

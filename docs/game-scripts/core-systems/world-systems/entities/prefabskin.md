@@ -3,7 +3,7 @@ id: prefabskin
 title: Prefab Skins
 description: Visual skin system for customizing prefab appearance and functionality
 sidebar_position: 5
-slug: game-scripts/core-systems/prefabskin
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

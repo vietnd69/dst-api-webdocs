@@ -3,7 +3,7 @@ id: scrapbook-partitions
 title: Scrapbook Partitions
 description: Data management system for tracking scrapbook discovery progress and synchronization
 sidebar_position: 4
-slug: gams-scripts/core-systems/scrapbook-partitions
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: globalvariableoverrides-pax-server
 title: Global Variable Overrides (PAX Server)
 description: Server configuration for PAX event environments with timed shutdown
 sidebar_position: 8
-slug: core-systems-globalvariableoverrides-pax-server
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

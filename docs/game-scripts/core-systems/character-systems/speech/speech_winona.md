@@ -3,7 +3,7 @@ id: speech-winona
 title: Winona Speech
 description: Character-specific dialogue and speech responses for Winona, the Handywoman
 sidebar_position: 11
-slug: /game-scripts/core-systems/speech-winona
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

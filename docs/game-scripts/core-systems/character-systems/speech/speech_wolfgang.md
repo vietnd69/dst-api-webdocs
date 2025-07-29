@@ -3,7 +3,7 @@ id: speech-wolfgang
 title: Wolfgang Speech
 description: Character-specific dialogue and speech responses for Wolfgang, the Strongman
 sidebar_position: 3
-slug: /game-scripts/core-systems/speech-wolfgang
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

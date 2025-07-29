@@ -3,7 +3,7 @@ id: craftingmenuprofile
 title: Crafting Menu Profile
 description: System for managing user preferences and customizations in the crafting menu interface
 sidebar_position: 6
-slug: game-scripts/core-systems/craftingmenuprofile
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

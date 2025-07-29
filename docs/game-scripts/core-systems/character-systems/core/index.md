@@ -2,7 +2,7 @@
 id: character-systems-core
 title: Character Systems Core Overview
 sidebar_position: 0
-slug: character-systems-core
+
 last_updated: 2025-06-21
 build_version: 676042
 ---

@@ -3,7 +3,7 @@ id: engine-overview
 title: Engine System Overview  
 description: Overview of core engine infrastructure and runtime systems in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/system-core/engine
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

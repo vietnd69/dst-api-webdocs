@@ -29,7 +29,7 @@ id: core-systems-overview
 title: Core Systems Overview
 description: Overview of all core systems in the DST API
 sidebar_position: 0
-slug: game-scripts/core-systems
+
 last_updated: 2024-XX-XX
 build_version: 676042
 change_status: stable
@@ -204,7 +204,7 @@ id: character-systems-overview
 title: Character Systems Overview
 description: Overview of character-related functionality in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/character-systems
+
 last_updated: 2024-XX-XX
 build_version: 676042
 change_status: stable
@@ -434,7 +434,7 @@ id: game-mechanics-overview
 title: Game Mechanics Overview
 description: Overview of gameplay mechanics and systems in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/game-mechanics
+
 last_updated: 2024-XX-XX
 build_version: 676042
 change_status: stable
@@ -698,7 +698,7 @@ id: development-tools-overview
 title: Development Tools Overview
 description: Overview of development, debugging, and profiling tools in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/development-tools
+
 last_updated: 2024-XX-XX
 build_version: 676042
 change_status: stable
@@ -962,7 +962,7 @@ id: [system-category]-overview
 title: [System Category Name] Overview  
 description: Overview of [system category description] in DST API
 sidebar_position: [position]
-slug: game-scripts/core-systems/[category-slug]
+
 last_updated: 2024-XX-XX
 build_version: 676042
 change_status: stable

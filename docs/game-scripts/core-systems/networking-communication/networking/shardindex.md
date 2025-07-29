@@ -3,7 +3,7 @@ id: shardindex
 title: Shard Index
 description: Cluster shard management system for server data persistence and world generation configuration
 sidebar_position: 5
-slug: /game-scripts/core-systems/shardindex
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

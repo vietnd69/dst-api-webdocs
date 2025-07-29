@@ -3,7 +3,7 @@ id: techtree
 title: TechTree
 description: Technology tree system for managing crafting station requirements and research levels
 sidebar_position: 3
-slug: game-scripts/core-systems/techtree
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

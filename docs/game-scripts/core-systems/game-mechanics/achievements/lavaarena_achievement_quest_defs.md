@@ -3,7 +3,7 @@ id: lavaarena-achievement-quest-defs
 title: Lava Arena Achievement Quest Definitions
 description: Defines achievement quest categories and progression system for Lava Arena events
 sidebar_position: 4
-slug: core-systems-lavaarena-achievement-quest-defs
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

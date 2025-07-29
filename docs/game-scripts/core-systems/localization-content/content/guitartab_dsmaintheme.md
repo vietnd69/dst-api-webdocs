@@ -3,7 +3,7 @@ id: guitartab-dsmaintheme
 title: Guitar Tab - DST Main Theme
 description: Guitar tablature data for the Don't Starve Together main theme
 sidebar_position: 10
-slug: game-scripts/core-systems/guitartab-dsmaintheme
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

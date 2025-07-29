@@ -3,7 +3,7 @@ id: mixer
 title: Mixer
 description: Audio mixing system for managing sound levels, filters, and audio states
 sidebar_position: 2
-slug: game-scripts/core-systems/mixer
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

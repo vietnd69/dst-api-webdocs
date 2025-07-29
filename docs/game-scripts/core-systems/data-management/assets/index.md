@@ -3,7 +3,7 @@ id: assets-overview
 title: Assets Overview
 description: Overview of asset management and file handling systems in DST API
 sidebar_position: 0
-slug: gams-scripts/core-systems/data-management/assets
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: play-generalscripts
 title: Play General Scripts
 description: Character-specific performance scripts for the stage play system
 sidebar_position: 7
-slug: game-scripts/core-systems/play-generalscripts
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: ai-systems-overview
 title: AI Systems Overview
 description: Overview of artificial intelligence infrastructure and frameworks in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/fundamentals/ai-systems
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

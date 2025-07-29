@@ -3,7 +3,7 @@ id: consolecommands
 title: Console Commands
 description: Comprehensive DST console command system for debugging, administration, and development tasks
 sidebar_position: 1
-slug: core-systems-consolecommands
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

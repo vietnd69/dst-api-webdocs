@@ -3,7 +3,7 @@ id: voteutil
 title: VoteUtil
 description: Utility functions for vote tallying and validation in user vote commands
 sidebar_position: 4
-slug: game-scripts/core-systems/voteutil
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

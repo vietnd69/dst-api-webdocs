@@ -3,7 +3,7 @@ id: skins-defs-data
 title: Skins Definitions Data
 description: Auto-generated skin definitions, configurations, and asset mappings for the inventory system
 sidebar_position: 3
-slug: game-scripts/core-systems/skins-defs-data
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

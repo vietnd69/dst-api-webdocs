@@ -3,7 +3,7 @@ id: preparedfoods
 title: Prepared Foods
 description: Standard cookpot recipes system defining all craftable food items in DST
 sidebar_position: 3
-slug: game-scripts/core-systems/preparedfoods
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

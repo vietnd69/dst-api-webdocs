@@ -3,7 +3,7 @@ id: eventachievements
 title: Event Achievements
 description: System for managing event-based achievements and quest progression
 sidebar_position: 2
-slug: game-scripts/core-systems/eventachievements
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

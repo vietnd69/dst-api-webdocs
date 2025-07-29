@@ -3,7 +3,7 @@ id: skinsutils
 title: Skins Utils
 description: Comprehensive utility system for managing character skins, items, colors, and inventory
 sidebar_position: 270
-slug: gams-scripts/core-systems/skinsutils
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

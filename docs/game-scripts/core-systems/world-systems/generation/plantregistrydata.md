@@ -3,7 +3,7 @@ id: plantregistrydata
 title: Plant Registry Data
 description: Data management system for tracking discovered plants, growth stages, fertilizers, and oversized plant pictures in the farming system
 sidebar_position: 6
-slug: game-scripts/core-systems/plantregistrydata
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

@@ -3,7 +3,7 @@ id: chat-commands-overview
 title: Chat Commands Overview
 description: Overview of chat and command systems for player communication and server administration
 sidebar_position: 0
-slug: game-scripts/core-systems/networking-communication/chat-commands
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

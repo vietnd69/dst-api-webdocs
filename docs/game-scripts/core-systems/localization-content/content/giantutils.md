@@ -3,7 +3,7 @@ id: giantutils
 title: Giant Utilities
 description: Utility functions for giant creature movement and pathfinding behaviors
 sidebar_position: 5
-slug: game-scripts/core-systems/giantutils
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

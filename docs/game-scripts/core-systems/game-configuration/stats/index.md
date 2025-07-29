@@ -3,7 +3,7 @@ id: game-configuration-stats-overview
 title: Statistics and Metrics Overview
 description: Overview of statistics collection, metrics tracking, and data management systems in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/game-configuration/stats
+
 last_updated: 2025-01-21
 build_version: 676042
 change_status: stable

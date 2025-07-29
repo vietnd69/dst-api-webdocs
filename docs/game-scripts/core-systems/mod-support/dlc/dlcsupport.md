@@ -3,7 +3,7 @@ id: dlcsupport
 title: DLC Support
 description: Core DLC management system for registering, enabling, and managing downloadable content
 sidebar_position: 1
-slug: game-scripts/core-systems/dlcsupport
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

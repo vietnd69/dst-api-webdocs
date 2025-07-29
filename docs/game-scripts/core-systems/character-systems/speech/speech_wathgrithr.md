@@ -3,7 +3,7 @@ id: speech-wathgrithr
 title: Wigfrid Speech
 description: Character-specific dialogue and speech responses for Wigfrid, the Performance Artist (Wathgrithr)
 sidebar_position: 9
-slug: /game-scripts/core-systems/speech-wathgrithr
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

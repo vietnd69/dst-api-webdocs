@@ -3,7 +3,7 @@ id: netvars
 title: Network Variables (NetVars)
 description: Network variable types and utilities for synchronized client-server communication
 sidebar_position: 3
-slug: game-scripts/core-systems/netvars
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: game-configuration-modes-overview
 title: Game Configuration Modes Overview
 description: Overview of game mode configuration, event handling, and core game logic systems in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/game-configuration/modes
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

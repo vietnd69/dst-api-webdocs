@@ -3,7 +3,7 @@ id: speech-willow
 title: Willow Speech
 description: Character-specific dialogue and speech responses for Willow, the Firestarter
 sidebar_position: 2
-slug: /game-scripts/core-systems/speech-willow
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

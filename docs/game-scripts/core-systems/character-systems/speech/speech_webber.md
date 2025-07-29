@@ -3,7 +3,7 @@ id: speech-webber
 title: Webber Speech
 description: Character-specific dialogue and speech responses for Webber, the Indigestible
 sidebar_position: 10
-slug: /game-scripts/core-systems/speech-webber
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

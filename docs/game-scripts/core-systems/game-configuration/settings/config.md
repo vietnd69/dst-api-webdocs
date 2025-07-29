@@ -3,7 +3,7 @@ id: config
 title: Config
 description: Platform configuration management system for Don't Starve Together with platform-specific overrides
 sidebar_position: 1
-slug: core-systems-config
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

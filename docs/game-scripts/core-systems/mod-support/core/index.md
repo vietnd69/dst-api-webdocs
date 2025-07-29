@@ -3,7 +3,7 @@ id: mod-support-core-overview
 title: Mod Support Core Overview
 description: Overview of core mod system functionality in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/mod-support/core
+
 last_updated: 2025-01-22
 build_version: 676042
 change_status: stable

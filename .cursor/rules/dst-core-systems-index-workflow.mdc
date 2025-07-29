@@ -84,7 +84,7 @@ id: [system-category]-overview
 title: [System Category Name] Overview
 description: Overview of [specific system functionality] in DST API
 sidebar_position: [determined by system hierarchy]
-slug: game-scripts/core-systems/[category-slug]
+
 last_updated: [current date]
 build_version: 676042
 change_status: stable

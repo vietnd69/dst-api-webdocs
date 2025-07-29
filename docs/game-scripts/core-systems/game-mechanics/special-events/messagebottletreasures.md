@@ -3,7 +3,7 @@ id: core-systems-messagebottletreasures
 title: Message Bottle Treasures
 description: System for generating treasure containers and loot from message bottles
 sidebar_position: 1
-slug: /game-scripts/core-systems/messagebottletreasures
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

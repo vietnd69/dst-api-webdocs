@@ -3,7 +3,7 @@ id: progressionconstants
 title: Progression Constants
 description: Module containing constants and functions for character unlock progression system based on experience points
 sidebar_position: 1
-slug: game-scripts/core-systems/progressionconstants
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

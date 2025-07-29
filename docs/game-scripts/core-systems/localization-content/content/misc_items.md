@@ -3,7 +3,7 @@ id: misc-items
 title: Misc Items
 description: Comprehensive catalog of miscellaneous cosmetic items, emojis, loading screens, and purchasable content
 sidebar_position: 1
-slug: gams-scripts/core-systems/misc-items
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

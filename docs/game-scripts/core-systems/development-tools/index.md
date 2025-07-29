@@ -3,7 +3,7 @@ id: development-tools-overview
 title: Development Tools Overview
 description: Overview of development, debugging, and profiling tools in DST API
 sidebar_position: 0
-slug: gams-scripts/core-systems/development-tools
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

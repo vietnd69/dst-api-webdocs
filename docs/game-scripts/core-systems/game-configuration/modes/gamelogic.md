@@ -3,7 +3,7 @@ id: gamelogic
 title: Game Logic
 description: Core game initialization, world management, and main game loop functionality
 sidebar_position: 1
-slug: game-scripts/core-systems/gamelogic
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

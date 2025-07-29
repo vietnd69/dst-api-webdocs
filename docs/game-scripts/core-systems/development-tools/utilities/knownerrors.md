@@ -3,7 +3,7 @@ id: knownerrors
 title: Known Errors
 description: Structured error handling system for common game errors with user-friendly messages
 sidebar_position: 3
-slug: game-scripts/core-systems/known-errors
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

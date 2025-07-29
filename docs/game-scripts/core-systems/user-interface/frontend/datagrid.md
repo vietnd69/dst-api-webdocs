@@ -3,7 +3,7 @@ id: data-grid
 title: Data Grid
 description: Utility class for managing 2D grid data structures with coordinate-to-index mapping in Don't Starve Together
 sidebar_position: 2
-slug: /game-scripts/core-systems/data-grid
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

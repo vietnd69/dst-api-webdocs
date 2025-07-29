@@ -3,7 +3,7 @@ id: recipe
 title: Recipe System Core
 description: Core classes and functions for defining crafting recipes, ingredients, and recipe management in Don't Starve Together
 sidebar_position: 1
-slug: game-scripts/core-systems/recipe
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

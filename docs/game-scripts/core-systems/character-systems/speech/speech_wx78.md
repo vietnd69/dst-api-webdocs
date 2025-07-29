@@ -3,7 +3,7 @@ id: speech-wx78
 title: Speech - WX-78
 description: Speech dialogue system for WX-78, the robotic automaton character
 sidebar_position: 5
-slug: game-scripts/core-systems/speech-wx78
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

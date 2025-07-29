@@ -3,7 +3,7 @@ id: platformpostload
 title: Platform Post Load
 description: Platform-specific configuration and tweaks applied after game initialization for different gaming platforms
 sidebar_position: 2
-slug: game-scripts/core-systems/platformpostload
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

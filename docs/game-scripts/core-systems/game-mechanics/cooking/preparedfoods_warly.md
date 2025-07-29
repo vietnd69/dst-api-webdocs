@@ -3,7 +3,7 @@ id: preparedfoods-warly
 title: Prepared Foods - Warly
 description: Warly-specific portable cookpot recipes with unique effects and enhanced culinary options
 sidebar_position: 4
-slug: game-scripts/core-systems/preparedfoods-warly
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: crafting-sorting
 title: "Crafting Sorting System"
 description: "Documentation of the Don't Starve Together crafting menu sorting system that organizes and prioritizes crafting recipes"
 sidebar_position: 5
-slug: /game-scripts/core-systems/crafting-sorting
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

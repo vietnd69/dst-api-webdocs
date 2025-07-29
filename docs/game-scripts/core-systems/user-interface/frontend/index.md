@@ -3,7 +3,7 @@ id: frontend-systems-overview
 title: Frontend Systems Overview
 description: Overview of frontend UI management, screen handling, and user interface utilities in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/user-interface/frontend
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

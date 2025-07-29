@@ -3,7 +3,7 @@ id: networking-overview
 title: Networking Overview
 description: Overview of core networking systems for server management, client communication, and cluster coordination
 sidebar_position: 0
-slug: game-scripts/core-systems/networking-communication/networking
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

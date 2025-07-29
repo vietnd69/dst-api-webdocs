@@ -3,7 +3,7 @@ id: util
 title: Utility Functions
 description: Collection of utility functions for table manipulation, string processing, math calculations, and data structures
 sidebar_position: 1
-slug: game-scripts/core-systems/util
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified in build 676312

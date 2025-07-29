@@ -3,7 +3,7 @@ id: lighting
 title: Lighting
 description: Lighting system configuration and utilities (currently empty module)
 sidebar_position: 1
-slug: core-systems-lighting
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

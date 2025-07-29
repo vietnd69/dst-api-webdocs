@@ -3,7 +3,7 @@ id: skin-gifts
 title: Skin Gifts
 description: Gift system configuration for skin items and reward popups in Don't Starve Together
 sidebar_position: 7
-slug: game-scripts/core-systems/skin-gifts
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

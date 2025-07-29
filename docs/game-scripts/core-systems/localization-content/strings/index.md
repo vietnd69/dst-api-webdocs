@@ -3,7 +3,7 @@ id: localization-content-strings-overview
 title: Strings and Localization Overview
 description: Overview of string management and localization infrastructure in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/localization-content/strings
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

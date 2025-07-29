@@ -3,7 +3,7 @@ id: recipes_filter
 title: Recipe Filters
 description: Crafting menu categorization system for organizing recipes into filtered groups and categories
 sidebar_position: 4
-slug: game-scripts/core-systems/recipes_filter
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

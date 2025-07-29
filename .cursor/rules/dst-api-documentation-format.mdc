@@ -25,7 +25,7 @@ id: [Id]
 title: [Module Name]
 description: [Short description of what this module/file does]
 sidebar_position: [Number]
-slug: [custom-url-slug]
+
 last_updated: YYYY-MM-DD
 build_version: 676042
 change_status: stable | added | modified | deprecated | removed
@@ -43,7 +43,7 @@ Index files should follow this structure:
 id: [Id]
 title: [Category Name] Overview
 sidebar_position: 1
-slug: [category-slug]
+
 last_updated: YYYY-MM-DD
 build_version: 676042
 ---
@@ -95,7 +95,7 @@ id: [Id]
 title: [Module Name]
 description: [Short description of what this module/file does]
 sidebar_position: [Number]
-slug: [custom-url-slug]
+
 last_updated: YYYY-MM-DD
 build_version: 676042
 change_status: stable

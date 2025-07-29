@@ -3,7 +3,7 @@ id: chathistory
 title: ChatHistory
 description: Chat history management system for storing, synchronizing, and filtering chat messages
 sidebar_position: 1
-slug: /game-scripts/core-systems/chathistory
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

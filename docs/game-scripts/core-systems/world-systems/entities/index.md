@@ -3,7 +3,7 @@ id: entities-overview
 title: Entity Systems Overview  
 description: Overview of entity creation, management, and prefab systems in DST API
 sidebar_position: 0
-slug: game-scripts/core-systems/world-systems/entities
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

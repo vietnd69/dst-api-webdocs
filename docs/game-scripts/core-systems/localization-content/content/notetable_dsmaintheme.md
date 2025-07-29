@@ -3,7 +3,7 @@ id: notetable-dsmaintheme
 title: Note Table - DST Main Theme
 description: Musical note data table for the Don't Starve Together main theme
 sidebar_position: 11
-slug: game-scripts/core-systems/notetable-dsmaintheme
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

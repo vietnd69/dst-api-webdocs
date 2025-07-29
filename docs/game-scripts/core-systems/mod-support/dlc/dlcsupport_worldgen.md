@@ -3,7 +3,7 @@ id: dlcsupport-worldgen
 title: DLC Support Worldgen
 description: DLC support system specialized for world generation with parameter-based DLC state management
 sidebar_position: 3
-slug: game-scripts/core-systems/dlcsupport-worldgen
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

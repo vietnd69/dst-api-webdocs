@@ -3,7 +3,7 @@ id: debugsounds
 title: Debug Sounds
 description: Sound debugging system that tracks and monitors audio events with visual indicators and logging
 sidebar_position: 7
-slug: game-scripts/core-systems/debugsounds
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

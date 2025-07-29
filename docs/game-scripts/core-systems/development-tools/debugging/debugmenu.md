@@ -3,7 +3,7 @@ id: debugmenu
 title: Debug Menu
 description: Framework for creating text-based debug menu systems with navigation and interaction capabilities
 sidebar_position: 5
-slug: game-scripts/core-systems/debugmenu
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

@@ -3,7 +3,7 @@ id: clothing
 title: Clothing
 description: Character clothing and cosmetic item data structure for skins and appearance customization
 sidebar_position: 1
-slug: /game-scripts/core-systems/clothing
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

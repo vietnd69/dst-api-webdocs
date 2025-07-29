@@ -3,7 +3,7 @@ id: speech-wilson
 title: Wilson Speech
 description: Character-specific dialogue and speech responses for Wilson, the Gentleman Scientist
 sidebar_position: 1
-slug: /game-scripts/core-systems/speech-wilson
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

@@ -3,7 +3,7 @@ id: speech-systems-overview
 title: Speech Systems Overview
 description: Overview of character-specific dialogue and speech systems in DST API
 sidebar_position: 0
-slug: gams-scripts/core-systems/character-systems/speech
+
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

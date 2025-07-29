@@ -3,7 +3,7 @@ id: worldsettingsutil
 title: World Settings Util
 description: Utility functions for managing external timers and world settings integration with game components
 sidebar_position: 2
-slug: game-scripts/core-systems/worldsettingsutil
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

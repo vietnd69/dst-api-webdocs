@@ -3,7 +3,7 @@ id: progression-overview
 title: Progression Systems Overview
 description: Overview of character progression systems including unlocks, skill trees, module definitions, and festival experience in DST API
 sidebar_position: 0
-slug: gams-scripts/core-systems/character-systems/progression
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

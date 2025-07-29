@@ -3,7 +3,7 @@ id: serverpreferences
 title: Server Preferences
 description: Client-side management system for server display preferences including profanity filtering and name visibility controls
 sidebar_position: 3
-slug: /game-scripts/core-systems/serverpreferences
+
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable
