@@ -56,6 +56,12 @@ const config: Config = {
 				},
 			},
 		],
+		[
+			'@docusaurus/plugin-google-tag-manager',
+			{
+			  containerId: 'GTM-P6HHVZPW',
+			},
+		  ],
 	],
 
 	presets: [
