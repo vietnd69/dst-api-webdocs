@@ -304,8 +304,8 @@ Current implementation uses UnitRand() which behaves more like center/halfwidth 
 Creates an emitter function that generates random positions within a polygonal area using triangle decomposition.
 
 **Parameters:**
-- `polygon` (table): Array of vertex coordinates as {x, y} pairs
-- `centroid` (table): Center point as {x, y}
+- `polygon` (table): Array of vertex coordinates as `{x, y}` pairs
+- `centroid` (table): Center point as `{x, y}`
 
 **Returns:**
 - (function): Emitter function that returns (x, y) coordinates within polygon area

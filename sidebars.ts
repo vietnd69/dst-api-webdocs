@@ -31,6 +31,7 @@ const sidebars: SidebarsConfig = {
 		{
 			type: "category",
 			label: "Core Systems",
+			collapsed: false,
 			link: {
 				type: "generated-index",
 				title: "Core Systems",

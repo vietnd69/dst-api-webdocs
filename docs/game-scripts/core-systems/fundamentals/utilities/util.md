@@ -388,7 +388,7 @@ Finds all matches of a pattern in a string.
 - `plain` (boolean): Plain text search (optional)
 
 **Returns:**
-- (table): Array of {first, last} position pairs
+- (table): Array of `{first, last}` position pairs
 
 ### string.rfind(s, pattern, init, plain) {#string-rfind}
 
