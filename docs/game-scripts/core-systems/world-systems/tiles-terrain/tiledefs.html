@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-game-scripts/core-systems/world-systems/tiles-terrain/tiledefs" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.8.1">
+<title data-rh="true">TileDefs | Don&#x27;t Starve Together Vanilla API</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://vietnd69.github.io/dst-api-webdocs/img/docusaurus-social-card.jpg"><meta data-rh="true" name="twitter:image" content="https://vietnd69.github.io/dst-api-webdocs/img/docusaurus-social-card.jpg"><meta data-rh="true" property="og:url" content="https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/tiles-terrain/tiledefs"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="TileDefs | Don&#x27;t Starve Together Vanilla API"><meta data-rh="true" name="description" content="Complete definitions of all vanilla ground tiles including ocean, land, impassable, and noise tiles with their properties"><meta data-rh="true" property="og:description" content="Complete definitions of all vanilla ground tiles including ocean, land, impassable, and noise tiles with their properties"><link data-rh="true" rel="icon" href="/dst-api-webdocs/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/tiles-terrain/tiledefs"><link data-rh="true" rel="alternate" href="https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/tiles-terrain/tiledefs" hreflang="en"><link data-rh="true" rel="alternate" href="https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/tiles-terrain/tiledefs" hreflang="x-default"><link data-rh="true" rel="preconnect" href="https://P9GA1YAAFR-dsn.algolia.net" crossorigin="anonymous"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Core Systems","item":"https://vietnd69.github.io/dst-api-webdocs/docs/category/core-systems"},{"@type":"ListItem","position":2,"name":"World Systems","item":"https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/"},{"@type":"ListItem","position":3,"name":"Tiles & Terrain","item":"https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/tiles-terrain/"},{"@type":"ListItem","position":4,"name":"TileDefs","item":"https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/tiles-terrain/tiledefs"}]}</script><link rel="search" type="application/opensearchdescription+xml" title="Don&#39;t Starve Together Vanilla API" href="/dst-api-webdocs/opensearch.xml"><link rel="stylesheet" href="/dst-api-webdocs/assets/css/styles.d347ed0b.css">
+<script src="/dst-api-webdocs/assets/js/runtime~main.a2c35c55.js" defer="defer"></script>
+<script src="/dst-api-webdocs/assets/js/main.653c0730.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")),document.documentElement.setAttribute("data-theme-choice",t||"system")}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><link rel="preload" as="image" href="/dst-api-webdocs/img/logo.png"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/dst-api-webdocs/"><div class="navbar__logo"><img src="/dst-api-webdocs/img/logo.png" alt="Don&#x27;t Starve Together Logo" class="themedComponent_mlkZ themedComponent--light_NVdE"><img src="/dst-api-webdocs/img/logo.png" alt="Don&#x27;t Starve Together Logo" class="themedComponent_mlkZ themedComponent--dark_xIcU"></div></a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/dst-api-webdocs/docs/game-scripts/getting-started">Game Scripts</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://github.com/vietnd69/dst-api-webdocs" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub Docs<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><a href="https://github.com/vietnd69/dst-scripts" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Base Game Scripts Code<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"><button type="button" class="DocSearch DocSearch-Button" aria-label="Search (Command+K)"><span class="DocSearch-Button-Container"><svg width="20" height="20" class="DocSearch-Search-Icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M14.386 14.386l4.0877 4.0877-4.0877-4.0877c-2.9418 2.9419-7.7115 2.9419-10.6533 0-2.9419-2.9418-2.9419-7.7115 0-10.6533 2.9418-2.9419 7.7115-2.9419 10.6533 0 2.9419 2.9418 2.9419 7.7115 0 10.6533z" stroke="currentColor" fill="none" fill-rule="evenodd" stroke-linecap="round" stroke-linejoin="round"></path></svg><span class="DocSearch-Button-Placeholder">Search</span></span><span class="DocSearch-Button-Keys"></span></button></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class="sidebarViewport_aRkj"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist" href="/dst-api-webdocs/docs/game-scripts/getting-started">Getting Started</a><button aria-label="Expand sidebar category &#x27;Getting Started&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 sidebar-divider"><hr></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--active" href="/dst-api-webdocs/docs/category/core-systems">Core Systems</a><button aria-label="Collapse sidebar category &#x27;Core Systems&#x27;" aria-expanded="true" type="button" class="clean-btn menu__caret"></button></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems">Core Systems Overview</a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/character-systems">Character Systems</a><button aria-label="Expand sidebar category &#x27;Character Systems&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/data-management">Data Management</a><button aria-label="Expand sidebar category &#x27;Data Management&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/development-tools">Development Tools</a><button aria-label="Expand sidebar category &#x27;Development Tools&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/fundamentals">Fundamentals</a><button aria-label="Expand sidebar category &#x27;Fundamentals&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/game-configuration">Game Configuration</a><button aria-label="Expand sidebar category &#x27;Game Configuration&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/localization-content">Localization</a><button aria-label="Expand sidebar category &#x27;Localization&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/mod-support">Mod Support</a><button aria-label="Expand sidebar category &#x27;Mod Support&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/networking-communication">Networking Communication</a><button aria-label="Expand sidebar category &#x27;Networking Communication&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/system-core">System Core</a><button aria-label="Expand sidebar category &#x27;System Core&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/user-interface">User Interface</a><button aria-label="Expand sidebar category &#x27;User Interface&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--active" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/world-systems">World Systems</a><button aria-label="Collapse sidebar category &#x27;World Systems&#x27;" aria-expanded="true" type="button" class="clean-btn menu__caret"></button></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/world-systems">World Systems Overview</a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-3 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/entities">Entities</a><button aria-label="Expand sidebar category &#x27;Entities&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-3 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/generation">Generation</a><button aria-label="Expand sidebar category &#x27;Generation&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-3 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/ocean">Ocean</a><button aria-label="Expand sidebar category &#x27;Ocean&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-3 menu__list-item"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--active" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/tiles-terrain">Tiles &amp; Terrain</a><button aria-label="Collapse sidebar category &#x27;Tiles &amp; Terrain&#x27;" aria-expanded="true" type="button" class="clean-btn menu__caret"></button></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/tiles-terrain">Tiles &amp; Terrain Overview</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/tiles-terrain/tiledefs">TileDefs</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/tiles-terrain/tilegroups">TileGroups</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/tiles-terrain/tilemanager">TileManager</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/tiles-terrain/worldtiledefs">World Tile Definitions</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/tiles-terrain/noisetilefunctions">Noise Tile Functions</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/tiles-terrain/groundcreepdefs">Ground Creep Definitions</a></li></ul></li></ul></li></ul></li></ul></nav></div></div></aside><main class="docMainContainer_TBSr"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label="Breadcrumbs"><ul class="breadcrumbs"><li class="breadcrumbs__item"><a aria-label="Home page" class="breadcrumbs__link" href="/dst-api-webdocs/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_YNFT"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="breadcrumbs__item"><a class="breadcrumbs__link" href="/dst-api-webdocs/docs/category/core-systems"><span>Core Systems</span></a></li><li class="breadcrumbs__item"><a class="breadcrumbs__link" href="/dst-api-webdocs/docs/game-scripts/core-systems/world-systems"><span>World Systems</span></a></li><li class="breadcrumbs__item"><a class="breadcrumbs__link" href="/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/tiles-terrain"><span>Tiles &amp; Terrain</span></a></li><li class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link">TileDefs</span></li></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>TileDefs</h1></header>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="version-history">Version History<a href="#version-history" class="hash-link" aria-label="Direct link to Version History" title="Direct link to Version History">​</a></h2>
+<table><thead><tr><th>Build Version</th><th>Change Date</th><th>Change Type</th><th>Description</th></tr></thead><tbody><tr><td>676042</td><td>2025-06-21</td><td>stable</td><td>Current version</td></tr></tbody></table>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="overview">Overview<a href="#overview" class="hash-link" aria-label="Direct link to Overview" title="Direct link to Overview">​</a></h2>
+<p>The <code>TileDefs</code> module contains the complete definitions of all vanilla ground tiles in Don&#x27;t Starve Together. It uses the TileManager to register tile ranges and add all default tiles with their visual properties, sounds, and gameplay characteristics. This file defines the foundation of the world&#x27;s visual and interactive landscape.</p>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="usage-example">Usage Example<a href="#usage-example" class="hash-link" aria-label="Direct link to Usage Example" title="Direct link to Usage Example">​</a></h2>
+<div class="language-lua codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-lua codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#393A34"><span class="token comment" style="color:#999988;font-style:italic">-- Access specific tile IDs after tiledefs loads</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token function" style="color:#d73a49">print</span><span class="token punctuation" style="color:#393A34">(</span><span class="token string" style="color:#e3116c">&quot;Grass tile ID:&quot;</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"> WORLD_TILES</span><span class="token punctuation" style="color:#393A34">.</span><span class="token plain">GRASS</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token function" style="color:#d73a49">print</span><span class="token punctuation" style="color:#393A34">(</span><span class="token string" style="color:#e3116c">&quot;Ocean tile ID:&quot;</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"> WORLD_TILES</span><span class="token punctuation" style="color:#393A34">.</span><span class="token plain">OCEAN_COASTAL</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token comment" style="color:#999988;font-style:italic">-- Check if a tile has specific properties</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token keyword" style="color:#00009f">if</span><span class="token plain"> GROUND_HARD</span><span class="token punctuation" style="color:#393A34">[</span><span class="token plain">WORLD_TILES</span><span class="token punctuation" style="color:#393A34">.</span><span class="token plain">ROCKY</span><span class="token punctuation" style="color:#393A34">]</span><span class="token plain"> </span><span class="token keyword" style="color:#00009f">then</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token function" style="color:#d73a49">print</span><span class="token punctuation" style="color:#393A34">(</span><span class="token string" style="color:#e3116c">&quot;Rocky tiles are hard - cannot be dug&quot;</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token keyword" style="color:#00009f">end</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token keyword" style="color:#00009f">if</span><span class="token plain"> GROUND_FLOORING</span><span class="token punctuation" style="color:#393A34">[</span><span class="token plain">WORLD_TILES</span><span class="token punctuation" style="color:#393A34">.</span><span class="token plain">WOODFLOOR</span><span class="token punctuation" style="color:#393A34">]</span><span class="token plain"> </span><span class="token keyword" style="color:#00009f">then</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token function" style="color:#d73a49">print</span><span class="token punctuation" style="color:#393A34">(</span><span class="token string" style="color:#e3116c">&quot;Wood floor tiles act as flooring&quot;</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token keyword" style="color:#00009f">end</span><br></span></code></pre></div></div>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="tile-categories">Tile Categories<a href="#tile-categories" class="hash-link" aria-label="Direct link to Tile Categories" title="Direct link to Tile Categories">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="impassable-tiles">Impassable Tiles<a href="#impassable-tiles" class="hash-link" aria-label="Direct link to Impassable Tiles" title="Direct link to Impassable Tiles">​</a></h3>
+<p>Tiles that cannot be traversed by entities:</p>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="impassable">IMPASSABLE<a href="#impassable" class="hash-link" aria-label="Direct link to IMPASSABLE" title="Direct link to IMPASSABLE">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Impassable&quot;</li>
+<li><strong>Description:</strong> Completely impassable terrain that blocks all movement</li>
+<li><strong>Properties:</strong> Cannot be traversed by any entity</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="fake-ground">FAKE_GROUND<a href="#fake-ground" class="hash-link" aria-label="Direct link to FAKE_GROUND" title="Direct link to FAKE_GROUND">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Fake Ground&quot;</li>
+<li><strong>Description:</strong> Fake ground tile used for special rendering effects</li>
+<li><strong>Properties:</strong> Appears as ground but functions as impassable</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="ocean-tiles">Ocean Tiles<a href="#ocean-tiles" class="hash-link" aria-label="Direct link to Ocean Tiles" title="Direct link to Ocean Tiles">​</a></h3>
+<p>Water tiles supporting boat navigation and ocean gameplay:</p>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="ocean-coastal-shore">OCEAN_COASTAL_SHORE<a href="#ocean-coastal-shore" class="hash-link" aria-label="Direct link to OCEAN_COASTAL_SHORE" title="Direct link to OCEAN_COASTAL_SHORE">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Coastal Shore&quot;</li>
+<li><strong>Ocean Depth:</strong> SHALLOW</li>
+<li><strong>Properties:</strong> Shoreline area, walkable by wading</li>
+<li><strong>Sounds:</strong> Marsh movement sounds</li>
+<li><strong>Wave Tint:</strong> Shallow water tinting</li>
+<li><strong>Description:</strong> Transition zone between land and ocean</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="ocean-brinepool-shore">OCEAN_BRINEPOOL_SHORE<a href="#ocean-brinepool-shore" class="hash-link" aria-label="Direct link to OCEAN_BRINEPOOL_SHORE" title="Direct link to OCEAN_BRINEPOOL_SHORE">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Brinepool Shore&quot;</li>
+<li><strong>Ocean Depth:</strong> SHALLOW</li>
+<li><strong>Properties:</strong> Special shore area for brine pools</li>
+<li><strong>Colors:</strong> Distinctive red-tinted appearance</li>
+<li><strong>Wave Tint:</strong> Brinepool coloring</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="ocean-coastal">OCEAN_COASTAL<a href="#ocean-coastal" class="hash-link" aria-label="Direct link to OCEAN_COASTAL" title="Direct link to OCEAN_COASTAL">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Coastal Ocean&quot;</li>
+<li><strong>Ocean Depth:</strong> SHALLOW</li>
+<li><strong>Properties:</strong> Shallow coastal waters suitable for small boats</li>
+<li><strong>Wave Tint:</strong> Standard shallow water effects</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="ocean-waterlog">OCEAN_WATERLOG<a href="#ocean-waterlog" class="hash-link" aria-label="Direct link to OCEAN_WATERLOG" title="Direct link to OCEAN_WATERLOG">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Waterlogged Ocean&quot;</li>
+<li><strong>Ocean Depth:</strong> SHALLOW</li>
+<li><strong>Properties:</strong> Waterlogged areas with standard ocean properties</li>
+<li><strong>Wave Tint:</strong> Clear water appearance</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="ocean-brinepool">OCEAN_BRINEPOOL<a href="#ocean-brinepool" class="hash-link" aria-label="Direct link to OCEAN_BRINEPOOL" title="Direct link to OCEAN_BRINEPOOL">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Brinepool&quot;</li>
+<li><strong>Ocean Depth:</strong> SHALLOW</li>
+<li><strong>Properties:</strong> Special brine pool areas</li>
+<li><strong>Colors:</strong> Distinct brine pool coloring</li>
+<li><strong>Wave Tint:</strong> Brinepool effects</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="ocean-swell">OCEAN_SWELL<a href="#ocean-swell" class="hash-link" aria-label="Direct link to OCEAN_SWELL" title="Direct link to OCEAN_SWELL">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Swell Ocean&quot;</li>
+<li><strong>Ocean Depth:</strong> BASIC</li>
+<li><strong>Properties:</strong> Standard ocean depth with swells</li>
+<li><strong>Wave Tint:</strong> Standard ocean appearance</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="ocean-rough">OCEAN_ROUGH<a href="#ocean-rough" class="hash-link" aria-label="Direct link to OCEAN_ROUGH" title="Direct link to OCEAN_ROUGH">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Rough Ocean&quot;</li>
+<li><strong>Ocean Depth:</strong> DEEP</li>
+<li><strong>Properties:</strong> Deep ocean with rough conditions</li>
+<li><strong>Wave Tint:</strong> Darker, more turbulent appearance</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="ocean-hazardous">OCEAN_HAZARDOUS<a href="#ocean-hazardous" class="hash-link" aria-label="Direct link to OCEAN_HAZARDOUS" title="Direct link to OCEAN_HAZARDOUS">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Hazardous Ocean&quot;</li>
+<li><strong>Ocean Depth:</strong> VERY_DEEP</li>
+<li><strong>Properties:</strong> Deepest, most dangerous ocean areas</li>
+<li><strong>Wave Tint:</strong> Dark, threatening appearance</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="land-tiles">Land Tiles<a href="#land-tiles" class="hash-link" aria-label="Direct link to Land Tiles" title="Direct link to Land Tiles">​</a></h3>
+<p>Solid ground tiles supporting structures and land-based gameplay:</p>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="road">ROAD<a href="#road" class="hash-link" aria-label="Direct link to ROAD" title="Direct link to ROAD">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Road&quot;</li>
+<li><strong>Properties:</strong> Hard, roadway tile with cobblestone texture</li>
+<li><strong>Sounds:</strong> Dirt movement sounds</li>
+<li><strong>Special:</strong> Part of road system, very hard surface</li>
+<li><strong>Turf:</strong> Available as &quot;road&quot; turf item</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="pebblebeach">PEBBLEBEACH<a href="#pebblebeach" class="hash-link" aria-label="Direct link to PEBBLEBEACH" title="Direct link to PEBBLEBEACH">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Pebble Beach&quot;</li>
+<li><strong>Properties:</strong> Rocky beach terrain</li>
+<li><strong>Sounds:</strong> Custom pebblebeach movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;pebblebeach&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="monkey-ground">MONKEY_GROUND<a href="#monkey-ground" class="hash-link" aria-label="Direct link to MONKEY_GROUND" title="Direct link to MONKEY_GROUND">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Pirate Beach&quot;</li>
+<li><strong>Properties:</strong> Monkey Island beach terrain</li>
+<li><strong>Sounds:</strong> Pebblebeach-style movement</li>
+<li><strong>Turf:</strong> Available as &quot;monkey_ground&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="shellbeach">SHELLBEACH<a href="#shellbeach" class="hash-link" aria-label="Direct link to SHELLBEACH" title="Direct link to SHELLBEACH">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Shell Beach&quot;</li>
+<li><strong>Properties:</strong> Beach area covered in shells</li>
+<li><strong>Sounds:</strong> Rocky movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;shellbeach&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="marsh">MARSH<a href="#marsh" class="hash-link" aria-label="Direct link to MARSH" title="Direct link to MARSH">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Marsh&quot;</li>
+<li><strong>Properties:</strong> Swampy, muddy terrain</li>
+<li><strong>Sounds:</strong> Marsh-specific movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;marsh&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="rocky">ROCKY<a href="#rocky" class="hash-link" aria-label="Direct link to ROCKY" title="Direct link to ROCKY">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Rocky&quot;</li>
+<li><strong>Properties:</strong> Hard rocky terrain, cannot be dug</li>
+<li><strong>Sounds:</strong> Dirt movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;rocky&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="savanna">SAVANNA<a href="#savanna" class="hash-link" aria-label="Direct link to SAVANNA" title="Direct link to SAVANNA">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Savanna&quot;</li>
+<li><strong>Properties:</strong> Grassland with yellow grass texture</li>
+<li><strong>Sounds:</strong> Tall grass movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;savanna&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="forest">FOREST<a href="#forest" class="hash-link" aria-label="Direct link to FOREST" title="Direct link to FOREST">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Forest&quot;</li>
+<li><strong>Properties:</strong> Standard forest ground</li>
+<li><strong>Sounds:</strong> Woods movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;forest&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="grass">GRASS<a href="#grass" class="hash-link" aria-label="Direct link to GRASS" title="Direct link to GRASS">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Grass&quot;</li>
+<li><strong>Properties:</strong> Basic grass terrain</li>
+<li><strong>Sounds:</strong> Grass movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;grass&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="dirt">DIRT<a href="#dirt" class="hash-link" aria-label="Direct link to DIRT" title="Direct link to DIRT">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Dirt&quot;</li>
+<li><strong>Properties:</strong> Cannot be dug up, basic dirt</li>
+<li><strong>Sounds:</strong> Dirt movement sounds</li>
+<li><strong>Special:</strong> Immune to terraforming</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="deciduous">DECIDUOUS<a href="#deciduous" class="hash-link" aria-label="Direct link to DECIDUOUS" title="Direct link to DECIDUOUS">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Deciduous&quot;</li>
+<li><strong>Properties:</strong> Deciduous forest ground</li>
+<li><strong>Sounds:</strong> Carpet-like movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;deciduous&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="desert-dirt">DESERT_DIRT<a href="#desert-dirt" class="hash-link" aria-label="Direct link to DESERT_DIRT" title="Direct link to DESERT_DIRT">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Desert Dirt&quot;</li>
+<li><strong>Properties:</strong> Desert terrain</li>
+<li><strong>Sounds:</strong> Dirt movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;desertdirt&quot; turf</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="cave-tiles">Cave Tiles<a href="#cave-tiles" class="hash-link" aria-label="Direct link to Cave Tiles" title="Direct link to Cave Tiles">​</a></h3>
+<p>Underground terrain for cave environments:</p>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="cave">CAVE<a href="#cave" class="hash-link" aria-label="Direct link to CAVE" title="Direct link to CAVE">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Cave&quot;</li>
+<li><strong>Properties:</strong> Basic cave ground</li>
+<li><strong>Sounds:</strong> Dirt movement with cave acoustics</li>
+<li><strong>Turf:</strong> Available as &quot;cave&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="fungus">FUNGUS<a href="#fungus" class="hash-link" aria-label="Direct link to FUNGUS" title="Direct link to FUNGUS">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Blue Fungus&quot;</li>
+<li><strong>Properties:</strong> Fungal cave terrain (blue)</li>
+<li><strong>Sounds:</strong> Moss movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;fungus&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="fungusred">FUNGUSRED<a href="#fungusred" class="hash-link" aria-label="Direct link to FUNGUSRED" title="Direct link to FUNGUSRED">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Red Fungus&quot;</li>
+<li><strong>Properties:</strong> Fungal cave terrain (red)</li>
+<li><strong>Sounds:</strong> Moss movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;fungus_red&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="fungusgreen">FUNGUSGREEN<a href="#fungusgreen" class="hash-link" aria-label="Direct link to FUNGUSGREEN" title="Direct link to FUNGUSGREEN">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Green Fungus&quot;</li>
+<li><strong>Properties:</strong> Fungal cave terrain (green)</li>
+<li><strong>Sounds:</strong> Moss movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;fungus_green&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="fungusmoon">FUNGUSMOON<a href="#fungusmoon" class="hash-link" aria-label="Direct link to FUNGUSMOON" title="Direct link to FUNGUSMOON">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Moon Fungus&quot;</li>
+<li><strong>Properties:</strong> Lunar fungal terrain</li>
+<li><strong>Sounds:</strong> Custom grotto footstep sounds</li>
+<li><strong>Turf:</strong> Available as &quot;fungus_moon&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="sinkhole">SINKHOLE<a href="#sinkhole" class="hash-link" aria-label="Direct link to SINKHOLE" title="Direct link to SINKHOLE">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Sinkhole&quot;</li>
+<li><strong>Properties:</strong> Transitional sinkhole terrain</li>
+<li><strong>Sounds:</strong> Dirt movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;sinkhole&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="underrock">UNDERROCK<a href="#underrock" class="hash-link" aria-label="Direct link to UNDERROCK" title="Direct link to UNDERROCK">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Under Rock&quot;</li>
+<li><strong>Properties:</strong> Hard rocky cave terrain</li>
+<li><strong>Sounds:</strong> Dirt movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;underrock&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="mud">MUD<a href="#mud" class="hash-link" aria-label="Direct link to MUD" title="Direct link to MUD">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Mud&quot;</li>
+<li><strong>Properties:</strong> Muddy cave terrain</li>
+<li><strong>Sounds:</strong> Mud movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;mud&quot; turf</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="ruins-tiles">Ruins Tiles<a href="#ruins-tiles" class="hash-link" aria-label="Direct link to Ruins Tiles" title="Direct link to Ruins Tiles">​</a></h3>
+<p>Ancient ruins terrain with special properties:</p>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="archive">ARCHIVE<a href="#archive" class="hash-link" aria-label="Direct link to ARCHIVE" title="Direct link to ARCHIVE">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Archives&quot;</li>
+<li><strong>Properties:</strong> Hard ancient archive terrain</li>
+<li><strong>Sounds:</strong> Marble movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;archive&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="brick-glow">BRICK_GLOW<a href="#brick-glow" class="hash-link" aria-label="Direct link to BRICK_GLOW" title="Direct link to BRICK_GLOW">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Pale Bricks&quot;</li>
+<li><strong>Properties:</strong> Hard glowing ruins bricks</li>
+<li><strong>Sounds:</strong> Dirt movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;ruinsbrick_glow&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="brick">BRICK<a href="#brick" class="hash-link" aria-label="Direct link to BRICK" title="Direct link to BRICK">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Glowing Bricks&quot;</li>
+<li><strong>Properties:</strong> Hard ruins bricks with glow</li>
+<li><strong>Sounds:</strong> Dirt movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;ruinsbrick&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="tiles-glow">TILES_GLOW<a href="#tiles-glow" class="hash-link" aria-label="Direct link to TILES_GLOW" title="Direct link to TILES_GLOW">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Pale Tiles&quot;</li>
+<li><strong>Properties:</strong> Hard glowing ruins tiles</li>
+<li><strong>Sounds:</strong> Dirt movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;ruinstiles_glow&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="tiles">TILES<a href="#tiles" class="hash-link" aria-label="Direct link to TILES" title="Direct link to TILES">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Glowing Tiles&quot;</li>
+<li><strong>Properties:</strong> Hard ruins tiles with glow</li>
+<li><strong>Sounds:</strong> Dirt movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;ruinstiles&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="trim-glow">TRIM_GLOW<a href="#trim-glow" class="hash-link" aria-label="Direct link to TRIM_GLOW" title="Direct link to TRIM_GLOW">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Pale Trim&quot;</li>
+<li><strong>Properties:</strong> Hard glowing ruins trim</li>
+<li><strong>Sounds:</strong> Dirt movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;ruinstrim_glow&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="trim">TRIM<a href="#trim" class="hash-link" aria-label="Direct link to TRIM" title="Direct link to TRIM">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Glowing Trim&quot;</li>
+<li><strong>Properties:</strong> Hard ruins trim with glow</li>
+<li><strong>Sounds:</strong> Dirt movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;ruinstrim&quot; turf</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="flooring-tiles">Flooring Tiles<a href="#flooring-tiles" class="hash-link" aria-label="Direct link to Flooring Tiles" title="Direct link to Flooring Tiles">​</a></h3>
+<p>Craftable floor tiles with special properties:</p>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="scale">SCALE<a href="#scale" class="hash-link" aria-label="Direct link to SCALE" title="Direct link to SCALE">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Scale&quot;</li>
+<li><strong>Properties:</strong> Hard flooring with fire resistance</li>
+<li><strong>Flashpoint Modifier:</strong> +250 (highly fire resistant)</li>
+<li><strong>Sounds:</strong> Marble movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;dragonfly&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="woodfloor">WOODFLOOR<a href="#woodfloor" class="hash-link" aria-label="Direct link to WOODFLOOR" title="Direct link to WOODFLOOR">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Wood&quot;</li>
+<li><strong>Properties:</strong> Hard wooden flooring</li>
+<li><strong>Sounds:</strong> Wood movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;woodfloor&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="checker">CHECKER<a href="#checker" class="hash-link" aria-label="Direct link to CHECKER" title="Direct link to CHECKER">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Checkers&quot;</li>
+<li><strong>Properties:</strong> Hard checkered flooring</li>
+<li><strong>Sounds:</strong> Marble movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;checkerfloor&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="mosaic-grey">MOSAIC_GREY<a href="#mosaic-grey" class="hash-link" aria-label="Direct link to MOSAIC_GREY" title="Direct link to MOSAIC_GREY">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Grey Mosaic&quot;</li>
+<li><strong>Properties:</strong> Hard decorative flooring</li>
+<li><strong>Sounds:</strong> Marble movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;mosaic_grey&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="mosaic-red">MOSAIC_RED<a href="#mosaic-red" class="hash-link" aria-label="Direct link to MOSAIC_RED" title="Direct link to MOSAIC_RED">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Red Mosaic&quot;</li>
+<li><strong>Properties:</strong> Hard decorative flooring</li>
+<li><strong>Sounds:</strong> Marble movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;mosaic_red&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="mosaic-blue">MOSAIC_BLUE<a href="#mosaic-blue" class="hash-link" aria-label="Direct link to MOSAIC_BLUE" title="Direct link to MOSAIC_BLUE">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Blue Mosaic&quot;</li>
+<li><strong>Properties:</strong> Hard decorative flooring</li>
+<li><strong>Sounds:</strong> Marble movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;mosaic_blue&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="carpet">CARPET<a href="#carpet" class="hash-link" aria-label="Direct link to CARPET" title="Direct link to CARPET">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Carpet&quot;</li>
+<li><strong>Properties:</strong> Hard carpet flooring</li>
+<li><strong>Sounds:</strong> Carpet movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;carpetfloor&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="carpet2">CARPET2<a href="#carpet2" class="hash-link" aria-label="Direct link to CARPET2" title="Direct link to CARPET2">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Carpet&quot;</li>
+<li><strong>Properties:</strong> Hard alternative carpet flooring</li>
+<li><strong>Sounds:</strong> Carpet movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;carpetfloor2&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="beard-rug">BEARD_RUG<a href="#beard-rug" class="hash-link" aria-label="Direct link to BEARD_RUG" title="Direct link to BEARD_RUG">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Beard Rug&quot;</li>
+<li><strong>Properties:</strong> Hard beard hair flooring</li>
+<li><strong>Sounds:</strong> Carpet movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;beard_rug&quot; turf</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="special-tiles">Special Tiles<a href="#special-tiles" class="hash-link" aria-label="Direct link to Special Tiles" title="Direct link to Special Tiles">​</a></h3>
+<p>Unique tiles for specific game mechanics:</p>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="meteor">METEOR<a href="#meteor" class="hash-link" aria-label="Direct link to METEOR" title="Direct link to METEOR">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Meteor&quot;</li>
+<li><strong>Properties:</strong> Meteoric terrain from lunar impact</li>
+<li><strong>Sounds:</strong> Custom meteor movement sounds</li>
+<li><strong>Turf:</strong> Available as &quot;meteor&quot; turf</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="monkey-dock">MONKEY_DOCK<a href="#monkey-dock" class="hash-link" aria-label="Direct link to MONKEY_DOCK" title="Direct link to MONKEY_DOCK">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Docks&quot;</li>
+<li><strong>Properties:</strong> Cannot be dug, hard flooring, temporary tile</li>
+<li><strong>Sounds:</strong> Custom dock movement sounds</li>
+<li><strong>Special:</strong> Invisible tile type, temporary placement</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="ocean-ice">OCEAN_ICE<a href="#ocean-ice" class="hash-link" aria-label="Direct link to OCEAN_ICE" title="Direct link to OCEAN_ICE">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Ice Floe&quot;</li>
+<li><strong>Properties:</strong> Cannot be dug, hard, temporary, no ground overlays</li>
+<li><strong>Sounds:</strong> Ice slab movement sounds</li>
+<li><strong>Special:</strong> Temporary ice formation on ocean</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="charlie-vine">CHARLIE_VINE<a href="#charlie-vine" class="hash-link" aria-label="Direct link to CHARLIE_VINE" title="Direct link to CHARLIE_VINE">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Charlie Vine&quot;</li>
+<li><strong>Properties:</strong> Cannot be dug, hard, invisible, temporary, no overlays</li>
+<li><strong>Sounds:</strong> Grass movement sounds</li>
+<li><strong>Special:</strong> Invisible vine tile</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="rope-bridge">ROPE_BRIDGE<a href="#rope-bridge" class="hash-link" aria-label="Direct link to ROPE_BRIDGE" title="Direct link to ROPE_BRIDGE">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Rope Bridge&quot;</li>
+<li><strong>Properties:</strong> Cannot be dug, hard, invisible, temporary, no overlays</li>
+<li><strong>Sounds:</strong> Cave bridge movement sounds</li>
+<li><strong>Special:</strong> Bridge spanning gaps</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="rift-moon">RIFT_MOON<a href="#rift-moon" class="hash-link" aria-label="Direct link to RIFT_MOON" title="Direct link to RIFT_MOON">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Lunar Rift&quot;</li>
+<li><strong>Properties:</strong> Cannot be dug, hard, temporary</li>
+<li><strong>Sounds:</strong> Meteor movement sounds</li>
+<li><strong>Special:</strong> Lunar rift terrain</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="event-tiles">Event Tiles<a href="#event-tiles" class="hash-link" aria-label="Direct link to Event Tiles" title="Direct link to Event Tiles">​</a></h3>
+<p>Special tiles for limited-time events:</p>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="quagmire-gateway">QUAGMIRE_GATEWAY<a href="#quagmire-gateway" class="hash-link" aria-label="Direct link to QUAGMIRE_GATEWAY" title="Direct link to QUAGMIRE_GATEWAY">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Gorge Gateway&quot;</li>
+<li><strong>Properties:</strong> Event-specific gateway terrain</li>
+<li><strong>Sounds:</strong> Woods movement sounds</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="quagmire-citystone">QUAGMIRE_CITYSTONE<a href="#quagmire-citystone" class="hash-link" aria-label="Direct link to QUAGMIRE_CITYSTONE" title="Direct link to QUAGMIRE_CITYSTONE">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Gorge Citystone&quot;</li>
+<li><strong>Properties:</strong> Event city stone terrain</li>
+<li><strong>Sounds:</strong> Dirt movement sounds</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="quagmire-parkfield">QUAGMIRE_PARKFIELD<a href="#quagmire-parkfield" class="hash-link" aria-label="Direct link to QUAGMIRE_PARKFIELD" title="Direct link to QUAGMIRE_PARKFIELD">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Gorge Park Grass&quot;</li>
+<li><strong>Properties:</strong> Event park grass terrain</li>
+<li><strong>Sounds:</strong> Carpet movement sounds</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="quagmire-parkstone">QUAGMIRE_PARKSTONE<a href="#quagmire-parkstone" class="hash-link" aria-label="Direct link to QUAGMIRE_PARKSTONE" title="Direct link to QUAGMIRE_PARKSTONE">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Gorge Park Path&quot;</li>
+<li><strong>Properties:</strong> Event park path terrain</li>
+<li><strong>Sounds:</strong> Dirt movement sounds</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="quagmire-peatforest">QUAGMIRE_PEATFOREST<a href="#quagmire-peatforest" class="hash-link" aria-label="Direct link to QUAGMIRE_PEATFOREST" title="Direct link to QUAGMIRE_PEATFOREST">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Gorge Peat Forest&quot;</li>
+<li><strong>Properties:</strong> Event peat forest terrain</li>
+<li><strong>Sounds:</strong> Marsh movement sounds</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="quagmire-soil">QUAGMIRE_SOIL<a href="#quagmire-soil" class="hash-link" aria-label="Direct link to QUAGMIRE_SOIL" title="Direct link to QUAGMIRE_SOIL">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Gorge Soil&quot;</li>
+<li><strong>Properties:</strong> Event soil terrain</li>
+<li><strong>Sounds:</strong> Mud movement sounds</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="farming-soil">FARMING_SOIL<a href="#farming-soil" class="hash-link" aria-label="Direct link to FARMING_SOIL" title="Direct link to FARMING_SOIL">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Farming Soil&quot;</li>
+<li><strong>Properties:</strong> Temporary farming soil</li>
+<li><strong>Sounds:</strong> Mud movement sounds</li>
+<li><strong>Special:</strong> Temporary tile for farming</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="lavaarena-trim">LAVAARENA_TRIM<a href="#lavaarena-trim" class="hash-link" aria-label="Direct link to LAVAARENA_TRIM" title="Direct link to LAVAARENA_TRIM">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Forge Trim&quot;</li>
+<li><strong>Properties:</strong> Event arena trim</li>
+<li><strong>Sounds:</strong> Dirt movement sounds</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="lavaarena-floor">LAVAARENA_FLOOR<a href="#lavaarena-floor" class="hash-link" aria-label="Direct link to LAVAARENA_FLOOR" title="Direct link to LAVAARENA_FLOOR">​</a></h4>
+<ul>
+<li><strong>Ground Name:</strong> &quot;Forge Floor&quot;</li>
+<li><strong>Properties:</strong> Event arena floor</li>
+<li><strong>Sounds:</strong> Dirt movement sounds</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="noise-tiles">Noise Tiles<a href="#noise-tiles" class="hash-link" aria-label="Direct link to Noise Tiles" title="Direct link to Noise Tiles">​</a></h3>
+<p>Special tiles used for texture blending:</p>
+<ul>
+<li><strong>FUNGUSMOON_NOISE</strong> - Moon fungus noise blending</li>
+<li><strong>METEORMINE_NOISE</strong> - Meteor mine noise blending</li>
+<li><strong>METEORCOAST_NOISE</strong> - Meteor coast noise blending</li>
+<li><strong>DIRT_NOISE</strong> - Dirt noise blending</li>
+<li><strong>ABYSS_NOISE</strong> - Abyss noise blending</li>
+<li><strong>GROUND_NOISE</strong> - General ground noise blending</li>
+<li><strong>CAVE_NOISE</strong> - Cave noise blending</li>
+<li><strong>FUNGUS_NOISE</strong> - Fungus noise blending</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="ocean-color-schemes">Ocean Color Schemes<a href="#ocean-color-schemes" class="hash-link" aria-label="Direct link to Ocean Color Schemes" title="Direct link to Ocean Color Schemes">​</a></h2>
+<p>The file defines several ocean color schemes used for different water types:</p>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="coastal_shore_ocean_color">COASTAL_SHORE_OCEAN_COLOR<a href="#coastal_shore_ocean_color" class="hash-link" aria-label="Direct link to COASTAL_SHORE_OCEAN_COLOR" title="Direct link to COASTAL_SHORE_OCEAN_COLOR">​</a></h3>
+<ul>
+<li><strong>Primary:</strong> Light blue with low opacity</li>
+<li><strong>Secondary:</strong> Teal with medium opacity</li>
+<li><strong>Dusk:</strong> Dark with low opacity</li>
+<li><strong>Minimap:</strong> Blue-gray</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="coastal_ocean_color">COASTAL_OCEAN_COLOR<a href="#coastal_ocean_color" class="hash-link" aria-label="Direct link to COASTAL_OCEAN_COLOR" title="Direct link to COASTAL_OCEAN_COLOR">​</a></h3>
+<ul>
+<li><strong>Primary:</strong> Bright cyan with very low opacity</li>
+<li><strong>Secondary:</strong> Blue with medium opacity</li>
+<li><strong>Dusk:</strong> Blue-green with medium opacity</li>
+<li><strong>Minimap:</strong> Blue-gray</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="swell_ocean_color">SWELL_OCEAN_COLOR<a href="#swell_ocean_color" class="hash-link" aria-label="Direct link to SWELL_OCEAN_COLOR" title="Direct link to SWELL_OCEAN_COLOR">​</a></h3>
+<ul>
+<li><strong>Primary:</strong> Bright cyan with very low opacity</li>
+<li><strong>Secondary:</strong> Dark blue with high opacity</li>
+<li><strong>Dusk:</strong> Dark blue-green with medium opacity</li>
+<li><strong>Minimap:</strong> Dark blue</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="rough_ocean_color">ROUGH_OCEAN_COLOR<a href="#rough_ocean_color" class="hash-link" aria-label="Direct link to ROUGH_OCEAN_COLOR" title="Direct link to ROUGH_OCEAN_COLOR">​</a></h3>
+<ul>
+<li><strong>Primary:</strong> Blue-green with low opacity</li>
+<li><strong>Secondary:</strong> Very dark blue with high opacity</li>
+<li><strong>Dusk:</strong> Very dark blue-green with high opacity</li>
+<li><strong>Minimap:</strong> Dark blue</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="hazardous_ocean_color">HAZARDOUS_OCEAN_COLOR<a href="#hazardous_ocean_color" class="hash-link" aria-label="Direct link to HAZARDOUS_OCEAN_COLOR" title="Direct link to HAZARDOUS_OCEAN_COLOR">​</a></h3>
+<ul>
+<li><strong>Primary:</strong> White with low opacity</li>
+<li><strong>Secondary:</strong> Very dark blue with medium opacity</li>
+<li><strong>Dusk:</strong> Black with high opacity</li>
+<li><strong>Minimap:</strong> Very dark blue</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="brinepool_ocean_color">BRINEPOOL_OCEAN_COLOR<a href="#brinepool_ocean_color" class="hash-link" aria-label="Direct link to BRINEPOOL_OCEAN_COLOR" title="Direct link to BRINEPOOL_OCEAN_COLOR">​</a></h3>
+<ul>
+<li><strong>Primary:</strong> Cyan with medium opacity</li>
+<li><strong>Secondary:</strong> Dark blue with high opacity</li>
+<li><strong>Dusk:</strong> Very dark blue with high opacity</li>
+<li><strong>Minimap:</strong> Gray-blue</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="wave-tints">Wave Tints<a href="#wave-tints" class="hash-link" aria-label="Direct link to Wave Tints" title="Direct link to Wave Tints">​</a></h2>
+<p>Different ocean areas use specific wave tinting:</p>
+<ul>
+<li><strong>shallow:</strong> <code>{0.8, 0.9, 1}</code> - Slightly blue-tinted</li>
+<li><strong>rough:</strong> <code>{0.65, 0.84, 0.94}</code> - Blue-gray tint</li>
+<li><strong>swell:</strong> <code>{0.65, 0.84, 0.94}</code> - Blue-gray tint</li>
+<li><strong>brinepool:</strong> <code>{0.65, 0.92, 0.94}</code> - Cyan-tinted</li>
+<li><strong>hazardous:</strong> <code>{0.40, 0.50, 0.62}</code> - Dark gray-blue</li>
+<li><strong>waterlog:</strong> <code>{1, 1, 1}</code> - No tinting</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="tile-properties">Tile Properties<a href="#tile-properties" class="hash-link" aria-label="Direct link to Tile Properties" title="Direct link to Tile Properties">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="movement-properties">Movement Properties<a href="#movement-properties" class="hash-link" aria-label="Direct link to Movement Properties" title="Direct link to Movement Properties">​</a></h3>
+<ul>
+<li><strong>hard:</strong> Tile cannot be dug up with shovel</li>
+<li><strong>flooring:</strong> Tile acts as constructed flooring</li>
+<li><strong>roadways:</strong> Tile is part of the road system</li>
+<li><strong>cannotbedug:</strong> Tile is immune to terraforming</li>
+<li><strong>nogroundoverlays:</strong> Tile doesn&#x27;t show snow/mud overlays</li>
+<li><strong>isinvisibletile:</strong> Tile has special invisible rendering</li>
+<li><strong>istemptile:</strong> Tile is temporary and uses undertile system</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="sound-properties">Sound Properties<a href="#sound-properties" class="hash-link" aria-label="Direct link to Sound Properties" title="Direct link to Sound Properties">​</a></h3>
+<ul>
+<li><strong>runsound:</strong> Sound played when running on tile</li>
+<li><strong>walksound:</strong> Sound played when walking on tile</li>
+<li><strong>snowsound:</strong> Sound played when moving on snowy tile</li>
+<li><strong>mudsound:</strong> Sound played when moving on muddy tile</li>
+<li><strong>pickupsound:</strong> Sound played when picking up turf</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="visual-properties">Visual Properties<a href="#visual-properties" class="hash-link" aria-label="Direct link to Visual Properties" title="Direct link to Visual Properties">​</a></h3>
+<ul>
+<li><strong>flashpoint_modifier:</strong> Modifies fire spread behavior</li>
+<li><strong>colors:</strong> Primary and secondary colors for blending</li>
+<li><strong>wavetint:</strong> Color tinting for ocean wave effects</li>
+<li><strong>ocean_depth:</strong> Depth category for ocean tiles</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="global-tables">Global Tables<a href="#global-tables" class="hash-link" aria-label="Direct link to Global Tables" title="Direct link to Global Tables">​</a></h2>
+<p>After tile registration, several global tables are populated:</p>
+<ul>
+<li><strong>WORLD_TILES:</strong> Contains all tile ID constants</li>
+<li><strong>INVERTED_WORLD_TILES:</strong> Maps tile IDs back to names</li>
+<li><strong>GROUND_NAMES:</strong> Human-readable names for tiles</li>
+<li><strong>GROUND_FLOORING:</strong> Tracks which tiles are flooring</li>
+<li><strong>GROUND_HARD:</strong> Tracks which tiles are hard</li>
+<li><strong>GROUND_ROADWAYS:</strong> Tracks which tiles are roadways</li>
+<li><strong>TERRAFORM_IMMUNE:</strong> Tracks which tiles cannot be terraformed</li>
+<li><strong>GROUND_NOGROUNDOVERLAYS:</strong> Tracks tiles without overlays</li>
+<li><strong>GROUND_INVISIBLETILES:</strong> Tracks invisible tiles</li>
+<li><strong>GROUND_ISTEMPTILE:</strong> Tracks temporary tiles</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="usage-in-modding">Usage in Modding<a href="#usage-in-modding" class="hash-link" aria-label="Direct link to Usage in Modding" title="Direct link to Usage in Modding">​</a></h2>
+<p>The tile system supports modding through proper tile ranges:</p>
+<div class="language-lua codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-lua codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#393A34"><span class="token comment" style="color:#999988;font-style:italic">-- Mods should register their own tile ranges</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">TileManager</span><span class="token punctuation" style="color:#393A34">.</span><span class="token function" style="color:#d73a49">RegisterTileRange</span><span class="token punctuation" style="color:#393A34">(</span><span class="token string" style="color:#e3116c">&quot;MODNAME_TILES&quot;</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">2000</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">2255</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token comment" style="color:#999988;font-style:italic">-- Then add custom tiles</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">TileManager</span><span class="token punctuation" style="color:#393A34">.</span><span class="token function" style="color:#d73a49">AddTile</span><span class="token punctuation" style="color:#393A34">(</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token string" style="color:#e3116c">&quot;CUSTOM_TERRAIN&quot;</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token string" style="color:#e3116c">&quot;MODNAME_TILES&quot;</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain">ground_name </span><span class="token operator" style="color:#393A34">=</span><span class="token plain"> </span><span class="token string" style="color:#e3116c">&quot;Custom Terrain&quot;</span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    ground_definition</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    minimap_definition</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    turf_definition</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token punctuation" style="color:#393A34">)</span><br></span></code></pre></div></div>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="protection-system">Protection System<a href="#protection-system" class="hash-link" aria-label="Direct link to Protection System" title="Direct link to Protection System">​</a></h2>
+<p>The module uses protection flags to prevent interference:</p>
+<ul>
+<li><code>mod_protect_TileManager = false</code> initially allows tile registration</li>
+<li><code>allow_existing_GROUND_entry = true</code> allows vanilla tile updates</li>
+<li>After loading, protection is enabled to prevent conflicts</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="related-modules">Related Modules<a href="#related-modules" class="hash-link" aria-label="Direct link to Related Modules" title="Direct link to Related Modules">​</a></h2>
+<ul>
+<li><a href="/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/tiles-terrain/tilemanager">TileManager</a>: Core tile management system</li>
+<li><a href="/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/tiles-terrain/tilegroups">TileGroups</a>: Tile categorization and validation</li>
+<li><a href="/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/map/worldtiledefs.md">World Tile Definitions</a>: Core tile constants</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="source-reference">Source Reference<a href="#source-reference" class="hash-link" aria-label="Direct link to Source Reference" title="Direct link to Source Reference">​</a></h2>
+<p><strong>File:</strong> <code>scripts/tiledefs.lua</code></p>
+<p><strong>Key Implementation Notes:</strong></p>
+<ul>
+<li>Registers all vanilla tile ranges using TileManager</li>
+<li>Defines ocean color schemes and wave tinting effects</li>
+<li>Creates complete tile definitions with visual and audio properties</li>
+<li>Maintains compatibility with legacy tile IDs</li>
+<li>Supports both gameplay and rendering requirements</li>
+</ul></div></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/tiles-terrain"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Tiles &amp; Terrain Overview</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/dst-api-webdocs/docs/game-scripts/core-systems/world-systems/tiles-terrain/tilegroups"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">TileGroups</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#version-history" class="table-of-contents__link toc-highlight">Version History</a></li><li><a href="#overview" class="table-of-contents__link toc-highlight">Overview</a></li><li><a href="#usage-example" class="table-of-contents__link toc-highlight">Usage Example</a></li><li><a href="#tile-categories" class="table-of-contents__link toc-highlight">Tile Categories</a><ul><li><a href="#impassable-tiles" class="table-of-contents__link toc-highlight">Impassable Tiles</a></li><li><a href="#ocean-tiles" class="table-of-contents__link toc-highlight">Ocean Tiles</a></li><li><a href="#land-tiles" class="table-of-contents__link toc-highlight">Land Tiles</a></li><li><a href="#cave-tiles" class="table-of-contents__link toc-highlight">Cave Tiles</a></li><li><a href="#ruins-tiles" class="table-of-contents__link toc-highlight">Ruins Tiles</a></li><li><a href="#flooring-tiles" class="table-of-contents__link toc-highlight">Flooring Tiles</a></li><li><a href="#special-tiles" class="table-of-contents__link toc-highlight">Special Tiles</a></li><li><a href="#event-tiles" class="table-of-contents__link toc-highlight">Event Tiles</a></li><li><a href="#noise-tiles" class="table-of-contents__link toc-highlight">Noise Tiles</a></li></ul></li><li><a href="#ocean-color-schemes" class="table-of-contents__link toc-highlight">Ocean Color Schemes</a><ul><li><a href="#coastal_shore_ocean_color" class="table-of-contents__link toc-highlight">COASTAL_SHORE_OCEAN_COLOR</a></li><li><a href="#coastal_ocean_color" class="table-of-contents__link toc-highlight">COASTAL_OCEAN_COLOR</a></li><li><a href="#swell_ocean_color" class="table-of-contents__link toc-highlight">SWELL_OCEAN_COLOR</a></li><li><a href="#rough_ocean_color" class="table-of-contents__link toc-highlight">ROUGH_OCEAN_COLOR</a></li><li><a href="#hazardous_ocean_color" class="table-of-contents__link toc-highlight">HAZARDOUS_OCEAN_COLOR</a></li><li><a href="#brinepool_ocean_color" class="table-of-contents__link toc-highlight">BRINEPOOL_OCEAN_COLOR</a></li></ul></li><li><a href="#wave-tints" class="table-of-contents__link toc-highlight">Wave Tints</a></li><li><a href="#tile-properties" class="table-of-contents__link toc-highlight">Tile Properties</a><ul><li><a href="#movement-properties" class="table-of-contents__link toc-highlight">Movement Properties</a></li><li><a href="#sound-properties" class="table-of-contents__link toc-highlight">Sound Properties</a></li><li><a href="#visual-properties" class="table-of-contents__link toc-highlight">Visual Properties</a></li></ul></li><li><a href="#global-tables" class="table-of-contents__link toc-highlight">Global Tables</a></li><li><a href="#usage-in-modding" class="table-of-contents__link toc-highlight">Usage in Modding</a></li><li><a href="#protection-system" class="table-of-contents__link toc-highlight">Protection System</a></li><li><a href="#related-modules" class="table-of-contents__link toc-highlight">Related Modules</a></li><li><a href="#source-reference" class="table-of-contents__link toc-highlight">Source Reference</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/dst-api-webdocs/docs/game-scripts/getting-started/about-game-scripts">DST Vanilla</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Community</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://forums.kleientertainment.com/" target="_blank" rel="noopener noreferrer" class="footer__link-item">Klei Forums<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://discord.gg/dst" target="_blank" rel="noopener noreferrer" class="footer__link-item">Discord<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/vietnd69/dst-api-webdocs" target="_blank" rel="noopener noreferrer" class="footer__link-item">Contribute<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2025 Don't Starve Together Vanilla API v0.5.2 Docs.</div></div></div></footer></div>
+</body>
+</html>
