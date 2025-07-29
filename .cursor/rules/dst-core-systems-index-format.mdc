@@ -1,0 +1,277 @@
+---
+description: 
+globs: docs/game-scripts/**/index.md
+alwaysApply: false
+---
+# DST Core Systems Index Format
+
+This rule defines the standardized format for index.md files within the core-systems directory structure. These files serve as navigation hubs and overview pages for each major system category.
+
+## File Purpose
+
+Index.md files in core-systems serve multiple purposes:
+- **Navigation Hub**: Provide organized access to all modules within a system category
+- **System Overview**: Explain the purpose and scope of the system category
+- **Integration Guide**: Show how modules within the category work together
+- **Change Tracking**: Document recent changes and updates across the category
+
+## Standard File Structure
+
+### Front Matter Template
+
+All core-systems index.md files must include:
+
+```markdown
+---
+id: [system-category-id]
+title: [System Category Name] Overview
+description: Overview of [system category] functionality in DST API
+sidebar_position: 0
+slug: game-scripts/core-systems/[category-slug]
+last_updated: YYYY-MM-DD
+build_version: 676042
+change_status: stable
+category_type: core-system
+system_scope: [brief scope description]
+---
+```
+
+### Document Structure Template
+
+```markdown
+# [System Category Name] Overview
+
+## Build Information
+Current documentation based on build version: **676042**
+Last updated: **YYYY-MM-DD**
+
+## System Purpose
+
+[2-3 paragraph explanation of what this system category provides to DST]
+
+### Key Responsibilities
+- [Primary responsibility 1]
+- [Primary responsibility 2] 
+- [Primary responsibility 3]
+
+### System Scope
+[Define what is included and excluded from this system category]
+
+## Architecture Overview
+
+### System Components
+[High-level overview of how components in this category work together]
+
+### Data Flow
+[Brief description of how data flows through this system]
+
+### Integration Points
+[How this system connects with other core systems]
+
+## Recent Changes
+
+| Build | Date | Component | Change Type | Description |
+|-------|------|-----------|-------------|-------------|
+| 676042 | 2024-XX-XX | [Component A](mdc:dst-api-webdocs/dst-api-webdocs/subdir/component-a.md) | added | Added new functionality X |
+| 676042 | 2024-XX-XX | [Component B](mdc:dst-api-webdocs/dst-api-webdocs/subdir/component-b.md) | modified | Changed parameter structure |
+| 675312 | 2023-11-15 | [Component C](mdc:dst-api-webdocs/dst-api-webdocs/subdir/component-c.md) | deprecated | Will be removed in build 690000 |
+
+## Core Modules
+
+### [Subcategory 1 Name]
+[Brief description of subcategory purpose]
+
+| Module | Status | Description | Key Features |
+|--------|--------|-------------|--------------|
+| [Module A](mdc:dst-api-webdocs/dst-api-webdocs/subcategory1/module-a.md) | stable | Brief description | Feature 1, Feature 2 |
+| [Module B](mdc:dst-api-webdocs/dst-api-webdocs/subcategory1/module-b.md) | added in 676042 | Brief description | Feature 1, Feature 2 |
+
+### [Subcategory 2 Name]
+[Brief description of subcategory purpose]
+
+| Module | Status | Description | Key Features |
+|--------|--------|-------------|--------------|
+| [Module C](mdc:dst-api-webdocs/dst-api-webdocs/subcategory2/module-c.md) | stable | Brief description | Feature 1, Feature 2 |
+| [Module D](mdc:dst-api-webdocs/dst-api-webdocs/subcategory2/module-d.md) | modified in 676042 | Brief description | Feature 1, Feature 2 |
+
+## Common Usage Patterns
+
+### Pattern 1: [Pattern Name]
+```lua
+-- Example showing common usage pattern
+local example = SomeModule.CreateInstance()
+example:Configure(settings)
+example:Initialize()
+```
+
+### Pattern 2: [Pattern Name]
+```lua
+-- Example showing integration pattern
+local systemA = CoreSystemA.GetInstance()
+local systemB = CoreSystemB.GetInstance()
+systemA:ConnectTo(systemB)
+```
+
+## System Dependencies
+
+### Required Systems
+- [Required System 1]: [Why it's required]
+- [Required System 2]: [Why it's required]
+
+### Optional Systems
+- [Optional System 1]: [How it enhances functionality]
+- [Optional System 2]: [How it enhances functionality]
+
+## Performance Considerations
+
+### Memory Usage
+[Guidelines for memory efficiency in this system]
+
+### Performance Optimizations
+[Key optimization strategies for this system category]
+
+### Scaling Considerations
+[How this system handles increased load or complexity]
+
+## Development Guidelines
+
+### Best Practices
+- [Best practice 1 for working with this system]
+- [Best practice 2 for working with this system]
+- [Best practice 3 for working with this system]
+
+### Common Pitfalls
+- [Common mistake 1 and how to avoid it]
+- [Common mistake 2 and how to avoid it]
+
+### Testing Strategies
+[Recommended approaches for testing components in this system]
+
+## Related Systems
+
+| System | Relationship | Integration Points |
+|--------|--------------|-------------------|
+| [System A](mdc:dst-api-webdocs/other-category/index.md) | [Type of relationship] | [How they connect] |
+| [System B](mdc:dst-api-webdocs/other-category/index.md) | [Type of relationship] | [How they connect] |
+
+## Troubleshooting
+
+### Common Issues
+| Issue | Symptoms | Solution |
+|-------|----------|----------|
+| [Issue 1] | [What users see] | [How to fix] |
+| [Issue 2] | [What users see] | [How to fix] |
+
+### Debugging Tips
+- [Debugging tip 1]
+- [Debugging tip 2]
+- [Debugging tip 3]
+
+## Migration Notes
+
+### From Previous Versions
+[Guidelines for migrating from older implementations]
+
+### Deprecated Features
+[List of deprecated features and their replacements]
+
+## Contributing
+
+### Adding New Modules
+[Guidelines for adding new modules to this system category]
+
+### Documentation Standards
+[Specific standards for documenting modules in this category]
+
+### Code Review Checklist
+[Checklist items specific to this system category]
+```
+
+## Content Guidelines
+
+### System Purpose Section
+- Explain WHY this system exists in DST
+- Define the scope clearly
+- Connect to player experience when relevant
+- Use technical precision but remain accessible
+
+### Recent Changes Section
+- Always include build version and date
+- Link to specific module documentation
+- Use consistent change type indicators
+- Prioritize most recent changes at top
+
+### Module Tables
+- Keep descriptions concise but informative
+- Use consistent status indicators
+- Link all module names to their documentation
+- Include key features to help with module selection
+
+### Usage Patterns
+- Show realistic, tested code examples
+- Focus on common integration scenarios
+- Include comments explaining the pattern
+- Verify examples against current build
+
+### Dependencies Section
+- Clearly distinguish required vs optional dependencies
+- Explain WHY each dependency exists
+- Provide guidance on alternative approaches when possible
+
+## Cross-Reference Standards
+
+### Linking Conventions
+- Use relative paths for internal documentation
+- Link module names in tables to their documentation
+- Cross-reference related systems consistently
+- Ensure all links remain valid after content updates
+
+### Terminology Consistency
+- Use identical terms for identical concepts across all index files
+- Maintain consistency with broader DST API documentation
+- Define technical terms when first introduced in each file
+
+## Update Procedures
+
+### When to Update Index Files
+- New modules added to the system category
+- Significant changes to existing modules
+- New integration patterns discovered
+- Build version updates with system changes
+
+### Update Checklist
+- [ ] Update build version and last_updated date
+- [ ] Add new modules to appropriate tables
+- [ ] Update change history with recent modifications
+- [ ] Verify all cross-references are still valid
+- [ ] Update usage patterns if they've changed
+- [ ] Review and update system dependencies
+
+### Quality Assurance
+- Verify all links point to existing documentation
+- Test code examples against current build
+- Ensure consistent formatting throughout
+- Check that change history accurately reflects system evolution
+
+## Integration with Documentation Standards
+
+This rule works with:
+- [DST API Documentation Format](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-format.mdc)
+- [DST API Documentation Templates](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-templates.mdc)
+- [DST API Documentation Example Accuracy](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-example-accuracy.mdc)
+
+## Validation Checklist
+
+Before publishing core-systems index documentation:
+
+- [ ] **System purpose** clearly explains category scope and value
+- [ ] **Recent changes** accurately reflect current build state
+- [ ] **Module tables** include all components with accurate status
+- [ ] **Usage patterns** show realistic, tested integration examples
+- [ ] **Dependencies** clearly identify required and optional systems
+- [ ] **Cross-references** link correctly to related documentation
+- [ ] **Build version** matches current documentation standard (676042)
+- [ ] **Performance guidelines** provide actionable optimization advice
+- [ ] **Troubleshooting** addresses real issues developers encounter
+- [ ] **Contributing guidelines** support system category growth
+

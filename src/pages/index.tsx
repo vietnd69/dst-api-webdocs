@@ -5,7 +5,7 @@ import Head from "@docusaurus/Head";
 
 const Home: React.FC = () => {
 	// useBaseUrl will automatically add baseUrl to the path
-	const docsPath = useBaseUrl("/docs/api-vanilla/getting-started");
+	const docsPath = useBaseUrl("/docs/getting-started");
 	return (
 		<>
 			<Head>

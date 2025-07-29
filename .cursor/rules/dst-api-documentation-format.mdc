@@ -1,0 +1,247 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# DST API Documentation Format
+
+This rule defines the standardized format for documenting Don't Starve Together API scripts. Follow this format consistently when creating or updating API documentation.
+
+## File Structure
+
+```
+docs/game-scripts/[module-category]/
+  |-- index.md             # Overview of module category
+  |-- [specific-file].md   # Documentation for specific module/file
+```
+
+## Front Matter Template
+
+All documentation files must include the following front matter:
+
+```markdown
+---
+id: [Id]
+title: [Module Name]
+description: [Short description of what this module/file does]
+sidebar_position: [Number]
+slug: [custom-url-slug]
+last_updated: YYYY-MM-DD
+build_version: 676042
+change_status: stable | added | modified | deprecated | removed
+---
+```
+
+## Documentation Structure
+
+### Index Files
+
+Index files should follow this structure:
+
+```markdown
+---
+id: [Id]
+title: [Category Name] Overview
+sidebar_position: 1
+slug: [category-slug]
+last_updated: YYYY-MM-DD
+build_version: 676042
+---
+
+# [Category] API Overview
+
+## Build Information
+Current documentation based on build version: **675312**
+Last updated: **YYYY-MM-DD**
+
+## Purpose
+
+[Explanation of what this category of scripts provides to the game]
+
+## Key Concepts
+
+[Explain fundamental concepts related to this category]
+
+## Recent Changes
+
+| Build | Date | Component | Change Type | Description |
+|-------|------|-----------|-------------|-------------|
+| 675312 | 2023-11-15 | [Component A](./component-a.md) | added | Added new functionality X |
+| 675312 | 2023-11-15 | [Component B](./component-b.md) | modified | Changed parameter structure |
+| 659421 | 2023-08-22 | [Component C](./component-c.md) | deprecated | Will be removed in build 690000 |
+| 659421 | 2023-08-22 | [Component D](./component-d.md) | removed | Replaced by [Component E](./component-e.md) |
+
+## Common Usage Patterns
+
+[Brief examples of how modules in this category are typically used together]
+
+## Modules
+
+| Module | Status | Description |
+|--------|--------|-------------|
+| [ModuleName](./module-name.md) | stable | Brief description |
+| [NewModule](./new-module.md) | added in 675312 | Brief description |
+| [ChangedModule](./changed-module.md) | modified in 675312 | Brief description |
+| [DeprecatedModule](./deprecated-module.md) | deprecated in 675312 | Brief description |
+```
+
+### Module Documentation Files
+
+Module-specific files should follow this structure:
+
+```markdown
+---
+id: [Id]
+title: [Module Name]
+description: [Short description of what this module/file does]
+sidebar_position: [Number]
+slug: [custom-url-slug]
+last_updated: YYYY-MM-DD
+build_version: 676042
+change_status: stable
+---
+
+# [Module Name]
+
+## Version History
+| Build Version | Change Date | Change Type | Description |
+|---------------|-------------|-------------|-------------|
+| 675312 | 2023-11-15 | stable | Current version |
+| 659421 | 2023-08-22 | added | Initial implementation |
+| 642130 | 2023-06-10 | modified | Changed parameter structure |
+| 625842 | 2023-03-15 | deprecated | Will be removed in future |
+| 618753 | 2023-01-20 | removed | Functionality moved to X module |
+
+## Overview
+
+[Brief description of module purpose and functionality (2-3 sentences)]
+
+## Usage Example
+
+```lua
+-- Simple example showing basic usage
+local result = SomeFunction(param1, param2)
+```
+
+## Functions
+
+### functionName(param1, param2, ...) {#function-name}
+
+**Status:** `stable` | `added in build 675312` | `modified in build 675312` | `deprecated in build 675312` | `removed in build 675312`
+
+**Description:**
+Detailed explanation of what the function does.
+
+**Parameters:**
+- `param1` (type): Description of parameter
+- `param2` (type): Description of parameter
+- `...`: Additional parameters explanation
+
+**Returns:**
+- (return_type): Description of return value
+
+**Example:**
+```lua
+local result = functionName("example", 5)
+-- result now contains...
+```
+
+**Version History:**
+- Added in build 642130
+- Modified in build 659421: Changed second parameter from string to number
+- Modified in build 675312: Added optional third parameter
+
+## Constants
+
+### MODULE_CONSTANT
+
+**Value:** `value`
+
+**Status:** `stable` | `added in build 675312` | `modified in build 675312` | `deprecated in build 675312`
+
+**Description:** Explanation of the constant.
+
+**Version History:**
+- Added in build 625842
+- Modified in build 659421: Changed value from 10 to 15
+
+## Classes/Components
+
+### ClassName
+
+**Status:** `stable` | `added in build 675312` | `modified in build 675312` | `deprecated in build 675312`
+
+**Description:**
+What this class/component represents and its purpose.
+
+**Version History:**
+- Added in build 618753
+- Modified in build 642130: Added new methods
+
+#### Properties
+- `property1` (type): Description of property
+- `property2` (type): Description of property
+
+#### Methods
+- `method1(param1, param2)`: Description of method
+
+## Events
+
+### "eventName"
+
+**Status:** `stable` | `added in build 675312` | `modified in build 675312` | `deprecated in build 675312`
+
+**Parameters:**
+- `param1` (type): Description of parameter passed with event
+
+**Description:**
+When this event is triggered and how to use it.
+
+**Example:**
+```lua
+inst:ListenForEvent("eventName", function(inst, data)
+    -- Response to event
+end)
+```
+
+**Version History:**
+- Added in build 659421
+- Modified in build 675312: Added additional data parameter
+
+## Related Modules
+
+- [OtherModule](mdc:dst-api-webdocs/path/to/module.md): Brief description of relationship
+```
+
+## Status Indicators
+
+Use these visual indicators for different change statuses:
+
+- **Stable**: 🟢 (green)
+- **Added**: ➕ (blue)
+- **Modified**: 🔄 (orange)
+- **Deprecated**: ⚠️ (yellow)
+- **Removed**: ❌ (red)
+
+## Slug Naming Convention
+
+Follow these slug naming conventions:
+
+- Module: `[category]-[module-name]`
+- Function: `[category]-[module-name]-[function-name]`
+- Class: `[category]-[module-name]-class-[class-name]`
+
+Examples:
+- `behaviours-approach`
+- `components-health-sethealth`
+- `stategraphs-sgplayer-class-states`
+
+## Documentation Quality Guidelines
+
+1. **Accuracy**: All documentation must accurately reflect the current build version.
+2. **Completeness**: Document all public functions, properties, events, and constants.
+3. **Examples**: Include practical usage examples for all functions.
+4. **Version History**: Track all significant changes between builds.
+5. **Cross-Reference**: Link to related modules and dependencies.
+6. **Formatting**: Use consistent markdown formatting throughout.
+

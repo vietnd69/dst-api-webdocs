@@ -1,1 +1,0 @@
-Current api synchronized with "Don't Starve Together" version 619045 

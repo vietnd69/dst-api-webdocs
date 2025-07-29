@@ -94,11 +94,16 @@ const config: Config = {
 					type: "docSidebar",
 					sidebarId: "docs",
 					position: "left",
-					label: "Vanilla",
+					label: "Game Scripts",
 				},
 				{
 					href: "https://github.com/vietnd69/dst-api-webdocs", // Cập nhật URL Github repository
-					label: "GitHub",
+					label: "GitHub Docs",
+					position: "right",
+				},
+				{
+					href: "https://github.com/vietnd69/dst-scripts", // Cập nhật URL Github repository
+					label: "Base Game Scripts Code",
 					position: "right",
 				},
 			],

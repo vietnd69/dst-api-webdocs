@@ -1,0 +1,81 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# DST API Documentation Rules Overview
+
+This document provides an overview of all rules related to documenting the Don't Starve Together (DST) API. These rules establish a consistent documentation standard for the DST Lua scripts library.
+
+## Available Documentation Rules
+
+| Rule Name | File | Purpose |
+|-----------|------|---------|
+| Documentation Format | [dst-api-documentation-format.mdc](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-documentation-format.mdc) | Defines the general structure and format for all DST API documentation |
+| Documentation Templates | [dst-api-documentation-templates.mdc](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-documentation-templates.mdc) | Provides specific templates for different types of API modules |
+| Documentation Maintenance | [dst-api-documentation-maintenance.mdc](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-documentation-maintenance.mdc) | Explains procedures for maintaining and updating documentation |
+| Scripts Documentation Structure | [dst-scripts-documentation-structure.mdc](mdc:dst-api-webdocs/dst-api-webdocs/dst-scripts-documentation-structure.mdc) | Defines the relationship between source code and documentation structure |
+| Example Accuracy | [dst-api-documentation-example-accuracy.mdc](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-documentation-example-accuracy.mdc) | Ensures all code examples are verified against actual source code |
+
+## Key Documentation Elements
+
+All DST API documentation should consistently include:
+
+1. **Front matter** with metadata:
+   - `title`: Module name
+   - `description`: Brief module description
+   - `sidebar_position`: Navigation order
+   - `slug`: Custom URL path
+   - `last_updated`: Last update date (YYYY-MM-DD) are stored in `package.json`
+   - `build_version`: DST script build version (currently 676042) are stored in `package.json`
+   - `change_status`: Current status (stable/added/modified/deprecated/removed)
+
+2. **Version history** tracking all significant changes to the module
+
+3. **Status indicators** clearly marking API stability and changes
+
+4. **Usage examples** demonstrating proper implementation
+
+5. **Related module cross-references** showing connections between components
+
+6. **build version and update time** are stored in `package.json`
+
+## Documentation File Organization
+
+```
+docs/game-scripts/
+  |-- [module-category]/
+      |-- index.md           # Category overview documentation
+      |-- [module-name].md   # Specific module documentation
+```
+
+## Documentation Update Process
+
+When game updates occur:
+
+1. Review changed files in the update
+2. Update documentation with current build version
+3. Mark changed APIs with appropriate status
+4. Update version history tables
+5. Verify all examples still work
+6. Update cross-references as needed
+
+## Status Indicators
+
+The documentation uses these status indicators:
+
+- **Stable**: 🟢 Current, stable functionality
+- **Added**: ➕ New functionality in current build
+- **Modified**: 🔄 Changed from previous versions
+- **Deprecated**: ⚠️ Planned for removal
+- **Removed**: ❌ No longer available
+
+## Next Steps
+
+To start documenting the DST API:
+
+1. Use the [Documentation Format](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-documentation-format.mdc) rule to understand the general structure
+2. Select appropriate template from [Documentation Templates](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-documentation-templates.mdc) for your module type
+3. Follow the [Documentation Maintenance](mdc:dst-api-webdocs/dst-api-webdocs/dst-api-documentation-maintenance.mdc) rule for updates
+4. Ensure all documentation follows consistent conventions
+

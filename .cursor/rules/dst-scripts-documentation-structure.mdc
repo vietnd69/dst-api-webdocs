@@ -1,0 +1,264 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# DST Scripts Documentation Structure
+
+This rule defines the relationship between the [dst-scripts/](mdc:dst-api-webdocs/dst-scripts) source code directory and the [dst-api-webdocs/docs/game-scripts/](mdc:dst-api-webdocs/dst-api-webdocs/docs/game-scripts) documentation structure, establishing standards for cross-referencing and structural consistency.
+
+## Directory Structure Mapping
+
+The documentation structure mirrors the source code organization with enhanced categorization for better user navigation:
+
+### Core Source Categories
+
+| Source Directory | Documentation Directory | Purpose |
+|------------------|------------------------|---------|
+| [dst-scripts/components/](mdc:dst-api-webdocs/dst-scripts/components) | [docs/game-scripts/core-systems/](mdc:dst-api-webdocs/dst-api-webdocs/docs/game-scripts/core-systems) | Core game components organized by system type |
+| [dst-scripts/behaviours/](mdc:dst-api-webdocs/dst-scripts/behaviours) | [docs/game-scripts/behaviours/](mdc:dst-api-webdocs/dst-api-webdocs/docs/game-scripts/behaviours) | AI behavior definitions |
+| [dst-scripts/brains/](mdc:dst-api-webdocs/dst-scripts/brains) | [docs/game-scripts/brains/](mdc:dst-api-webdocs/dst-api-webdocs/docs/game-scripts/brains) | AI brain implementations |
+| [dst-scripts/stategraphs/](mdc:dst-api-webdocs/dst-scripts/stategraphs) | [docs/game-scripts/stategraphs/](mdc:dst-api-webdocs/dst-api-webdocs/docs/game-scripts/stategraphs) | State machine definitions |
+| [dst-scripts/prefabs/](mdc:dst-api-webdocs/dst-scripts/prefabs) | [docs/game-scripts/perfabs/](mdc:dst-api-webdocs/dst-api-webdocs/docs/game-scripts/perfabs) | Entity prefab definitions |
+| [dst-scripts/widgets/](mdc:dst-api-webdocs/dst-scripts/widgets) | [docs/game-scripts/widgets/](mdc:dst-api-webdocs/dst-api-webdocs/docs/game-scripts/widgets) | UI widget implementations |
+| [dst-scripts/screens/](mdc:dst-api-webdocs/dst-scripts/screens) | [docs/game-scripts/screens/](mdc:dst-api-webdocs/dst-api-webdocs/docs/game-scripts/screens) | Screen and UI definitions |
+| [dst-scripts/map/](mdc:dst-api-webdocs/dst-scripts/map) | [docs/game-scripts/map/](mdc:dst-api-webdocs/dst-api-webdocs/docs/game-scripts/map) | World generation and map systems |
+| [dst-scripts/util/](mdc:dst-api-webdocs/dst-scripts/util) | [docs/game-scripts/util/](mdc:dst-api-webdocs/dst-api-webdocs/docs/game-scripts/util) | Utility functions and helpers |
+| [dst-scripts/tools/](mdc:dst-api-webdocs/dst-scripts/tools) | [docs/game-scripts/tools/](mdc:dst-api-webdocs/dst-api-webdocs/docs/game-scripts/tools) | Development and debugging tools |
+
+### Special Documentation Organization
+
+#### Core Systems Categorization
+The [docs/game-scripts/core-systems/](mdc:dst-api-webdocs/dst-api-webdocs/docs/game-scripts/core-systems) directory organizes components from [dst-scripts/components/](mdc:dst-api-webdocs/dst-scripts/components) by functional categories:
+
+```
+core-systems/
+├── character-systems/      # Character-related components
+├── data-management/        # Data persistence and file operations
+├── development-tools/      # Debugging and development utilities
+├── fundamentals/          # Core framework components
+├── game-configuration/    # Settings and configuration
+├── game-mechanics/        # Gameplay feature components
+├── localization-content/  # Translation and localization
+├── mod-support/          # Modding framework components
+├── networking-communication/ # Network and multiplayer
+├── system-core/          # Engine integration components
+├── user-interface/       # UI system components
+└── world-systems/        # World generation and management
+```
+
+#### Root-Level Script Files
+Scripts at [dst-scripts/](mdc:dst-api-webdocs/dst-scripts) root level are categorized by purpose:
+
+| Script Category | Documentation Location | Examples |
+|----------------|----------------------|----------|
+| Character Speech | [docs/game-scripts/core-systems/character-systems/speech/](mdc:dst-api-webdocs/dst-api-webdocs/docs/game-scripts/core-systems/character-systems/speech) | `speech_*.lua` files |
+| Configuration | [docs/game-scripts/core-systems/game-configuration/](mdc:dst-api-webdocs/dst-api-webdocs/docs/game-scripts/core-systems/game-configuration) | `tuning.lua`, `worldsettings_overrides.lua` |
+| Core Utilities | [docs/game-scripts/core-systems/fundamentals/utilities/](mdc:dst-api-webdocs/dst-api-webdocs/docs/game-scripts/core-systems/fundamentals/utilities) | `util.lua`, `simutil.lua` |
+| Debug Tools | [docs/game-scripts/core-systems/development-tools/debugging/](mdc:dst-api-webdocs/dst-api-webdocs/docs/game-scripts/core-systems/development-tools/debugging) | `debugcommands.lua` |
+
+## Source Code Reference Standards
+
+### Function and Code References
+
+When documenting functions or code patterns, always reference the actual source file:
+
+```markdown
+### FunctionName(param1, param2) {#function-name}
+
+**Source:** [dst-scripts/components/health.lua](mdc:dst-api-webdocs/dst-scripts/components/health.lua)
+
+**Description:**
+[Verified description from source code implementation]
+
+**Example:**
+```lua
+-- Example verified against source code
+local health = inst.components.health
+health:SetVal(100)
+```
+```
+
+### File Path Reference Format
+
+Use this format for all source code references:
+
+| Reference Type | Format | Example |
+|---------------|--------|---------|
+| Direct file reference | `[filename.lua](mdc:dst-api-webdocs/dst-scripts/path/filename.lua)` | `[health.lua](mdc:dst-api-webdocs/dst-scripts/components/health.lua)` |
+| Line-specific reference | `[filename.lua:line](mdc:dst-api-webdocs/dst-scripts/path/filename.lua)` | `[health.lua:45](mdc:dst-api-webdocs/dst-scripts/components/health.lua)` |
+| Function reference | `[FunctionName in filename.lua](mdc:dst-api-webdocs/dst-scripts/path/filename.lua)` | `[SetVal in health.lua](mdc:dst-api-webdocs/dst-scripts/components/health.lua)` |
+
+### Source Verification Workflow
+
+Before documenting any API or function:
+
+#### 1. Locate Source File
+```bash
+# Find the source file for a component
+find dst-scripts/ -name "*health*" -type f
+
+# Search for specific function definitions
+grep -r "function.*SetVal" dst-scripts/ --include="*.lua"
+```
+
+#### 2. Verify Function Signature
+```bash
+# Get exact function signature
+grep -A 5 -B 2 "function.*SetVal" dst-scripts/components/health.lua
+```
+
+#### 3. Check Usage Patterns
+```bash
+# Find real usage examples in the codebase
+grep -r "\.components\.health:SetVal" dst-scripts/ --include="*.lua"
+```
+
+#### 4. Validate Current Implementation
+- Ensure function exists in current build version (676042)
+- Verify parameter types and return values
+- Check for deprecated patterns or warnings
+
+## Documentation File Naming Conventions
+
+### Component Documentation
+For components in [dst-scripts/components/](mdc:dst-api-webdocs/dst-scripts/components):
+- Single component: `componentname.md`
+- Related components: Group under appropriate core-systems subcategory
+
+### Direct Script Documentation
+For scripts that don't fit component categorization:
+- Preserve original filename: `scriptname.md`
+- Place in appropriate functional category
+- Cross-reference original location
+
+### Index File Requirements
+Each documentation directory must include:
+- `index.md`: Overview of the category/system
+- Links to all contained modules
+- Cross-references to related source directories
+
+## Cross-Reference Patterns
+
+### From Documentation to Source Code
+
+#### Function Documentation Pattern
+```markdown
+### health:SetVal(value, cause) {#health-setval}
+
+**Source:** [dst-scripts/components/health.lua](mdc:dst-api-webdocs/dst-scripts/components/health.lua)
+**Line:** Approximately line 45-60
+
+**Description:**
+Sets the current health value for the entity.
+
+**Source Implementation:**
+```lua
+-- From dst-scripts/components/health.lua
+function Health:SetVal(val, cause)
+    local old_val = self.currenthealth
+    self.currenthealth = math.max(0, math.min(val, self.maxhealth))
+    -- ... rest of implementation
+end
+```
+```
+
+#### Component Overview Pattern
+```markdown
+# Health Component
+
+**Source File:** [dst-scripts/components/health.lua](mdc:dst-api-webdocs/dst-scripts/components/health.lua)
+**Build Version:** 676042
+**Last Verified:** 2024-XX-XX
+
+This component manages entity health, damage, and healing functionality.
+
+## Source Code Structure
+The health component is implemented in [dst-scripts/components/health.lua](mdc:dst-api-webdocs/dst-scripts/components/health.lua) and provides:
+- Health value management
+- Damage calculation and application
+- Healing mechanisms
+- Death event handling
+```
+
+### From Source Code Comments to Documentation
+
+Add documentation references in source code comments:
+```lua
+-- Health component - see docs/game-scripts/core-systems/character-systems/core/health.md
+-- for complete API documentation
+local Health = Class(function(self, inst)
+    -- implementation
+end)
+```
+
+## Verification and Maintenance
+
+### Source-Documentation Synchronization
+
+#### Regular Verification Tasks
+1. **Build Version Updates**: When DST updates, verify all source references
+2. **Function Signature Validation**: Ensure documented signatures match source
+3. **Example Testing**: Validate that code examples work with current build
+4. **Link Verification**: Check that all source file references resolve correctly
+
+#### Automated Verification Commands
+```bash
+# Verify all source file references exist
+find docs/game-scripts/ -name "*.md" -exec grep -l "mdc:dst-scripts" {} \; | \
+  xargs grep -o "mdc:dst-scripts/[^)]*" | \
+  while read ref; do
+    file=${ref#mdc:}
+    if [ ! -f "$file" ]; then
+      echo "Missing source file: $file"
+    fi
+  done
+
+# Check for functions referenced in docs that don't exist in source
+find docs/game-scripts/ -name "*.md" -exec grep -h "function.*(" {} \; | \
+  sort -u | \
+  while read func; do
+    if ! grep -r "$func" dst-scripts/ --include="*.lua" > /dev/null; then
+      echo "Function not found in source: $func"
+    fi
+  done
+```
+
+### Documentation Update Triggers
+
+Update documentation when:
+- Source files are moved or renamed
+- Function signatures change
+- New components or systems are added
+- Existing functionality is deprecated or removed
+- Build version changes affect documented behavior
+
+## Quality Assurance Checklist
+
+Before publishing documentation, verify:
+
+- [ ] **Source Reference Accuracy**: All file paths point to existing source files
+- [ ] **Function Signature Verification**: All documented functions match source implementation
+- [ ] **Code Example Validation**: All examples are tested against current source
+- [ ] **Cross-Reference Completeness**: Related source files are properly linked
+- [ ] **Build Version Consistency**: All references match current build (676042)
+- [ ] **Directory Structure Alignment**: Documentation organization reflects source organization
+- [ ] **Naming Convention Compliance**: All files follow established naming patterns
+
+## Integration with Existing Rules
+
+This rule works together with:
+- [DST API Documentation Example Accuracy](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-example-accuracy.mdc): Ensures code examples match source
+- [DST API Documentation Format](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-format.mdc): Provides formatting standards
+- [DST Core Systems Index Format](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-core-systems-index-format.mdc): Defines index file structure
+- [DST API Documentation Maintenance](mdc:dst-api-webdocs/dst-api-webdocs/.cursor/rules/dst-api-documentation-maintenance.mdc): Provides update procedures
+
+## Best Practices Summary
+
+1. **Always verify against source**: Never document without checking actual implementation
+2. **Maintain bidirectional references**: Link from docs to source and reference docs in source comments
+3. **Use consistent file paths**: Follow established mdc: reference format
+4. **Update synchronously**: Keep documentation current with source code changes
+5. **Validate examples**: Test all code examples against actual source implementation
+6. **Preserve structure mapping**: Maintain logical relationship between source and documentation organization
+
