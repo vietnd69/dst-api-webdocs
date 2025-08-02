@@ -3,7 +3,7 @@ id: strings
 title: Strings
 description: Global string table system for all user-facing text and localization in Don't Starve Together
 sidebar_position: 1
-
+slug: /game-scripts/core-systems/localization-content/strings/strings
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

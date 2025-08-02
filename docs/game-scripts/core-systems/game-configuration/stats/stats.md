@@ -2,6 +2,7 @@
 id: stats
 title: Stats
 description: Statistics and metrics collection system for tracking game events and performance data
+slug: /game-scripts/core-systems/game-configuration/stats/stats
 sidebar_position: 1
 
 last_updated: 2025-06-21
@@ -384,7 +385,7 @@ Converts a list of prefab entities into a metrics-friendly format with counts.
 - `list` (table): Array of entity objects with prefab names
 
 **Returns:**
-- (table): Array of {prefab, count} pairs
+- (table): Array of `{prefab, count}` pairs
 
 **Example:**
 ```lua

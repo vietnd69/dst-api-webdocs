@@ -3,7 +3,7 @@ id: frontend
 title: Frontend
 description: Core frontend system managing UI screens, input handling, and visual effects
 sidebar_position: 1
-
+slug: /game-scripts/core-systems/user-interface/frontend/frontend
 last_updated: 2025-06-25
 build_version: 676312
 change_status: modified

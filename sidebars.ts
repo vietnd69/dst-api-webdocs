@@ -146,6 +146,7 @@ const sidebars: SidebarsConfig = {
 					label: "Data Management",
 					link: { type: "doc", id: "game-scripts/core-systems/data-management/data-management-overview" },
 					items: [
+						"game-scripts/core-systems/data-management/data-management-overview",
 						{
 							type: "category",
 							label: "Assets",
@@ -192,6 +193,7 @@ const sidebars: SidebarsConfig = {
 					label: "Development Tools",
 					link: { type: "doc", id: "game-scripts/core-systems/development-tools/development-tools-overview" },
 					items: [
+						"game-scripts/core-systems/development-tools/development-tools-overview",
 						{
 							type: "category",
 							label: "Console",
@@ -261,6 +263,7 @@ const sidebars: SidebarsConfig = {
 					label: "Fundamentals",
 					link: { type: "doc", id: "game-scripts/core-systems/fundamentals/fundamentals-overview" },
 					items: [
+						"game-scripts/core-systems/fundamentals/fundamentals-overview",
 						{
 							type: "category",
 							label: "Core",
@@ -313,7 +316,7 @@ const sidebars: SidebarsConfig = {
 							link: { type: "doc", id: "game-scripts/core-systems/fundamentals/actions/actions-overview" },
 							items: [
 								"game-scripts/core-systems/fundamentals/actions/actions-overview",
-								"game-scripts/core-systems/fundamentals/actions/actions",
+								"game-scripts/core-systems/fundamentals/actions/f-actions",
 								"game-scripts/core-systems/fundamentals/actions/bufferedaction",
 								"game-scripts/core-systems/fundamentals/actions/componentactions",
 								"game-scripts/core-systems/fundamentals/actions/equipslotutil",
@@ -329,7 +332,7 @@ const sidebars: SidebarsConfig = {
 						"game-scripts/core-systems/game-configuration/game-configuration-overview",
 						{
 							type: "category",
-							label: "Game Configuration",
+							label: "Modes",
 							link: {
 								type: "doc",
 								id: "game-scripts/core-systems/game-configuration/modes/game-configuration-modes-overview",
@@ -343,7 +346,7 @@ const sidebars: SidebarsConfig = {
 						},
 						{
 							type: "category",
-							label: "Game Configuration",
+							label: "Settings",
 							link: {
 								type: "doc",
 								id: "game-scripts/core-systems/game-configuration/settings/game-configuration-settings-overview",
@@ -364,7 +367,7 @@ const sidebars: SidebarsConfig = {
 						},
 						{
 							type: "category",
-							label: "Game Configuration",
+							label: "Stats",
 							link: {
 								type: "doc",
 								id: "game-scripts/core-systems/game-configuration/stats/game-configuration-stats-overview",
@@ -382,6 +385,7 @@ const sidebars: SidebarsConfig = {
 					label: "Localization",
 					link: { type: "doc", id: "game-scripts/core-systems/localization-content/localization-content-overview" },
 					items: [
+						"game-scripts/core-systems/localization-content/localization-content-overview",
 						{
 							type: "category",
 							label: "Content",

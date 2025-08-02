@@ -3,7 +3,7 @@ id: networking
 title: Networking
 description: Core networking functions for server management, client connections, and multiplayer features
 sidebar_position: 1
-
+slug: /game-scripts/core-systems/networking-communication/networking/networking
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable

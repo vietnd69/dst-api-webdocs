@@ -1,9 +1,9 @@
 ---
-id: actions
+id: f-actions
 title: Actions
 description: Player interaction and action system for Don't Starve Together
 sidebar_position: 1
-
+slug: /game-scripts/core-systems/fundamentals/actions/actions
 last_updated: 2025-06-21
 build_version: 676042
 change_status: stable
