@@ -134,10 +134,6 @@ const config: Config = {
 							label: "Klei Forums",
 							href: "https://forums.kleientertainment.com/",
 						},
-						{
-							label: "Discord",
-							href: "https://discord.gg/dst",
-						},
 					],
 				},
 				{
@@ -147,10 +143,18 @@ const config: Config = {
 							label: "Contribute",
 							href: "https://github.com/vietnd69/dst-api-webdocs", // Cập nhật URL Github repository
 						},
+						{
+							label: "Game Scripts",
+							href: "https://github.com/vietnd69/dst-scripts",
+						},
+						{
+							label: "Sitemap",
+							href: "https://vietnd69.github.io/dst-api-webdocs/sitemap.xml",
+						},
 					],
 				},
 			],
-			copyright: `Copyright © ${new Date().getFullYear()} Don't Starve Together Vanilla API v0.5.2 Docs.`,
+			copyright: `Copyright © ${new Date().getFullYear()} Don't Starve Together Vanilla API v2.0.0 Docs.`,
 		},
 		prism: {
 			theme: require("prism-react-renderer").themes.github,
