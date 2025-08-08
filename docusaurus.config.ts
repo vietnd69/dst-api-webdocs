@@ -49,7 +49,7 @@ const config: Config = {
 				],
 				createRedirects: function (existingPath) {
 					// Redirect to /docs/introduction from /docs
-					if (existingPath.includes("docs/game-scripts/getting-started/about-game-scripts")) {
+					if (existingPath.includes("/")) {
 						return [existingPath.replace("docs/game-scripts/getting-started/about-game-scripts", "")];
 					}
 					return undefined; // Return undefined if no redirect needed
@@ -57,11 +57,31 @@ const config: Config = {
 			},
 		],
 		[
-			'@docusaurus/plugin-google-tag-manager',
+			"@docusaurus/plugin-google-tag-manager",
 			{
-			  containerId: 'GTM-P6HHVZPW',
+				containerId: "GTM-P6HHVZPW",
 			},
-		  ],
+		],
+		function sitemapHeadPlugin() {
+			return {
+				name: "sitemap-head-plugin",
+				injectHtmlTags() {
+					return {
+						headTags: [
+							{
+								tagName: "link",
+								attributes: {
+									rel: "sitemap",
+									type: "application/xml",
+									title: "Sitemap",
+									href: "https://vietnd69.github.io/dst-api-webdocs/sitemap.xml",
+								},
+							},
+						],
+					};
+				},
+			};
+		}
 	],
 
 	presets: [
@@ -79,7 +99,23 @@ const config: Config = {
 				sitemap: {
 					changefreq: "weekly",
 					priority: 0.5,
-					ignorePatterns: ["/tags/**", "/pages/**"],
+					ignorePatterns: ["/tags/**", 
+						"/pages/**", 
+						"/dst-api-webdocs/docs/game-scripts/behaviours/**",
+						"/dst-api-webdocs/docs/game-scripts/brains/**",
+						"/dst-api-webdocs/docs/game-scripts/cameras/**",
+						"/dst-api-webdocs/docs/game-scripts/components/**",
+						"/dst-api-webdocs/docs/game-scripts/languages/**",
+						"/dst-api-webdocs/docs/game-scripts/map/**",
+						"/dst-api-webdocs/docs/game-scripts/nis/**",
+						"/dst-api-webdocs/docs/game-scripts/perfabs/**",
+						"/dst-api-webdocs/docs/game-scripts/scenarios/**",
+						"/dst-api-webdocs/docs/game-scripts/screens/**",
+						"/dst-api-webdocs/docs/game-scripts/stategraphs/**",
+						"/dst-api-webdocs/docs/game-scripts/tools/**",
+						"/dst-api-webdocs/docs/game-scripts/util/**",
+						"/dst-api-webdocs/docs/game-scripts/widgets/**"
+					],
 					filename: "sitemap.xml",
 				},
 			} satisfies Preset.Options,
@@ -88,7 +124,7 @@ const config: Config = {
 
 	themeConfig: {
 		// Replace with your project's social card
-		image: "img/docusaurus-social-card.jpg",
+		image: "img/docusaurus-social-card.png",
 		navbar: {
 			logo: {
 				alt: "Don't Starve Together Logo",
@@ -178,6 +214,7 @@ const config: Config = {
 			contextualSearch: true,
 			searchPagePath: "search",
 		},
+		metadata: [{ name: "robots", content: "index, follow" }],
 	} satisfies Preset.ThemeConfig,
 };
 
