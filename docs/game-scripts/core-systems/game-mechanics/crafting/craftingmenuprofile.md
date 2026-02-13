@@ -452,12 +452,7 @@ local current_mode = profile:GetSortMode()
 profile:Save(true)
 ```
 
-## Related Modules
 
-- [**Crafting Sorting**](./crafting_sorting.md): Recipe sorting system that uses profile preferences
-- [**Recipes**](./recipes.md): Recipe definitions for favorites and pinning  
-- [**Tuning**](./tuning.md): Configuration constants including default pinned recipes
-- [**Constants**](./constants.md): Game constants including sort mode definitions
 
 ## Status Indicators
 

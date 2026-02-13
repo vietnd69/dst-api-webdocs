@@ -631,9 +631,3 @@ Announces the results of player votes.
 4. **Error Handling**: Implement proper error handling for network operations
 5. **Security**: Validate all client requests and maintain server authority
 
-## Related Modules
-
-- [Network Client RPC](./networkclientrpc.md): RPC system for client-server communication
-- [Network Variables](./netvars.md): Network variable synchronization
-- [User Commands](./builtinusercommands.md): Admin commands and user management
-- [Chat History](./chathistory.md): Chat message handling and storage

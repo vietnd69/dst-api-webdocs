@@ -371,12 +371,7 @@ if foods.nightmarepie.test(nil, ingredients.names, ingredients.tags) then
 end
 ```
 
-## Related Modules
 
-- [`preparedfoods`](./preparedfoods.md): Standard cookpot recipes
-- [`cooking`](./cooking.md): Core cooking system mechanics
-- [`tuning`](./constants.md): Nutritional value constants
-- [`components/cookpot`](../components/cookpot.md): Cookpot component logic
 
 ## Notes
 

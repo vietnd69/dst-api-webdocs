@@ -307,8 +307,3 @@ deaths:Load(function(success)
     end
 end)
 ```
-
-## Related Modules
-
-- [PlayerHistory](./playerhistory.md): Tracks players encountered during gameplay
-- [PlayerProfile](./playerprofile.md): Manages player preferences and customization data

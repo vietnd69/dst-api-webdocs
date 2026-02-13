@@ -244,8 +244,4 @@ local function ApplyCameraShake(shakeInstance, dt)
 end
 ```
 
-## Related Modules
 
-- [Easing](./easing.md): Mathematical easing functions used for smooth shake transitions
-- [Input System](./input.md): Controller vibration integration
-- [Vector3](./vector3.md): 3D vector mathematics for shake calculations

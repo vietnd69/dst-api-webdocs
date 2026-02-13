@@ -380,9 +380,3 @@ end
 ### USER_HISTORY_EXPIRY_TIME
 
 **Description:** Time limit for keeping player history records (referenced but not defined in this module)
-
-## Related Modules
-
-- [PlayerDeaths](./playerdeaths.md): Tracks player death records and statistics
-- [PlayerProfile](./playerprofile.md): Manages player preferences and customization data
-- [TheNet](../networking.md): Provides client table information for player tracking

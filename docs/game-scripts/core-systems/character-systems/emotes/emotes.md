@@ -666,10 +666,3 @@ end
 - Sound delays prevent audio conflicts
 - Sound overrides replace default emote sounds
 
-## Related Modules
-
-- [Emote Items](./emote_items.md): Purchasable and unlockable emotes
-- [Built-in User Commands](./builtinusercommands.md): Command system integration
-- [Entity Script](./entityscript.md): Entity event system for emote triggering
-- [Player Profile](./playerprofile.md): Player state and preferences
-- [Chat History](./chathistory.md): Chat command processing

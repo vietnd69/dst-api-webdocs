@@ -334,12 +334,6 @@ local function debugWrapper(func, ...)
 end
 ```
 
-## Related Modules
-
-- [Debug Helpers](./debughelpers.md): Additional debugging utilities
-- [Debug Commands](./debugcommands.md): Interactive debugging commands
-- [Debug Print](./debugprint.md): Debug output formatting
-- [Known Errors](./knownerrors.md): Common error patterns and solutions
 
 ## Technical Notes
 

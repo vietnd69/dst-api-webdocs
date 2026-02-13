@@ -587,9 +587,3 @@ local norm_x, norm_y, norm_z = Vec3Util_Normalize(x, y, z)
 local final_x, final_y, final_z = Vec3Util_Scale(norm_x, norm_y, norm_z, speed)
 ```
 
-## Related Modules
-
-- [Vec3Util](./vec3util.md): High-performance 3D vector utility functions
-- [VecUtil](./vecutil.md): 2D vector utility functions for XZ plane operations
-- [Class](./class.md): Base class system used by Vector3
-- [MathUtil](./mathutil.md): Additional mathematical utility functions

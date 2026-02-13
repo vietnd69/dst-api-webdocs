@@ -441,8 +441,4 @@ custom_mode.resource_renewal = false
 custom_mode.invalid_recipes = {"resurrectionstatue", "lifeamulet"}
 ```
 
-## Related Modules
 
-- [Constants](./constants.md): Game mode related constants and tuning values
-- [World Settings](./worldsettings.md): World-specific setting overrides
-- [Recipes](./recipes.md): Recipe validation and game mode restrictions

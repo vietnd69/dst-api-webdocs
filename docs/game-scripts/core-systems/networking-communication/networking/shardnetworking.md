@@ -808,10 +808,3 @@ local world_options = ShardGameIndex:GetGenOptions()
 
 - `TUNING.DICE_ROLL_COOLDOWN`: Cooldown time for dice roll requests
 
-## Related Modules
-
-- [ShardIndex](./shardindex.md): Individual shard data management
-- [ShardSaveIndex](./shardsaveindex.md): Multi-shard save slot management
-- [TheNet](../core-systems/index.md#thenet): Network communication services
-- [TheShard](../core-systems/index.md#theshard): Shard identification and state
-- [Customize](../map/index.md#customize): World generation customization system

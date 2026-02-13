@@ -354,8 +354,4 @@ Call on the server or clients to set the value without triggering a sync or dirt
 3. **Event vs State**: Use net_event for one-shot triggers, net_bool for persistent state
 4. **Local Updates**: Use set_local() for client-side predictions that the server will occasionally correct
 
-## Related Modules
 
-- [Networking](./networking.md): Core networking functions and server management
-- [Network Client RPC](./networkclientrpc.md): Remote procedure calls for client-server communication
-- [Entity Script](./entityscript.md): Entity management and GUID system

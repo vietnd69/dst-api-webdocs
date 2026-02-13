@@ -235,12 +235,6 @@ The klump system is tightly integrated with festival events:
 - **Caching:** Loaded status is tracked to prevent redundant operations
 - **Batch Loading:** `LoadAccessibleKlumpFiles()` efficiently loads multiple assets
 
-## Related Modules
-
-- [klump_files](./klump_files.md): Auto-generated list of available klump files
-- [json](./json.md): Used for parsing localized string data
-- [Profile](./playerprofile.md): Stores and retrieves cipher keys
-- [events](./events.md): Festival event system integration
 
 ## Security Notes
 

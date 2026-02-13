@@ -4,7 +4,7 @@ title: Age
 description: Tracks a player's in-game age in seconds and days, syncing it to the network and triggering progression milestones.
 sidebar_position: 1
 
-last_updated: 2026-02_13
+last_updated: 2026-02-13
 build_version: 712555
 change_status: stable
 category_type: component

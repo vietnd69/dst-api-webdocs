@@ -322,10 +322,3 @@ Components use events to communicate changes without tight coupling, allowing fo
 ### Networking
 
 Events can be used to trigger network synchronization when important game state changes occur.
-
-## Related Modules
-
-- [Entity Script](./entityscript.md): Entity framework that commonly uses event processors
-- [Components](./components/index.md): Game components that communicate via events
-- [Stategraphs](../stategraphs/index.md): State machines that trigger events on state changes
-- [Brain System](./brain.md): AI brains that respond to game events

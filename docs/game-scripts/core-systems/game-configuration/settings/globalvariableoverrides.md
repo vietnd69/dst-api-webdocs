@@ -69,8 +69,4 @@ When creating custom global variable overrides:
 3. **Test Thoroughly**: Verify that overrides work as expected in target environment
 4. **Version Control**: Track changes to override configurations
 
-## Related Modules
 
-- [Mod Index](./modindex.md): Manages mod loading and configuration
-- [Server Preferences](./serverpreferences.md): Handles server-specific settings
-- [Config](./config.md): General configuration management system

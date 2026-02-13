@@ -339,8 +339,3 @@ local function safeGetProgress()
 end
 ```
 
-## Related Modules
-
-- [TheInventory](./inventory.md): Player inventory and progression data
-- [TheItems](./items.md): Item definitions and level requirements
-- [Festival Events](./festivals.md): Seasonal event management system

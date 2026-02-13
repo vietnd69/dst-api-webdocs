@@ -513,12 +513,7 @@ local mod_report = mod_profiler:report()
 print("Mod loading profile:", mod_report)
 ```
 
-## Related Modules
 
-- [`debugtools`](./debugtools.md): Development and debugging utilities
-- [`debughelpers`](./debughelpers.md): Helper functions for debugging
-- [`main`](./main.md): Main game loop integration points
-- [`perfutil`](./perfutil.md): Performance utility functions
 
 ## Notes
 

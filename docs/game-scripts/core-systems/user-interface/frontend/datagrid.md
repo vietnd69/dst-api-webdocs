@@ -355,8 +355,4 @@ The DataGrid uses row-major order for coordinate-to-index mapping:
 - **Type Agnostic**: Can store any Lua value type
 - **Cache Efficient**: Row-major storage pattern
 
-## Related Modules
 
-- [Map Generation](mdc:dst-api-webdocs/map/index.md): Uses DataGrid for terrain and biome data
-- [World Management](mdc:dst-api-webdocs/core-systems/world.md): Spatial data organization
-- [Class System](mdc:dst-api-webdocs/core-systems/class.md): Uses DST's Class constructor pattern

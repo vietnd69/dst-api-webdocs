@@ -629,12 +629,7 @@ return {
 }
 ```
 
-## Related Modules
 
-- **[Recipes](./recipes.md)** - Recipe definitions and crafting requirements
-- **[Cooking](./cooking.md)** - Cooking recipe management system  
-- **[Constants](./constants.md)** - Game constants including crafting filters
-- **[MetaClass](./metaclass.md)** - Object-oriented programming framework
 
 ## Technical Notes
 

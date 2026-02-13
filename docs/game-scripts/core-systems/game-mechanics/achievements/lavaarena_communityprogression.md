@@ -510,9 +510,4 @@ Fired when server completes quest data request.
 
 The system automatically retries failed requests up to `NUM_RETRIES` times before reporting permanent failure.
 
-## Related Modules
 
-- [Lava Arena Achievements](./lavaarena_achievements.md): Character-specific achievement system
-- [Lava Arena Achievement Quest Definitions](./lavaarena_achievement_quest_defs.md): Quest-based achievement definitions
-- [Event Achievements](./eventachievements.md): General event achievement framework
-- [Festival Events](./festivalevents.md): Event activation and management

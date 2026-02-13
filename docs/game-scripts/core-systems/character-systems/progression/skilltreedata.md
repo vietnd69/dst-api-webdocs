@@ -629,10 +629,3 @@ The class includes comprehensive error handling:
 - **Corrupt Data**: Automatic recovery from corrupted save files
 - **Network Sync**: Backup/restore during multiplayer synchronization
 
-## Related Modules
-
-- [**Skill Tree Definitions**](../prefabs/skilltree_defs.md): Contains skill tree structure definitions
-- [**Skill Tree Updater**](../components/skilltreeupdater.md): Component that uses this class for skill management
-- [**Player Profile**](./playerprofile.md): Handles profile-level skill tree persistence
-- [**Network Client RPC**](./networkclientrpc.md): Network communication for skill tree updates
-- [**Tuning**](./constants.md): Contains skill-related constants and thresholds

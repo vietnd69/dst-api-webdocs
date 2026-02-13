@@ -388,9 +388,4 @@ Works with festival event functions:
 - `GetFestivalEventServerName()`: Get server name for event/season
 - `GetActiveFestivalEventServerName()`: Get current active event server name
 
-## Related Modules
 
-- [Achievements](./achievements.md): Core achievement system
-- [Events](./events.md): Event handling system used for achievement triggers
-- [Player Profile](./playerprofile.md): Player data storage for achievement progress
-- [Frontend](./frontend.md): UI components for displaying achievement progress

@@ -1,4 +1,92 @@
 ---
-draft: true
+id: counter
+title: Counter
+description: This component provides a flexible system for managing multiple named integer counters on an entity, supporting modification, saving, and debugging.
+sidebar_position: 1
+
+last_updated: 2026-02-14
+build_version: 712555
+change_status: stable
+category_type: component
+system_scope: entity
 ---
 
+# Counter
+
+## Overview
+This component provides a robust and flexible system for entities to manage multiple named integer counters. It allows for the creation, modification, and retrieval of counter values, with built-in functionality for saving and loading only persistent counters, and generating a debug string for introspection. This is useful for tracking various entity-specific states, charges, or resource counts that are not necessarily tied to a physical inventory item.
+
+## Dependencies & Tags
+None identified.
+
+## Properties
+| Property    | Type  | Default Value | Description                                                    |
+| :---------- | :---- | :------------ | :------------------------------------------------------------- |
+| `inst`      | `table` | `nil`           | A reference to the parent entity this component is attached to. |
+| `counters`  | `table` | `{}`            | A table storing all the named counter values. Keys are counter names (strings), values are numbers. |
+| `donotsave` | `table` | `{}`            | A table used to mark specific counters that should not be saved. Keys are counter names (strings), values are `true`. |
+
+## Main Functions
+### `GetCount(countername)`
+*   **Description:** Retrieves the current value of a specified counter. If the counter does not exist, it returns `0`.
+*   **Parameters:**
+    *   `countername`: `string` - The name of the counter to retrieve.
+
+### `Set(countername, value)`
+*   **Description:** Sets the value of a specified counter.
+*   **Parameters:**
+    *   `countername`: `string` - The name of the counter to set.
+    *   `value`: `number` - The new numeric value for the counter.
+
+### `Clear(countername)`
+*   **Description:** Removes a specified counter from the component.
+*   **Parameters:**
+    *   `countername`: `string` - The name of the counter to clear.
+
+### `DoDelta(countername, delta)`
+*   **Description:** Modifies the value of a specified counter by adding `delta`. If the counter's value becomes `0` after the operation, it is cleared (removed).
+*   **Parameters:**
+    *   `countername`: `string` - The name of the counter to modify.
+    *   `delta`: `number` - The amount to add to the counter. Can be positive or negative.
+
+### `Increment(countername, magnitude)`
+*   **Description:** Increases the value of a specified counter. Uses `DoDelta` internally.
+*   **Parameters:**
+    *   `countername`: `string` - The name of the counter to increment.
+    *   `magnitude`: `number, optional` - The amount to increment by. Defaults to `1` if not provided.
+
+### `Decrement(countername, magnitude)`
+*   **Description:** Decreases the value of a specified counter. Uses `DoDelta` internally.
+*   **Parameters:**
+    *   `countername`: `string` - The name of the counter to decrement.
+    *   `magnitude`: `number, optional` - The amount to decrement by. Defaults to `1` if not provided.
+
+### `IncrementToZero(countername, magnitude)`
+*   **Description:** Increments a negative counter towards zero. It only affects counters with a negative value. The increment amount is capped at the current counter's absolute value to prevent it from going positive. Uses `DoDelta` internally.
+*   **Parameters:**
+    *   `countername`: `string` - The name of the counter to modify.
+    *   `magnitude`: `number, optional` - The maximum positive amount to increment by. Defaults to `1` if not provided.
+
+### `DecrementToZero(countername, magnitude)`
+*   **Description:** Decrements a positive counter towards zero. It only affects counters with a positive value. The decrement amount is capped at the current counter's value to prevent it from going negative. Uses `DoDelta` internally.
+*   **Parameters:**
+    *   `countername`: `string` - The name of the counter to modify.
+    *   `magnitude`: `number, optional` - The maximum positive amount (absolute value) to decrement by. Defaults to `1` if not provided.
+
+### `DoNotSave(countername)`
+*   **Description:** Marks a specific counter as temporary, preventing it from being saved when the entity's data is persisted. This is typically a one-way operation.
+*   **Parameters:**
+    *   `countername`: `string` - The name of the counter to mark as unsavable.
+
+### `OnSave()`
+*   **Description:** Prepares the component's data for saving. It returns a table containing only the counters that have not been marked with `DoNotSave()`.
+*   **Parameters:** None.
+
+### `OnLoad(data)`
+*   **Description:** Loads counter data from a saved state. It merges the loaded counters with any existing counters on the entity.
+*   **Parameters:**
+    *   `data`: `table` - A table containing the saved counter data, typically generated by `OnSave()`.
+
+### `GetDebugString()`
+*   **Description:** Generates a formatted string representing all current counters and their values, useful for debugging purposes. Counters are sorted alphabetically by name.
+*   **Parameters:** None.

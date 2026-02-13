@@ -392,11 +392,4 @@ HideCancelTip()
 -- Loading widget automatically hidden when complete
 ```
 
-## Related Modules
 
-- [Main Functions](./mainfunctions.md): High-level game control functions
-- [Save Index](./saveindex.md): Save file management system
-- [World Settings](./worldsettings.md): World configuration and overrides
-- [Player Profile](./playerprofile.md): Player data management
-- [Mod Manager](./modmanager.md): Mod loading and management
-- [Network](./networking.md): Network communication systems

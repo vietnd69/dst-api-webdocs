@@ -931,13 +931,6 @@ end
 return PhysicsGameSystem
 ```
 
-## Related Modules
-
-- [Collision Constants](./constants.md): COLLISION mask constants used in CollisionMaskBatcher
-- [Entity Script](./entityscript.md): Base entity functionality for physics entities
-- [Components](../components/): Physics-related components like locomotor and health
-- [Debug Tools](./debugtools.md): Physics debugging and visualization tools
-- [World Generation](./map/): World physics setup and configuration
 
 ## Performance Considerations
 

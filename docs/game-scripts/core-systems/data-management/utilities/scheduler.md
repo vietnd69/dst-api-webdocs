@@ -492,7 +492,3 @@ scheduler:ExecuteInTime(10.0, function()
 end, "cleanup")
 ```
 
-## Related Modules
-
-- [Class](./class.md): Base class system used by scheduler components
-- [Main Functions](./mainfunctions.md): Core game loop that drives scheduler execution

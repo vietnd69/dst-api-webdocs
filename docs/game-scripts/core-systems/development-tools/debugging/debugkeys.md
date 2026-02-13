@@ -468,12 +468,6 @@ end)
 - **Error Handling**: Include safety checks for debug operations
 - **Platform Restrictions**: Automatic disable on restricted platforms
 
-## Related Modules
-
-- [Debug Commands](./debugcommands.md): Command-line debug utilities
-- [Debug Helpers](./debughelpers.md): Entity and component inspection tools
-- [Console Commands](./consolecommands.md): Built-in console command system
-- [Debug Print](./debugprint.md): Debug output utilities
 
 ## Notes
 

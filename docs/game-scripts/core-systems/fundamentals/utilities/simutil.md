@@ -770,11 +770,4 @@ RegisterInventoryItemAtlas("images/mod_items.xml", "mod_item")
 local atlas = GetInventoryItemAtlas("mod_item")
 ```
 
-## Related Modules
 
-- [**Constants**](./constants.md): Defines constants used in search parameters
-- [**EntityScript**](./entityscript.md): Base entity functionality
-- [**Components**](../components/index.md): Component system used in entity filtering
-- [**Actions**](./actions.md): Action system for pickup interactions
-- [**MapUtil**](./maputil.md): Map-related utility functions
-- [**MathUtil**](./mathutil.md): Mathematical utilities used in calculations

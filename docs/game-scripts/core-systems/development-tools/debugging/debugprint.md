@@ -268,8 +268,3 @@ function ShowDebugConsole()
 end
 ```
 
-## Related Modules
-
-- [Debug Tools](./debugtools.md): Additional debugging utilities
-- [Debug Commands](./debugcommands.md): Command-line debugging interface
-- [Console Commands](./consolecommands.md): Console command system

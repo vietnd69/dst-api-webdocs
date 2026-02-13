@@ -481,9 +481,4 @@ local x = center_x + radius * math.cos(time * speed)
 local z = center_z + radius * math.sin(time * speed)
 ```
 
-## Related Modules
 
-- [Vec3Util](./vec3util.md): 3D vector utility functions for full XYZ operations
-- [Vector3](./vector3.md): Object-oriented 3D vector class
-- [MathUtil](./mathutil.md): Additional mathematical utility functions
-- [Constants](./constants.md): Mathematical constants like PI and RADIANS

@@ -344,8 +344,3 @@ menu:PushOptions(main_options)
 print(tostring(menu))
 ```
 
-## Related Modules
-
-- [Debug Commands](./debugcommands.md): Command-line debugging interface
-- [Debug Tools](./debugtools.md): General debugging utilities
-- [Console Commands](./consolecommands.md): Console command system

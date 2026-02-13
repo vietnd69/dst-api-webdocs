@@ -27,7 +27,6 @@ const config: Config = {
 	deploymentBranch: "gh-pages",
 
 	onBrokenLinks: "ignore",
-	onBrokenMarkdownLinks: "warn",
 	onDuplicateRoutes: "warn",
 
 	// Even if you don't use internationalization, you can use this field to set
@@ -36,6 +35,11 @@ const config: Config = {
 	i18n: {
 		defaultLocale: "en",
 		locales: ["en"],
+	},
+	markdown: {
+		hooks: {
+			onBrokenMarkdownLinks: "warn",
+		},
 	},
 
 	// Thêm plugins
@@ -81,7 +85,7 @@ const config: Config = {
 					};
 				},
 			};
-		}
+		},
 	],
 
 	presets: [
@@ -99,8 +103,9 @@ const config: Config = {
 				sitemap: {
 					changefreq: "weekly",
 					priority: 0.5,
-					ignorePatterns: ["/tags/**", 
-						"/pages/**", 
+					ignorePatterns: [
+						"/tags/**",
+						"/pages/**",
 						"/dst-api-webdocs/docs/game-scripts/behaviours/**",
 						"/dst-api-webdocs/docs/game-scripts/brains/**",
 						"/dst-api-webdocs/docs/game-scripts/cameras/**",
@@ -114,7 +119,7 @@ const config: Config = {
 						"/dst-api-webdocs/docs/game-scripts/stategraphs/**",
 						"/dst-api-webdocs/docs/game-scripts/tools/**",
 						"/dst-api-webdocs/docs/game-scripts/util/**",
-						"/dst-api-webdocs/docs/game-scripts/widgets/**"
+						"/dst-api-webdocs/docs/game-scripts/widgets/**",
 					],
 					filename: "sitemap.xml",
 				},

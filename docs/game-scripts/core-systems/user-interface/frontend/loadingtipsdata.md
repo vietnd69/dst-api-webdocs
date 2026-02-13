@@ -395,8 +395,4 @@ end
 - `STRINGS.SKIN_DESCRIPTIONS`: Loading screen descriptions
 - `LOADING_SCREEN_CONTROL_TIP_KEYS`: Control mappings
 
-## Related Modules
 
-- [Profile](./playerprofile.md): Player statistics and preferences
-- [Input](./input.md): Input handling and control bindings  
-- [Localization](./localization.md): String management and translations

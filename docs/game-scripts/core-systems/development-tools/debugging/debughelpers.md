@@ -232,11 +232,6 @@ DumpComponent(entity2.components.health)
 - `pairs()`: Property iteration
 - `tostring()`: Value string conversion
 
-## Related Modules
-
-- [Debug Commands](./debugcommands.md): Command-line debug utilities
-- [Debug Keys](./debugkeys.md): Debug input handling
-- [Debug Print](./debugprint.md): Debug output formatting utilities
 
 ## Notes
 

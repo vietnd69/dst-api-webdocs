@@ -567,9 +567,3 @@ The stringutil module has evolved to support:
 - Advanced string search capabilities
 - Time and date formatting utilities
 
-## Related Modules
-
-- [Strings](./strings.md): Provides the raw string data used by these utilities
-- [Talker Component](../components/talker.md): Uses these functions for character speech
-- [Speech Files](../languages/index.md): Character-specific dialogue definitions
-- [UI System](../screens/index.md): Uses formatting functions for display text

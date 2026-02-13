@@ -4,7 +4,7 @@ title: Anchor
 description: Controls the state, physics interaction, and player-driven raising or lowering of a boat anchor.
 sidebar_position: 1
 
-last_updated: 2026-02_13
+last_updated: 2026-02-13
 build_version: 712555
 change_status: stable
 category_type: component

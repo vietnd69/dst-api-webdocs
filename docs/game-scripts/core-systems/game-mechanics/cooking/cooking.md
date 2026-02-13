@@ -687,12 +687,7 @@ return {
 | `cookbook_recipes` | table | Cookbook-visible recipes organized by category |
 | `recipe_cards` | table | Recipe card definitions for cookbook display |
 
-## Related Modules
 
-- **[Containers](./containers.md)** - Cooking container configurations
-- **[Prefabs](./prefabs.md)** - Prepared food prefab definitions
-- **[Components](./components/)** - Cookable and stewer components
-- **[Tuning](./tuning.md)** - Cooking time and spoilage constants
 
 ## Technical Notes
 

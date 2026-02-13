@@ -429,8 +429,4 @@ Achievements specific to Winona, focusing on diverse weapon usage and abilities.
 
 **Description:** Event identifier for the Lava Arena event.
 
-## Related Modules
 
-- [Lava Arena Achievement Quest Definitions](./lavaarena_achievement_quest_defs.md): Quest-based achievement system
-- [Lava Arena Community Progression](./lavaarena_communityprogression.md): Community-wide progression tracking
-- [Event Achievements](./eventachievements.md): General event achievement framework

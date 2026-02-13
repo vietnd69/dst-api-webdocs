@@ -324,8 +324,3 @@ local function maxhealth_activate(inst, wx, isloading)
 end
 ```
 
-## Related Modules
-
-- [Components System](./components.md): Module effects often modify character components
-- [Tuning](./tuning.md): Configuration values for module effects
-- [Prefabs](../prefabs/index.md): WX-78 prefab implementation

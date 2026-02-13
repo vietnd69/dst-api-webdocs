@@ -328,10 +328,4 @@ The script includes comprehensive error handling for:
 - Asset resolution issues
 - System initialization problems
 
-## Related Modules
 
-- [MainFunctions](./mainfunctions.md): Core game functions and utilities
-- [Prefabs](./prefabs.md): Prefab registration and management
-- [ModIndex](./modindex.md): Mod loading and management
-- [Networking](./networking.md): Network system initialization
-- [FontHelper](./fonthelper.md): Font loading and management

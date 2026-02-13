@@ -460,7 +460,3 @@ Where:
 - `priority`: Numeric priority for stack ordering
 - `levels`: Table mapping audio channels to volume levels (0.0 to 1.0)
 
-## Related Modules
-
-- [Mixer](./mixer.md): Core audio mixing system and classes
-- [Easing](./easing.md): Animation functions used in audio transitions

@@ -184,9 +184,4 @@ This module integrates with the game's cooking system during Winter's Feast even
 - Cooking time configurations for proper game balance
 - Extensible structure for additional food properties
 
-## Related Modules
 
-- [Cooking](./cooking.md): Core cooking mechanics and systems
-- [Prepared Foods](./preparedfoods.md): Standard non-holiday food definitions  
-- [Recipes](./recipes.md): Recipe crafting and requirements system
-- [Events](./events.md): Holiday event management and triggers

@@ -199,11 +199,6 @@ if some_condition then
 end
 ```
 
-## Related Modules
-
-- [`constants`](./constants.md): Contains event music configuration tables
-- [`dlcsupport`](./dlcsupport.md): DLC detection and compatibility functions
-- [`main`](./main.md): Game initialization system that calls PreloadSounds()
 
 ## Notes
 

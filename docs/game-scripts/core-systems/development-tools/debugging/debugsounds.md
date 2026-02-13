@@ -303,8 +303,3 @@ campfire.SoundEmitter:KillAllSounds()
 3. **Parameter Tracking**: Monitor parameter changes in real-time
 4. **Performance Impact**: Disable when not actively debugging audio
 
-## Related Modules
-
-- [Debug Tools](./debugtools.md): General debugging utilities
-- [Debug Print](./debugprint.md): Enhanced logging system
-- [FX](./fx.md): Visual effects and audio coordination

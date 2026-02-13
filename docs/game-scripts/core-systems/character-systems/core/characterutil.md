@@ -304,10 +304,3 @@ The module relies on several global constants:
 
 **Description:** Table mapping mod characters to their avatar asset locations
 
-## Related Modules
-
-- [Skins System](../skins/): Character skin management and validation
-- [Localization](../localization/): String and asset localization support  
-- [UI Widgets](../../widgets/): Image widgets and UI components
-- [Mod Support](../mods/): Integration with modded characters
-- [Asset Loading](../assets/): File system and texture loading utilities

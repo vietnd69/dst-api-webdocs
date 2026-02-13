@@ -508,13 +508,6 @@ Items are organized by release groups corresponding to game updates:
 - **Group 64**: General content updates
 - **Group 105**: Woven variant items (crafted versions)
 
-## Related Modules
-
-- **[Character Systems](../character-systems/)**: Character customization and appearance management
-- **[Components](../components/)**: Inventory and equipment component integration  
-- **[Prefabs](../prefabs.md)**: Character prefab integration with clothing systems
-- **[UI Systems](../ui-systems/)**: Clothing selection and preview interfaces
-- **[Networking](../networking.md)**: Cosmetic data synchronization between clients
 
 ## Technical Notes
 

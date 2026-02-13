@@ -486,10 +486,4 @@ Recipe2("mermhouse_crafted",
 )
 ```
 
-## Related Modules
 
-- [Recipes](./recipes.md): Complete recipe definitions
-- [Recipe Filters](./recipes_filter.md): Crafting menu categorization
-- [Tech Tree](./techtree.md): Technology requirements
-- [Builder Component](../components/builder.md): Recipe crafting logic
-- [Constants](./constants.md): Ingredient and tech type definitions

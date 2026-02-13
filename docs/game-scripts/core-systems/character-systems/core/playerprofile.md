@@ -636,10 +636,3 @@ profile:Load(function(success)
     end
 end)
 ```
-
-## Related Modules
-
-- [PlayerDeaths](./playerdeaths.md): Manages player death record tracking
-- [PlayerHistory](./playerhistory.md): Tracks player interaction history
-- [Controls](../controls.md): Input and control mapping system
-- [TheInventory](../inventory.md): Item and skin ownership verification

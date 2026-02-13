@@ -505,12 +505,7 @@ c._ctor = constructor  -- Constructor function
 ClassTrackingTable[mt] = {}  -- Weak-keyed instance table
 ```
 
-## Related Modules
 
-- **[Components](../components/)**: Component-based entity architecture built on Class system
-- **[Prefabs](../prefabs.md)**: Entity creation using Class-based components
-- **[EntityScript](../entityscript.md)**: Core entity functionality using Class inheritance
-- **[Mod System](../mods.md)**: Hot reloading support for class modifications
 
 ## Technical Notes
 

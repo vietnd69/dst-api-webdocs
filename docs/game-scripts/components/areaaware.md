@@ -4,7 +4,7 @@ title: Areaaware
 description: Tracks an entity's current topological area and watched tile types, pushing events when its area or tile status changes.
 sidebar_position: 1
 
-last_updated: 2026-02_13
+last_updated: 2026-02-13
 build_version: 712555
 change_status: stable
 category_type: component

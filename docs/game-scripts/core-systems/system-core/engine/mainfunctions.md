@@ -529,11 +529,3 @@ Checks if the game is currently migrating between servers.
 **Returns:**
 - (boolean): True if migrating
 
-## Related Modules
-
-- [Main](./main.md): Game initialization and platform detection
-- [EntityScript](./entityscript.md): Entity scripting framework
-- [SaveIndex](./saveindex.md): Save file management
-- [Networking](./networking.md): Network communication
-- [Scheduler](./scheduler.md): Task scheduling system
-- [DebugHelpers](./debughelpers.md): Development and debugging tools

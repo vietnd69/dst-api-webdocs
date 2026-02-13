@@ -625,11 +625,6 @@ d_riftspawns()        -- Stress test with multiple rifts
 - `SpawnPrefab()`: Create entity instances
 - `c_give()`, `c_spawn()`, `c_sel()`: Console utility functions
 
-## Related Modules
-
-- [Console Commands](./consolecommands.md): Built-in console command system
-- [Prefabs](./prefabs.md): Entity spawning and management
-- [Main Functions](./mainfunctions.md): Core game functions
 
 ## Notes
 

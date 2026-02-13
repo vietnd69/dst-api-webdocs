@@ -4,7 +4,7 @@ title: Acidbatwavemanager
 description: Manages dynamic Acid Bat attack waves during acid rain based on players' inventories, world state, and internal cooldowns.
 sidebar_position: 1
 
-last_updated: 2026-02_13
+last_updated: 2026-02-13
 build_version: 712555
 change_status: stable
 category_type: component

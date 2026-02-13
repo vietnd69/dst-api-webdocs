@@ -479,13 +479,7 @@ if foods.honeyham.test(nil, test_ingredients.names, test_ingredients.tags) then
 end
 ```
 
-## Related Modules
 
-- [`preparedfoods_warly`](./preparedfoods-warly.md): Warly-specific portable cookpot recipes
-- [`preparednonfoods`](./preparednonfoods.md): Non-food cookpot recipes
-- [`cooking`](./cooking.md): Core cooking system mechanics
-- [`components/cookpot`](../components/cookpot.md): Cookpot component implementation
-- [`tuning`](./constants.md): Game balance constants and values
 
 ## Notes
 

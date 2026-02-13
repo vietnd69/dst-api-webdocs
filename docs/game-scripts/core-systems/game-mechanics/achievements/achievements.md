@@ -203,8 +203,4 @@ Achievements = {
 - Use descriptive, lowercase name with underscores
 - Follow existing naming conventions
 
-## Related Modules
 
-- [Event Achievements](eventachievements.md): Dynamic achievement tracking system
-- [Player Profile](playerprofile.md): Achievement unlock status tracking
-- [Networking](networking.md): Achievement synchronization across clients

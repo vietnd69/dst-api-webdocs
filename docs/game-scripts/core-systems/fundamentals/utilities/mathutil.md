@@ -555,10 +555,4 @@ UpdateProgressBar(completion)
 - **Angle normalization** prevents floating point precision issues
 - **Clamping** is faster than conditional statements for range limiting
 
-## Related Modules
 
-- [Vector3](./vector3.md): 3D vector mathematics
-- [VecUtil](./vecutil.md): Vector utility functions
-- [Constants](./constants.md): Mathematical constants and definitions
-- [Easing](./easing.md): Advanced interpolation and easing functions
-- [Physics](./physics.md): Physics calculations and collision detection

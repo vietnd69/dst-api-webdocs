@@ -221,8 +221,4 @@ Both functions handle errors gracefully:
 - Uses `TheSim:CheckPersistentStringExists` for verification
 - More conservative approach to prevent unnecessary operations
 
-## Related Modules
 
-- [TheSim](./thesim.md): Provides low-level file system operations
-- [Persistence](./persistence.md): Higher-level save data management
-- [SaveIndex](./saveindex.md): Save file indexing and management

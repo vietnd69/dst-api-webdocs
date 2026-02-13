@@ -541,10 +541,4 @@ end
 - **Event-Driven**: Only creates interfaces when requested
 - **Cleanup**: Automatic cleanup through HUD widget management
 
-## Related Modules
 
-- [Sign Generator](./signgenerator.md): Generates random text for signs
-- [Strings](./strings.md): Provides localized text for interfaces
-- [HUD System](../widgets/hud.md): Manages interface display
-- [Activatable Component](../components/activatable.md): Handles player interaction
-- [Input System](./input.md): Maps controls to interface actions

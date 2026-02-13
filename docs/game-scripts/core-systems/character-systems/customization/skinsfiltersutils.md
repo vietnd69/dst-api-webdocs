@@ -238,12 +238,6 @@ The module includes built-in safety measures:
 - **Malformed Data:** Skips items with missing required properties
 - **Temporary Items:** Automatically excludes temporary/placeholder items
 
-## Related Modules
-
-- [`skinsutils`](./skinsutils.md): Core skins functionality and list generation
-- [`skinstradeutils`](./skinstradeutils.md): Trading-specific filter utilities
-- [`skin_assets`](./skin_assets.md): Skin asset definitions and properties
-- [`skins_defs_data`](./skins_defs_data.md): Comprehensive skin definitions
 
 ## Constants Reference
 

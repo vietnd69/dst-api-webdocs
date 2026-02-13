@@ -383,9 +383,3 @@ for i = 1, 3 do
 end
 ```
 
-## Related Modules
-
-- [Class](./class.md): Object-oriented programming system that works with strict mode
-- [Debug](./debugtools.md): Debug utilities that respect strict mode declarations
-- [ModUtil](./modutil.md): Mod utilities that handle global variable management
-- [Main](./main.md): Main game initialization that loads strict mode

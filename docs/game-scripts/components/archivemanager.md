@@ -4,7 +4,7 @@ title: Archivemanager
 description: Controls the archive system's global power state, toggling a world state tag and notifying listeners when power changes.
 sidebar_position: 1
 
-last_updated: 2026-02_13
+last_updated: 2026-02-13
 build_version: 712555
 change_status: stable
 category_type: component

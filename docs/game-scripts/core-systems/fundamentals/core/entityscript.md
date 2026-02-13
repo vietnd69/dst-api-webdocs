@@ -667,9 +667,4 @@ if player then
 end
 ```
 
-## Related Modules
 
-- [Components Overview](./index.md): Individual component functionality
-- [StateGraphs](../stategraphs/index.md): Animation and state management
-- [Events](./events.md): Event system details
-- [Class](./class.md): Base class system used by EntityScript

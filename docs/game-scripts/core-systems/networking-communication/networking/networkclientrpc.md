@@ -540,9 +540,4 @@ printinvalidplatform("RPCName", player, action, x, z, platform, platform_relativ
 4. **Mod Namespacing**: Use unique namespaces for mod RPCs to avoid conflicts
 5. **Error Handling**: Implement proper error handling in RPC handlers
 
-## Related Modules
 
-- [Network Variables](./netvars.md): Network variable system for state synchronization
-- [Networking](./networking.md): Core networking functions and server management
-- [Player Controller](../components/playercontroller.md): Player input and action processing
-- [Inventory](../components/inventory.md): Inventory management system

@@ -979,10 +979,3 @@ local server_mods = ModManager:GetEnabledServerModNames()
 local config = KnownModIndex:LoadModConfigurationOptions(modname)
 ```
 
-## Related Modules
-
-- [ShardIndex](./shardindex.md): Individual shard data management
-- [ShardNetworking](./shardnetworking.md): Inter-shard communication
-- [SaveGameIndex](./saveindex.md): Legacy save game management
-- [ModManager](../core-systems/index.md#modmanager): Server modification management
-- [KnownModIndex](./modindex.md): Mod installation and configuration

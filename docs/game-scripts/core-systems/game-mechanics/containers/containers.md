@@ -1004,15 +1004,7 @@ end
 
 This ensures proper memory allocation for the largest possible container configuration.
 
-## Related Modules
 
-- **[Components](./components/)** - Container component implementation
-- **[Actions](./actions.md)** - Container interaction actions
-- **[Recipes](./recipes.md)** - Crafting integration with containers
-- **[Networking](./networking.md)** - Container state synchronization
-- **[Prefabs](./prefabs.md)** - Container prefab definitions
-- **[Cooking](./cooking.md)** - Cooking system integration
-- **[Player](./player.md)** - Player inventory interactions
 
 ## Notes
 

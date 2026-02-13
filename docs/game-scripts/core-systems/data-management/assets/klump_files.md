@@ -178,12 +178,6 @@ for i, file in ipairs(files) do
 end
 ```
 
-## Related Modules
-
-- [klump](./klump.md): Main encrypted file loading system
-- [json](./json.md): Used for parsing encrypted string data
-- [events](./events.md): Festival event system that triggers klump loading
-- [Profile](./playerprofile.md): Stores cipher keys for decryption
 
 ## Build System Integration
 

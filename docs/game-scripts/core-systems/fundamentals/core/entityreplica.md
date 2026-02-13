@@ -407,9 +407,3 @@ inst:ListenForEvent("replication_complete", function(inst)
 end)
 ```
 
-## Related Modules
-
-- [EntityScript](./entityscript.md): Core entity functionality and component system
-- [EntityScript Proxy](./entityscriptproxy.md): Proxy system for entity wrapping
-- [Components Overview](./index.md): Individual component functionality
-- [Networking](./networking.md): Network synchronization details

@@ -353,9 +353,3 @@ end
 3. **C Functions**: Limited to predefined function mappings
 4. **File Handles**: IO objects cannot be serialized
 
-## Related Modules
-
-- [Debug Tools](./debugtools.md): Table inspection utilities
-- [Save Index](./saveindex.md): Game save/load system
-- [JSON](./json.md): Alternative serialization format
-- [Util](../util/): General utility functions

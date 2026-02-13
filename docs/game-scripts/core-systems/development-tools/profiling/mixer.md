@@ -409,7 +409,3 @@ mixer:ClearLowPassFilter("set_sfx/sfx", 1.0)
 mixer:ClearLowPassFilter("set_music/soundtrack", 1.0)
 ```
 
-## Related Modules
-
-- [Mixes](./mixes.md): Predefined mix configurations for different game states
-- [Easing](./easing.md): Animation and interpolation functions used in transitions

@@ -349,10 +349,3 @@ print("Node has", #node.neighbours, "valid connections")
 - **ReconstructTopology:** Expensive O(n²) operation for large graphs
 - **GrabSubGraphAroundNode:** O(k) where k is the requested node count
 
-## Related Modules
-
-- [MathUtil](./mathutil.md): Mathematical utilities for calculations
-- [Physics](./physics.md): Physics and collision systems
-- [WorldGen](../map/worldgen.md): World generation systems
-- [Pathfinder](../navigation/pathfinder.md): Pathfinding algorithms
-- [DebugHelpers](./debughelpers.md): Debug visualization tools

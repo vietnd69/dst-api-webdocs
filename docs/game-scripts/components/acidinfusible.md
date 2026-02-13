@@ -4,7 +4,7 @@ title: Acidinfusible
 description: Infuses entities with acid effects during acid rain, applying stat multipliers, visual FX, and custom callbacks based on rain immunity.
 sidebar_position: 1
 
-last_updated: 2026-02_13
+last_updated: 2026-02-13
 build_version: 712555
 change_status: stable
 category_type: component

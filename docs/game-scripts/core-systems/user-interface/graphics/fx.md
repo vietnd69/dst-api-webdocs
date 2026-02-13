@@ -366,10 +366,4 @@ local advanced_fx = {
 - Large-scale effects should use efficient animation techniques
 - Sound effects should be optimized for multiple simultaneous plays
 
-## Related Modules
 
-- [Prefabs](./prefabs.md): Effect entities are created as prefabs
-- [EntityScript](./entityscript.md): Base entity functionality for effects
-- [AnimState](../components/animstate.md): Animation rendering system
-- [SoundEmitter](../components/soundemitter.md): Audio playback for effects
-- [Transform](../components/transform.md): Positioning and scaling effects

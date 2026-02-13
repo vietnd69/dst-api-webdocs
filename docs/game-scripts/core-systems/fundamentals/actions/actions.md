@@ -371,9 +371,3 @@ Clears the current client requested action.
 - Map actions (`map_action`) have translations for map use
 - Some actions close the map automatically (`closes_map`)
 
-## Related Modules
-
-- [Buffered Action](bufferedaction.md): Instance-specific action execution
-- [Component Actions](componentactions.md): Component-based action definitions
-- [State Graphs](../stategraphs/stategraph.md): Action animation and timing
-- [Player Controller](playercontroller.md): Action input and execution handling 

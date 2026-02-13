@@ -353,12 +353,6 @@ The module includes safety measures for:
 4. **Validation:** Ensure all restrictions are satisfied
 5. **Completion:** Execute trade when all requirements met
 
-## Related Modules
-
-- [`skinsfiltersutils`](./skinsfiltersutils.md): Core filtering utilities for skins
-- [`trade_recipes`](./trade_recipes.md): Trade recipe definitions and rules
-- [`skinsutils`](./skinsutils.md): Core skins functionality and utilities
-- [`skin_assets`](./skin_assets.md): Skin asset definitions and properties
 
 ## Constants and Dependencies
 

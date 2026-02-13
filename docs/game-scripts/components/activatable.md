@@ -4,7 +4,7 @@ title: Activatable
 description: Controls when and how an entity can be activated, using tags and callbacks to implement custom activation behavior.
 sidebar_position: 1
 
-last_updated: 2026-02_13
+last_updated: 2026-02-13
 build_version: 712555
 change_status: stable
 category_type: component

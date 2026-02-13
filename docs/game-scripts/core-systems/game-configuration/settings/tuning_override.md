@@ -549,12 +549,7 @@ The override system provides several advantages for development:
 - **Performance Testing**: Disable expensive systems to measure impact
 - **Feature Validation**: Test new features without interference from existing systems
 
-## Related Modules
 
-- [Tuning](./tuning.md): Main game balance and configuration system
-- [Constants](./constants.md): Game constants and non-tunable values
-- [Debug Tools](./debugtools.md): Development and testing utilities
-- [World Settings](./worldsettings.md): Player-configurable world options
 
 ## Source Reference
 

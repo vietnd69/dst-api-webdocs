@@ -484,9 +484,4 @@ local function DebugProxy(proxy)
 end
 ```
 
-## Related Modules
 
-- [EntityScript](./entityscript.md): Core entity functionality that proxies wrap
-- [Entity Replica System](./entityreplica.md): Network replication system that works with proxies
-- [Class](./class.md): Base class system used for proxy creation
-- [Components Overview](./index.md): Component system that benefits from proxy interfaces

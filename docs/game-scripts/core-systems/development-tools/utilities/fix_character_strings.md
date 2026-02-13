@@ -262,9 +262,3 @@ This script is typically used during development and before commits:
 3. **CI/CD Pipeline**: Validate that all speech files are properly formatted
 4. **Release Preparation**: Standardize all character dialogue before release
 
-## Related Modules
-
-- [Speech Files](../characters/speech.md): Character-specific dialogue implementations
-- [Localization](./localization.md): Multi-language string management system
-- [String Processing](./string-processing.md): Text manipulation utilities
-- [File Utilities](./fileutil.md): General file management functions

@@ -407,9 +407,4 @@ end
 - Manual cleanup with `RemoveEmitter()` when emitters are no longer needed
 - Manager handles hibernation/wake cycles automatically
 
-## Related Modules
 
-- [EntityScript](./entityscript.md): Entity lifecycle management for emitters
-- [Scheduler](./scheduler.md): Alternative timing system for particle effects
-- [Class](./class.md): Base class system used by EmitterManagerClass
-- [Main Functions](./mainfunctions.md): Game loop where PostUpdate is called

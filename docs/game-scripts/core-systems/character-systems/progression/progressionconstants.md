@@ -225,8 +225,3 @@ The progression constants are typically used by:
 - **Achievement Systems**: To calculate unlock requirements
 - **UI Components**: To show progress bars and level information
 
-## Related Modules
-
-- [Player Profile](./playerprofile.md): Uses progression data for character unlock tracking
-- [Player History](./playerhistory.md): Stores XP accumulation over time
-- [Characters and Mobs](./characters-and-mobs/index.md): Character definitions unlocked through progression

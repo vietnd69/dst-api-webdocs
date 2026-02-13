@@ -210,11 +210,6 @@ The module uses `tracked_assert` for error reporting:
 - Supports comment parsing for flexible JSON input
 - Optimized array detection algorithm
 
-## Related Modules
-
-- [fileutil](./fileutil.md): File operations that may use JSON serialization
-- [saveindex](./saveindex.md): Save system that relies on JSON encoding
-- [networking](./networking.md): Network communication using JSON data
 
 ## License
 

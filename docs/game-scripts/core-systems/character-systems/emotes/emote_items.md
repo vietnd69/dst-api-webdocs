@@ -754,10 +754,3 @@ When new emote items are added:
 - Special requirements (like hats) checked locally
 - Consider batching validation requests for UI
 
-## Related Modules
-
-- [Emotes](./emotes.md): Core emote system and basic emotes
-- [Built-in User Commands](./builtinusercommands.md): Command system integration
-- [Account Items](./account_items.md): Player inventory and ownership system
-- [Player Profile](./playerprofile.md): Player preferences and customization
-- [Skin Assets](./skin_assets.md): Visual customization system

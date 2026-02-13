@@ -248,9 +248,4 @@ local success = cook_large_achievement.testfn(
 -- Returns: true (4 ingredients = large recipe)
 ```
 
-## Related Modules
 
-- [Event Achievements](./eventachievements.md): Core achievement system handling
-- [Player Profile](./playerprofile.md): WXP storage and progression tracking
-- [Analytics](./analytics.md): Match and player statistics collection
-- [Quagmire Recipe Book](./quagmire_recipebook.md): Recipe discovery system integration

@@ -471,10 +471,4 @@ Recipe2("my_item",
 - Dynamic character avatar display
 - Builder tag restrictions
 
-## Related Modules
 
-- [Recipe System Core](./recipe.md): Core recipe definitions
-- [Recipes](./recipes.md): Complete recipe implementations
-- [Builder Component](../components/builder.md): Crafting logic
-- [Crafting Menu Profile](./craftingmenuprofile.md): User preferences and favorites
-- [Constants](./constants.md): Filter and category constants

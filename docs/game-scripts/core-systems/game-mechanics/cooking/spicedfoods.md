@@ -222,9 +222,4 @@ newdata.test = function(cooker, names, tags)
 end
 ```
 
-## Related Modules
 
-- [Prepared Foods](./preparedfoods.md): Base food definitions that get spiced variants
-- [Prepared Foods Warly](./preparedfoods_warly.md): Warly-specific foods that get spiced variants
-- [Tuning](./tuning.md): Contains temperature and timing constants used by spiced foods
-- [Cooking](./cooking.md): Recipe system that processes spiced food recipes

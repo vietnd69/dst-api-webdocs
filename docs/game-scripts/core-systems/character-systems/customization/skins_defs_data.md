@@ -453,10 +453,3 @@ local function GetEmoteSetSkins(emote_id, character_index)
 end
 ```
 
-## Related Modules
-
-- [Skin Strings](./skin_strings.md): Localized text for skin names and quotes
-- [Skin Assets](./skin_assets.md): Visual asset definitions and mappings
-- [Skin Affinity Info](./skin_affinity_info.md): Character-skin compatibility rules
-- [Skin Gifts](./skin_gifts.md): Gift system configuration for skin distribution
-- [Skin Set Info](./skin_set_info.md): Coordinated skin collection definitions

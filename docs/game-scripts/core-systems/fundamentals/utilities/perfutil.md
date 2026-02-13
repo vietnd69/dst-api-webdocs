@@ -681,13 +681,6 @@ local function AnalyzeNetworkPerformance()
 end
 ```
 
-## Related Modules
-
-- [Scheduler](./scheduler.md): Task scheduling for periodic performance monitoring
-- [Console Commands](./consolecommands.md): Debug commands that may use performance utilities
-- [Debug Tools](./debugtools.md): Additional debugging and profiling tools
-- [Mod Manager](./mods.md): Mod management system for mod information collection
-- [Network](./networking.md): Network systems for player and ping data
 
 ## Performance Considerations
 

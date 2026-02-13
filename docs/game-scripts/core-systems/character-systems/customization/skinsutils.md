@@ -944,16 +944,6 @@ SKIN_DEBUGGING = true
 local name = GetSkinName("wilson_formal") -- Returns "wilson_formal" instead of "The Dapper"
 ```
 
-## Related Modules
-
-- [`skinsfiltersutils`](./skinsfiltersutils.md): Filtering utilities for skins lists
-- [`skinstradeutils`](./skinstradeutils.md): Trading-specific utilities
-- [`item_blacklist`](./item_blacklist.md): Items excluded from display
-- [`skin_affinity_info`](./skin_affinity_info.md): Character-item relationships
-- [`skin_set_info`](./skin_set_info.md): Item set and collection definitions
-- [`skin_assets`](./skin_assets.md): Asset and texture definitions
-- [`clothing`](./clothing.md): Clothing item definitions
-- [`misc_items`](./misc_items.md): Miscellaneous item definitions
 
 ## Constants Reference
 

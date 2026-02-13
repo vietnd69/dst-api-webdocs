@@ -4,7 +4,7 @@ title: Amorphous
 description: Allows an entity to morph between defined forms based on container contents and custom enter or exit behavior.
 sidebar_position: 1
 
-last_updated: 2026-02_13
+last_updated: 2026-02-13
 build_version: 712555
 change_status: stable
 category_type: component

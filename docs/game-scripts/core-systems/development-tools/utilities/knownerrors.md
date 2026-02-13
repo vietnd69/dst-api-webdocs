@@ -272,12 +272,6 @@ The error system integrates with Klei's support infrastructure:
 - Ensure URLs point to relevant help content
 - Consider version-specific documentation needs
 
-## Related Modules
-
-- [builtinusercommands](./builtinusercommands.md): May trigger CUSTOM_COMMANDS_ERROR
-- [config](./config.md): Uses permission-related errors
-- [saveindex](./saveindex.md): May trigger disk space errors
-- [fileutil](./fileutil.md): File system operations that may fail
 
 ## Debugging Support
 

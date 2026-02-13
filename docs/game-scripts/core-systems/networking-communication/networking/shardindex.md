@@ -836,10 +836,4 @@ KnownModIndex:Enable(modname)
 KnownModIndex:SetConfigurationOption(modname, option, value)
 ```
 
-## Related Modules
 
-- [SaveGameIndex](./saveindex.md): Individual save game management
-- [KnownModIndex](./modindex.md): Mod installation and configuration
-- [TheNet](../core-systems/index.md#thenet): Network and session services
-- [TheSim](../core-systems/index.md#thesim): Simulation and persistence services
-- [SaveFileUpgrades](./savefileupgrades.md): Save data format migration system

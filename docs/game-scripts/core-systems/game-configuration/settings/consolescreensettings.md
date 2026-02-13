@@ -423,8 +423,4 @@ The system automatically converts old save formats:
 - **Branch Isolation**: Separate save files for different game branches
 - **Error Handling**: Graceful fallback for corrupt or missing save files
 
-## Related Modules
 
-- [Console Commands](consolecommands.md): Commands that utilize this history system
-- [Class](class.md): Base class inheritance system
-- [JSON](json.md): Data encoding/decoding utilities

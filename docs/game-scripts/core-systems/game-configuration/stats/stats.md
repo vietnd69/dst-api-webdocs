@@ -509,9 +509,4 @@ PushMetricsEvent("boss_defeated", ThePlayer, {
 })
 ```
 
-## Related Modules
 
-- [Profile](./profile.md): Player profile and persistence system
-- [NetVar](./netvars.md): Network variable system for multiplayer stats
-- [ModManager](./mods.md): Mod system integration for tracking mod usage
-- [Config](./config.md): Configuration system for stats preferences

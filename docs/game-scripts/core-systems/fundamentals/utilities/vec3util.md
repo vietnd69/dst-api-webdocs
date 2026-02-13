@@ -331,8 +331,4 @@ local norm_x, norm_y, norm_z = Vec3Util_Normalize(dir_x, dir_y, dir_z)
 local current_x, current_y, current_z = Vec3Util_Lerp(start_x, start_y, start_z, end_x, end_y, end_z, progress)
 ```
 
-## Related Modules
 
-- [VecUtil](./vecutil.md): 2D vector utility functions for XZ plane operations
-- [Vector3](./vector3.md): Object-oriented 3D vector class with operator overloading
-- [MathUtil](./mathutil.md): Additional mathematical utility functions

@@ -533,8 +533,3 @@ local bucket = hash("spider") & 0xF  -- Bucket 0-15
 - Backend synchronization occurs with configurable delays
 - Local storage provides offline functionality
 
-## Related Modules
-
-- [Scrapbook Prefabs](./scrapbook_prefabs.md): Registry of trackable prefabs
-- [Class](./class.md): Base class system
-- [Constants](./constants.md): Character list and configuration values

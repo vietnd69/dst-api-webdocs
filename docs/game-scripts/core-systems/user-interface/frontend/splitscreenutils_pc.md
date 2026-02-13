@@ -184,12 +184,7 @@ end
 ### Merge Conflict Reduction
 This module exists primarily to maintain code compatibility between PC and console builds. The stub implementations ensure that code referencing split screen functionality will compile and run on PC without modification.
 
-## Related Modules
 
-- [Split Screen Utils](./splitscreenutils.md): Main split screen utilities (console builds)
-- [Platform Postload](./platformpostload.md): Platform-specific initialization
-- [Frontend](./frontend.md): User interface management system
-- [Input](./input.md): Input handling for different instance types
 
 ## Technical Notes
 

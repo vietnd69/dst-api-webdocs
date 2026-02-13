@@ -85,8 +85,4 @@ The following waxed berrybush variants have been added to the blacklist:
 
 These items are blacklisted to prevent display duplication since they represent functional variants of existing berrybush items rather than distinct player-accessible items.
 
-## Related Modules
 
-- [Skins Utils](./skinsutils.md): Uses this blacklist in `ShouldDisplayItemInCollection()`
-- [Prefabs](./prefabs.md): Item definitions that may be blacklisted
-- [Misc Items](./misc_items.md): Contains item data that this blacklist filters

@@ -230,11 +230,7 @@ local container = ContainerClass()
 print(#container) -- Uses custom __len
 ```
 
-## Related Modules
 
-- [Class](./class.md): Standard table-based class system
-- [EntityScript](./entityscript.md): Uses MetaClass for entity objects
-- [ComponentUtil](./componentutil.md): Component system utilities
 
 ## Technical Notes
 

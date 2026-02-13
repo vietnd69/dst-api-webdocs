@@ -187,8 +187,4 @@ mod_protect_TileManager = false  -- Allow modifications
 mod_protect_TileManager = true   -- Protect from further modifications
 ```
 
-## Related Modules
 
-- [TileManager](./tilemanager.md): Core system for managing tile textures and falloffs
-- [Constants](./constants.md): Contains FALLOFF_IDS definitions
-- [TileGroups](./tilegroups.md): Defines tile groupings used in falloff configurations

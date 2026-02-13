@@ -224,11 +224,6 @@ end
 - Circular reference detection adds overhead but prevents infinite loops
 - String concatenation is optimized using table-based buffering
 
-## Related Modules
-
-- [Debug Tools](./debugtools.md): Comprehensive debugging utilities that may use inspect
-- [Debug Print](./debugprint.md): Printing utilities for development
-- [Debug Helpers](./debughelpers.md): Additional debugging assistance functions
 
 ## See Also
 

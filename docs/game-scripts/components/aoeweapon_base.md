@@ -4,7 +4,7 @@ title: Aoeweapon Base
 description: Provides shared interaction logic for area-of-effect weapons, handling work actions, picking, combat hits, and physics-based tosses.
 sidebar_position: 1
 
-last_updated: 2026-02_13
+last_updated: 2026-02-13
 build_version: 712555
 change_status: stable
 category_type: component

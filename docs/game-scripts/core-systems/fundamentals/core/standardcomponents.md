@@ -1056,15 +1056,6 @@ Prevents character collisions during object placement with adaptive radius.
 - Adjusts collision radius dynamically
 - Re-enables collisions when safe
 
-## Related Modules
-
-- [Tuning](./tuning.md): Contains constants used by standard components
-- [Components](../components/index.md): Individual component documentation
-- [Physics](./physics.md): Core physics system
-- [Burnable](../components/burnable.md): Burnable component details
-- [Hauntable](../components/hauntable.md): Hauntable component system
-- [Propagator](../components/propagator.md): Fire propagation system
-
 ## Technical Notes
 
 ### Performance Considerations

@@ -327,10 +327,3 @@ RailUserCommandInject("kick", "踢出", {"用户"})  // "user" parameter in Chin
 
 **Impact:** Reduces false positive kicks while maintaining legitimate moderation capabilities.
 
-## Related Modules
-
-- [User Commands](./builtinusercommands.md): Base user command system that gets modified
-- [Console Commands](./consolecommands.md): Alternative command interface
-- [Player Actions](./actions.md): Action system used by emote commands
-- [Voting System](./voting.md): Core voting mechanics enhanced by platform modifications
-- [Debug System](./debugprint.md): Debug output system used for loading notifications

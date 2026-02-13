@@ -155,13 +155,7 @@ This module could be used for:
 - Cross-component lighting coordination
 - Lighting effect definitions
 
-## Related Modules
 
-- [Ambient Lighting Component](../components/ambientlighting.md): Core lighting component
-- [Weather](./weather.md): Weather-based lighting effects
-- [Cave Weather](../components/caveweather.md): Underground lighting systems
-- [World Temperature](../components/worldtemperature.md): Lighting constants for temperature
-- [Tuning](./tuning.md): Lighting configuration constants
 
 ## Common Lighting Patterns
 

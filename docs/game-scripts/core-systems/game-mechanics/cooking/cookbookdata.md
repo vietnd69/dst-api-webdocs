@@ -585,11 +585,7 @@ end
 | 676312 | 2025-06-25 | Enhanced error recovery in Load() method with type validation and automatic online cache fallback |
 | 676042 | 2025-06-21 | Stable implementation with online sync support |
 
-## Related Modules
 
-- **[Cooking](cooking.md)** - Core cooking system and recipe definitions
-- **[Inventory](../util/inventory.md)** - Online profile synchronization
-- **[Class](class.md)** - Base class system
 
 ## Technical Notes
 

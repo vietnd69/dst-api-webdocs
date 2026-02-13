@@ -466,9 +466,3 @@ dtable(player_data, 2)
 | `DPRINT_USERNAME` | string | User-specific debug filtering |
 | `DPRINT_PRINT_SOURCELINE` | boolean | Include source line in dprint |
 
-## Related Modules
-
-- [Debug Print](./debugprint.md): Enhanced printing system
-- [Debug Menu](./debugmenu.md): Interactive debug menu framework
-- [Debug Commands](./debugcommands.md): Command-line debugging interface
-- [Console Commands](./consolecommands.md): Console command system

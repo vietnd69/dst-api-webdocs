@@ -323,11 +323,3 @@ local function validate_character_skin(character, theme)
     return true
 end
 ```
-
-## Related Modules
-
-- [`skin_affinity_info`](./skin_affinity_info.md): Character-skin association mapping
-- [`skin_gifts`](./skin_gifts.md): Gift system integration for skin items  
-- [`prefabskins`](./prefabskins.md): Skin application and management system
-- [`playerprofile`](./playerprofile.md): Player customization persistence
-- [`mod_tools`](../tools/): Asset validation and debugging utilities

@@ -124,11 +124,6 @@ To locate specific trap functionality:
 3. **Check scenario documentation** for trap-specific behaviors
 4. **Reference scenario index** for organized trap listings
 
-## Related Modules
-
-- [Scenarios](../scenarios/index.md): Main scenarios system documentation
-- [Components](../components/index.md): Trap component implementations
-- [World Generation](../map/index.md): Trap placement in world generation
 
 ## Development Notes
 

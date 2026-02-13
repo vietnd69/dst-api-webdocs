@@ -255,9 +255,3 @@ local function UpdateFireLevel(self)
 end
 ```
 
-## Related Modules
-
-- [Components/Burnable](../components/burnable.md): Uses fire levels for combustible objects
-- [Components/Fueled](../components/fueled.md): Manages fuel consumption with fire levels
-- [Lighting](./lighting.md): Handles light intensity and color from fire levels
-- [Physics](./physics.md): Manages fire spread and heat distribution

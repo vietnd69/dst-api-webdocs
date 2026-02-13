@@ -453,9 +453,4 @@ if CHEATS_ENABLED then
 end
 ```
 
-## Related Modules
 
-- [Widget](./widget.md): Base widget system that Frontend manages
-- [Screen Classes](../screens/): Various screen implementations
-- [Input System](./input.md): Input handling and control mapping
-- [Easing](./easing.md): Animation easing functions used for fades

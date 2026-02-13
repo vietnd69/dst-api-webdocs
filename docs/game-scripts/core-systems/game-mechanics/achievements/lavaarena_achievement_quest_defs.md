@@ -273,8 +273,4 @@ Character-specific achievements that require playing specific characters.
 
 **Description:** Event identifier for the Lava Arena event.
 
-## Related Modules
 
-- [Lava Arena Achievements](./lavaarena_achievements.md): Individual character achievement definitions
-- [Lava Arena Community Progression](./lavaarena_communityprogression.md): Community-wide progression system
-- [Event Achievements](./eventachievements.md): General event achievement framework

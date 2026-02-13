@@ -457,12 +457,7 @@ The tuning system is designed for mod compatibility:
 - Original values are preserved in `ORIGINAL_TUNING` table
 - Multiple mods can modify the same values if done carefully
 
-## Related Modules
 
-- [Tuning Override](./tuning_override.md): System for disabling specific game mechanics
-- [Constants](./constants.md): Non-tunable game constants and enumerations
-- [Recipe System](./recipes.md): Crafting system that uses tuning values
-- [Component System](../components/index.md): Components that implement tuning values
 
 ## Source Reference
 

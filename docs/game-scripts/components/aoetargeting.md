@@ -4,7 +4,7 @@ title: Aoetargeting
 description: Manages visual targeting reticules, validation, and FX for area-of-effect abilities or items.
 sidebar_position: 1
 
-last_updated: 2026-02_13
+last_updated: 2026-02-13
 build_version: 712555
 change_status: stable
 category_type: component

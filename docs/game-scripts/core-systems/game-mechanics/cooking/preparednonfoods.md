@@ -301,14 +301,7 @@ overridebuild = "cook_pot_food6", -- Uses food6 appearance
 overridebuild = "hat_batnose", -- Uses hat-specific appearance
 ```
 
-## Related Modules
 
-- [`preparedfoods`](./preparedfoods.md): Standard food recipes
-- [`preparedfoods_warly`](./preparedfoods-warly.md): Warly-specific recipes
-- [`cooking`](./cooking.md): Core cooking system mechanics
-- [`components/cookpot`](../components/cookpot.md): Cookpot component implementation
-- [`prefabs/hats`](../perfabs/hats.md): Hat prefab definitions
-- [`tuning`](./constants.md): Game balance constants
 
 ## Notes
 

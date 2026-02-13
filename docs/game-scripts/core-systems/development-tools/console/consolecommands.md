@@ -1039,19 +1039,6 @@ c_dump()     -- Dump selected entity info
 - Many commands include usage tracking via SuUsed() for analytics
 - Commands automatically handle error conditions and provide informative output
 
-## Related Modules
-
-- [DebugKeys](./debugkeys.md): Keyboard debug shortcuts
-- [DebugHelpers](./debughelpers.md): Additional debugging utilities
-- [Networking](./networking.md): Network communication for remote commands
-- [Class](./class.md): Base entity system for command targets
-
-## Related Modules
-
-- [DebugKeys](./debugkeys.md): Keyboard debug shortcuts
-- [DebugHelpers](./debughelpers.md): Additional debugging utilities
-- [Networking](./networking.md): Network communication for remote commands
-- [Class](./class.md): Base entity system for command targets
 
 ---
 

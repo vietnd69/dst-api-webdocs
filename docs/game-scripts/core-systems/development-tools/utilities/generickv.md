@@ -348,8 +348,3 @@ kv.save_enabled = true
 kv:SetKV("test", "value")  -- Returns true - will save
 ```
 
-## Related Modules
-
-- [JSON](./json.md): JSON encoding/decoding functionality
-- [TheInventory](../systems/inventory.md): Inventory synchronization system
-- [Persistent Storage](../systems/persistence.md): Game save/load systems
