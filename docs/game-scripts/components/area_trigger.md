@@ -9,6 +9,7 @@ build_version: 712555
 change_status: stable
 category_type: component
 system_scope: world
+source_hash: 9266600b
 ---
 
 # area_trigger

@@ -9,6 +9,7 @@ build_version: 712555
 change_status: stable
 category_type: component
 system_scope: combat
+source_hash: 312f5585
 ---
 
 # Damagetypebonus

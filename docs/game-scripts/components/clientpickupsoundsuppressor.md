@@ -9,6 +9,7 @@ build_version: 712555
 change_status: stable
 category_type: component
 system_scope: audio
+source_hash: 7d8f002d
 ---
 
 # Clientpickupsoundsuppressor
