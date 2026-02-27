@@ -1,4 +1,4 @@
-```yaml
+---
 id: corpsepersistmanager
 title: Corpsepersistmanager
 description: This component manages the persistence of creature corpses in the world, limiting their total count and applying persistence rules to prevent them from despawning.

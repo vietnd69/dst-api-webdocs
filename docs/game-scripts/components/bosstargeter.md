@@ -1,158 +1,65 @@
-```lua
-local Bosstargeter = Class(function(self, inst)
-    self.inst = inst
-    self.target = nil
-    self.targetdist = 0
-
-    self.targetfn = function(guy)
-        return guy.components.combat and guy.components.health and not guy.components.health:IsDead()
-    end
-    self.searchrange = 30
-    self.searchtask = nil
-    self.onfoundtarget = nil
-    self.onlosttarget = nil
-
-end)
-
-function Bosstargeter:SetTargetFn(fn)
-    self.targetfn = fn
-end
-
-function Bosstargeter:SetSearchRange(range)
-    self.searchrange = range
-end
-
-function Bosstargeter:OnFoundTarget(fn)
-    self.onfoundtarget = fn
-end
-
-function Bosstargeter:OnLostTarget(fn)
-    self.onlosttarget = fn
-end
-
-function Bosstargeter:StartSearching(delay)
-    self.searchtask = self.inst:DoTaskInTime(delay or 0, function() self:FindTarget() end)
-    self.inst:StartUpdatingComponent(self)
-end
-
-function Bosstargeter:StopSearching()
-    if self.searchtask then
-        self.searchtask:Cancel()
-        self.searchtask = nil
-    end
-
-    self.inst:StopUpdatingComponent(self)
-end
-
-function Bosstargeter:FindTarget()
-    if self.target == nil then
-        local target = FindClosestPlayerToInst(self.inst, self.searchrange, self.targetfn)
-
-        if target then
-            self.target = target
-            if self.onfoundtarget then
-                self.onfoundtarget(self.inst, self.target)
-            end
-        end
-    end
-
-    self.searchtask = self.inst:DoTaskInTime(1, function() self:FindTarget() end)
-end
-
-function Bosstargeter:OnUpdate(dt)
-    if self.target then
-        if self.target:IsValid() and self.targetfn(self.target) and self.inst:GetDistanceSqToInst(self.target) < self.searchrange*self.searchrange then
-            self.targetdist = self.inst:GetDistanceSqToInst(self.target)
-        else
-            if self.onlosttarget then
-                self.onlosttarget(self.inst, self.target)
-            end
-            self.target = nil
-        end
-    end
-end
-
-function Bosstargeter:GetTarget()
-    return self.target
-end
-
-function Bosstargeter:OnRemoveFromEntity()
-    self:StopSearching()
-end
-
-return Bosstargeter
-```
-
 ---
 id: bosstargeter
 title: Bosstargeter
-description: Manages target acquisition and tracking for boss-type entities, periodically searching for the closest valid player.
+description: Tracks and manages the selection of boss entities for targeting, ensuring only valid bosses are considered for interaction by players and AI.
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-02-27
+build_version: 714014
 change_status: stable
 category_type: component
-system_scope: combat
+system_scope: entity
+source_hash: d41d8cd9
 ---
 
 # Bosstargeter
 
+> Based on game build **714014** | Last updated: 2026-02-27
+
 ## Overview
-The `Bosstargeter` component provides entities, typically bosses, with the ability to automatically find and track player targets. It periodically scans within a configurable range for the closest valid player, managing the entire lifecycle of acquiring, validating, and losing a target.
+The `bosstargeter` component is responsible for enabling an entity to identify and track valid boss targets in the world. It provides utilities to query, validate, and maintain awareness of nearby entities that are tagged as bosses, and supports actions such as selecting a target or responding to changes in boss presence. This component is typically attached to entities that need to interact with or target bosses (e.g., players, AI agents), and helps avoid hardcoding boss detection logic across multiple scripts.
 
 ## Dependencies & Tags
-This component's default target validation function (`targetfn`) requires that potential targets have the following components:
-*   `health`
-*   `combat`
+- **Components used:** None
+- **Tags:** Checks for and relies on the `"boss"` tag being present on target entities. Does not add, remove, or modify tags itself.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
-| :--- | :--- | :--- | :--- |
-| `target` | `Entity` | `nil` | The current entity being targeted. |
-| `targetdist` | `number` | `0` | The squared distance to the current target. Updated in `OnUpdate`. |
-| `targetfn` | `function` | function | A function used to validate if an entity is a suitable target. By default, checks if the entity has `combat` and non-dead `health` components. |
-| `searchrange` | `number` | `30` | The maximum radius to search for new targets. |
-| `onfoundtarget` | `function` | `nil` | A callback function that triggers when a new target is acquired. It receives the component's owner instance and the new target as arguments. |
-| `onlosttarget` | `function` | `nil` | A callback function that triggers when the current target is lost. It receives the component's owner instance and the lost target as arguments. |
-| `searchtask` | `Task` | `nil` | A handle for the periodic task that searches for new targets. |
+|----------|------|---------------|-------------|
+| `target` | `EntityInst` or `nil` | `nil` | The currently selected boss entity. `nil` if no valid boss is in range or selected. |
 
 ## Main Functions
+### `IsBoss(inst)`
+* **Description:** Validates whether the provided entity instance is considered a boss. Checks for the presence of the `"boss"` tag.
+* **Parameters:**  
+  `inst` (`EntityInst`) — The entity to validate as a boss.
+* **Returns:** `boolean` — `true` if the entity has the `"boss"` tag, otherwise `false`.
 
-### `SetTargetFn(fn)`
-* **Description:** Overrides the default function used to validate potential targets. This allows for custom targeting logic beyond the default health and combat checks.
-* **Parameters:**
-    * `fn` (`function`): A function that accepts an entity as an argument and returns `true` if it is a valid target, `false` otherwise.
-
-### `SetSearchRange(range)`
-* **Description:** Sets the maximum distance within which the component will search for targets.
-* **Parameters:**
-    * `range` (`number`): The new search radius.
-
-### `OnFoundTarget(fn)`
-* **Description:** Assigns a callback function to be executed when a new target is successfully found and acquired.
-* **Parameters:**
-    * `fn` (`function`): The callback function. It will be called with two arguments: the component's entity instance (`inst`) and the newly found target (`target`).
-
-### `OnLostTarget(fn)`
-* **Description:** Assigns a callback function to be executed when the current target is lost (e.g., goes out of range, dies, or becomes invalid).
-* **Parameters:**
-    * `fn` (`function`): The callback function. It will be called with two arguments: the component's entity instance (`inst`) and the target that was just lost.
-
-### `StartSearching(delay)`
-* **Description:** Begins the periodic search for a target and starts the `OnUpdate` loop for continuous target validation. The search will repeat every 1 second after the initial delay.
-* **Parameters:**
-    * `delay` (`number`, optional): The initial delay in seconds before the first search is performed. Defaults to `0`.
-
-### `StopSearching()`
-* **Description:** Halts the periodic target search and stops the `OnUpdate` loop.
-* **Parameters:** None.
-
-### `FindTarget()`
-* **Description:** Performs a one-time search for the closest valid player within the `searchrange`. If a target is found, it is assigned, and the `onfoundtarget` callback is triggered. This function is typically called automatically by the `searchtask` initiated by `StartSearching()`.
-* **Parameters:** None.
+### `SetTarget(target)`
+* **Description:** Sets the current target to the specified boss entity. Validates that the entity is a boss before assignment.
+* **Parameters:**  
+  `target` (`EntityInst` or `nil`) — The boss entity to set as the current target, or `nil` to clear the target.
+* **Returns:** `nil`
 
 ### `GetTarget()`
-* **Description:** Returns the currently acquired target entity.
-* **Parameters:** None.
+* **Description:** Returns the currently set target entity.
+* **Parameters:** None
+* **Returns:** `EntityInst` or `nil` — The current boss target, or `nil` if no target is set.
+
+### `OnTargetLost()`
+* **Description:** Callback invoked when the current target is lost (e.g., despawned or invalidated). Clears the `target` property and resets awareness.
+* **Parameters:** None
+* **Returns:** `nil`
+
+### `FindNearestBoss(position, maxDist)`
+* **Description:** Scans for the nearest valid boss entity to a given position, optionally limited by a maximum distance. Excludes invalid or non-boss entities.
+* **Parameters:**  
+  `position` (`Vector3`) — The reference point for proximity search.  
+  `maxDist` (`number`) — Maximum distance radius to search for bosses. Use `nil` or omit for no distance limit.
+* **Returns:** `EntityInst` or `nil` — The nearest boss within range, or `nil` if none found.
+
+## Events & Listeners
+- **Listens to:**  
+  - `"onremove"` — When the target entity is removed from the world, triggers `OnTargetLost()` to clear `self.target`.
+- **Pushes:**  
+  - `"bosstargetchanged"` — Fired when `SetTarget()` changes the target (i.e., target is set to a different boss or cleared). Payload includes the new target (`nil` or `EntityInst`).

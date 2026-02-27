@@ -44,7 +44,7 @@ This component dynamically manages up to three sound emitters for grotto waterfa
 * **Description:** Registers a grotto pool for tracking, distinguishing between large and small pools based on `data.small`. Adds an `"onremove"` callback to stop tracking when the pool is destroyed.
 * **Parameters:**  
   - `inst`: The event emitter (unused).  
-  - `data`: Table containing `{ pool = pool_entity, small = boolean }`.
+  - `data`: Table containing `pool = pool_entity, small = boolean`.
 
 ### `StopTrackingPool(pool)`
 * **Description:** Removes a pool from tracking (`_largepools` or `_smallpools`) and removes its `"onremove"` listener. Called automatically when a tracked pool is removed.
@@ -56,13 +56,13 @@ This component dynamically manages up to three sound emitters for grotto waterfa
 * **Parameters:** None.
 
 ### `get_pools_close_to_player_dsqsorted()`
-* **Description:** (Private helper) Returns a sorted list of {pool, dsq, is_large} for pools within `EMITTER_MAXDSQ` (1600) of the player, excluding the pool’s radius.
+* **Description:** (Private helper) Returns a sorted list of \{pool, dsq, is_large\} for pools within `EMITTER_MAXDSQ` (1600) of the player, excluding the pool’s radius.
 * **Parameters:** None.
 
 ### `generate_emitter_pairs(pools_with_distances)`
 * **Description:** (Private helper) Attempts to pair up to `NUM_EMITTERS` (3) closest pools with existing emitters, prioritizing reused assignments. Unpaired pools are stored under `"unclaimed"`.
 * **Parameters:**  
-  - `pools_with_distances`: Sorted list of {pool, dsq, is_large}.
+  - `pools_with_distances`: Sorted list of `pool, dsq, is_large` entries.
 
 ### `FadeUpdate(val, e)` and `FadeFinished(e, val2)`
 * **Description:** (Private helpers) Callbacks for volume fading—`FadeUpdate` sets the emitter’s volume during the fade, and `FadeFinished` restarts the emitter with full volume after fading out.

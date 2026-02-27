@@ -174,10 +174,3 @@ inst:PushEvent("on_landed") -- Will invoke OnLandedServer/Client
 
 - Floating effects (`float_fx_*`) are spawned even if `ShouldShowEffect()` returns `false`; visibility is controlled by animation, not presence of FX.
 - There is no cleanup logic in `OnNoLongerLandedClient` for animation overrides (e.g., `float_index` reset), meaning the entity may retain the last floating frame in default anim unless `SwitchToDefaultAnim` is used.
-
-## See Also
-
-- [`water`](../world/water.md) — Ocean simulation.
-- [`inventoryitem`](../entity/inventoryitem.md) — Handles item wetness/moisture.
-- [`animstate`](../entity/animstate.md) — Manages animation banks, layers, and frame offsets.
-- [`float_fx_front`](../prefabs/float_fx_front.lua) — Visual effect prefab used for floating.

@@ -9,6 +9,7 @@ build_version: 714014
 change_status: stable
 category_type: component
 system_scope: world
+source_hash: 1035c689
 ---
 
 # Wintersurprisespawner
