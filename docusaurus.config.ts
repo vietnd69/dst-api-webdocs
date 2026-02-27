@@ -106,12 +106,6 @@ const config: Config = {
 					ignorePatterns: [
 						"/tags/**",
 						"/pages/**",
-						"/dst-api-webdocs/docs/game-scripts/behaviours/**",
-						"/dst-api-webdocs/docs/game-scripts/brains/**",
-						"/dst-api-webdocs/docs/game-scripts/cameras/**",
-						"/dst-api-webdocs/docs/game-scripts/components/**",
-						"/dst-api-webdocs/docs/game-scripts/languages/**",
-						"/dst-api-webdocs/docs/game-scripts/map/**",
 						"/dst-api-webdocs/docs/game-scripts/nis/**",
 						"/dst-api-webdocs/docs/game-scripts/perfabs/**",
 						"/dst-api-webdocs/docs/game-scripts/scenarios/**",
