@@ -9,6 +9,7 @@ build_version: 676042
 change_status: stable
 category_type: achievement-system
 system_scope: achievement tracking and event progression
+slug: /game-scripts/core-systems/game-mechanics/achievements/achievements-overview
 ---
 
 # Achievements Overview

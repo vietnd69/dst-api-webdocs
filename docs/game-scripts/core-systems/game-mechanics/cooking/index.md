@@ -9,6 +9,7 @@ build_version: 676042
 change_status: stable
 category_type: cooking-system
 system_scope: ingredient processing and recipe management
+slug: /game-scripts/core-systems/game-mechanics/cooking/cooking-overview
 ---
 
 # Cooking Overview

@@ -9,6 +9,7 @@ build_version: 676042
 change_status: stable
 category_type: storage-system
 system_scope: container interfaces and storage mechanics
+slug: /game-scripts/core-systems/game-mechanics/containers/containers-overview
 ---
 
 # Containers Overview
