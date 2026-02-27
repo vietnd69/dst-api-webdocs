@@ -219,7 +219,10 @@ const config: Config = {
 			contextualSearch: true,
 			searchPagePath: "search",
 		},
-		metadata: [{ name: "robots", content: "index, follow" }],
+		metadata: [
+			{ name: "description", content: "Comprehensive API documentation for Don't Starve Together game scripts, components, and modding tools." },
+			{ name: "robots", content: "index, follow" },
+		],
 	} satisfies Preset.ThemeConfig,
 };
 
