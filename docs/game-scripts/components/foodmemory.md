@@ -1,83 +1,99 @@
 ---
 id: foodmemory
 title: Foodmemory
-description: Tracks how often a player entity has consumed specific food items and applies behavioral multipliers based on that memory.
+description: Tracks remembered food items and calculates consumption-based multipliers for an entity over time.
+tags: [food, memory, multiplier, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 9b6f8b29
+system_scope: entity
 ---
 
 # Foodmemory
 
-## Overview
-This component maintains a time-limited memory of consumed food items for an entity (typically a player), recording how many times each food has been eaten and fading memories over time. It supports food grouping (via `spicedfoods` base-name mapping) and enables external systems to retrieve current memory counts or applicable multipliers based on repeated consumption.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on: `spicedfoods` module for base food name resolution.
-- Entity must have: `inst:DoTaskInTime()` (i.e., the entity should be a `GOOPY`/`Sim` object with task scheduling).
-- No tags are added or removed by this component.
+## Overview
+`Foodmemory` maintains a record of food items consumed by an entity, tracking how many times each food type has been eaten. It supports automatic forgetting of food memories after a configurable duration and computes multiplicative bonuses based on consumption frequency using a provided multiplier list. This component is typically used for characters or entities that benefit from dietary repetition, such as沃尔特 or Wathgrithr in *Don't Starve Together*.
+
+The component interacts with the `spicedfoods.lua` module to resolve food prefabs to their base food names (e.g., handling spiced variants).
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("foodmemory")
+inst.components.foodmemory:SetDuration(TUNING.TOTAL_DAY_TIME)
+inst.components.foodmemory:SetMultipliers({1.1, 1.2, 1.3})
+inst.components.foodmemory:RememberFood("berries")
+local count = inst.components.foodmemory:GetMemoryCount("berries")
+local mult = inst.components.foodmemory:GetFoodMultiplier("berries")
+```
+
+## Dependencies & tags
+**Components used:** None  
+**Tags:** None identified  
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (assigned in constructor) | Reference to the entity this component belongs to. |
-| `duration` | `number` | `TUNING.TOTAL_DAY_TIME` | Time in seconds before a food memory expires and is forgotten. |
-| `foods` | `table` | `{}` | Table mapping base food prefab names to memory records (each record includes `count` and `task`). |
-| `mults` | `table?` | `nil` | Optional ordered list of multipliers; index corresponds to memory count. |
+| `inst` | `Entity` | (injected) | The entity instance that owns the component. |
+| `duration` | number | `TUNING.TOTAL_DAY_TIME` | Time in seconds before a food memory is forgotten. |
+| `foods` | table | `{}` | Maps food base prefab names to memory records (`{count: number, task: Task}`). |
+| `mults` | table or `nil` | `nil` | Ordered list of multiplier values; index corresponds to memory count (capped at table length). |
 
-## Main Functions
-
+## Main functions
 ### `OnRemoveFromEntity()`
-* **Description:** Called when the component is removed from its entity. Cancels all pending food-expiration tasks to prevent memory leaks.
-* **Parameters:** None.
+*   **Description:** Cleans up scheduled forgetting tasks when the component is removed from an entity.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `SetDuration(duration)`
-* **Description:** Updates the duration (in seconds) after which a food memory expires.
-* **Parameters:**
-  - `duration` (`number`): New expiration time in seconds.
+*   **Description:** Sets the duration after which consumed food memories are automatically forgotten.
+*   **Parameters:** `duration` (number) — time in seconds before food memories expire.
+*   **Returns:** Nothing.
 
 ### `SetMultipliers(mults)`
-* **Description:** Sets the list of multipliers to apply based on the number of times a food has been remembered.
-* **Parameters:**
-  - `mults` (`table`): An array of numbers where index `i` corresponds to multiplier for `i` instances of the food in memory.
+*   **Description:** Configures the multiplier array used by `GetFoodMultiplier`. The `i`-th element applies when a food has been eaten `i` times (up to table length).
+*   **Parameters:** `mults` (table or `nil`) — ordered list of numeric multipliers; `nil` disables multipliers.
+*   **Returns:** Nothing.
 
 ### `GetBaseFood(prefab)`
-* **Description:** Resolves the base food name for a given prefab. Spiced or variant foods map back to their canonical base name using the `spicedfoods` mapping.
-* **Parameters:**
-  - `prefab` (`string`): The prefab name of the food.
+*   **Description:** Returns the base food prefab name by resolving spiced food variants via the `spicedfoods` module.
+*   **Parameters:** `prefab` (string) — food prefab name (e.g., `"spicedberries"` or `"berries"`).
+*   **Returns:** string — the canonical base prefab name (e.g., `"berries"`).
 
 ### `RememberFood(prefab)`
-* **Description:** Registers consumption of a food item. If already present, increments count and resets the forgetting timer; otherwise, creates a new memory entry with initial count 1 and schedules expiration.
-* **Parameters:**
-  - `prefab` (`string`): The prefab name of the food consumed.
+*   **Description:** Records consumption of a food item, increments its count, resets the forgetting timer, or creates a new memory record if this is the first consumption.
+*   **Parameters:** `prefab` (string) — food prefab name; automatically resolved to base food.
+*   **Returns:** Nothing.
 
 ### `GetMemoryCount(prefab)`
-* **Description:** Returns how many times the given food has been remembered (i.e., consumed) and not yet forgotten.
-* **Parameters:**
-  - `prefab` (`string`): The prefab name of the food.
+*   **Description:** Returns how many times a specific food has been consumed (counted by base food name).
+*   **Parameters:** `prefab` (string) — food prefab name.
+*   **Returns:** number — count of consumptions (`0` if not remembered).
+*   **Error states:** Returns `0` for foods not yet remembered.
 
 ### `GetFoodMultiplier(prefab)`
-* **Description:** Returns the multiplier associated with the current memory count for the food. If no memory exists or `mults` is not set, returns `1`.
-* **Parameters:**
-  - `prefab` (`string`): The prefab name of the food.
-* **Notes:** Uses `math.min(#mults, count)` to clamp index within bounds.
+*   **Description:** Computes the multiplicative bonus for a food based on consumption count and configured multipliers.
+*   **Parameters:** `prefab` (string) — food prefab name.
+*   **Returns:** number — multiplier value; defaults to `1` if no multipliers set or count is `0`.
+*   **Error states:** Returns `1` if `mults` is `nil` or no memory exists for the food.
 
 ### `OnSave()`
-* **Description:** Serializes active food memories into a saveable structure, storing count and remaining time until expiration for each.
-* **Returns:** `table?` — A table with key `foods`, mapping base food names to `{ count = number, t = number }`. Returns `nil` if no memories exist.
+*   **Description:** Serializes current food memory state for saving, including remaining time for each forgetting task.
+*   **Parameters:** None.
+*   **Returns:** table or `nil` — structure `{ foods = { [foodname] = { count = number, t = number } } }` if memories exist; `nil` otherwise.
 
 ### `OnLoad(data)`
-* **Description:** Restores food memories from saved data, rescheduling expiration tasks based on stored remaining times.
-* **Parameters:**
-  - `data` (`table`): Save data containing `data.foods`, where keys are base food names and values are `{ count, t }`.
+*   **Description:** Restores food memory state from save data, reconstructing tasks with remaining time.
+*   **Parameters:** `data` (table) — must contain `data.foods` as `{ [foodname] = { count = number, t = number } }`.
+*   **Returns:** Nothing.
+*   **Error states:** Safely handles missing or partial data; `t` defaults to `self.duration` if absent.
 
-## Events & Listeners
-- Listens to:
-  - Internal expiration via `self.inst:DoTaskInTime(...)`, which invokes `OnForgetFood` when the scheduled time elapses.
-  - `OnForgetFood(inst, self, prefab)` — Internal callback that removes a food entry from memory (`self.foods[prefab] = nil`).
-- Does *not* push or listen to any broadcast game events (e.g., `"onupdate"`, `"onkilled"`).
+## Events & listeners
+- **Listens to:** None  
+- **Pushes:** None

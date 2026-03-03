@@ -1,110 +1,141 @@
 ---
 id: friendlevels
 title: Friendlevels
-description: Manages friendship level progression, task completion, and reward distribution for entities engaged in friendly interactions.
+description: Manages friendship progression and reward distribution for friendly NPC entities based on completed tasks.
+tags: [friendship, npc, rewards, progression]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 1c6de88c
+system_scope: entity
 ---
 
 # Friendlevels
 
-## Overview
-This component implements a hierarchical friendship system that tracks task progress, level progression, and associated rewards. It is designed to be attached to entities (typically players or companions) that can form friendships through repeated positive interactions. As tasks are completed, the entity's friendship level increases, unlocking new tiers of rewards. The component supports both level-specific and default (unranked) task rewards, and persists state across saves.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on global function `ConcatArrays` (used for merging reward arrays).
-- Relies on `SpawnPrefab` (used for spawning specific reward prefabs).
-- No explicit component dependencies or tags are added or removed by this component.
+## Overview
+`Friendlevels` implements a task-based progression system for entities (typically NPCs) to track friendship levels and distribute rewards. It maintains a list of friendly tasks, a level counter, reward definitions for specific levels, and a fallback default reward handler. When tasks are completed, the component advances the friendship level and queues rewards that are later distributed upon calling `DoRewards`. It also supports saving and loading of state across sessions.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("friendlevels")
+
+-- Configure level-specific and default rewards
+inst.components.friendlevels:SetLevelRewards({
+    function(inst, target, task) return {} end, -- Level 1
+    function(inst, target, task) return {} end, -- Level 2
+})
+inst.components.friendlevels:SetDefaultRewards(function(inst, target, task) return {} end)
+
+-- Define tasks
+inst.components.friendlevels:SetFriendlyTasks({
+    { name = "feed", complete = false, onetime = true },
+    { name = "pet", complete = false, onetime = false },
+})
+
+-- Mark a task as complete
+inst.components.friendlevels:CompleteTask("feed", some_doer)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | The entity instance the component is attached to. |
-| `friendlytasks` | `table` | `{}` | A list or map of tasks available for friendship progression; contains task definitions and completion status. |
-| `annoytasks` | `table` | `{}` | Reserved field (currently unused in the codebase). |
-| `enabled` | `boolean` | `true` | Controls whether the component is active; disables rewards if set to `false`. |
-| `level` | `number` | `0` | Current friendship level (0-indexed, max defined by `#levelrewards`). |
-| `levelrewards` | `table` | `{}` | A table mapping level indices (1-based) to reward-generating functions `(inst, target, task) → array of rewards`. |
-| `defaultrewards` | `function?` | `nil` | Optional reward function used for tasks outside of level-based progression. |
-| `queuedrewards` | `table` | `{}` | A list of pending reward requests, each containing `{level = number?, task = string}`. |
-| `specifictaskreward` | `table?` | `nil` | Temporary storage for reward prefabs to spawn; cleared after `DoRewards` processes them. |
+| `inst` | `Entity` | — | The entity instance this component is attached to. |
+| `friendlytasks` | table | `{}` | Map of task definitions; keys are task IDs, values are tables with `complete` and `onetime` booleans. |
+| `annoytasks` | table | `{}` | Reserved for future use; currently unused. |
+| `enabled` | boolean | `true` | Controls whether the component's functionality is active. |
+| `level` | number | `0` | Current friendship level (0-based, incremented on successful level-up task completion). |
+| `levelrewards` | table | `{}` | Array of reward generator functions indexed by level. Each function takes `(inst, target, task)` and returns a list of items. |
+| `defaultrewards` | function or nil | `nil` | Fallback reward generator function used for tasks not tied to level progression. |
+| `queuedrewards` | table | `{}` | List of reward objects (each with `level` and `task`) waiting to be processed by `DoRewards`. |
+| `specifictaskreward` | table or nil | `nil` | List of prefab names to spawn directly as rewards (reset after use). |
 
-## Main Functions
-
+## Main functions
 ### `GetDebugString()`
-* **Description:** Returns a formatted debug string summarizing current state: task count and level.
+* **Description:** Returns a formatted string for debugging, showing the count of friendly tasks and current level.
 * **Parameters:** None.
+* **Returns:** `string` — A human-readable summary (e.g., `"number of tasks:2, level:1"`).
 
 ### `Enable(enabled)`
-* **Description:** Enables or disables reward granting; also triggers mood state removal via `SetIsInMood(false, false)`.
-* **Parameters:**
-  - `enabled` (boolean): Whether to enable the component.
+* **Description:** Enables or disables the component. When disabled, it also forces the entity into a neutral mood state by calling `SetIsInMood(false, false)`.
+* **Parameters:** `enabled` (boolean) — whether to enable the component.
+* **Returns:** Nothing.
 
 ### `SetDefaultRewards(fn)`
-* **Description:** Assigns the fallback reward function used for tasks not tied to a specific level.
-* **Parameters:**
-  - `fn` (function): A callback `(inst, target, task) → array_of_rewards`.
+* **Description:** Sets the fallback reward generator used for tasks that do not correspond to a level-up event.
+* **Parameters:** `fn` (function) — a reward generator taking `(inst, target, task)` and returning a list of items.
+* **Returns:** Nothing.
 
 ### `SetLevelRewards(data)`
-* **Description:** Sets the reward function table keyed by level (1-based index).
-* **Parameters:**
-  - `data` (table): Mapping from level index to reward function.
+* **Description:** Configures the reward generators for each friendship level. The `data` table is an array where index corresponds to level (1-based).
+* **Parameters:** `data` (table) — array of reward generator functions.
+* **Returns:** Nothing.
 
 ### `SetFriendlyTasks(data)`
-* **Description:** Overwrites the internal list of friendly tasks.
-* **Parameters:**
-  - `data` (table): Task definitions; may contain per-task metadata and completion flags.
+* **Description:** Replaces the current list of friendly tasks with new task definitions.
+* **Parameters:** `data` (table) — table where keys are task IDs and values are tables with `complete` (boolean) and `onetime` (boolean) fields.
+* **Returns:** Nothing.
 
 ### `DoRewards(target)`
-* **Description:** Executes queued rewards, supporting both level-specific and default reward functions. Also handles one-off prefab rewards stored in `specifictaskreward`. Returns a flattened list of spawned reward items.
-* **Parameters:**
-  - `target` (Entity): The entity receiving the rewards (typically the player interacting with this friend).
+* **Description:** Processes all queued rewards and returns a combined list of items to give. Handles both level-based rewards (via `levelrewards`) and default rewards (via `defaultrewards`). Also processes any `specifictaskreward` entries (prefab names to spawn), then clears that list and the reward queue.
+* **Parameters:** `target` (Entity) — the entity receiving the rewards.
+* **Returns:** `table` — a flat list of spawned item entities (or returned from reward functions).
+* **Error states:** Returns an empty list if `queuedrewards` or `specifictaskreward` are empty.
 
 ### `CompleteTask(task, doer)`
-* **Description:** Marks a task as complete. If the current level has unreached tiers, advances the level and queues a level reward. Otherwise, queues a default reward if configured. Emits events upon level change or task completion.
-* **Parameters:**
-  - `task` (string): Identifier of the task to complete.
-  - `doer` (Entity): The entity performing the task (unused internally but included for context).
+* **Description:** Marks a task as complete and potentially advances the friendship level. Queues a reward if the task qualifies.
+    * If the task belongs to `friendlytasks` and is incomplete, and the current level is below the number of configured rewards, it increments `level`, queues a level reward, and pushes `friend_level_changed`.
+    * Otherwise, if a `defaultrewards` handler is set, it queues a default reward.
+    * Finally, marks the task as `complete` (if not already).
+* **Parameters:**  
+  - `task` (string) — the task ID to complete.  
+  - `doer` (Entity) — the entity performing the task (unused in logic but passed to reward generators).
+* **Returns:** Nothing.
+* **Event side effects:** Pushes `friend_level_changed` (on level-up) and `friend_task_complete` (always, with `defaulttask` boolean).
 
 ### `CompleteAllTasks(doer)`
-* **Description:** Marks all registered tasks as complete, invoking `CompleteTask` for each.
-* **Parameters:**
-  - `doer` (Entity): The entity performing all tasks.
+* **Description:** Iterates over all tasks in `friendlytasks` and completes each one via `CompleteTask`.
+* **Parameters:** `doer` (Entity) — the entity performing all tasks.
+* **Returns:** Nothing.
 
 ### `GetLevel()`
 * **Description:** Returns the current friendship level.
 * **Parameters:** None.
+* **Returns:** `number` — current level (0-based, incremented after each level-up task completion).
 
 ### `GetMaxLevel()`
-* **Description:** Returns the maximum possible level (i.e., number of defined levels).
+* **Description:** Returns the maximum achievable friendship level (i.e., number of level reward entries).
 * **Parameters:** None.
+* **Returns:** `number` — count of entries in `levelrewards`.
 
 ### `OnSave()`
-* **Description:** Serializes key state fields for save data, including task completion status and queued rewards.
+* **Description:** Serializes component state for saving. Includes `enabled`, `level`, completion status for each task, and `queuedrewards`.
 * **Parameters:** None.
-* **Returns:** Table containing `enabled`, `level`, `taskscomplete`, and `queuedrewards`.
+* **Returns:** `table` — save data object.
 
 ### `OnLoad(data)`
-* **Description:** Restores state from save data; emits `friend_task_complete` or `friend_level_changed` events if needed to sync listeners.
-* **Parameters:**
-  - `data` (table): Deserialized save data with saved state.
+* **Description:** Restores component state from saved data. Marks completion of queued rewards and pushes `friend_task_complete` or `friend_level_changed` events if needed.
+* **Parameters:** `data` (table) — saved state from `OnSave`.
+* **Returns:** Nothing.
 
 ### `LoadPostPass(newents, data)`
-* **Description:** Post-load hook that restores task completion flags (e.g., `complete`) using deserialized `taskscomplete` data.
-* **Parameters:**
-  - `newents` (table): New entities list (unused).
-  - `data` (table): Save data containing `taskscomplete`.
+* **Description:** Called after entity restoration to update `friendlytasks` completion status using saved data. Requires task indexing to be stable.
+* **Parameters:**  
+  - `newents` (table) — list of new entities (unused).  
+  - `data` (table or nil) — contains `taskscomplete` array matching `friendlytasks` order.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- Listens for no events (`inst:ListenForEvent` is not used).
-- Emits the following events:
-  - `"friend_level_changed"` — whenever level is incremented (in `CompleteTask`).
-  - `"friend_task_complete"` — whenever a task is marked complete (in `CompleteTask` and `OnLoad`).
-  - `"friend_task_complete"` — also emitted in `OnLoad` if `queuedrewards` is non-empty.
+## Events & listeners
+- **Listens to:** None identified.  
+- **Pushes:**  
+  - `friend_level_changed` — fired when level is incremented.  
+  - `friend_task_complete` — fired when a task is marked complete; data passed includes a `defaulttask` boolean indicating whether default (non-level) rewards were queued.

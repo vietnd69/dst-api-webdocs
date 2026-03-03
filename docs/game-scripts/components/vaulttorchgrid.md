@@ -1,86 +1,116 @@
 ---
 id: vaulttorchgrid
 title: Vaulttorchgrid
-description: Manages the placement, initialization, and serialization of a grid of vault torches attached to an entity in Don't Starve Together.
+description: Manages a grid of vault torch entities and their state persistence in the game world.
+tags: [torch, grid, persistence, lighting]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 7336ab56
+system_scope: environment
 ---
 
 # Vaulttorchgrid
 
-## Overview
-This component handles the creation, layout, and state management of a rectangular grid of `vault_torch` prefabs relative to its owning entity's position. It supports initializing torches at fixed offsets, tracking their on/off/stuck/broken states, iterating over torches (including adjacent neighbors), and saving/loading their state for persistence across sessions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Usage:** None explicitly added to `inst` in this file.
-- **Entity Prefab Dependency:** Assumes owned entity has a `Transform` component (for world position) and potentially a `machine` component on torches (used during save/load).
-- **Tags:** None identified.
-- **Prefabs Spawned:** `vault_torch` (via `SpawnPrefab`).
+## Overview
+`Vaulttorchgrid` manages a 2D grid of `vault_torch` prefabs spawned relative to an owner entity (typically a vault structure). It handles dynamic initialization of the grid, iteration over torches, adjacency queries, and serialization/deserialization of torch states (on/off, stuck, broken) for save/load persistence. The component relies on the `machine` component to read/write torch state via `IsOn`, `TurnOn`, and `TurnOff` methods.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("vaulttorchgrid")
+inst.components.vaulttorchgrid:Initialize(3, 2, 4) -- 3 columns, 2 rows, spacing of 4
+inst.components.vaulttorchgrid:SetOnTorchAddedFn(function(owner, torch) print("Torch added") end)
+local torch = inst.components.vaulttorchgrid:GetTorch(2, 1)
+inst.components.vaulttorchgrid:ForEachAdjacent(torch, function(owner, adjtorch) adjtorch:DoTask() end)
+```
+
+## Dependencies & tags
+**Components used:** `machine` (via `torch.components.machine:IsOn`, `TurnOn`, `TurnOff`)
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `GObject` | — | Reference to the entity this grid belongs to. |
-| `spacing` | `number` | `4` (via `DEFAULT_SPACING`) | Distance (in world units) between adjacent torches in the grid. |
-| `numcols` | `number` | `0` | Number of columns in the torch grid. |
-| `numrows` | `number` | `0` | Number of rows in the torch grid. |
-| `coloffs` | `number` | `0` | Offset used to center the grid; computed from `numcols` as `floor((1 - numcols) / 2)`. |
-| `rowoffs` | `number` | `0` | Offset used to center the grid; computed from `numrows` as `floor((1 - numrows) / 2)`. |
-| `grid` | `table<table<VaultTorch>>` | `{}` | 2D array (table-of-tables) storing torch entities by grid column index (`grid[col][row]`). |
-| `ontorchaddedfn` | `function?` | `nil` | Optional callback `(entity, torch) → boolean?` triggered when a torch is added during `Initialize`. |
-| `ontorchremovedfn` | `function?` | `nil` | Optional callback `(entity, torch) → void` triggered when a torch is removed (via `Clear` or `OnRemoveEntity`). |
+| `inst` | `Entity` | `nil` | The entity instance this component is attached to. |
+| `spacing` | number | `DEFAULT_SPACING` (`4`) | Distance between adjacent torches in world units. |
+| `numcols` | number | `0` | Number of columns in the grid. |
+| `numrows` | number | `0` | Number of rows in the grid. |
+| `coloffs` | number | `0` | Column offset used to center the grid around the owner's origin. |
+| `rowoffs` | number | `0` | Row offset used to center the grid around the owner's origin. |
+| `grid` | table | `{}` | 2D array of torch entities indexed as `grid[col][row]`. |
 
-## Main Functions
+## Main functions
+### `SetOnTorchAddedFn(fn)`
+*   **Description:** Sets a callback function invoked whenever a torch is added to the grid during `Initialize` or `OnLoad`.
+*   **Parameters:** `fn` (function) - signature: `fn(owner_entity, torch_entity)`.
+*   **Returns:** Nothing.
 
-### `Initialize(numcols, numrows, spacing)`
-* **Description:** Clears any existing grid and generates a new grid of `vault_torch` prefabs arranged in `numcols` × `numrows` layout, centered around the owner's position with the specified spacing.
-* **Parameters:**
-  * `numcols` (`number`) – Number of columns in the grid.
-  * `numrows` (`number`) – Number of rows in the grid.
-  * `spacing` (`number?`) – Optional spacing override; defaults to `DEFAULT_SPACING` if omitted.
-
-### `GetTorch(col, row)`
-* **Description:** Returns the torch at the given logical grid coordinates `(col, row)` (0-indexed, relative to the center), or `nil` if out of bounds.
-* **Parameters:**
-  * `col` (`number`) – Column index (e.g., `coloffs`-adjusted).
-  * `row` (`number`) – Row index (e.g., `rowoffs`-adjusted).
-
-### `ForEach(cb)`
-* **Description:** Iterates through all torches in the grid in row-major order (nested columns then rows). Stops early if the callback returns `true`.
-* **Parameters:**
-  * `cb` (`function(entity, torch) → boolean?`) – Callback function invoked for each torch; returning `true` aborts iteration.
-
-### `ForEachAdjacent(torch, cb)`
-* **Description:** For a given torch in the grid, invokes `cb` for each of its four orthogonally adjacent neighbors (up/down/left/right), if present.
-* **Parameters:**
-  * `torch` (`GObject`) – Torch entity that must belong to this grid and have valid `col`/`row` properties.
-  * `cb` (`function(entity, torch) → void`) – Callback invoked for each adjacent torch.
-
-### `Clear()`
-* **Description:** Removes and destroys all torches in the grid, resets counts, and triggers the `ontorchremovedfn` callback if set.
-* **Parameters:** None.
+### `SetOnTorchRemovedFn(fn)`
+*   **Description:** Sets a callback function invoked whenever a torch is removed from the grid during `Clear`.
+*   **Parameters:** `fn` (function) - signature: `fn(owner_entity, torch_entity)`.
+*   **Returns:** Nothing.
 
 ### `OnRemoveEntity()`
-* **Description:** Removes and destroys all torches in the grid without triggering `ontorchremovedfn`. Called when the owning entity is being removed.
-* **Parameters:** None.
+*   **Description:** Removes all torch entities in the grid. Typically called when the owner entity is being destroyed.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `Clear()`
+*   **Description:** Removes all torches from the grid and resets grid dimensions.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `Initialize(numcols, numrows, spacing)`
+*   **Description:** Creates a new grid of torches with specified dimensions and spacing. Clears any existing grid first.
+*   **Parameters:**  
+    *   `numcols` (number) - number of columns (positive integer).  
+    *   `numrows` (number) - number of rows (positive integer).  
+    *   `spacing` (number, optional) - distance between torches; defaults to `DEFAULT_SPACING` (`4`) if omitted.  
+*   **Returns:** Nothing.
+
+### `GetTorch(col, row)`
+*   **Description:** Returns the torch entity at grid coordinates `(col, row)`, where coordinates are in the *logical* grid (0-based and centered via offsets).
+*   **Parameters:**  
+    *   `col` (number) - logical column index (0-based).  
+    *   `row` (number) - logical row index (0-based).  
+*   **Returns:** `Entity` or `nil` — the torch entity if it exists and the indices are within bounds.
+
+### `ForEach(cb)`
+*   **Description:** Iterates over all torches in the grid (column-major order) and calls `cb` for each. Iteration stops early if `cb` returns `true`.
+*   **Parameters:**  
+    *   `cb` (function, optional) - signature: `cb(owner_entity, torch_entity)`; returning `true` terminates iteration.  
+*   **Returns:** Nothing.
+
+### `ForEachAdjacent(torch, cb)`
+*   **Description:** Iterates over the four orthogonal neighbors (up, down, left, right) of the given torch and calls `cb` for each existing neighbor. The torch must have valid `torch.col` and `torch.row` fields.
+*   **Parameters:**  
+    *   `torch` (Entity) - the torch entity whose neighbors to iterate.  
+    *   `cb` (function, optional) - signature: `cb(owner_entity, neighbor_torch)`.  
+*   **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Serializes the grid state (presence and state of each torch) into a compact hex string and returns a table containing grid configuration and serialized data. Returns `nil` if the grid is uninitialized.
-* **Parameters:** None.
-* **Returns:** (`table?`) – Returns `{ cols, rows, spacing?, bits }` or `nil` if not initialized.
+*   **Description:** Serializes the current grid state (torch on/off, stuck, broken status) into a compact hex string. Only performs serialization if the grid is initialized (`numcols > 0` and `numrows > 0`).
+*   **Parameters:** None.
+*   **Returns:**  
+    *   `table` with keys:  
+        *   `cols` (number) — number of columns.  
+        *   `rows` (number) — number of rows.  
+        *   `spacing` (number, optional) — spacing only if non-default.  
+        *   `bits` (string) — hex-encoded bitstring of torch states.  
+    *   `nil` if the grid is not initialized.
 
 ### `OnLoad(data)`
-* **Description:** Loads a previously saved grid configuration and torch states. Re-initializes the grid if dimensions or spacing differ, then deserializes torch states (on/off, stuck, broken).
-* **Parameters:**
-  * `data` (`table`) – Saved grid state with keys `cols`, `rows`, `spacing?`, and `bits`.
+*   **Description:** Restores the grid and its torch states from `data` (typically returned by `OnSave`). Recreates the grid if dimensions or spacing differ.
+*   **Parameters:**  
+    *   `data` (table) — must contain `cols` and `rows`; optionally `spacing` and `bits`.  
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- **Listeners:** None (`self.inst:ListenForEvent` is not used in this component).
-- **Emitters:** None (`self.inst:PushEvent` is not used in this component).
-- **Callbacks:** `ontorchaddedfn` and `ontorchremovedfn` are *not* events; they are user-configurable callbacks invoked synchronously during grid initialization and clearing.
+## Events & listeners
+- **Listens to:** None identified.  
+- **Pushes:** `machineturnedon`, `machineturnedoff` — via torch `machine` component when toggling state during `OnLoad`.

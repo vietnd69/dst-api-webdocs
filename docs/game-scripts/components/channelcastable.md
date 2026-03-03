@@ -1,79 +1,85 @@
 ---
 id: channelcastable
 title: Channelcastable
-description: Enables an entity to be the target of a continuous channeled action performed by a user.
+description: Manages the state and callbacks for an item being channel-cast by a user, including tracking the active user and handling startup/shutdown logic.
+tags: [combat, channeling, item, interaction]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 1b843ee7
+system_scope: entity
 ---
 
 # Channelcastable
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Channelcastable` component allows an entity, typically an equippable item, to be the target of a sustained "channeled" action. It works in conjunction with the `channelcaster` component on the user's end. This component manages the state of who is currently channeling the entity and provides callbacks for the start and stop events of the channeling process.
+`Channelcastable` is a component that tracks and manages the lifecycle of an item that is currently being channel-cast by a user entity (typically via the `channelcaster` component). It maintains the identity of the active user, supports optional callback hooks for channel start/stop events, and integrates with equipment lifecycle events (e.g., unequipping stops channeling). It is designed exclusively for use with items held by other entities (e.g., wands, staffs) and is not intended for direct use on non-channelable items.
 
-## Dependencies & Tags
-**Dependencies:**
-- Relies on the user entity having a `channelcaster` component to initiate and manage the channeling action.
-- Implicitly depends on an `equippable` component, as it listens for the "unequipped" event.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("channelcastable")
 
-**Tags:**
-- None identified.
+inst.components.channelcastable:SetOnStartChannelingFn(function(item, user)
+    -- Custom logic when channeling begins
+end)
+
+inst.components.channelcastable:SetOnStopChannelingFn(function(item, user)
+    -- Custom logic when channeling ends
+end)
+```
+
+## Dependencies & tags
+**Components used:** `channelcaster` (via `user.components.channelcaster:StopChanneling()`)
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
-| :--- | :--- | :--- | :--- |
-| `user` | Entity | `nil` | The entity instance that is currently channeling this object. |
-| `strafing` | boolean | `true` | Determines if the user should be strafing while channeling. |
-| `onstartchannelingfn` | function | `nil` | A callback function executed when channeling begins. It receives the component's instance and the user as arguments. |
-| `onstopchannelingfn` | function | `nil` | A callback function executed when channeling ends. It receives the component's instance and the user as arguments. |
+|----------|------|---------------|-------------|
+| `user` | `Entity` or `nil` | `nil` | The entity currently channel-casting this item. |
+| `strafing` | boolean | `true` | Whether the item allows strafing while channeling (set via `SetStrafing`). |
+| `onstartchannelingfn` | function or `nil` | `nil` | Optional callback executed when channeling starts (`fn(inst, user)`). |
+| `onstopchannelingfn` | function or `nil` | `nil` | Optional callback executed when channeling stops (`fn(inst, user)`). |
 
-## Main Functions
-
+## Main functions
 ### `SetStrafing(enable)`
-* **Description:** Sets whether the user is allowed to strafe while channeling this object.
-* **Parameters:**
-    * `enable` (boolean): `true` to enable strafing, `false` to disable it.
+* **Description:** Sets whether the item supports strafing during channeling (for later use by the `channelcaster` component).
+* **Parameters:** `enable` (boolean) — whether strafing is allowed.
+* **Returns:** Nothing.
 
 ### `SetOnStartChannelingFn(fn)`
-* **Description:** Assigns a callback function to be invoked when a user starts channeling this entity.
-* **Parameters:**
-    * `fn` (function): The function to call on the start of channeling. It will be passed `(inst, user)`.
+* **Description:** Registers a callback function to be invoked when channeling begins on this item.
+* **Parameters:** `fn` (function) — a function accepting `(item, user)` arguments.
+* **Returns:** Nothing.
 
 ### `SetOnStopChannelingFn(fn)`
-* **Description:** Assigns a callback function to be invoked when a user stops channeling this entity.
-* **Parameters:**
-    * `fn` (function): The function to call on the stop of channeling. It will be passed `(inst, user)`.
-
-### `IsUserChanneling(user)`
-* **Description:** Checks if a specific user is currently channeling this entity.
-* **Parameters:**
-    * `user` (Entity): The user entity to check.
-* **Returns:** `true` if the specified user is the one channeling, `false` otherwise.
-
-### `IsAnyUserChanneling()`
-* **Description:** Checks if any user is currently channeling this entity.
-* **Returns:** `true` if there is a user channeling, `false` otherwise.
+* **Description:** Registers a callback function to be invoked when channeling ends on this item.
+* **Parameters:** `fn` (function) — a function accepting `(item, user)` arguments.
+* **Returns:** Nothing.
 
 ### `OnStartChanneling(user)`
-* **Description:** An internal function, typically called by a `channelcaster` component, to initiate the channeling state on this entity. It sets the current user and registers listeners.
-* **Parameters:**
-    * `user` (Entity): The entity that is starting the channel.
+* **Description:** Internal initializer called by `channelcaster` to begin channeling with a specific user. Stops any prior channeling first and registers the new user.
+* **Parameters:** `user` (`Entity`) — the entity beginning to channel through this item.
+* **Returns:** Nothing.
+* **Error states:** Has no effect if the provided `user` is the same as the currently active user. Does not validate `user` beyond checking it is valid for the `channelcaster` component.
 
 ### `OnStopChanneling(user)`
-* **Description:** An internal function, typically called by a `channelcaster` component, to terminate the channeling state. It clears the current user and removes listeners.
-* **Parameters:**
-    * `user` (Entity): The entity that is stopping the channel.
+* **Description:** Stops channeling if the given user matches the currently active user. Removes the `unequipped` event listener and runs the stop callback.
+* **Parameters:** `user` (`Entity` or `nil`) — the user who should be stopping channeling.
+* **Returns:** Nothing.
+* **Error states:** Has no effect if `user` does not match the current `self.user`.
 
 ### `StopChanneling()`
-* **Description:** Forces the current user to stop channeling this entity by calling the `StopChanneling` function on the user's `channelcaster` component. This is also called automatically when the component or entity is removed.
+* **Description:** Initiates stopping of channeling by delegating to the active user's `channelcaster` component.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Does nothing if `self.user` is `nil`.
 
-## Events & Listeners
-* **Listens For:**
-    * `unequipped`: When the entity is unequipped by a player, it calls `StopChanneling()` to gracefully end the action. This listener is only active while the item is being channeled.
+## Events & listeners
+- **Listens to:** `unequipped` — triggers `StopChanneling()` and removal of the `channelcastable` component when the item is unequipped.
+- **Pushes:** None identified.

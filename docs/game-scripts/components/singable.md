@@ -1,43 +1,60 @@
 ---
 id: singable
 title: Singable
-description: Enables an entity to be sung by players, storing a callback function to execute when singing occurs and applying song effects to the singer.
+description: Provides a sing interaction that triggers a song effect on a singer with the SingingInspiration component.
+tags: [audio, interaction, song]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 4e64705d
+system_scope: entity
 ---
 
 # Singable
 
-## Overview
-The `Singable` component allows an entity to be sung by a player. It stores an optional callback function (`onsingfn`) that is invoked upon singing and ensures the singer's `singinginspiration` component records the song via `AddSong`, using the entity's `songdata` property.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires `inst.songdata` to be defined on the entity (typically a table of song parameters).
-- Assumes the singer entity has a `singinginspiration` component.
-- Does *not* add or remove tags; comments suggest potential future interaction with `finiteuses`, but this is currently commented out.
+## Overview
+The `Singable` component enables an entity to be sung to by players or other entities. When the `Sing` function is called on this component, it invokes a custom callback (`onsingfn`) if one is set and then adds the entity's song data to the singer's `SingingInspiration` component. This component does not manage song state directly but serves as a trigger point for song application logic. It is typically attached to objects that represent musical instruments or song sources (e.g., windchimes, instruments).
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("singable")
+inst.songdata = { battlesong_netid = 123, INSTRUMENT = "flute" }
+
+inst.components.singable:SetOnSing(function(inst, singer)
+    print(inst.prefab .. " was sung to by " .. singer.prefab)
+end)
+
+-- Later, when a player sings to it:
+inst.components.singable:Sing(player)
+```
+
+## Dependencies & tags
+**Components used:** `singinginspiration`, `finiteuses` (commented out, not active)  
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity this component is attached to. |
-| `onsingfn` | `function?` | `nil` | Optional callback function executed during singing; signature: `fn(entity, singer)`. |
+| `inst` | Entity reference | — | The entity instance that owns this component. |
+| `onsingfn` | function or nil | `nil` | Optional callback function called when `Sing` is invoked. Takes `(target_inst, singer)` as arguments. |
 
-## Main Functions
+## Main functions
 ### `SetOnSing(onsingfn)`
-* **Description:** Assigns a callback function to be executed when the entity is sung. The callback receives the songable entity and the singer as arguments.
-* **Parameters:**  
-  - `onsingfn` (*function?*) — A function to call when singing occurs. If `nil`, no callback is executed.
+*   **Description:** Sets the callback function to execute when the sing interaction occurs. The callback receives the target entity and the singer as arguments.
+*   **Parameters:** `onsingfn` (function or nil) — function to call during sing, or `nil` to clear.
+*   **Returns:** Nothing.
 
 ### `Sing(singer)`
-* **Description:** Triggers the singing logic: validates the singer has a `singinginspiration` component, executes the callback if set, and registers the song with the singer's inspiration component.
-* **Parameters:**  
-  - `singer` (*Entity*) — The player entity attempting to sing this item.
+*   **Description:** Executes the sing interaction. If a callback is set, it is invoked. Then, the entity's `songdata` is added to the singer’s `SingingInspiration` component. Has no effect if the singer lacks the `SingingInspiration` component.
+*   **Parameters:** `singer` (Entity reference) — the entity performing the sing action.
+*   **Returns:** Nothing.
+*   **Error states:** If `singer.components.singinginspiration` is `nil`, prints an error message `"ATTEMPTING TO SING WITH NO INSPIRATION"` and returns early.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified.

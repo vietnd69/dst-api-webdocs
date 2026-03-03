@@ -3,8 +3,7 @@ id: traps
 title: Traps
 description: Provides static layout mappings for world tile types and sandbox mode trap configurations used in map generation.
 tags: [map, generation, world, sandbox]
-sidebar_position: 1
-
+sidebar_position: 100
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: 1ee21a39
 ---
-
 # Traps
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -56,4 +54,3 @@ This module does not define any exported functions; it exports a single table co
 ## Events & listeners
 This module does not define or use any events or listeners.
 
----

@@ -1,115 +1,155 @@
 ---
 id: mightygym
 title: Mightygym
-description: Manages weight loading, workout states, and visual/audio feedback for the Mighty Gym structure in Don't Starve Together.
+description: Manages weight loading, workout state, and visual/sound feedback for the Mighty Gym structure in the game.
+tags: [gym, player, combat, ui, inventory]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 89b9c793
+system_scope: entity
 ---
 
 # Mightygym
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Mightygym` component governs the behavior of the `mighty_gym` structure, including weight detection, workout initiation/termination, dynamic visual overlays (e.g., loaded weight symbols, level-specific coloring), and synchronization with a Strongman player during workouts. It interfaces with the inventory, animation, sound, and mightiness systems to provide the core gym simulation experience.
+`Mightygym` manages the state, item handling, and animation synchronization for the *Mighty Gym* structure. It supports loading/unloading heavy items, enabling players with the `strongman` component to enter, exercise, and exit the gym while synchronizing visual and gameplay effects (e.g., weight art, hunger burn rate, skin swapping). It integrates closely with the `inventory`, `mightiness`, `strongman`, `burnable`, `freezable`, `sleeper`, `grogginess`, `hunger`, `skinner`, `symbolswapdata`, `pumpkincarvable`, and `talker` components.
 
-## Dependencies & Tags
-**Dependencies:**
-- `inventory` component (to check/load/unload items, manage slots)
-- `burnable` component (to detect fire state)
-- `strongman` component (to coordinate workout state)
-- `mightiness` component (for workout calculation and skin mode)
-- `skinner` component (to retrieve outfit/skin data for animation overrides)
-- `health`, `hunger`, `freezable`, `sleeper`, `grogginess`, `talker`, `classified` (used indirectly during workout lifecycle)
-- `symbolswapdata` and `pumpkincarvable` components on loaded items (used conditionally for symbol handling)
+## Usage example
+```lua
+local gym = Prefabs["mighty_gym"]()
+gym:AddComponent("mightygym")
 
-**Tags Added/Removed:**
-- `loaded` (added when one or two items are present; removed on unloading)
-- `hasstrongman` (added when a Strongman enters for a workout; removed when exiting)
-- `fireimmune` (added while a Strongman is inside the gym)
+-- Load two heavy items into the gym
+local item1 = SpawnPrefab("cavein_boulder")
+local item2 = SpawnPrefab("moon_altar_glass")
+gym.components.mightygym:LoadWeight(item1, 1)
+gym.components.mightygym:LoadWeight(item2, 2)
+
+-- Start a workout with a player
+gym.components.mightygym:CharacterEnterGym(player)
+```
+
+## Dependencies & tags
+**Components used:** `inventory`, `burnable`, `freezable`, `sleeper`, `grogginess`, `health`, `hunger`, `strongman`, `mightiness`, `skinner`, `symbolswapdata`, `pumpkincarvable`, `talker`, `inventoryitem`.  
+**Tags added/removed:** `loaded`, `hasstrongman`, `fireimmune`, `ingym`.  
+**Tags checked:** `burnt`, `strongman`, `debuffed`, `ignoretalking`.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the `mighty_gym` entity the component is attached to. |
-| `strongman` | `Entity` (player) | `nil` | The Strongman player currently using the gym; `nil` when idle. |
-| `weight` | `number` | `0` | Total calculated weight (sum of "heavy" items in inventory slots 1 and 2). |
-| `full_drop_slot` | `number` | `1` | Inventory slot (1 or 2) used when dropping items due to full inventory during `LoadWeight`. Alternates after each drop. |
-| `pumpkincarving_fx1`, `pumpkincarving_fx2` | `Prefab` or `nil` | `nil` | FX instance for pumpkin carver carving visuals on loaded items (if applicable). |
-| `skin_base_data` | `table` | `{}` | Skin configuration data from the Strongman’s base prefab. Populated at workout start. |
-| `skins`, `monkey_curse` | `table` / `boolean` | `nil` | Clothing and monkey curse state captured from the Strongman at workout start. |
+| `inst` | `Entity` | — | Owner entity (the gym structure). |
+| `strongman` | `Entity` or `nil` | `nil` | Player currently using the gym. |
+| `weight` | number | `0` | Total calculated weight of loaded items. |
+| `full_drop_slot` | number | `1` | Slot used for overflow when inventory is full during `LoadWeight`. |
+| `skins` | table | `nil` | Clothing data of the `strongman` during workout. |
+| `monkey_curse` | boolean | `nil` | Monkey curse state of the `strongman`. |
+| `skin_base_data` | table | `nil` | Skin definitions for the `strongman`'s base prefab. |
 
-## Main Functions
-
+## Main functions
 ### `SetLevelArt(level, target)`
-* **Description:** Updates the gym’s visual meter art to reflect the current `level`. Shows/hides `meter_color2` and applies color overrides based on `meter_color2`, `meter_color3`, or `meter_color4` skins. Can update either the gym itself or an external target (e.g., the Strongman).
-* **Parameters:**
-  - `level` (`number`): The weight level used to determine which color symbol to show (e.g., 2 → `meter_color2`, 7+ → higher).
-  - `target` (`Entity`, optional): Entity whose `AnimState` to update; defaults to `self.inst`.
+* **Description:** Sets the visual level indicators (`meter_color2`) on the gym (and optionally a target, e.g., the `strongman`). Shows/hides symbols and applies skin overrides if present.  
+* **Parameters:**  
+  - `level` (number) — Current weight level used to determine which color symbol to show (`meter_color2`).  
+  - `target` (`Entity` or `nil`) — Entity to apply art to; defaults to `self.inst`.  
+* **Returns:** Nothing.  
+* **Error states:** Does nothing if `target` lacks `AnimState` or `gym_skin`/`prefab` data.
 
 ### `CalcWeight()`
-* **Description:** Recalculates the total weight by summing `gymweight` (default 2) for every "heavy" item currently in the gym’s inventory. Updates `self.weight` and returns the total.
-* **Parameters:** None.
+* **Description:** Calculates total weight by scanning the gym’s inventory for items tagged `"heavy"` and summing their `gymweight` (default `2`). Updates `self.weight`.  
+* **Parameters:** None.  
+* **Returns:** number — Total weight value.  
+* **Error states:** Does not count items if fewer than 2 heavy items are loaded.
 
 ### `CheckForWeight()`
-* **Description:** Scans inventory slots 1 and 2. For each occupied slot, sets the appropriate weight symbol via `SetWeightSymbol` and adds the `"loaded"` tag. Skips if the gym is burning.
-* **Parameters:** None.
+* **Description:** Scans inventory slots 1 and 2; if occupied by heavy items, calls `SetWeightSymbol` and adds the `"loaded"` tag. Skips if gym is `"burnt"`.  
+* **Parameters:** None.  
+* **Returns:** Nothing.  
+
+### `SwapWeight(item, swapitem)`
+* **Description:** Swaps an existing item at its current slot for a new `swapitem` using `LoadWeight`.  
+* **Parameters:**  
+  - `item` (`Entity`) — Existing item to remove.  
+  - `swapitem` (`Entity`) — New item to insert.  
+* **Returns:** Nothing.  
 
 ### `SetWeightSymbol(weight, slot)`
-* **Description:** Configures the gym’s animation symbols for a loaded weight item in the given slot. Handles both skinned and non-skinned items, including optional pumpkin carving FX. Also updates the `strongman`’s visuals if present.
-* **Parameters:**
-  - `weight` (`Entity`): The item to display (must have `symbolswapdata`).
-  - `slot` (`number`): Inventory slot index (1 or 2). Used to pick `slot_ids[slot]` and create FX IDs.
+* **Description:** Sets override symbols for the gym and `strongman` based on the item’s `symbolswapdata`. Handles skinned and non-skinned items, and spawns a `pumpkincarving_swap_fx` for pumpkins. Clears existing FX IDs.  
+* **Parameters:**  
+  - `weight` (`Entity`) — Item with `symbolswapdata` component.  
+  - `slot` (number) — Slot index (`1` or `2`) corresponding to `"swap_item"` or `"swap_item2"`.  
+* **Returns:** Nothing.  
+* **Error states:** Early return if `weight` lacks `symbolswapdata`. Does nothing if `is_skinned` data is invalid.
 
 ### `LoadWeight(weight, slot)`
-* **Description:** Adds a weight item to the gym’s inventory, updating visuals, sound, and weight level. Handles full inventory by dropping an item from `full_drop_slot`. Plays material-specific sounds (rock, glass, veggie, sack). Updates `strongman` if active.
-* **Parameters:**
-  - `weight` (`Entity`): The item to load.
-  - `slot` (`number`, optional): Target inventory slot. If omitted or full, auto-selects a slot.
+* **Description:** Adds `weight` to the gym’s inventory (auto-drop if full), updates weight symbols, plays material-specific sound, sets `"loaded"` tag, and updates visual level art. If `strongman` is present, updates `strongman`’s art and `inmightygym` replica.  
+* **Parameters:**  
+  - `weight` (`Entity`) — Heavy item to load.  
+  - `slot` (number or `nil`) — Desired inventory slot (`1` or `2`). If omitted or inventory full, auto-selects slot.  
+* **Returns:** Nothing.  
 
 ### `UnloadWeight()`
-* **Description:** Removes all items from the gym, clears weight symbols, resets `full_drop_slot`, removes the `"loaded"` tag, and updates visuals/sounds. Adjusts `strongman`’s weight display if active.
-* **Parameters:** None.
+* **Description:** Drops all items from the gym, clears override symbols and FX, resets `full_drop_slot`, removes `"loaded"` tag, updates level art (including `strongman`), and plays `"item_removed"` sound.  
+* **Parameters:** None.  
+* **Returns:** Nothing.  
 
 ### `CanWorkout(doer)`
-* **Description:** Validates whether the given player (`doer`) may begin a workout. Returns `true` or `false, reason`. Checks: is Strongman + `mightiness`? Not on fire/smoldering? Gym not in use? Player sufficiently hungry? Both inventory slots occupied? Balanced?
-* **Parameters:**
-  - `doer` (`Entity`): The player attempting to start a workout.
+* **Description:** Validates whether `doer` (typically a player) can start a workout. Checks tags, fire state, gym usage, hunger, and item load (requires exactly 2 heavy items).  
+* **Parameters:**  
+  - `doer` (`Entity`) — Entity attempting to use the gym.  
+* **Returns:**  
+  - `true` — If workout is allowed.  
+  - `false, "ONFIRE"` / `"SMOULDER"` / `"FULL"` / `"HUNGRY"` / `"NOWEIGHT"` / `"UNBALANCED"` — On failure with reason.  
 
 ### `CalculateMightiness(perfect)`
-* **Description:** Computes the mightiness gain multiplier based on current weight and whether the workout was “perfect” (balanced). Uses `TUNING.GYM_RATE` constants for LOW/MED/HIGH.
-* **Parameters:**
-  - `perfect` (`boolean`): Whether the workout was perfectly balanced.
+* **Description:** Calculates the mightiness gain rate based on total weight and whether the workout was *perfect*. Uses `TUNING.GYM_RATE.*` constants.  
+* **Parameters:**  
+  - `perfect` (boolean) — `true` if the workout met quality criteria (e.g., perfect form).  
+* **Returns:** number — The may amount to apply (e.g., `TUNING.GYM_RATE.LOW`, `MED`, or `HIGH`).  
+
+### `SetSkinModeOnGym(doer, skin_mode)`
+* **Description:** Applies the appropriate skin variant (e.g., `normal`, `winter`, `monkey`) to the gym’s anim state using `SetSkinsOnAnim`.  
+* **Parameters:**  
+  - `doer` (`Entity`) — The `strongman` entity.  
+  - `skin_mode` (string) — Skin mode (e.g., `"normal"`, `"wrestler"`).  
+* **Returns:** Nothing.  
 
 ### `StartWorkout(doer)`
-* **Description:** Finalizes gym state entry for a Strongman: sets `strongman`, unlocks skin overrides, updates weight art on the player, burns hunger, and hands control to the `strongman` component’s `DoWorkout`.
-* **Parameters:**
-  - `doer` (`Entity`): The Strongman entering the gym.
+* **Description:** Initializes workout state for `doer`: sets `self.strongman`, updates hunger burn rate, caches clothing/skins, applies item skins to the gym, and adds `"hasstrongman"` tag.  
+* **Parameters:**  
+  - `doer` (`Entity`) — Player with `strongman` tag and `mightiness` component.  
+* **Returns:** Nothing.  
 
 ### `StopWorkout()`
-* **Description:** Ends the current workout: resets gym appearance, stops `strongman` activity, removes hunger modifier, clears references, and removes `"hasstrongman"` tag.
-* **Parameters:** None.
+* **Description:** Ends workout: resets gym build, clears `strongman`, removes hunger modifier, clears skin data, and removes `"hasstrongman"` tag.  
+* **Parameters:** None.  
+* **Returns:** Nothing.  
 
 ### `InUse()`
-* **Description:** Returns `true` if the gym is currently occupied by a Strongman (`strongman ~= nil`).
-* **Parameters:** None.
+* **Description:** Checks if a `strongman` is currently in the gym.  
+* **Parameters:** None.  
+* **Returns:** boolean — `true` if `self.strongman ~= nil`.  
 
 ### `CharacterEnterGym(player)`
-* **Description:** Handles full pre-entry sequence: hides real gym, teleports player inside, overrides player animation/skins, plays workout loop, sets up listeners, updates weight visuals on the player, and initiates workout via `StartWorkout`.
-* **Parameters:**
-  - `player` (`Entity`): The Strongman entering the gym.
+* **Description:** Transitions a player into the gym: hides the physical gym, overlays gym art on the player, applies physics/scale overrides, syncs weight art, starts workout, and sets up event listeners for exit conditions.  
+* **Parameters:**  
+  - `player` (`Entity`) — The `strongman` entering the gym.  
+* **Returns:** Nothing.  
 
 ### `CharacterExitGym(player)`
-* **Description:** Handles full exit sequence: restores gym visibility, resets player’s animations/skins, jumps player out, teleports on death/freeze, kills workout loop, resets internal state, and calls `StopWorkout`.
-* **Parameters:**
-  - `player` (`Entity`): The Strongman exiting the gym.
+* **Description:** Exits the player from the gym: restores the gym, reapplies the gym’s original build/skin, teleports the player, plays `"jumpout"` state (or teleports on state-incompatible condition), clears overrides, kills workout sound, resets state, and stops workout.  
+* **Parameters:**  
+  - `player` (`Entity`) — The `strongman` exiting the gym.  
+* **Returns:** Nothing.  
 
-## Events & Listeners
-- Listens to `"onremove"` event on `self.inst` → triggers `trytoexitgym(player)` (force-exits player if gym is destroyed).
-- Listens to `"attacked"` event on `self.inst` → triggers `trytoexitgym(player)` (force-exits player if gym is attacked).
-- Listens to `"stopworkout"` event on the `strongman` player → calls `onstopworkout(inst, data)`, which sets the gym’s post-workout state.
-- Listens to `"onremove"` and `"attacked"` events on `self.inst`, bound to `player`, for cleanup when `player` leaves/exits.
+## Events & listeners
+- **Listens to:**  
+  - `"onremove"` (on `self.inst`) — Calls `trytoexitgym` to force exit if gym is removed.  
+  - `"attacked"` (on `self.inst`) — Calls `trytoexitgym` on damage to prevent unsafe gym usage.  
+  - `"stopworkout"` (on `player`) — Calls `onstopworkout` to transition gym state to `"workout_pst"`.  
+- **Pushes:** None. (Note: Events like `"buff_expired"` or `"onremove"` are *handled*, not pushed, by this component.)

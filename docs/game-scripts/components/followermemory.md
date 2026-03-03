@@ -1,121 +1,126 @@
 ---
 id: followermemory
 title: Followermemory
-description: Manages memory and tracking of a follower's leader across saves, spawns, and gameplay events in Don't Starve Together.
+description: Remembers and tracks a follower's last known leader across sessions and entity state changes, enabling reunification when the leader returns.
+tags: [ai, leader, persistence, tracking, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 73b6c308
+system_scope: entity
 ---
 
 # Followermemory
 
-## Overview
-This component persists and tracks the identity of a leader for an entity (typically a follower), including handling reunification logic, wake/sleep state transitions, and event-driven leader loss (e.g., on being attacked by the leader). It works in conjunction with the `follower` component but can operate independently for memory persistence.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Dependencies:**
-  - Uses `inst.components.follower` if present (to set/get the active leader via `follower:SetLeader`, `follower:GetLeader`).
-  - Interacts with `TheWorld` for listening to `ms_playerjoined`.
-- **Tags:** None explicitly added/removed.
-- **Events:**
-  - Listens to `attacked` on itself (`inst`) to forget leader if attacked by the leader.
-  - Listens to `ms_playerjoined` on `TheWorld` to detect when the remembered leader re-joins the world.
+## Overview
+`Followermemory` persists and manages knowledge of a follower entity's most recent leader across game saves, entity wake/sleep cycles, and player disconnections/reconnections. It does not manage the active leadership relationship itself, but works alongside the `follower` component to restore or reestablish leadership when possible. The component stores the leader's user ID and character prefab name, and monitors the world for the leader's return using event listeners and periodic tasks.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("follower")
+inst:AddComponent("followermemory")
+
+-- Set a custom reunite range (default 40)
+inst.components.followermemory:SetReuniteRange(50)
+
+-- Define behavior when the follower reunites with its leader
+inst.components.followermemory:SetOnReuniteLeaderFn(function(follower, leader)
+    print("Reunited with leader!")
+    follower.components.follower:SetLeader(leader)
+end)
+
+-- Remember the current leader
+local player = ThePlayer
+inst.components.followermemory:RememberAndSetLeader(player)
+```
+
+## Dependencies & tags
+**Components used:** `follower`, `combat`
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *(none)* | Reference to the entity this component is attached to. |
-| `reuniterange` | `number` | `40` | Distance threshold (in world units) to trigger reunite callback when near the leader. |
-| `onreuniteleaderfn` | `function?` | `nil` | Callback invoked when the entity reunites with its leader within `reuniterange`. Signature: `fn(entity, leader_player)`. |
-| `onleaderlostfn` | `function?` | `nil` | Callback invoked when the leader is lost (e.g., leaves world, dies, forgets) *during play* (not on loading from save). Signature: `fn(entity)`. |
-| `leaderid` | `string?` | `nil` | Unique user ID of the remembered leader. |
-| `leaderchar` | `string?` | `nil` | Prefab name of the remembered leader (e.g., "wanda"). |
-| `watching` | `function?` | `nil` | Internal listener function for `ms_playerjoined`. |
-| `task` | `DoPeriodicTask?` | `nil` | Active periodic task used to track leader proximity and validity. |
+| `reuniterange` | number | `40` | Maximum distance (in world units) to consider the follower "reunited" with its leader. |
+| `onreuniteleaderfn` | function or `nil` | `nil` | Callback executed when the follower reunites with its remembered leader. |
+| `onleaderlostfn` | function or `nil` | `nil` | Callback executed when the follower loses its leader (e.g., leader disconnects or dies). |
+| `leaderid` | string or `nil` | `nil` | User ID of the remembered leader, if any. |
+| `leaderchar` | string or `nil` | `nil` | Prefab name of the remembered leader character. |
+| `watching` | function or `nil` | `nil` | Event handler registered to `ms_playerjoined` to detect leader reconnection. |
+| `task` | task or `nil` | `nil` | Periodic task used to track the leader's presence and validity. |
 
-## Main Functions
+## Main functions
 ### `SetReuniteRange(dist)`
-* **Description:** Sets the distance threshold (in world units) used to detect reunification with the leader.
-* **Parameters:**
-  * `dist` (number): New range value.
+*   **Description:** Sets the distance threshold within which the follower will trigger reunite logic if its remembered leader is nearby.
+*   **Parameters:** `dist` (number) – the range in world units.
+*   **Returns:** Nothing.
 
 ### `SetOnReuniteLeaderFn(fn)`
-* **Description:** Assigns a callback function to execute when the entity reunites with its leader (i.e., is within `reuniterange` and not asleep).
-* **Parameters:**
-  * `fn` (function?): Function to invoke on reunite, or `nil` to clear.
+*   **Description:** Registers a callback function to execute when the follower successfully reunites with its remembered leader.
+*   **Parameters:** `fn` (function or `nil`) – a function with signature `(follower, leader)`; may be `nil` to clear.
+*   **Returns:** Nothing.
 
 ### `SetOnLeaderLostFn(fn)`
-* **Description:** Assigns a callback function to execute when the leader is lost (e.g., leaves the world) during active gameplay. *Does not trigger on reload if the leader was already lost at save time.*
-* **Parameters:**
-  * `fn` (function?): Function to invoke on leader loss, or `nil` to clear.
+*   **Description:** Registers a callback function to execute when the follower's leader is lost (e.g., on save/load or during play if the leader disconnects or dies).
+*   **Parameters:** `fn` (function or `nil`) – a function with signature `(follower)`; may be `nil` to clear.
+*   **Returns:** Nothing.
 
 ### `RememberAndSetLeader(player)`
-* **Description:** Records the given player as the leader and, if the `follower` component is present, immediately assigns them as the active leader; otherwise, starts watching for them to return.
-* **Parameters:**
-  * `player` (`PlayerController`): Player object with `userid` and `prefab`.
+*   **Description:** Records the given player as the leader and, if a `follower` component exists, sets the active leader.
+*   **Parameters:** `player` (entity) – a player entity with `userid` and `prefab` fields.
+*   **Returns:** Nothing.
+*   **Error states:** If the `follower` component is absent or the leader is invalid, only memory is updated; leadership may not be set.
 
 ### `RememberLeaderDetails(id, prefab)`
-* **Description:** Records leader identity (`id`, `prefab`) if no active leader exists *or* if the current follower leader matches the given details. Starts/stops watching as needed.
-* **Parameters:**
-  * `id` (string): Leader’s user ID.
-  * `prefab` (string): Leader’s prefab name.
+*   **Description:** Records leader details if no active leader exists, or if the current leader matches the provided `id` and `prefab`.
+*   **Parameters:**  
+  `id` (string) – user ID of the leader.  
+  `prefab` (string) – character prefab name.
+*   **Returns:** Nothing.
 
 ### `ForgetLeader()`
-* **Description:** Clears all leader memory and stops watching/tracking.
+*   **Description:** Clears all stored leader information and stops watching for the leader.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `HasRememberedLeader()`
-* **Description:** Returns `true` if a leader ID is currently remembered (does not guarantee the leader is present in the world).
-* **Return Type:** `boolean`
+*   **Description:** Checks whether the component remembers any leader (even if the leader is currently unavailable).
+*   **Parameters:** None.
+*   **Returns:** `true` if a leader ID and character are stored; `false` otherwise.
 
 ### `IsRememberedLeader(target)`
-* **Description:** Checks if the given entity matches the remembered leader’s `userid` and `prefab`.
-* **Parameters:**
-  * `target` (`Entity`): Entity to compare against remembered leader.
-* **Return Type:** `boolean`
-
-### `StartTrackingPlayer(player)`
-* **Description:** Begins a periodic task to monitor the specified player. Checks if they are the leader, valid, and in range; triggers reunite callback if conditions are met.
-* **Parameters:**
-  * `player` (`PlayerController`): Player to track.
-
-### `StopTrackingPlayer()`
-* **Description:** Cancels any active tracking task.
-
-### `StartWatchingForLeader()`
-* **Description:** Begins listening for `ms_playerjoined` events on `TheWorld` to detect when the remembered leader rejoins. Also wakes the entity if not asleep.
-* **Internal Use Only.**
-
-### `StopWatchingForLeader()`
-* **Description:** Stops listening for `ms_playerjoined`, cancels tracking task, and clears the watching handler.
-* **Internal Use Only.**
-
-### `OnEntityWake()`
-* **Description:** Called when the entity wakes from sleep. Scans all players to resume tracking the remembered leader if found.
-* **Internal Use Only.**
+*   **Description:** Checks whether the given entity matches the remembered leader's user ID and character.
+*   **Parameters:** `target` (entity) – an entity with `userid` and `prefab` fields.
+*   **Returns:** `true` if the target matches the remembered leader; `false` otherwise.
 
 ### `OnChangedLeader(leader)`
-* **Description:** Syncs memory with the state of the `follower` component’s current leader. Handles loss, reassignment, or reconnection.
-* **Parameters:**
-  * `leader` (`PlayerController?`): Current leader assigned by the `follower` component, or `nil`.
+*   **Description:** Internal handler called by the `follower` component when the active leader changes. Manages memory and watch state accordingly.
+*   **Parameters:** `leader` (entity or `nil`) – the new leader entity, or `nil` if leader was lost.
+*   **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Returns serializable data containing the remembered leader’s ID, prefab, and a flag indicating if the leader is *currently* lost (i.e., not set in `follower`).
-* **Return Type:** `{ id: string, char: string, lost: boolean? }` or `nil`.
+*   **Description:** Serializes the leader memory for persistence.
+*   **Parameters:** None.
+*   **Returns:** Table `{ id = string?, char = string?, lost = boolean? }`, or `nil` if no leader is remembered.
 
 ### `OnLoad(data)`
-* **Description:** Restores leader memory from save data and reinitializes tracking/watching logic.
-* **Parameters:**
-  * `data` (table): Data returned from `OnSave()`.
+*   **Description:** Restores leader memory after loading from save data.
+*   **Parameters:** `data` (table) – the table returned by `OnSave()`.
+*   **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a debug string showing remembered leader ID and prefab.
-* **Return Type:** `string`
+*   **Description:** Returns a debug-friendly string representation of the internal leader memory.
+*   **Parameters:** None.
+*   **Returns:** `string` – e.g., `"leaderid=1234 leaderchar=warlain"`.
 
-## Events & Listeners
-- Listens to `"attacked"` on `inst` (the entity): Triggers `OnAttacked` to forget the leader if attacked by the remembered leader.
-- Listens to `"ms_playerjoined"` on `TheWorld`: Triggers `self.watching` to detect when the remembered leader re-joins the world.
+## Events & listeners
+- **Listens to:**  
+  - `attacked` – fires `OnAttacked` to forget the leader if attacked by the remembered leader.  
+  - `ms_playerjoined` – fires internal watcher function when a player joins the world to detect leader return.  
+- **Pushes:** None identified.

@@ -1,107 +1,114 @@
 ---
 id: oceanicemanager
 title: Oceanicemanager
-description: Manages the creation, damage, and destruction of ocean ice tiles in the world, including visual effects, entity interactions, and save/load persistence.
+description: Manages dynamic creation, damage, and destruction of ocean ice tiles in the world map, including entity interactions and visual effects.
+tags: [ice, world, environment, physics]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: environment
+category_type: map
 source_hash: a7a2b308
+system_scope: environment
 ---
 
 # Oceanicemanager
 
-## Overview
-The `OceanIceManager` component is responsible for managing the lifecycle of ocean ice tiles in the game world. It handles tile creation and removal, tracks tile health, triggers damage effects and visual cracks, handles entities standing on ice during breaking events, and persists state across saves and loads. This component only exists on the master simulation and is attached to the world entity.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependency:** None declared via `inst:AddComponent(...)`.
-- **Tags Used (Read-only):**
-  - `CRACK_MUST_TAGS = {"ice_crack_fx"}` – used to locate crack FX entities for removal.
-  - `IGNORE_ICE_DROWNING_ONREMOVE_TAGS = { "ignorewalkableplatforms", "ignorewalkableplatformdrowning", "activeprojectile", "flying", "FX", "DECOR", "INLIMBO" }` – used to filter entities during ice destruction.
-  - `FLOATEROBJECT_TAGS = {"floaterobject"}` – used to identify floater objects (e.g., rafts, ice floes) near ice tiles.
-- **World Dependencies:** Relies on `TheWorld.Map`, `TheWorld.components.undertile`, and `TheWorld.components.sharkboimanager`.
+## Overview
+`Oceanicemanager` is a server-side-only component responsible for dynamically managing ocean ice tiles in the world map. It handles ice tile health, damage propagation, visual crack effects, and entity interactions (e.g., launching debris or kelp, handling drowned entities). It integrates with map rendering, physics, and world state systems to ensure coordinated ice destruction and re-creation behavior across the game world.
+
+## Usage example
+```lua
+-- Typically added automatically to TheWorld on the master sim.
+-- Example interaction: damage a tile and destroy it.
+if TheWorld.components.oceanicemanager then
+    local x, y, z = 10, 0, -20
+    TheWorld.components.oceanicemanager:DamageIceAtPoint(x, y, z, 20)
+    TheWorld.components.oceanicemanager:QueueDestroyForIceAtPoint(x, y, z)
+end
+```
+
+## Dependencies & tags
+**Components used:** `undertile`, `sharkboimanager`, `boatphysics`, `inventoryitem`, `oceanfishable`, `pickable`, `stackable`, `floater`, `walkableplatform`, `drownable`, `amphibiouscreature`, `complexprojectile`
+**Tags:** Uses internal tag sets (e.g., `CRACK_MUST_TAGS`, `IGNORE_ICE_DROWNING_ONREMOVE_TAGS`) for entity filtering; does not directly add or remove tags on entities.
 
 ## Properties
-The following public properties are initialized in the constructor. All other state is stored in private module-level grids.
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the world entity the component is attached to. |
+| `inst` | `Entity` | — | The entity instance (typically `TheWorld`) the component is attached to. |
 
-*Note:* Grids (`_marked_for_delete_grid`, `_ice_health_grid`, `_ice_damage_prefabs_grid`) and map dimensions (`WIDTH`, `HEIGHT`) are private module-scoped variables and not exposed on `self`.
+*No other public properties are initialized or exposed directly.*
 
-## Main Functions
-
+## Main functions
 ### `CreateIceAtPoint(x, y, z)`
-* **Description:** Creates an ocean ice tile at the specified world coordinates. Converts point coordinates to tile coordinates and delegates to `CreateIceAtTile`. Handles entity launching (e.g., ocean fish, kelp), floater objects, and ice health initialization.
-* **Parameters:**
-  - `x`, `y`, `z` (`number`): World position where the ice tile is created.
-
-### `CreateIceAtTile(tile_x, tile_y, x, z)`
-* **Description:** Creates an ocean ice tile at a specific map tile. Sets the tile to `WORLD_TILES.OCEAN_ICE`, restores the undertile if needed, initializes ice health, and handles launching nearby entities (e.g., fish, kelp, inventory items).
-* **Parameters:**
-  - `tile_x`, `tile_y` (`number`): Tile coordinates.
-  - `x`, `z` (`number`, optional): World X and Z positions used for entity placement if not passed implicitly.
+* **Description:** Spawns an ice tile at the given world coordinates, initializing its health, removing or modifying nearby entities (kelp, items), and updating floater entity state.
+* **Parameters:** `x`, `y`, `z` (numbers) — world coordinates of the ice center point.
+* **Returns:** `true` on success.
+* **Error states:** Returns early if ice already exists at the location.
 
 ### `QueueCreateIceAtPoint(x, y, z, data)`
-* **Description:** Schedules delayed creation of an ocean ice tile. Only queues if no ice currently exists at the point. Uses `TUNING.OCEAN_ICE_TILE_HEALTH` (note: typo in source, likely meant to be `TUNING.OCEAN_ICE_HEALTH`) as initial health.
-* **Parameters:**
-  - `x`, `y`, `z` (`number`): World position to queue ice creation.
-  - `data` (`table`, optional): Contains optional `base_time` and `random_time` to control delay timing.
+* **Description:** Schedules delayed ice tile creation at the specified location if none exists. Optionally accepts custom timing via `data`.
+* **Parameters:**  
+  - `x`, `y`, `z` (numbers) — world coordinates.  
+  - `data` (table, optional) — may contain `base_time` and `random_time` overrides for scheduling.
+* **Returns:** Nothing.
 
 ### `DestroyIceAtPoint(x, y, z, data)`
-* **Description:** Immediately destroys the ocean ice tile at the given point, replaces it with the underlying tile (e.g., ocean swell), removes damage FX, spawns debris/ice-pop effects, and handles entities standing on the tile (e.g., creating ice floes, drowning logic, entity saving).
-* **Parameters:**
-  - `x`, `y`, `z` (`number`): World position to destroy.
-  - `data` (`table`, optional): Contains flags like `silent` (suppresses FX) and `icefloe_prefab` (custom ice floe prefab).
+* **Description:** Immediately destroys the ice tile at the given location, spawns FX/debris, handles floater/ice floe creation, and repositions nearby entities.
+* **Parameters:**  
+  - `x`, `y`, `z` (numbers) — world coordinates.  
+  - `data` (table, optional) — may set `silent` (suppress FX) or `icefloe_prefab`.
+* **Returns:** `true` if destruction succeeded; `false` if no ice was present.
+* **Error states:** Returns `false` if the tile is not `OCEAN_ICE`.
 
 ### `QueueDestroyForIceAtPoint(x, y, z, data)`
-* **Description:** Schedules ice tile destruction after a short delay (e.g., crack animation). Marks the tile for deletion, spawns crack FX, triggers `abandon_ship`/`onpresink` events for entities, and schedules the actual `destroy_ice_at_point` task.
-* **Parameters:**
-  - `x`, `y`, `z` (`number`): World position to queue for destruction.
-  - `data` (`table`, optional): Contains optional `destroytime` to override default delay.
+* **Description:** Schedules delayed ice destruction, triggers crack FX, and notifies entities on the tile of abandonment/presink events.
+* **Parameters:**  
+  - `x`, `y`, `z` (numbers) — world coordinates.  
+  - `data` (table, optional) — may specify `destroytime` (in frames).
+* **Returns:** Nothing.
 
 ### `DamageIceAtPoint(x, y, z, damage)`
-* **Description:** Damages the ice tile at a world point by a specified amount. Delegates to `DamageIceAtTile`.
-* **Parameters:**
-  - `x`, `y`, `z` (`number`): World position to damage.
-  - `damage` (`number`): Amount of health to subtract.
+* **Description:** Applies damage to the ice tile at world coordinates; returns new health or `nil` if no ice exists.
+* **Parameters:**  
+  - `x`, `y`, `z` (numbers) — world coordinates.  
+  - `damage` (number) — amount of health to subtract.
+* **Returns:** Number (new health value) or `nil`.
 
 ### `DamageIceAtTile(tx, ty, damage)`
-* **Description:** Damages the ice tile at tile coordinates. Updates health in the `_ice_health_grid`, spawns or updates the `oceanice_damage` FX prefab, and queues destruction if health reaches 0.
-* **Parameters:**
-  - `tx`, `ty` (`number`): Tile coordinates.
-  - `damage` (`number`): Amount of health to subtract.
+* **Description:** Like `DamageIceAtPoint`, but operates on tile coordinates (`tx`, `ty`).
+* **Parameters:**  
+  - `tx`, `ty` (numbers) — tile X/Y coordinates.  
+  - `damage` (number) — health deduction.
+* **Returns:** Number (new health) or `nil`.
 
 ### `SpawnDamagePrefab(tile_index, health)`
-* **Description:** Spawns or updates the `oceanice_damage` FX prefab on the tile based on current health percentage. If ice is fully healthy, removes existing damage FX.
-* **Parameters:**
-  - `tile_index` (`number`): Grid index for the tile.
-  - `health` (`number`): Current health value.
+* **Description:** Creates or updates the `oceanice_damage` FX prefab at the given tile based on current health.
+* **Parameters:**  
+  - `tile_index` (number) — index into `_ice_health_grid`.  
+  - `health` (number) — current ice health.
+* **Returns:** Nothing.
 
 ### `FixupFloaterObjects(x, z, tile_radius_plus_overhang, is_ocean_tile)`
-* **Description:** Updates floater objects near the ice tile to reflect whether they are now on solid ground (ice) or water. Triggers `on_landed` or `on_no_longer_landed` events accordingly.
-* **Parameters:**
-  - `x`, `z` (`number`): Center of the tile for entity search.
-  - `tile_radius_plus_overhang` (`number`): Search radius (includes overhang).
-  - `is_ocean_tile` (`boolean`): Whether the tile is now ocean.
+* **Description:** Updates `floater` components for nearby entities when terrain changes (e.g., ice creation/removal).
+* **Parameters:**  
+  - `x`, `z` (numbers) — center point coordinates.  
+  - `tile_radius_plus_overhang` (number) — search radius.  
+  - `is_ocean_tile` (boolean) — whether the tile is ocean (triggers `on_landed`/`on_no_longer_landed` events).
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Serializes the ice grid states (`marked_for_delete` and `ice_health`) and returns compressed, encoded save data.
-* **Returns:** `string` – Zip-compressed and Base64-encoded save data.
+* **Description:** Serializes grid state (`marked_for_delete_grid`, `ice_health_grid`) for world save.
+* **Returns:** String — compressed, encoded save data.
 
 ### `OnLoad(data)`
-* **Description:** Restores ice grid state from save data. Reinitializes cracked/destruction tasks for tiles marked for deletion, and spawns damage FX for tiles with non-zero health.
-* **Parameters:**
-  - `data` (`string`): Encoded save data to load.
+* **Description:** Restores grid state from save data and resumes pending ice destruction or damage FX.
+* **Parameters:** `data` (string) — save data string.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens to:**
-  - `"worldmapsetsize"` on `TheWorld` → triggers `initialize_grids()` to initialize data grids when map size is known.
-
-- **Emits:**
-  - `"icefloebreak"` on `TheWorld` → when an ice floe is successfully spawned after ice breaks.
+## Events & listeners
+- **Listens to:** `worldmapsetsize` — triggers grid initialization.
+- **Pushes:** `icefloebreak` — fired when an ice floe is created (see `DestroyIceAtPoint`), and internally via `QueueDestroyForIceAtPoint`, entities receive `abandon_ship` / `onpresink` events if standing on ice.

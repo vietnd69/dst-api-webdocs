@@ -1,138 +1,140 @@
 ---
 id: gelblobspawner
 title: Gelblobspawner
-description: Manages the spawning, tracking, and removal of gel blobs from spawning grounds based on world conditions and player proximity.
+description: Manages the spawning and lifecycle of gel blobs in response to active rifts, player proximity, and spawner cooldowns in DST.
+tags: [combat, environment, boss, world, network]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: b9d43f4b
+system_scope: environment
 ---
 
 # Gelblobspawner
 
-## Overview
-The `GelBlobSpawner` component manages the lifecycle of gel blobs in the world: registering valid spawning points (entities with the `gelblobspawningground` tag), spawning new gel blobs near players when conditions permit, cooling down spawners after use, and removing excess gel blobs when shadow rifts are inactive. It operates exclusively on the master simulation and coordinates with world state (e.g., ` riftspawner`, `shadowparasitemanager`) to control gel blob generation.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Requirements:** Must exist on the `TheWorld` entity and only on the master (`ismastersim`).
-- **Tags:** Uses the `"gelblobspawningground"` tag to identify valid spawners during entity queries.
-- **Event Dependencies:** Listens to:
-  - `ms_registergelblobspawningground` to register spawning points.
-  - `ms_riftaddedtopool` / `ms_riftremovedfrompool` (on `TheWorld`) to trigger state changes.
-- **External Components Referenced:**
-  - `TheWorld.components.riftspawner`
-  - `TheWorld.components.shadowparasitemanager`
+## Overview
+`GelBlobSpawner` is a master-world-only component that controls the dynamic spawning of `gelblob` prefabs during active Shadow Rift events. It monitors registered spawning grounds (`gelblobspawningground`-tagged entities), responds to nearby alive non-ghost players, and coordinates blob production based on world tuning parameters and concurrent parasite wave overrides from `ShadowParasiteManager`. It ensures blob counts respect limits (`MAX_GELBLOBS_TOTAL_IN_WORLD`), enforces spawner-specific and global cooldowns, and handles serialization for world save/load.
+
+This component only exists on the `mastersim` (server), as enforced by an assertion in its constructor.
+
+## Usage example
+```lua
+-- Typically attached automatically to TheWorld in the game's initialization.
+-- Example of how a mod might register a custom spawning ground:
+local inst = CreateEntity()
+inst:AddTag("gelblobspawningground")
+inst.Transform:SetPosition(x, 0, z)
+TheWorld.components.gelblobspawner:RegisterGelBlobSpawningPoint(inst)
+```
+
+## Dependencies & tags
+**Components used:** `health`, `riftspawner`, `shadowparasitemanager`  
+**Tags:** Registers and listens to entities with tag `gelblobspawningground`; listens to `onremove` on spawned gel blobs and spawners.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `enabled` | `boolean` | `false` | Whether gel blob spawning is active (controlled by shadow rift state). |
-| `spawnpoints` | `table` | `{}` | List of registered spawner entities (with `gelblobspawningground` tag). |
-| `gelblobs` | `table` | `{}` | Maps gel blob entity instances to their spawning spawner entity. |
-| `gelblobcount` | `number` | `0` | Total number of active gel blobs. |
-| `blobbedspawners` | `table` | `{}` | Tracks spawners that currently have active gel blobs. |
-| `cooldownspawners` | `table` | `{}` | Maps spawners to remaining cooldown time (in seconds) after spawning. |
-| `MIN_GELBLOBS_PER_SPAWNER` | `number` | `TUNING.MIN_GELBLOBS_PER_SPAWNER` | Minimum gel blobs spawned per spawner activation. |
-| `MAX_GELBLOBS_PER_SPAWNER` | `number` | `TUNING.MAX_GELBLOBS_PER_SPAWNER` | Maximum gel blobs spawned per spawner activation. |
-| `MAX_GELBLOBS_TOTAL_IN_WORLD` | `number` | `TUNING.MAX_GELBLOBS_TOTAL_IN_WORLD` | Soft cap on total gel blobs allowed. |
-| `MIN_GELBLOB_DIST_FROM_EACHOTHER_SQ` | `number` | Square of `TUNING.MIN_GELBLOB_DIST_FROM_EACHOTHER` | Minimum squared distance between newly spawned gel blobs. |
-| `MAX_GELBLOB_DIST_FROM_SPAWNER` | `number` | `TUNING.MAX_GELBLOB_DIST_FROM_SPAWNER` | Maximum spawn radius around a spawner. |
-| `MIN_GELBLOB_SPAWN_DELAY` | `number` | `TUNING.MIN_GELBLOB_SPAWN_DELAY` | Base delay before a gel blob becomes active. |
-| `VARIANCE_GELBLOB_SPAWN_DELAY` | `number` | `TUNING.VARIANCE_GELBLOB_SPAWN_DELAY` | Randomized variance added to spawn delay. |
-| `COOLDOWN_GELBLOB_SPAWNER_TIME` | `number` | `TUNING.COOLDOWN_GELBLOB_SPAWNER_TIME` | Cooldown duration (seconds) after a spawner is used. |
-| `logictickaccumulator` | `number` | `0` | Accumulator tracking time since last logic update. |
-| `LOGIC_TICK_TIME` | `number` | `1` | Interval (in seconds) between gel blob logic checks. |
+| `enabled` | boolean | `false` | Whether blob spawning logic is active (toggled on/off by rift state). |
+| `spawnpoints` | table of entities | `{}` | List of registered `gelblobspawningground` entities that can produce blobs. |
+| `gelblobs` | table: gelblob entity → spawner entity | `{}` | Tracks currently active gel blobs and their associated spawner. |
+| `gelblobcount` | number | `0` | Total number of active gel blobs. |
+| `blobbedspawners` | table: spawner entity → `true` | `{}` | Tracks spawners that have recently spawned blobs. |
+| `cooldownspawners` | table: spawner entity → number (time left) | `{}` | Tracks spawners on cooldown and remaining time. |
+| `MIN_GELBLOBS_PER_SPAWNER` | number | `TUNING.MIN_GELBLOBS_PER_SPAWNER` | Minimum blobs spawned per spawner per attempt. |
+| `MAX_GELBLOBS_PER_SPAWNER` | number | `TUNING.MAX_GELBLOBS_PER_SPAWNER` | Maximum blobs spawned per spawner per attempt. |
+| `MAX_GELBLOBS_TOTAL_IN_WORLD` | number | `TUNING.MAX_GELBLOBS_TOTAL_IN_WORLD` | Maximum total gel blobs allowed. |
+| `MIN_GELBLOB_DIST_FROM_EACHOTHER_SQ` | number | `TUNING.MIN_GELBLOB_DIST_FROM_EACHOTHER^2` | Squared minimum distance between spawned blobs. |
+| `MAX_GELBLOB_DIST_FROM_SPAWNER` | number | `TUNING.MAX_GELBLOB_DIST_FROM_SPAWNER` | Maximum distance blobs may spawn from a spawner. |
+| `MIN_GELBLOB_SPAWN_DELAY` | number | `TUNING.MIN_GELBLOB_SPAWN_DELAY` | Minimum delay before a blob becomes active after spawn. |
+| `VARIANCE_GELBLOB_SPAWN_DELAY` | number | `TUNING.VARIANCE_GELBLOB_SPAWN_DELAY` | Variance added to spawn delay. |
+| `COOLDOWN_GELBLOB_SPAWNER_TIME` | number | `TUNING.COOLDOWN_GELBLOB_SPAWNER_TIME` | Cooldown duration for a spawner after spawning. |
+| `logictickaccumulator` | number | `0` | Accumulator for timed logic updates (every `LOGIC_TICK_TIME` seconds). |
+| `LOGIC_TICK_TIME` | number | `1` | Interval in seconds between blob logic checks. |
 
-## Main Functions
-### `RegisterGelBlobSpawningPoint(spawnpoint)`
-* **Description:** Registers a spawner entity (typically with `gelblobspawningground` tag) for gel blob spawning. Automatically unregisters it when the spawner is removed.
-* **Parameters:**  
-  `spawnpoint` (Entity): The spawner entity to register.
+## Main functions
+### `RegisterGelBlobSpawningPoint(spawner)`
+* **Description:** Registers a spawner entity as a valid source of gel blobs. Automatically unregisters it if the spawner is removed.
+* **Parameters:** `spawner` (entity) — the spawning ground entity (must have tag `gelblobspawningground`).
+* **Returns:** Nothing.
+* **Error states:** Not meant for direct modder use; prefer `TryToRegisterSpawningPoint`.
 
-### `TryToRegisterSpawningPoint(spawnpoint)`
-* **Description:** Attempts to register a spawner only if not already registered. Returns `true` on successful registration.
-* **Parameters:**  
-  `spawnpoint` (Entity): The spawner entity to conditionally register.
+### `TryToRegisterSpawningPoint(spawner)`
+* **Description:** Attempts to register a spawner only if not already registered. Exposed to mods for dynamic spawner management.
+* **Parameters:** `spawner` (entity).
+* **Returns:** `true` if successfully registered; `false` if already present.
 
-### `UnregisterGelBlobSpawningPoint(spawnpoint)`
-* **Description:** Removes a spawner from the active list of spawning points.
-* **Parameters:**  
-  `spawnpoint` (Entity): The spawner entity to remove.
-
-### `WatchGelBlob(gelblob, spawner)`
-* **Description:** Begins tracking a newly spawned gel blob. Decrements the global gel blob count and manages cooldowns for its spawner upon the blob’s removal.
-* **Parameters:**  
-  `gelblob` (Entity): The gel blob entity to track.  
-  `spawner` (Entity): The spawner that generated this gel blob.
+### `UnregisterGelBlobSpawningPoint(spawner)`
+* **Description:** Manually unregisters a spawner.
+* **Parameters:** `spawner` (entity).
+* **Returns:** Nothing.
 
 ### `StartGelBlobs()`
-* **Description:** Enables gel blob spawning and starts component updates (calls `OnUpdate` periodically).
+* **Description:** Enables blob spawning and starts component updates. Called when a Shadow Rift is added to the pool (i.e., active).
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No-op if already enabled.
 
 ### `StopGelBlobs()`
-* **Description:** Disables gel blob spawning but does not immediately clear existing blobs.
+* **Description:** Disables blob spawning but retains state. Called when all rifts are removed from the pool.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SpawnGelBlobFromSpawner(spawner, player)`
-* **Description:** Attempts to spawn 1–`MAX_GELBLOBS_PER_SPAWNER` gel blobs near a given spawner, favoring positions biased toward the nearest player. Respects spawner cooldowns, global blob limits, and `shadowparasitemanager` overrides.
+* **Description:** Attempts to spawn one or more gel blobs from a given spawner near the specified player, subject to cooldowns, total blob limits, and parasite wave overrides. Uses pathfinding-aware random placement.
 * **Parameters:**  
-  `spawner` (Entity): The spawner to spawn blobs from.  
-  `player` (Entity, optional): Player to bias spawn locations toward (defaults to `spawner`). Returns `false` if no blobs were spawned.
+  - `spawner` (entity) — the gel blob spawner entity.  
+  - `player` (entity, optional) — the player entity to bias blob placement toward; defaults to `spawner` if omitted.
+* **Returns:** `true` if at least one blob was spawned; `false` otherwise.
+* **Error states:** Fails and returns `false` if the spawner is currently blobbed or on cooldown, if the shadow parasite override succeeded, or if blob count limit would be exceeded.
 
 ### `TrySpawningGelBlobs()`
-* **Description:** Iterates over all living, non-ghost players, finds nearby spawners, and attempts to spawn blobs from them.
+* **Description:** Iterates over all alive, non-ghost players, finds nearby spawners within range, and triggers spawning for each.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `TryRemovingGelBlobs()`
-* **Description:** Despawns a single random gel blob (if any exist) to reduce total count below `MAX_GELBLOBS_TOTAL_IN_WORLD`.
+* **Description:** Removes one gel blob (via `DoDespawn`) when total count exceeds limits during deactivation. Spawns no more than one blob per call.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `CheckGelBlobs()`
-* **Description:** Enforces global blob limits: spawns blobs if under the cap and enabled; removes blobs if over zero and disabled.
+* **Description:** Central logic gate called every `LOGIC_TICK_TIME` seconds. Spawns blobs if enabled and under cap; removes blobs if disabled and count > 0; cleans cooldowns and stops updates when fully idle.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-* **Description:** Updates cooldown timers and schedules blob logic (`CheckGelBlobs`) on fixed intervals.
-* **Parameters:**  
-  `dt` (number): Delta time since last frame.
+* **Description:** Drives spawner cooldown countdowns and triggers `CheckGelBlobs` periodically.
+* **Parameters:** `dt` (number) — delta time since last frame.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Serializes active gel blobs, their spawners, and spawner cooldowns for persistence.
-* **Parameters:** None.  
-* **Returns:**  
-  `data` (table or `nil`): Structured save data containing `gelblobs`, `spawnercds`, and `spawners` entries.  
-  `ents` (table): List of GUIDs for entities involved in save data.
+* **Description:** Serializes active gel blobs and spawner cooldown timers into save data.
+* **Parameters:** None.
+* **Returns:** Two values:  
+  - `data` (table or `nil`) — save payload with keys `gelblobs` (list of `{gelblob=guid, spawner=guid}`) and `spawnercds` (list of `{spawner=guid, timeleft=number}`).  
+  - `ents` (table of guids) — list of GUIDs referenced in `data` (for save system tracking).
 
 ### `LoadPostPass(newents, savedata)`
-* **Description:** Restores gel blob tracking and spawner cooldowns after world load using GUID resolution.
+* **Description:** Reconnects gel blobs and spawners after save load using `newents`.
 * **Parameters:**  
-  `newents` (table): Map of loaded GUIDs → entity instances.  
-  `savedata` (table): Deserialized save data.
+  - `newents` (table) — map of `GUID → {entity=ent, ...}`.  
+  - `savedata` (table) — as returned by `OnSave`.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a human-readable debug string with spawn points, active blob count, and per-spawner cooldowns.
+* **Description:** Returns a human-readable debug string for the component’s state, including spawner count, current blob count, and spawner cooldowns sorted by time left.
 * **Parameters:** None.
+* **Returns:** `string`.
 
-### `IsGelBlobbed(spawner)`
-* **Description:** Checks if a spawner currently has one or more active gel blobs.
-* **Parameters:**  
-  `spawner` (Entity): The spawner to check.  
-* **Returns:** `true` or `false`.
-
-### `IsCooldowned(spawner)`
-* **Description:** Checks if a spawner is currently on cooldown.
-* **Parameters:**  
-  `spawner` (Entity): The spawner to check.  
-* **Returns:** `true` or `false`.
-
-## Events & Listeners
-- **Listens to `ms_registergelblobspawningground` on `self.inst`**  
-  Triggers `TryToRegisterSpawningPoint(spawnpoint)` to register new spawning points.
-- **Listens to `ms_riftaddedtopool` and `ms_riftremovedfrompool` on `TheWorld`**  
-  Triggers `UpdateState`, which calls `StartGelBlobs()` or `StopGelBlobs()` based on shadow portal status.
-- **Listens to `onremove` on each registered spawner and gel blob**  
-  Automatically unregisters spawners and handles gel blob cleanup (count decrement, cooldown initialization).
+## Events & listeners
+- **Listens to:**  
+  - `ms_registergelblobspawningground` — triggers `TryToRegisterSpawningPoint`.  
+  - `onremove` (on spawners) — triggers `UnregisterGelBlobSpawningPoint`.  
+  - `onremove` (on gel blobs) — decrements blob count, manages spawner cooldowns.  
+  - `ms_riftaddedtopool`, `ms_riftremovedfrompool` — triggers `UpdateState` to toggle `enabled`.  
+- **Pushes:** None.

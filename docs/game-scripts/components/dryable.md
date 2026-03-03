@@ -1,60 +1,88 @@
 ---
 id: dryable
 title: Dryable
-description: Manages an entity's ability to be dried, defining its dried product and visual representation.
+description: Marks an entity as capable of being dried and stores associated drying data, such as product yield, drying time, and associated build files for raw and dried states.
+tags: [drying, crafting, inventory, world, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: ceb17ce1
+system_scope: entity
 ---
 
 # Dryable
 
-## Overview
-This component equips an entity with the functionality to be dried, typically on a drying rack. It allows specification of the resulting item (the `product`), the time required for drying (`drytime`), and defines the visual assets (build file) for both its undried and dried states. Entities with this component receive the "dryable" tag.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-*   This component adds the `dryable` tag to the entity upon initialization.
-*   It removes the `dryable` tag when the component is removed from the entity.
-*   None identified.
+## Overview
+The `Dryable` component enables an entity to participate in the game's drying mechanic (e.g., in a drying rack or under the sun). It is attached to prefabs that can transition from a raw state to a dried variant, storing metadata required to define the dried output, the time required for drying, and the Prefab/BuildFile references for both raw and dried states. It automatically adds the `dryable` tag to its host entity upon initialization and removes it when removed.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("dryable")
+inst.components.dryable:SetProduct("dried_meat")
+inst.components.dryable:SetDryTime(300)  -- 5 minutes
+inst.components.dryable:SetBuildFile("builds/meat.fbx")
+inst.components.dryable:SetDriedBuildFile("builds/meat_dried.fbx")
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `dryable`; removes `dryable` on entity removal.
 
 ## Properties
-| Property          | Type    | Default Value | Description                                                                                             |
-| :---------------- | :------ | :------------ | :------------------------------------------------------------------------------------------------------ |
-| `product`         | `string` | `nil`         | The prefab name of the item that will be created once this entity has fully dried.                      |
-| `drytime`         | `number` | `nil`         | The duration, in seconds, required for the entity to complete its drying process.                       |
-| `buildfile`       | `string` | `nil`         | The KLAX build file name (e.g., "meat_dry_build") used for the entity's visual appearance when undried. |
-| `dried_buildfile` | `string` | `nil`         | The KLAX build file name used for the entity's visual appearance once it has dried. If not set, `buildfile` is used as a fallback. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `product` | string or nil | `nil` | The name of the prefab that replaces this entity after drying completes. |
+| `drytime` | number or nil | `nil` | Duration in seconds required to dry this entity. |
+| `buildfile` | string or nil | `nil` | File path to the 3D model (`.fbx`) used for the raw state of the entity. |
+| `dried_buildfile` | string or nil | `nil` | File path to the 3D model for the dried state; if not set, falls back to `buildfile`. |
 
-## Main Functions
-### `OnRemoveFromEntity()`
-*   **Description:** This function is called automatically when the `dryable` component is removed from its parent entity. It ensures that the `dryable` tag is also removed from the entity.
-*   **Parameters:** None
-
+## Main functions
 ### `SetProduct(product)`
-*   **Description:** Sets the prefab name of the item that results from drying.
-*   **Parameters:**
-    *   `product`: (`string`) The prefab name of the dried item.
+*   **Description:** Sets the prefab name of the item that results from drying this entity.
+*   **Parameters:** `product` (string) — the name of the dried product prefab.
+*   **Returns:** Nothing.
+
+### `GetProduct()`
+*   **Description:** Returns the currently set dried product prefab name.
+*   **Parameters:** None.
+*   **Returns:** (string or nil) — the product prefab name, or `nil` if unset.
 
 ### `SetDryTime(time)`
-*   **Description:** Sets the time, in seconds, for the drying process to complete.
-*   **Parameters:**
-    *   `time`: (`number`) The drying duration in seconds.
+*   **Description:** Sets the drying duration for this entity.
+*   **Parameters:** `time` (number) — drying time in seconds.
+*   **Returns:** Nothing.
+
+### `GetDryTime()`
+*   **Description:** Returns the currently set drying duration.
+*   **Parameters:** None.
+*   **Returns:** (number or nil) — drying time in seconds, or `nil` if unset.
 
 ### `SetBuildFile(buildfile)`
-*   **Description:** Sets the KLAX build file used for the entity's appearance when it is in its undried state.
-*   **Parameters:**
-    *   `buildfile`: (`string`) The name of the KLAX build file.
+*   **Description:** Sets the asset file path for the raw (undried) model.
+*   **Parameters:** `buildfile` (string) — path to the `.fbx` file (e.g., `"builds/meat.fbx"`).
+*   **Returns:** Nothing.
+
+### `GetBuildFile()`
+*   **Description:** Returns the raw model file path.
+*   **Parameters:** None.
+*   **Returns:** (string or nil) — the build file path, or `nil` if unset.
 
 ### `SetDriedBuildFile(dried_buildfile)`
-*   **Description:** Sets the KLAX build file used for the entity's appearance once it has dried.
-*   **Parameters:**
-    *   `dried_buildfile`: (`string`) The name of the KLAX build file for the dried state.
+*   **Description:** Sets the asset file path for the dried model.
+*   **Parameters:** `dried_buildfile` (string) — path to the `.fbx` file for the dried state.
+*   **Returns:** Nothing.
 
 ### `GetDriedBuildFile()`
-*   **Description:** Retrieves the KLAX build file designated for the entity's dried state. If `dried_buildfile` was not explicitly set, it defaults to using the `buildfile`.
-*   **Parameters:** None
+*   **Description:** Returns the dried model file path; if none was explicitly set, returns the raw `buildfile` as fallback.
+*   **Parameters:** None.
+*   **Returns:** (string) — the dried build file path, or the raw build file if `dried_buildfile` is `nil`.
+
+## Events & listeners
+- **Listens to:** None identified  
+- **Pushes:** None identified

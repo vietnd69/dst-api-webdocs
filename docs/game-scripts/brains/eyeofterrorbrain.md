@@ -1,66 +1,91 @@
 ---
 id: eyeofterrorbrain
 title: Eyeofterrorbrain
-description: Manages the behavior tree and decision logic for the Eye of Terror entity, coordinating movement, spawning, and attack selection.
+description: Controls the AI behavior of the Eye of Terror boss, coordinating special attacks, leashing, facing, and spawning mini-eyes via behavior trees.
+tags: [ai, boss, combat, locomotion, spawning]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: e9f9b931
+system_scope: brain
 ---
 
 # Eyeofterrorbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-This brain component defines the behavioral logic for the Eye of Terror entity. It constructs and manages a behavior tree (BT) that orchestrates high-level actions such as movement (wandering and leash tracking), combat facing, and special move selection—including spawning mini-eyes, focusing guards, chomp attacks, and charge attacks. The brain integrates closely with the `combat`, `commander`, `knownlocations`, and `timer` components to make context-aware decisions and control movement and attack behaviors dynamically.
+`EyeOfTerrorBrain` is the AI behavior tree implementation for the Eye of Terror boss entity. It orchestrates complex combat behaviors such as ranged chomp and charge attacks, spawning and focusing mini-eyes, and maintaining positional constraints (leashing) using the `leash` and `faceentity` behaviors. The brain is initialized once per instance and constructs a hierarchical behavior tree (`BT`) in `OnStart`, leveraging the `behaviours/faceentity` and `behaviours/leash` modules.
 
-## Dependencies & Tags
-- **Components used:**
-  - `combat` (used for `HasTarget()`, `TargetIs()`, and accessing `self.target`)
-  - `commander` (used for `GetNumSoldiers()` to track spawn status)
-  - `knownlocations` (used for `GetLocation("spawnpoint")` and `RememberLocation()`)
-  - `timer` (used for `StartTimer()` and `TimerExists()`)
-- **Tags:** None identified.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("brain")
+inst.components.brain:SetBrainClass(EyeOfTerrorBrain)
+inst:DoTaskInTime(0, function()
+    inst.components.brain:OnInitializationComplete()
+    inst.components.brain:OnStart()
+end)
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `commander`, `knownlocations`, `timer`  
+**Tags:** None identified (behavior tree actions fire events, but no tags are directly added/removed by this brain).
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `_special_move` | `string?` | `nil` | Stores the name of the currently selected special move (e.g., `"spawnminieyes"`, `"focustarget"`, `"charge"`, `"chomp"`). Set by `ShouldUseSpecialMove()` and used to push the corresponding event. |
-| `_leash_pos` | `Vector3?` | `nil` | Cached positional target for the `Leash` behavior. Computed lazily by `GetLeashPosition()` and reset after cooldown expires. |
+| `_leash_pos` | `Vector3` or `nil` | `nil` | Cached leash position; reset on entering special-move logic. |
+| `_special_move` | `string` or `nil` | `nil` | Name of the current special move action selected by `ShouldUseSpecialMove`. |
 
-## Main Functions
+## Main functions
 ### `ShouldUseSpecialMove()`
-* **Description:** Determines if a special move should be executed by evaluating spawn conditions, charge readiness, and attack proximity in priority order. Populates `_special_move` with the chosen action name if valid.
-* **Parameters:** None.
-* **Returns:** `boolean` — Returns `true` if a special move is selected; otherwise `false`.
+*   **Description:** Determines and prioritizes the next special action (spawn mini-eyes, focus mini-eyes on target, charge, or chomp) based on current game state and timers. Sets `_special_move` and returns `true` if a move is available; otherwise returns `false`.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if a special move should be executed; `false` otherwise.
+*   **Error states:** Returns `false` if none of the attempt functions (`TrySpawnMiniEyes`, `TryFocusMiniEyesOnTarget`, etc.) return a valid move string or action token.
 
 ### `GetLeashPosition()`
-* **Description:** Computes and caches a leash position (7 units in front of the target along the line from target to Eye of Terror) when the leash cooldown has expired. Used by the `Leash` behavior to maintain safe distance while tracking the target.
-* **Parameters:** None.
-* **Returns:** `Vector3` — The computed leash position.
+*   **Description:** Calculates or retrieves the current leash target position, ensuring the boss maintains a fixed distance (7 units) from the combat target while avoiding jitter (caches position for 3 seconds via timer).
+*   **Parameters:** None.
+*   **Returns:** `Vector3` — the calculated leash position.
+*   **Error states:** If no combat target exists, returns the boss’s current position.
 
 ### `OnStart()`
-* **Description:** Initializes the behavior tree with a hierarchical node structure:
-  - Outer `WhileNode` ensures actions stop during charge animation.
-  - Inner `PriorityNode` first checks for special moves (`spawnminieyes`, `focustarget`, `charge`, `chomp`).
-  - Then evaluates leash logic if cooldown has expired.
-  - Finally runs `FaceEntity` and `Wander` in parallel for routine movement and targeting alignment.
-* **Parameters:** None.
-* **Returns:** None.
+*   **Description:** Builds and assigns the behavior tree root node (`self.bt`) with logic for special moves, leashing, facing the target, and wandering.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** None; assumes `combat`, `commander`, `knownlocations`, and `timer` components are present.
 
 ### `OnInitializationComplete()`
-* **Description:** Records the Eye of Terror's initial ground-level position (Y = 0) as `"spawnpoint"` in the `knownlocations` component. Prevents overwriting if already set (`dont_overwrite = true`).
-* **Parameters:** None.
-* **Returns:** None.
+*   **Description:** Records the entity’s current position (flattened to y=0) as `"spawnpoint"` in the `knownlocations` component, ensuring consistent spawn alignment.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** None; uses safe y-flattening and the `dont_overwrite=true` flag.
 
-## Events & Listeners
-- **Listens to:** None.
-- **Pushes:**
-  - `self._special_move` — Conditionally pushed during `OnStart()` based on the outcome of `ShouldUseSpecialMove()`; values may be `"spawnminieyes"`, `"focustarget"`, `"charge"`, or `"chomp"`.
+### `TrySpawnMiniEyes(inst)`
+*   **Description:** Helper function to check if spawning mini-eyes is valid — only when cooldown timer `"spawneyes_cd"` does not exist *and* current soldier count is below the desired threshold.
+*   **Parameters:** `inst` (`Entity`) — the Eye of Terror entity.
+*   **Returns:** `"spawnminieyes"` if valid; `nil` or `false` otherwise.
 
-> Note: Events are pushed directly via `self.inst:PushEvent(self._special_move)` inside the behavior tree; no event listeners are registered in this brain itself.
+### `TryChompAttack(inst)`
+*   **Description:** Checks if a chomp attack is possible — only when transformed and the target is within chomp range (`TUNING.EYEOFTERROR_ATTACK_RANGE`).
+*   **Parameters:** `inst` (`Entity`).
+*   **Returns:** `"chomp"` if within range; `false` otherwise.
+
+### `TryChargeAttack(inst)`
+*   **Description:** Checks if a charge attack is possible — cooldown `"charge_cd"` must be expired, target must exist, and distance must be between minimum and maximum thresholds.
+*   **Parameters:** `inst` (`Entity`).
+*   **Returns:** `"charge"` if conditions met; `false` otherwise.
+
+### `TryFocusMiniEyesOnTarget(inst)`
+*   **Description:** Determines if mini-eyes should be focused on the current target — requires cooldown `"focustarget_cd"` to be expired, a target present, and minimum soldier count (`TUNING.EYEOFTERROR_MINGUARDS_PERSPAWN`) met.
+*   **Parameters:** `inst` (`Entity`).
+*   **Returns:** `"focustarget"` if conditions met; `false` otherwise.
+
+## Events & listeners
+- **Pushes:** `spawnminieyes`, `focustarget`, `charge`, `chomp` — fired when `ShouldUseSpecialMove()` selects and executes a special move via `self.inst:PushEvent(self._special_move)`.
+- **Listens to:** None identified — this brain does not register external event listeners; behavior is driven by the behavior tree state and timer checks.

@@ -1,47 +1,72 @@
 ---
 id: efficientuser
 title: Efficientuser
-description: This component manages and applies efficiency multipliers to specific actions, allowing different game mechanics to modify action costs or effects.
+description: Manages action-specific multipliers using source-modifiable lists to support flexible, multi-source efficiency calculations.
+tags: [inventory, crafting, modifier, network]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: b479acab
+system_scope: entity
 ---
 
 # Efficientuser
 
-## Overview
-The `Efficientuser` component provides a flexible system for applying multiplicative modifiers (often representing efficiency bonuses or penalties) to various actions performed by an entity. It allows multiple game mechanics (sources) to contribute different multipliers to the same action, with the component automatically combining them into a single effective multiplier. This is useful for systems like crafting speed, resource gathering yield, or action costs that can be modified by buffs, equipment, or environmental factors.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-This component relies on `util/sourcemodifierlist.lua` to manage multiple modifiers from different sources for each action.
-None identified.
+## Overview
+`EfficientUser` is a lightweight component that tracks and computes action-specific efficiency multipliers. It delegates actual value storage and modification logic to `SourceModifierList` instances per action, enabling multiple sources to contribute or override a base multiplier (e.g., `1.0`). This pattern supports additive stacking, priority-based overrides, or clean removal per source—common in crafting, inventory, or ability systems where efficiency can be modified by equipment, buffs, or skills.
+
+The component is designed to be attached to entities (e.g., characters or devices) that perform configurable actions, and it provides simple interface methods to set, query, and remove multipliers by source and action key.
+
+## Usage example
+```lua
+local inst = TheOwnerEntity()
+inst:AddComponent("efficientuser")
+
+-- Increase cooking efficiency by 0.2 from a "tool" source
+inst.components.efficientuser:AddMultiplier("cook", 1.2, "tool_iron_kettle")
+
+-- Retrieve current multiplier for cooking
+local multiplier = inst.components.efficientuser:GetMultiplier("cook")
+
+-- Remove the tool-specific modifier when unequipped
+inst.components.efficientuser:RemoveMultiplier("cook", "tool_iron_kettle")
+```
+
+## Dependencies & tags
+**Components used:** None  
+**Tags:** None identified  
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :------- | :--- | :------------ | :---------- |
-| `inst` | `Entity` | `nil` | A reference to the entity that this component is attached to. |
-| `actions` | `table` | `{}` | A table mapping action names (strings) to `SourceModifierList` instances, each managing multipliers for a specific action. |
+|----------|------|---------------|-------------|
+| `actions` | table | `{}` | A dictionary mapping action names to `SourceModifierList` instances. Keys are action identifiers (strings), values are `SourceModifierList` objects. |
 
-## Main Functions
+## Main functions
 ### `GetMultiplier(action)`
-*   **Description:** Retrieves the combined effective multiplier for a specified action. If no multipliers are set for the action, it returns a default value of `1`.
-*   **Parameters:**
-    *   `action` (`string`): The name of the action for which to get the multiplier.
+* **Description:** Returns the computed combined multiplier for a given action, based on all active modifiers. Defaults to `1` if no modifiers exist for the action.
+* **Parameters:** `action` (string) — the action name to query.
+* **Returns:** `number` — the final multiplier (e.g., `1.0`, `0.8`, `1.5`).
+* **Error states:** Returns `1` when no modifiers are defined for the action.
 
 ### `AddMultiplier(action, multiplier, source)`
-*   **Description:** Adds or updates a multiplier for a specific action, originating from a designated source. If an entry for the action does not yet exist, it will be created. This allows different game elements (e.g., a specific tool, a character buff) to independently contribute to an action's efficiency.
-*   **Parameters:**
-    *   `action` (`string`): The name of the action to modify.
-    *   `multiplier` (`number`): The multiplier value to apply (e.g., `0.5` for 50% efficiency, `1.2` for 120% efficiency).
-    *   `source` (`any`): An identifier for the source applying the multiplier (e.g., an `Entity` reference, a `string` name for a buff).
+* **Description:** Registers a new multiplier source for an action. If no `SourceModifierList` exists yet for the action, it is created. The multiplier is applied under the given `source` identifier.
+* **Parameters:**  
+  - `action` (string) — the action name to modify.  
+  - `multiplier` (number) — the value to add as a modifier (e.g., `1.2`, `0.9`).  
+  - `source` (string or any hashable identifier) — the unique name/ID of the modifier source (e.g., `"perk_winter_coat"`, `"equipped_clothing"`).
+* **Returns:** Nothing.
 
 ### `RemoveMultiplier(action, source)`
-*   **Description:** Removes a specific multiplier from a given source for a particular action. If the action or source does not have an active multiplier, nothing happens.
-*   **Parameters:**
-    *   `action` (`string`): The name of the action from which to remove the multiplier.
-    *   `source` (`any`): The identifier for the source whose multiplier should be removed.
+* **Description:** Removes a previously registered modifier for the given `source` on the specified `action`. If the `SourceModifierList` for the action becomes empty after removal, it is retained but should return a base value of `1` via its `Get()` method.
+* **Parameters:**  
+  - `action` (string) — the action name.  
+  - `source` (string or any hashable identifier) — the modifier source to remove.
+* **Returns:** Nothing.
+
+## Events & listeners
+None identified

@@ -1,67 +1,75 @@
 ---
 id: sisturnregistry
 title: Sisturnregistry
-description: Manages the presence and state of sisturns associated with an entity, tracking activation and blossom status to broadcast global events.
+description: Tracks the presence and activation state of sisturns attached to an entity and broadcasts state changes when sisturn status changes.
+tags: [world, event, state]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: 2881f568
+system_scope: world
 ---
-
 # Sisturnregistry
 
-## Overview
-This component tracks sisturns attached to an entity, maintains their active and blossom states, and emits global events when the collective sisturn state changes—primarily for use by Wendy's gameplay systems.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- `TheWorld.ismastersim` (asserted at construction to ensure exclusive server-side instantiation)
-- Listens for events:
-  - `"ms_updatesisturnstate"` (internal server-side update trigger)
-- Listens to callbacks on registered sisturns:
-  - `"onremove"`
-  - `"onburnt"`
-- Emits global event: `"onsisturnstatechanged"` on state changes
+## Overview
+`Sisturnregistry` is a server-side-only component that maintains a registry of active sisturns associated with an entity (typically the `wendy` character or world entities like the abigail doll). It tracks which sisturns are present and whether they are active, and periodically computes aggregate state flags such as `is_active` and `is_blossom`. When any of these flags change, it fires the `onsisturnstatechanged` event, primarily used by Wendy’s gameplay logic. The component is restricted to the master simulation only and asserts on client instantiation.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("sisturnregistry")
+
+-- Register a sisturn prefab instance
+inst.components.sisturnregistry:Register(some_sisturn_inst)
+
+-- Query aggregate state
+local is_active = inst.components.sisturnregistry:IsActive()
+local is_blossom = inst.components.sisturnregistry:IsBlossom()
+
+-- Debug output
+print(inst.components.sisturnregistry:GetDebugString())
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | The entity instance this component is attached to (public, set via constructor). |
-| `_sisturns` | `table` | `{}` | Internal table mapping sisturn entities to boolean state (`true` if active). |
-| `_is_active` | `boolean` | `false` | Internal flag indicating whether any sisturn is currently active. |
-| `_is_blossom` | `boolean` | `false` | Internal flag indicating whether any active sisturn has feel `"BLOSSOM"`. |
-| `init_task` | `Task?` | `nil` | Delayed task to defer initial state update until world population is complete. |
+| `inst` | `Entity` | — | The entity instance that owns this component. |
+| `_sisturns` | `table` | `{}` | Internal map of sisturn entity instances to boolean activity status. |
+| `_is_active` | `boolean` | `false` | Whether at least one registered sisturn is active. |
+| `_is_blossom` | `boolean` | `false` | Whether any active sisturn is in `BLOSSOM` feel mode. |
 
-## Main Functions
-
+## Main functions
 ### `Register(sisturn)`
-* **Description:** Registers a sisturn entity with this registry. Adds it to the internal list with initial inactive state (`false`) and sets up removal callbacks (`onremove`, `onburnt`).
-* **Parameters:**
-  * `sisturn` (`Entity?`): The sisturn entity to register. If `nil` or already registered, the function returns early.
+*   **Description:** Registers a sisturn entity with this registry. Does nothing if the sisturn is already registered. Attaches event listeners to the sisturn for automatic removal when the sisturn is destroyed (`onremove`) or burnt (`onburnt`).
+*   **Parameters:** `sisturn` (`Entity?`) — the sisturn entity to register. May be `nil`, in which case registration is skipped.
+*   **Returns:** Nothing.
+*   **Error states:** Silently returns early if `sisturn` is `nil` or already registered.
 
 ### `IsActive()`
-* **Description:** Returns whether any sisturn is currently marked active in the registry.
-* **Parameters:** None.
-* **Returns:** `boolean`
+*   **Description:** Returns whether at least one registered sisturn is currently marked as active.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if any sisturn in the registry is active, otherwise `false`.
 
 ### `IsBlossom()`
-* **Description:** Returns whether any active sisturn is currently in `"BLOSSOM"` feel state.
-* **Parameters:** None.
-* **Returns:** `boolean`
+*   **Description:** Returns whether at least one active sisturn has feel state `"BLOSSOM"`.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if a `BLOSSOM` sisturn is active, otherwise `false`.
 
 ### `GetDebugString()`
-* **Description:** Returns a debug string summarizing the current state for logging.
-* **Parameters:** None.
-* **Returns:** `string`
+*   **Description:** Returns a human-readable debug string summarizing current registry contents and state flags.
+*   **Parameters:** None.
+*   **Returns:** `string` — formatted string: `"Num: X, is_active:Y, is_blossom:Z"`.
 
-## Events & Listeners
+## Events & listeners
 - **Listens to:**  
-  - `"ms_updatesisturnstate"` → triggers `OnUpdateSisturnState(world, data)`  
-- **Emits:**  
-  - `"onsisturnstatechanged"` → `{is_active = bool, is_blossom = bool}`  
-- **Internally handles removal callbacks on sisturns:**  
-  - `"onremove"` and `"onburnt"` → triggers `OnRemoveSisturn(sisturn)`
+  `ms_updatesisturnstate` — triggered server-side when sisturn activity state changes. Calls `OnUpdateSisturnState` to update internal tracking and recompute aggregate state.  
+- **Pushes:**  
+  `onsisturnstatechanged` — fired when the aggregate `is_active` or `is_blossom` flags change. Payload: `{is_active = boolean, is_blossom = boolean}`.

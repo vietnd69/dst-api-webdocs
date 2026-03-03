@@ -1,91 +1,103 @@
 ---
 id: hideandseekhidingspot
 title: Hideandseekhidingspot
-description: This component manages a hide-and-seek hiding spot, allowing players to hide inside it and automatically evicting them when the spot is interacted with or damaged.
+description: Manages the logic for a location where a Hider entity can be concealed, including spawn, eviction, and cleanup.
+tags: [hiding, gameplay, entity, persistence]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: f0299efe
+system_scope: entity
 ---
 
 # Hideandseekhidingspot
 
-## Overview
-This component enables an entity to function as a hide-and-seek hiding spot in DST's Hide and Seek minigame. It supports a player (`hider`) entering and remaining hidden inside the spot via a `hiding_prop` (typically a kitcoon box or similar), tracks the hider, and evicts them upon specific events (e.g., the spot being picked, worked, ignited, opened, activated, or picked up). It also persists state across saves and cleans up properly on removal.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Components relied on: None directly added or required via `AddComponent` in this script; however, it assumes the presence of `hideandseekhider` on the hider entity (`hider.components.hideandseekhider:Found(doer)`).
-- Tags added: None explicitly.
-- References external prefabs: Uses `SpawnPrefab(hider._hiding_prop)` and `TUNING.KITCOON_HIDING_OFFSET`.
-- Listens to world-level event: `"ms_collecthiddenkitcoons"` via `TheWorld`.
+## Overview
+`Hideandseekhidingspot` is a component attached to a static entity to act as a designated hiding location in Hide-and-Seek gameplay. It stores a reference to a `hider` entity (typically a Kitcoon), positions a temporary visual prop to represent the hidden state, and handles eviction when the spot is disturbed (e.g., picked, opened, or damaged). It interacts closely with the `hideandseekhider` component, which represents the hidden entity itself.
+
+## Usage example
+```lua
+local spot = CreateEntity()
+spot:AddComponent("hideandseekhidingspot")
+-- Later, when a hider arrives:
+spot.components.hideandseekhidingspot:HideInSpot(hider_entity)
+-- To reveal or remove the hider early:
+spot.components.hideandseekhidingspot:SearchHidingSpot(doer)
+-- To abort hiding without revealing:
+spot.components.hideandseekhidingspot:Abort()
+```
+
+## Dependencies & tags
+**Components used:** `hideandseekhider`, `Transform`, `AnimState`, `Follower`
+**Tags:** Listens for `"ms_collecthiddenkitcoons"` on `TheWorld` to report itself as a valid hiding spot.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | passed via constructor | Reference to the owning entity (the hiding spot). |
-| `evict_fn` | `function` | (defined inline) | Callback function triggered on events like `"picked"`/`"worked"`/`"onignite"`—evicts the current hider. |
-| `onremove_hider` | `function` | (defined inline) | Callback executed when the hider entity is removed; clears `hider` and removes the component. |
-| `on_collecthiddenkitcoons` | `function` | (defined inline) | Callback for world event `"ms_collecthiddenkitcoons"`; adds this spot to the list of found spots. |
-| `hider` | `Entity?` | `nil` | Reference to the player currently hiding in the spot (set by `SetHider`/`HideInSpot`). |
-| `finder` | `Entity?` | `nil` | Player who found/evicted the hider; set during eviction and used in removal event. |
-| `hiding_prop` | `DynamicObject?` | `nil` | The visual prop (e.g., kitcoon) spawned and attached to the spot while hiding; removed on eviction or removal. |
+| `inst` | `Entity` | `nil` | The entity instance the component is attached to. |
+| `hider` | `Entity` | `nil` | The hidden entity (e.g., Kitcoon) currently occupying this spot. |
+| `hiding_prop` | `Prefab` | `nil` | A temporary visual prop (e.g., a bush, crate) that represents the hidden entity visually. |
+| `finder` | `Entity` | `nil` | The entity that triggered eviction/reveal of the hider. |
 
-## Main Functions
+## Main functions
+### `SetHider(hider)`
+*   **Description:** Assigns a `hider` entity to this spot without immediately hiding it (allows time for the hider to arrive). Registers an `"onremove"` callback to clean up if the hider is removed prematurely.
+*   **Parameters:** `hider` (`Entity`) — the entity that will hide in this spot.
+*   **Returns:** Nothing.
+*   **Error states:** Does nothing if a hider is already assigned (`self.hider ~= nil`).
 
-### `:SetHider(hider)`
-* **Description:** Assigns a player as the hider for this spot if no hider is already assigned. Registers cleanup logic when the hider is removed.
-* **Parameters:**
-  - `hider` (`Entity`): The player entity that will hide in this spot.
+### `HideInSpot(hider)`
+*   **Description:** Places the `hider` into a hidden state: attaches its entity to the spot, removes its world scene, spawns and configures a `hiding_prop` visual, and registers eviction callbacks on the prop.
+*   **Parameters:** `hider` (`Entity`) — the entity to hide; also calls `SetHider(hider)`.
+*   **Returns:** Nothing.
+*   **Error states:** Relies on `hider._hiding_prop` being defined and valid; no explicit error handling if missing.
 
-### `:HideInSpot(hider)`
-* **Description:** Initiates hiding for the given hider. Attaches the hider and spawns/attaches the `hiding_prop`, registers evict callbacks on the prop, and positions them at the spot’s origin.
-* **Parameters:**
-  - `hider` (`Entity`): The player to hide. Internally calls `:SetHider`, then sets up parent relationships and spawns the `hiding_prop`.
+### `SearchHidingSpot(doer)`
+*   **Description:** Releases the hider (if any) from the hiding spot, effectively revealing them. Removes the component from the spot entity afterward.
+*   **Parameters:** `doer` (`Entity?`) — the entity performing the search/reveal. Passed to `hider.components.hideandseekhider:Found(doer)`.
+*   **Returns:** Nothing.
 
-### `:_ReleaesHider(doer)`
-* **Description:** Evicts the current hider (if any), returns them to the scene, unparents them and the prop, notifies their `hideandseekhider` component, clears the hider reference, and updates `finder`.
-* **Parameters:**
-  - `doer` (`Entity?`): The entity performing the eviction (e.g., picker, doer, worker, owner). Only players are considered valid; others are ignored.
+### `Abort()`
+*   **Description:** Aborts hiding without revealing the hider. Releases the hider (if any), but does *not* call `hider.components.hideandseekhider:Found()`. Removes the component from the spot.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `:OnRemoveEntity()`
-* **Description:** Evicts any active hider and clears associated state when the hiding spot entity itself is removed (but before component removal).
-* **Parameters:** None.
+### `OnRemoveEntity()`
+*   **Description:** Cleanup method called when the spot entity is removed from the world. Releases any active hider but does *not* fire `"onhidingspotremoved"` or remove the `hiding_prop`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `:OnRemoveFromEntity()`
-* **Description:** Full cleanup called when the component is removed from the entity. Evicts hider, unregisters world event listener, pushes `"onhidingspotremoved"` event, and removes the `hiding_prop` if valid.
-* **Parameters:** None.
+### `OnRemoveFromEntity()`
+*   **Description:** Full cleanup method called when the component is removed from the spot entity. Releases hider, removes event listeners, fires `"onhidingspotremoved"`, and destroys `hiding_prop`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `:SearchHidingSpot(doer)`
-* **Description:** Evicts the hider (via `:_ReleaesHider`), then removes the component entirely—used when a spot is successfully "found" or searched.
-* **Parameters:**
-  - `doer` (`Entity`): Player performing the search.
+### `OnSave()`
+*   **Description:** Serializes the state for persistence: includes a save record of the hidden `hider` (if any), or an empty record if empty.
+*   **Parameters:** None.
+*   **Returns:** `data`, `refs` — where `data.hider_saverecord` contains the hider’s save data if hidden.
 
-### `:Abort()`
-* **Description:** Evicts the hider and removes the component—used to abort hiding without a successful find.
-* **Parameters:** None.
+### `OnLoad(data, newents)`
+*   **Description:** Restores hidden state after loading. If `data.hider_saverecord` exists, it spawns the hider and calls `HideInSpot`.
+*   **Parameters:**  
+    `data` (table) — save data containing optional `hider_saverecord`.  
+    `newents` (table) — mapping from old to new entity IDs for save/restore cross-referencing.
+*   **Returns:** Nothing.
 
-### `:OnSave()`
-* **Description:** Serializes state if a hider is currently hiding (including the hider’s save record).
-* **Returns:** `data` (table), `refs` (nil or references table). `data.hider_saverecord` stores the hider if present.
+### `GetDebugString()`
+*   **Description:** Returns a debug-friendly string identifying the current hider prefab (or `"This component should not be here!"` if `hider` is `nil`).
+*   **Parameters:** None.
+*   **Returns:** `string` — debug description.
 
-### `:OnLoad(data, newents)`
-* **Description:** Reloads a previously hidden hider by spawning from `hider_saverecord` and calling `:HideInSpot`.
-* **Parameters:**
-  - `data` (`table?`): Data from `OnSave`.
-  - `newents` (`table`): Mapping of saved entity GUIDs to loaded entities.
-
-### `:GetDebugString()`
-* **Description:** Returns a debug string showing the current hider’s prefab name, or an error message if invalid.
-* **Parameters:** None.
-
-## Events & Listeners
-- **Listens to:**
-  - `"ms_collecthiddenkitcoons"` on `TheWorld` → triggers `on_collecthiddenkitcoons`
-  - `"onremove"` on the hider entity → triggers `onremove_hider`
-  - `"picked"`, `"worked"`, `"onignite"`, `"onopen"`, `"onactivated"`, `"onpickup"` on `hiding_prop` → all trigger `evict_fn`
-- **Pushes:**
-  - `"onhidingspotremoved"` (on `self.inst`) with `{finder = self.finder}` during `OnRemoveFromEntity`.
+## Events & listeners
+- **Listens to:**  
+  - `"ms_collecthiddenkitcoons"` on `TheWorld` — adds `self.inst` to `data.hidingspots`.  
+  - `"onremove"` on `self.hider` — triggers `onremove_hider` cleanup.  
+  - `"picked"`, `"worked"`, `"onignite"`, `"onopen"`, `"onactivated"`, `"onpickup"` on `self.hiding_prop` — triggers `evict_fn`, which calls `SearchHidingSpot`.
+- **Pushes:**  
+  - `"onhidingspotremoved"` — fired during `OnRemoveFromEntity`, with `{finder = self.finder}`.

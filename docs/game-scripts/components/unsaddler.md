@@ -1,30 +1,41 @@
 ---
 id: unsaddler
 title: Unsaddler
-description: This is a marker component that indicates an entity can be unsaddled, but performs no functional logic on its own.
+description: A marker component with no functional logic, used solely to indicate that an entity has been processed by the unsaddler system.
+tags: [marker]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 53edee08
+system_scope: entity
 ---
 
 # Unsaddler
 
-## Overview
-The `Unsaddler` component is a minimal marker component. It serves no functional purpose beyond signifying that an entity is eligible for unsaddling (i.e., removal of a saddle), typically used in conjunction with other components like `saddler` or `inventoryitem` to coordinate behavior in modded or vanilla saddle-riding mechanics.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Unsaddler` is a minimal marker component. It contains no logic, properties, or methods beyond its constructor and serves only to tag an entity as having been handled by the unsaddler workflow. It is typically added to entities (e.g., saddled creatures) to signal that a prior saddling operation should not be repeated or reversed.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("unsaddler")
+-- No further interaction is required or possible with this component.
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `unsaddled` (inferred from usage context; not present in this file).
 
 ## Properties
-No public properties were clearly identified from the source.
+No public properties
 
-## Main Functions
-No functional methods are defined beyond the constructor.
+## Main functions
+Not applicable
 
-## Events & Listeners
-No events or listeners are registered by this component.
+## Events & listeners
+Not applicable

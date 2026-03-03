@@ -1,44 +1,74 @@
 ---
 id: migrationpetowner
 title: Migrationpetowner
-description: Provides a lightweight interface for associating and retrieving pet entities that migrate alongside an inventory item.
+description: Provides a lightweight mechanism for an inventory item to store and retrieve one or more associated migration-capable pets via a callback function.
+tags: [inventory, migration, pet]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 02ba9f87
+system_scope: inventory
 ---
 
 # Migrationpetowner
 
-## Overview
-This component serves as a lightweight container for storing and retrieving one or more pet entities associated with an inventory item. It does not manage pet logic itself but instead delegates pet retrieval to an externally provided function (`get_pet_fn`), enabling flexible integration across prefabs that support migrating pets (e.g., during item transfers or crafting).
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`MigrationPetOwner` is a lightweight component designed to be attached to inventory items (e.g., wearable items or held objects) that may carry one or more pets during world migration (e.g., when a player enters or exits the Caves). It does not manage pet logic itself but stores a callback function (`petfn`) that the game can invoke to fetch associated pet entities at runtime. This enables flexible, decoupled pet–item associations without hard dependencies.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("migrationpetowner")
+
+-- Set a callback that returns a single pet or a table of pets
+inst.components.migrationpetowner:SetPetFn(function(owner)
+    return owner.components.inventory and owner.components.inventory:GetEquippedItem(EQUIPSLOTS.HEAD)
+end)
+
+-- Retrieve the primary pet
+local pet = inst.components.migrationpetowner:GetPet()
+
+-- Retrieve all associated pets (as a table)
+local pets = inst.components.migrationpetowner:GetAllPets()
+```
+
+## Dependencies & tags
+**Components used:** None  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | Reference to the entity the component is attached to. Set during construction. |
-| `get_pet_fn` | `function?` | `nil` | A callback function that, when invoked with `inst`, returns pet entity (or table of pets). Set via `SetPetFn`. |
+| `inst` | `Entity` | `nil` (set in constructor) | The entity instance to which this component is attached. |
+| `get_pet_fn` | `function?` | `nil` | Optional callback function that accepts `owner` as argument and returns either a single pet entity or a table of pet entities. |
 
-## Main Functions
+## Main functions
 ### `SetPetFn(petfn)`
-* **Description:** Assigns the callback function used to retrieve associated pet(s) when requested.
-* **Parameters:**  
-  - `petfn` (`function`): A function that accepts the owner entity (`inst`) and returns either a single pet entity or a table of pet entities.
+* **Description:** Assigns the callback function used to retrieve associated pet(s) when `GetPet` or `GetAllPets` is called.
+* **Parameters:** `petfn` (function) — a function taking `owner` (the entity instance) as its sole argument and returning either a single entity or a table of entities.
+* **Returns:** Nothing.
 
 ### `GetPet()`
-* **Description:** Returns the first pet entity (or `nil` if none exist). Intended for basic existence checks; marked as partially deprecated for broader use due to lack of support for multiple pets.
+* **Description:** Returns the *first* pet associated with this owner, for convenience (e.g., to check existence or perform simple operations). This method is partially deprecated in favor of `GetAllPets` for new usages.
 * **Parameters:** None.
+* **Returns:** 
+  * The first pet entity (if any), or
+  * `nil` if no petfn is set, or no pets are returned.
+* **Error states:** If the callback returns a table, returns the first element (`pets[1]`). If the callback returns a non-table, returns that value directly.
 
 ### `GetAllPets()`
-* **Description:** Returns a table of all associated pet entities (or `{nil}` if no pets exist). Ensures backward compatibility by returning a single-pet result as a list if needed.
+* **Description:** Returns *all* pets associated with this owner as a table (ensuring consistent output type). This is the recommended method for retrieving multiple pets.
 * **Parameters:** None.
+* **Returns:** 
+  * A table of pet entities (possibly empty or `nil`), or
+  * `nil` if no petfn is set or the callback returns `nil`.
+* **Error states:** Ensures backward compatibility: if the callback returns a non-table, wraps it in a table before returning.
 
-## Events & Listeners
-None.
+## Events & listeners
+- **Listens to:** None  
+- **Pushes:** None

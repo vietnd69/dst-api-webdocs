@@ -1,94 +1,117 @@
 ---
 id: unwrappable
 title: Unwrappable
-description: Manages the ability for an entity to wrap items into storage and unwrap them later, including peeking, delay support, and saving/loading state.
+description: Manages the ability for an entity (such as a bundle or gift box) to be unwrapped, storing wrapped items and defining behavior during unwrap actions.
+tags: [inventory, wrapping, container, persistence]
 sidebar_position: 1
-
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: inventory
+category_type: components
 source_hash: 6ac13198
+system_scope: inventory
 ---
-
 # Unwrappable
 
-## Overview
-The `Unwrappable` component enables an entity (e.g., a gift box or crate) to store ("wrap") one or more items as serialized data and later release ("unwrap") them at a computed position. It supports optional callbacks for wrapping/unwrapping events, configurable unwrapping delays, peeking into wrapped content via a preview container, and persistent saving/loading of wrapped item state.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds/Removes the `"unwrappable"` tag based on `canbeunwrapped` state.
-- Adds/Removes the `"canpeek"` tag when `SetPeekContainer` is called with a non-nil container prefab.
-- Relies on components potentially present on the owner entity: `inventoryitem`, `inventory`, `container`, `Transform`, `Physics`.
-- Uses global systems: `TheWorld`, `SpawnPrefab`, `FindWalkableOffset`, `TheWorld.Map`.
+## Overview
+`Unwrappable` enables an entity to hold and store multiple wrapped items, which can later be revealed ("unwrapped") upon interaction. It is typically used for gift boxes, bundles, or similar storage objects that encapsulate other items. The component tracks wrapped item data persistently via `itemdata`, handles wrapping/unwrapping logic, and supports optional peeking via a temporary container. It integrates with the `inventory`, `inventoryitem`, and `container` components during unwrap and peek operations.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("unwrappable")
+inst.components.unwrappable:SetOnUnwrappedFn(function(inst, pos, doer)
+    inst.SoundEmitter:PlaySound("dontstarve/common/unwrap")
+end)
+-- Later, wrap some items:
+inst.components.unwrappable:WrapItems({"twister"}, the_player)
+```
+
+## Dependencies & tags
+**Components used:** `inventoryitem`, `inventory`, `container`
+**Tags:** Adds `unwrappable` when `canbeunwrapped` is true; adds `canpeek` when `peekcontainer` is set.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | Reference to the owning entity instance. |
-| `itemdata` | `table` or `nil` | `nil` | Array of serialized item records (from `GetSaveRecord`) currently wrapped. |
-| `canbeunwrapped` | `boolean` | `true` | Controls whether the `"unwrappable"` tag is present. |
-| `onwrappedfn` | `function` or `nil` | `nil` | Callback called after wrapping: `(bundle_inst, num_items, doer)`. |
-| `onunwrappedfn` | `function` or `nil` | `nil` | Callback called after unwrapping: `(bundle_inst, pos, doer)`. |
-| `unwrapdelayfn` | `function` or `nil` | `nil` | Callback to compute unwrapping delay: `(bundle_inst, doer) → delay (seconds) or nil`. |
-| `origin` | `string` or `nil` | `nil` | Session identifier of the world where items were originally spawned (used for cross-session item persistence). |
-| `peekcontainer` | `string` or `nil` | `nil` | Prefab name of the container used when peeking inside (e.g., `"wrapped_present"`). |
+| `inst` | Entity | `nil` | Reference to the entity instance that owns this component. |
+| `itemdata` | table or `nil` | `nil` | Array of save records for wrapped items; `nil` if empty or unwrapped. |
+| `canbeunwrapped` | boolean | `true` | Controls whether the `unwrappable` tag is present on the entity. |
+| `onwrappedfn` | function or `nil` | `nil` | Callback invoked when items are wrapped (args: `inst`, `count`, `doer`). |
+| `onunwrappedfn` | function or `nil` | `nil` | Callback invoked when items are unwrapped (args: `inst`, `pos`, `doer`). |
+| `unwrapdelayfn` | function or `nil` | `nil` | Optional delay function (args: `inst`, `doer`) returning time in seconds. |
+| `peekcontainer` | string or `nil` | `nil` | Prefab name of the temporary container used for peeking inside. |
+| `origin` | string or `nil` | `nil` | Session identifier from when items were wrapped (used for cross-session item sourcing). |
 
-## Main Functions
+## Main functions
+### `SetOnWrappedFn(fn)`
+*   **Description:** Sets a callback that runs when items are wrapped into the entity.
+*   **Parameters:** `fn` (function) — function with signature `(inst, count, doer)`.
+*   **Returns:** Nothing.
 
-### `Unwrappable:SetOnWrappedFn(fn)`
-* **Description:** Registers a callback function to be invoked after items are successfully wrapped into the entity.
-* **Parameters:**  
-  `fn` (`function`) — Callback with signature `(bundle_inst, num_items, doer)`.
+### `SetOnUnwrappedFn(fn)`
+*   **Description:** Sets a callback that runs when the entity is unwrapped, after items have been spawned.
+*   **Parameters:** `fn` (function) — function with signature `(inst, pos, doer)`.
+*   **Returns:** Nothing.
 
-### `Unwrappable:SetOnUnwrappedFn(fn)`
-* **Description:** Registers a callback function to be invoked after items are successfully unwrapped from the entity.
-* **Parameters:**  
-  `fn` (`function`) — Callback with signature `(bundle_inst, pos, doer)`.
+### `SetUnwrapDelayFn(fn)`
+*   **Description:** Sets a function that returns a delay (in seconds) before unwrapping occurs (e.g., for animations).
+*   **Parameters:** `fn` (function) — function with signature `(inst, doer)` returning a number or `nil`.
+*   **Returns:** Nothing.
 
-### `Unwrappable:SetUnwrapDelayFn(fn)`
-* **Description:** Sets a function to determine a delay (in seconds) before unwrapping occurs. If the function returns `nil`, no delay is applied.
-* **Parameters:**  
-  `fn` (`function`) — Callback with signature `(bundle_inst, doer) → delay (number) or nil`.
+### `SetPeekContainer(peekcontainer)`
+*   **Description:** Configures the prefab name of a container to use for peeking inside (e.g., `"bundlepeek"`).
+*   **Parameters:** `peekcontainer` (string) — prefab name of the peek container.
+*   **Returns:** Nothing.
+*   **Side effects:** Adds or removes the `canpeek` tag depending on truthiness.
 
-### `Unwrappable:SetPeekContainer(preference)`
-* **Description:** Configures the prefab name of a temporary container used for peeking at wrapped items. Adds/removes the `"canpeek"` tag accordingly.
-* **Parameters:**  
-  `preference` (`string` or `nil`) — Prefab name (e.g., `"wrapped_present"`) or `nil` to disable peeking.
+### `WrapItems(items, doer)`
+*   **Description:** Wraps a list of item prefabs or entities into this instance, storing their data for later spawning on unwrap.
+*   **Parameters:** 
+    *   `items` (table) — array of item prefabs (string) or valid entities.
+    *   `doer` (Entity or `nil`) — the actor performing the wrap; may be `nil`.
+*   **Returns:** Nothing.
+*   **Error states:** Nonexistent or invalid prefabs are silently skipped. Entities not valid are ignored.
 
-### `Unwrappable:WrapItems(items, doer)`
-* **Description:** Converts a list of items (or prefab names) into serialized data and stores it internally. Marks the wrapped items with `"wrappeditem"` event and triggers the `onwrappedfn` callback.
-* **Parameters:**  
-  `items` (`table`) — Array of item instances or prefab names to wrap.  
-  `doer` (`Entity` or `nil`) — The actor performing the wrap action.
+### `Unwrap(doer, nodelay)`
+*   **Description:** Spawns all stored items at the entity's position (or adjusted based on owner/doer). Supports optional delay via `unwrapdelayfn`.
+*   **Parameters:** 
+    *   `doer` (Entity or `nil`) — the actor performing the unwrap.
+    *   `nodelay` (boolean) — if `true`, bypasses any delay and unwraps immediately.
+*   **Returns:** Nothing.
+*   **Error states:** 
+    *   If `unwrapdelayfn` returns a delay, unwrapping is deferred via `DoTaskInTime`, and the function exits early.
+    *   If item spawning fails for any reason, that item is skipped.
+    *   If no `itemdata` is stored, this function has no effect except pushing events.
 
-### `Unwrappable:Unwrap(doer, nodelay)`
-* **Description:** Spawns and positions all wrapped items in the world, optionally after a delay (if `unwrapdelayfn` returns > 0). Emits `"unwrapped"` and `"unwrappeditem"` events, and triggers `onunwrappedfn`.
-* **Parameters:**  
-  `doer` (`Entity` or `nil`) — The actor performing the unwrap. Used for positioning and ownership logic.  
-  `nodelay` (`boolean`) — If `true`, skips any configured delay.
+### `PeekInContainer(doer)`
+*   **Description:** Spawns a temporary container, populates it with wrapped items, opens it as read-only, and transitions the doer into the `"bundling"` state.
+*   **Parameters:** `doer` (Entity) — the player performing the peek.
+*   **Returns:** `true` if peek was successfully initiated; `false` otherwise.
+*   **Error states:** 
+    *   Returns `false` if `itemdata` or `peekcontainer` is missing.
+    *   Returns `false` if container creation, opening, or item placement fails.
+    *   Items placed into the peek container are non-persistent and removed on exit.
 
-### `Unwrappable:PeekInContainer(doer)`
-* **Description:** Spawns a temporary peek container, populates it with preview copies of wrapped items (read-only), opens it for the `doer`, and transitions the `doer` into a `"bundling"` state. Returns `true` on success.
-* **Parameters:**  
-  `doer` (`Entity`) — The player who will view the peek container.
+### `OnSave()`
+*   **Description:** Returns serializable state data when the entity is saved.
+*   **Parameters:** None.
+*   **Returns:** 
+    *   `nil` if no items are wrapped.
+    *   `{ items = itemdata, origin = session_id }` if items exist.
 
-### `Unwrappable:OnSave()`
-* **Description:** Returns a table containing saved state (`itemdata`, `origin`) if items are currently wrapped.
-* **Returns:**  
-  `table` or `nil` — Save record, e.g., `{ items = {...}, origin = "session_id" }`.
+### `OnLoad(data)`
+*   **Description:** Restores state from `OnSave()` data during world load.
+*   **Parameters:** `data` (table) — must contain `items` (array) and optionally `origin`.
+*   **Returns:** Nothing.
+*   **Side effects:** Invokes `onwrappedfn` with stored count if defined.
 
-### `Unwrappable:OnLoad(data)`
-* **Description:** Restores wrapped item state from a save record and triggers `onwrappedfn` if defined.
-* **Parameters:**  
-  `data` (`table`) — Save data with `items` and `origin` fields.
+## Events & listeners
+- **Listens to:** None directly via `inst:ListenForEvent`.
+- **Pushes:**
+  *   `"wrappeditem"` — fired on each item entity when wrapped (args: `{ bundle = self.inst, doer = doer }`).
+  *   `"unwrappeditem"` — fired on each spawned item after unwrap (args: `{ bundle = self.inst, doer = doer }`).
+  *   `"unwrapped"` — fired on the unwrappable entity after unwrap completes (args: `{ doer = doer }`).
 
-## Events & Listeners
-
-- Listens for property change on `canbeunwrapped` via dynamic setter `oncanbeunwrapped` to add/remove `"unwrappable"` tag.
-- Listens for property change on `peekcontainer` via dynamic setter in `SetPeekContainer` to add/remove `"canpeek"` tag.
-- Pushes `"wrappeditem"` event on each wrapped item instance.
-- Pushes `"unwrappeditem"` event on each spawned unwrapped item instance.
-- Pushes `"unwrapped"` event on the owner entity after unwrapping completes.

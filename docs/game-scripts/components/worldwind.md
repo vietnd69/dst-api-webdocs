@@ -1,65 +1,78 @@
 ---
 id: worldwind
 title: Worldwind
-description: Controls the periodic randomization of wind direction and speed in the game world.
+description: Manages dynamic wind orientation and speed for the world, updating periodically and broadcasting wind change events.
+tags: [world, environment, network]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: de91aa67
+system_scope: environment
 ---
 
 # Worldwind
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component manages the dynamic wind system for the game world by periodically updating and broadcasting wind direction (angle) and speed (velocity) at randomized intervals. It runs as an updating component and notifies other systems via events when the wind changes.
+`Worldwind` is a world-scoped component responsible for simulating ambient wind direction and intensity. It periodically randomizes the wind angle and triggers a `windchange` event to notify other systems (e.g., visual FX, foliage, or particle systems) of the update. It maintains no server–client distinction, operating purely locally on whichever entity it is attached to (typically the world root or a dedicated wind manager).
 
-## Dependencies & Tags
-**Dependencies:**
-- `inst:StartUpdatingComponent(self)` / `inst:StopUpdatingComponent(self)` — requires the host entity to support component update registration.
-- Uses `TUNING.SEG_TIME` (segment time), implying a dependency on the `TUNING` constants table.
+## Usage example
+```lua
+local world = GetWorld()
+if world then
+    world:AddComponent("worldwind")
+    -- Force an immediate wind update by calling OnUpdate once
+    world.components.worldwind:OnUpdate(0)
+end
+```
 
-**Tags:**  
-None identified.
+## Dependencies & tags
+**Components used:** None identified.  
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity this component is attached to (typically the `world` entity). |
-| `velocity` | `number` | `1` | Current wind speed. |
-| `angle` | `number` | Random initial value in `[0, 360)` | Current wind direction (in degrees). |
-| `timeToWindChange` | `number` | `1` | Time (in seconds) remaining until the next wind change. |
+| `velocity` | number | `1` | Current wind speed factor (scalar). |
+| `angle` | number | random (`0` to `360`) | Current wind direction in degrees. |
+| `timeToWindChange` | number | `1` | Seconds remaining until the next wind update. |
 
-## Main Functions
+## Main functions
 ### `Start()`
-* **Description:** Begins updating the component by registering it with the entity's update loop.
+* **Description:** Ensures the component begins receiving periodic `OnUpdate` calls. Idempotent—safe to call multiple times.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `Stop()`
-* **Description:** Stops updating the component by unregistering it from the entity's update loop.
+* **Description:** Halts `OnUpdate` calls for this component.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `GetWindAngle()`
-* **Description:** Returns the current wind direction in degrees.
+* **Description:** Returns the current wind direction.
 * **Parameters:** None.
+* **Returns:** `number` — current angle in degrees (`0–360`).
 
 ### `GetWindVelocity()`
-* **Description:** Returns the current wind speed.
+* **Description:** Returns the current wind speed factor.
 * **Parameters:** None.
+* **Returns:** `number` — wind velocity scalar.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted debug string containing current angle and velocity for in-game debugging.
+* **Description:** Provides a formatted debug string for logging or UI display.
 * **Parameters:** None.
+* **Returns:** `string` — e.g., `"Angle: 245.1234, Veloc: 1.000"`.
 
 ### `OnUpdate(dt)`
-* **Description:** Called each frame during updates. Decrements the wind change timer; when expired, randomizes the wind direction and velocity, pushes a `windchange` event, and schedules the next wind change within a randomized time window.
-* **Parameters:**  
-  - `dt` (`number`): Delta time (seconds) since the last frame.
+* **Description:** Callback invoked each frame. Decrements the internal timer and, when the timer expires, randomly selects a new wind angle and fires the `windchange` event.
+* **Parameters:** `dt` (number) — delta time in seconds since last frame.
+* **Returns:** Nothing.
+* **Error states:** If `self.inst` is `nil`, calls `Stop()` and returns early.
 
-## Events & Listeners
-- **Listens for:** None.
-- **Triggers:**  
-  - `windchange` — dispatched with payload `{angle = self.angle, velocity = self.velocity}` whenever the wind direction or velocity is updated (note: in the current implementation, *only* `angle` is randomized; `velocity` remains constant unless elsewhere modified).
+## Events & listeners
+- **Listens to:** None identified.
+- **Pushes:** `windchange` — fired when the wind angle or velocity is updated. Payload: `{angle = number, velocity = number}`.

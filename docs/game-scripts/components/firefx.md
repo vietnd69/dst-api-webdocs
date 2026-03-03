@@ -1,95 +1,109 @@
 ---
 id: firefx
 title: Firefx
-description: Manages visual and audio effects for a fire entity, including light flicker, radius, intensity, sound playback, and animation states across multiple fire levels.
+description: Manages visual and audio effects for fire-based entities, including dynamic lighting, sound, and animation transitions across multiple intensity levels.
+tags: [environment, fx, audio, lighting]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: eb4e091c
+system_scope: fx
 ---
-
 # Firefx
 
-## Overview
-The `FireFX` component manages the visual and auditory effects for a fire entity within the game's Entity Component System. It handles dynamic light rendering (including radius and intensity), sound playback (with day/night adjustments), animation transitions between fire levels, and offset positioning of the light effect relative to its parent entity.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies**: Requires `inst` (an entity instance) to be valid at construction time; expects `inst.AnimState`, `inst.SoundEmitter`, and `inst.Transform` to exist.
-- **Sub-prefab Spawned**: Spawns and manages a child prefab `"firefx_light"` for the fire's light effect.
-- **No explicit tags added/removed** by this component itself.
+## Overview
+`FireFX` is a component responsible for rendering and managing the visual and auditory effects of fire entities in DST. It controls a dedicated fire light prefab (`firefx_light`), handles level-based transitions (including animations and intensity ramps), plays sound effects for ignition, burn, and extinguishing, and synchronizes sound playback with entity sleep/wake states. It integrates with the entity’s `AnimState`, `SoundEmitter`, and light components to provide dynamic, multi-stage fire behavior.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("firefx")
+inst.components.firefx:SetLevel(2, true)
+inst.components.firefx:SetPercentInLevel(0.75)
+inst.components.firefx:Extinguish(false)
+```
+
+## Dependencies & tags
+**Components used:** None (uses prefab internals like `SpawnPrefab("firefx_light")`, but does not depend on other components via `inst.components.X`)
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (constructor parameter) | Reference to the owning entity. |
-| `level` | `number` or `nil` | `nil` | Current fire level index (1-based); `nil` before first `SetLevel` call. |
-| `playingsound` | `string` or `nil` | `nil` | ID of the currently playing fire sound. |
-| `playingsoundintensity` | `number` or `nil` | `nil` | Intensity parameter for the current fire sound. |
-| `percent` | `number` | `1` | Progress within the current fire level (0 to 1); used for interpolation. |
-| `levels` | `table` | `{}` | Array of fire level definitions, each containing `radius`, `intensity`, `colour`, `falloff`, `sound`, `soundintensity`, and animation keys. |
-| `playignitesound` | `boolean` | `true` | Whether to play ignition sound when level increases. |
-| `bigignitesoundthresh` | `number` | `3` | Minimum fire level to play the large fire ignition sound. |
-| `usedayparamforsound` | `boolean` | `false` | Whether to use world day/night state to adjust fire sound parameters. |
-| `current_radius` | `number` | `1` | Current computed light radius. |
-| `light` | `Entity` | (Spawns `"firefx_light"`) | Light effect entity managed by this component. |
-| `_onremovelighttarget` | `function` | (internal) | Callback to re-attach light if target entity is removed. |
-| `lightsound` | `string` or `nil` | `nil` | Custom ignition sound override. |
-| `extinguishsound` | `string` or `nil` | `nil` | Custom extinguish sound override. |
-| `controlled_burn` | `boolean` or `nil` | `nil` | Whether the fire is in a "controlled burn" state. |
-| `isday` | `boolean` or `nil` | `nil` | Cached day/night state for sound parameter updates. |
+| `level` | number \| nil | `nil` | Current fire level index (1-based). |
+| `percent` | number | `1` | Interpolation factor within a fire level (0 to 1). |
+| `levels` | table | `{}` | Array of level definitions; each entry contains `radius`, `intensity`, `anim`, `sound`, `colour`, `falloff`, etc. |
+| `playingsound` | string \| nil | `nil` | Name of the currently playing fire sound. |
+| `current_radius` | number | `1` | Current rendered light radius. |
+| `light` | Entity | `SpawnPrefab("firefx_light")` | The dedicated light entity associated with the fire. |
+| `playignitesound` | boolean | `true` | Whether to play the ignition sound on level increase. |
+| `bigignitesoundthresh` | number | `3` | Minimum level to trigger large fire burst sound on ignition. |
+| `usedayparamforsound` | boolean | `false` | If `true`, modifies sound parameter `"daytime"` based on world time of day. |
+| `lightsound` | string \| nil | `nil` | Custom ignition sound override. |
+| `extinguishsound` | string \| nil | `nil` | Custom extinguish sound override. |
 
-## Main Functions
-
-### `SetLevel(lev, immediate, controlled_burn)`
-* **Description**: Sets the fire to a specified level, updating animations, light properties, and sound accordingly. Plays ignition sounds when increasing level or exiting controlled burn. |
-* **Parameters**:
-  - `lev` (`number`): Target fire level (1-indexed). Clamped to `#self.levels`.
-  - `immediate` (`boolean`): If true, skips any pre-animation and plays the main animation immediately.
-  - `controlled_burn` (`boolean` or `nil`): If true, uses controlled-burn animation variants. Setting to `nil` after a non-nil value triggers a re-ignition sound.
+## Main functions
+### `SetLevel(level, immediate, controlled_burn)`
+* **Description:** Sets the fire to a specific intensity level, updating animation, light properties (radius, intensity, colour, falloff), and playing fire/ignition sounds. Automatically interpolates level if `percent` is set.
+* **Parameters:**  
+  - `level` (number) - Target fire level (1-indexed; capped to `#self.levels`).  
+  - `immediate` (boolean, optional) - If `false` and `params.pre` exists, plays a transition animation before main animation.  
+  - `controlled_burn` (boolean, optional) - If non-`nil`, uses `*_controlled_burn` animation variants; if `nil`, resets to non-controlled state.
+* **Returns:** Nothing.
+* **Error states:** No level change occurs if `level` is `<= 0` and equal to current level (unless controlled burn state changes).
 
 ### `SetPercentInLevel(percent)`
-* **Description**: Updates the interpolation progress within the current fire level, adjusting light radius and intensity accordingly via linear interpolation between adjacent levels.
-* **Parameters**:
-  - `percent` (`number`): Value between `0` and `1` indicating progress through the current level's radius/intensity range.
-
-### `UpdateRadius()`
-* **Description**: Recomputes and applies the current light radius based on `self.level`, `self.percent`, and the `levels` table. Called automatically by `SetPercentInLevel`.
+* **Description:** Interpolates the fire's radius and light intensity between the current level and the previous level based on `percent`.
+* **Parameters:**  
+  - `percent` (number) - Interpolation factor in `[0, 1]`. `0` = previous level values; `1` = current level values.
+* **Returns:** Nothing.
 
 ### `GetLevelRadius(level)`
-* **Description**: Returns the radius value for a given fire level, supporting both direct table lookup (`self.levels[level].radius`) and fallback to `self.radius_levels[level]`.
-* **Parameters**:
-  - `level` (`number`): Level index (1-based).
+* **Description:** Retrieves the radius value for a given fire level using either `self.levels[level].radius` or `self.radius_levels[level]` (if present).
+* **Parameters:**  
+  - `level` (number) - Level index (1-based).
+* **Returns:**  
+  - (number) - Radius value for the level, or `nil` if level not defined.
 
-### `OnUpdate(dt)`
-* **Description**: Periodically updates the fire light effect with a subtle flicker (using a combined sine wave) and adjusts sound parameters if `usedayparamforsound` is enabled.
-* **Parameters**:
-  - `dt` (`number`): Time since last frame (unused in logic but passed by ECS).
+### `UpdateRadius()`
+* **Description:** Recalculates `current_radius` and updates the light radius based on `percent` interpolation between current and previous level.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `Extinguish(fast)`
-* **Description**: Stops fire sounds and plays an extinguish animation/sound. Optionally returns `true` to signal that the owning entity should not be removed immediately (due to a lingering post-animation).
-* **Parameters**:
-  - `fast` (`boolean`): If true, uses the fast extinguish animation (`pst_fast`).
+* **Description:** Stops fire sound, plays extinguish sound, and optionally plays an "afterglow" animation. Returns `true` if a pst-animation is playing (entity should delay removal).
+* **Parameters:**  
+  - `fast` (boolean) - If `true`, uses `*_fast` variant of the afterglow animation.
+* **Returns:**  
+  - (boolean) - `true` if apst animation is being played; `false` otherwise.
+* **Error states:** If `self.extinguishsoundtest` is defined and returns `false`, no extinguish sound is played (rare).
 
 ### `AttachLightTo(target)`
-* **Description**: Re-parents the light entity to a new target entity (e.g., when fire is attached to a held item or placed on ground).
-* **Parameters**:
-  - `target` (`Entity` or `nil`): Target entity to parent the light to; if `nil`, defaults to `self.inst`.
+* **Description:** Reparents the `light` entity to a new target entity (e.g., attaching to a burning item or character).
+* **Parameters:**  
+  - `target` (Entity) - The new parent entity.
+* **Returns:** Nothing.
 
-### `SetFxLightOffsetPosition(off)`
-* **Description**: Sets a dynamic offset for the light's position relative to its parent.
-* **Parameters**:
-  - `off` (`Vector` or `nil`): Offset to apply via `self.offset_fxlight_position`.
+### `OnUpdate(dt)`
+* **Description:** Periodically updates light radius with subtle sine-based flicker and syncs sound `"daytime"` parameter if `usedayparamforsound` is enabled.
+* **Parameters:**  
+  - `dt` (number) - Time since last update (unused in calculation, but required by update contract).
+* **Returns:** Nothing.
 
-### `OnEntitySleep()`
-* **Description**: Pauses fire sound playback when the entity enters sleep state.
+### `OnEntitySleep()`, `OnEntityWake()`
+* **Description:** Mutes fire sound when entity sleeps and restores it on wake.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `OnEntityWake()`
-* **Description**: Restarts fire sound playback when the entity wakes, if a sound was previously playing.
+## Events & listeners
+- **Listens to:**  
+  - `"onremove"` on parent target entities (via `_onremovelighttarget` callback) to restore `light` parent back to owner if target is removed.
 
-## Events & Listeners
-- Listens for `"onremove"` event on `self.light` (via `_onremovelighttarget`) when attached to a non-owning target, to re-parent light back to `self.inst` if the target is removed.
-- Listens for `"onremove"` event on `target` (via `_onremovelighttarget`) when attaching to a new target to handle re-parenting on removal.
+- **Pushes:** None.
+
+- **Uses internal callbacks:**  
+  - `_onremovelighttarget()` - Reparents `self.light` to `self.inst` when a target entity is removed.

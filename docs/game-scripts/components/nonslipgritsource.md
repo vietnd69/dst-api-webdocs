@@ -1,60 +1,67 @@
 ---
 id: nonslipgritsource
 title: Nonslipgritsource
-description: Provides a source of non-slip grit that can be attached to entities to counteract slippery feet mechanics.
+description: Acts as an inventory-based source of non-slip grit that can be applied to entities with slippery feet, enabling temporary traction.
+tags: [locomotion, inventory, gameplay]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 0a50c550
+system_scope: locomotion
 ---
 
 # Nonslipgritsource
 
-## Overview
-This component acts as an inventory item source for non-slip grit, enabling it to be attached to entities with the `slipperyfeet` component. When attached, it automatically grants non-slip grit functionality via the `nonslipgrituser` component, and provides hooks for delta-time updates.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Uses `MakeComponentAnInventoryItemSource(self)` during construction.
-- Relies on the presence of the `nonslipgrituser` component on the owner entity (creates it on-demand if missing).
-- Requires the `slipperyfeet` component on the owner to trigger activation.
-- Relies on the `inventoryitem` component for standard inventory item behavior (via `MakeComponentAnInventoryItemSource`).
-- Removes its inventory source behavior via `RemoveComponentInventoryItemSource` when removed.
+## Overview
+`Nonslipgritsource` is an inventory-item-based component that provides traction resources to entities that have `slipperyfeet` and `nonslipgrituser` components. It implements the `MakeComponentAnInventoryItemSource` pattern, meaning it is designed to be attached to inventory items (like non-slip grit containers) that can be used to restore or maintain traction on slippery surfaces. When such an item is equipped or transferred to a new owner, it automatically interacts with the target's `nonslipgrituser` component to register itself as a source of grit.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("inventoryitem")
+inst:AddComponent("nonslipgritsource")
+
+-- Optionally set a custom delta function to apply grit usage logic
+inst.components.nonslipgritsource:SetOnDeltaFn(function(item, dt)
+    -- Custom logic: e.g., reduce grit amount over time
+end)
+```
+
+## Dependencies & tags
+**Components used:** `slipperyfeet`, `nonslipgrituser`, `inventoryitem` (via `MakeComponentAnInventoryItemSource`)
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | Reference to the owning entity (assigned in constructor). |
-| `ondeltafn` | `function` | `nil` | Optional callback function used for per-frame (delta-time) processing; set via `SetOnDeltaFn`. |
+| `ondeltafn` | function or `nil` | `nil` | Optional callback function invoked by `DoDelta(dt)` to handle per-frame grit consumption or updates. Signature: `function(inst, dt)`. |
 
-## Main Functions
-
-### `OnRemoveFromEntity()`
-* **Description:** Cleans up when the component is removed from its entity. Removes the associated inventory item source behavior.
-* **Parameters:** None.
-
-### `OnItemSourceRemoved(owner)`
-* **Description:** Called when this source is removed from an owner. Notifies the owner's `nonslipgrituser` component (if present) to remove this source.
-* **Parameters:**
-  * `owner` (`Entity`): The entity from which this source is being removed.
-
-### `OnItemSourceNewOwner(owner)`
-* **Description:** Called when this source is attached to a new owner. If the owner has the `slipperyfeet` component, ensures the owner has the `nonslipgrituser` component and registers this source with it.
-* **Parameters:**
-  * `owner` (`Entity`): The new owner entity.
-
+## Main functions
 ### `SetOnDeltaFn(fn)`
-* **Description:** Sets a callback function to be invoked during delta-time updates (`DoDelta`). This allows external code to register periodic behavior (e.g., grit consumption or decay).
-* **Parameters:**
-  * `fn` (`function`): Function of the form `function(inst, dt)` where `inst` is this component's entity and `dt` is the time elapsed since the last frame.
+* **Description:** Assigns an optional per-frame callback to handle grit usage logic (e.g., decrementing grit amount over time). This function is called during `DoDelta` updates.
+* **Parameters:** `fn` (function or `nil`) — the callback function to invoke with `(self.inst, dt)` arguments, or `nil` to clear.
+* **Returns:** Nothing.
 
 ### `DoDelta(dt)`
-* **Description:** Executes the registered delta callback (if any) with the current delta time. Used for time-based logic such as grit depletion or refresh.
-* **Parameters:**
-  * `dt` (`number`): Delta time in seconds.
+* **Description:** Invokes the `ondeltafn` callback (if set), allowing time-based updates to grit usage (e.g., gradual consumption).
+* **Parameters:** `dt` (number) — delta time in seconds since the last update.
+* **Returns:** Nothing.
 
-## Events & Listeners
-None.
+### `OnItemSourceRemoved(owner)`
+* **Description:** Automatically invoked when this item source is removed from an owner entity. Delegates to the owner's `nonslipgrituser` component (if present) to unregister this source.
+* **Parameters:** `owner` (Entity) — the entity that previously owned this item.
+* **Returns:** Nothing.
+
+### `OnItemSourceNewOwner(owner)`
+* **Description:** Automatically invoked when ownership of this item changes. If the new owner has the `slipperyfeet` component, it ensures an `nonslipgrituser` component exists on the owner and registers this source with it.
+* **Parameters:** `owner` (Entity) — the new owner entity.
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:** None identified.
+- **Pushes:** None identified.

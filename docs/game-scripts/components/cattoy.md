@@ -1,41 +1,58 @@
 ---
 id: cattoy
 title: Cattoy
-description: Manages an entity's behavior as a toy, triggering a custom callback function when another entity plays with it.
+description: Manages a callback-based interaction handler for cat toy items in DST, invoked when an entity plays with the item.
+tags: [item, interaction, event]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: ca4cc0ed
+system_scope: entity
 ---
 
 # Cattoy
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Cattoy` component allows an entity to be treated as a playable toy by other creatures. Its primary role is to store and execute a custom callback function when another entity initiates a "play" interaction with it, enabling unique behaviors for different toys.
+`CatToy` is a lightweight component that enables custom behavior to be attached to cat toy items. It stores an optional callback function (`onplay_fn`) that is executed when `Play()` is invoked—typically by creatures (e.g., cats) interacting with the item. The component itself does not enforce tags or logic, but comments indicate it is designed to work with the `"cattoy"` or `"cattoyairborne"` tags on the entity instance.
 
-## Dependencies & Tags
-None identified.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("cattoy")
+inst.components.cattoy:SetOnPlay(function(inst, doer, is_airborne)
+    print("Item played with by", doer.prefab, "airborne?", is_airborne)
+    return true
+end)
+```
 
-*Note: The source code comments recommend adding the `"cattoy"` or `"cattoyairborne"` tags to the entity to ensure other creatures can identify it as a toy, but this component does not add these tags itself.*
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Checks none directly; relies on external logic (e.g., creature prefabs) to check for `"cattoy"`/`"cattoyairborne"` tags.
 
 ## Properties
 | Property | Type | Default Value | Description |
-|---|---|---|---|
-| `inst` | `Entity` | `inst` | A reference to the component's parent entity instance. |
-| `onplay_fn` | `function` | `nil` | The callback function to execute when the toy is played with. |
+|----------|------|---------------|-------------|
+| `onplay_fn` | function or `nil` | `nil` | Callback function invoked on `Play()`. Signature: `(item_inst, doer, is_airborne) → boolean?`. |
 
-## Main Functions
+## Main functions
 ### `SetOnPlay(fn)`
-* **Description:** Assigns a custom callback function that defines the toy's behavior when played with. This function will be executed by the `Play` method.
-* **Parameters:**
-    * `fn` (function): The function to be called. It is expected to receive three arguments: the toy's instance (`inst`), the entity playing with it (`doer`), and a boolean flag (`is_airborne`).
+*   **Description:** Assigns the callback function to be executed when `Play()` is called.
+*   **Parameters:** `fn` (function or `nil`) — a function taking three arguments (`item_inst`, `doer`, `is_airborne`) returning a boolean (or `nil`).
+*   **Returns:** Nothing.
 
 ### `Play(doer, is_airborne)`
-* **Description:** Triggers the play behavior by executing the function stored in `onplay_fn`. If no function has been set, this method does nothing and returns `false`.
-* **Parameters:**
-    * `doer` (Entity): The entity instance that is playing with the toy.
-    * `is_airborne` (boolean): A flag indicating if the play interaction is happening while airborne.
+*   **Description:** Invokes the stored callback if present. Used to signal that an entity (`doer`) has interacted with the item as a cat toy.
+*   **Parameters:**  
+    `doer` (entity instance) — the entity performing the play action.  
+    `is_airborne` (boolean) — whether the toy was airborne at time of interaction.
+*   **Returns:** Returns the result of `onplay_fn(...)` if set; otherwise returns `false`.
+*   **Error states:** If `onplay_fn` is `nil`, the function returns `false` and no callback is executed.
+
+## Events & listeners
+- **Listens to:** None identified  
+- **Pushes:** None identified

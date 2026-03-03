@@ -1,150 +1,146 @@
 ---
 id: perishable
 title: Perishable
-description: Manages food spoilage progression, decay logic, and tag-based freshness states (fresh/stale/spoiled) for entities.
+description: Manages spoilage progress, state transitions (fresh/stale/spoiled), and lifecycle events for perishable items in response to environmental and ownership conditions.
+tags: [inventory, food, time, environment]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: 2db04a72
+system_scope: entity
 ---
 
 # Perishable
 
-## Overview
-This component implements the logic for food spoilage in *Don't Starve Together*, tracking remaining freshness time, applying environmental and situational decay modifiers (e.g., temperature, refrigeration, wetness, acid rain), updating freshness tags (`fresh`, `stale`, `spoiled`), and triggering spoilage behavior (including on-perish replacement logic). It integrates with the ECS `Update` loop via a periodic task.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies:** None explicitly added in `_ctor`; however, the component assumes existence of:
-  - `inst.components.edible` (used conditionally for temperature regulation)
-  - `inst.components.stackable` (used in `Dilute`, `Perish`, and `OnLoad`)
-  - `inst.components.inventoryitem` (for owner and container slot retrieval)
-  - `inst.components.occupier` (optional, to determine owner when item is held/occupied)
-- **Tags Managed:** `fresh`, `stale`, `spoiled` — removed and added dynamically based on spoilage percentage.
+## Overview
+The `Perishable` component tracks the remaining time until an item spoils, updating its `perishremainingtime` value over time based on environmental conditions (e.g., temperature, acid rain), ownership context (e.g., held by a player, inside a fridge), and modifiers. It manages tag changes (`fresh`, `stale`, `spoiled`) when the spoilage progress crosses defined thresholds (`TUNING.PERISH_FRESH`, `TUNING.PERISH_STALE`), and supports callbacks on spoilage and replacement. It integrates closely with components such as `inventoryitem`, `preserver`, `edible`, `moisture`, `occupier`, and `stackable`.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("perishable")
+inst.components.perishable:SetPerishTime(600) -- 10 minutes
+inst.components.perishable:StartPerishing()
+-- Later, modify spoilage dynamically:
+inst.components.perishable:AddTime(120) -- add 2 minutes
+inst.components.perishable:SetPercent(0.5) -- set to halfway spoiled
+```
+
+## Dependencies & tags
+**Components used:** `inventoryitem`, `occupier`, `preserver`, `edible`, `moisture`, `stackable`, `rainimmunity`, `sheltered`, `inventory`, `container`.  
+**Tags:** `fresh`, `stale`, `spoiled` — added/removed dynamically based on spoilage percentage; also checks `frozen`, `small_livestock`, `nocool`, `lowcool`, `pocketdimension_container`, `fridge`, `foodpreserver`, `cage`, `spoiler`, `none`.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the owning entity. |
-| `perishfn` | `function` | `nil` | Callback invoked when item spoils. |
-| `frozenfiremult` | `boolean` | `false` | If `true`, applies extra decay multiplier for frozen items near fire. |
-| `perishtime` | `number` | `nil` | Total base spoilage time (seconds). Initialized via constructor parameter or `SetPerishTime`. |
-| `perishremainingtime` | `number` | `nil` | Remaining spoilage time (seconds). Updated dynamically during decay. |
-| `updatetask` | `Task` | `nil` | Periodic update task managing decay; `nil` when paused/stopped. |
-| `start_dt` | `number` | `nil` | Delay before first decay tick in `StartPerishing`. |
-| `localPerishMultiplyer` | `number` | `1` | Custom decay multiplier for mod-specific logic. |
-| `onperishreplacement` | `string` | `nil` | Prefab name to spawn on spoilage. |
+| `inst` | `Entity` | — | Reference to the entity that owns this component. |
+| `perishtime` | number | `nil` | Total spoilage time in seconds (set via `SetPerishTime`). |
+| `perishremainingtime` | number | `nil` | Remaining time until spoilage; may be fractional. |
+| `updatetask` | `Task` | `nil` | Periodic task used to advance spoilage; `nil` when paused. |
+| `localPerishMultiplyer` | number | `1` | Multiplier applied to the final spoilage rate; can be modified dynamically. |
+| `frozenfiremult` | boolean | `false` | Flag that applies additional spoilage penalty when item is frozen near fire. |
+| `onperishreplacement` | string (prefab name) | `nil` | Prefab to spawn when the item spoils. |
+| `onreplacedfn` | function | `nil` | Callback invoked after replacement is spawned (see `Perish`). |
+| `perishfn` | function | `nil` | Custom callback invoked when the item spoils. |
+| `ignorewentness` | boolean | — | Not used in code (commented out); no effect. |
 
-## Main Functions
-
-### `Update(inst, dt)`
-* **Description:** Core decay handler. Computes effective decay rate based on environment (temperature, rain), container (fridge, preserver), owner traits (spoiler, preserver), item state (wetness, frozen), and multipliers. Advances `perishremainingtime`, triggers `perishchange` events, chill-hot foods, and calls `Perish()` when expired.  
-* **Parameters:**
-  - `inst`: The entity owning the component.
-  - `dt`: Time delta; may be overridden by `start_dt` or cached `start_dt`.
-
-### `IsFresh()`
-* **Description:** Returns `true` if the entity has the `fresh` tag.
-* **Parameters:** None.
-
-### `IsStale()`
-* **Description:** Returns `true` if the entity has the `stale` tag.
-* **Parameters:** None.
-
-### `IsSpoiled()`
-* **Description:** Returns `true` if the entity has the `spoiled` tag.
-* **Parameters:** None.
-
-### `Dilute(number, timeleft)`
-* **Description:** Adjusts spoilage time for stacked items (e.g., combining partial items). Only functional if `stackable` component exists. Recalculates `perishremainingtime` as a weighted average and triggers `perishchange`.
-* **Parameters:**
-  - `number`: Stack size of the added item.
-  - `timeleft`: Remaining spoilage time of the added item.
-
-### `AddTime(time)`
-* **Description:** Adds time to `perishremainingtime`, capping at `perishtime`. Triggers `perishchange` event if the displayed percent changes.
-* **Parameters:**
-  - `time`: Seconds to add.
-
+## Main functions
 ### `SetPerishTime(time)`
-* **Description:** Sets both `perishtime` and `perishremainingtime` to `time`. Automatically restarts perishing if a task is already running.
-* **Parameters:**
-  - `time`: Total spoilage time in seconds.
-
-### `SetLocalMultiplier(newMult)`
-* **Description:** Sets `localPerishMultiplyer`, allowing mods to globally scale spoilage rate for this item.
-* **Parameters:**
-  - `newMult`: Multiplier (e.g., `0.5` for half decay rate).
-
-### `GetLocalMultiplier()`
-* **Description:** Returns current `localPerishMultiplyer`.
-* **Parameters:** None.
-
-### `SetNewMaxPerishTime(newtime)`
-* **Description:** Updates `perishtime` while preserving current spoilage percentage by recalculating `perishremainingtime`.
-* **Parameters:**
-  - `newtime`: New total spoilage time in seconds.
-
-### `SetOnPerishFn(fn)`
-* **Description:** Assigns the callback function to execute upon spoilage.
-* **Parameters:**
-  - `fn`: A function that accepts the entity (`inst`) as its sole argument.
-
-### `GetPercent()`
-* **Description:** Returns spoilage percentage (`0.0–1.0`), calculated as `perishremainingtime / perishtime`. Returns `0` if invalid.
-* **Parameters:** None.
-
-### `SetPercent(percent)`
-* **Description:** Sets `perishremainingtime` based on `perishtime` and a percentage. Clamps `percent` between `0` and `1`. Restarts perishing if active.
-* **Parameters:**
-  - `percent`: Spoilage percentage (`0.0–1.0`).
-
-### `ReducePercent(amount)`
-* **Description:** Decreases spoilage percentage by `amount`.
-* **Parameters:**
-  - `amount`: Value subtracted from current percent (e.g., `0.1` for 10% faster spoilage).
-
-### `GetDebugString()`
-* **Description:** Returns human-readable debug info (e.g., `"Perishing 120.00s"` or `"perished"`), including `frozenfiremult` status.
-* **Parameters:** None.
-
-### `LongUpdate(dt)`
-* **Description:** Handles decay during long tick intervals (e.g., world sleep). Uses `GetTaskRemaining` to preserve decay precision across tick gaps.
-* **Parameters:**
-  - `dt`: Delta time.
+* **Description:** Sets the total spoilage duration for the item and initializes remaining time. Automatically starts the spoilage timer if a task is already active.
+* **Parameters:** `time` (number) — total spoil time in seconds (e.g., `600` for 10 minutes).
+* **Returns:** Nothing.
+* **Error states:** No effect if `time <= 0`; however, the code does not enforce this explicitly.
 
 ### `StartPerishing()`
-* **Description:** Begins or restarts the spoilage decay task (`Update`). Cancels any existing task first.
+* **Description:** Begins periodic spoilage updates using a periodic task (`DoPeriodicTask`) with randomized delta to reduce synchronization artifacts.
 * **Parameters:** None.
-
-### `IsPerishing()`
-* **Description:** Returns `true` if perishing is active (i.e., `updatetask` is not `nil`).
-* **Parameters:** None.
-
-### `Perish()`
-* **Description:** Handles spoilage logic: cancels decay task, runs `perishfn`, pushes `"perished"` event, and optionally replaces the item with `onperishreplacement` prefab. Handles stack size and inventory slot preservation.
-* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `StopPerishing()`
-* **Description:** Cancels the decay task without spoiling the item (pauses spoilage).
+* **Description:** Stops the spoilage update task immediately. Useful for freezing spoilage (e.g., in freezers).
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `OnSave()`
-* **Description:** Returns serialization table with `paused` status and `perishremainingtime`. (Note: The function body currently has a `return` statement after `return {}`, making it nonfunctional—likely a typo in the source.)
+### `GetPercent()`
+* **Description:** Returns the current spoilage percentage as a value between `0` (fresh) and `1` (spoiled).
 * **Parameters:** None.
+* **Returns:** number — `0` if `perishremainingtime` or `perishtime` is invalid/unset; otherwise `perishremainingtime / perishtime`, clamped to `1`.
 
-### `OnLoad(data)`
-* **Description:** Loads saved state (`data.time`, `data.paused`) and restores perishing state accordingly.
-* **Parameters:**
-  - `data`: Table containing `time` (number) and `paused` (boolean) fields.
+### `SetPercent(percent)`
+* **Description:** Directly sets the current spoilage percentage, clamped to `[0, 1]`. Updates `perishremainingtime` and fires a `perishchange` event.
+* **Parameters:** `percent` (number) — desired spoilage percentage (`0` to `1`).
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Pushes Events:**
-  - `"forceperishchange"` — When freshness tags change (`fresh`/`stale`/`spoiled`).
-  - `"perishchange"` — When `perishremainingtime` changes enough to alter the displayed percentage (checked every ~1% via `math.floor` comparison).
-  - `"perished"` — When spoilage completes.
-- **No `inst:ListenForEvent` calls are present.**
+### `AddTime(time)`
+* **Description:** Increases remaining spoilage time without exceeding `perishtime`. Useful for refreshing perishable items (e.g., with保鲜 packs).
+* **Parameters:** `time` (number) — seconds to add to `perishremainingtime`.
+* **Returns:** Nothing.
+* **Error states:** If no update task is running (`updatetask == nil`), this function does nothing.
+
+### `ReducePercent(amount)`
+* **Description:** Decreases the spoilage percentage by the specified amount (e.g., `0.2` for 20%).
+* **Parameters:** `amount` (number) — amount to subtract from current percent (`0` to `1`).
+* **Returns:** Nothing.
+* **Error states:** No explicit clamping on underflow; setting negative percent may occur.
+
+### `SetLocalMultiplier(newMult)`
+* **Description:** Sets a per-instance modifier to the spoilage rate (e.g., `0.5` to halve spoilage). Applied *after* all other modifiers.
+* **Parameters:** `newMult` (number) — scalar multiplier.
+* **Returns:** Nothing.
+
+### `GetLocalMultiplier()`
+* **Description:** Returns the current per-instance multiplier.
+* **Parameters:** None.
+* **Returns:** number — the `localPerishMultiplyer` value.
+
+### `SetNewMaxPerishTime(newtime)`
+* **Description:** Rescales the spoilage time while preserving current spoilage percentage (i.e., remaining time is recomputed).
+* **Parameters:** `newtime` (number) — new total spoilage time in seconds.
+* **Returns:** Nothing.
+
+### `SetOnPerishFn(fn)`
+* **Description:** Registers a callback function to be invoked when the item spoils.
+* **Parameters:** `fn` (function) — function taking `inst` as its only argument.
+* **Returns:** Nothing.
+
+### `Dilute(number, timeleft)`
+* **Description:** Adjusts remaining spoilage time when items are stacked (e.g., mixing fresh and stale food). Computed as a weighted average across the stack.
+* **Parameters:**  
+  `number` (number) — number of additional items being added.  
+  `timeleft` (number) — spoilage time of the added items.
+* **Returns:** Nothing.
+* **Error states:** Only functions if `stackable` component exists. Updates `perishremainingtime` and fires `perishchange`.
+
+### `Perish()`
+* **Description:** Handles the complete spoilage event: cancels the update task, invokes `perishfn`, fires `perished` event, and spawns `onperishreplacement` if set. Moves the replacement into the same inventory slot if the original item was in a container.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `IsFresh()`, `IsStale()`, `IsSpoiled()`
+* **Description:** Simple tag-checking helpers to determine current spoilage state.
+* **Parameters:** None.
+* **Returns:** boolean — `true` if the corresponding tag is present.
+
+### `GetDebugString()`
+* **Description:** Returns a human-readable status string for debugging (e.g., `"Perishing 12.34s"` or `"Paused 0.00s frozenfiremult"`).
+* **Parameters:** None.
+* **Returns:** string — formatted status.
+
+### `OnSave()`, `OnLoad(data)`
+* **Description:** Handles serialization and deserialization for save/load. Stores `paused` state and `perishremainingtime`.
+* **Parameters:**  
+  `data` (table) — table containing `paused` and `time` fields.
+* **Returns (OnSave):** `{ paused = bool, time = number }`
+
+## Events & listeners
+- **Listens to:** None — the component does not register any event listeners itself. Update logic is driven by `Update()` being called periodically via `DoPeriodicTask`.
+- **Pushes:**
+  - `perishchange` — fired whenever `perishremainingtime` crosses a hundredth (0.01) threshold, or `SetPercent`/`Dilute`/`AddTime` are called. Payload: `{ percent = number }`.
+  - `forceperishchange` — fired when tag state changes (`fresh`, `stale`, `spoiled`). No payload.
+  - `perished` — fired when the item spoils.
+  - `stacksizechange` — indirectly via `stackable:SetStackSize()` during replacement.

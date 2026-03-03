@@ -1,92 +1,67 @@
 ---
 id: shadowcreaturespawner
 title: Shadowcreaturespawner
-description: Manages the spawning, tracking, and population control of sanity-based shadow creatures (e.g., Crawling Horrors, Ocean Horrors, Terrorbeaks) for each player in the game world.
+description: Manages the spawning, tracking, and population control of shadow creatures (e.g., Crawling Horrors, Ocean Horrors, Terrorbeaks) for players based on sanity levels and game mode.
+tags: [sanity, spawning, environment, player]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 43493884
+system_scope: environment
 ---
 
 # Shadowcreaturespawner
 
-## Overview
-This component is responsible for dynamically managing the population of shadow creatures (such as Crawling Horrors, Ocean Horrors, and Terrorbeaks) that spawn in response to a player’s sanity level and state (e.g., induced insanity). It operates exclusively on the server (master) side and tracks one or more shadow creatures per player, adjusting their numbers over time based on sanity thresholds and game tuning values. It also handles the replacement of shadow creatures when they are exchanged (e.g., via mod interactions), and ensures creatures are removed appropriately when the player goes to sleep or logs out.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component依赖**: None explicitly added or removed by this component itself. However, it relies on the presence of the following components on the `player` entity:
-  - `sanity`
-  - `walkableplatform` (for boat radius calculations)
-- **Tag依赖**: 
-  - Checks for `"boat"` tag on the player’s current platform.
-- **World systems**:
-  - Uses `TheWorld.Map:IsOceanAtPoint()` and `IsPassableAtPoint()`.
-- **Network scope**: Explicitly asserts `TheWorld.ismastersim`; will not initialize on clients.
+## Overview
+`Shadowcreaturespawner` is a server-side-only component responsible for dynamically managing shadow creature populations in response to player sanity and game state. It spawns creatures when a player enters or approaches low-sanity thresholds and adjusts population size continuously based on sanity degradation, induced lunacy modes, and terrain constraints. It interacts closely with the `sanity` component to determine appropriate spawn behavior and with `walkableplatform` (for boats) to ensure valid spawn locations.
+
+## Usage example
+This component is automatically added to the world entity (not player entities) during world initialization and requires no manual instantiation. Its behavior is triggered through internal event listeners.
+
+```lua
+-- Example: Observing debug output for current shadow creature count
+-- (Only possible if you have access to the world's shadowcreaturespawner component)
+if TheWorld.components.shadowcreaturespawner then
+    print(TheWorld.components.shadowcreaturespawner:GetDebugString())
+end
+```
+
+## Dependencies & tags
+**Components used:** `sanity`, `walkableplatform`
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `self` instance passed to constructor | Reference to the spawner’s owner entity (typically the world root). |
-| `_players` | `table` | Empty `{}` table | Internal dictionary mapping `player` → `params`, where `params` holds per-player state: `{ents = {}, targetpop = 0, spawntask = ..., poptask = ...}`. |
-| `_failed_ocean_spawn_attempts` | `number` | `0` | Counter tracking consecutive failed ocean spawn attempts (max `OCEAN_SPAWN_ATTEMPTS = 4` before falling back to land spawn). |
-| `NON_INSANITY_MODE_DESPAWN_INTERVAL` | `number` | `0.1` | Interval for population update tasks when *not* in induced-insanity mode. |
-| `NON_INSANITY_MODE_DESPAWN_VARIANCE` | `number` | `0.1` | Random variance added to non-insanity mode update interval. |
-| `OCEAN_SPAWN_ATTEMPTS` | `number` | `4` | Max consecutive failed ocean spawns before attempting a land spawn. |
+| `inst` | `Entity` | `nil` | The entity instance that owns this component (the world). |
 
-> Note: No public `self.*` properties beyond `inst` and `_failed_ocean_spawn_attempts` are directly exposed; most state is held in the private `_players` table.
-
-## Main Functions
-
-### `self:SpawnShadowCreature(player, params)`
-* **Description:** Attempts to spawn a single shadow creature near the given player, choosing between land-based (`CrawlingHorror`, `Terrorbeak`) or ocean-based (`OceanHorror`) depending on the player’s sanity, platform (boat), and world geometry. On boats in induced-insanity mode, it prioritizes ocean spawns. If ocean spawns repeatedly fail, it falls back to land spawns near the boat. Otherwise, spawns near the player on passable ground.
-* **Parameters:**
-  - `player` (`Entity`): The player for whom to spawn the creature.
-  - `params` (`table`, optional): The player’s spawner state table (from `_players`). If omitted, looks up via `player`.
-
-### `UpdateSpawn(player, params)`
-* **Description:** Main loop that maintains the target population (`params.targetpop`) by either spawning new creatures or removing excess ones. Schedules itself to run again if the target hasn’t been reached or exceeded.
-* **Parameters:**
-  - `player` (`Entity`)
-  - `params` (`table`): Player’s spawner state.
-
-### `UpdatePopulation(player, params)`
-* **Description:** Computes the new target population for the player based on current sanity, sanity mode (normal vs induced), and tuning tables. Updates `params.targetpop` if changed and reschedules `UpdateSpawn`. Also reschedules itself for the next population update.
-* **Parameters:**
-  - `player` (`Entity`)
-  - `params` (`table`): Player’s spawner state.
-
-### `Start(player, params)`
-* **Description:** Ensures the population update task (`poptask`) is running (if not already).
-* **Parameters:**
-  - `player` (`Entity`)
-  - `params` (`table`)
-
-### `Stop(player, params)`
-* **Description:** Cancels both the population update task (`poptask`) and the spawn task (`spawntask`), halting all creature management for the player.
-* **Parameters:**
-  - `player` (`Entity`)
-  - `params` (`table`)
+## Main functions
+### `SpawnShadowCreature(player, params)`
+* **Description:** Spawns a single shadow creature near the specified player, choosing between land (`crawlinghorror` / `terrorbeak`) or ocean (`oceanhorror`) variants based on proximity to a boat, sanity level, and terrain validity. Updates internal tracking tables and registers cleanup listeners on the spawned entity.
+* **Parameters:** 
+  - `player` (`Entity`) — The player for whom to spawn the creature.
+  - `params` (`table?`) — Optional player-specific tracking table. If omitted, looks up `_players[player]`.
+* **Returns:** `nil`.
+* **Error states:** No explicit error handling — invalid spawn positions or missing components (e.g., `walkableplatform` on a boat) are gracefully ignored or fall back to alternate behavior.
 
 ### `GetDebugString()`
-* **Description:** Returns a human-readable string summarizing the total number of active shadow creatures across all players (e.g., `"3 shadowcreatures"`).
+* **Description:** Returns a human-readable string indicating the total number of active shadow creatures spawned for all players.
 * **Parameters:** None.
+* **Returns:** `string` — `"1 shadowcreature"` or `"<N> shadowcreatures"` if creatures exist; empty string otherwise.
 
-## Events & Listeners
-- **Listens for events on the spawner’s `inst` (world root):**
-  - `"ms_playerjoined"` → calls `OnPlayerJoined`
-  - `"ms_playerleft"` → calls `OnPlayerLeft`
-  - `"ms_exchangeshadowcreature"` → calls `OnExchangeShadowCreature`
+## Events & listeners
+- **Listens to:**
+  - `ms_playerjoined` — Registers new players to begin tracking.
+  - `ms_playerleft` — Stops tracking and cleans up for exiting players.
+  - `inducedinsanity` — Resets player-specific spawner timers when induced insanity begins or ends.
+  - `sanitymodechanged` — Re-initializes population tracking when sanity mode changes.
+  - `ms_exchangeshadowcreature` — Re-tracks a creature after exchange (e.g., via Abigail’s ability).
+  - `onremove` (on spawned creatures and players) — Removes creatures from tracking and marks them for deserialization.
+  - `entitysleep` (on spawned creatures) — Immediately removes creatures when player sleeps.
 
-- **Listens for events per player:**
-  - `"inducedinsanity"` → calls `OnInducedInsanity`
-  - `"sanitymodechanged"` → calls `OnInducedInsanity`
-  - `"onremove"` → triggers `StopTracking` for that creature (only if `inst.spawnedforplayer == player`)
-  - `"entitysleep"` → removes the creature after `0s` delay
-  - `"onremove"` on the player → marks spawned creature as `wantstodespawn = true`, sets `persists = false`, and clears `spawnedforplayer` reference
-
-- **No events are explicitly pushed** by this component; it relies on existing game events and internal task callbacks.
+- **Pushes:** None identified.

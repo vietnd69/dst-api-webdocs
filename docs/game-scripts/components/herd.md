@@ -1,139 +1,159 @@
 ---
 id: herd
 title: Herd
-description: Manages a group of herd-member entities, handling membership, flocking behavior, gathering, and merging logic for dynamic group dynamics.
+description: Manages a group of herd members (e.g., beefalo) around a central entity, handling membership, gathering, merging, position updates, and persistence.
+tags: [herd, group, entity, movement]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 6412205e
+system_scope: entity
 ---
 
 # Herd
 
-## Overview
-The `Herd` component manages a dynamic collection of entities marked as herd members (e.g., beefalo, penguins), enforcing size limits, automatically gathering nearby eligible members, merging with compatible smaller herds, and updating the herd's position based on its members' locations. It integrates with components like `health`, `knownlocations`, and `herdmember`, and persists membership across saves.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components used:** `health`, `knownlocations`, `herdmember`, `combat`, `transform`
-- **Tags added:** `"herd"` (via `HERD_TAGS`)
-- **Tag requirements for members:** `"herdmember"` and optionally a custom tag set via `SetMemberTag`
+## Overview
+`Herd` manages a dynamic group of entities (called "members") centered on a host entity, such as a beefalo herd lead. It supports adding/removing members based on proximity and tags, merging with other herds, updating the host entity's position to follow members, and persisting members across save/load cycles. It relies on `health` to avoid dead members, `knownlocations` to share herd position with members, and `herdmember` to establish bidirectional membership links. The component operates via a periodic task (approx. every 2–8 seconds) and integrates with `combat` and `knownlocations` for context-aware behavior.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("herd")
+inst.components.herd:SetMemberTag("beefalo")
+inst.components.herd:SetGatherRange(15)
+inst.components.herd:SetMaxSize(6)
+inst.components.herd:SetOnFullFn(function() print("Herd is full!") end)
+inst.components.herd:OnUpdate() -- trigger gathering/merging immediately
+```
+
+## Dependencies & tags
+**Components used:** `health`, `knownlocations`, `herdmember`, `combat`.  
+**Tags:** Adds `herd` to host entity internally; uses `herdmember` and optional `membertag` on members; checks `debuffed`, `herd`, and custom `membertag`.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity this component is attached to (the herd leader). |
-| `maxsize` | `number` | `12` | Maximum number of members allowed in this herd. |
-| `members` | `table` | `{}` | Dictionary mapping member entities (keys) to `true`. |
-| `membercount` | `number` | `0` | Current number of members in the herd. |
-| `membertag` | `string?` | `nil` | Optional tag required for a member to be accepted (e.g., `"beefalo"`). |
-| `membersearchtags` | `table?` | `nil` | Tags used in entity searches; set to `{"herdmember", membertag}` if `membertag` is non-nil. |
-| `gatherrange` | `number?` | `nil` | Radius around the herd leader to scan for new members. |
-| `updaterange` | `number?` | `nil` | Radius within which members influence the herd leader's position update. |
-| `onempty` | `function?` | `nil` | Callback triggered when the herd becomes empty. |
-| `onfull` | `function?` | `nil` | Callback triggered when the herd reaches `maxsize`. |
-| `addmember` | `function?` | `nil` | Callback triggered on successful member addition. |
-| `removemember` | `function?` | `nil` | Callback triggered on member removal. |
-| `updatepos` | `boolean` | `true` | Whether to update the herd leader’s position based on members. |
-| `updateposincombat` | `boolean` | `false` | Whether to include members in combat for position averaging. |
-| `task` | `Timer` | — | Periodic update task scheduled at launch (random delay 6–8 seconds). |
-| `nomerging` | `boolean?` | `nil` | (Commented-out) Optional flag to disable herd merging. |
+| `inst` | `Entity` | — | The entity that owns the herd. |
+| `maxsize` | number | `12` | Maximum number of members allowed in the herd. |
+| `members` | table | `{}` | Map of member entities to `true`. |
+| `membercount` | number | `0` | Current number of members. |
+| `membertag` | string or `nil` | `nil` | Optional tag required for membership (e.g., `"beefalo"`). |
+| `membersearchtags` | table or `nil` | `nil` | Tags used in `TheSim:FindEntities(...)`, set by `SetMemberTag`. |
+| `gatherrange` | number or `nil` | `nil` | Radius around host to scan for new members. |
+| `updaterange` | number or `nil` | `nil` | Radius within which members contribute to host position update. |
+| `onempty` | function or `nil` | `nil` | Callback fired when herd becomes empty. |
+| `onfull` | function or `nil` | `nil` | Callback fired when herd reaches `maxsize`. |
+| `addmember` | function or `nil` | `nil` | Callback fired when a member is added. |
+| `removemember` | function or `nil` | `nil` | Callback fired when a member is removed. |
+| `updatepos` | boolean | `true` | Whether host position updates based on members. |
+| `updateposincombat` | boolean | `false` | Whether host updates position even if a member is in combat. |
+| `nomerging` | boolean | *not initialized* | Commented-out in source; not used. |
+| `task` | `DoTaskInTime` | — | Periodic task used for `OnUpdate`. |
 
-## Main Functions
-
+## Main functions
 ### `SetMemberTag(tag)`
-* **Description:** Sets the required tag for members; updates `membersearchtags` for entity searches. Set to `nil` to remove tag requirement.
-* **Parameters:**  
-  `tag` (`string?`) — Optional tag string (e.g., `"beefalo"`).
+*   **Description:** Sets the optional tag members must have to join this herd, and configures `membersearchtags` accordingly.
+*   **Parameters:** `tag` (string or `nil`) — e.g., `"beefalo"`. If `nil`, `membersearchtags` is cleared.
+*   **Returns:** Nothing.
 
 ### `SetGatherRange(range)`
-* **Description:** Configures the radius around the herd leader within which new members are gathered.
-* **Parameters:**  
-  `range` (`number`) — Search radius in world units.
+*   **Description:** Sets the radius around the host entity within which to search for new members during `GatherNearbyMembers`.
+*   **Parameters:** `range` (number) — distance in game units.
+*   **Returns:** Nothing.
 
 ### `SetUpdateRange(range)`
-* **Description:** Configures the radius within which member positions contribute to updating the herd leader’s location.
-* **Parameters:**  
-  `range` (`number`) — Update radius in world units.
+*   **Description:** Sets the radius within which alive, non-hostile members affect the host's position update.
+*   **Parameters:** `range` (number) — distance in game units.
+*   **Returns:** Nothing.
 
 ### `SetMaxSize(size)`
-* **Description:** Updates the maximum number of members allowed in the herd.
-* **Parameters:**  
-  `size` (`number`) — New maximum herd size.
+*   **Description:** Sets the maximum number of members allowed in the herd.
+*   **Parameters:** `size` (number) — positive integer.
+*   **Returns:** Nothing.
 
 ### `SetOnEmptyFn(fn)`
-* **Description:** Sets the callback function executed when the herd becomes empty.
-* **Parameters:**  
-  `fn` (`function`) — Function taking the herd leader entity as argument.
+*   **Description:** Registers a callback that fires when the herd becomes empty (i.e., `membercount == 0`).
+*   **Parameters:** `fn` (function) — signature `fn(hostInst)`.
+*   **Returns:** Nothing.
 
 ### `SetOnFullFn(fn)`
-* **Description:** Sets the callback function executed when the herd reaches capacity.
-* **Parameters:**  
-  `fn` (`function`) — Function taking the herd leader entity as argument.
+*   **Description:** Registers a callback that fires when the herd reaches `maxsize`.
+*   **Parameters:** `fn` (function) — signature `fn(hostInst)`.
+*   **Returns:** Nothing.
 
 ### `SetAddMemberFn(fn)`
-* **Description:** Sets a custom callback invoked when a member is added.
-* **Parameters:**  
-  `fn` (`function`) — Function `(herdLeader, member)`.
+*   **Description:** Registers a callback that fires whenever a member is successfully added.
+*   **Parameters:** `fn` (function) — signature `fn(hostInst, memberInst)`.
+*   **Returns:** Nothing.
 
 ### `SetRemoveMemberFn(fn)`
-* **Description:** Sets a custom callback invoked when a member is removed.
-* **Parameters:**  
-  `fn` (`function`) — Function `(herdLeader, member)`.
+*   **Description:** Registers a callback that fires whenever a member is successfully removed.
+*   **Parameters:** `fn` (function) — signature `fn(hostInst, memberInst)`.
+*   **Returns:** Nothing.
 
 ### `IsFull()`
-* **Description:** Returns whether the herd has reached its maximum capacity.
-* **Parameters:** None.  
-* **Returns:** `boolean` — `true` if `membercount >= maxsize`.
+*   **Description:** Returns whether the herd has reached its maximum size.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if `membercount >= maxsize`, otherwise `false`.
 
 ### `AddMember(inst)`
-* **Description:** Adds an entity to the herd if not already present; registers listeners, updates `knownlocations` and `herdmember`, and triggers callbacks. Ensures `membercount` matches actual size.
-* **Parameters:**  
-  `inst` (`Entity`) — The entity to add as a member.
+*   **Description:** Adds an entity as a member if it is not already a member, and updates associated state (listeners, `knownlocations`, `herdmember`, callbacks).
+*   **Parameters:** `inst` (`Entity`) — the member entity to add.
+*   **Returns:** Nothing.
+*   **Error states:** Silently ignores if `inst` is already in `members`. Does not check `maxsize` (assertion commented out), so overflows are possible but non-fatal.
 
 ### `RemoveMember(inst)`
-* **Description:** Removes an entity from the herd; cleans up listeners, clears location memory, updates `herdmember`, and triggers callbacks. Fires `onempty` if the herd becomes empty.
-* **Parameters:**  
-  `inst` (`Entity`) — The member entity to remove.
+*   **Description:** Removes a member from the herd, cleans up listeners, resets position tracking in `knownlocations`, unsets `herdmember`, and fires removal callbacks.
+*   **Parameters:** `inst` (`Entity`) — the member entity to remove.
+*   **Returns:** Nothing.
+*   **Error states:** Silently ignores if `inst` is not in `members`.
 
 ### `GatherNearbyMembers()`
-* **Description:** Scans for eligible herd members within `gatherrange`, checks tag and status requirements, and adds up to capacity.
-* **Parameters:** None.  
-* **Eligibility checks:** Must be tagged `"herdmember"` (and optionally `membertag`), not already in a herd, not dead, and not currently assigned to another herd.
+*   **Description:** Scans the area around the host (within `gatherrange`) for eligible members (tagged, alive, not already in a herd), and adds them up to capacity.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if `gatherrange` is `nil` or the herd is full. Skips members that already have `"herd"` in `knownlocations`, preventing cross-herd assignment.
 
 ### `MergeNearbyHerds()`
-* **Description:** Finds and absorbs small, compatible herds (same `membertag`, `<4 members`) within `gatherrange`, merging their members and deleting the merged herd.
-* **Parameters:** None.  
-* **Constraints:** Requires `gatherrange` set, herd not full, `nomerging` not enabled, and merged herd size ≤ `maxsize`.
+*   **Description:** Attempts to merge small, nearby herds (same `membertag`, `<4` members, combined size ≤ `maxsize`) into this herd, then deletes the source herd entity.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if `nomerging` is truthy, `gatherrange` is `nil`, or the herd is full. Skips non-conforming herds or invalid entities.
 
 ### `OnUpdate()`
-* **Description:** Core update logic run periodically: gathers members, merges nearby herds, and updates herd leader position (if `updatepos` is enabled and members exist).
-* **Parameters:** None.  
-* **Position update behavior:** Averages positions of members in `updaterange`, excluding those in combat unless `updateposincombat` is true. Supports a custom `updateposfn` override.
+*   **Description:** The periodic update handler that runs `GatherNearbyMembers`, `MergeNearbyHerds`, and position updates for the host based on member locations. Also syncs herd position to members via `knownlocations`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Details:** Filters members by tag, `health:IsDead()`, and `combat.target`; computes average position of valid members; updates host position; and informs members of current herd location. Removes invalid members (missing `herdmember` or wrong tag).
 
-### `GetDebugString()`
-* **Description:** Returns a formatted string with herd state for debugging (member counts, range, and nearby tagged entities).
-* **Parameters:** None.  
-* **Returns:** `string` — Debug data.
+### `OnRemoveFromEntity()`
+*   **Description:** Called when component is removed from an entity (e.g., via `OnRemoveComponent`). Cancels the update task and removes listeners from all members.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `OnRemoveFromEntity()` / `OnRemoveEntity()`
-* **Description:** Cleans up the component on removal: cancels the update task and removes listeners from all members.
-* **Parameters:** None.
+### `OnRemoveEntity()`
+*   **Description:** Called when the host entity is being removed from the world. Removes all members from the herd.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Serializes the herd’s member list by GUID for saving.
-* **Parameters:** None.  
-* **Returns:** `table` — Contains `members = { GUID, ... }`.
+*   **Description:** Saves the herd state (list of member GUIDs) for persistence.
+*   **Parameters:** None.
+*   **Returns:** `{ members = { GUID1, GUID2, ... } }`, and returns the members list as second return value (used by DST's save system).
+*   **Error states:** Returns empty table if no members.
 
 ### `LoadPostPass(newents, savedata)`
-* **Description:** Reconstructs member references after world load using saved GUIDs.
-* **Parameters:**  
-  `newents` (`table`) — Mapping of GUIDs to loaded entities.  
-  `savedata` (`table`) — Saved data (specifically `savedata.members`).
+*   **Description:** Restores members after a save/load, mapping saved GUIDs to entity instances in `newents`.
+*   **Parameters:**  
+    `newents` (table) — GUID → `{ GUID, entity }` lookup table.  
+    `savedata.members` (table) — list of member GUIDs from `OnSave`.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens for `"onremove"` and `"death"` events on each member**, triggering `RemoveMember`.
-- **Triggers events via callbacks** (`onempty`, `onfull`, `addmember`, `removemember`) but does *not* push global events.
+## Events & listeners
+- **Listens to:** `onremove`, `death` — attached per member to call `RemoveMember` when a member leaves or dies.  
+- **Pushes:** None directly; relies on callbacks (`onempty`, `onfull`, `addmember`, `removemember`) to notify external logic.

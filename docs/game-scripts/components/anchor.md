@@ -1,123 +1,154 @@
 ---
 id: anchor
 title: Anchor
-description: Controls the state, physics interaction, and player-driven raising or lowering of a boat anchor.
+description: Manages the raising and lowering state of an anchor attached to a boat, handling drag physics, animation timing, and multiplayer coordination via sailor tasks.
+tags: [physics, locomotion, multiplayer, boat, animation]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 7bb501ef
+system_scope: physics
 ---
 
-# anchor
+# Anchor
+
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The `anchor` component is responsible for managing the state and behavior of an anchor entity in Don't Starve Together. It tracks whether the anchor is raised, lowered, or in a transition state (raising/lowering). It handles player interaction for raising the anchor, integrates with boat physics to apply drag, and manages visual feedback through entity tags and animation speed.
+`Anchor` governs the operational state of an anchor entity — specifically whether it is raised, lowered, or transitioning — and interacts with boat physics to apply drag when lowered. It tracks how many sailors are raising the anchor, computes raise/lower speeds using `ExpertSailor` modifiers, and coordinates state transitions via `StateGraph` events. The component also synchronizes state during saves/load and updates entity animation speed dynamically during transitions.
 
-## Dependencies & Tags
-This component relies on other components on its associated boat entity and potentially on player entities interacting with it.
+It is typically added to anchor prefabs (e.g., `anchor`) and depends on the anchor being attached to a boat entity via `GetCurrentPlatform()`. It listens to boat movement events and updates the anchor state accordingly.
 
-*   **Component Dependencies:**
-    *   `boat.components.boatphysics`: Required on the associated boat to add/remove drag based on anchor state.
-    *   `doer.components.expertsailor`: Optional on a player (`doer`) interacting with the anchor to modify raising speed.
-*   **Tags Added/Removed:**
-    *   `anchor_raised`: Added when the anchor is fully raised.
-    *   `anchor_lowered`: Added when the anchor is fully lowered.
-    *   `anchor_transitioning`: Added when the anchor is in the process of raising or lowering.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("anchor")
+
+-- Optionally set velocity modifier (used internally, not commonly called externally)
+inst.components.anchor:SetVelocityMod(0.5)
+
+-- Trigger raising or lowering logic (usually invoked viaStateGraph or actions)
+inst.components.anchor:StartRaisingAnchor()
+inst.components.anchor:StartLoweringAnchor()
+
+-- Add/remove sailor参与raising (often triggered by player action)
+inst.components.anchor:AddAnchorRaiser(player)
+inst.components.anchor:RemoveAnchorRaiser(player)
+```
+
+## Dependencies & tags
+**Components used:** `boatphysics`, `expertsailor`
+**Tags:** Adds/Removes `anchor_raised`, `anchor_lowered`, `anchor_transitioning`, `burnt`; checks `burnt`, `master_crewman`.
 
 ## Properties
-| Property            | Type      | Default Value | Description                                                                                             |
-| :------------------ | :-------- | :------------ | :------------------------------------------------------------------------------------------------------ |
-| `self.inst`         | `Entity`  | `inst`        | A reference to the entity this component is attached to.                                                |
-| `self.is_anchor_lowered` | `boolean` | `false`       | True if the anchor is fully lowered, false otherwise. This property has an `on_is_anchor_lowered` setter callback. |
-| `self.raisers`      | `table`   | `{}`          | A table mapping `doer` entities (players) to their individual anchor raising speed multipliers.         |
-| `self.numberofraisers` | `number`  | `0`           | The current number of entities actively raising the anchor.                                             |
-| `self.raiseunits`   | `number`  | `0`           | Represents the anchor's current "raisedness". `0` means fully raised, higher values mean more lowered (up to `GetCurrentDepth()`). This is saved/loaded. |
-| `self.currentraiseunits` | `number`  | `0`           | The combined raising speed (units per second) from all current `raisers`.                               |
-| `self.autolowerunits` | `number`  | `3`           | The speed (units per second) at which the anchor automatically lowers itself when no players are raising it. |
-| `self.is_boat_moving` | `boolean` | `false`       | True if the associated boat is currently moving. This property has an `on_is_boat_moving` setter callback. |
-| `self.boat`         | `Entity`  | `nil`         | A reference to the boat entity this anchor is associated with.                                          |
-| `self.is_anchor_transitioning` | `boolean` | `nil`         | True if the anchor is currently in the process of raising or lowering. This property has an `on_is_anchor_transitioning` setter callback. |
-| `self.max_velocity_mod` | `number` | `nil`         | A multiplier for the boat's maximum velocity when the anchor is interacting with it. Set by `SetVelocityMod`. |
-| `self.rasing`       | `boolean` | `nil`         | True if there are any `raisers` currently trying to raise the anchor.                                   |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `is_anchor_lowered` | boolean | `false` | Whether the anchor is fully lowered. |
+| `raisers` | table | `{}` | Map of raiser (e.g., player) → raise speed (units/sec). |
+| `numberofraisers` | number | `0` | Count of active raisers. |
+| `raiseunits` | number | `0` | Current progress (in units) of raising; `0` = fully lowered, `>= depth` = fully raised. |
+| `currentraiseunits` | number | `0` | Sum of active raiser speeds (units/sec). |
+| `autolowerunits` | number | `3` | Speed at which the anchor auto-lowers when no raisers are present (units/sec). |
+| `is_boat_moving` | boolean | `false` | Cached value of `boat.components.boatphysics.was_moving`. |
+| `boat` | entity or `nil` | `nil` | Reference to the boat the anchor is attached to. |
+| `max_velocity_mod` | number | `nil` | Velocity modifier applied during transitions (rarely used externally). |
 
-## Main Functions
+## Main functions
+### `SetBoat(boat)`
+* **Description:** Assigns or replaces the boat this anchor is attached to. Registers or removes event callbacks on the boat for movement and removal.
+* **Parameters:** `boat` (entity or `nil`) — the boat entity or `nil` to detach.
+* **Returns:** Nothing.
+* **Error states:** Safe to call multiple times; previous boat references are properly cleaned up.
 
-### `Anchor:SetBoat(boat)`
-*   **Description:** Associates this anchor component with a specific boat entity. It detaches from any previously associated boat and attaches to the new one, setting up event listeners for boat movement. This function is typically called internally during initialization or loading.
-*   **Parameters:**
-    *   `boat`: (`Entity`) The boat entity to associate with this anchor. Can be `nil` to de-associate.
+### `SetVelocityMod(set)`
+* **Description:** Sets an optional velocity modifier (not used in core logic).
+* **Parameters:** `set` (number) — multiplier for velocity.
+* **Returns:** Nothing.
 
-### `Anchor:OnSave()`
-*   **Description:** Returns the data that needs to be saved for this component.
-*   **Parameters:** None.
+### `GetCurrentDepth()`
+* **Description:** Returns the anchor depth threshold (in units) required to transition from lowered to raised state, based on tile ocean depth.
+* **Parameters:** None.
+* **Returns:** number — depth threshold (e.g., `0.1`, `0.5`, `1.0`) from `TUNING.ANCHOR_DEPTH_TIMES`.
+* **Error states:** Returns `0.1` if no boat is attached, or if tile data is unavailable.
 
-### `Anchor:GetCurrentDepth()`
-*   **Description:** Calculates the maximum depth the anchor can reach at its current world position, based on the `ocean_depth` of the tile.
-*   **Parameters:** None.
+### `SetIsAnchorLowered(is_lowered)`
+* **Description:** Directly sets the anchor's lowered state and updates `boatphysics` drag attachments accordingly.
+* **Parameters:** `is_lowered` (boolean) — whether to mark the anchor as lowered.
+* **Returns:** Nothing.
 
-### `Anchor:OnLoad(data)`
-*   **Description:** Loads saved data into the component's properties.
-*   **Parameters:**
-    *   `data`: (`table`) A table containing the saved data, expected to have `raiseunits`.
+### `StartRaisingAnchor()`
+* **Description:** Begins raising the anchor if not burnt or already raised. Pushes `"raising_anchor"` event.
+* **Parameters:** None.
+* **Returns:** `true` if starting the raise succeeded, `false` if anchor was burnt or raised.
+* **Error states:** Returns `false` if `inst:HasTag("burnt")` or `inst:HasTag("anchor_raised")`.
 
-### `Anchor:LoadPostPass()`
-*   **Description:** Performs initialization steps after the entity and its components have been loaded. This includes re-associating with its platform (boat) and setting the initial state of the anchor (raised, lowered, or lowering) based on its saved `raiseunits` and the current `GetCurrentDepth()`.
-*   **Parameters:** None.
+### `StartLoweringAnchor()`
+* **Description:** Begins lowering the anchor if not burnt or already lowered; starts transition if not already in transition.
+* **Parameters:** None.
+* **Returns:** `true` if starting the lower succeeded, `false` if already lowering or burnt/lowered.
+* **Error states:** Returns `false` if anchor is burnt or already fully lowered/transitioning.
 
-### `Anchor:SetIsAnchorLowered(is_lowered)`
-*   **Description:** Sets the `is_anchor_lowered` state and updates the associated boat's `boatphysics` component to add or remove drag.
-*   **Parameters:**
-    *   `is_lowered`: (`boolean`) `true` to lower the anchor and apply drag, `false` to raise it and remove drag.
+### `AddAnchorRaiser(doer)`
+* **Description:** Registers a raiser (e.g., player) and updates raise speed. Starts transition if needed. Uses `ExpertSailor.GetAnchorRaisingSpeed()` and `MASTER_CREWMAN_MULT` bonus.
+* **Parameters:** `doer` (entity) — the entity raising the anchor (e.g., a player).
+* **Returns:** `true` if raiser was added (even if already registered), `false` if burnt.
+* **Error states:** Ignored if `inst:HasTag("burnt")`.
 
-### `Anchor:StartRaisingAnchor()`
-*   **Description:** Initiates the anchor raising process if it's not burnt or already raised. It pushes the `"raising_anchor"` event.
-*   **Parameters:** None.
+### `RemoveAnchorRaiser(doer)`
+* **Description:** Removes a raiser and updates the cumulative raise speed. If no raisers remain and a lowering transition was active, pushes `"lowering_anchor"`.
+* **Parameters:** `doer` (entity) — the raiser to remove.
+* **Returns:** Nothing.
 
-### `Anchor:StartLoweringAnchor()`
-*   **Description:** Initiates the anchor lowering process if it's not burnt or already lowered. It sets `is_anchor_transitioning` to true, adds the `"anchor_transitioning"` tag, and pushes the `"lowering_anchor"` event.
-*   **Parameters:** None.
+### `AnchorRaised()`
+* **Description:** Finalizes a successful raise: clears transition tag, resets animation speed multiplier, cancels all raisers, and pushes `"anchor_raised"`.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `Anchor:AddAnchorRaiser(doer)`
-*   **Description:** Adds a `doer` (typically a player) to the list of entities actively raising the anchor. It calculates the `doer`'s individual raising speed based on `expertsailor` component and `master_crewman` tag, and updates the total `currentraiseunits`.
-*   **Parameters:**
-    *   `doer`: (`Entity`) The entity attempting to raise the anchor.
+### `AnchorLowered()`
+* **Description:** Finalizes a successful lower: clears transition tag and resets animation speed; pushes `"anchor_lowered"`.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `Anchor:RemoveAnchorRaiser(doer)`
-*   **Description:** Removes a `doer` from the list of entities actively raising the anchor. It reduces `currentraiseunits` and pushes the `"stopraisinganchor"` event on the `doer`. If no raisers remain, it may trigger the anchor to start lowering.
-*   **Parameters:**
-    *   `doer`: (`Entity`) The entity to remove from the raisers list.
+### `OnUpdate(dt)`
+* **Description:** Called each frame during transition (`is_anchor_transitioning == true`) to advance raise/lower progress. Updates animation speed multiplier based on `numberofraisers`.
+* **Parameters:** `dt` (number) — elapsed time in seconds since last frame.
+* **Returns:** Nothing.
+* **Behavior:**
+  - While raising: decreases `raiseunits` by `dt * currentraiseunits`.
+  - While lowering with no raisers: increases `raiseunits` by `dt * autolowerunits`.
+  - Anim multiplier = `0.2 + (numberofraisers * 0.3)` when raisers present, else `1.0`.
+  - Triggers `AnchorRaised()` or `AnchorLowered()` when thresholds crossed.
 
-### `Anchor:AnchorRaised()`
-*   **Description:** Finalizes the state when the anchor becomes fully raised. It clears `is_anchor_transitioning`, resets animation speed, removes the `"anchor_transitioning"` tag, removes all current raisers, and pushes the `"anchor_raised"` event.
-*   **Parameters:** None.
+### `GetDebugString()`
+* **Description:** Returns a multi-line debug string with current boat, raiser count, raise progress, and depth.
+* **Parameters:** None.
+* **Returns:** string — formatted debug info (e.g., `"Boat: EntityID numberofraisers: 2 raiseunits: 0.2 currentraiseunits: 3.5 depth: 1.0"`).
+* **Error states:** Returns `"Boat: nil"` if no boat attached.
 
-### `Anchor:AnchorLowered()`
-*   **Description:** Finalizes the state when the anchor becomes fully lowered. It clears `is_anchor_transitioning`, resets animation speed, removes the `"anchor_transitioning"` tag, and pushes the `"anchor_lowered"` event.
-*   **Parameters:** None.
+### `OnSave()`
+* **Description:** serializes the `raiseunits` property for save data.
+* **Parameters:** None.
+* **Returns:** table — `{ raiseunits = self.raiseunits }`.
 
-### `Anchor:OnUpdate(dt)`
-*   **Description:** The core update loop for the anchor, called every frame if the component is updating. It handles the continuous raising or lowering of the anchor by adjusting `self.raiseunits` based on `currentraiseunits` (if raising) or `autolowerunits` (if lowering). It also adjusts the animation speed and triggers `AnchorRaised()` or `AnchorLowered()` when the anchor reaches its limits. If the anchor is partially lowered but not transitioning, it will initiate lowering.
-*   **Parameters:**
-    *   `dt`: (`number`) The delta time since the last update.
+### `OnLoad(data)`
+* **Description:** Restores `raiseunits` from save data.
+* **Parameters:** `data` (table or `nil`) — saved data from `OnSave()`.
+* **Returns:** Nothing.
 
-### `Anchor:GetDebugString()`
-*   **Description:** Provides a debug string with information about the boat, number of raisers, raise units, current raise units, and current depth.
-*   **Parameters:** None.
+### `LoadPostPass()`
+* **Description:** Called after loading to finalize state and transition based on `raiseunits` and current platform.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Behavior:** Sets anchor state (`raised`, `lowered`, `lowered_land`, `lowering`) in the StateGraph based on depth and raiser state.
 
-## Events & Listeners
-
-*   **Listens For (from `self.boat`):**
-    *   `onremove`: When the associated boat is removed, `self.OnBoatRemoved` is called to clear the boat reference.
-    *   `boat_stop_moving`: When the associated boat stops moving, `self.OnBoatStopMoving` is called to update `self.is_boat_moving`.
-    *   `boat_start_moving`: When the associated boat starts moving, `self.OnBoatStartMoving` is called to update `self.is_boat_moving`.
-
-*   **Pushes/Triggers (from `self.inst` unless specified):**
-    *   `raising_anchor`: Triggered when `StartRaisingAnchor()` or `AddAnchorRaiser()` is called.
-    *   `lowering_anchor`: Triggered when `StartLoweringAnchor()` is called or if all raisers are removed while the anchor is transitioning.
-    *   `anchor_raised`: Triggered when the anchor becomes fully raised via `AnchorRaised()`.
-    *   `anchor_lowered`: Triggered when the anchor becomes fully lowered via `AnchorLowered()`.
-    *   `stopraisinganchor` (on `doer` entity): Triggered on a `doer` when `RemoveAnchorRaiser()` is called for that `doer`.
+## Events & listeners
+- **Listens to:**  
+  `onremove` — on the anchor and boat to detach references (`OnBoatRemoved`),  
+  `boat_stop_moving`, `boat_start_moving` — on the boat to track movement (`OnBoatStopMoving`, `OnBoatStartMoving`),  
+  `death`, `onburnt` — indirectly via `boatphysics`’s drag listeners (handled via `AddBoatDrag`).  
+- **Pushes:**  
+  `raising_anchor`, `lowering_anchor`, `anchor_raised`, `anchor_lowered`, `stopraisinganchor`,  
+  `boat_stop_moving`, `boat_start_moving` — on the boat when movement state changes (handled by boat, not anchor).

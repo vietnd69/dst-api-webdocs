@@ -1,73 +1,94 @@
 ---
 id: wobycourier
 title: Wobycourier
-description: Stores and synchronizes chest coordinate positions per shard for Woby courier functionality across the game world.
+description: Manages and synchronizes the chest location for the Woby Courier quest system across shards, storing world coordinates and updating network replication.
+tags: [quest, map, network]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 8a6cb022
+system_scope: network
 ---
 
 # Wobycourier
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component tracks and synchronizes the XZ-world coordinates of a Woby courier chest on a per-shard basis. It enables persistent storage and dynamic network synchronization of the chest position—primarily for UI updates and world alignment—by interfacing with the shard-specific positioning system and the `woby_commands_classified` component.
+`WobyCourier` tracks and replicates the current chest position for the Woby Courier quest mechanic. It stores per-shard world coordinates (`xz` pairs) and synchronizes them to the client via the `woby_commands_classified` component’s replicated fields. It also validates storage locations against land tiles and handles save/load persistence.
 
-## Dependencies & Tags
-- `inst.woby_commands_classified`: Requires the `woby_commands_classified` component to be present on the entity (assumed to expose `chest_posx` and `chest_posz` props).
-- Uses `TheShard:GetShardId()` to identify the current shard.
-- Uses `TheWorld.Map`, `TheWorld.components.undertile`, and `TileGroupManager:IsLandTile()` for coordinate validation.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("wobycourier")
 
-No explicit entity tags are added or removed by this component.
+-- Store a valid chest position (e.g., after placing)
+if inst.components.wobycourier:StoreXZ(100, -200) then
+    print("Chest location stored.")
+end
+
+-- Clear the stored position (e.g., after removing chest)
+inst.components.wobycourier:ClearXZ()
+
+-- Read current position for debugging or rendering
+print(inst.components.wobycourier:GetDebugString())
+```
+
+## Dependencies & tags
+**Components used:** `undertile`, `woby_commands_classified` (via `inst.woby_commands_classified`), `TheWorld.Map`, `TheWorld.components.undertile`, `TheShard`, `TileGroupManager`  
+**Tags:** None identified
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `shardid` | string | value of `TheShard:GetShardId()` | Identifier for the current shard; used as key for position storage. |
+| `positions` | table | `{}` | Dictionary mapping shard IDs to `{x, z}` coordinate tables. |
 
-| Property    | Type   | Default Value | Description |
-|-------------|--------|---------------|-------------|
-| `inst`      | Entity | N/A           | Reference to the entity this component is attached to. |
-| `shardid`   | string | Current shard ID from `TheShard:GetShardId()` | Unique identifier for the active shard, used as a key in `positions`. |
-| `positions` | table  | `{}`          | Dictionary mapping shard IDs to `{x, z}` coordinate tables. Stores last known chest position per shard. |
-
-## Main Functions
-
+## Main functions
 ### `NetworkLocation()`
-* **Description:** Updates the `chest_posx` and `chest_posz` properties on the `woby_commands_classified` component with the stored position for the current shard, or sets them to `WOBYCOURIER_NO_CHEST_COORD` if no position is stored. If the entity is the player (server is client), it pushes an `updatewobycourierchesticon` event to refresh the UI.
-* **Parameters:** None.
+*   **Description:** Replicates the stored chest position to the client via the `woby_commands_classified` component. If no position exists, sets a special "no chest" coordinate (`WOBYCOURIER_NO_CHEST_COORD`).
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Silently does nothing if `inst.woby_commands_classified` is absent.
 
 ### `CanStoreXZ(x, z)`
-* **Description:** Validates whether the given world coordinates fall on a valid land tile (non-ocean).
-* **Parameters:**
-  * `x` (number): World X coordinate.
-  * `z` (number): World Z coordinate.
+*   **Description:** Checks whether the given world coordinates lie on a valid land tile.
+*   **Parameters:**  
+  `x` (number) — world X coordinate.  
+  `z` (number) — world Z coordinate.
+*   **Returns:** `true` if the tile is land; `false` otherwise.
 
 ### `StoreXZ(x, z)`
-* **Description:** Validates and stores the world coordinates for the current shard, then updates networked UI via `NetworkLocation()`. Returns `true` on success, `false` if the tile is invalid.
-* **Parameters:**
-  * `x` (number): World X coordinate.
-  * `z` (number): World Z coordinate.
+*   **Description:** Stores the provided world coordinates for the current shard, validates them, and triggers replication.
+*   **Parameters:**  
+  `x` (number) — world X coordinate.  
+  `z` (number) — world Z coordinate.
+*   **Returns:** `true` if the coordinates were valid and stored; `false` if invalid (e.g., water tile).
 
 ### `ClearXZ()`
-* **Description:** Removes the stored position for the current shard and triggers `NetworkLocation()` to clear the UI indicators. Returns `true` if a position was cleared; `false` otherwise.
-* **Parameters:** None.
+*   **Description:** Removes the stored position for the current shard and updates replication.
+*   **Parameters:** None.
+*   **Returns:** `true` if a position was cleared; `false` if none existed.
 
 ### `OnSave()`
-* **Description:** Returns a serializable table containing the `positions` data for persistence. Returns `nil` if no positions are stored.
-* **Parameters:** None.
+*   **Description:** Serializes position data for world save persistence.
+*   **Parameters:** None.
+*   **Returns:** A table `{ positions = self.positions }` if positions exist; `nil` otherwise.
 
 ### `OnLoad(data)`
-* **Description:** Restores the `positions` table from save data and refreshes networked location state via `NetworkLocation()`.
-* **Parameters:**
-  * `data` (table|nil): Saved component state, expected to contain a `positions` key.
+*   **Description:** Restores position data from a save file.
+*   **Parameters:**  
+  `data` (table | `nil`) — the loaded save data.
+*   **Returns:** Nothing.
+*   **Error states:** Silently returns if `data` or `data.positions` is missing.
 
 ### `GetDebugString()`
-* **Description:** Returns a debug string for in-game debugging tools, showing the stored chest position as `"Pos: x z"` or `"NPOS"` if unavailable.
-* **Parameters:** None.
+*   **Description:** Returns a human-readable debug string containing the current chest coordinates, or `"NPOS"` if none exist.
+*   **Parameters:** None.
+*   **Returns:** `string` — formatted as `"Pos: X.Z Z.Z"` or `"NPOS"`.
 
-## Events & Listeners
-- Listens for **no events** explicitly (no `inst:ListenForEvent` calls).
-- Triggers/pushes:
-  - `"updatewobycourierchesticon"` — Pushed via `inst:PushEvent()` from `NetworkLocation()` when the entity is `ThePlayer` (i.e., server is client), to signal UI updates.
+## Events & listeners
+- **Pushes:** `updatewobycourierchesticon` — fired on the player entity when the chest icon location is updated on the client (only if `inst == ThePlayer` and the `woby_commands_classified` component is present).

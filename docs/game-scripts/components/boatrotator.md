@@ -1,57 +1,76 @@
 ---
 id: boatrotator
 title: Boatrotator
-description: Manages an entity's rotational interaction with a boat, allowing it to influence and synchronize with the boat's movement.
+description: Manages the rotation direction synchronization between a character entity and its current boat platform.
+tags: [locomotion, boat, platform]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 01830615
+system_scope: locomotion
 ---
 
 # Boatrotator
 
-## Overview
-The Boatrotator component is attached to entities that can control the rotation of a boat, such as a mast. It identifies the boat the entity is currently on, links to the boat's `boatring` component, and synchronizes the entity's rotation with the boat. It provides the primary interface for an entity to initiate or stop the boat's rotation.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Depends on:**
-  - `boatring` (on the boat entity)
-  - `Transform` (on the component's owner entity)
-  - `sg` (stategraph, on the component's owner entity)
-- **Checks for Tags:**
-  - `boat` (on the platform entity to confirm it is a valid boat)
+## Overview
+`BoatRotator` ensures that a character’s rotation stays synchronized with the boat they are currently standing on. When the player boards or unboards a boat, this component updates their orientation and registers/removes itself from the boat’s rotation system. It works in conjunction with the `boatring` component to propagate rotation direction changes across all rotators attached to a given boat.
+
+## Usage example
+```lua
+local inst = TheEntityIterator():Find(function(e) return e:HasTag("character") end)
+if inst then
+    inst:AddComponent("boatrotator")
+    -- Rotation sync happens automatically when the character boards a boat
+end
+```
+
+## Dependencies & tags
+**Components used:** `boatring` (via `boat.components.boatring`), `transform`, `stategraph`  
+**Tags:** Checks for `boat` tag on platform entities.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
-|---|---|---|---|
-| `inst` | entity | `self.inst` | A reference to the entity instance this component is attached to. |
-| `boat` | entity | `nil` | A reference to the boat entity this component is currently controlling. |
-| `_setup_boat_task` | task | task handle | A handle for the initial task that finds and sets up the boat connection. |
+|----------|------|---------------|-------------|
+| `boat` | entity or `nil` | `nil` | Reference to the current boat entity the character is on. |
+| `OnBoatRemoved` | function | `function() self.boat = nil end` | Callback handler fired when the boat entity is removed. |
+| `OnBoatDeath` | function | `function() self:OnDeath() end` | Callback handler fired when the boat entity dies. |
+| `_setup_boat_task` | task or `nil` | `nil` | Delayed task used to initialize boat reference on component construction. |
 
-## Main Functions
-
+## Main functions
 ### `SetRotationDirection(dir)`
-* **Description:** Sets the rotational direction for the boat this entity is on. It normalizes the input to `1` (clockwise), `-1` (counter-clockwise), or `0` (stop). It then calls the corresponding function on the boat's `boatring` component and pushes an event to notify other entities on the boat.
-* **Parameters:**
-    * `dir` (number): The desired rotation direction. Positive for clockwise, negative for counter-clockwise, and 0 to stop.
+*   **Description:** Sets the rotation direction of the boat the character is currently on. Non-zero directions are normalized to `-1` (counterclockwise) or `+1` (clockwise); zero stops rotation. Updates all rotators on the boat via the boat’s `boatring` component and broadcasts a `rotationdirchanged` event.
+*   **Parameters:** `dir` (number) - Target rotation direction (positive for clockwise, negative for counterclockwise, zero for stopped).
+*   **Returns:** Nothing.
+*   **Error states:** Returns early without action if the current platform is `nil`, lacks a `boatring` component, or is missing the `boat` tag.
 
 ### `SetBoat(boat)`
-* **Description:** Establishes or terminates the link between this entity and a specific boat. When a boat is set, it registers as a "rotator" with the boat's `boatring` component, syncs its rotation, and starts listening for the boat's `death` and `onremove` events. When the boat is set to `nil`, it cleans up these connections and listeners.
-* **Parameters:**
-    * `boat` (entity): The boat entity to link to, or `nil` to unlink from the current boat.
+*   **Description:** Assigns or clears the boat association for the character. When assigning, it matches the character’s rotation to the boat’s, registers as a rotator, updates the `direction` memory slot in the character’s stategraph, and may refresh the `idle` state if active. Sets up cleanup event listeners when a boat is assigned.
+*   **Parameters:** `boat` (entity or `nil`) - The boat entity to associate, or `nil` to detach.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if the new boat is identical to the current one.
 
 ### `OnDeath()`
-* **Description:** A callback function triggered when the linked boat is destroyed. It safely unlinks the component from the boat by calling `SetBoat(nil)`.
-* **Parameters:** None.
+*   **Description:** Handles the boat’s death event by clearing the boat association.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens for (on the boat entity):**
-    - `onremove`: Triggers the `OnBoatRemoved` callback to clear the local boat reference.
-    - `death`: Triggers the `OnBoatDeath` callback to handle the boat's destruction.
-- **Pushes (to the boat entity):**
-    - `rotationdirchanged`: Pushed when `SetRotationDirection` is called to inform other components on the boat of the new rotation direction.
+### `OnRemoveFromEntity()`
+*   **Description:** Cleans up pending setup task when the component is removed from its entity.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `OnRemoveEntity()`
+*   **Description:** Ensures boat association is cleared when the owning entity is removed.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:**  
+  - `onremove` (from boat) — triggers `OnBoatRemoved`.  
+  - `death` (from boat) — triggers `OnBoatDeath`.  
+- **Pushes:** None directly. However, `SetRotationDirection` causes the boat to `PushEvent("rotationdirchanged", dir)`.

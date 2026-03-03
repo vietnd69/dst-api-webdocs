@@ -1,64 +1,88 @@
 ---
 id: attuner
 title: Attuner
-description: Manages a player's attunement links to specific entities in the world.
+description: Manages attunement relationships between a player and attunable entities, tracking which entities the player is attuned to and enabling server/client-side attunement queries and transfers.
+tags: [attunement, player, network]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 9f4d7e52
+system_scope: player
 ---
 
 # Attuner
 
-## Overview
-The Attuner component is exclusive to player entities and is responsible for managing the player's "attunement" to other entities. It maintains a list of entities the player is linked to, providing functions to check, register, and unregister these attunements. The component behaves differently on the server versus the client, with clients typically interacting with proxy objects for attuned entities that may be far away.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Attuner` tracks which attunable entities a player is attuned to, maintaining a local map of GUID → proxy entity references. It supports both server (`ismastersim`) and client operation—on clients, it works only for the local player and relies on replicated proxy objects (typically lightweight `attunable_classified` entities). The component is intended exclusively for players and interacts with the `attunable` component on target entities via `LinkToPlayer`/`UnlinkFromPlayer`.
+
+## Usage example
+```lua
+local inst = ThePlayer
+inst:AddComponent("attuner")
+
+-- Assuming a proxy attunable entity exists
+inst.components.attuner:RegisterAttunedSource(proxy)
+if inst.components.attuner:IsAttunedTo(target_entity) then
+    print("Player is attuned to target")
+end
+```
+
+## Dependencies & tags
+**Components used:** `attunable` (accessed via `ent.components.attunable` on target entities during `TransferComponent`), `replica.attunable_classified` (accessed implicitly via `proxy.source_guid:value()`).
+**Tags:** None added, removed, or directly checked on the player instance itself.
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :--- | :--- | :--- | :--- |
-| `inst` | `Entity` | `inst` | A reference to the entity instance possessing this component. |
-| `ismastersim` | `boolean` | `TheWorld.ismastersim` | A boolean flag indicating if the component is running on the server (master simulation). |
-| `attuned` | `table` | `{}` | A table mapping the GUIDs of attuned entities to their corresponding proxy or entity objects. |
+|----------|------|---------------|-------------|
+| `inst` | Entity | `nil` | The player entity this component belongs to. |
+| `ismastersim` | boolean | `false` | Whether the current instance is the master simulation (server). |
+| `attuned` | table | `{}` | Map of GUID (number) → proxy entity (table); entries represent attuned sources. |
 
-## Main Functions
+## Main functions
 ### `IsAttunedTo(target)`
-* **Description:** Checks if the player is currently attuned to a specific target entity. On the server, this is checked by the target's GUID. On the client, it checks if the target has a specific `ATTUNABLE_ID_` tag.
-* **Parameters:**
-    * `target`: The entity instance to check for attunement.
+* **Description:** Checks whether the player is currently attuned to the given target entity.
+* **Parameters:** `target` (Entity) — the entity to check attunement against.
+* **Returns:** `boolean` — `true` if attuned, `false` otherwise.
+* **Error states:** On clients, this method relies on tag matching (`ATTUNABLE_ID_<GUID>`) and may be less reliable if proxies are stale or missing.
 
 ### `HasAttunement(tag)`
-* **Description:** Checks if the player is attuned to any entity that possesses a specific tag.
-* **Parameters:**
-    * `tag`: The string tag to search for among attuned entities.
+* **Description:** Checks whether any currently attuned entity carries the specified tag.
+* **Parameters:** `tag` (string) — the tag to search for among attuned entities.
+* **Returns:** `boolean` — `true` if at least one attuned entity has the tag, `false` otherwise.
 
 ### `GetAttunedTarget(tag)`
-* **Description:** (Server-only) Retrieves the first attuned entity that has a specific tag.
-* **Parameters:**
-    * `tag`: The string tag to search for.
-* **Returns:** The attuned entity instance (`Ents[k]`) if found, otherwise `nil`.
+* **Description:** (Server only) Returns the actual entity that is attuned to this player and carries the specified tag.
+* **Parameters:** `tag` (string) — the tag to match.
+* **Returns:** Entity or `nil` — the matching attuned entity, or `nil` if not found.
+* **Error states:** Only valid on the server (`ismastersim`); on clients, always returns `nil`.
 
 ### `TransferComponent(newinst)`
-* **Description:** (Server-only) Transfers all of the player's current attunements to a new entity instance. This is typically used when a player changes characters or respawns.
-* **Parameters:**
-    * `newinst`: The new player entity instance to receive the attunements.
+* **Description:** (Server only) Transfers all current attunements from this player to another entity (e.g., during character swap or respec).
+* **Parameters:** `newinst` (Entity) — the new owner of the attunements.
+* **Returns:** Nothing.
+* **Error states:** Modifies `attunable` components on all attuned entities; assumes `attunable` is present on those entities.
 
 ### `RegisterAttunedSource(proxy)`
-* **Description:** Registers a new attunement link for the player. It stores the provided proxy object and pushes a `gotnewattunement` event.
-* **Parameters:**
-    * `proxy`: The `attunable_classified` proxy object representing the attuned entity.
+* **Description:** Registers a new attunement source using a proxy entity (typically an `attunable_classified` replica).
+* **Parameters:** `proxy` (Entity) — the attunement proxy, must have a `source_guid` replica field.
+* **Returns:** Nothing.
+* **Error states:** Silently ignores duplicate registrations (idempotent).
 
 ### `UnregisterAttunedSource(proxy)`
-* **Description:** Removes an existing attunement link for the player. It removes the provided proxy object from the internal list and pushes an `attunementlost` event.
-* **Parameters:**
-    * `proxy`: The `attunable_classified` proxy object representing the attuned entity to unregister.
+* **Description:** Removes an attunement source and fires the `attunementlost` event.
+* **Parameters:** `proxy` (Entity) — the proxy to unregister.
+* **Returns:** Nothing.
 
-## Events & Listeners
-*   **`gotnewattunement`** (Pushed): Fired when the player becomes attuned to a new entity. The event data contains `{ proxy = proxy }`.
-*   **`attunementlost`** (Pushed): Fired when the player's attunement to an entity is lost. The event data contains `{ proxy = proxy }`.
+### `GetDebugString()`
+* **Description:** Returns a formatted debug string listing all attuned GUIDs (clients) or full entity references (server).
+* **Parameters:** None.
+* **Returns:** string — newline-separated list of attuned entities or GUIDs.
+
+## Events & listeners
+- **Pushes:** `gotnewattunement` — fired when a new attunement is registered (`{ proxy = proxy }`).
+- **Pushes:** `attunementlost` — fired when an attunement is removed (`{ proxy = proxy }`).

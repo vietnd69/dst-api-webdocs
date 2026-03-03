@@ -1,93 +1,110 @@
 ---
 id: possessedaxe
 title: Possessedaxe
-description: This component manages the transformation, ownership validation, and player linking logic for Lucy the possessed axe, including its reversion to a standard axe when conditions are no longer met.
+description: Manages the transformation and reversion logic for Lucy, a possessed axe that links to a woodcutter player and reverts to a standard axe under specific conditions.
+tags: [inventory, transformation, player, combat, persistence]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 5556986d
+system_scope: inventory
 ---
-
 # Possessedaxe
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `possessedaxe` component implements the behavior of Lucy—a special axe that transforms under specific conditions (e.g., wielded by a Woodie character). It validates ownership (must be a "woodcutter"), prevents multiple Lucy axes per player, links the axe to the player for persistence across world reloads or death, and handles reversion to a standard axe when the conditions are no longer satisfied.
+`Possessedaxe` is a component that manages the lifecycle of Lucy, a special axe that transforms when held by a valid woodcutter player (`"woodcutter"` tag). It tracks player association, handles delayed reversion upon player disconnect or death, and ensures only one Lucy exists per player. The component integrates closely with `inventory`, `inventoryitem`, `equippable`, and `finiteuses` components to manage item state during possession, dropping, and reversion.
 
-## Dependencies & Tags
-**Component dependencies:**
-- `inventoryitem` — used to retrieve owner and container information.
-- `inventory` — used to check equipped items and drop items.
-- `equippable` — used to determine if the item is equipped during reversion.
-- `finiteuses` — used to preserve uses during reversion.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddTag("axe")
+inst:AddComponent("possessedaxe")
+inst:AddComponent("equippable")
+inst:AddComponent("inventoryitem")
+inst:AddComponent("finiteuses")
+inst.components.possessedaxe.revert_prefab = "axe"
+inst.components.possessedaxe.revert_uses = 10
+inst.components.possessedaxe.revert_fx = "lucy_transform"
+```
 
-**Tags handled:**
-- `woodcutter` — required for the axe to remain possessed.
-- `player` — checked to determine whether to link to a player.
-
-**Events listened to (on `inst`):**
-- `"onputininventory"`
-- `"ondropped"`
-- `"onremove"` (on linked player)
-- `"possessedaxe"` (on linked player)
-- `"ms_playerjoined"` (on `TheWorld`)
+## Dependencies & tags
+**Components used:** `inventory`, `inventoryitem`, `equippable`, `finiteuses`
+**Tags:** Checks for `"woodcutter"` (owner), `"player"` (owner), `"usesdepleted"` (via `finiteuses`), `"equippable"` (via `equippable:IsEquipped()`).
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `revert_prefab` | `string` | `"axe"` | Prefab name to spawn when reverting (e.g., after timeout or invalid owner). |
-| `revert_uses` | `number?` | `nil` | Number of uses to transfer to the reverted axe (if applicable). |
-| `revert_fx` | `string?` | `nil` | FX prefab name to spawn during reversion (optional). |
-| `revert_time` | `number` | `TUNING.LUCY_REVERT_TIME` | Default timeout duration (seconds) before reverting if the player is missing. |
-| `transform_fx` | `string?` | `nil` | FX prefab to use during transformation (currently unused). |
-| `player` | `Entity?` | `nil` | Reference to the linked player entity (may be `nil` if not currently possessed or dead). |
-| `userid` | `string?` | `nil` | Persistent user ID used to re-link after disconnects or world reloads. |
-| `currentowner` | `Entity?` | `nil` | Current inventory container owner (grandowner of `inventoryitem`). |
-| `oncontainerpickedup` | `function?` | `nil` | Callback for `"onputininventory"` event on the container. |
-| `checkownertask` | `Task?` | `nil` | Delayed task to re-check owner validity after item movement. |
-| `waittask` | `Task?` | `nil` | Timer task for waiting before reverting if the player is unreachable. |
-| `waittotime` | `number?` | `nil` | Absolute game time when the wait task should trigger reversion. |
+| `revert_prefab` | string | `"axe"` | Prefab name to spawn on reversion. |
+| `revert_uses` | number? | `nil` | Uses value to restore to the reverted item via `finiteuses:SetUses`. |
+| `revert_fx` | string? | `nil` | FX prefab name to spawn during reversion. |
+| `revert_time` | number | `TUNING.LUCY_REVERT_TIME` | Delay in seconds before auto-reverting after player loss. |
+| `player` | Entity? | `nil` | Current linked player entity (if any). |
+| `userid` | string? | `nil` | User ID of the linked player, preserved across reconnects. |
+| `currentowner` | Entity? | `nil` | Current inventory item owner (e.g., player). |
+| `checkownertask` | Task? | `nil` | Deferred task to validate the owner. |
+| `waittask` | Task? | `nil` | Task for delayed reversion (e.g., timeout). |
+| `waittotime` | number? | `nil` | Absolute game time when reversion triggers. |
+| `oncontainerpickedup` | function? | `nil` | Listener callback for owner container events. |
 
-## Main Functions
-
+## Main functions
 ### `WaitForPlayer(userid, delay)`
-* **Description:** Sets up a timeout to wait for a specific player (by `userid`) to reappear (e.g., after disconnection or death). If the player does not rejoin within `delay` seconds (defaulting to `revert_time`), the axe reverts. Also manages `"ms_playerjoined"` event listener.
-* **Parameters:**
-  - `userid` (`string?`): User ID of the player to wait for. If `nil`, the wait is cancelled and `"ms_playerjoined"` listener is removed.
-  - `delay` (`number?`): Time in seconds to wait before reverting. Defaults to `revert_time` if omitted.
+* **Description:** Initiates a reversion timer for the axe if ownership is lost. The axe remains associated with `userid` and will revert after `delay` seconds unless re-linked. Can be cancelled via `StopWaitingForPlayer`.
+* **Parameters:** 
+  - `userid` (string?) — User ID to track; `nil` clears the listener.
+  - `delay` (number?) — Revert delay in seconds; defaults to `revert_time` if `nil`.
+* **Returns:** Nothing.
 
 ### `StopWaitingForPlayer()`
-* **Description:** Cancels the current wait timer and cleans up the `"ms_playerjoined"` event listener if active. Resets `userid` to `nil`.
+* **Description:** Cancels the pending reversion timer and removes the `"ms_playerjoined"` event listener.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `LinkToPlayer(player)`
-* **Description:** Associates the axe with a player. Removes old event bindings (if any), sets `player` and `userid`, and establishes `"onremove"` and `"possessedaxe"` listeners on the player. If `player` is `nil`, clears the link and pushes `"axepossessedbyplayer"` event with `nil`.
+* **Description:** Associates the axe with a specific player entity. Updates `player` and `userid` fields, removes old listeners, sets up new `onremove` and `"possessedaxe"` listeners on the player, and fires `"axepossessedbyplayer"` with the player entity. Reverts if the player already holds another Lucy.
+* **Parameters:** 
+  - `player` (Entity?) — Player entity to link; `nil` drops current association.
+* **Returns:** Nothing.
 
 ### `Drop()`
-* **Description:** Drops the item from the current owner’s inventory (if possible), forcing it into the world. Called when the axe is rejected due to invalid ownership or duplicate possession.
+* **Description:** Drops the axe from its owner's inventory if present and valid. Calls `Inventory:DropItem(self.inst, true, true)`.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `Revert()`
-* **Description:** Transforms the axe back into its base form (`revert_prefab`, usually `"axe"`), preserving uses and optionally spawning FX. Handles removal of the possessed axe and placement of the new one in the correct location (world, inventory slot, or equipped slot). Returns the new axe instance.
+* **Description:** Spawns the `revert_prefab` (typically `"axe"`), copies over `revert_uses` (if specified), and transfers the item to the same position or inventory slot as the original. Handles equipped, held, and container-dropped cases. Optionally spawns `revert_fx`.
+* **Parameters:** None.
+* **Returns:** Entity — The newly spawned reverted item (or `self.inst` if reversion fails).
+* **Error states:** Returns early with `self.inst` if `SpawnPrefab(revert_prefab)` fails.
 
 ### `OnSave()`
-* **Description:** Returns a table of essential persistent state (prefab, uses, userid, and remaining wait time) for saving the component across sessions. Returns `nil` if no data needs saving.
+* **Description:** Serializes component state for persistence. Includes `prefab`, `uses`, `userid`, and remaining time for pending reversion.
+* **Parameters:** None.
+* **Returns:** table? — A table with keys `prefab`, `uses`, `userid`, and `waittimeremaining`, or `nil` if all values are `nil`/empty.
 
 ### `OnLoad(data)`
-* **Description:** Restores state after loading from save data. If needed, resumes waiting for the player (e.g., after a reload while disconnected) using `WaitForPlayer`.
+* **Description:** Restores component state after a save load. Restores `revert_prefab` and `revert_uses`, and resumes waiting for a player if needed.
+* **Parameters:** 
+  - `data` (table?) — Save data from `OnSave`.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a debug-friendly string summarizing the current state: current owner, linked player, and remaining timeout (seconds).
+* **Description:** Returns a human-readable debug string summarizing current state.
+* **Parameters:** None.
+* **Returns:** string — A formatted string like `"held: player entity player: player entity timeout: 12.34"`.
 
-## Events & Listeners
-- **Listens for `"onputininventory"`** — triggers `OnChangeOwner`.
-- **Listens for `"ondropped"`** — triggers `OnChangeOwner`.
-- **Listens for `"ms_playerjoined"` on `TheWorld`** — triggers `onplayerjoined` when a player joins to attempt re-linking.
-- **Listens for `"onremove"` on linked player** — triggers `onplayerremoved`.
-- **Listens for `"possessedaxe"` on linked player** — triggers `onplayerpossessedaxe`.
+## Events & listeners
+- **Listens to:** 
+  - `"onputininventory"` — Triggers `OnChangeOwner` on item placement.
+  - `"ondropped"` — Triggers `OnChangeOwner` on drop.
+  - `"onremove"` — Removes `onplayerremoved` callback when linked player is removed.
+  - `"possessedaxe"` — Triggers `onplayerpossessedaxe` (calls `Revert`) if another Lucy is obtained.
+  - `"ms_playerjoined"` — Triggers `onplayerjoined` when a player rejoins the world.
 
-- **Pushes events:**
-  - `"axerejectedowner"` — when the owner no longer meets the `"woodcutter"` requirement.
-  - `"axerejectedotheraxe"` — when the player already has a possessed axe.
-  - `"axepossessedbyplayer"` — when the axe becomes linked to a player (or cleared when unlinked).
+- **Pushes:** 
+  - `"axerejectedowner"` — Fired when the owner is not a woodcutter.
+  - `"axerejectedotheraxe"` — Fired when another possessed axe is present in the owner’s inventory.
+  - `"axepossessedbyplayer"` — Fired on successful linking or clearing of the player link.

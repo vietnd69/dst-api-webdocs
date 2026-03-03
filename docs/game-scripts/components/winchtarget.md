@@ -1,48 +1,64 @@
 ---
 id: winchtarget
 title: Winchtarget
-description: This component marks an entity as a target for winching operations and manages salvageable submerged objects.
+description: Manages salvagable objects attached to winches, handling their retrieval logic and sunken object interactions.
+tags: [salvage, winch, inventory, submersible]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 0b1bcec5
+system_scope: world
 ---
 
 # Winchtarget
 
-## Overview
-This component designates an entity as a winchable target in the game world—primarily used for submerged salvage operations. It adds the `"winchtarget"` tag to the entity, stores optional salvage logic via a callback function, and provides utilities to retrieve and release the contained sunken object (typically from the inventory's first slot).
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Tags Added:** `"winchtarget"`
-- **Component Dependencies:** Relies on `self.inst.components.inventory` to access the contained item (if present); no explicit components are added.
+## Overview
+`Winchtarget` is a component attached to entities that act as winch targets—typically sunken items or structures in deep water. Its primary responsibility is to enable and manage the retrieval (salvage) of such objects, especially when attached to a winch. It interacts closely with the `inventory` component to access the salvaged item (stored in slot 1) and the `submersible` component to control repositioning behavior during salvage.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("winchtarget")
+inst.components.winchtarget:SetSalvageFn(function(target)
+    print("Salvaging", target.prefab)
+    return true
+end)
+-- Later, when salvaging:
+inst.components.winchtarget:Salvage()
+```
+
+## Dependencies & tags
+**Components used:** `inventory`, `submersible`  
+**Tags:** Adds `winchtarget` to the owning entity; removes it on component removal.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `depth` | `number` | `-1` | Depth override: `-1` indicates the actual ocean depth at the entity's position should be used; otherwise, specifies a fixed depth. |
-| `salvagefn` | `function?` | `nil` | Optional callback function invoked during salvage; takes `self.inst` as argument and returns the result of the salvage operation. |
+| `depth` | number | `-1` | Depth override; `-1` means use the ocean depth at the entity's position. |
+| `salvagefn` | function? | `nil` | Optional callback function to execute during salvage. |
 
-## Main Functions
-
+## Main functions
 ### `SetSalvageFn(fn)`
-* **Description:** Assigns a custom salvage callback function to be executed when `Salvage()` is called.
-* **Parameters:**
-  - `fn (function?)` — A function that accepts the winch target entity as its sole argument and returns a value (often an item or `nil`). May be `nil`.
+*   **Description:** Sets a custom function to be called when the salvage operation is performed. This function receives the target entity as its argument.
+*   **Parameters:** `fn` (function?) — a callable taking `inst` as argument, or `nil` to clear.
+*   **Returns:** Nothing.
 
 ### `Salvage()`
-* **Description:** Executes the stored salvage callback (`salvagefn`) and, if applicable, disables repositioning lock on the contained submerged object before salvage. Returns the result of `salvagefn`, or `nil` if no callback is set.
-* **Parameters:** None.
+*   **Description:** Executes the salvage operation: releases the submersible's repositioning restriction and invokes the configured `salvagefn`. Typically called by the winch upon successful retrieval.
+*   **Parameters:** None.
+*   **Returns:** The result of `salvagefn(self.inst)`, or `nil` if no function is set.
+*   **Error states:** If the sunken object lacks a `submersible` component, the `force_no_repositioning` flag is not modified.
 
 ### `GetSunkenObject()`
-* **Description:** Retrieves the item currently in slot 1 (index 1) of the entity’s inventory, if the inventory component exists and the item is present.
-* **Parameters:** None.
-* **Returns:** `SimEntity?` — The item stored in slot 1, or `nil` if no inventory or no item.
+*   **Description:** Retrieves the item currently stored in slot 1 of the target's inventory, assumed to be the sunken object (e.g., an anchor, engine, or wrecked vessel part).
+*   **Parameters:** None.
+*   **Returns:** The entity in slot 1 if present, otherwise `nil`.
+*   **Error states:** Returns `nil` if the owning entity has no `inventory` component.
 
-## Events & Listeners
+## Events & listeners
 None identified.

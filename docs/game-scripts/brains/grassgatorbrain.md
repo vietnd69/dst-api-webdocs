@@ -1,48 +1,46 @@
 ---
 id: grassgatorbrain
 title: Grassgatorbrain
-description: Controls the AI decision-making behavior of the grass gator entity, including combat aggression, fleeing from danger, patrolling, and directional orientation toward nearby players or threats.
+description: AI brain that governs the movement and combat behavior of the grass gator creature, handling panic, chasing, fleeing, orientation toward players, and land-based wandering.
+tags: [ai, combat, locomotion, boss]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 1875b88e
+system_scope: brain
 ---
 
 # Grassgatorbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
+`GrassgatorBrain` defines the behavior tree for the grass gator entity (e.g., a boss or hostile mob). It orchestrates high-level decision-making by evaluating states such as diving, panic triggers, proximity to players, and terrain conditions. It leverages reusable behavior nodes from `behaviours/` and integrates with `BrainCommon` utilities and external components like `knownlocations` and `timer` to control navigation, aggression, and evasion. The brain prioritizes panic responses over standard combat or wandering, and adjusts targeting based on player distance and salt-seeking behavior.
 
-The `GrassgatorBrain` component implements the behavior tree logic for the grass gator entity in Don't Starve Together. It defines the priority-ordered behavioral hierarchy governing when and how the grass gator chases, attacks, flees, or wanders. The component relies on shared behavior nodes (e.g., `ChaseAndAttack`, `RunAway`, `FaceEntity`, `Wander`) and integrates with the `BrainCommon` utility for state-aware logic such as salt-avoidance behavior. Behavior selection is conditional and context-sensitive, using timers, location knowledge, and distance-based thresholds to orchestrate realistic movement and combat responses.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddBrain("grassgatorbrain")
+-- The brain automatically initializes via OnStart during entity spawn
+-- No further manual setup required for basic operation
+```
 
-## Dependencies & Tags
-- **Components used:**
-  - `inst.components.knownlocations` — used to retrieve the entity's `home` location (via `GetLocation("home")`) for wandering when submerged.
-  - `inst.components.timer` — used to manage and check the `"facetarget"` timer for orientation logic (`StartTimer`, `TimerExists`).
-- **Behaviors imported:**
-  - `behaviours/wander`
-  - `behaviours/faceentity`
-  - `behaviours/chaseandattack`
-  - `behaviours/runaway`
-- **Tags referenced:**
-  - `"notarget"` — used to exclude entities from targeting via `target:HasTag("notarget")`.
-  - `"character"` — used in `HUNTER_PARAMS` as a required tag for target selection.
-- **No tags are added or removed** by this component itself.
+## Dependencies & tags
+**Components used:** `knownlocations`, `timer`
+**Tags:** Checks `notarget` and `character`; internally relies on `diving` state tag.
 
 ## Properties
-No public instance properties are initialized directly in the constructor. All state is encapsulated in the behavior tree (`self.bt`) and runtime evaluation of function closures.
+No public properties
 
-## Main Functions
+## Main functions
+### `OnStart()`
+*   **Description:** Initializes and installs the behavior tree for the grass gator. Builds a priority-based node structure where panic responses take precedence over combat, fleeing, orientation, and wandering.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** May fail silently if required behavior modules (e.g., `ChaseAndAttack`, `RunAway`) are not registered or misconfigured externally.
 
-### `GrassgatorBrain:OnStart()`
-* **Description:** Initializes the behavior tree root node and assigns it to `self.bt`. Constructs a hierarchical priority tree that evaluates conditions in order of urgency: panic triggers first, then combat (chase/attack), then fleeing with face-orientation, face-orientation alone, and finally wandering. It excludes the tree from running while the entity is `"diving"`.
-* **Parameters:** None (`self` is the only argument, as it is a method).
-* **Returns:** `nil`.
-
-## Events & Listeners
-No event listeners or events are registered or pushed by this component. All state management and response handling occur through the behavior tree and conditional function evaluation (e.g., `GetFaceTargetFn`, `KeepFaceTargetFn`).
+## Events & listeners
+None identified. The brain does not register event listeners directly; it relies on state graph state tags (e.g., `diving`) and periodic node evaluation.

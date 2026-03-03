@@ -85,9 +85,3 @@ Ground creep is typically used for:
 - **Area Identification**: Helping players recognize dangerous or special zones
 - **Atmospheric Enhancement**: Adding visual depth to terrain
 - **Gameplay Feedback**: Subtle visual cues about game state changes
-
-## Related Modules
-
-- [TileManager](mdc:dst-api-webdocs/path/to/tilemanager.md): Core system for managing ground creep registration
-- [Constants](./constants.md): Contains GROUND_CREEP_IDS definitions
-- [Prefabs](./prefabs.md): Spider den prefabs that utilize web creep effects

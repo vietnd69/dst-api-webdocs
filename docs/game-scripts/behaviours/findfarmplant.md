@@ -1,68 +1,67 @@
 ---
 id: findfarmplant
 title: Findfarmplant
-description: Identifies and selects a valid tendable farm plant for an entity to approach and tend, based on stress state (stressed or unstressed) and custom validation criteria.
+description: Selects a suitable farm plant for tending based on stress state and proximity, then initiates movement to it.
+tags: [ai, behavior, farming]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: behaviour
-system_scope: entity
+category_type: ai
 source_hash: efc10382
+system_scope: ai
 ---
 
 # Findfarmplant
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `FindFarmPlant` component is a behaviour node used within DST’s AI behaviour tree system. Its primary responsibility is to locate and assign a suitable tendable farm plant (`planttarget`) to the owning entity for tending actions (e.g., watering, fertilizing). It evaluates nearby entities to find a farm plant that:
-- Is within search radius (`SEE_DIST = 20`),
-- Passes optional custom validation (`validplantfn`),
-- Is in a tendable growth stage,
-- Matches the desired stress state (`wantsstressed`, i.e., `happiness == true` or `false`),
-- Does not possess the `farm_plant_killjoy` tag.
+`FindFarmPlant` is a behavior node used in the DST AI system to locate and move toward a farm plant that meets specific criteria. It is typically part of a larger AI behavior tree, used by characters or entities that tend crops (e.g., Bee Queen or Willow's Chicken Coop AI). The node identifies a target plant within a fixed radius (`SEE_DIST = 20`) based on proximity to a dynamic follow position, tending eligibility, and desired stress state (happy or stressed). Once a valid target is found, it issues a walk action to reach the plant.
 
-This component integrates with `Locomotor` to move toward the target and `FarmPlantStress`/`Growable` to validate plant suitability.
+The component relies on the `farmplantstress`, `growable`, and `locomotor` components, and integrates with DST's buffered action system for locomotion control.
 
-## Dependencies & Tags
-- **Components used:**
-  - `locomotor` — to push a buffered tend action.
-  - `farmplantstress` — checked on candidate plants to verify `stressors.happiness` matches `wantsstressed`.
-  - `growable` — checked on candidate plants to confirm `GetCurrentStageData().tendable` is true.
-- **Tags used:**
-  - Must-have tags: `"farmplantstress"`
-  - Must-not-have tags: `"farm_plant_killjoy"`
+## Usage example
+```lua
+-- Example: Create a behavior task to find and move toward a stressed farm plant
+local findFarmPlantNode = FindFarmPlant(inst, ACTIONS.TEND, true, nil, nil)
+
+-- In a behavior tree:
+-- myTree:ReplaceNode("find_target", findFarmPlantNode)
+```
+
+## Dependencies & tags
+**Components used:** `farmplantstress`, `growable`, `locomotor`  
+**Tags:** `farmplantstress` (required), `farm_plant_killjoy` (excluded)
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity (e.g., character, pigman) that owns this behaviour and will target the plant. |
-| `wantsstressed` | `boolean?` | `false` | Desired stress state: `true` to target *stressed* plants, `false` to target *unstressed* (happy) plants. |
-| `action` | `string?` | — | The name of the action to perform on the target (e.g., `"tend"`), used in `BufferedAction`. |
-| `getfollowposfn` | `function?` | `genericfollowposfn` | A function returning the position to compare distance from; defaults to `inst:GetPosition()`. |
-| `validplantfn` | `function?` | `nil` | Optional custom filter function `(inst, plant) -> boolean` to further validate candidate plants. |
+| `inst` | `Entity` | — | The entity owning this behavior node (e.g., the character tending plants). |
+| `wantsstressed` | boolean | `false` | Whether the target plant must be stressed (`stressors.happiness == true`) or happy (`false`). |
+| `action` | `ACTIONS` | — | The action to perform upon reaching the target (e.g., `ACTIONS.TEND`). |
+| `getfollowposfn` | function | `genericfollowposfn` | Callback returning the reference position for proximity checks; defaults to `inst:GetPosition()`. |
+| `validplantfn` | function \| `nil` | `nil` | Optional custom filter function `(entity, plant) → boolean` to further validate candidate plants. |
+| `planttarget` | `Entity` \| `nil` | `nil` | Publicly readable target plant selected during `PickTarget()`. |
 
-## Main Functions
-### `FindFarmPlant:DBString()`
-* **Description:** Returns a debug-friendly string representation for behaviour tree visualization.
+## Main functions
+### `PickTarget()`
+* **Description:** Locates and assigns a suitable farm plant to `self.inst.planttarget`. Uses `FindEntity` to search within `SEE_DIST` for a plant with the required components and stress state, excluding those with the `farm_plant_killjoy` tag.
 * **Parameters:** None.
-* **Returns:** `string` — formatted as `"Go to farmplant <planttarget>"`.
+* **Returns:** Nothing (modifies `self.inst.planttarget` internally).
+* **Error states:** None; may leave `planttarget` as `nil` if no valid plant is found.
 
-### `FindFarmPlant:Visit()`
-* **Description:** Core behaviour node execution method. In `READY` state, picks a target via `PickTarget()`, then initiates movement via `Locomotor:PushAction()`. In `RUNNING` state, continuously validates whether the current `planttarget` is still valid; fails or succeeds based on plant state, validity, or stress mismatch.
+### `Visit()`
+* **Description:** The core behavior logic executed each frame. In `READY` state, it calls `PickTarget()` and initiates locomotion toward the plant. In `RUNNING` state, it verifies the target remains valid and checks the stress condition—succeeding if the plant's stress state matches `wantsstressed`, or failing if the plant is invalid or no longer nearby.
 * **Parameters:** None.
-* **Returns:** None — modifies `self.status` (`READY` → `RUNNING` → `SUCCESS`/`FAILED`).
+* **Returns:** Nothing (updates `self.status` to `RUNNING`, `SUCCESS`, or `FAILED`).
+* **Error states:** Returns early if status is neither `READY` nor `RUNNING`. Failure conditions include: target loss, invalidity, out-of-range, invalid `validplantfn` result, non-tendable growth stage, or stress mismatch.
 
-### `FindFarmPlant:PickTarget()`
-* **Description:** Searches the world for a valid tendable farm plant using `FindEntity()`. Applies filters for tags, proximity, growth stage, stress state, and optional custom validation. Assigns the result to `self.inst.planttarget`.
+### `DBString()`
+* **Description:** Returns a debug string identifying the current target plant, used in AI debug overlays.
 * **Parameters:** None.
-* **Returns:** None — sets `self.inst.planttarget` (or `nil` if none found).
+* **Returns:** `string` – e.g., `"Go to farmplant abigail"`.
 
-## Events & Listeners
+## Events & listeners
 None.
-
-## Notes
-- The `validplantfn` is optional and may be used by modders to apply context-specific logic (e.g., only certain plant types).
-- Stress filtering relies entirely on `plant.components.farmplantstress.stressors.happiness`, which is `true` for unstressed/happy plants and `false` for stressed plants.
-- A plant lacking the `growable` component is never selected (even if tags pass), as `tendable` is required and only `Growable` provides it.
-- The behaviour succeeds early if a *non-matching* stress state plant is encountered — i.e., if `wantsstressed == true` but an unstressed plant is found, the task succeeds (to avoid repeatedly targeting the same plant).

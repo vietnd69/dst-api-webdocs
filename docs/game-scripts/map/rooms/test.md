@@ -4,7 +4,6 @@ title: Test
 description: Defines debug and test room templates for world generation, primarily used to validate static layouts and prefab distributions during development.
 tags: [debug, testing, worldgen]
 sidebar_position: 1
-
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: 6e18f946
 ---
-
 ## Overview
 This file registers a set of static test rooms via the `AddRoom` function for use in world generation debugging and validation. It does not define a component in the Entity Component System (ECS) sense (i.e., no `Class(function(self, inst) ... end)` constructor or `inst:AddComponent` calls). Instead, it is a world generation utility that declares named room templates (e.g., `"MaxPuzzle1"`, `"TEST_ROOM"`) with specific tile values, colors, static layout placements, and dynamic prefab distribution rules.
 
@@ -66,4 +64,3 @@ This file does not define any standalone functions beyond calling `AddRoom`.
 ## Events & listeners
 No events are listened to or pushed by this file.
 
----

@@ -1,49 +1,43 @@
 ---
 id: shard_seasons
 title: Shard Seasons
-description: Manages per-shard seasonal state synchronization between master and secondary shards using networked variables.
+description: Manages season state synchronization between master shard and clients for a specific shard entity in Don't Starve Together.
+tags: [network, season, shard, sync]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: map
 source_hash: 94b2d7b3
+system_scope: network
 ---
 
 # Shard Seasons
 
-## Overview
-This component ensures seasonal state (e.g., current season, season lengths, and day counters) is synchronized across shards in a DST dedicated server setup. It runs exclusively on the master shard and listens for updates from `TheWorld`, broadcasting changes to secondary shards via networked variables and custom events.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- `TheWorld.ismastersim` — Enforces this component is only instantiated on the master simulation.
-- Uses networked variable constructors (`net_byte`, `net_tinybyte`, `net_bool`, `net_ushortint`) tied to `inst.GUID` for replication.
-- Tags: None added or removed.
-- Relies on external events:
-  - `"master_seasonsupdate"` (listens on master shard)
-  - `"seasonsdirty"` (listens on secondary shard)
+## Overview
+`Shard_Seasons` is a low-level network synchronization component attached to shard entities (e.g., world shards). It ensures that seasonal state data—such as current season, season lengths, elapsed/remaining days—is accurately shared between the master shard (server) and client shards. It is strictly for internal use and only instantiated on the master simulation (`TheWorld.ismastersim`). Client-side replication is handled via network variables linked to `"seasonsdirty"` updates.
+
+## Usage example
+This component is not intended for direct modder usage. It is automatically added and managed by the engine for shard entities.
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity this component is attached to (typically `TheWorld`). |
+| `inst` | `Entity` | `inst` | Reference to the entity (shard) this component is attached to. |
 
-*Note: No explicit `_ctor` initialization of additional public properties beyond `self.inst` is present.*
+## Main functions
+None — this component only initializes network variables and event listeners. It does not expose any callable public methods.
 
-## Main Functions
-### `OnSeasonsUpdate(src, data)`
-* **Description:** Master-shard handler that applies seasonal state updates received via `"master_seasonsupdate"` event. Compares incoming data with current networked values and updates them if different, ensuring consistency across shards.
-* **Parameters:**
-  - `src` (`Entity`): Event source (typically `TheWorld`).
-  - `data` (`table`): Contains `season`, `lengths`, `totaldaysinseason`, `remainingdaysinseason`, `elapseddaysinseason`, and `endlessdaysinseason`.
-
-### `OnSeasonsDirty()`
-* **Description:** Secondary-shard handler triggered on `"seasonsdirty"` event. Packages current networked seasonal values into a data table and broadcasts them to the master shard via `"secondary_seasonsupdate"` event to request a refresh.
-* **Parameters:** None.
-
-## Events & Listeners
-- Listens for `"master_seasonsupdate"` on master shard (invokes `OnSeasonsUpdate`).
-- Listens for `"seasonsdirty"` on secondary shard (invokes `OnSeasonsDirty`).
-- Emits `"secondary_seasonsupdate"` (data payload) from secondary shard to master shard during sync request.
+## Events & listeners
+- **Listens to:**  
+  - `master_seasonsupdate` — (only on master shard) updates local season data from network data.  
+  - `seasonsdirty` — (only on non-master shard) triggers sending current season state to master shard via `secondary_seasonsupdate`.
+- **Pushes:**  
+  - `secondary_seasonsupdate` — sent to master shard to propagate client-side seasonal state changes.

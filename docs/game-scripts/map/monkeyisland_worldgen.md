@@ -3,8 +3,7 @@ id: monkeyisland_worldgen
 title: Monkeyisland Worldgen
 description: Generates dock systems and associated assets for monkey islands during world generation.
 tags: [worldgen, map, island, dock, procedural]
-sidebar_position: 1
-
+sidebar_position: 100
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: 808204d2
 ---
-
 # Monkeyisland Worldgen
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -59,7 +57,7 @@ No persistent properties exist on this module. All state is held in local variab
     - `safety_prefab`: String name of the safe-area bounds marker.
     - `dock_post_chance`: Number (0.0 to 1.0) chance per dock tile to spawn a wood post.
     - `dock_prefabs_withchance`: Optional table mapping prefab names to spawn probabilities (`sum <= 1.0`).
-    - `endpoint_prefabs_with_chance`: Optional table mapping endpoint-specific prefab names to probabilities (`sum <= 1.0`).
+    - `endpoint_prefabs_with_chance`: Optional table mapping endpoint-specific prefab names to probabilities (must `sum <= 1.0`).
 * **Returns:** Nothing. Modifies `world` and `entities` in-place.
 * **Error states:** Fails silently if required prefabs (center, direction, safety) are missing or not paired 1-to-1. Docks may not generate if no valid starting ocean tiles are found.
 
@@ -123,4 +121,3 @@ No persistent properties exist on this module. All state is held in local variab
 ## Events & listeners
 This module is invoked during world generation and does not register or fire events.
 
----

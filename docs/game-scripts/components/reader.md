@@ -1,67 +1,85 @@
 ---
 id: reader
 title: Reader
-description: Manages reading interactions for an entity, including support for aspiring bookworm behavior and custom read callbacks.
+description: Enables an entity to read books and track bookworm status and sanity penalties.
+tags: [reading, sanity, player]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 1752eef4
+system_scope: entity
 ---
 
 # Reader
 
-## Overview
-The `Reader` component enables an entity to perform reading actions on books. It provides logic to handle standard reading, aspiring bookworm perusing (bypassing normal read restrictions), and custom post-read behavior through a callback. It automatically tags the owning entity as a "reader" upon initialization and manages the "aspiring_bookworm" tag dynamically.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds tag `"reader"` to the entity on construction.
-- Adds/removes tag `"aspiring_bookworm"` via the `onaspiringbookworm` callback.
-- Requires the target book entity to have a `book` component for reading operations.
-- On removal from entity, removes both `"reader"` and `"aspiring_bookworm"` tags.
+## Overview
+`Reader` allows an entity to interact with books by reading them or perusing them. It maintains state for whether the entity is an aspiring bookworm, manages a custom sanity penalty multiplier, and supports a configurable callback for post-read logic. It adds and removes the `reader` and `aspiring_bookworm` tags on the owning entity as appropriate.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("reader")
+inst.components.reader:SetAspiringBookworm(true)
+inst.components.reader:SetSanityPenaltyMultiplier(0.5)
+inst.components.reader:SetOnReadFn(function(reader, book)
+    print("Book read successfully")
+end)
+```
+
+## Dependencies & tags
+**Components used:** None (only uses external APIs like `SpawnPrefab` via `book.components.book`)
+**Tags:** Adds `reader` on construction; adds/removes `aspiring_bookworm` based on state.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity owning this component (set in constructor). |
-| `aspiring_bookworm` | `boolean` | `nil` | Controls whether the entity reads books as an "aspiring bookworm" (uses `OnPeruse` instead of `OnRead`). Set via `SetAspiringBookworm()`. |
-| `sanity_mult` | `number` | `nil` | Multiplier applied to sanity penalties during reading (used internally by game logic; initialized only when set via `SetSanityPenaltyMultiplier()`). |
-| `onread` | `function` | `nil` | Optional callback invoked after a successful standard read. Set via `SetOnReadFn()`. |
+| `aspiring_bookworm` | boolean | `false` | Whether the entity is an aspiring bookworm (affects reading behavior). |
+| `sanity_mult` | number | `1` | Multiplier applied to sanity effects from reading. |
+| `onread` | function | `nil` | Optional callback invoked after successful reading. |
 
-## Main Functions
-### `Read(book)`
-* **Description:** Initiates a reading action on the provided book entity. If the entity is an aspiring bookworm, it calls `book:OnPeruse()`. Otherwise, it calls `book:OnRead()` and triggers the `onread` callback if successful.
-* **Parameters:**
-  - `book`: An entity with a `book` component.
-
+## Main functions
 ### `SetAspiringBookworm(bookworm)`
-* **Description:** Sets whether this reader acts as an aspiring bookworm, which modifies reading behavior and toggles the `"aspiring_bookworm"` entity tag.
-* **Parameters:**
-  - `bookworm` (`boolean`): `true` to enable aspiring bookworm mode, `false` to disable.
+*   **Description:** Sets whether the entity is an aspiring bookworm. When true, the entity peruses books instead of reading them fully.
+*   **Parameters:** `bookworm` (boolean) - `true` to set aspiring bookworm status.
+*   **Returns:** Nothing.
 
 ### `IsAspiringBookworm()`
-* **Description:** Returns whether the reader is currently in aspiring bookworm mode.
-* **Parameters:** None.
-* **Returns:** `boolean` — `true` if aspiring bookworm mode is active, otherwise `false`.
+*   **Description:** Returns the current aspiring bookworm status.
+*   **Parameters:** None.
+*   **Returns:** `true` if aspiring bookworm, otherwise `false`.
 
 ### `SetSanityPenaltyMultiplier(mult)`
-* **Description:** Sets the multiplier applied to sanity penalties during reading interactions.
-* **Parameters:**
-  - `mult` (`number`): Sanity penalty scaling factor.
+*   **Description:** Sets the multiplier used to scale sanity penalties when reading.
+*   **Parameters:** `mult` (number) - the multiplier (e.g., `0.5` halves sanity loss).
+*   **Returns:** Nothing.
 
 ### `GetSanityPenaltyMultiplier()`
-* **Description:** Returns the currently set sanity penalty multiplier.
-* **Parameters:** None.
-* **Returns:** `number` — The multiplier, defaulting to `1` if not set.
+*   **Description:** Returns the current sanity penalty multiplier.
+*   **Parameters:** None.
+*   **Returns:** number - the multiplier (default `1` if not set).
 
 ### `SetOnReadFn(fn)`
-* **Description:** Assigns a callback function to be executed after a successful standard (non-peruse) read operation.
-* **Parameters:**
-  - `fn` (`function`): A function with signature `fn(reader_inst, book_inst)`.
+*   **Description:** Assigns a custom callback to run after a successful book read.
+*   **Parameters:** `fn` (function) - function with signature `fn(reader, book)`.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- Listens for the `"onaspiringbookworm"` event on the entity. Triggers the internal `onaspiringbookworm` handler to add/remove the `"aspiring_bookworm"` tag.
-- No events are pushed by this component.
+### `Read(book)`
+*   **Description:** Attempts to read (or peruse) a book, using the book's `book` component logic. If the reader is an aspiring bookworm, only peruses; otherwise, reads fully and invokes `onread` callback if defined.
+*   **Parameters:** `book` (entity) - the book entity to read.
+*   **Returns:** 
+    * If aspiring: `true`/`false` (result of `book.components.book:OnPeruse`).
+    * If not aspiring: `success` (boolean), `reason` (string, optional) from `book.components.book:OnRead`.
+*   **Error states:** Returns `nil` if `book.components.book` is missing or the book is unreadable.
+
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** None.
+
+## Notes
+- The `reader` tag is automatically added on construction and removed on entity removal.
+- The `onaspiringbookworm` callback ensures the `aspiring_bookworm` tag stays in sync with the internal state.

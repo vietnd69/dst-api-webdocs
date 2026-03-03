@@ -1,174 +1,182 @@
 ---
 id: worldmigrator
 title: Worldmigrator
-description: Manages portal-based world migration logic, including status tracking, linking, and entity movement between worlds.
+description: Manages portal-based world migration logic, including status validation, item migration rules, and event triggering for players and items.
+tags: [world, migration, network, inventory, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: e466bec9
+system_scope: world
 ---
 
 # Worldmigrator
 
-## Overview
-The `WorldMigrator` component handles the logic and state management for migration portals in DST. It tracks portal status (inactive, active, full), manages cross-world linking, validates migration availability, and initiates player/item migrations between shards. It integrates with the world/shard system to coordinate cross-server migration events.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Tags Added/Removed:**  
-  - Adds the `"migrator"` tag when status is `STATUS.ACTIVE` and `hiddenaction` is false.  
-  - Removes `"migrator"` tag otherwise.
-- **Events Pushed:**  
-  - `"ms_registermigrationportal"` (during initialization)  
-  - `"migration_available"`, `"migration_full"`, `"migration_unavailable"`, `"migration_activate"`, `"migration_activate_other"`  
-  - `"ms_playerdespawnandmigrate"` (via `TheWorld`)
-- **No other components are directly added**; relies on external systems (`ShardPortals`, `TheShard`, `Shard_IsWorldAvailable`, `Shard_IsWorldFull`, `Shard_CreateTransaction_TransferInventoryItem`, `SourceModifierList`).
+## Overview
+`Worldmigrator` is a component responsible for managing the state and behavior of migration portals in the world. It determines whether a portal is available, full, or inactive based on the destination world's status and external restrictions (e.g., disabled sources). It handles player and item migration triggers, enforces item migration rules (e.g., irreplaceable items or pet-owning items are not migrated), and coordinates serialization for saves. It integrates with `migrationpetowner`, `inventory`, and `container` components during migration.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("worldmigrator")
+inst.components.worldmigrator:SetID(1)
+inst.components.worldmigrator:SetDestinationWorld("forest", false)
+inst.components.worldmigrator:ValidateAndPushEvents()
+```
+
+## Dependencies & tags
+**Components used:** `inventory`, `container`, `migrationpetowner`, `inventoryitem`
+**Tags:** Adds/Removes `migrator` based on active status.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity the component is attached to. |
-| `auto` | `boolean` | `true` | Whether linking is automatic (`true`) or manual (`false`). |
-| `enabled` | `boolean` | `true` | User-controlled enabled state (not a dependency). |
-| `disabledsources` | `SourceModifierList` | — | Tracks modifiers disabling migration (e.g., `"MISSINGSHARD"`). |
-| `_status` | `number` | `-1` | Internal status: `STATUS.ACTIVE=0`, `STATUS.INACTIVE=1`, `STATUS.FULL=2`. |
-| `id` | `number?` | `nil` | Unique portal ID (nil until set). |
-| `linkedWorld` | `string?` | `nil` | Target world/shard ID (e.g., `"cave"`). |
-| `receivedPortal` | `number?` | `nil` | Portal ID of the remote end (used for bidirectional validation). |
-| `FX_OVERRIDES` | `table` | `{"oceanwhirlbigportal" = "spawn_fx_ocean_static"}` | Maps portal ID to custom FX string. |
-| `hiddenaction` | `boolean?` | `nil` | If true, suppresses `"migrator"` tag even when active. |
+| `auto` | boolean | `true` | Whether migration is automatic (`true`) or manual (`false`). |
+| `enabled` | boolean | `true` | Whether this portal is enabled. |
+| `disabledsources` | `SourceModifierList` | — | Tracks reasons this portal is disabled (e.g., `MISSINGSHARD`). |
+| `_status` | number | `-1` | Internal status: `0 = ACTIVE`, `1 = INACTIVE`, `2 = FULL`. |
+| `id` | number or `nil` | `nil` | Unique portal identifier. |
+| `linkedWorld` | string or `nil` | `nil` | Destination world name (e.g., `"caves"`, `"forest"`). |
+| `receivedPortal` | number or `nil` | `nil` | Portal ID on the destination side (used for linking). |
+| `FX_OVERRIDES` | table | `{"oceanwhirlbigportal" = "spawn_fx_ocean_static"}` | Portal-specific FX override mappings. |
 
-## Main Functions
-
+## Main functions
 ### `SetHideActions(hidden)`
-* **Description:** Sets whether migration actions should be hidden. Affects tagging and visibility logic.
-* **Parameters:**  
-  `hidden` (`boolean`) — If `true`, hides actions; otherwise, shows them.
+* **Description:** Sets whether the portal is in a "hidden action" state (e.g., during cutscenes). Affects the presence of the `migrator` tag.
+* **Parameters:** `hidden` (boolean) — if `true`, disables the migrator tag.
+* **Returns:** Nothing.
 
 ### `SetDestinationWorld(world, permanent)`
-* **Description:** Sets the target world for migration and determines whether linking is manual or automatic.
+* **Description:** Sets the destination world for this portal and configures auto/manual mode.
 * **Parameters:**  
-  `world` (`string`) — Target world/shard ID.  
-  `permanent` (`boolean?`) — If `true`, sets `auto = false`; otherwise, `auto = true`.
+  `world` (string or `nil`) — name of the destination world.  
+  `permanent` (boolean or `nil`) — if `true`, sets `auto` to `false`; otherwise sets `auto` to `true`.
+* **Returns:** Nothing.
 
 ### `SetDisabledWithReason(reason)`
-* **Description:** Marks migration as disabled for a specific reason (e.g., `"MISSINGSHARD"`).
-* **Parameters:**  
-  `reason` (`string`) — Key used to track the disablement source.
+* **Description:** Disables the portal for a given reason (stored in `disabledsources`).
+* **Parameters:** `reason` (string) — e.g., `"MISSINGSHARD"`.
+* **Returns:** Nothing.
 
 ### `ClearDisabledWithReason(reason)`
-* **Description:** Clears a previous disablement reason, potentially re-enabling migration.
-* **Parameters:**  
-  `reason` (`string`) — The reason key to remove.
+* **Description:** Removes a disable reason, potentially re-enabling the portal.
+* **Parameters:** `reason` (string).
+* **Returns:** Nothing.
 
 ### `SetEnabled(enabled)`
-* **Description:** Sets the user-visible enabled state and triggers status revalidation.
-* **Parameters:**  
-  `enabled` (`boolean`) — Whether migration should be enabled.
+* **Description:** Enables or disables the portal (affects `enabled` flag and triggers validation).
+* **Parameters:** `enabled` (boolean).
+* **Returns:** Nothing.
 
 ### `SetReceivedPortal(fromworld, fromportal)`
-* **Description:** Records the source world and portal ID that initiated the link (used for manual linking).
+* **Description:** Records the source of a bi-directional portal link. Should ideally be coordinated between worlds (currently uses an `assert` for safety).
 * **Parameters:**  
-  `fromworld` (`string`) — Source world ID.  
-  `fromportal` (`number`) — Source portal ID.
+  `fromworld` (string) — origin world name.  
+  `fromportal` (number) — origin portal ID.
+* **Returns:** Nothing.
 
 ### `GetStatusString()`
-* **Description:** Returns lowercase string representation of current status (`"active"`, `"inactive"`, `"full"`).
+* **Description:** Returns a lowercase string representation of the current status (`"active"`, `"inactive"`, `"full"`).
 * **Parameters:** None.
+* **Returns:** (string) status name.
 
 ### `ValidateAndPushEvents()`
-* **Description:** Computes and updates migration availability based on `enabled`, `disabledsources`, and world state. Pushes appropriate events and updates `_status`.
+* **Description:** Evaluates current conditions (enabled, world availability, world fullness) and updates `_status`. Fires appropriate events (`migration_available`, `migration_unavailable`, `migration_full`) and logs to console if in-game.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `IsBound()`
-* **Description:** Checks if the portal is fully bound (has ID, linkedWorld, and receivedPortal).
+* **Description:** Checks if the portal has all required linking data (`id`, `linkedWorld`, `receivedPortal`).
 * **Parameters:** None.
-* **Returns:** `boolean`.
+* **Returns:** (boolean) `true` if fully bound.
 
 ### `SetID(id)`
-* **Description:** Assigns the portal ID and updates the global `nextPortalID` counter. Temporarily auto-populates `receivedPortal`.
-* **Parameters:**  
-  `id` (`number`) — Unique portal identifier.
+* **Description:** Sets the portal’s unique ID. Ensures uniqueness against existing portals in `ShardPortals`. Temporarily auto-assigns `receivedPortal = id`.
+* **Parameters:** `id` (number).
+* **Returns:** Nothing.
 
 ### `IsDestinationForPortal(otherWorld, otherPortal)`
-* **Description:** Checks if this portal is the destination for a given remote portal.
+* **Description:** Determines if this portal points to a given world and portal ID.
 * **Parameters:**  
-  `otherWorld` (`string`) — Remote world ID.  
-  `otherPortal` (`number`) — Remote portal ID.
-* **Returns:** `boolean`.
-
-### `IsLinked()`
-* **Description:** Checks if a link exists (both `linkedWorld` and `receivedPortal` are non-nil).
-* **Parameters:** None.
-* **Returns:** `boolean`.
+  `otherWorld` (string) — destination world.  
+  `otherPortal` (number) — destination portal ID.
+* **Returns:** (boolean) `true` if this portal’s `linkedWorld` and `receivedPortal` match.
 
 ### `IsAvailableForLinking()`
-* **Description:** Checks if the portal is unbound and thus available for new links.
+* **Description:** Returns `true` if this portal is not yet fully linked.
 * **Parameters:** None.
-* **Returns:** `boolean`.
+* **Returns:** (boolean) `true` if `not IsLinked()`.
+
+### `IsLinked()`
+* **Description:** Checks if `linkedWorld` and `receivedPortal` are both non-`nil`.
+* **Parameters:** None.
+* **Returns:** (boolean).
 
 ### `IsActive()`
-* **Description:** Checks if migration is currently active (enabled, not disabled, and status is `ACTIVE`).
+* **Description:** Checks if the portal is enabled *and* currently in `ACTIVE` status.
 * **Parameters:** None.
-* **Returns:** `boolean`.
+* **Returns:** (boolean).
 
 ### `IsFull()`
-* **Description:** Checks if the target world is full (`_status == FULL`).
+* **Description:** Checks if the destination world is full (`_status == FULL`).
 * **Parameters:** None.
-* **Returns:** `boolean`.
+* **Returns:** (boolean).
 
 ### `CanInventoryItemMigrate(item)`
-* **Description:** Determines whether an inventory item is allowed to migrate.
-* **Parameters:**  
-  `item` (`Entity`) — The item to check.
-* **Returns:** `boolean`.
+* **Description:** Determines if an item is allowed to migrate. Blocks irreplaceable items or items with active pets (`migrationpetowner`).
+* **Parameters:** `item` (entity instance) — the item to test.
+* **Returns:** (boolean) `true` if allowed.
 
 ### `TryToMakeItemMigrateable(item)`
-* **Description:** Attempts to unpair migration pets or prepare an item for migration.
-* **Parameters:**  
-  `item` (`Entity`) — The item to process.
+* **Description:** Attempts to make an item migratable by calling `OnStopUsing()` on it (e.g., to unpair a beef_bell).
+* **Parameters:** `item` (entity instance).
+* **Returns:** Nothing.
 
 ### `DropThingsThatShouldNotMigrate(doer)`
-* **Description:** Drops all items in the doer's inventory or container that cannot migrate.
-* **Parameters:**  
-  `doer` (`Entity`) — The player/entity whose items to filter.
+* **Description:** For a given entity (player or item), drops items that are not migratable (using `inventory:DropEverythingByFilter` or `container:DropEverythingByFilter`).
+* **Parameters:** `doer` (entity instance) — typically a player entity.
+* **Returns:** Nothing.
 
 ### `Activate(doer)`
-* **Description:** Initiates migration for the given entity (player or item). Returns success status and optional error string.
-* **Parameters:**  
-  `doer` (`Entity`) — The entity migrating.
+* **Description:** Initiates migration for the given `doer`. For players, triggers `ms_playerdespawnandmigrate`. For items, initiates a `Shard_CreateTransaction_TransferInventoryItem`. Checks migration eligibility and drops ineligible items first.
+* **Parameters:** `doer` (entity instance).
 * **Returns:**  
-  `success` (`boolean`), `reason` (`string?`) — e.g., `"NODESTINATION"`.
+  `(true)` — success.  
+  `(false, "NODESTINATION")` — if no destination is set or migration was skipped.  
+  *(For players only)* If `doer._despawning` is `true`, returns `(true)` with no action.
 
 ### `ActivatedByOther()`
-* **Description:** Indicates that the portal was activated remotely (not by local player). Triggers `"migration_activate_other"`.
+* **Description:** Fires `migration_activate_other` event to notify listeners that a portal was activated remotely (e.g., from the destination side).
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Returns serializable state for persistence.
+* **Description:** Returns a serializable table of key state fields for persistence.
 * **Parameters:** None.
-* **Returns:** `table` — `{id, linkedWorld, receivedPortal, auto}`.
+* **Returns:** (table) `{id, linkedWorld, receivedPortal, auto}`.
 
 ### `OnLoad(data)`
-* **Description:** Restores state from saved data. Supports legacy `recievedPortal` typo.
-* **Parameters:**  
-  `data` (`table`) — Saved state from `OnSave`.
+* **Description:** Restores state from `OnSave()` output. Includes backward compatibility for typo `"recievedPortal"`.
+* **Parameters:** `data` (table).
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted debug string with current state.
+* **Description:** Returns a human-readable debug string summarizing portal state.
 * **Parameters:** None.
-* **Returns:** `string`.
+* **Returns:** (string) formatted debug info.
 
-## Events & Listeners
-- Listens to **none** (no `inst:ListenForEvent` calls).
-- Pushes/triggers the following events:
-  - `"ms_registermigrationportal"` → When initialized.
-  - `"migration_available"` → When portal becomes active.
-  - `"migration_full"` → When target world is full.
-  - `"migration_unavailable"` → When portal is disabled or destination unavailable.
-  - `"migration_activate"` → When local entity activates the portal.
-  - `"migration_activate_other"` → When remote entity activates the portal.
-  - `"ms_playerdespawnandmigrate"` (via `TheWorld`) → For player migration.
+## Events & listeners
+- **Listens to:**  
+  `"migration_unavailable"` (internal event triggered on `ValidateAndPushEvents` when disabled).  
+  `"migration_available"` (internal event triggered when portal becomes active and world is available).  
+  `"migration_full"` (internal event triggered when destination world is full).  
+  `"migration_activate"` (internal event fired during `Activate`, includes `{doer = ...}`).
+- **Pushes:**  
+  `"ms_registermigrationportal"` (via `init` in constructor).  
+  `"migration_unavailable"`, `"migration_available"`, `"migration_full"` (via `ValidateAndPushEvents`).  
+  `"migration_activate"` (during `Activate`), `"migration_activate_other"` (via `ActivatedByOther`).

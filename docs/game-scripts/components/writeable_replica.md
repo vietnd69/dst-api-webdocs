@@ -1,67 +1,88 @@
 ---
 id: writeable_replica
 title: Writeable Replica
-description: Manages client-side representation and interaction with writeable entities by synchronizing access to classified data and handling UI presentation.
+description: Manages client-side networked writing interactions for writeable entities by coordinating with the server-hosted writeable component and classified data.
+tags: [network, ui, interaction]
 sidebar_position: 1
-
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: components
 source_hash: d013b160
+system_scope: network
 ---
-
 # Writeable Replica
 
-## Overview
-This component acts as a client-side replica for writeable entities (e.g., journals, notes), coordinating access to `writeable_classified` data, managing UI screen creation, and synchronizing text input with the server via RPC. It ensures safe rendering and interaction when the client gains access to classified writeable data, while avoiding duplication of behavior handled by the master simulation.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on the `writeable_classified` prefab for classification data (spawned on master, referenced on client).
-- Listens to the `"onremove"` event on the attached `classified` entity.
-- Does not add or remove entity tags directly.
+## Overview
+`Writeable Replica` implements the client-side interface for writing on writeable entities (e.g., signs, journals). It handles the display of the writing UI, text input, and synchronization with the server via RPC calls. It relies on the `writeable` component on the server (when present) and falls back to direct communication via a `classified` child entity for networked clients. It is not responsible for the actual logic of writing—only for managing the client experience and relaying data.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("writeable_replica")
+-- Writing UI and text handling occurs automatically when the player interacts
+-- via the writeable's interaction UI; this component connects to the server
+-- writeable component or classified entity to propagate changes.
+```
+
+## Dependencies & tags
+**Components used:** `writeable`, `classified` (via `self.classified`)
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity this component is attached to. |
-| `screen` | `WriteableScreen?` | `nil` | Reference to the currently active writeable UI screen on the client. |
-| `opentask` | `Task?` | `nil` | A delayed task to begin writing immediately upon classified attachment; canceled during detach or explicit close. |
-| `classified` | `writeable_classified?` | `nil` | Reference to the classified component providing writeable content; populated differently on master vs. client. |
-| `ondetachclassified` | `function?` | `nil` | Callback function to handle classified entity removal; stores `self:DetachClassified()` to be passed to event listener. |
+| `screen` | widget (optional) | `nil` | Reference to the writeable UI widget, created when writing starts. |
+| `opentask` | Task (optional) | `nil` | Delayed task used to begin writing after classification data is attached. |
+| `classified` | Entity (optional) | `nil` | Child entity holding networked writeable data; created on master or attached from `inst.writeable_classified` on clients. |
 
-## Main Functions
-
+## Main functions
 ### `AttachClassified(classified)`
-* **Description:** Attaches a classified component to this writeable replica, sets up removal listener, and schedules immediate writing initialization via `opentask`. Called when client receives classified data (e.g., after server sync).
-* **Parameters:**
-  * `classified`: The `writeable_classified` component instance to attach.
+* **Description:** Attaches a `classified` entity to this component. Once attached, it schedules writing to begin after a zero-time delay via `opentask`.
+* **Parameters:** `classified` (Entity) — the classified data container entity.
+* **Returns:** Nothing.
 
 ### `DetachClassified()`
-* **Description:** Removes the classified reference and ends any active writing session, closing the UI if present.
+* **Description:** Detaches the `classified` entity, cancels pending tasks, and ends any ongoing writing session.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `BeginWriting(doer)`
-* **Description:** Initiates the writing process. If the master sim `writeable` component exists, delegates to it; otherwise, creates the writeable screen on the client (only for local player).
-* **Parameters:**
-  * `doer`: The entity attempting to write (typically `ThePlayer`); must be provided for client-side screen creation.
+* **Description:** Starts the writing interaction. If a server `writeable` component exists, it delegates to it. Otherwise (client-only path), it creates a UI screen if the player is the doer.
+* **Parameters:** `doer` (Entity) — the entity (usually a player) attempting to start writing.
+* **Returns:** Nothing.
+* **Error states:** No-op if `doer` is `nil`, or if `doer.HUD` is missing, or if writing is already in progress on the `writeable` component.
 
 ### `Write(doer, text)`
-* **Description:** Writes or updates the writeable’s text. Delegates to the master `writeable` component if present; otherwise, sends RPC to server with sanitized text (length-checked) for replication.
-* **Parameters:**
-  * `doer`: The entity performing the write (validated against `ThePlayer` on client).
-  * `text`: The string or `nil` to clear the writeable; length enforced via `text:utf8len()` against layout-defined max characters.
+* **Description:** Sends the written text to the server. If a `writeable` component exists, it delegates to it. Otherwise, it triggers an RPC to set the text on the server.
+* **Parameters:**  
+  - `doer` (Entity) — the entity performing the write (must be `ThePlayer` for the client path).  
+  - `text` (string | `nil`) — the text to write (length checked before sending).  
+* **Returns:** Nothing.
+* **Error states:** Writing is rejected if `text` exceeds `MAX_WRITEABLE_LENGTH` or `doer ~= ThePlayer` in the classified path.
 
 ### `EndWriting()`
-* **Description:** Ends the active writing session. Cancels pending open task, delegates to master `writeable` if present, or closes and destroys the local screen.
+* **Description:** Cleans up and closes the writing UI and cancels any pending open tasks. Delegates to `writeable` component if present.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No explicit failure; silently handles missing HUD or screen instances.
 
 ### `SetWriter(writer)`
-* **Description:** Assigns the writer (target entity) for the classified component’s network tracking. Used for permission or attribution logic; asserts that this is not used during normal operation if a master `writeable` component exists.
-* **Parameters:**
-  * `writer`: The entity to set as writer (or `nil` to clear); defaults to `self.inst` if passed as `nil`.
+* **Description:** Assigns the target for classified data (e.g., owner or owner entity). Used during construction or target reassignment.
+* **Parameters:** `writer` (Entity | `nil`) — the entity that should receive write access; if `nil`, defaults to `self.inst`.
+* **Returns:** Nothing.
+* **Error states:** Asserts if `writer` is non-`nil` when no `writeable` component is present (i.e., unexpected usage outside construction).
 
-## Events & Listeners
-- Listens for `"onremove"` event on `self.classified`, triggering `self.ondetachclassified` (which calls `DetachClassified()`).
-- Triggers no custom events itself.
+## Events & listeners
+- **Listens to:**  
+  - `onremove` on the `classified` entity (via `self.ondetachclassified`) — triggers `DetachClassified()` when the classified entity is removed.
+- **Pushes:** None identified.
+
+## Notes
+- This component runs on **clients only**; the actual write logic resides in `components/writeable.lua` on the master simulation.
+- It is designed to support both the traditional `writeable` component path (server-side authoritative) and a legacy/classified path for networked data propagation.
+- RPC `RPC.SetWriteableText` is used to transmit text changes from client to server when the `writeable` component is absent.
+- The `OnRemoveEntity()` override ensures the `classified` child is removed only on the master simulation to prevent duplicate cleanup.
+

@@ -1,116 +1,131 @@
 ---
 id: hideandseekgame
 title: Hideandseekgame
-description: Manages the Hide and Seek game state, including tracking hiding spots, seekers, and game lifecycle events.
+description: Manages the Hide and Seek minigame logic, tracking seekers, hiding spots, game state, and rewards.
+tags: [minigame, player, event]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 6be61142
+system_scope: entity
 ---
 
 # Hideandseekgame
 
-## Overview
-This component orchestrates the Hide and Seek minigame by tracking active hiding spots and seekers, detecting when players interact with hiding spots, and managing the game's start, progress, and end phases. It operates at the world level, typically attached to a central game coordinator entity (e.g., a game board or beacon), and handles game persistence, periodic seeker detection, and event-driven state transitions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependency**: Relies on entities having the `hideandseeker` component for seekers and `hideandseekhidingspot` for hiding spots (applied dynamically when needed).
-- **Tag Behavior**: Does not add or remove tags itself; relies on external components (`hideandseeker`, `hideandseekhidingspot`) to manage entity state.
-- **Event Dependencies**: Listens for `onremove` and `onhidingspotremoved` events on hiding spots and seekers.
+## Overview
+`HideAndSeekGame` is an entity component that orchestrates the Hide and Seek minigame by tracking active seekers, registered hiding spots, and game state transitions. It listens for entity removals and hiding spot discoveries to update internal state and trigger callbacks. It coordinates with the `hideandseeker` component on seekers and the `hideandseekhidingspot` component on hiding spots to manage lifecycle events.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("hideandseekgame")
+
+-- Start the game by registering hiding spots
+for _, spot in ipairs(hiding_spots) do
+    spot:AddComponent("hideandseekhidingspot")
+    inst.components.hideandseekgame:RegisterHidingSpot(spot)
+end
+
+-- Later, add a seeker manually or let the pulse task auto-detect them
+inst.components.hideandseekgame:AddSeeker(some_player, true)
+```
+
+## Dependencies & tags
+**Components used:** `hideandseeker`, `hideandseekhidingspot`
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `seekers` | `table` | `{}` | Map of active seeker entities (`entity → true`). |
-| `hiding_spots` | `table` | `{}` | Map of active hiding spot entities (`entity → true`). |
-| `hiding_range` | `number` | `10` | Squared radius (not actual distance) within which players may be detected as seekers during the pulse cycle. |
-| `hiding_range_toofar` | `number` | `10` | Unused in current code (commented out in analysis). |
-| `num_hiders_found` | `number` | `0` | Counter for how many hiding spots have been found by players (used for reward calculation, not game progress). |
-| `pulse_task` | `Task` | `nil` | Periodic task (1 second interval) that scans for new seekers near the game coordinator. |
-| `onremove_hiding_spot` | `function` | `nil` | Internal callback for when a hiding spot is removed from the world. |
-| `onremove_seeker` | `function` | `nil` | Internal callback for when a seeker entity is removed. |
-| `dounregisterhidingspot` | `function` | `nil` | Internal callback for `onhidingspotremoved` events, increments `num_hiders_found` if found by a player. |
-| `OnAddSeeker` | `function?` | `nil` | Optional external hook called when a new seeker is added. |
-| `OnHidingSpotFound` | `function?` | `nil` | Optional external hook called when a hiding spot is found by a player. |
-| `OnHideAndSeekOver` | `function?` | `nil` | Optional external hook called when the game ends (no hiding spots remain). |
-| `OnHideAndSeekPulse` | `function?` | `nil` | Optional external hook called each pulse cycle. |
+| `seekers` | table | `{}` | Map of active seeker entities to `true`. |
+| `hiding_spots` | table | `{}` | Map of active hiding spot entities to `true`. |
+| `hiding_range` | number | `10` | Max squared distance for a player to be auto-detected as a seeker (used with `hiding_range * hiding_range`). |
+| `hiding_range_toofar` | number | `10` | Unused in current implementation; likely reserved for future logic. |
+| `num_hiders_found` | number | `0` | Count of hiding spots discovered by players (used for rewards, not game progress). |
+| `onremove_hiding_spot` | function | — | Handler for when a hiding spot is removed; deregisters it and ends game if none remain. |
+| `onremove_seeker` | function | — | Handler for when a seeker is removed; cleans up internal tracking. |
+| `dounregisterhidingspot` | function | — | Handler for `onhidingspotremoved` events; increments `num_hiders_found` if found by a player, then deregisters. |
+| `pulse_task` | Task | `nil` | Periodic task (1-second interval) that auto-detects seekers near the game entity. |
 
-## Main Functions
-
+## Main functions
 ### `OnRemoveEntity()`
-* **Description:** Cleans up when the game coordinator entity is removed from the world. Aborts all active hiding spots to prevent orphaned logic.
+* **Description:** Cleans up when the game entity is removed. Aborts all registered hiding spots.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `IsActive()`
-* **Description:** Returns whether the game is currently active (i.e., at least one hiding spot is registered).
+* **Description:** Returns `true` if at least one hiding spot is registered.
 * **Parameters:** None.
 * **Returns:** `boolean` — `true` if hiding spots exist, `false` otherwise.
 
 ### `Abort()`
-* **Description:** Immediately ends the game by unregistering all hiding spots and aborting their internal state.
+* **Description:** Immediately ends the game. Unregisters all hiding spots and aborts their components.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `_HideAndSeekOver()`
-* **Description:** Internal method triggered when the last hiding spot is removed. Cancels the pulse task, clears seekers, resets counters, and fires the `OnHideAndSeekOver` hook.
+* **Description:** Internal method called when no hiding spots remain. Cancels the pulse task, triggers the `OnHideAndSeekOver` callback, and clears internal seeker state.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `AddSeeker(seeker, started_game)`
-* **Description:** Registers a new seeker entity to the game, adding the `hideandseeker` component if missing. Listens for its removal and fires the `OnAddSeeker` hook.
-* **Parameters:**  
-  - `seeker`: `Entity` — The player or entity becoming a seeker.  
-  - `started_game`: `boolean` — Whether this seeker initiated the game (unused in current logic but passed to the hook).
+* **Description:** Adds a player or entity as a seeker. Creates the `hideandseeker` component if missing and registers removal callbacks.
+* **Parameters:**
+  * `seeker` (entity) — The entity to add as a seeker.
+  * `started_game` (boolean) — Indicates whether this seeker started the game (passed to `OnAddSeeker` callback).
+* **Returns:** Nothing.
+* **Error states:** No effect if `seeker.components.hideandseeker` already exists.
 
 ### `RegisterHidingSpot(hiding_spot)`
-* **Description:** Adds a hiding spot to the game. Sets up event listeners, resets `num_hiders_found`, and starts the pulse task if not already running.
-* **Parameters:**  
-  - `hiding_spot`: `Entity` — The entity acting as a hiding spot.
+* **Description:** Registers a hiding spot entity. Adds listeners for its removal and discovery, and starts the pulse task if not already running.
+* **Parameters:** `hiding_spot` (entity) — The hiding spot to register.
+* **Returns:** Nothing.
 
 ### `UnregisterHidingSpot(hiding_spot)`
-* **Description:** Removes a hiding spot from the game. Cleans up listeners and triggers game end if no spots remain.
-* **Parameters:**  
-  - `hiding_spot`: `Entity` — The entity to remove as a hiding spot.
+* **Description:** Removes a hiding spot from tracking. Cleans up event listeners and ends the game if none remain.
+* **Parameters:** `hiding_spot` (entity) — The hiding spot to unregister.
+* **Returns:** Nothing.
 
 ### `GetNumHiding()`
-* **Description:** Returns the count of currently registered hiding spots.
+* **Description:** Returns the count of currently active hiding spots.
 * **Parameters:** None.
-* **Returns:** `number`.
+* **Returns:** `number` — Number of registered hiding spots.
 
 ### `GetNumSeekers()`
-* **Description:** Returns the count of registered seekers.
+* **Description:** Returns the count of active seekers.
 * **Parameters:** None.
-* **Returns:** `number`.
+* **Returns:** `number` — Number of registered seekers.
 
 ### `GetNumFound()`
-* **Description:** Returns the total count of hiding spots found (by players) during this game instance.
+* **Description:** Returns how many hiding spots have been found by players.
 * **Parameters:** None.
-* **Returns:** `number`.
+* **Returns:** `number` — Value of `num_hiders_found`.
 
 ### `OnSave()`
-* **Description:** Prepares serializable data for saving. Returns references to hiding spot GUIDs and current `num_hiders_found`.
+* **Description:** Prepares serializable data for save/load. Returns GUIDs of hiding spots and current `num_hiders_found`.
 * **Parameters:** None.
-* **Returns:**  
-  - `table`: `{ hiding_spots = { GUIDs... }, num_hiders_found = number }`  
-  - `table`: List of GUIDs for additional save handling.
+* **Returns:** `{ hiding_spots: number[], num_hiders_found: number }, number[]` — Save data and list of GUIDs.
 
 ### `LoadPostPass(newents, data)`
-* **Description:** Restores hiding spots after game data is loaded. Re-registers entities using saved GUIDs and restores `num_hiders_found`.
-* **Parameters:**  
-  - `newents`: `table` — Map of GUID → entity from saved data.  
-  - `data`: `table` — Saved game state with `hiding_spots` (list of GUIDs) and `num_hiders_found`.
+* **Description:** Restores hiding spots after load using GUIDs from save data.
+* **Parameters:**
+  * `newents` (table) — Map of GUIDs to loaded entities.
+  * `data` (table) — Save data with `hiding_spots` (list of GUIDs) and `num_hiders_found`.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a human-readable debug string for diagnostics.
+* **Description:** Returns a debug-friendly status string.
 * **Parameters:** None.
-* **Returns:** `string` — e.g., `"Hiders: 3, Found: 1"`.
+* **Returns:** `string` — Formatted as `"Hiders: X, Found: Y"`.
 
-## Events & Listeners
-- **Listens for:**
-  - `onremove` on hiding spots → triggers `onremove_hiding_spot`
-  - `onhidingspotremoved` on hiding spots → triggers `dounregisterhidingspot`
-  - `onremove` on seekers → triggers `onremove_seeker`
-- **Triggers:**
-  - Calls external hooks: `OnAddSeeker`, `OnHidingSpotFound`, `OnHideAndSeekOver`, `OnHideAndSeekPulse` when applicable.
+## Events & listeners
+- **Listens to:**  
+  - `"onremove"` on hiding spots and seekers — triggers `onremove_hiding_spot` and `onremove_seeker` handlers respectively.  
+  - `"onhidingspotremoved"` on hiding spots — triggers `dounregisterhidingspot`, incrementing `num_hiders_found` if discovered by a player.
+- **Pushes:**  
+  - No events are directly pushed by this component (callbacks like `OnHidingSpotFound`, `OnHideAndSeekOver`, and `OnAddSeeker` are assigned externally and invoked as needed).

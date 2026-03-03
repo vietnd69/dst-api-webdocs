@@ -1,70 +1,101 @@
 ---
 id: tributable
 title: Tributable
-description: Manages tribute collection, reward thresholds, and decay logic for an entity that can receive or reject offerings from other entities.
+description: Manages tribute accumulation, reward thresholds, and decay timing for entities capable of receiving or dispensing offerings.
+tags: [trade, timer, state]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 5e926562
+system_scope: entity
 ---
 
 # Tributable
 
-## Overview
-The `Tributable` component enables an entity to accumulate tribute values from other entities, track when a reward threshold has been met, and automatically decay tribute over time if no new tribute is added. It supports persisting state via save/load hooks and triggering events during tribute acceptance or refusal.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies**: None explicitly required on `inst` (but expects `inst.components.tributable` to exist and be accessible from `ondecay`).
-- **Tags**: None added or removed by this component.
+## Overview
+`Tributable` tracks tribute value accumulated toward a reward threshold, handles reward acceptance or refusal, and implements decay logic for unused tribute. It is designed for entities (e.g., altars, totems) that accept offerings and reward givers after a threshold is met. The component supports saving/loading and automatic decay of tribute if no additional tribute is added within a configured delay.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("tributable")
+
+inst.components.tributable.decaycurrenttributetime = 60
+inst.components.tributable.rewardattributevalue = 25
+
+inst.components.tributable:OnAccept(10, giver_entity)
+if inst.components.tributable:HasPendingReward() then
+    inst.components.tributable:OnGivenReward()
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `currenttributevalue` | `number` | `0` | Current accumulated tribute value. |
-| `rewardattributevalue` | `number` | `10` | Threshold value required to qualify for reward (used by `HasPendingReward`). |
-| `numrewardsgiven` | `number` | `0` | Count of rewards that have been awarded. |
-| `timegiventribute` | `number?` | `nil` | Timestamp of the last tribute acceptance (used for decay timing). |
-| `decaycurrenttributetime` | `number` | `0` | Duration (in seconds) after which tribute decays to zero if no new tribute is added. |
-| `decaytask` | `DSTask?` | `nil` | Handle to the active decay task (internal, not initialized in `_ctor` but used). |
-| `ongivenrewardfn` | `function?` | `nil` | Optional callback executed after a reward is given (`OnGivenReward`). |
+| `currenttributevalue` | number | `0` | Current accumulated tribute value. |
+| `rewardattributevalue` | number | `10` | Threshold required to trigger a pending reward. |
+| `numrewardsgiven` | number | `0` | Total count of rewards dispensed. |
+| `timegiventribute` | number? | `nil` | Unix timestamp of last tribute acceptance; used for decay calculation. |
+| `decaycurrenttributetime` | number | `0` | Seconds after last tribute addition before tribute decays to zero. |
+| `decaytask` | Task? | `nil` | Internal task managing the decay timer. |
+| `ongivenrewardfn` | function? | `nil` | Optional callback invoked after a reward is given. |
 
-## Main Functions
+## Main functions
+### `GetDebugString()`
+* **Description:** Returns a string for debugging UI or logs showing current tribute value.
+* **Parameters:** None.
+* **Returns:** `string` — formatted as `"current tribute: <value>"`.
 
 ### `HasPendingReward()`
-* **Description:** Returns `true` if the current tribute value meets or exceeds the reward threshold (`rewardattributevalue`), indicating a reward is ready to be claimed.
+* **Description:** Checks whether the accumulated tribute meets or exceeds the reward threshold.
 * **Parameters:** None.
+* **Returns:** `boolean` — `true` if `currenttributevalue >= rewardattributevalue`, otherwise `false`.
 
 ### `OnGivenReward()`
-* **Description:** Resets tribute to zero, increments the reward count, cancels any pending decay task, and invokes the optional `ongivenrewardfn` callback (if set).  
+* **Description:** Records a reward being given, resets tribute value, increments reward counter, cancels any pending decay, and invokes the optional callback `ongivenrewardfn`.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnAccept(value, tributer)`
-* **Description:** Accepts tribute from `tributer` by increasing `currenttributevalue` by `value`, fires the `"onaccepttribute"` event, and manages decay timing. If tribute was previously decaying, the decay task is reset with a fresh timer.  
+* **Description:** Adds tribute `value` to the current total, resets the decay timer if configured, and pushes the `onaccepttribute` event.
 * **Parameters:**  
-  - `value` (`number`): The amount of tribute to add.  
-  - `tributer` (`Entity`): The entity giving the tribute (unused internally but may be used by listeners).
+  - `value` (number) — amount of tribute to add.  
+  - `tributer` (entity) — entity providing the tribute (currently unused internally but passed for context).  
+* **Returns:** Nothing.  
+* **Error states:** If decay time is positive and no reward is pending, a new decay task is scheduled.
 
 ### `OnRefuse()`
-* **Description:** Fires the `"onrefusetribute"` event to notify listeners that a tribute offer was rejected.  
+* **Description:** Notifies listeners that a tribute offer was refused; used when the receiver declines an offering.
 * **Parameters:** None.
+* **Returns:** Nothing.  
+* **Pushes:** `onrefusetribute` event.
 
 ### `OnSave()`
-* **Description:** Serializes the component’s state for persistence. Only includes fields with non-zero/non-`nil` values to reduce save size.  
-* **Parameters:** None.  
-* **Returns:**  
-  `data` (`table`): A table containing `currenttributevalue`, `remainingdecaytime`, and `numrewardsgiven` (where applicable).
+* **Description:** Serializes component state for network or save-game persistence.
+* **Parameters:** None.
+* **Returns:** `table` — map containing:  
+  - `currenttributevalue` (number or `nil`)  
+  - `remainingdecaytime` (number or `nil`)  
+  - `numrewardsgiven` (number or `nil`)  
+  Values are omitted from the table if they are zero.
 
 ### `OnLoad(data)`
-* **Description:** Restores the component’s state from saved data. Reinitializes decay task if needed.  
+* **Description:** Restores component state from serialized `data`.
 * **Parameters:**  
-  - `data` (`table?`): The saved state table (may be `nil` on fresh loads).  
+  - `data` (table?) — must conform to the structure returned by `OnSave()`. May be `nil`.  
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens for:** None.
-- **Triggers events:**  
-  - `"onaccepttribute"` — Fired when tribute is accepted via `OnAccept`.  
-  - `"onrefusetribute"` — Fired when tribute is refused via `OnRefuse`.
+## Events & listeners
+- **Listens to:** None identified.  
+- **Pushes:**  
+  - `onaccepttribute` — fired when tribute is accepted.  
+  - `onrefusetribute` — fired when tribute is refused.

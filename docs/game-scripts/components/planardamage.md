@@ -1,89 +1,109 @@
 ---
 id: planardamage
 title: Planardamage
-description: Calculates the final damage value for an entity by combining base damage with source-based multipliers and additive bonuses.
+description: Calculates and manages planar damage by combining a base value with additive bonuses and multiplicative multipliers.
+tags: [combat, damage, modifier]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: combat
+category_type: components
 source_hash: 48c68e02
+system_scope: entity
 ---
 
 # Planardamage
 
-## Overview
-The `Planardamage` component calculates the final damage value for an entity using the formula:  
-`Final Damage = BaseDamage × Multiplier + Bonus`.  
-It manages modular, source-specific modifiers—both multiplicative (multipliers) and additive (bonuses)—via helper utilities (`SourceModifierList`), enabling flexible and reusable damage computation across game systems (e.g., environmental hazards, abilities, or planar effects).
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Dependencies**:  
-  - Uses `SourceModifierList` from `util/sourcemodifierlist`.  
-  - Relies on the entity (`inst`) supporting the `SourceModifierList` pattern (e.g.,具备 `:AddComponent("health")` may be required to receive damage, but `PlanarDamage` itself does not *add* components or tags).  
-- **Tags**: None identified.
+## Overview
+`PlanarDamage` is a utility component that computes total damage using a formula:  
+`(BaseDamage × Multiplier) + Bonus`.  
+It uses two `SourceModifierList` instances—one for multiplicative modifiers and one for additive bonuses—to support multiple modifier sources (e.g., from equipment, abilities, or status effects). This component is typically added to entities that deal planar damage (e.g., boss attacks or special abilities in specific game zones), and provides methods to dynamically adjust and query damage contributions.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("planardamage")
+inst.components.planardamage:SetBaseDamage(50)
+inst.components.planardamage:AddMultiplier("player_equipment", 1.2, "combat_boots")
+inst.components.planardamage:AddBonus("perk_active", 10, "warrior_passive")
+print(inst.components.planardamage:GetDebugString())
+-- Output: "Damage=75.00 [50.00x1.20+10.00]"
+```
+
+## Dependencies & tags
+**Components used:** `SourceModifierList` (via `require("util/sourcemodifierlist")`)  
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | Reference to the owning entity instance. |
-| `basedamage` | `number` | `0` | Base damage value before modifiers are applied. |
-| `externalmultipliers` | `SourceModifierList` | Instance with default settings (multiplicative aggregation) | Stores multiplicative modifiers applied to base damage. |
-| `externalbonuses` | `SourceModifierList` | Instance with default settings (additive aggregation) | Stores additive modifiers applied after multiplication. |
+| `basedamage` | number | `0` | Base damage value, set via `SetBaseDamage()`. |
+| `externalmultipliers` | `SourceModifierList` | New instance | Handles multiplicative modifiers (default operation: multiplication). |
+| `externalbonuses` | `SourceModifierList` | New instance | Handles additive bonuses (explicitly configured as additive). |
 
-## Main Functions
+## Main functions
 ### `SetBaseDamage(damage)`
-* **Description:** Sets the base damage value used in final damage calculations.  
-* **Parameters:**  
-  - `damage` (`number`): The new base damage value.
+* **Description:** Sets the base damage value used in the damage calculation.
+* **Parameters:** `damage` (number) – the new base damage.
+* **Returns:** Nothing.
 
 ### `GetBaseDamage()`
-* **Description:** Returns the current base damage value.  
+* **Description:** Returns the currently set base damage value.
 * **Parameters:** None.
+* **Returns:** number – the base damage.
 
 ### `GetDamage()`
-* **Description:** Computes and returns the final damage value using the formula: `BaseDamage × Multiplier + Bonus`.  
+* **Description:** Computes the total planar damage using the formula `(basedamage × multiplier) + bonus`.
 * **Parameters:** None.
+* **Returns:** number – the computed total damage.
 
 ### `AddMultiplier(src, mult, key)`
-* **Description:** Adds or updates a multiplicative modifier (multiplier) from a specific source. Multipliers are applied multiplicatively to the base damage.  
+* **Description:** Adds a multiplicative modifier to the external multiplier list.
 * **Parameters:**  
-  - `src` (`any`): Source identifier (e.g., `"lava"`, `"spell_fire"`).  
-  - `mult` (`number`): The multiplicative factor (e.g., `1.5`).  
-  - `key` (`any`): Optional key for distinguishing multiple modifiers from the same source.
+  - `src` (string) – source identifier (e.g., `"perk"` or `"item_name"`).  
+  - `mult` (number) – the multiplicative factor (e.g., `1.5` for +50%).  
+  - `key` (string) – unique key within the source to allow replacing or removing this modifier.
+* **Returns:** Nothing.
 
 ### `RemoveMultiplier(src, key)`
-* **Description:** Removes a specific multiplicative modifier by source and key.  
+* **Description:** Removes a previously added multiplicative modifier.
 * **Parameters:**  
-  - `src` (`any`): Source identifier.  
-  - `key` (`any`): Optional key matching the added modifier.
+  - `src` (string) – source of the modifier.  
+  - `key` (string) – key used when adding the modifier.
+* **Returns:** Nothing.
 
 ### `GetMultiplier()`
-* **Description:** Returns the aggregate multiplicative modifier (product of all active multipliers).  
+* **Description:** Returns the cumulative multiplicative factor from all registered modifiers.
 * **Parameters:** None.
+* **Returns:** number – the combined multiplier.
 
 ### `AddBonus(src, bonus, key)`
-* **Description:** Adds or updates an additive bonus from a specific source. Bonuses are added directly to the multiplied base damage.  
+* **Description:** Adds an additive bonus to the external bonus list.
 * **Parameters:**  
-  - `src` (`any`): Source identifier.  
-  - `bonus` (`number`): The additive amount (e.g., `5`).  
-  - `key` (`any`): Optional key for distinguishing modifiers.
+  - `src` (string) – source identifier.  
+  - `bonus` (number) – the additive amount (e.g., `10`).  
+  - `key` (string) – unique key for the bonus.
+* **Returns:** Nothing.
 
 ### `RemoveBonus(src, key)`
-* **Description:** Removes a specific additive bonus by source and key.  
+* **Description:** Removes a previously added additive bonus.
 * **Parameters:**  
-  - `src` (`any`): Source identifier.  
-  - `key` (`any`): Optional key matching the added bonus.
+  - `src` (string) – source of the bonus.  
+  - `key` (string) – key used when adding the bonus.
+* **Returns:** Nothing.
 
 ### `GetBonus()`
-* **Description:** Returns the aggregate additive bonus (sum of all active bonuses).  
+* **Description:** Returns the cumulative additive bonus from all registered bonuses.
 * **Parameters:** None.
+* **Returns:** number – the combined bonus.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted debug string summarizing the full damage calculation (final damage, base, multiplier, bonus).  
+* **Description:** Returns a human-readable string summarizing the damage breakdown for debugging or UI display.
 * **Parameters:** None.
+* **Returns:** string – formatted as `"Damage=X.XX [Y.YYxZ.ZZ+A.AA]"` where `X` is total damage, `Y` is base damage, `Z` is multiplier, and `A` is bonus.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified.

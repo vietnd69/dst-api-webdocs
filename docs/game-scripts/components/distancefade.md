@@ -1,54 +1,83 @@
 ---
 id: distancefade
 title: Distancefade
-description: This component causes an entity to fade out based on its distance from the camera.
+description: Controls the visual fade effect of an entity based on its distance from the camera relative to the ground plane.
+tags: [visual, environment, camera]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 07278c0b
+system_scope: environment
 ---
 
 # Distancefade
 
-## Overview
-The Distancefade component manages the visual fading of an entity by adjusting its `AnimState` color alpha based on its distance from the camera. This provides a visual depth cue or can be used to hide distant objects smoothly. It integrates with the game's "wall update" system to perform continuous distance calculations and transparency adjustments.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-This component implicitly relies on the host entity having the following components:
-*   `AnimState`: Required to manipulate the entity's visual transparency.
-*   `Transform`: Required to obtain the entity's world position for distance calculations.
-No specific tags are added or removed by this component.
+## Overview
+`Distancefade` manages the alpha transparency (fade) of an entity's visuals based on how far it is from the camera *along the camera's downward-facing axis* (i.e., depth relative to the screen). It is used to smoothly fade in/out objects as they move beyond or approach a set distance threshold—most commonly for environmental props and terrain features to improve performance and visual coherence. The component operates by periodically updating the entity's `AnimState` colour override, modifying only the alpha channel while keeping RGB at full intensity.
+
+This component is typically attached to static or passive entities that do not require high update frequency and is designed to work in conjunction with `StartWallUpdatingComponent`/`StopWallUpdatingComponent` lifecycle hooks for efficiency.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("distancefade")
+inst.components.distancefade:Setup(30, 10)  -- fade starts at 30 units, completes over 10 units
+inst.components.distancefade:SetExtraFn(function(ent, dt)
+    -- Optional: modify fade scale per entity (e.g., based on time of day)
+    return TheWorld.state.isnight and 0.7 or 1.0
+end)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified  
 
 ## Properties
-| Property   | Type     | Default Value | Description                                                                                                                               |
-| :--------- | :------- | :------------ | :---------------------------------------------------------------------------------------------------------------------------------------- |
-| `range`    | `number` | `25`          | The distance from the camera at which the fading effect begins.                                                                           |
-| `fadedist` | `number` | `15`          | The distance over which the fading effect fully applies, measured from the point where `range` is exceeded.                               |
-| `extrafn`  | `function` | `nil`       | An optional function that, if set, provides an additional percentage multiplier (0-1) to the final fade calculation.                    |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `range` | number | `25` | Distance (along camera down vector) at which fading begins. Entities closer than this are fully visible. |
+| `fadedist` | number | `15` | Distance over which the alpha value decreases linearly from `1.0` to `0.0` once past `range`. |
+| `extrafn` | function or nil | `nil` | Optional callback that returns a multiplier (`0.0`–`1.0`) to scale the computed alpha. Called each update with `(inst, dt)`. |
 
-## Main Functions
+## Main functions
 ### `Setup(range, fadedist)`
-*   **Description:** Configures the primary fading parameters for the component.
-*   **Parameters:**
-    *   `range`: `number`, The new distance from the camera (in game units) after which the fading effect will begin.
-    *   `fadedist`: `number`, The new distance (in game units) over which the fading effect will fully apply once `range` is surpassed.
+*   **Description:** Configures the fade parameters for the entity. Must be called after construction (either manually or implicitly) to define when and how quickly the fade occurs.
+*   **Parameters:**  
+    `range` (number) — Distance from the camera where fading begins.  
+    `fadedist` (number) — Distance range over which the entity transitions from fully opaque to fully transparent.  
+*   **Returns:** Nothing.
+*   **Error states:** No explicit validation; `fadedist <= 0` will produce incorrect or no fading.
 
 ### `SetExtraFn(fn)`
-*   **Description:** Sets an optional callback function that can be used to apply an additional percentage multiplier to the fade calculation. This allows for custom fading logic on top of the standard distance-based fade.
-*   **Parameters:**
-    *   `fn`: `function`, A function that accepts the entity instance (`inst`) and delta time (`dt`) as arguments, and is expected to return a `number` between 0 and 1, representing an additional fade percentage.
+*   **Description:** Assigns a custom function to dynamically modulate the alpha value on top of the base distance-based calculation. Useful for time-of-day, weather, or gameplay-state-dependent opacity.
+*   **Parameters:**  
+    `fn` (function or nil) — A callback accepting `(inst, dt)` and returning a numeric multiplier for the alpha. If `nil`, no extra scaling is applied.  
+*   **Returns:** Nothing.
 
 ### `OnEntitySleep()`
-*   **Description:** This callback is invoked when the entity hosting this component goes to sleep. It deregisters the component from receiving further "wall updates."
+*   **Description:** Stops periodic wall updates (i.e., stops calling `OnWallUpdate`) when the entity enters a sleep state (typically when far from players).
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `OnEntityWake()`
-*   **Description:** This callback is invoked when the entity hosting this component wakes up. It registers the component to begin receiving "wall updates."
+*   **Description:** Resumes periodic wall updates when the entity wakes up (typically when entering the active region near a player).
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `OnWallUpdate(dt)`
-*   **Description:** This method is called repeatedly by the game's update system when the entity is awake and registered for wall updates. It calculates the entity's camera distance and dynamically adjusts its `AnimState` color alpha based on the configured `range` and `fadedist` properties, creating a fading effect. If `ThePlayer` global is not available (e.g., in specific server-side contexts), the entity's color is reset to fully opaque.
-*   **Parameters:**
-    *   `dt`: `number`, The time elapsed since the last frame.
+*   **Description:** Core update logic. Computes the entity’s distance from the camera along the camera's down vector and updates the alpha channel of the entity’s `AnimState` multicolour override accordingly. Runs on a fixed update cadence triggered by `StartWallUpdatingComponent`.
+*   **Parameters:**  
+    `dt` (number) — Delta time since the last update.  
+*   **Returns:** Nothing.
+*   **Error states:**  
+    - If `ThePlayer` is `nil` (e.g., during early init), no alpha change occurs.  
+    - If `mody > self.range + self.fadedist`, alpha becomes `0.0`.  
+    - If `mody <= self.range`, alpha is set to the `extrafn` multiplier (or `1.0` if none).
+
+## Events & listeners
+None identified

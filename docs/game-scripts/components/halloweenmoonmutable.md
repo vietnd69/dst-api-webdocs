@@ -1,61 +1,71 @@
 ---
 id: halloweenmoonmutable
 title: Halloweenmoonmutable
-description: Enables an entity to transform into another prefab under the influence of the Halloween moon, supporting custom override logic and event callbacks.
+description: Provides mutation functionality for entities under the influence of the Halloween Moon, allowing them to transform into a different prefab or be processed via a custom override function.
+tags: [event, transform, halloween]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: dc7c76ab
+system_scope: entity
 ---
 
 # Halloweenmoonmutable
 
-## Overview
-This component allows an entity to mutate (transform) into a different prefab when triggered—typically during the Halloween moon event. It supports configurable mutation behavior via a target prefab, custom override functions, and optional callbacks. It automatically tags the entity as `"halloweenmoonmutable"` and cleans up that tag on removal.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds tag `"halloweenmoonmutable"` to the entity in the constructor.
-- Removes tag `"halloweenmoonmutable"` on component removal (`OnRemoveFromEntity`).
-- Relies on optional components: `health`, `inventoryitem`, `stackable`. These are *not* added by the component but are used conditionally if present.
+## Overview
+`Halloweenmoonmutable` enables an entity to mutate—typically during the Halloween Moon event—into a different prefab. It supports both a default prefab-based transformation and a flexible override function for custom mutation logic. The component ensures health percentage, position, and inventory/container placement are preserved or handled appropriately during the transformation. It automatically adds the `halloweenmoonmutable` tag to the owning entity upon construction and removes it when detached.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("halloweenmoonmutable")
+inst.components.halloweenmoonmutable:SetPrefabMutated("beefalo_mutated")
+inst.components.halloweenmoonmutable:SetOnMutateFn(function(original, transformed)
+    print("Mutated from", original.prefab, "to", transformed.prefab)
+end)
+-- Later, trigger mutation:
+local new_inst = inst.components.halloweenmoonmutable:Mutate()
+```
+
+## Dependencies & tags
+**Components used:** `health`, `inventoryitem`, `stackable`
+**Tags:** Adds `halloweenmoonmutable`; no other tags are added or removed by this component.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the owning entity. |
-| `prefab_mutated` | `string or function` | `nil` | The prefab name (or a function returning one) to mutate into. Used unless `conversionoverridefn` is set. |
-| `onmutatefn` | `function` | `nil` | Optional callback invoked *after* mutation: signature `(original_inst, new_inst?)`. When `conversionoverridefn` is used, `new_inst` is `nil`. |
-| `push_attacked_on_new_inst` | `boolean` | `true` | Whether to push an `"attacked"` event on the new instance post-mutation. |
-| `conversionoverridefn` | `function` | `nil` | Optional override function `(original_inst) → (new_inst, container?)`. Takes precedence over `prefab_mutated`. |
+| `prefab_mutated` | string or function | `nil` | The prefab name or a function returning a prefab name to mutate into. |
+| `onmutatefn` | function | `nil` | Optional callback called with `(original_inst, transformed_inst)` after mutation. |
+| `push_attacked_on_new_inst` | boolean | `true` | Whether to push `attacked` event on the new instance post-mutation (used as fallback when not placed in a container). |
+| `conversionoverridefn` | function | `nil` | Optional high-priority override function that handles full transformation logic. |
 
-## Main Functions
-
+## Main functions
 ### `SetPrefabMutated(prefab)`
-* **Description:** Sets the target prefab to mutate into. Accepts either a string (prefab name) or a function that returns a string.
-* **Parameters:**  
-  `prefab` (string or function) — Prefab identifier or a function returning a string, called with `self.inst` as argument.
+* **Description:** Sets the target prefab for standard mutation. Can be a string or a callable returning a string.
+* **Parameters:** `prefab` (string|function) — the prefab name or function yielding a prefab name.
+* **Returns:** Nothing.
 
 ### `SetOnMutateFn(fn)`
-* **Description:** Assigns a callback function to run after mutation. This is called regardless of mutation method.
-* **Parameters:**  
-  `fn` (function) — Function with signature `(original_inst, new_inst?)`. If `conversionoverridefn` is used, `new_inst` is `nil`.
+* **Description:** Registers a callback to be invoked during mutation. Passed the original and (optionally) the new entity instance.
+* **Parameters:** `fn` (function) — signature `(original_inst: Entity, transformed_inst: Entity?)`.
+* **Returns:** Nothing.
 
 ### `SetConversionOverrideFn(fn)`
-* **Description:** Sets a custom mutation function that completely overrides default logic (including `prefab_mutated`). Useful for complex transformations (e.g., UI-driven changes or multi-step logic).
-* **Parameters:**  
-  `fn` (function) — Function with signature `(original_inst) → (transformed_inst, container?)`. Must return the new entity and optionally a container for placement.
+* **Description:** Sets a custom transformation function that completely overrides the standard mutation flow (including `prefab_mutated`). The function is responsible for spawning, positioning, and replacing the original entity.
+* **Parameters:** `fn` (function) — signature `(original_inst: Entity)`, expected to return `(new_inst: Entity?, container: ContainerComponent?)`.
+* **Returns:** Nothing.
 
 ### `Mutate(overrideprefab)`
-* **Description:** Performs the actual mutation. Checks if the entity is alive, applies mutation (using either `conversionoverridefn` or `prefab_mutated`), handles positioning/health copy, disposes the original, places the new instance, and triggers `"onhalloweenmoonmutate"`.
-* **Parameters:**  
-  `overrideprefab` (string or function, optional) — Temporary override of `prefab_mutated` for this mutation call only.  
-  *Returns:* `Entity or nil` — The new transformed entity, or `nil` if mutation failed (e.g., dead entity, failed spawn).
+* **Description:** Initiates the entity mutation process. If a `conversionoverridefn` is defined, it is used; otherwise, the standard path using `prefab_mutated` is taken. Dead entities are skipped.
+* **Parameters:** `overrideprefab` (string|nil) — optional temporary override of `prefab_mutated`.
+* **Returns:** `Entity?` — the new entity instance if successful, otherwise `nil`.
+* **Error states:** Returns `nil` if the original entity is dead (`health:IsDead()`) or if `SpawnPrefab` fails. Also returns `nil` when no valid `prefab` is available.
 
-## Events & Listeners
-- **Listens for:** None.
-- **Triggers:**
-  - `"onhalloweenmoonmutate"` — Pushed after successful mutation in both code paths.
-  - `"attacked"` — Pushed on the new instance *only* if `push_attacked_on_new_inst` is `true` and no container is available to receive the item.
+## Events & listeners
+- **Listens to:** None (no `inst:ListenForEvent` calls in this component).
+- **Pushes:** `onhalloweenmoonmutate` — fired after mutation is complete (including override path and standard path).

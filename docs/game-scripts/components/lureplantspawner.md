@@ -1,87 +1,58 @@
 ---
 id: lureplantspawner
 title: Lureplantspawner
-description: Manages seasonal spawning of Lureplants near active players during Spring using trail-based and random location logic.
+description: Manages the seasonal spawning of Lureplants during spring by tracking player movement trails and probabilistically placing them around active players.
+tags: [map, spawning, seasonal, environment]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: a93c420b
+system_scope: environment
 ---
 
 # Lureplantspawner
 
-## Overview
-This component is a server-side (master simulation) entity responsible for spawning Lureplant prefabs during Spring. It tracks active players, records their movement trails to bias spawn locations near recent footpaths, and schedules periodic spawn attempts based on tuned intervals and luck checks. It dynamically activates/deactivates based on the current season.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Requirements**: Requires `TheWorld.ismastersim`; fails on clients via `assert`.
-- **Entity Tags Added/Removed**: None.
-- **Dependencies**:
-  - `TheWorld` global (for season and world state)
-  - `TheWorld.Map` (for tile and deploy point validation)
-  - `TheSim:FindEntities` (to check spawn point occupancy)
-  - `SpawnPrefab`, `Vector3`, `TUNING`, `ALL_PLAYERS`, `TryLuckRoll`, `LuckFormulas`
-  - Season and player lifecycle events (`ms_playerjoined`, `ms_playerleft`, `seasontick`)
+## Overview
+`Lureplantspawner` is a server-side-only component responsible for spawning `lureplant` prefabs during the Spring season. It tracks each active player's trail of recent positions and uses weighted random selection to spawn plants near players—prioritizing locations where players have recently walked. It also attempts to spawn at random positions around the player when no suitable trail points exist. The component is strictly initialized on the master simulation and never runs on clients.
+
+## Usage example
+This component is automatically attached and initialized internally by the game for a dedicated world-spawner entity (e.g., `lureplant_spawner` prefab). It requires no manual setup.
+
+```lua
+-- Not typically used by modders directly.
+-- The component is added automatically to the world spawner prefab:
+-- inst:AddComponent("lureplantspawner")
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `lureplantspawner` (implicitly via owning entity), checks `lureplant` (during spawn validation)
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed to constructor) | The entity to which this component is attached; used as the event target and reference point. |
-| `_activeplayers` | `array of tables` | `{}` | List of tracked active players, each with `{ player: Entity, trail: array of {pos: Vector3, weight: number} }`. |
-| `_scheduledspawntasks` | `table` | `{}` | Map of player data → pending spawn task references. |
-| `_scheduledtrailtasks` | `table` | `{}` | Map of player data → pending trail logging task references. |
-| `_worldstate` | `WorldState` | `TheWorld.state` | Reference to global world state (used to check `isspring`, `iswinter`). |
-| `_map` | `WorldMap` | `TheWorld.Map` | Map object used for tile and deploy point queries. |
-| `_updating` | `boolean` | `false` | Whether active spawner/trail logging tasks are running. |
-| `_spawninterval` | `number` | `TUNING.LUREPLANT_SPAWNINTERVAL` | Base delay (in seconds) between spawn attempts per player. |
-| `_spawnintervalvariance` | `number` | `TUNING.LUREPLANT_SPAWNINTERVALVARIANCE` | Variance applied to spawn interval (uniformly random offset). |
+| `inst` | `Entity` | `nil` | The entity instance that owns this component (set by constructor). |
 
-> **Note**: The class constructor (`_ctor`) is implicit (via `Class(function(self, inst)...end)`). Public methods `SpawnMode*` are deprecated and unused.
-
-## Main Functions
-### `IsValidSpawnPoint(pt)`
-* **Description:** Checks if a given point is a valid spawn location: must be on a valid tile (grass/dirt/mud/etc.), be empty of entities (radius 1), and pass the deploy point clearance test.
-* **Parameters:**  
-  `pt` (Vector3) — World position to validate.
-
-### `FindSpawnLocation(x, y, z)`
-* **Description:** Generates up to 40 candidate positions in a circle around the input coordinates (radius `MIN_OFFSET` to `MAX_OFFSET`), filters by `IsValidSpawnPoint`, and returns a random valid position or `nil`.
-* **Parameters:**  
-  `x, y, z` (numbers) — Center point for spawn search.
-
-### `FindSpawnLocationInTrail(trail)`
-* **Description:** Selects a spawn location from the player’s trail with probability weighted by recorded point weights (decay and reweight handled via `LogPlayerLocation`). Removes the chosen point from the trail and validates the tile/empty conditions.
-* **Parameters:**  
-  `trail` (array of `{pos: Vector3, weight: number}`) — Player’s movement trail history.
-
-### `SpawnLurePlantForPlayer(playerinst, playerdata, reschedule)`
-* **Description:** Attempts to spawn a Lureplant for a specific player during non-winter seasons, using trail-based or random location and a per-player chance (`1/#activeplayers`). Reschedules the next spawn attempt via the `reschedule` callback.
-* **Parameters:**  
-  `playerinst` (Entity) — Player entity.  
-  `playerdata` (table) — Player’s trail and reference data.  
-  `reschedule` (function) — Function to call to schedule the next spawn attempt.
-
-### `RandomizeSpawnTime()`
-* **Description:** Returns a randomized spawn delay: `_spawninterval + uniform(-_spawnintervalvariance, +_spawnintervalvariance)`.
-
-### `StartUpdating(force)`
-* **Description:** Begins or refreshes spawner/trail tasks for all active players if season is Spring and `_spawninterval > 0`. If `force`, cancels and restarts existing tasks.
-* **Parameters:**  
-  `force` (boolean, optional) — Whether to restart all tasks even if already updating.
-
-### `StopUpdating()`
-* **Description:** Cancels all scheduled trail logging and spawn tasks for active players and sets `_updating = false`.
-
+## Main functions
 ### `GetDebugString()`
-* **Description:** Returns a formatted debug string with current spawn interval and variance.
+* **Description:** Returns a formatted string containing the current spawn interval and variance values for debugging purposes.
 * **Parameters:** None.
+* **Returns:** `string` — e.g., `"spawn interval:40.00, variance:10.00"`.
 
-## Events & Listeners
-- **`ms_playerjoined`** — Listened on `TheWorld`; triggers `OnPlayerJoined` when a player joins.
-- **`ms_playerleft`** — Listened on `TheWorld`; triggers `OnPlayerLeft` when a player leaves.
-- **`seasontick`** — Listened on `TheWorld`; triggers `OnSeasonTick` to start/stop updating based on season (Spring only).
-- `OnSeasonTick` calls `StartUpdating()` when season becomes `"spring"`, otherwise `StopUpdating()`.
+> **Depreciated Methods**  
+> The following public methods exist but contain no implementation and are unused in the codebase:  
+> `SpawnModeNever()`, `SpawnModeHeavy()`, `SpawnModeNormal()`, `SpawnModeMed()`, `SpawnModeLight()`  
+> These are obsolete and should not be called.
+
+## Events & listeners
+- **Listens to:**
+  - `ms_playerjoined` — triggers `OnPlayerJoined` to add new players to tracking.
+  - `ms_playerleft` — triggers `OnPlayerLeft` to remove players and clean up tasks.
+  - `seasontick` — triggers `OnSeasonTick` to start/stop updates based on season (only active during Spring).
+
+- **Pushes:** None.

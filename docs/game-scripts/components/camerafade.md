@@ -1,72 +1,90 @@
 ---
 id: camerafade
 title: Camerafade
-description: Dynamically adjusts an entity's transparency based on its proximity to the game camera and other configurable conditions.
+description: Manages dynamic camera-based fading of entity visuals based on distance and screen position.
+tags: [camera, visual, environment]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: ui
+category_type: components
 source_hash: fe7693d1
+system_scope: environment
 ---
 
 # Camerafade
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The Camerafade component is responsible for making an entity semi-transparent when it is positioned between the camera and the player's character. This is commonly used on large objects like trees or tall structures to prevent them from obstructing the player's view.
+`Camerafade` is an entity component that dynamically adjusts the opacity (alpha) of an entity's visual representation based on camera position, distance, and optional screen-space center-based fade logic. It integrates with the wall-update system (`StartWallUpdatingComponent`/`StopWallUpdatingComponent`) to compute per-frame alpha values for smooth fade transitions. It is typically applied to static environment elements like walls, structures, or terrain features that should fade in/out as the camera approaches or recedes.
 
-The component calculates the entity's alpha (transparency) based on several factors, including its distance from the camera, the screen position of a specific animation symbol, and its world height. It uses the `WallUpdate` system, an optimized update loop that runs when the camera is potentially being occluded, ensuring efficient performance.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("camerafade")
+inst.components.camerafade:SetUp(25, 5)  -- fade range and distance
+inst.components.camerafade:Enable(true)
+```
 
-## Dependencies & Tags
-None identified.
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
-|---|---|---|---|
-| `range` | `number` | `25` | The distance over which the entity fades from fully opaque to fully transparent. |
-| `fadetodist` | `number` | `5` | The distance from the camera at which the entity begins to fade. |
-| `center_symbol` | `string` | `nil` | An optional animation symbol to track for screen-center based fading. |
-| `center_min_dist_sq` | `number` | `nil` | The squared screen distance from the center a symbol must be before fading begins. |
-| `center_dist_sq` | `number` | `nil` | The squared screen distance over which the center-based fade is applied. |
-| `center_min_fade` | `number` | `nil` | The minimum alpha value (maximum transparency) applied by the center-fade logic. |
-| `lerp_to_height` | `number` | `nil` | A world height (`Y` coordinate) used to interpolate the fade effect based on the entity's height. |
-| `alpha` | `number` | `1` | The current calculated alpha value of the entity, where `1` is opaque and `0` is transparent. |
+|----------|------|---------------|-------------|
+| `range` | number | `25` | Distance (in world units) over which fade-out occurs. |
+| `fadetodist` | number | `5` | Distance offset used in fade calculation; affects where the fade curve begins. |
+| `center_symbol` | string or nil | `nil` | Optional symbol name used for screen-position-based fade center (e.g., a boss boss symbol). |
+| `center_min_dist_sq` | number or nil | `nil` | Squared minimum screen distance from center symbol to start fading. |
+| `center_dist_sq` | number or nil | `nil` | Squared screen distance range over which center-based fade is applied. |
+| `center_min_fade` | number or nil | `nil` | Minimum alpha multiplier applied at the center symbol. |
+| `lerp_to_height` | number or nil | `nil` | Y-height threshold; alpha is interpolated toward full opacity when below this height. |
+| `alpha` | number | `1` | Current computed alpha value (0 = fully transparent, 1 = fully opaque). |
+| `enabled` | boolean | — | Internal flag indicating whether the fade logic is active. |
+| `updating` | boolean | `false` | Internal flag indicating whether the component is subscribed to wall updates. |
 
-## Main Functions
+## Main functions
 ### `Enable(enable, instant)`
-* **Description:** Activates or deactivates the component's fading logic. When disabled, it can instantly restore the entity to full opacity.
-* **Parameters:**
-    * `enable` (`boolean`): `true` to enable the fading effect, `false` to disable it.
-    * `instant` (`boolean`): If `true` and `enable` is `false`, the entity's alpha is immediately set to `1` (fully opaque).
+* **Description:** Activates or deactivates the component. When enabled, starts wall updates; when disabled, stops them (unless `instant` is `true`, which applies immediate reset).
+* **Parameters:**  
+  `enable` (boolean) — whether to enable or disable fading.  
+  `instant` (boolean, optional) — if `true`, immediately resets alpha to `1` and overrides visual colour; ignored unless `enable` is `false`.
+* **Returns:** Nothing.
+* **Error states:** None.
 
 ### `SetUp(range, fadetodist)`
-* **Description:** Configures the primary distance-based fading parameters.
-* **Parameters:**
-    * `range` (`number`): The distance over which the fade occurs.
-    * `fadetodist` (`number`): The distance from the camera where fading starts.
+* **Description:** Configures the primary distance-based fade parameters.
+* **Parameters:**  
+  `range` (number) — the distance threshold over which the entity fades out.  
+  `fadetodist` (number) — offset distance; fade-out begins when the camera is `fadetodist` units *beyond* this value from the entity.
+* **Returns:** Nothing.
 
 ### `SetUpCenterFade(symbol, min_dist_sq, dist_sq, min_fade)`
-* **Description:** Configures an additional fading effect based on the screen position of a specific animation symbol relative to the screen's center. This is useful for fading objects that are directly in the middle of the screen.
-* **Parameters:**
-    * `symbol` (`string`): The name of the animation symbol to track.
-    * `min_dist_sq` (`number`): The squared screen distance from the center that the symbol must be before this fade starts.
-    * `dist_sq` (`number`): The squared screen distance over which the fade is applied.
-    * `min_fade` (`number`): The minimum alpha value this effect can apply.
+* **Description:** Configures screen-space center-based fading (e.g., to fade around a central screen element like a boss).
+* **Parameters:**  
+  `symbol` (string) — the name of the animation symbol whose screen position defines the fade center.  
+  `min_dist_sq` (number) — squared screen-space distance at which fade starts (closer = less fade).  
+  `dist_sq` (number) — squared screen-space distance over which fade transitions to full opacity.  
+  `min_fade` (number) — minimum alpha multiplier applied at the center symbol (e.g., `0.5` means it stays at least 50% visible).
+* **Returns:** Nothing.
 
 ### `SetLerpToHeight(height)`
-* **Description:** Configures an additional fade modifier based on the entity's world `Y` coordinate. The effect is interpolated based on how close the entity's height is to the specified `height`.
-* **Parameters:**
-    * `height` (`number`): The target world height for the interpolation.
+* **Description:** Enables vertical height-based fade interpolation. Entities *below* the specified Y-height are smoothly faded toward full opacity.
+* **Parameters:**  
+  `height` (number) — Y-world-height threshold. Below this, alpha is linearly interpolated toward `1`.
+* **Returns:** Nothing.
 
 ### `GetCurrentAlpha()`
-* **Description:** Returns the current alpha value being applied to the entity.
+* **Description:** Returns the current computed alpha value.
 * **Parameters:** None.
+* **Returns:** number — current alpha value (`0` to `1`).
 
-## Events & Listeners
-This component implicitly listens for the entity's sleep and wake states to manage its update loop efficiently.
-
-*   **Listens To (Implicitly):**
-    *   `"entitysleep"` (via `OnEntitySleep` method): Pauses the component's update loop when the entity goes into stasis.
-    *   `"entitywake"` (via `OnEntityWake` method): Resumes the component's update loop when the entity comes out of stasis.
+## Events & listeners
+- **Listens to:**  
+  `onsleep` — triggers `OnEntitySleep`, halting wall updates and clearing visual overrides if disabled.  
+  `onwake` — triggers `OnEntityWake`, resuming wall updates if enabled or non-opaque.
+- **Pushes:** None identified  
+*(Note: The component modifies the entity’s `AnimState` via `OverrideMultColour` but does not fire custom events.)*

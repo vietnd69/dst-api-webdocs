@@ -1,58 +1,71 @@
 ---
 id: hudindicatable
 title: Hudindicatable
-description: Enables an entity to register or unregister itself with the HUD indicator system for visibility tracking.
+description: Marks an entity as eligible for HUD tracking by the HUD indicatable manager.
+tags: [hud, tracking, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: ui
+category_type: components
 source_hash: e1d225d5
+system_scope: ui
 ---
 
 # Hudindicatable
 
-## Overview
-This component allows an entity to register or unregister itself with the `hudindicatablemanager` world component, enabling or disabling its display on the Heads-Up Display (HUD). It supports dynamic tracking control via a customizable predicate function.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires `TheWorld.components.hudindicatablemanager` to be present for registration/unregistration to occur.
-- No standard component dependencies are explicitly added.
-- No tags are assigned or removed by this component.
+## Overview
+The `hudindicatable` component enables an entity to be tracked by the HUD system via the `hudindicatablemanager` component on the `TheWorld` entity. It provides a mechanism to control whether and how the entity should be displayed on the HUD (e.g., minimap indicators, icons) through a configurable tracking function. It automatically registers or unregisters itself with the world manager when added to or removed from the entity.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddTag("hudindicatable")
+inst:AddComponent("hudindicatable")
+-- Optional: customize when the entity should be tracked
+inst.components.hudindicatable:SetShouldTrackFunction(function(self, viewer)
+    return viewer:HasTag("player") and not viewer:HasTag("ghost")
+end)
+```
+
+## Dependencies & tags
+**Components used:** `hudindicatablemanager` (on `TheWorld`)
+**Tags:** None added or checked; relies on tag `hudindicatable` being added externally (e.g., during prefab definition).
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (injected by `Class`) | Reference to the entity the component is attached to. |
-| `shouldtrackfn` | `function` | `function() return true end` | Predicate function used to determine if the entity should be tracked for HUD display; receives `(self.inst, viewer)` as arguments. |
+| `shouldtrackfn` | function | `function() return true end` | Function `(entity, viewer) -> boolean` determining if this entity should be visible on the HUD for a given viewer. |
 
-## Main Functions
+## Main functions
 ### `SetShouldTrackFunction(fn)`
-* **Description:** Sets or updates the predicate function used to determine whether the entity should be tracked (i.e., visible) on the HUD for a given viewer.
-* **Parameters:**  
-  `fn` (function): A callable taking two arguments: the entity instance and the viewer (typically a player). Should return `true` to track, `false` otherwise.
+* **Description:** Sets the function used to determine whether this entity should be tracked by the HUD for a given viewer.
+* **Parameters:** `fn` (function) — A function taking two arguments (`self`, `viewer`) and returning a boolean.
+* **Returns:** Nothing.
 
 ### `ShouldTrack(viewer)`
-* **Description:** Evaluates the current tracking predicate to determine if this entity should be visible on the HUD for the specified viewer.
-* **Parameters:**  
-  `viewer` (Entity): The entity (usually a player) whose HUD visibility is being checked.
-
-### `UnRegisterWithWorldComponent()`
-* **Description:** Removes the entity from the `hudindicatablemanager` and broadcasts an `"unregister_hudindicatable"` event if the manager exists.
-* **Parameters:** None.
+* **Description:** Evaluates whether this entity should be tracked for the specified viewer using the configured `shouldtrackfn`.
+* **Parameters:** `viewer` (Entity) — The entity (typically a player) for whom tracking is being evaluated.
+* **Returns:** `boolean` — `true` if the entity should be tracked, otherwise `false`.
 
 ### `RegisterWithWorldComponent()`
-* **Description:** Registers the entity with the `hudindicatablemanager`, making it eligible for HUD rendering if tracked.
+* **Description:** Registers this entity with the `hudindicatablemanager` component in the world if it exists.
 * **Parameters:** None.
+* **Returns:** Nothing.
+
+### `UnRegisterWithWorldComponent()`
+* **Description:** Unregisters this entity from the `hudindicatablemanager` and fires the `"unregister_hudindicatable"` event.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnRemoveFromEntity()`
-* **Description:** Cleanup hook triggered when the component is removed from the entity; ensures the entity is unregistered from the manager.
+* **Description:** Cleanup callback called when the component is removed from its entity; triggers unregistration.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens to:**
-  - `"onremove"` → triggers `UnRegisterWithWorldComponent`
-- **Triggers:**
-  - `"unregister_hudindicatable"` (via `TheWorld:PushEvent(...)`) when unregistered from the manager.
+## Events & listeners
+- **Listens to:** `onremove` — triggers `UnRegisterWithWorldComponent`.
+- **Pushes:** `unregister_hudindicatable` — fired when unregistered (e.g., on entity removal).

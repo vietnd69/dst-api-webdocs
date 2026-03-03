@@ -1,53 +1,69 @@
 ---
 id: singingshellmanager
 title: Singingshellmanager
-description: Manages the activation state of singing shells in the world by tracking active shells and controlling whether players should check for them.
+description: Manages active singing shell entities and controls whether players should update their shell detection logic.
+tags: [shell, world, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 5a3419d0
+system_scope: world
 ---
 
 # Singingshellmanager
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component is dynamically attached to the world entity to coordinate the global state of singing shells: it tracks which shells are currently active, and ensures player-side `singingshelltrigger` components begin or cease scanning for shells accordingly. It automatically removes itself from the world when no singing shells remain active.
+`SingingShellManager` is a server-only component attached to the world (`TheWorld`) that tracks which singing shells are currently active. When at least one shell is active, it ensures all players start updating their shell detection via the `singingshelltrigger` component. When no shells remain active, the component automatically removes itself from the world.
 
-## Dependencies & Tags
-**Component Dependencies:**
-- Requires that the world entity has the `singingshellmanager` component removed and re-added as needed.
-- Assumes `AllPlayers` contains valid player entities.
-- Relies on players having a `singingshelltrigger` component with methods `StartUpdating()` and `StopUpdating()`.
+This component serves as a centralized control point to reduce unnecessary computation: shell-checking logic only runs on clients when needed.
 
-**Tags:** None.
+## Usage example
+```lua
+-- Automatically added to TheWorld by singing shell prefabs as needed
+-- Example: When a shell wakes up
+local shell = -- ... existing singing shell instance
+TheWorld.components.singingshellmanager:RememberActiveShell(shell)
+
+-- When a shell goes to sleep
+TheWorld.components.singingshellmanager:ForgetActiveShell(shell)
+```
+
+## Dependencies & tags
+**Components used:** `singingshelltrigger` (via `v.components.singingshelltrigger`)
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *n/a* | Reference to the world entity the component is attached to. |
-| `active_shells` | `table` | `{}` | Dictionary mapping active shell entities to `true`; used to track currently awakened singing shells. |
-| `players_should_run_update` | `boolean` | `false` | *Not used* — present in source but never set or checked. |
+| `inst` | `GGame` | `inst` | Reference to the world instance (server-only). |
+| `active_shells` | table (set) | `{}` | Tracks currently active singing shell entities as keys. |
+| `players_should_run_update` | boolean | `false` | Flag indicating whether player triggers should be active (not directly used internally). |
 
-## Main Functions
+## Main functions
 ### `OnRemoveFromEntity()`
-* **Description:** Called when the component is removed from its entity. Stops updating all players' shell triggers.
+* **Description:** Stops shell-updating on all players and is automatically called when the component is removed from the world (i.e., when no shells remain active).
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `RememberActiveShell(shell)`
-* **Description:** Registers a shell as active (awake), updates `active_shells`, and ensures players continue scanning. If this was the first shell, players will already be scanning due to initialization.
-* **Parameters:**
-  - `shell` (*Entity*): The singing shell entity being awakened.
+* **Description:** Registers a singing shell as active and triggers shell-updating for all players if this was the first shell.
+* **Parameters:** `shell` (GEntity) — the singing shell entity that just woke up.
+* **Returns:** Nothing.
 
 ### `ForgetActiveShell(shell)`
-* **Description:** Removes a shell from the active set. If no shells remain active after removal, the component removes itself from the world entity.
-* **Parameters:**
-  - `shell` (*Entity*): The singing shell entity being put to sleep.
+* **Description:** Unregisters a singing shell as active. If this was the last active shell, removes the component from the world.
+* **Parameters:** `shell` (GEntity) — the singing shell entity that just went to sleep.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- Listens for `"singingshell_wake"` → triggers `OnShellWake`
-- Listens for `"singingshell_sleep"` → triggers `OnShellSleep`
-- Listens for `"ms_playerjoined"` → triggers `OnPlayerJoined`
+## Events & listeners
+- **Listens to:**
+  - `singingshell_wake` — handled by `OnShellWake`, registers a shell as active.
+  - `singingshell_sleep` — handled by `OnShellSleep`, deregisters a shell and conditionally removes the component.
+  - `ms_playerjoined` — handled by `OnPlayerJoined`, restarts shell-updating for the new player.
+
+- **Pushes:** None.

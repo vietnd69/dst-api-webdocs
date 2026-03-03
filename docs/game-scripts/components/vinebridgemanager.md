@@ -1,106 +1,126 @@
 ---
 id: vinebridgemanager
 title: Vinebridgemanager
-description: Manages the creation, destruction, damage, and persistence of Charlie's vine bridges in the game world.
+description: Manages dynamic vine bridge tiles in the game world, including creation, damage, destruction, and animation.
+tags: [world, environment, map, boss]
 sidebar_position: 1
-
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 0c578d02
+system_scope: world
 ---
-
 # Vinebridgemanager
 
-## Overview
-The `VineBridgeManager` component is responsible for managing vine bridges in the game world—handling their creation, degradation, destruction, visual effects, and state persistence. It operates exclusively on the master simulation (server) and stores bridge state in grid-based data structures aligned with map tiles. Vine bridges are temporary terrain structures that break after being damaged or after a delay, and this component ensures proper tile updates, floating object repositioning, and save/load compatibility.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Constraint**: Requires `TheWorld.ismastersim`; fails assertion on client.
-- **Events Listened**: `"worldmapsetsize"` → initializes grids.
-- **Tags Used Internally**:
-  - `IGNORE_DROWNING_ONREMOVE_TAGS`: `{ "ignorewalkableplatforms", "ignorewalkableplatformdrowning", "activeprojectile", "flying", "FX", "DECOR", "INLIMBO" }` (used in logic related to drowning but not applied directly on the entity).
-  - `FLOATEROBJECT_TAGS`: `{ "floaterobject" }`.
-- **No components added or removed** from `inst`; it acts as a utility bound to the world instance.
+## Overview
+`VineBridgeManager` is a server-side component responsible for managing temporary vine bridge tiles introduced during the Charlie (boss) encounter in caves. It handles the creation, health tracking, damage, and automatic destruction of vine bridges over ocean or ocean-coastal tiles. The component uses `DataGrid` instances to store per-tile metadata (health, direction, damage prefabs) and integrates with `undertile` and `floater` components for terrain consistency.
+
+This component only exists on the master simulation (`TheWorld.ismastersim`) and is not replicated to clients.
+
+## Usage example
+```lua
+-- Typically attached to the world instance during boss encounter initialization
+inst:AddComponent("vinebridgemanager")
+
+-- Create a vine bridge at a point
+inst.components.vinebridgemanager:CreateVineBridgeAtPoint(x, y, z, { x = 0, z = 1 })
+
+-- Damage the bridge to begin destruction
+inst.components.vinebridgemanager:DamageVineBridgeAtPoint(x, y, z, 10)
+
+-- Manually queue destruction
+inst.components.vinebridgemanager:QueueDestroyForVineBridgeAtPoint(x, y, z)
+```
+
+## Dependencies & tags
+**Components used:** `undertile`, `floater`
+**Tags:** Checks tags `floaterobject`, `cave`, `ignorewalkableplatforms`, `ignorewalkableplatformdrowning`, `activeprojectile`, `flying`, `FX`, `DECOR`, `INLIMBO`
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity this component is attached to (typically the world instance). |
-| `WIDTH`, `HEIGHT` | `number` | `nil` → set on `"worldmapsetsize"` | World dimensions in tiles. |
-| `marked_for_delete_grid` | `DataGrid` | `nil` | Tracks tiles scheduled for vine bridge destruction. |
-| `duration_grid` | `DataGrid` | `nil` | Stores per-tile bridge health (index 1) and direction (index 2) as `{health, direction}`. |
-| `damage_prefabs_grid` | `DataGrid` | `nil` | Holds references to damage visualization prefabs per tile. |
-| `bridge_anims_grid` | `DataGrid` | `nil` | Holds references to `vine_bridge_fx` prefabs (visuals) per tile. |
+| `inst` | `Entity` | `nil` | The entity instance (typically the world) that owns this component. |
+| `WIDTH`, `HEIGHT` | `number` | `nil` | Dimensions of the world map, initialized on `"worldmapsetsize"` event. |
+| `marked_for_delete_grid` | `DataGrid` | `nil` | Grid tracking tiles queued for destruction. |
+| `duration_grid` | `DataGrid` | `nil` | Grid storing `{ health, direction }` per tile. |
+| `damage_prefabs_grid` | `DataGrid` | `nil` | Grid storing optional visual damage prefabs per tile. |
+| `bridge_anims_grid` | `DataGrid` | `nil` | Grid storing `vine_bridge_fx` prefabs per tile. |
 
-*No public instance variables are initialized in `_ctor` except `inst`; grids are lazily initialized on map size change.*
-
-## Main Functions
-
+## Main functions
 ### `CreateVineBridgeAtPoint(x, y, z, direction)`
-* **Description:** Creates a vine bridge at the specified world position by converting to tile coordinates, updating the tile type, initializing health/direction, spawning visuals, and adjusting floater objects. Returns `true` on success.
-* **Parameters:**
-  - `x`, `y`, `z` (`number`): World coordinates where the bridge is placed.
-  - `direction` (`Vector3` or similar): Unit direction vector indicating bridge orientation (used to rotate FX).
+*   **Description:** Creates a vine bridge tile at the specified world point by converting the underlying tile to `WORLD_TILES.CHARLIE_VINE`. Updates internal grids and spawns the bridge visual.
+*   **Parameters:**  
+    `x`, `y`, `z` (numbers) — World coordinates.  
+    `direction` (table) — `{ x = number, z = number }` vector indicating bridge orientation (used for animation rotation).
+*   **Returns:** `true` on success.
+*   **Error states:** Returns early if `undertile` data is missing or tile is not ocean/coastal.
 
 ### `CreateVineBridgeAtTile(tile_x, tile_y, x, z, direction)`
-* **Description:** Internal variant of `CreateVineBridgeAtPoint`; sets tile to `WORLD_TILES.CHARLIE_VINE`, preserves underlying tile (undertile), updates grids, spawns FX, and adjusts floater objects. Used directly in save/load and internal callbacks.
-* **Parameters:**
-  - `tile_x`, `tile_y` (`number`): Tile coordinates.
-  - `x`, `z` (`number`): Optional world coordinates (if missing, computed from tile center).
-  - `direction` (`Vector3`): Bridge direction vector.
+*   **Description:** Same as `CreateVineBridgeAtPoint`, but takes explicit tile coordinates (`tile_x`, `tile_y`) instead of world coordinates.
+*   **Parameters:**  
+    `tile_x`, `tile_y` (numbers) — Tile grid coordinates.  
+    `x`, `z` (numbers, optional) — World coordinates used for floater updates and animation placement.  
+    `direction` (table) — Bridge orientation vector.
+*   **Returns:** `true` on success.
 
 ### `QueueCreateVineBridgeAtPoint(x, y, z, data)`
-* **Description:** Schedules a vine bridge to be created after a randomized delay (default ~0.5–0.8 sec). Does not overwrite an existing bridge. Accepts optional `data` to override timing/direction.
-* **Parameters:**
-  - `x`, `y`, `z` (`number`): World position.
-  - `data` (`table?`, optional): May contain `base_time`, `random_time`, and `direction`.
+*   **Description:** Schedules vine bridge creation with a random delay. Does not overwrite existing bridge data.
+*   **Parameters:**  
+    `x`, `y`, `z` (numbers) — World point.  
+    `data` (table, optional) — Contains `base_time`, `random_time`, and `direction`.
+*   **Returns:** Nothing.
 
 ### `DestroyVineBridgeAtPoint(x, y, z, data)`
-* **Description:** Immediately destroys a vine bridge at the given position (if present), restoring the underlying tile, removing FX/damage prefabs, and updating grids. Returns `true` if destroyed, `false` otherwise.
-* **Parameters:**
-  - `x`, `y`, `z` (`number`): World position of bridge to destroy.
-  - `data` (`table?`, unused in current implementation).
+*   **Description:** Immediately destroys the vine bridge at the specified point, restoring the underlying tile and cleaning up all related grids and prefabs.
+*   **Parameters:**  
+    `x`, `y`, `z` (numbers) — World coordinates.  
+    `data` (any) — Unused, included for API consistency.
+*   **Returns:** `true` if destruction succeeded, `false` if no vine bridge tile was present.
 
 ### `QueueDestroyForVineBridgeAtPoint(x, y, z, data)`
-* **Description:** Schedules delayed destruction of a vine bridge with optional FX timing overrides. Marks the tile for deletion, sets a countdown timer, triggers visual warnings (e.g., shaking, tile change warning), and spawns the actual destroy callback.
-* **Parameters:**
-  - `x`, `y`, `z` (`number`): World position.
-  - `data` (`table?`, optional): May include `destroytime`, `fxtime`, `shaketime`.
+*   **Description:** Schedules automatic vine bridge destruction after a delay (default ~70 frames). Triggers visual warnings and shake effect if `data.fxtime` is provided.
+*   **Parameters:**  
+    `x`, `y`, `z` (numbers) — World coordinates.  
+    `data` (table, optional) — Contains `destroytime`, `fxtime`, `shaketime`.
+*   **Returns:** Nothing.
 
 ### `DamageVineBridgeAtPoint(x, y, z, damage)`
-* **Description:** Delegates to `DamageVineBridgeAtTile` using tile coordinates from world position. Handles bridge health reduction and queued destruction if health reaches 0.
-* **Parameters:**
-  - `x`, `y`, `z` (`number`): World position of bridge.
-  - `damage` (`number`): Health amount to subtract.
+*   **Description:** Applies damage to the vine bridge at a world point, reducing its health. If health reaches `0`, triggers destruction queue.
+*   **Parameters:**  
+    `x`, `y`, `z` (numbers) — World coordinates.  
+    `damage` (number) — Amount of damage to apply.
+*   **Returns:** `nil` if tile is missing or already destroyed; otherwise, the new health value (a number between `0` and `TUNING.VINEBRIDGE_HEALTH`).
 
-### `DamageVineBridgeAtTile(tile_x, tile_y, damage)`
-* **Description:** Reduces health of the bridge at the given tile, updates the `duration_grid`, spawns or updates visual damage indicator (e.g., partially broken FX), and queues destruction if health is exhausted. Returns new health value or `nil`.
-* **Parameters:**
-  - `tile_x`, `tile_y` (`number`): Tile coordinates.
-  - `damage` (`number`): Health amount to subtract.
-
-### `FixupFloaterObjects(x, z, tile_radius_plus_overhang, is_ocean_tile)`
-* **Description:** Iterates over nearby floater objects (e.g., driftwood), updates their `on_landed`/`on_no_longer_landed` events based on whether the tile is ocean, ensuring correct floating behavior near vine bridges.
-* **Parameters:**
-  - `x`, `z` (`number`): Center position to search around.
-  - `tile_radius_plus_overhang` (`number`): Search radius.
-  - `is_ocean_tile` (`boolean`): Whether the tile type is ocean.
+### `DamageVineBridgeAtTile(tx, ty, damage)`
+*   **Description:** Same as `DamageVineBridgeAtPoint`, but uses tile coordinates.
+*   **Parameters:**  
+    `tx`, `ty` (numbers) — Tile coordinates.  
+    `damage` (number) — Damage amount.
+*   **Returns:** Same as `DamageVineBridgeAtPoint`.
 
 ### `OnSave()`
-* **Description:** serializes `marked_for_delete_grid` and `duration_grid` grids, compresses and encodes them for storage.
-* **Returns:** `string` (encoded save data).
+*   **Description:** Serializes the `marked_for_delete_grid` and `duration_grid` for world save.
+*   **Parameters:** None.
+*   **Returns:** Encoded and compressed save data (string).
 
 ### `OnLoad(data)`
-* **Description:** Restores grids from save data, re-spawns visuals and FX, and restarts pending destruction tasks for tiles marked for deletion. Includes backward compatibility for older grid formats.
-* **Parameters:**
-  - `data` (`string`): Encoded save data.
+*   **Description:** Restores vine bridge state from saved data, reinitializing grids and rescheduling pending destruction tasks.
+*   **Parameters:** `data` (string) — Encoded save data.
+*   **Returns:** Nothing.
+*   **Error states:** Early return if decoded data is `nil`.
 
-## Events & Listeners
-- **Listens for:**
-  - `"worldmapsetsize"` → calls `initialize_grids()` to create the internal data grids.
-- **Triggers (via `inst:PushEvent`):**
-  - `"on_landed"` or `"on_no_longer_landed"` → pushed on floater objects when bridge changes tile terrain.
-  - Destruction warnings via `TempTile_HandleTileChange_Warn` when a bridge breaks.
+### `FixupFloaterObjects(x, z, tile_radius_plus_overhang, is_ocean_tile)`
+*   **Description:** Updates `floater` components on nearby entities based on whether they are now on ocean tiles after bridge placement/removal.
+*   **Parameters:**  
+    `x`, `z` (numbers) — Center point.  
+    `tile_radius_plus_overhang` (number) — Search radius.  
+    `is_ocean_tile` (boolean) — Flag indicating if current tile is ocean.
+*   **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:** `worldmapsetsize` — Initializes grids when world map dimensions are known.
+- **Pushes:** `on_landed`, `on_no_longer_landed` — Via `floaterobject` entities during bridge placement/removal.
+- **Internally pushes:** Destruction warning via `TempTile_HandleTileChange_Warn` (not an entity event, but a world system callback).

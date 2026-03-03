@@ -1,61 +1,77 @@
 ---
 id: fishingrod_replica
 title: Fishingrod Replica
-description: This component provides a replica of a fishing rod's state on a remote client by syncing target entity, hooked fish, and caught fish status via networked properties.
+description: Manages networked state for a fishing rod entity, tracking hooked and caught fish across the client-server boundary.
+tags: [network, fishing, replica]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: components
 source_hash: bd246c96
+system_scope: network
 ---
 
 # Fishingrod Replica
 
-## Overview
-This component acts as a client-side replica that mirrors key state properties (`_target`, `_hashookedfish`, `_hascaughtfish`) of a remote fishing rod entity. It does not modify local game state directly but exposes and manages synchronized networked values for display, logic, or UI purposes on non-authoritative instances.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Uses `net_entity()` and `net_bool()` for networked property management.
-- No explicit component additions or tag modifications observed.
+## Overview
+`FishingRod` is a networked replica component that synchronizes fishing rod state—specifically, the target entity, whether a fish is hooked, and whether a fish has been caught—between server and clients. It does not manage game logic (e.g., casting, reeling), but ensures consistent state propagation for related prefabs (e.g., `fishingrod` prefab). This component relies on DST’s `net_*` utilities to expose replicable properties.
+
+## Usage example
+```lua
+-- Typical usage is internal; added automatically to `fishingrod` prefabs.
+-- Example of external interaction (e.g., from server-side logic):
+local inst = TheSim:FindEntity(function(e) return e:HasTag("fishingrod") end, 1)
+if inst and inst.components.fishingrod_replica then
+    inst.components.fishingrod_replica:SetTarget(some_fish)
+    inst.components.fishingrod_replica:SetHookedFish(true)
+end
+```
+
+## Dependencies & tags
+**Components used:** None  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `_target` | `net_entity` | `nil` | Networked reference to the target entity (e.g., fish or object being fished). |
-| `_hashookedfish` | `net_bool` | `false` | Networked flag indicating whether the rod is currently hooked on a fish. |
+| `_target` | `net_entity` | `nil` | Networked reference to the target entity (e.g., a fish). |
+| `_hashookedfish` | `net_bool` | `false` | Networked flag indicating whether a fish is currently hooked. |
 | `_hascaughtfish` | `net_bool` | `false` | Networked flag indicating whether a fish has been successfully caught. |
 
-## Main Functions
-
+## Main functions
 ### `SetTarget(target)`
-* **Description:** Sets the networked target entity for this replica.  
-* **Parameters:**  
-  - `target` (`entity` or `nil`): The entity to set as the fishing target.
+*   **Description:** Sets the networked target entity for the fishing rod.
+*   **Parameters:** `target` (`entity` or `nil`) — the entity being targeted (typically a fish).
+*   **Returns:** Nothing.
 
 ### `GetTarget()`
-* **Description:** Returns the current value of the networked target entity.  
-* **Parameters:** None.
+*   **Description:** Returns the current networked target entity.
+*   **Parameters:** None.
+*   **Returns:** `entity` or `nil` — the entity currently targeted by the rod, or `nil` if none.
 
 ### `SetHookedFish(hookedfish)`
-* **Description:** Sets the `_hashookedfish` flag to `true` if `hookedfish` is non-nil, otherwise `false`. Updates the networked boolean.  
-* **Parameters:**  
-  - `hookedfish` (`entity` or `nil`): Indicates whether a fish is currently hooked.
+*   **Description:** Sets the hooked state. true is stored if `hookedfish` is non-nil; otherwise false.
+*   **Parameters:** `hookedfish` (`entity` or `nil`) — entity representing the hooked fish, or `nil`.
+*   **Returns:** Nothing.
 
 ### `HasHookedFish()`
-* **Description:** Returns `true` only if `_hashookedfish` is true *and* `_target` is not `nil`. Ensures consistency with actual target presence.  
-* **Parameters:** None.
+*   **Description:** Determines if a fish is hooked by checking both the networked flag and that the target entity is non-nil.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if both `_hashookedfish` and `_target:value()` are set, otherwise `false`.
 
 ### `SetCaughtFish(caughtfish)`
-* **Description:** Sets the `_hascaughtfish` flag to `true` if `caughtfish` is non-nil, otherwise `false`. Updates the networked boolean.  
-* **Parameters:**  
-  - `caughtfish` (`entity` or `nil`): Indicates whether a fish has been caught.
+*   **Description:** Sets the caught state. true is stored if `caughtfish` is non-nil; otherwise false.
+*   **Parameters:** `caughtfish` (`entity` or `nil`) — entity representing the caught fish, or `nil`.
+*   **Returns:** Nothing.
 
 ### `HasCaughtFish()`
-* **Description:** Returns `true` if `_hascaughtfish` is true, indicating a fish is currently held.  
-* **Parameters:** None.
+*   **Description:** Determines if a fish has been caught, based solely on the networked caught flag.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if a fish has been caught, otherwise `false`.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified

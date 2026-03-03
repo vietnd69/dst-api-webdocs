@@ -1,35 +1,48 @@
 ---
 id: balloonmaker
 title: Balloonmaker
-description: Enables an entity to spawn balloon prefabs at a specified location.
+description: Spawns a balloon entity at a specified world position.
+tags: [spawn, world, prop]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 63d03a91
+system_scope: world
 ---
 
 # Balloonmaker
 
-## Overview
-The Balloonmaker component provides a simple interface for an entity to create and spawn "balloon" prefabs into the game world at a specific set of coordinates.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+The `balloonmaker` component provides a simple utility for spawning `balloon` prefabs at given world coordinates. It is designed to be attached to entities (e.g., NPCs or objects) that need to produce balloons during gameplay, such as during events or scripted sequences. It does not manage timers internally or enforce spawn limits—instead, it relies on external tuning or world-level caps.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("balloonmaker")
+inst.components.balloonmaker:MakeBalloon(10, 0, -5)
+```
+
+## Dependencies & tags
+**Components used:** `timer` (commented out usage — not actively used)
+**Tags:** None identified.
 
 ## Properties
+No public properties.
 
-| Property | Type   | Default Value | Description                               |
-|----------|--------|---------------|-------------------------------------------|
-| `inst`   | `Entity` | `nil`           | A reference to the entity instance this component is attached to. |
-
-## Main Functions
+## Main functions
 ### `MakeBalloon(x, y, z)`
-* **Description:** Spawns a new "balloon" prefab into the world and sets its position.
-* **Parameters:**
-    * `x` (number): The X-coordinate for the balloon's spawn location.
-    * `y` (number): The Y-coordinate for the balloon's spawn location.
-    * `z` (number): The Z-coordinate for the balloon's spawn location.
+*   **Description:** Spawns a `balloon` prefab at the specified world position `(x, y, z)`. Does not attach a fly-off timer (see source comments).
+*   **Parameters:**
+    *   `x` (number) — X coordinate in the world.
+    *   `y` (number) — Y coordinate (vertical position) in the world.
+    *   `z` (number) — Z coordinate in the world.
+*   **Returns:** Nothing.
+*   **Error states:** If `SpawnPrefab("balloon")` fails (e.g., due to world caps or missing prefabs), the function silently exits without error. No further action is taken if the balloon entity is `nil`.
+
+## Events & listeners
+None identified.

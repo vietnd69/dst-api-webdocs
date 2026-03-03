@@ -1,140 +1,142 @@
 ---
 id: commander
 title: Commander
-description: This component allows an entity to command a group of other entities, managing their membership, issuing shared directives, and tracking their proximity.
+description: Manages a group of unit entities (soldiers) that respond to shared commands such as targeting, wake/alert, and distance tracking.
+tags: [ai, combat, group, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 186f009b
+system_scope: entity
 ---
 
 # Commander
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The Commander component enables an entity to act as a leader for a group of other entities, referred to as "soldiers." It provides functionality to manage the roster of soldiers, issue shared commands (like setting combat targets or alerting them), and optionally track their distance from the commander, automatically removing those that stray too far or become incapacitated. This component is crucial for implementing follower AI, pet systems, or any scenario where one entity directs a collective group.
+`Commander` is a component that enables an entity to command and coordinate a group of unit entities ("soldiers") in Don't Starve Together. It maintains an internal list of soldier entities, provides utilities to query and iterate over them, and supports shared behavior such as distributing a target to all soldiers, waking frozen or sleeping soldiers, and optionally tracking distance to keep the group cohesive. This component is typically used for boss mechanics or NPC groups where coordinated behavior is needed.
 
-## Dependencies & Tags
-This component interacts with several other components present on the "soldier" entities it manages:
-*   `health`: Checked in `AddSoldier` to prevent dead entities from becoming soldiers.
-*   `combat`: Used by `ShareTargetToAllSoldiers` and `DropAllSoldierTargets` to manage soldier targets.
-*   `sleeper`: Used by `IsAnySoldierNotAlert` and `AlertAllSoldiers` to check and modify the sleep status of soldiers.
-*   `freezable`: Used by `IsAnySoldierNotAlert` and `AlertAllSoldiers` to check and modify the frozen status of soldiers.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("commander")
 
-No tags are explicitly added or removed by this component on its host entity.
+-- Add soldiers
+local soldier1 = Prefab("soldier1")
+local soldier2 = Prefab("soldier2")
+inst.components.commander:AddSoldier(soldier1)
+inst.components.commander:AddSoldier(soldier2)
+
+-- Give all soldiers the same target
+inst.components.commander:ShareTargetToAllSoldiers(target_entity)
+
+-- Wake any sleeping or frozen soldiers
+inst.components.commander:AlertAllSoldiers()
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `freezable`, `health`, `sleeper`
+**Tags:** None added or removed.
 
 ## Properties
-| Property         | Type     | Default Value | Description                                                                                             |
-|:-----------------|:---------|:--------------|:--------------------------------------------------------------------------------------------------------|
-| `inst`           | `Entity` | `inst`        | A reference to the entity this component is attached to.                                                |
-| `soldiers`       | `table`  | `{}`          | A table containing soldier entities, mapped to `true` for efficient lookup.                             |
-| `numsoldiers`    | `number` | `0`           | The current count of soldiers managed by this commander.                                                |
-| `trackingdist`   | `number` | `0`           | The maximum distance (in world units) a soldier can be from the commander before being automatically removed. A value of 0 disables distance tracking. |
-| `trackingperiod` | `number` | `3`           | The time interval (in seconds) between checks for soldier distances when tracking is active.            |
-| `_task`          | `Task`   | `nil`         | An internal reference to the periodic task used for distance tracking.                                  |
-| `_onremove`      | `function` | (anonymous function) | An internal callback function used to handle `onremove` and `death` events from soldier entities.       |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `soldiers` | table | `{}` | A dictionary mapping soldier entities to `true`; used to track which entities are under command. |
+| `numsoldiers` | number | `0` | The total number of currently added soldiers. |
+| `trackingdist` | number | `0` | The maximum distance threshold for distance-based tracking. When `> 0`, soldiers outside this radius are removed. |
+| `trackingperiod` | number | `3` | The interval (in seconds) between distance checks. |
+| `_task` | Task | `nil` | The recurring task that performs distance checks; `nil` when tracking is inactive. |
+| `_onremove` | function | (lambda) | Callback invoked when a soldier entity is removed, automatically removing it from the commander's list. |
 
-## Main Functions
-### `OnRemoveFromEntity()`
-*   **Description:** Called when the Commander component is removed from its host entity. It iterates through all managed soldiers and calls `RemoveSoldier` for each to ensure proper cleanup, removing event listeners and updating soldier counts.
-*   **Parameters:** None.
-
+## Main functions
 ### `GetNumSoldiers(prefab)`
-*   **Description:** Returns the total number of active soldiers. If a `prefab` string is provided, it returns the count of soldiers matching that specific prefab.
-*   **Parameters:**
-    *   `prefab` (`string`, optional): The prefab name to filter soldiers by.
+*   **Description:** Returns the total number of soldiers, optionally filtered by a specific prefab name.
+*   **Parameters:** `prefab` (string or `nil`) — if provided, only soldiers with matching `ent.prefab` are counted.
+*   **Returns:** number — count of matching soldiers.
+*   **Error states:** Returns `0` if no soldiers exist; returns total count if `prefab` is `nil`.
 
 ### `CollectSoldiers(tbl, prefab)`
-*   **Description:** Populates a given table (`tbl`) with all active soldier entities. If a `prefab` is specified, only soldiers matching that prefab will be added to the table.
-*   **Parameters:**
-    *   `tbl` (`table`): The table to which soldier entities will be added.
-    *   `prefab` (`string`, optional): The prefab name to filter soldiers by.
+*   **Description:** Fills a given table with soldier entities, optionally filtered by prefab.
+*   **Parameters:**  
+    * `tbl` (table) — table to populate.  
+    * `prefab` (string or `nil`) — if provided, only soldiers matching this prefab are added.
+*   **Returns:** Nothing — modifies `tbl` in place.
 
 ### `GetAllSoldiers(prefab)`
-*   **Description:** Returns a new table containing all active soldier entities. If a `prefab` is specified, only soldiers matching that prefab will be included.
-*   **Parameters:**
-    *   `prefab` (`string`, optional): The prefab name to filter soldiers by.
+*   **Description:** Returns a new table containing all soldiers (optionally filtered by prefab).
+*   **Parameters:** `prefab` (string or `nil`) — filter by prefab name.
+*   **Returns:** table — list of soldier entities.
 
 ### `IsSoldier(ent)`
-*   **Description:** Checks if the given entity (`ent`) is currently being managed as a soldier by this commander.
-*   **Parameters:**
-    *   `ent` (`Entity`): The entity to check.
+*   **Description:** Checks whether a given entity is currently a soldier under this commander's command.
+*   **Parameters:** `ent` (Entity or `nil`) — entity to check.
+*   **Returns:** boolean — `true` if `ent` is in `self.soldiers`, otherwise `false`.
 
 ### `ForEachSoldier(fn, ...)`
-*   **Description:** Executes a provided function (`fn`) for each active soldier. Note that the current implementation passes `self.inst` (the commander) as the first argument to `fn`, not the soldier entity itself.
-*   **Parameters:**
-    *   `fn` (`function`): The function to execute.
-    *   `...` (variadic): Any additional arguments to pass to `fn` after the commander entity.
+*   **Description:** Iterates over all soldiers and invokes the provided function for each. Note: the `inst` passed to `fn` is always the commander, not the soldier.
+*   **Parameters:**  
+    * `fn` (function) — callback to invoke per soldier.  
+    * `...` — additional arguments passed to `fn`.
+*   **Returns:** Nothing.
 
 ### `ShareTargetToAllSoldiers(target)`
-*   **Description:** Instructs all active soldiers that possess a `combat` component to `SuggestTarget` for the given `target` entity.
-*   **Parameters:**
-    *   `target` (`Entity`): The entity to suggest as a target.
+*   **Description:** Attempts to set the same combat target on all soldiers that have the `combat` component.
+*   **Parameters:** `target` (Entity or `nil`) — the target to suggest to all soldiers.
+*   **Returns:** Nothing.
 
 ### `DropAllSoldierTargets()`
-*   **Description:** Clears the current combat target for all active soldiers that possess a `combat` component.
+*   **Description:** Clears the combat target for all soldiers that have the `combat` component.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `IsAnySoldierNotAlert()`
-*   **Description:** Checks if any active soldier is currently asleep or frozen.
+*   **Description:** Checks if any soldier is currently asleep or frozen.
 *   **Parameters:** None.
+*   **Returns:** boolean — `true` if at least one soldier is asleep or frozen, otherwise `false`.
 
 ### `AlertAllSoldiers()`
-*   **Description:** Wakes up any sleeping soldiers and unfreezes any frozen soldiers.
+*   **Description:** Wakes up all frozen or sleeping soldiers by calling `Unfreeze()` or `WakeUp()` on their respective components.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `PushEventToAllSoldiers(ev, data)`
-*   **Description:** Pushes a custom event (`ev`) with optional `data` to every active soldier entity.
-*   **Parameters:**
-    *   `ev` (`string`): The name of the event to push.
-    *   `data` (`table`, optional): A table containing data to send with the event.
+*   **Description:** Fires a custom event on every soldier with optional payload data.
+*   **Parameters:**  
+    * `ev` (string) — event name.  
+    * `data` (table or `nil`) — payload data to pass with the event.
+*   **Returns:** Nothing.
 
 ### `AddSoldier(ent)`
-*   **Description:** Adds an entity (`ent`) to the commander's list of soldiers. It performs checks to ensure the entity is not dead and not already a soldier. It sets up `onremove` and `death` listeners on the soldier to automatically handle its removal. It also starts distance tracking if configured and pushes relevant events.
-*   **Parameters:**
-    *   `ent` (`Entity`): The entity to add as a soldier.
+*   **Description:** Adds an entity as a soldier if it is alive and not already in the list. Registers listeners for `death` and `onremove` events.
+*   **Parameters:** `ent` (Entity) — the entity to add as a soldier.
+*   **Returns:** Nothing.
+*   **Error states:** silently skips if the entity is dead or already a soldier.
 
 ### `RemoveSoldier(ent)`
-*   **Description:** Removes an entity (`ent`) from the commander's list of soldiers. It cleans up the event listeners previously set on the soldier and stops distance tracking if no more soldiers remain. It also pushes relevant events.
-*   **Parameters:**
-    *   `ent` (`Entity`): The entity to remove from soldiers.
+*   **Description:** Removes an entity from the soldier list and cleans up associated event listeners.
+*   **Parameters:** `ent` (Entity) — the soldier to remove.
+*   **Returns:** Nothing.
+*   **Error states:** silently skips if the entity is not in the list.
 
 ### `SetTrackingDistance(dist)`
-*   **Description:** Sets the `trackingdist` property. If the distance is greater than 0, it ensures distance tracking is started; otherwise, it stops tracking.
-*   **Parameters:**
-    *   `dist` (`number`): The new maximum tracking distance.
-
-### `StartTrackingDistance()`
-*   **Description:** Initiates a periodic task that checks the distance of all soldiers from the commander. If `trackingdist` is greater than 0 and there are active soldiers, any soldier found too far away or asleep will be automatically removed. This task is only started if not already running.
-*   **Parameters:** None.
-
-### `StopTrackingDistance()`
-*   **Description:** Cancels the periodic distance tracking task if it is currently running.
-*   **Parameters:** None.
-
-### `OnEntityWake`
-*   **Description:** An alias for `StartTrackingDistance`. This function is automatically called when the commander's host entity wakes up (e.g., from sleep).
-*   **Parameters:** None.
-
-### `OnEntitySleep`
-*   **Description:** An alias for `StopTrackingDistance`. This function is automatically called when the commander's host entity goes to sleep.
-*   **Parameters:** None.
+*   **Description:** Sets the distance threshold for automatic soldier removal due to distance and starts/stops tracking accordingly.
+*   **Parameters:** `dist` (number) — maximum distance (in tiles) before a soldier is considered out of range.
+*   **Returns:** Nothing.
 
 ### `GetDebugString()`
-*   **Description:** Returns a formatted string containing debug information about the commander, including the number of soldiers, tracking distance, tracking period, and the status of the tracking task.
+*   **Description:** Returns a human-readable debug string summarizing the commander's state.
 *   **Parameters:** None.
+*   **Returns:** string — formatted string including soldier count, tracking distance, period, and active status.
 
-## Events & Listeners
-### Listens To (on Soldier Entities)
-*   `"onremove"`: Triggered when a soldier entity is removed from the game. The commander's `_onremove` callback handles this by calling `RemoveSoldier`.
-*   `"death"`: Triggered when a soldier entity dies. The commander's `_onremove` callback handles this by calling `RemoveSoldier`.
-
-### Pushes/Triggers (on Commander Entity)
-*   `"soldierschanged"`: Triggered on `self.inst` whenever a soldier is successfully added or removed from the commander's list.
-
-### Pushes/Triggers (on Soldier Entities)
-*   `"gotcommander"`: Triggered on the newly added soldier entity (`ent`) after `AddSoldier` is called, providing a reference to the commander.
-*   `"lostcommander"`: Triggered on the removed soldier entity (`ent`) after `RemoveSoldier` is called, providing a reference to the commander.
+## Events & listeners
+- **Listens to:**  
+  * `onremove` — handled by `self._onremove` to remove the entity from the soldier list.  
+  * `death` — also handled by `self._onremove`.
+- **Pushes:**  
+  * `soldierschanged` — fired whenever the soldier list changes (add/remove).  
+  * `gotcommander` — fired on the soldier entity when added.  
+  * `lostcommander` — fired on the soldier entity when removed.

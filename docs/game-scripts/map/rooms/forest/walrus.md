@@ -4,7 +4,6 @@ title: Walrus
 description: Registers three room variants for walrus camps in forest worlds, each with distinct tile types, spawn configurations, and weighted prefab distributions.
 tags: [room, spawn, distribution, worldgen, forest]
 sidebar_position: 1
-
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: 2eab94d4
 ---
-
 # Walrus
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -62,4 +60,3 @@ No component-level properties exist. This file solely invokes the global functio
 ## Events & listeners
 None — this file performs registration-only logic and does not register or emit any events.
 
----

@@ -1,58 +1,64 @@
 ---
 id: discoverable
 title: Discoverable
-description: This component manages an entity's discovery state and its associated minimap icons.
+description: Manages the discovery state and visual representation (icon) of an entity on the minimap and UI.
+tags: [minimap, ui, state]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 1fdb1aaf
+system_scope: ui
 ---
 
 # Discoverable
 
-## Overview
-This component allows an entity to have a discoverable state, primarily impacting its appearance on the minimap. Entities with this component can be "discovered" (e.g., by clicking them), which changes their minimap icon. It also handles the saving and loading of the discovered state across game sessions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-This component relies on the entity having a `MiniMapEntity` component (`inst.MiniMapEntity`) to set and change minimap icons.
-None identified.
+## Overview
+`Discoverable` tracks whether an entity has been discovered by the player and updates its minimap icon accordingly. When the entity is clicked and not yet discovered, it triggers the discovery process. This component is typically used on static or interactive world entities (e.g., resources, structures) that appear on the minimap in a hidden state until interacted with.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("discoverable")
+inst.components.discoverable:SetIcons("icon_undiscovered.tex", "icon_discovered.tex")
+-- Later, upon first interaction (e.g., mouse click), Discover() is called automatically
+```
+
+## Dependencies & tags
+**Components used:** `MiniMapEntity`
+**Tags:** None identified.
 
 ## Properties
-| Property           | Type          | Default Value | Description                                                    |
-| :----------------- | :------------ | :------------ | :------------------------------------------------------------- |
-| `inst`             | table (entity)| `self`        | A reference to the entity this component is attached to.       |
-| `discovered`       | boolean       | `false`       | True if the entity has been discovered, false otherwise.       |
-| `undiscoveredIcon` | string        | `nil`         | The asset path for the minimap icon to display when undiscovered. |
-| `discoveredIcon`   | string        | `nil`         | The asset path for the minimap icon to display when discovered. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `discovered` | boolean | `false` | Whether the entity has been discovered. |
+| `undiscoveredIcon` | string or nil | `nil` | Icon asset path used when undiscovered. |
+| `discoveredIcon` | string or nil | `nil` | Icon asset path used when discovered. |
 
-## Main Functions
+## Main functions
 ### `Discover()`
-*   **Description:** Sets the entity's state to discovered and updates its minimap icon to the `discoveredIcon`.
-*   **Parameters:** None.
+* **Description:** Marks the entity as discovered and updates its minimap icon to the discovered state.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Does nothing if already discovered.
 
 ### `Hide()`
-*   **Description:** Sets the entity's state to undiscovered and updates its minimap icon to the `undiscoveredIcon`.
-*   **Parameters:** None.
+* **Description:** Marks the entity as undiscovered and reverts its minimap icon to the undiscovered state.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SetIcons(undiscovered, discovered)`
-*   **Description:** Sets the asset paths for both the undiscovered and discovered minimap icons. After setting the icons, it calls `Hide()` to ensure the entity initially displays its undiscovered icon.
-*   **Parameters:**
-    *   `undiscovered` (string): The asset path for the minimap icon when the entity is undiscovered.
-    *   `discovered` (string): The asset path for the minimap icon when the entity is discovered.
+* **Description:** Assigns the icon assets for the undiscovered and discovered states, then resets the current icon to the undiscovered state.
+* **Parameters:**  
+  `undiscovered` (string or nil) – Icon asset path for the undiscovered state.  
+  `discovered` (string or nil) – Icon asset path for the discovered state.  
+* **Returns:** Nothing.
+* **Error states:** If `undiscovered` or `discovered` are `nil`, the icon is cleared; no runtime errors occur.
 
-### `OnSave(data)`
-*   **Description:** Serializes the `discovered` state of the component into the provided data table for persistence.
-*   **Parameters:**
-    *   `data` (table): The table to which component data should be saved.
-
-### `OnLoad(data)`
-*   **Description:** Deserializes the `discovered` state from the provided data table, restoring the component's state from a save game. If previously discovered, it calls `Discover()`.
-*   **Parameters:**
-    *   `data` (table): The table containing saved component data.
-
-## Events & Listeners
-*   Listens for the `onclick` event on its instance. If the entity is clicked and has not yet been discovered, it triggers the `Discover()` function.
+## Events & listeners
+- **Listens to:** `onclick` – triggers `Discover()` if the entity is not yet discovered.
+- **Pushes:** None.

@@ -1,35 +1,48 @@
 ---
 id: crabkingspawner
 title: Crabkingspawner
-description: Handles the logic for loading and potentially re-spawning the Crab King spawner entity based on saved game data.
+description: Manages the spawning and respawn timing of the Crab King boss during world generation restoration.
+tags: [boss, spawner, world]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: f25062ff
+system_scope: world
 ---
 
 # Crabkingspawner
 
-## Overview
-This component is a master simulation-only script that plays a crucial role during the save game loading process. Its primary responsibility is to ensure the `crabking_spawner` entity exists in the world. If, upon loading, a `crabking_spawner` is not found but saved data indicates its previous existence (position and respawn timer), this component will spawn a new `crabking_spawner` prefab and attempt to restore its saved state, guaranteeing the Crab King's spawning mechanism persists across game sessions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified for this component itself. It does, however, interact with entities tagged "crabking_spawner" and accesses components `childspawner` and `worldsettingstimer` on the `crabking_spawner` prefab it may spawn.
+## Overview
+`Crabkingspawner` is a server-only component responsible for initializing and configuring the Crab King spawner during world loading, specifically in scenarios where the spawner data is restored from a saved world (e.g., after worldgen override restoration). It does not define runtime behavior but ensures proper re-creation of the spawner entity when missing during post-save load. It interacts with `childspawner` to reset internal child counts and `worldsettingstimer` to resume the respawn timer.
+
+## Usage example
+This component is added automatically to spawner entities by the engine during world restoration and is not intended for direct manual instantiation by modders.
+
+```lua
+-- Internal usage: The component is attached to a 'crabking_spawner' entity during world load.
+-- Modders typically do not interact with this component directly.
+```
+
+## Dependencies & tags
+**Components used:** `childspawner`, `worldsettingstimer`  
+**Tags:** Checks for the presence of the `"crabking_spawner"` tag via `TheSim:FindFirstEntityWithTag("crabking_spawner")`.
 
 ## Properties
-No public properties were clearly identified from the source apart from the standard `self.inst` reference.
+No public properties are initialized in the constructor.
 
-| Property | Type | Default Value | Description |
-| :------- | :--- | :------------ | :---------- |
-| `inst`   | `Entity` | `nil`         | A reference to the entity this component is attached to. |
-
-## Main Functions
+## Main functions
 ### `LoadPostPass(newents, data)`
-*   **Description:** This function is a callback invoked during the post-pass stage of loading a saved game. It checks if a `crabking_spawner` entity currently exists in the world (identified by the "crabking_spawner" tag). If no such entity is found, but the provided `data` contains saved coordinates (`crabkingx`, `crabkingz`) for a previous Crab King spawner, it proceeds to spawn a new `crabking_spawner` prefab at those coordinates. It then attempts to restore the newly spawned spawner's state, specifically its `childspawner.childreninside` count and `worldsettingstimer` for the "regen_crabking" timer, if `timetorespawn` data is available.
-*   **Parameters:**
-    *   `newents`: (`table`) A table containing references to entities that were newly spawned during the current loading process.
-    *   `data`: (`table`) A table containing saved data relevant to this component. It may include `crabkingx` (number, X-coordinate), `crabkingz` (number, Z-coordinate), and `timetorespawn` (number, time remaining on the respawn timer).
+*   **Description:** Restores the Crab King spawner entity if it was removed or never spawned in the saved world. Only executes on the master simulation. Reads saved coordinates and respawn time from `data`, spawns the entity, positions it, resets child count, and restarts the respawn timer.
+*   **Parameters:**  
+    `newents` (table) — list of newly created entities during world load (unused in this method).  
+    `data` (table) — saved world data containing `crabkingx`, `crabkingz`, and optionally `timetorespawn`.  
+*   **Returns:** Nothing.
+*   **Error states:** Does nothing if an entity tagged `"crabking_spawner"` already exists (`TheSim:FindFirstEntityWithTag("crabking_spawner")` returns non-nil).
+
+## Events & listeners
+None identified.

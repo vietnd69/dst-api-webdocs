@@ -1,114 +1,80 @@
 ---
 id: lavaepetbrain
 title: Lavaepetbrain
-description: Controls the behavior tree of the Lavae pet companion, managing hunger-driven eating, food production, following its owner, and affectionate interactions.
+description: Implements the decision-making logic for the Lavae pet, handling hunger-driven behavior, following its owner, and interacting with food and the owner through a behavior tree.
+tags: [ai, brain, hunger, pet]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: df9ef8ec
+system_scope: brain
 ---
 
 # Lavaepetbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
+`LavaePetBrain` defines the AI behavior tree for the Lavae pet entity in DST. It manages core survival priorities—hunger maintenance, following its owner, and social interactions like nuzzling—by combining reusable behavior components (`Follow`, `FaceEntity`, `Wander`) with custom action functions. It relies on several components (`follower`, `hunger`, `inventory`, `eater`) to make context-aware decisions.
 
-This component defines the behavior tree (`BT`) for the `Lavae` pet entity, implementing core AI logic for companionship in Don't Starve Together. It orchestrates behavior through a priority-based tree that prioritizes survival (hunger management), followed by following the owner, and finally affection-based interactions when conditions are met.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("follower")
+inst:AddComponent("hunger")
+inst:AddComponent("inventory")
+inst:AddComponent("eater")
+inst:AddBrain("lavaepetbrain")
+inst.components.follower:SetLeader(some_owner)
+inst.components.hunger:Set(80, 100)
+```
 
-Key responsibilities include:
-- Triggering panic and starvation response behaviors via `BrainCommon.PanicTrigger`
-- Eating edible items from inventory or on the ground
-- Producing edible food items by nuzzling eligible entities
-- Following the owner within configurable distance thresholds
-- Performing affectionate "nuzzles" when near the owner and sufficiently fed
-
-The brain depends on several components: `follower` to identify the owner, `hunger` to monitor nutritional status, `inventory` for finding and managing items, `eater` for food validation, and `inventoryitem` for pickup eligibility checks.
-
-## Dependencies & Tags
-
-- **Components used:**
-  - `follower` (`GetLeader`)
-  - `hunger` (`GetPercent`)
-  - `inventory` (`FindItem`)
-  - `eater` (`CanEat`)
-  - `inventoryitem` (`canbepickedup`)
-
-- **Tags:**
-  - `"pocketdimension_container"` (checked via `HasTag`, used to prevent following items inside containers)
-  - Behavior-specific tags used for entity filtering:
-    - `MAKE_FOOD_TAGS`: `"canlight"`, `"fire"`, `"smolder"`
-    - `NO_MAKE_FOOD_TAGS`: `"INLIMBO"`, `"_equippable"`, `"outofreach"`, plus all `FUELTYPE` values suffixed with `"_fueled"`
-    - `FINDFOOD_MUST_TAGS`: `"edible_BURNT"`, `"_inventoryitem"`
-    - `FINDFOOD_CANT_TAGS`: `"INLIMBO"`, `"fire"`, `"catchable"`, `"outofreach"`
+## Dependencies & tags
+**Components used:** `follower`, `hunger`, `inventory`, `eater`, `inventoryitem`  
+**Tags:** Checks `player`, `edible_BURNT`, `_inventoryitem`, `INLIMBO`, `fire`, `catchable`, `outofreach`; internally prevents execution when `busy` state tag is active.
 
 ## Properties
+No public properties.
 
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity instance this brain controls (owned by the `Lavae` pet). |
-| `bt` | `BT` | `nil` | The behavior tree instance constructed in `OnStart`. Initialized internally. |
-| `MIN_FOLLOW_DIST` | `number` | `0` | Minimum distance to maintain from the owner before stopping movement. |
-| `MAX_FOLLOW_DIST` | `number` | `8` | Distance beyond which the pet begins to move toward the owner. |
-| `TARGET_FOLLOW_DIST` | `number` | `5` | Target distance the pet attempts to maintain from the owner. |
-| `MAX_WANDER_DIST` | `number` | `3` | Maximum wander radius (not directly used in current behavior tree). |
-| `FIND_FOOD_ACTION_DIST` | `number` | `12` | Radius around the pet within which food-finding actions search for entities. |
-
-## Main Functions
+## Main functions
+### `OnStart()`
+*   **Description:** Initializes and assigns the behavior tree for the entity. Constructs a `PriorityNode`-based behavior tree that prioritizes panic and starvation responses, followed by following, eating, facing, and nuzzling.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** None documented.
 
 ### `GetOwner(inst)`
-* **Description:** Retrieves the pet’s current owner (leader) by querying the `follower` component, but excludes owners that are items inside a pocket dimension container.
-* **Parameters:**
-  - `inst` (`Entity`): The pet entity instance.
-* **Returns:** `Entity?` — The owner entity, or `nil` if no valid leader or if leader is inside a container.
+*   **Description:** Returns the pet's owner only if the leader is not a pocket dimension container (e.g., not inside a bag).
+*   **Parameters:** `inst` (Entity) — the pet entity instance.
+*   **Returns:** `entity` — the owner if valid; otherwise `nil`.
+*   **Error states:** Returns `nil` if `follower:GetLeader()` is `nil` or if the leader has the `pocketdimension_container` tag.
 
 ### `EatFoodAction(inst)`
-* **Description:** Scans the pet’s inventory for an edible item and returns an `ACTIONS.EAT` buffered action for it, if possible and not busy.
-* **Parameters:**
-  - `inst` (`Entity`): The pet entity instance.
-* **Returns:** `BufferedAction?` — Action to eat the first edible item found, or `nil` if none available or entity is busy.
+*   **Description:** Attempts to find an edible item in inventory and generate an `EAT` action against it.
+*   **Parameters:** `inst` (Entity) — the pet entity.
+*   **Returns:** `BufferedAction` — action instance if an edible item is found; otherwise `nil`.
+*   **Error states:** Returns `nil` if `inventory`/`eater` is missing, pet is `busy`, or no edible item exists.
 
 ### `MakeFoodAction(inst)`
-* **Description:** Finds an eligible entity in range to "nuzzle" (produce food from), and returns a buffered `ACTIONS.NUZZLE` action.
-* **Parameters:**
-  - `inst` (`Entity`): The pet entity instance.
-* **Returns:** `BufferedAction?` — Action to nuzzle a suitable target, or `nil` if no target found or entity is busy.
-* **Notes:** Targets must have tags in `MAKE_FOOD_TAGS` and lack any in `NO_MAKE_FOOD_TAGS`.
-
-### `CanPickup(item)`
-* **Description:** Validates whether an item can be picked up based on `inventoryitem.canbepickedup` and ground suitability.
-* **Parameters:**
-  - `item` (`Entity`): The item entity to validate.
-* **Returns:** `boolean` — `true` if the item can be picked up, `false` otherwise.
+*   **Description:** Attempts to nuzzle nearby food (e.g., unburnt items with tags `canlight`, `fire`, `smolder`) to "cook" them, ignoring items tagged as `INLIMBO`, `_equippable`, `outofreach`, or fuel types.
+*   **Parameters:** `inst` (Entity) — the pet entity.
+*   **Returns:** `BufferedAction` — action instance if such an item is found within range; otherwise `nil`.
+*   **Error states:** Returns early with no effect if `busy`.
 
 ### `FindFoodAction(inst)`
-* **Description:** Searches for edible items in range that meet food-finding tags, validates them for pickup, and returns an `ACTIONS.PICKUP` action if found.
-* **Parameters:**
-  - `inst` (`Entity`): The pet entity instance.
-* **Returns:** `BufferedAction?` — Action to pickup the first valid food item, or `nil` if none found or entity is busy.
-
-### `OwnerIsClose(inst)`
-* **Description:** Determines whether the owner is within a very short distance (2.5 units), indicating proximity for affection behaviors.
-* **Parameters:**
-  - `inst` (`Entity`): The pet entity instance.
-* **Returns:** `boolean` — `true` if owner is within range, `false` otherwise.
+*   **Description:** Finds a pickupable edible item (tagged `edible_BURNT`, `_inventoryitem`) outside the pet’s inventory and initiates pickup.
+*   **Parameters:** `inst` (Entity) — the pet entity.
+*   **Returns:** `BufferedAction` — action instance if item found; otherwise `nil`.
+*   **Error states:** Returns early with no effect if `busy`. Item must satisfy `CanPickup` and tag constraints.
 
 ### `LoveOwner(inst)`
-* **Description:** Attempts to perform an affectionate nuzzle on the owner if conditions are met (not busy, owner is a player, hunger > 50%, and luck check passes).
-* **Parameters:**
-  - `inst` (`Entity`): The pet entity instance.
-* **Returns:** `BufferedAction?` — Action to nuzzle the owner, or `nil` if conditions not met or entity is busy.
+*   **Description:** Attempts to nuzzle the owner if they are close enough, healthy enough (hunger > 50%), and pass a luck roll (`TUNING.CRITTER_NUZZLE_CHANCE`).
+*   **Parameters:** `inst` (Entity) — the pet entity.
+*   **Returns:** `BufferedAction` — action instance if conditions met; otherwise `nil`.
+*   **Error states:** Returns early with no effect if `busy`, owner missing, owner lacks `player` tag, or hunger percent `<= 0.5`.
 
-### `LavaePetBrain:OnStart()`
-* **Description:** Initializes the behavior tree by constructing the root priority node with starvation handling, following logic, and affection behaviors.
-* **Parameters:** None.
-* **Returns:** `nil`.
-* **Notes:** This method populates `self.bt` with a `BT` instance based on a behavior tree rooted in a priority list including panic triggers, starvation response, following, eating, facing, and affection logic.
-
-## Events & Listeners
-
-None identified. The brain uses synchronous actions via the behavior tree and does not register any event listeners directly.
+## Events & listeners
+None identified.

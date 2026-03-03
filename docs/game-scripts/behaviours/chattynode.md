@@ -1,52 +1,65 @@
 ---
 id: chattynode
 title: Chattynode
-description: A behavior node that periodically triggers speech (chatter or spoken lines) from an entity using talker or npc_talker components, based on configurable timing and message sources.
+description: A behavior node that periodically triggers speech or chatter from an entity during AI behavior execution.
+tags: [ai, dialogue, behavior]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: behaviour
-system_scope: entity
+category_type: behaviours
 source_hash: 56e8ed1f
+system_scope: brain
 ---
 
 # Chattynode
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-`ChattyNode` is a subclass of `BehaviourNode` used in behavior trees to orchestrate timed, conditional speech from an entity. It evaluates its single child node and, while the child is in `RUNNING` status, triggers spoken dialogue or chatter at randomly spaced intervals. It supports three modes of message delivery:
-- A table of strings (legacy, host-only),
-- A function returning a string (or nil),
-- A string key referencing localized strings in `STRINGS`.
+`Chattynode` is a behavior tree node that integrates speech or chatter logic into AI behavior execution. It is used to make non-player characters speak at timed intervals while the behavior tree is running. The node supports multiple input formats for chat content (static strings, functions returning strings, or tables of strings) and adapts to either `npc_talker` or `talker` components depending on availability. It manages timing for initial entry delays and repeated chatter intervals, and uses the behavior tree's sleep mechanism to avoid re-checking until the next scheduled chatter time.
 
-It prioritizes `npc_talker:Chatter` (which supports advanced chatter parameters and networked display) over `talker:Say`, depending on component availability.
+## Usage example
+```lua
+-- Attach to an entity with npc_talker or talker component
+local inst = CreateEntity()
+inst:AddComponent("npc_talker")
 
-## Dependencies & Tags
-- **Components used:**  
-  - `inst.components.talker` (for fallback `Say` calls)
-  - `inst.components.npc_talker` (for advanced `Chatter` calls with chatterparams support)
-- **Tags:** None identified.
+-- Create a chatty node that speaks every 8–12 seconds after an initial 2-second delay
+local chatty_node = ChattyNode(
+    inst,
+    "CHARACTER.DIALOGUE_GREETING", -- string table path
+    nil, -- child node (optional)
+    8,   -- delay between chats
+    4    -- random delay variation
+)
+```
+
+## Dependencies & tags
+**Components used:** `npc_talker` (preferred), `talker` (fallback)
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity instance this behavior node controls. |
-| `chatlines` | `string | table | function` | — | Source of dialogue: a localization key, array of strings, or a function returning a string. |
-| `chatter_time` | `number?` | `nil` | Chatter duration (used only with `npc_talker:Chatter`). |
-| `chatter_forcetext` | `string?` | `nil` | Optional forced text override for chatter. |
-| `chatter_echotochatpriority` | `0 | 1 | number?` | Controls echoing to chat (0=off, 1=on, or custom numeric priority). |
-| `nextchattime` | `number?` | `0` | World time when the next chatter is allowed. Initialized to `0`. |
-| `delay` | `number?` | `nil` | Base delay (in seconds) between successive chatters when child is `RUNNING`. |
-| `rand_delay` | `number?` | `nil` | Random variance added to delay (scaled by `math.random()`). |
-| `enter_delay` | `number?` | `nil` | Optional initial delay when the node first enters `RUNNING` state. |
-| `enter_delay_rand` | `number?` | `nil` | Random variance added to the initial delay. |
+| `inst` | `Entity` | — | The entity instance this node is attached to. |
+| `chatlines` | string, table, or function | — | Chat content source: string table path, table of strings, or a function returning a string. |
+| `chatter_time` | number | `nil` | Time (in seconds) for the chatter (only set if `chatlines.chatterparams` exists). |
+| `chatter_forcetext` | boolean | `nil` | Whether to force display of text (only set if `chatlines.chatterparams` exists). |
+| `chatter_echotochatpriority` | boolean or number | `nil` | Chat priority override (only set if `chatlines.chatterparams` exists). |
+| `nextchattime` | number | `0` | Timestamp for next allowed chatter; updated after each chatter. |
+| `delay` | number | `10` (default in Visit) | Base delay in seconds between successive chatters. |
+| `rand_delay` | number | `10` (default in Visit) | Maximum random additional delay in seconds added to `delay`. |
+| `enter_delay` | number | `0` | Delay applied only the first time the node enters the RUNNING state. |
+| `enter_delay_rand` | number | `0` | Random variation (seconds) added to `enter_delay`. |
 
-## Main Functions
-### `ChattyNode:Visit()`
-* **Description:** Main behavior node entry point. Executes the child node, updates status, and conditionally triggers speech based on timing and child state. Called each tick while the behavior tree is active.
-* **Parameters:** None.
-* **Returns:** `nil` (side-effect only: updates `self.status`, schedules future chatter, and may call `Say`/`Chatter`).
+## Main functions
+### `Visit()`
+*   **Description:** Executes the behavior node logic. Visits the child node, tracks running state, and triggers speech or chatter at scheduled intervals based on `delay` and `rand_delay`. Uses `Sleep()` when waiting until the next chatter time.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** May fail to speak if no `npc_talker` or `talker` component exists; no error is raised, but the speech call is silently skipped. If `chatlines` is a table with zero entries, `dumptable()` is called to aid debugging.
 
-## Events & Listeners
+## Events & listeners
 None identified.

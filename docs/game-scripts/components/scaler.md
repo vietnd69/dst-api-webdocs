@@ -1,57 +1,61 @@
 ---
 id: scaler
 title: Scaler
-description: Manages and applies scaling transformations to an entity based on a numeric scale factor.
+description: Manages the uniform scaling of an entity's visual representation by applying a scale factor to its transform.
+tags: [visual, transform, scale]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: 6f1fef01
+system_scope: entity
 ---
 
 # Scaler
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Scaler` component maintains a scalar multiplier (default `1`) and applies it uniformly to the entity's visual transform, ensuring consistent resizing across all three dimensions (X, Y, Z). It also supports persistence via `OnSave`/`OnLoad`, allowing the scale value to be saved and restored across game sessions.
+`Scaler` is a lightweight component that controls the visual scale of an entity by adjusting its `Transform` component's scale values uniformly across all axes (X, Y, Z). It is typically attached to prefabs that require dynamic size changes, such as bosses or entities that grow/shrink during gameplay. The component also supports serialization via `OnSave`/`OnLoad` for save-game persistence.
 
-## Dependencies & Tags
-**Dependencies:**  
-- Requires the `Transform` component to be present on the same entity (used via `self.inst.Transform:SetScale(...)`).  
-- The optional `OnApplyScale` callback may be assigned externally for custom behavior upon scale change.  
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("scaler")
+inst.components.scaler:SetScale(1.5)
+```
 
-**Tags:**  
-- None identified.
+## Dependencies & tags
+**Components used:** `Transform` (via `self.inst.Transform`)
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (assigned in `_ctor`) | Reference to the owning entity instance. |
-| `scale` | `number` | `1` | Uniform scale factor applied to the entity’s transform. |
+| `scale` | number | `1` | The uniform scale factor applied to the entity's transform. |
 
-## Main Functions
+## Main functions
+### `SetScale(scale)`
+*   **Description:** Sets the uniform scale factor and immediately applies it to the entity’s transform.
+*   **Parameters:** `scale` (number) - the scale factor to apply (e.g., `1` = original size, `2` = double size).
+*   **Returns:** Nothing.
 
 ### `ApplyScale()`
-* **Description:** Applies the current `scale` value to the entity's `Transform` component by setting uniform scale along all axes. If the `OnApplyScale` callback is defined, it is invoked with arguments `(inst, scale)`.
-* **Parameters:** None.
+*   **Description:** Applies the current `scale` value to the entity’s `Transform` component. Optionally calls the `OnApplyScale` callback if defined.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Returns a table containing the current `scale` value for serialization (e.g., saving to disk).  
-* **Parameters:** None.  
-* **Note:** Returns `{ scale = self.scale }`.
+*   **Description:** Returns a table containing the current scale value for save-game serialization.
+*   **Parameters:** None.
+*   **Returns:** `{ scale = number }` — a serializable data table.
 
 ### `OnLoad(data)`
-* **Description:** Restores the scale value from saved data. If valid scale data is present, it calls `SetScale()` to apply the restored value.  
-* **Parameters:**  
-  - `data` (`table?`): Saved component data; must contain a `scale` key to have effect.
+*   **Description:** Restores the scale value from saved data. Triggers `SetScale` if valid scale data is provided.
+*   **Parameters:** `data` (table?) — expected to contain a `scale` key with a numeric value.
+*   **Returns:** Nothing.
 
-### `SetScale(scale)`
-* **Description:** Updates the scale value and immediately applies the change via `ApplyScale()`.  
-* **Parameters:**  
-  - `scale` (`number`): The new uniform scale factor (e.g., `0.5` for half-size, `2.0` for double-size).
-
-## Events & Listeners
-None.
+## Events & listeners
+None identified.

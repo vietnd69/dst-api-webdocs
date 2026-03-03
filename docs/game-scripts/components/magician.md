@@ -1,73 +1,81 @@
 ---
 id: magician
 title: Magician
-description: Manages the usage and lifecycle of a magical tool for an entity, including tracking held/equipped state and handling item attachment/detachment.
+description: Manages the state and lifecycle of a magician tool currently being used by an entity, including equipping, holding, and dropping behavior.
+tags: [inventory, equipment, tool]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: d2bac348
+system_scope: inventory
 ---
 
 # Magician
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Magician` component enables an entity to temporarily "use" a magical tool by attaching it to the entity's transform, managing its possession state (held vs. in inventory), and coordinating with the tool's own `magiciantool` component during use cycles. It ensures the tool does not persist independently while in use and restores it to its proper location upon stopping.
+`Magician` is an entity component that tracks and manages a magician tool currently in use. It coordinates with the `equippable`, `inventory`, `inventoryitem`, `stackable`, and `magiciantool` components to handle tool acquisition, removal from inventory, reuse on stop, and persistence across saves. The component automatically adds the `magician` tag to its entity upon attachment and manages additional runtime tags (`usingmagiciantool`, `usingmagiciantool_wasequipped`) to reflect tool state.
 
-## Dependencies & Tags
-- Adds the `"magician"` tag to the entity on construction.
-- Listens to `"item"` and `"equip"` events via event binding in the class definition (via the `item` and `equip` handlers `onitem` and `onequip`).
-- Adds/removes tags:
-  - `"magician"`
-  - `"usingmagiciantool"` (added when an item is in use)
-  - `"usingmagiciantool_wasequipped"` (added when the tool was equipped before use)
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("magician")
 
-Also requires the following components on the *target item* (not on the entity itself):
-- `magiciantool` (required for `StartUsingTool`)
-- Optionally `inventoryitem`, `equippable`, `stackable` (for handling item ownership/state)
+local tool = SpawnPrefab("magicwand")
+inst.components.magician:StartUsingTool(tool)
+-- ... later ...
+inst.components.magician:StopUsing()
+```
+
+## Dependencies & tags
+**Components used:** `equippable`, `inventory`, `inventoryitem`, `magiciantool`, `stackable`
+**Tags:** Adds `magician` on creation; manages `usingmagiciantool` and `usingmagiciantool_wasequipped` via callbacks.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity this component is attached to (injected in constructor). |
-| `item` | `Entity?` | `nil` | The current magical tool being used; `nil` when no tool is in use. |
-| `held` | `boolean?` | `nil` | `true` if the tool was held (in inventory and opened container) when use began; `nil` otherwise. |
-| `equip` | `boolean?` | `nil` | `true` if the tool was equipped when use began; `nil` otherwise. |
+| `item` | `Entity` or `nil` | `nil` | The current magician tool entity being used. |
+| `held` | `boolean` or `nil` | `nil` | Whether the tool was originally held in the inventory (not equipped). |
+| `equip` | `boolean` or `nil` | `nil` | Whether the tool was originally equipped (i.e., used via `equippable`). |
 
-## Main Functions
+## Main functions
+### `StartUsingTool(item)`
+*   **Description:** Acquires the specified tool for use, removing it from its previous location (inventory/container) and parenting it to the owning entity. Calls `OnStartUsing` on the tool's `magiciantool` component.
+*   **Parameters:** `item` (`Entity`) - The tool to start using. Must have the `magiciantool` component.
+*   **Returns:** `true` if tool acquisition succeeded; `false` if `item` has no `magiciantool`, a tool is already in use, or the item's owner does not have an open container.
+*   **Error states:** Returns `false` if `item.components.magiciantool` is `nil`, or if the tool’s grand owner’s inventory/container is not opened by `self.inst`.
 
-### `Magician:StartUsingTool(item)`
-* **Description:** Begins using the specified magical tool. Attaches it to the entity, clears persistence, and notifies the tool via its `magiciantool` component. Validates tool eligibility and inventory/container access.
-* **Parameters:**
-  - `item` (`Entity`): The tool entity to use. Must have a `magiciantool` component.
+### `StopUsing()`
+*   **Description:** Ends use of the current tool, resets internal state, calls `OnStopUsing` on the tool, and returns the tool to its owner (or drops it). Fires the `magicianstopped` event.
+*   **Parameters:** None.
+*   **Returns:** `true` if a tool was successfully stopped; `false` if no tool was in use.
+*   **Error states:** Returns `false` if `self.item` is `nil`.
 
-### `Magician:StopUsing()`
-* **Description:** Ends use of the current tool. Detaches it from the entity, restores persistence, returns it to the entity's inventory (or drops it), and notifies the tool component. Emits the `"magicianstopped"` event.
-* **Parameters:** None.
+### `DropToolOnStop()`
+*   **Description:** Resets internal state without returning or dropping the tool. Used during cleanup or entity removal.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `Magician:DropToolOnStop()`
-* **Description:** Clears internal state (`held`, `equip`) without returning or destroying the tool—intended for use cases where tool ownership changes during shutdown (e.g., death).
-* **Parameters:** None.
+### `OnRemoveFromEntity()`
+*   **Description:** Cleans up when the component is removed from its entity. Calls `StopUsing()` and removes all magician-related tags.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `Magician:OnRemoveFromEntity()`
-* **Description:** Cleans up when the component is removed: stops using the tool (if any), and removes all relevant tags (`"magician"`, `"usingmagiciantool"`, `"usingmagiciantool_wasequipped"`).
-* **Parameters:** None.
+### `OnSave()`
+*   **Description:** Returns a save record for the tool and associated state if a tool is in use.
+*   **Parameters:** None.
+*   **Returns:** `nil` if no tool is in use; otherwise, a table with keys `item`, `held`, and `equip`.
 
-### `Magician:OnSave()`
-* **Description:** Returns a serialized snapshot of the current state if a tool is being used. Used to persist usage state across saves.
-* **Parameters:** None.
+### `OnLoad(data)`
+*   **Description:** Restores the state after load using data returned from `OnSave`.
+*   **Parameters:** `data` (`table?`) - Save data containing `item`, `held`, and `equip`.
+*   **Returns:** Nothing.
 
-### `Magician:OnLoad(data)`
-* **Description:** Restores usage state from a save record. Spawns the saved tool entity and reinitializes `held` and `equip` flags.
-* **Parameters:**
-  - `data` (`table?`): Save data, expected to contain `item`, `held`, and `equip` keys.
-
-## Events & Listeners
-- Listens to:
-  - `"item"` → calls `onitem(self, item)`
-  - `"equip"` → calls `onequip(self, equip)`
-- Triggers:
-  - `"magicianstopped"` (via `self.inst:PushEvent`) when `StopUsing()` completes successfully.
+## Events & listeners
+- **Listens to:** `item` (via `inst:ListenForEvent`) - called when item changes; toggles `usingmagiciantool` tag.
+- **Listens to:** `equip` (via `inst:ListenForEvent`) - called when equippable state changes; toggles `usingmagiciantool_wasequipped` tag.
+- **Pushes:** `magicianstopped` - fired when `StopUsing()` completes successfully.

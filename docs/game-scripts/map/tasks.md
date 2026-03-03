@@ -3,8 +3,7 @@ id: tasks
 title: Tasks
 description: Manages the registration and retrieval of level generation tasks used to define world room layouts and progression constraints.
 tags: [world, generation, progression, task]
-sidebar_position: 1
-
+sidebar_position: 100
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: d2e19b16
 ---
-
 # Tasks
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -92,4 +90,3 @@ local task = TheWorld.map.tasks.GetTaskByName("MY_CUSTOM_TASK")
 ## Events & listeners
 None. This module is data-only and does not register or fire events.
 
----

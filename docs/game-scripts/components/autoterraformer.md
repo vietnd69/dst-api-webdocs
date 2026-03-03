@@ -1,62 +1,83 @@
 ---
 id: autoterraformer
 title: Autoterraformer
-description: Manages the logic for an entity that automatically terraforms the ground tile it is currently over.
+description: Automatically transforms the terrain tile beneath an entity by repeatedly replacing it with the first item in its container.
+tags: [terrain, world, automation]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 023a45b3
+system_scope: world
 ---
 
 # Autoterraformer
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The Autoterraformer component is responsible for the logic of items that automatically change ground turf, such as the Terra Firma Tamper. It continuously checks the tile beneath the entity and, if a change is needed, it will either place a turf item from its associated container component or dig up the existing turf to reveal the layer underneath or default dirt.
+`AutoTerraformer` enables an entity to automatically terraform (reshape) the terrain in real time as it moves. It is typically attached to devices like the AutoTerraformer block, which transforms tiles beneath them by consuming items (e.g., dirt, cobblestone) from its own `container`. The component repeatedly checks the entity's current tile, compares it to the tile type of the first item in the container, and applies changes as needed—such as replacing grass with dirt or filling holes.
 
-## Dependencies & Tags
-**Dependencies:**
-- `container`: This component is required, as asserted in its constructor. It uses the container to hold and consume turf items.
+It interacts with the `container`, `finiteuses`, `inventory`, `inventoryitem`, and `undertile` components during operation. Events like `"onterraform"` are pushed upon completion of each tile change.
 
-**Tags:**
-- None identified.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("container")
+inst:AddComponent("autoterraformer")
+inst:AddComponent("finiteuses")
+inst.components.container:SetHoldable(true)
+-- Populate slot 1 with a tile item (e.g., "dirt")
+inst.components.autoterraformer:StartTerraforming()
+-- Terraforming proceeds as long as the entity moves and has valid items.
+```
+
+## Dependencies & tags
+**Components used:** `container`, `finiteuses`, `undertile`, `inventory`, `inventoryitem`  
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
-|---|---|---|---|
-| `inst` | `Entity` | `inst` | The entity instance this component is attached to. |
-| `repeat_tile_delay` | `number` | `TUNING.AUTOTERRAFORMER_REPEAT_DELAY` | The time in seconds before the same tile can be terraformed again. |
-| `onfinishterraformingfn` | `function` | `nil` | An optional callback function that is executed after a terraforming action is completed. |
-| `container` | `Component` | `inst.components.container` | A direct reference to the entity's `container` component. |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | — | Reference to the entity this component belongs to. |
+| `repeat_tile_delay` | number | `TUNING.AUTOTERRAFORMER_REPEAT_DELAY` | Delay (in seconds) between repeated terraforming on the same tile. |
+| `container` | `Container` | — | Reference to the entity’s `container` component. |
+| `last_x`, `last_y` | number or `nil` | `nil` | Last known tile coordinates; used to detect position changes. |
+| `repeat_delay` | number or `nil` | `nil` | Countdown timer before re-processing the same tile. |
 
-## Main Functions
+## Main functions
 ### `FinishTerraforming(x, y, z)`
-* **Description:** Finalizes a terraforming action. It pushes the `onterraform` event, consumes a use from the `finiteuses` component if present, and executes the `onfinishterraformingfn` callback.
-* **Parameters:**
-    * `x, y, z`: The world coordinates where the terraforming finished.
+* **Description:** Called after successfully terraforming a tile. Fires the `"onterraform"` event, uses up one finite charge if present, and invokes a custom callback (`onfinishterraformingfn`) if defined.
+* **Parameters:**  
+  `x`, `y`, `z` (numbers) — world coordinates where the terraforming occurred.
+* **Returns:** Nothing.
+* **Error states:** None.
 
 ### `DoTerraform(px, py, pz, x, y)`
-* **Description:** This is the core function that executes the terraforming logic. It determines whether to place a new turf from its container or dig up the existing one based on world rules and available items. It handles consuming the turf item and updating the world map tile.
-* **Parameters:**
-    * `px, py, pz`: The precise world position of the entity.
-    * `x, y`: The tile coordinates corresponding to the world position.
+* **Description:** Performs a single terraforming operation at the given tile coordinates. Replaces the current tile if possible, respecting `map` placement rules and undertile layers. Removes the used item from the container.
+* **Parameters:**  
+  `px`, `py`, `pz` (numbers) — world position coordinates.  
+  `x`, `y` (numbers) — tile map coordinates to modify.
+* **Returns:** `true` if an undertile layer was revealed (`underneath_tile` was present); `false` or `nil` otherwise.
+* **Error states:** Returns early with no change if the item tile matches the current tile, or if placement is invalid per `map:CanPlaceTurfAtPoint` / `map:CanTerraformAtPoint`.
 
 ### `StartTerraforming()`
-* **Description:** Begins the continuous terraforming process by enabling the component's `OnUpdate` function.
+* **Description:** Initializes repeat-tile logic and begins updating the component every frame via `OnUpdate`.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `StopTerraforming()`
-* **Description:** Halts the continuous terraforming process by disabling the component's `OnUpdate` function.
+* **Description:** Halts periodic updates and resets tracking coordinates.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-* **Description:** Called every frame when the component is active. It tracks the entity's position and triggers `DoTerraform` when the entity moves to a new tile or when a repeat delay on the current tile has expired.
-* **Parameters:**
-    * `dt`: The time delta since the last update.
+* **Description:** Called every frame after `StartTerraforming`. Checks if the entity has moved to a new tile or needs re-processing on the current tile. Triggers `DoTerraform` as needed.
+* **Parameters:**  
+  `dt` (number) — delta time in seconds.
+* **Returns:** Nothing.
 
-## Events & Listeners
-*   `inst:PushEvent("onterraform")`: Pushed on the component's owner entity after successfully completing a terraform action.
-*   Pushes the `"collapsesoil"` event on any entities with the `soil` tag that are on the affected tile during a dig-up action.
+## Events & listeners
+- **Pushes:** `"onterraform"` — fired at the end of each successful terraforming operation (via `FinishTerraforming`). No data is passed with this event.

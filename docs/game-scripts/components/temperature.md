@@ -1,141 +1,182 @@
 ---
 id: temperature
 title: Temperature
-description: Manages an entity's thermal state, including temperature changes, insulation, environmental interactions, and health impacts from overheating or freezing.
+description: Manages entity body temperature, including heating/cooling logic, insulation, moisture penalties, and health impact from extreme temperatures.
+tags: [temperature, player, entity, environment]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: be308083
+system_scope: entity
 ---
 
 # Temperature
 
-## Overview
-The `temperature` component calculates and maintains an entity's current temperature by integrating ambient environmental conditions, equipped/insulated items, moisture, shelter status, proximity to heaters/cooler entities, belly temperature effects, and seasonal/ambient modifiers. It periodically updates the entity's temperature, applies health damage when temperatures exceed safe thresholds, and broadcasts temperature-related events to other systems (e.g., UI, player classified state).
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies**: None explicitly added via `AddComponent` within this script, but relies on optional presence of:
-  - `health` — for damage application
-  - `inventory` — to access insulated/heating items
-  - `moisture` — for moisture-based cooling penalty
-  - `beard` — for beard-based insulation adjustment
-  - `sleepingbag` — for ambient override when inside
-  - `preserver` — on owner for rate multiplier (e.g., in冷冻箱)
-  - `player_classified` — to sync UI temperature display
-- **Tags**:
-  - Internally respects tags `INLIMBO`, `HASHEATER`, `spawnlight`, `nocool`, `pocketdimension_container`, `fridge`, `lowcool`, `player`.
-  - `sheltered` event is listened for.
-  - Uses `seasontags` via `SEASONS.WINTER`, `SEASONS.SUMMER` enum references.
+## Overview
+`Temperature` tracks and updates an entity's internal body temperature, simulating environmental heat exchange with modifiers from insulation, moisture, carried/equipped items, nearby heaters, and belly temperature from food. It interacts closely with the `health` component to apply cold/hot damage, and uses `heater`, `insulator`, `beard`, `moisture`, `inventory`, `sleepingbag`, and `preserver` components to compute thermal dynamics. Temperature changes are clamped between `mintemp` and `maxtemp`, and transitions across 0°C and `overheattemp` trigger gameplay events.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("temperature")
+inst.components.temperature:SetTemperature(20)
+inst.components.temperature:DoDelta(5)
+inst.components.temperature:SetModifier("custom_cooling", -3)
+inst.components.temperature:IgnoreTags("INLIMBO", "NOHEAT")
+```
+
+## Dependencies & tags
+**Components used:** `health`, `heater`, `insulator`, `beard`, `inventory`, `moisture`, `preserver`, `sleepingbag`, `inventoryitem`, `player_classified`
+**Tags:** Checks `INLIMBO`, `player`, `pocketdimension_container`, `fridge`, `nocool`, `lowcool`, `HASHEATER`, `spawnlight`, `WET`. Adds no tags directly.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the parent entity instance. |
-| `settemp` | `number?` | `nil` | Optional explicit target temperature override. |
-| `current` | `number` | `TUNING.STARTING_TEMP` | Current entity temperature in Celsius. |
-| `maxtemp` | `number` | `TUNING.MAX_ENTITY_TEMP` | Upper temperature limit. |
-| `mintemp` | `number` | `TUNING.MIN_ENTITY_TEMP` | Lower temperature limit. |
-| `overheattemp` | `number` | `TUNING.OVERHEAT_TEMP` | Threshold above which overheating damage occurs. |
-| `hurtrate` | `number` | `TUNING.WILSON_HEALTH / TUNING.FREEZING_KILL_TIME` | Per-second health damage when freezing (current < 0°C). |
-| `overheathurtrate` | `number?` | `nil` | Per-second health damage when overheating; defaults to `hurtrate`. |
-| `inherentinsulation` | `number` | `0` | Base winter insulation from entity (e.g., fur). |
-| `inherentsummerinsulation` | `number` | `0` | Base summer insulation (often 0). |
-| `shelterinsulation` | `number` | `TUNING.INSULATION_MED_LARGE` | Insulation bonus when sheltered (e.g., under trees). |
-| `maxmoisturepenalty` | `number` | `TUNING.MOISTURE_TEMP_PENALTY` | Maximum cooling penalty from full moisture. |
-| `totalmodifiers` | `number` | `0` | Sum of all temperature modifiers (e.g., clothing, status effects). |
-| `externalheaterpower` | `number` | `0` | Cumulative heating effect from nearby heaters. |
-| `delta` | `number` | `0` | Ideal per-update temperature change before rate limiting. |
-| `rate` | `number` | `0` | Actual per-second temperature change rate after constraints. |
-| `sheltered` | `boolean` | `false` | Whether the entity is currently under shelter. |
-| `sheltered_level` | `number` | `1` | Shelter level (e.g., `1` = open, `>1` = deeper shelter). |
-| `temperature_modifiers` | `table?` | `nil` | Named map of numeric modifiers applied to temperature change target. |
-| `ignoreheatertags` | `table` | `{ "INLIMBO" }` | Tags to ignore when scanning for heater entities. |
-| `usespawnlight` | `boolean?` | `nil` | If true, use spawn light logic for ambient temperature fallback. |
-| `bellytemperaturedelta` | `number?` | `nil` | Temperature effect from recently eaten food. |
-| `bellytime` | `number?` | `nil` | Timestamp when belly effect expires. |
-| `bellytask` | `Task?` | `nil` | Scheduled task to clear belly effect. |
+| `settemp` | number or nil | `nil` | Target temperature override (if not `nil`, overrides environmental calculation). |
+| `current` | number | `TUNING.STARTING_TEMP` | Current body temperature in °C. |
+| `maxtemp` | number | `TUNING.MAX_ENTITY_TEMP` | Upper bound for `current`. |
+| `mintemp` | number | `TUNING.MIN_ENTITY_TEMP` | Lower bound for `current`. |
+| `overheattemp` | number | `TUNING.OVERHEAT_TEMP` | Threshold above which overheating damage applies. |
+| `hurtrate` | number | `TUNING.WILSON_HEALTH / TUNING.FREEZING_KILL_TIME` | Damage per second applied while freezing. |
+| `overheathurtrate` | number or nil | `nil` | Damage per second applied while overheating (defaults to `hurtrate`). |
+| `inherentinsulation` | number | `0` | Base winter insulation. |
+| `inherentsummerinsulation` | number | `0` | Base summer insulation. |
+| `shelterinsulation` | number | `TUNING.INSULATION_MED_LARGE` | Insulation bonus when sheltered. |
+| `maxmoisturepenalty` | number | `TUNING.MOISTURE_TEMP_PENALTY` | Max cooling penalty from full moisture. |
+| `totalmodifiers` | number | `0` | Sum of all active temperature modifiers. |
+| `externalheaterpower` | number | `0` | Total heater influence factor from nearby heat sources. |
+| `delta` | number | `0` | Immediate temperature change target (debug/logging use). |
+| `rate` | number | `0` | Current rate of temperature change per second (debug/logging use). |
+| `sheltered` | boolean | `false` | Whether the entity is under shelter (e.g., trees, structures). |
+| `sheltered_level` | number | `1` | Shelter depth level (affects overheating ambient cap). |
+| `ignoreheatertags` | table of strings | `{ "INLIMBO" }` | Tags excluded from heater influence calculations. |
+| `usespawnlight` | boolean or nil | `nil` | If true, `spawnlight` tag is considered during heater lookup. |
 
-## Main Functions
-
+## Main functions
 ### `SetFreezingHurtRate(rate)`
-* **Description:** Sets the per-second health damage rate when the entity is freezing (current temperature < 0°C).
-* **Parameters:**
-  - `rate` (`number`): Health damage per second while freezing.
+* **Description:** Sets the damage rate per second applied when freezing (`current < 0`).
+* **Parameters:** `rate` (number) — damage per second.
+* **Returns:** Nothing.
 
 ### `SetOverheatHurtRate(rate)`
-* **Description:** Sets the per-second health damage rate when the entity is overheating (current temperature > `overheattemp`).
-* **Parameters:**
-  - `rate` (`number`): Health damage per second while overheating.
+* **Description:** Sets the damage rate per second applied when overheating (`current > overheattemp`). Defaults to `hurtrate` if not set.
+* **Parameters:** `rate` (number) — damage per second.
+* **Returns:** Nothing.
 
 ### `DoDelta(delta)`
-* **Description:** Applies a temperature change (`delta`) subject to seasonal insulation resistance. Used to smoothly transition temperature over time.
-* **Parameters:**
-  - `delta` (`number`): Raw temperature change to apply before insulation dampening.
+* **Description:** Applies a temperature change `delta` adjusted by current seasonal insulation.
+* **Parameters:** `delta` (number) — raw temperature change (positive = warm, negative = cool).
+* **Returns:** Nothing.
 
 ### `SetTemperatureInBelly(delta, duration)`
-* **Description:** Applies a temporary temperature effect from digested food (warming or chilling). The effect lasts for `duration` seconds or until cancelled.
-* **Parameters:**
-  - `delta` (`number`): Temperature change amount (positive = warming, negative = cooling).
-  - `duration` (`number`): Time in seconds the effect persists.
+* **Description:** Applies a temporary temperature offset (simulating effects of hot/cold food). Overrides any existing belly effect.
+* **Parameters:**  
+  - `delta` (number) — temperature offset to apply.  
+  - `duration` (number) — how long the effect lasts in seconds.
+* **Returns:** Nothing.
 
 ### `OnRemoveFromEntity()`
-* **Description:** Cleanup logic when component is removed: clears belly effect and removes event listener for `"sheltered"`.
+* **Description:** Cleanup method called when component is removed. Cancels belly timer and clears UI state.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `GetCurrent()`
+* **Description:** Returns the current body temperature.
+* **Parameters:** None.
+* **Returns:** `number` — current temperature in °C.
+
+### `GetMax()`
+* **Description:** Returns the maximum allowed body temperature.
+* **Parameters:** None.
+* **Returns:** `number` — `maxtemp`.
 
 ### `OnSave()`
-* **Description:** Returns a serializable table containing `current`, `bellytemperaturedelta`, and remaining `bellytime` (as relative time).
-* **Return Value:** `table?`
+* **Description:** Returns a serializable table of belly temperature and current temperature for persistence.
+* **Parameters:** None.
+* **Returns:** `{ current: number, bellytemperaturedelta: number or nil, bellytime: number or nil }`.
 
 ### `OnLoad(data)`
-* **Description:** Restores component state from saved data, handling temperature and belly effect. Applies logic to reconcile player log-off temperature changes against current world temperature.
-* **Parameters:**
-  - `data` (`table?`): Data from `OnSave()`.
+* **Description:** Restores saved temperature state, applying world temperature clamping for players to prevent abrupt jumps.
+* **Parameters:**  
+  - `data` (table) — save data as returned by `OnSave`.
+* **Returns:** Nothing.
 
 ### `IgnoreTags(...)`
-* **Description:** Extends the list of tags ignored when scanning for heaters/cooler entities. Starts with `{ "INLIMBO" }`.
-* **Parameters:**
-  - `...` (`...string`): Additional tags to ignore.
+* **Description:** Extends the list of tags excluded from heater influence. Starts with default `"INLIMBO"`.
+* **Parameters:** Variable arguments — tag strings to add.
+* **Returns:** Nothing.
 
 ### `SetTemp(temp)`
-* **Description:** Sets the `settemp` override. If non-`nil`, forces the current temperature to `temp` (bypassing normal updates until reset).
-* **Parameters:**
-  - `temp` (`number?`): Temperature to enforce; `nil` disables override.
+* **Description:** Sets `settemp` and immediately updates `current` to `temp` (overrides environmental update).
+* **Parameters:** `temp` (number or nil) — target temperature (`nil` clears override).
+* **Returns:** Nothing.
 
 ### `SetTemperature(value)`
-* **Description:** Directly sets the `current` temperature. Triggers `"startfreezing"/"stopfreezing"` and `"startoverheating"/"stopoverheating"` events if crossing thresholds. Always emits `"temperaturedelta"` event.
-* **Parameters:**
-  - `value` (`number`): New temperature value.
+* **Description:** Directly sets `current` temperature, triggers events for freezing/overheating transitions.
+* **Parameters:** `value` (number) — new temperature in °C.
+* **Returns:** Nothing.
+* **Error states:** None.
+
+### `GetDebugString()`
+* **Description:** Returns a formatted string for debugging, including temperature, rate, delta, modifiers, and insulation.
+* **Parameters:** None.
+* **Returns:** `string`.
+
+### `IsFreezing()`
+* **Description:** Checks if `current < 0`.
+* **Parameters:** None.
+* **Returns:** `boolean`.
+
+### `IsOverheating()`
+* **Description:** Checks if `current > overheattemp`.
+* **Parameters:** None.
+* **Returns:** `boolean`.
+
+### `SetModifier(name, value)`
+* **Description:** Applies or updates a named temperature modifier. Values are summed into `totalmodifiers`.
+* **Parameters:**  
+  - `name` (string) — modifier identifier.  
+  - `value` (number) — modifier value (0 or nil removes it).
+* **Returns:** Nothing.
+
+### `RemoveModifier(name)`
+* **Description:** Removes a named modifier. Does nothing if the modifier does not exist.
+* **Parameters:** `name` (string).
+* **Returns:** Nothing.
 
 ### `GetInsulation()`
-* **Description:** Computes seasonal insulation values by summing:
-  - Inherent insulation (e.g., beard in winter).
-  - Insulated equipment items (`equipslots`) by season.
-  - Shelter bonus (`shelterinsulation`) when sheltered.
-  - Dusk/night insulation bonuses in Overworld.
-* **Return Value:** `number, number` — winter insulation, summer insulation (clamped to ≥ 0).
+* **Description:** Computes and returns seasonal insulation values considering body insulation, beard (winter-only bonus, summer penalty), shelter, and time-of-day bonuses (not caves).
+* **Parameters:** None.
+* **Returns:** `winterInsulation` (number), `summerInsulation` (number) — both clamped to `>= 0`.
 
 ### `GetMoisturePenalty()`
-* **Description:** Returns cooling penalty (negative number) due to moisture level.
-* **Return Value:** `number` — penalty amount (e.g., `-10`), or `0` if no moisture component.
+* **Description:** Returns the cooling penalty (negative value) applied due to moisture level.
+* **Parameters:** None.
+* **Returns:** `number` — negative value between `0` and `-maxmoisturepenalty`.
 
 ### `OnUpdate(dt, applyhealthdelta)`
-* **Description:** Core temperature update loop. Calculates ambient target temperature, applies modifiers, insulation dampening, heater/cooler proximity, moisture, shelter, food belly effect, and season/night/dusk bonuses. Enforces bounds and applies health damage if freezing/overheating.
-* **Parameters:**
-  - `dt` (`number`): Delta time since last update (seconds).
-  - `applyhealthdelta` (`boolean?`): Whether to apply health damage. Defaults to `true`.
+* **Description:** Computes the next temperature step. Computes ambient temperature, applies modifiers, heat/cold from equipment and carried items, belly effects, shelter, and nearby heaters (considering falloff, wetness, and radius). Updates `current` via `SetTemperature`, and applies health damage if freezing/overheating.
+* **Parameters:**  
+  - `dt` (number) — time elapsed since last update (seconds).  
+  - `applyhealthdelta` (boolean or nil) — if `false`, skips health damage. Defaults to `true`.
+* **Returns:** Nothing.
 
 ### `TransferComponent(newinst)`
-* **Description:** Transfers temperature state (including belly effect) to a new entity instance (e.g., during avatar transfer).
-* **Parameters:**
-  - `newinst` (`Entity`): Target entity instance.
+* **Description:** Copies temperature and belly state to a new entity's `temperature` component (e.g., upon death/resurrection).
+* **Parameters:**  
+  - `newinst` (Entity) — destination entity.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens for:**
-  - `"sheltered"` → triggers `onsheltered(self.inst, data)`
-- **Emits:**
-  - `"startfreezing"` or `"stopfreezing"` — when temperature crosses 0°C.
-  - `"startoverheating"` or `"stopoverheating"` — when temperature crosses `overheattemp`.
-  - `"temperaturedelta"` — every `SetTemperature` call, with payload `{ last = number, new = number, hasrate = boolean }`.
+## Events & listeners
+- **Listens to:**  
+  - `"sheltered"` — updates `sheltered` and `sheltered_level` via `onsheltered` callback.  
+- **Pushes:**  
+  - `"startfreezing"` / `"stopfreezing"` — fired when crossing `0°C`.  
+  - `"startoverheating"` / `"stopoverheating"` — fired when crossing `overheattemp`.  
+  - `"temperaturedelta"` — fired whenever `current` changes, with `{ last: number, new: number, hasrate: boolean }`.  
+  - `"healthdelta"` — indirectly via `health:DoDelta` during freezing or overheating.

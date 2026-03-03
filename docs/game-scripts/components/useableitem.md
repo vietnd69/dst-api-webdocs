@@ -1,64 +1,91 @@
 ---
 id: useableitem
-title: Useableitem
-description: Manages the "in use" state and interaction lifecycle of an item that can be used by a player.
+title: UseableItem
+description: Manages the "in use" state of an equippable item and provides callbacks for when it starts or stops being used.
+tags: [inventory, equipment, state]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 2b11da14
+system_scope: inventory
 ---
 
-# Useableitem
+# UseableItem
+
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-This component tracks and controls whether an item is currently being "used" by a player (e.g., during animations like eating, swinging tools, or casting spells). It exposes callback hooks for use/start-use and stop-use events, manages the `"inuse"` entity tag, and enforces interaction rules that prevent concurrent usage.
+`UseableItem` is a lightweight component that tracks whether an equippable item is currently being used (e.g., held in hand, actively wielded). It maintains an internal `inuse` flag and provides hooks (`onusefn`, `onstopusefn`) for custom logic when usage starts or stops. It relies on the `equippable` component to verify the item is equipped before allowing interaction.
 
-## Dependencies & Tags
-- **Components:** Relies on `inst.replica.equippable` being present (typically added by the `equippable` component).
-- **Tags:** Automatically adds the `"inuse"` tag to the entity when `StartUsingItem` is called, and removes it on `StopUsingItem` or `OnRemoveFromEntity`.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("equippable")
+inst:AddComponent("useableitem")
+
+inst.components.useableitem:SetOnUseFn(function(inst)
+    -- Custom logic when item starts being used
+    print("Item started being used")
+    return true
+end)
+
+inst.components.useableitem:SetOnStopUseFn(function(inst)
+    -- Custom logic when item stops being used
+    print("Item stopped being used")
+end)
+
+inst.components.useableitem:StartUsingItem()
+inst.components.useableitem:StopUsingItem()
+```
+
+## Dependencies & tags
+**Components used:** None identified.  
+**Tags:** Adds or removes `inuse` tag on the entity based on usage state.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inuse` | `boolean` | `false` | Indicates whether the item is currently in use. |
-| `onusefn` | `function?` | `nil` | Optional callback executed when item usage begins; return `false` to abort. |
-| `onstopusefn` | `function?` | `nil` | Optional callback executed when item usage ends. |
-| `stopuseevents` | `function?` | `nil` | Optional callback that defines event listeners to clear or actions to perform when usage stops. |
+| `onusefn` | function or nil | `nil` | Callback fired when `StartUsingItem()` is called. Receives `inst` as argument; return value controls final `inuse` state. |
+| `onstopusefn` | function or nil | `nil` | Callback fired when `StopUsingItem()` is called. Receives `inst` as argument. |
+| `inuse` | boolean | `false` | Whether the item is currently being used. |
+| `stopuseevents` | function or nil | `nil` | Optional callback invoked during `StartUsingItem()` to set up event listeners for when usage should stop. |
 
-## Main Functions
-
+## Main functions
 ### `SetOnUseFn(fn)`
-* **Description:** Sets the function to be called when item usage begins (i.e., when `StartUsingItem` is invoked). The function is passed the item instance (`inst`). If it returns `false`, usage is aborted and `inuse` remains `false`.
-* **Parameters:**  
-  `fn` (`function`) — A function with signature `function(inst): boolean?`, where `inst` is the item entity.
+* **Description:** Sets the function to be executed when the item begins being used.
+* **Parameters:** `fn` (function or nil) – a callback that receives `inst` as argument. If `fn` returns `false`, the `inuse` state is set to `false`; otherwise, it remains `true`.
+* **Returns:** Nothing.
 
 ### `SetOnStopUseFn(fn)`
-* **Description:** Sets the function to be called when item usage ends (i.e., when `StopUsingItem` is invoked).
-* **Parameters:**  
-  `fn` (`function`) — A function with signature `function(inst)`, where `inst` is the item entity.
+* **Description:** Sets the function to be executed when the item stops being used.
+* **Parameters:** `fn` (function or nil) – a callback that receives `inst` as argument.
+* **Returns:** Nothing.
 
 ### `CanInteract(doer)`
-* **Description:** Determines whether the given actor (`doer`) is allowed to interact with this item. Interaction is permitted only if the item is not already in use, and the item has an `equippable` replica and is currently equipped.
-* **Parameters:**  
-  `doer` (`Entity`) — The entity attempting interaction (typically the player).  
-  *Note:* The `doer` parameter is accepted but not used in the current implementation.
+* **Description:** Checks whether the item can currently be interacted with (i.e., started being used).
+* **Parameters:** `doer` (entity) – the entity attempting to use the item (not used in current logic).
+* **Returns:** `true` if the item is not in use, and has a valid `equippable` component that reports the item as equipped; otherwise `false`.
+* **Error states:** Returns `false` if `inst.replica.equippable` is `nil` or `IsEquipped()` returns `false`.
 
 ### `StartUsingItem()`
-* **Description:** Attempts to begin item usage. Sets `inuse = true`, calls `onusefn` if present, and applies the `"inuse"` tag. Returns whether usage actually started (may be `false` if `onusefn` returns `false`).
+* **Description:** Marks the item as being used, invokes the `onusefn`, and optionally invokes `stopuseevents` to register cleanup listeners.
 * **Parameters:** None.
+* **Returns:** `true` if usage was successfully started; `false` otherwise (e.g., if `onusefn` returned `false`).
+* **Error states:** Does not fail; if `onusefn` is `nil`, `inuse` is simply set to `true`.
 
 ### `StopUsingItem()`
-* **Description:** Ends item usage. Sets `inuse = false`, calls `onstopusefn` if present, and removes the `"inuse"` tag.
+* **Description:** Marks the item as no longer being used and invokes the `onstopusefn`.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnRemoveFromEntity()`
-* **Description:** Cleanup method called when the component is removed from an entity. Ensures the `"inuse"` tag is removed.
+* **Description:** Cleanup method called when the component is removed from the entity. Ensures the `inuse` tag is removed.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- The component does **not** directly listen to or push events via `inst:ListenForEvent`/`inst:PushEvent`. However:
-  - The `stopuseevents` function (settable via internal API) may assign event listeners or perform cleanup when usage stops, but its usage is implementation-dependent and not standardized in this component.
-  - The `"inuse"` tag is conditionally applied/removed to support external event-based logic (e.g., animation or network sync triggers), but the component itself does not fire events.
+## Events & listeners
+- **Pushes:** None identified.  
+- **Listens to:** None identified (though `stopuseevents` may internally register event listeners on `inst` when invoked in `StartUsingItem()`).

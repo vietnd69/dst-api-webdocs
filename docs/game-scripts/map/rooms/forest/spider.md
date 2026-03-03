@@ -4,7 +4,6 @@ title: Spider
 description: Defines three procedural room templates (SpiderCity, SpiderVillage, SpiderVillageSwamp) for generating spider-infested areas in the Forest, Rocky, and Marsh biomes.
 tags: [world, procedural, room, spider, generation]
 sidebar_position: 1
-
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: 7d006679
 ---
-
 # Spider
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -55,4 +53,3 @@ No properties are defined, as this file only invokes `AddRoom()` with static con
 ## Events & listeners
 No event handling is present in this file.
 
----

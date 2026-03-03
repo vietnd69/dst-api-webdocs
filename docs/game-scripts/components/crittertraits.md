@@ -1,123 +1,118 @@
 ---
 id: crittertraits
 title: Crittertraits
-description: This component tracks and manages dynamic personality traits for critters, influencing their behavior and reactions based on player interactions.
+description: Manages a critter entity's personality traits, including tracking scores for behaviors like combat, playfulness, and crafting, and determining the dominant trait that influences the critter's emotes and stats.
+tags: [ai, personality, combat, crafting, social]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: dea09709
+system_scope: entity
 ---
 
 # Crittertraits
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `crittertraits` component is responsible for giving critters dynamic personality traits based on the player's interactions with them and their activities. It tracks scores for various traits like "wellfed," "playful," "combat," and "crafty," decaying them over time. A "dominant trait" emerges from these scores, which can influence the critter's behavior and can be locked under certain conditions.
+`CritterTraits` tracks a critter's behavioral tendencies across multiple traits (e.g., `COMBAT`, `PLAYFUL`, `CRAFTY`, `WELLFED`) based on actions such as eating, petting, combat participation, and crafting. It uses a scoring system (`traitscore`) with per-trait increments and a decay mechanism, and maintains a single `dominanttrait` that activates a corresponding tag and influences the critter's behavior. It reacts to events on both the critter and its leader (via the `follower` component) to synchronize trait gains with the owner's activities.
 
-## Dependencies & Tags
-This component relies on several other components for its functionality and interacts with entity tags.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("crittertraits")
+inst:AddComponent("timer")
+inst:AddComponent("follower")
 
-**Dependencies:**
-*   `inst.components.follower`: Used to get the critter's leader (owner) to listen for their actions.
-*   `inst.components.edible`: Checked on food items eaten by the critter to determine trait score multipliers.
-*   `inst.components.timer`: Used to schedule regular trait decay and dominant trait refreshing.
+inst.components.crittertraits:SetOnPetFn(function(critter, petter)
+    print(petter .. " petted " .. critter)
+end)
+```
 
-**Tags Added to the Critter:**
-*   `trait_[TRAITNAME]`: A tag is added to the critter when a specific trait becomes dominant (e.g., `trait_PLAYFUL`).
-
-**Tags Checked:**
-*   `stale` (on the critter itself) and `fresh`, `preparedfood` (on food items) to modify trait increases.
-*   `smallcreature`, `monster` (on a combat target) to filter combat trait increases.
-*   `wall` (on a target of `finishedwork` event) to filter crafting trait increases.
+## Dependencies & tags
+**Components used:** `edible` (accessed via `data.food.components.edible.foodtype`), `follower`, `timer`
+**Tags:** Adds/removes `trait_<TRAITNAME>` (e.g., `trait_COMBAT`); checks `stale` on food and `preparedfood`, `fresh` for scoring multipliers.
 
 ## Properties
-| Property              | Type      | Default Value | Description                                                                                                                                                                                                                                                                                                                                                                                          |
-| :-------------------- | :-------- | :------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `inst`                | `Entity`  | `(self)`      | A reference to the owning `Entity` instance this component is attached to.                                                                                                                                                                                                                                                                                                                          |
-| `traitscore`          | `table`   | `{}`          | A table storing the current numerical score for each defined critter trait (e.g., "WELLFED", "PLAYFUL", "COMBAT", "CRAFTY"). All traits from `TUNING.CRITTER_TRAITS` are initialized to 0.                                                                                                                                                                                                           |
-| `dominanttrait`       | `string?` | `nil`         | The name of the trait currently identified as dominant, if any. This is typically the trait with the highest positive `traitscore`. When set, an `inst` tag `trait_[dominanttrait]` is added.                                                                                                                                                                                                          |
-| `dominanttraitlocked` | `boolean?`| `nil`         | If `true`, the `dominanttrait` is prevented from changing. This typically occurs after feeding a critter its favorite food ("goodies").                                                                                                                                                                                                                                                                 |
-| `onpetfn`             | `function?`| `nil`         | An optional callback function to be executed when the critter is petted, accepting the critter instance and the petter as arguments. Can be set via `SetOnPetFn`.                                                                                                                                                                                                                                     |
-| `pettask`             | `Task?`   | `nil`         | A handle to a scheduled task that tracks if the critter is "waiting to be petted" after performing a nuzzle. Used internally to determine if petting should grant a bonus "playful" score.                                                                                                                                                                                                          |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `traitscore` | table of numbers | `{}` initialized for all keys in `TUNING.CRITTER_TRAITS` | Current score for each trait, bounded between `TRAIT_MIN` (-6) and `TRAIT_MAX` (40). |
+| `dominanttrait` | string or `nil` | `nil` | Uppercase name of the current dominant trait, or `nil` if no dominant trait. |
+| `dominanttraitlocked` | boolean | `nil` | When `true`, prevents the dominant trait from being recalculated (typically set after feeding a "goodies" food). |
+| `onpetfn` | function or `nil` | `nil` | Optional callback invoked when the critter is pet. |
+| `pettask` | task reference or `nil` | `nil` | Task handle for scheduling or canceling petting windows. |
 
-## Main Functions
+## Main functions
 ### `SetOnPetFn(fn)`
-*   **Description:** Sets a custom callback function to be invoked when the critter is petted.
-*   **Parameters:**
-    *   `fn` (`function`): The function to call. It will receive the critter instance and the petter entity as arguments.
+* **Description:** Sets a custom callback function to be executed when the critter is pet.
+* **Parameters:** `fn` (function) - A function taking `(critter_inst, petter_inst)` as arguments.
+* **Returns:** Nothing.
 
 ### `OnPet(petter)`
-*   **Description:** Triggers the critter's "emote_pet" state and executes the custom `onpetfn` if set. This is typically called by a game event.
-*   **Parameters:**
-    *   `petter` (`Entity`): The entity that is petting the critter.
-
-### `StartTracking()`
-*   **Description:** Initializes the component's event listeners for both the critter and its owner (leader). This sets up the system for tracking interactions that influence trait scores and starts the trait decay and dominant trait refresh timers.
-*   **Parameters:** None.
+* **Description:** Triggers the pet emote state and invokes `onpetfn` if set.
+* **Parameters:** `petter` (entity instance) - The entity that pet the critter.
+* **Returns:** Nothing.
 
 ### `IncTracker(name, multiplier)`
-*   **Description:** Increases the score for a specified trait. The increase is influenced by a base value defined in `TUNING.CRITTER_TRAITS`, a provided multiplier, and a small bias if the trait is currently dominant. Scores are capped at `TRAIT_MAX`.
-*   **Parameters:**
-    *   `name` (`string`): The name of the trait to increment (e.g., "WELLFED", "PLAYFUL"). Case-insensitive as it's converted to uppercase.
-    *   `multiplier` (`number`, optional): A value to multiply the base trait increase by. Defaults to 1 if not provided.
+* **Description:** Increases a trait's score by `multiplier × trait.inc`. Applies a 1.1× bias if the trait is currently dominant. Clamps the score to `[TRAIT_MIN, TRAIT_MAX]`.
+* **Parameters:** 
+  - `name` (string) - Lowercase trait key (e.g., `"wellfed"`). Converted internally to uppercase.
+  - `multiplier` (number or `nil`) - Scaling factor for the increment. Defaults to `1`.
+* **Returns:** Nothing.
 
 ### `DecayTraits()`
-*   **Description:** Reduces the score of all traits based on their individual decay rates defined in `TUNING.CRITTER_TRAITS` and a global decay tick rate. Scores are floored at `TRAIT_MIN`.
-*   **Parameters:** None.
+* **Description:** Reduces all trait scores by their respective decay rates scaled by `DECAY_TICK_RATE`, clamping to `TRAIT_MIN`.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SetDominantTrait(trait)`
-*   **Description:** Sets the critter's dominant trait. If a previous dominant trait existed, its corresponding tag is removed, and the new trait's tag (`trait_[TRAIT]`) is added to the critter instance.
-*   **Parameters:**
-    *   `trait` (`string?`): The name of the trait to set as dominant, or `nil` to clear the dominant trait. Case-insensitive as it's converted to uppercase.
+* **Description:** Updates the dominant trait and applies/removes the `trait_<TRAITNAME>` tag on the critter. Accepts `nil` to clear dominance.
+* **Parameters:** `trait` (string or `nil`) - Uppercase trait name (e.g., `"PLAYFUL"`), or `nil`.
+* **Returns:** Nothing.
 
 ### `IsDominantTrait(trait)`
-*   **Description:** Checks if a specified trait is currently the dominant trait.
-*   **Parameters:**
-    *   `trait` (`string`): The name of the trait to check. Case-insensitive as it's converted to uppercase.
-*   **Returns:** (`boolean`) `true` if the trait is dominant, `false` otherwise.
+* **Description:** Returns whether the given trait is currently dominant.
+* **Parameters:** `trait` (string) - Uppercase trait name.
+* **Returns:** `boolean` — `true` if `trait` equals the current `dominanttrait`; otherwise `false`.
 
 ### `RefreshDominantTrait()`
-*   **Description:** Re-evaluates all trait scores to determine if a new dominant trait should be set. If `dominanttraitlocked` is `true`, this function does nothing. If a new dominant trait is identified, `SetDominantTrait` is called, and a "crittertraitchanged" event is pushed. Metrics are also logged.
-*   **Parameters:** None.
+* **Description:** Recalculates the dominant trait based on `traitscore` values. Only runs if `dominanttraitlocked` is `nil` or `false`. Pushes a `crittertraitchanged` event if the dominant trait changes. Also reports metrics.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `StartTracking()`
+* **Description:** Registers all event listeners for behavior tracking on both the critter and its leader (via `follower`), and starts the `decay` and `dominant` timers.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-*   **Description:** Returns a table containing data necessary to save the component's current state, including the dominant trait, its locked status, and all trait scores.
-*   **Parameters:** None.
-*   **Returns:** (`table`) A table with `dominanttrait`, `dominanttraitlocked`, and `traitscore` data.
+* **Description:** Serializes the component state for persistence (e.g., `dominanttrait`, `dominanttraitlocked`, and `traitscore`).
+* **Parameters:** None.
+* **Returns:** `table` — A serializable data structure containing all tracked state.
 
 ### `OnLoad(data)`
-*   **Description:** Loads the component's state from saved data, setting the dominant trait, its locked status, and trait scores. Handles legacy "AFFECTIONATE" trait data by merging it into "PLAYFUL".
-*   **Parameters:**
-    *   `data` (`table`): The table of saved data previously generated by `OnSave()`.
+* **Description:** Restores component state from saved `data`. Includes legacy handling to migrate `AFFECTIONATE` trait scores into `PLAYFUL`.
+* **Parameters:** `data` (table or `nil`) — Previously saved data from `OnSave()`.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-*   **Description:** Generates a formatted string representing the current state of the critter's traits, suitable for debugging purposes.
-*   **Parameters:** None.
-*   **Returns:** (`string`) A multi-line string showing the dominant trait and scores for all traits.
+* **Description:** Returns a formatted string listing the current dominant trait (with " - Locked" if applicable) and all trait scores.
+* **Parameters:** None.
+* **Returns:** `string` — A multiline debug string.
 
-## Events & Listeners
-This component listens for various events on the critter itself and its owner (leader) to update trait scores and manage its state. It also pushes an event when the dominant trait changes.
-
-**Listens For (on `self.inst` - the critter):**
-*   `oneat`: Triggers when the critter eats food, influencing "WELLFED" scores based on food quality and freshness.
-*   `perished`: Triggers when the critter dies, decreasing "WELLFED" score.
-*   `critter_onpet`: Triggers when the critter is directly petted, increasing "PLAYFUL" score (with a bonus if previously nuzzled).
-*   `critter_onnuzzle`: Triggers when the critter nudges the player, starting a timer for "wants to be petted."
-*   `oncritterplaying`: Triggers when the critter performs a play action, increasing "PLAYFUL" score.
-*   `timerdone`: Triggers when an internal timer expires. Used to call `DecayTraits` (for "decay" timer) and `RefreshDominantTrait` (for "dominant" timer).
-
-**Listens For (on `owner` - the critter's leader):**
-*   `killed`: Triggers when the owner kills another entity, increasing "COMBAT" score.
-*   `onhitother`: Triggers when the owner hits another entity, increasing "COMBAT" score.
-*   `death`: Triggers when the owner dies, decreasing "COMBAT" score.
-*   `finishedwork`: Triggers when the owner finishes a crafting/building action (excluding walls), increasing "CRAFTY" score and potentially queuing a "crafty" emote.
-*   `unlockrecipe`: Triggers when the owner unlocks a new recipe, significantly increasing "CRAFTY" score.
-*   `builditem`: Triggers when the owner builds an item, increasing "CRAFTY" score and potentially queuing a "crafty" emote.
-*   `buildstructure`: Triggers when the owner builds a structure, significantly increasing "CRAFTY" score and potentially queuing a "crafty" emote.
-
-**Pushes/Triggers (from `self.inst` - the critter):**
-*   `crittertraitchanged`: Pushed when the critter's `dominanttrait` changes.
-    *   **Data:** `{ trait = string }` - The name of the new dominant trait.
+## Events & listeners
+- **Listens to:**
+  - `oneat` (critter) — Adds score to `wellfed` and may lock dominant trait on feeding "goodies".
+  - `perished` (critter) — Decreases `wellfed` score.
+  - `critter_onpet` (critter) — Increases `playful` score.
+  - `critter_onnuzzle` (critter) — Sets up a timer to allow petting for boosted scores.
+  - `critter_onplaying` (critter) — Increases `playful` score.
+  - `timerdone` (critter) — Triggers trait decay or dominant trait refresh.
+  - `killed`, `onhitother`, `death` (owner) — Increases/decreases `combat` score.
+  - `finishedwork`, `unlockrecipe`, `builditem`, `buildstructure` (owner) — Increases `crafty` score and potentially triggers the `queuecraftyemote` memory flag.
+- **Pushes:**
+  - `crittertraitchanged` — Fired with `{trait=<TRAITNAME>}` when the dominant trait changes.
+  - Metrics events: `"crittertraits.locked"` and `"crittertrait.dominant"` via `Stats.PushMetricsEvent`.

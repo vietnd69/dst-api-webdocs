@@ -1,49 +1,64 @@
 ---
 id: fueler
 title: Fueler
-description: Manages fuel properties for an entity, including its type and value, and handles fuel consumption events.
+description: Tracks and manages the fuel properties and consumption behavior of an entity within the game's burning system.
+tags: [fuel, entity, inventory]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: inventory
+category_type: components
 source_hash: 95b40cf8
+system_scope: entity
 ---
 
 # Fueler
 
-## Overview
-The Fueler component defines fuel-related behavior for an entity, such as its fuel value, type, and the ability to trigger logic when fuel is consumed. It automatically manages dynamic tags (e.g., `burnable_fuel`) based on the current fuel type and supports an optional callback for fuel-take events.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Uses `inst:AddTag()` and `inst:RemoveTag()` to apply/remove `"<fueltype>_fuel"` tags on the entity (e.g., `burnable_fuel`, `meat_fuel`).
-- No explicit component dependencies (does not require or add other components).
+## Overview
+`Fueler` is an entity component that associates a fuel type and consumption behavior with an object. It enables the game to recognize the entity as burnable or otherwise usable as fuel (e.g., in campfires, fire pits), and automatically manages associated tags (e.g., `burnable_fuel`) to reflect its current fuel classification. The component supports optional callback logic when the fuel is consumed.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("fueler")
+inst.components.fueler:SetOnTakenFn(function(fuel, taker)
+    print(fuel.prefab .. " was used as fuel by " .. taker.prefab)
+end)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds or removes `"{fueltype}_fuel"` tags based on the current `fueltype` (e.g., `burnable_fuel`, `wood_fuel`). These tags are used to categorize and identify fuel sources during interactions.
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `fuelvalue` | number | `1` | A numeric multiplier or capacity value used when determining fuel duration (not currently used in this file but available for external use). |
+| `fueltype` | string (FUELTYPE.*) | `FUELTYPE.BURNABLE` | Enumerated constant defining the type of fuel (e.g., `BURNABLE`, `WOOD`, `MANA`). Controls the dynamic tag added/removed. |
+| `ontaken` | function or nil | `nil` | Optional callback function invoked when the fuel is consumed. |
 
-| Property      | Type     | Default Value      | Description                                                                 |
-|---------------|----------|--------------------|-----------------------------------------------------------------------------|
-| `fuelvalue`   | number   | `1`                | The amount of fuel this entity provides when used.                          |
-| `fueltype`    | string   | `FUELTYPE.BURNABLE`| The category of fuel (e.g., `"burnable"`, `"meat"`), used to form tags.     |
-| `ontaken`     | function | `nil`              | Optional callback function invoked when fuel is consumed (`fn(inst, taker)`). |
-
-## Main Functions
-
+## Main functions
 ### `SetOnTakenFn(fn)`
-* **Description:** Sets the callback function to be executed when this fuel item is taken/consumed.
-* **Parameters:**  
-  `fn` (function) — A function that accepts two arguments: the fuel entity (`inst`) and the taker entity (`target`).
+*   **Description:** Sets a callback to execute when the fuel entity is taken/consumed (e.g., placed into a fire).
+*   **Parameters:** `fn` (function or nil) — a function that accepts two arguments: `fuel` (the entity with this component) and `target` (the consumer, e.g., a fire pit).
+*   **Returns:** Nothing.
 
 ### `Taken(target)`
-* **Description:** Signals that the fuel has been consumed. Triggers the `"fueltaken"` event and invokes the `ontaken` callback (if set).
-* **Parameters:**  
-  `target` (Entity) — The entity that consumed the fuel (e.g., a campfire or character).
+*   **Description:** Triggers the "fuel consumed" event and invokes the `ontaken` callback if set.
+*   **Parameters:** `target` (Entity) — the entity consuming the fuel (e.g., fire, campfire).
+*   **Returns:** Nothing.
 
-## Events & Listeners
+### `OnRemoveFromEntity()`
+*   **Description:** Cleanup function called when the component is removed from its entity; removes the associated fuel tag to prevent stale tag accumulation.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-- **Listens for:** None  
-- **Emits:**  
-  - `"fueltaken"` — with payload `{ taker = target }` when fuel is consumed.  
-  - Implicit tag changes via `onfueltype`: emits tag removal/addition for `"<oldtype>_fuel"` and `"<newtype>_fuel"` when `fueltype` is modified (handled via metatable setter).
+## Events & listeners
+- **Pushes:**  
+  `fueltaken` — fired when `Taken(target)` is called. Payload contains `{taker = target}`. Used by other systems (e.g., fire management) to update state, sound, or FX.
+
+- **Listens to:**  
+  `fueltype` property changes (via the class metatable hook `fueltype = onfueltype`) — internally triggers tag updates when `fueltype` is reassigned.

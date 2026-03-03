@@ -1,83 +1,100 @@
 ---
 id: playerspawner
 title: Playerspawner
-description: Manages player spawning behavior, spawn point registration, and migration logic in the DST server.
+description: Manages player spawning logic, including position selection, spawn protection, and migration handling in the master simulation.
+tags: [player, spawn, migration, world]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 1cff1d43
+system_scope: world
 ---
 
 # Playerspawner
 
-## Overview
-This component handles the server-side logic for spawning players in the game world. It supports configurable spawn modes (fixed and scatter), manages registered spawn points, handles player despawn and migration sequences, enforces spawn protection rules, and persists spawn history across saves.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires the `easing` module for scatter spawn point selection.
-- Adds the `ms_playerdespawn`, `ms_playerdespawnanddelete`, `ms_playerdespawnandmigrate`, `ms_setspawnmode`, `ms_registerspawnpoint`, and `ms_registermigrationportal` event listeners.
-- Listens for `"onremove"` events on registered spawn points and migration portals to automatically unregister them.
-- Uses `ShardPortals` as a global list and modifies it during registration/unregistration.
+## Overview
+`Playerspawner` is a server-only component that handles the core logic for spawning players into the world. It manages spawn point registration, position selection (fixed or scatter modes), and coordinates player respawn, deletion, and world migration. The component ensures safe spawning conditions by evaluating surrounding entities and enabling spawn protection when necessary. It interacts closely with `playercontroller`, `locomotor`, `areaaware`, and `colourtweener` components on the player entity.
+
+## Usage example
+```lua
+-- Typically attached automatically to TheWorld in master simulation.
+-- Example of spawning a player at next available location:
+if TheWorld and TheWorld.components.playerspawner then
+    TheWorld.components.playerspawner:SpawnAtNextLocation(player)
+end
+
+-- Example of setting spawn mode:
+TheWorld:PushEvent("ms_setspawnmode", "scatter")
+```
+
+## Dependencies & tags
+**Components used:** `areaaware`, `colourtweener`, `locomotor`, `playercontroller`, `worldmigrator`, `migrationpetsoverrider`  
+**Tags:** Adds `spawnlight` (via prefab), checks for `hostile`, `_combat`, `trapdamage`, `cursed`, `blocker`, `structure` for spawn protection.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | The entity instance this component is attached to (typically the world). |
-| `_mode` | `string` | `"fixed"` | Current spawn mode (`"fixed"` or `"scatter"`). |
-| `_masterpt` | `table` | `nil` | The designated master spawn point, if one exists with `master = true`. |
-| `_openpts` | `table` | `{}` | List of currently available (unused) spawn points. |
-| `_usedpts` | `table` | `{}` | List of spawn points already used in the current cycle. |
-| `_players_spawned` | `table` | `{}` | Tracks which players (by `userid`) have spawned at least once. |
+| `inst` | `Entity` | `nil` | Reference to the entity (always `TheWorld`) that owns this component. |
 
-## Main Functions
+*Note: All other member variables (`_mode`, `_masterpt`, `_openpts`, `_usedpts`, `_players_spawned`) are private.*
 
+## Main functions
 ### `SpawnAtNextLocation(inst, player)`
-* **Description:** Spawns the player at the next available position according to the current spawn mode (fixed or scatter).  
-* **Parameters:**  
-  - `inst`: The component's host entity (world).  
-  - `player`: The player entity to spawn.
+*   **Description:** Spawns the given `player` at the next available spawn position, chosen based on the current spawn mode (`fixed` or `scatter`). Internally calls `SpawnAtLocation`.
+*   **Parameters:**  
+    - `inst` (Entity) — the owner instance (typically ignored, used for event context).  
+    - `player` (Entity) — the player entity to spawn.  
+*   **Returns:** Nothing.
 
 ### `SpawnAtLocation(inst, player, x, y, z, isloading)`
-* **Description:** Spawns the player at the specified world coordinates. Handles migration location resolution, spawn protection, lighting, and visual effects based on spawn context.  
-* **Parameters:**  
-  - `inst`: The component's host entity.  
-  - `player`: The player entity to spawn.  
-  - `x`, `y`, `z`: World coordinates for spawning.  
-  - `isloading`: Boolean indicating whether this is an initial load (vs. respawn/migration). Affects visual FX and event emission.
+*   **Description:** Spawns `player` at the specified world coordinates (`x`, `y`, `z`). Handles migration overrides, spawn protection checks, visual FX (including colour tweening), and light spawning in darkness.
+*   **Parameters:**  
+    - `inst` (Entity) — owner instance.  
+    - `player` (Entity) — the player entity to spawn.  
+    - `x`, `y`, `z` (numbers) — target world position.  
+    - `isloading` (boolean) — if `true`, bypasses some FX and enables immediate control; used during world load.  
+*   **Returns:** Nothing.
+*   **Error states:** Raises no errors, but silently skips spawn protection if `BRANCH == "dev"`, or if `TheWorld.topology.overrides` is `nil`.
+
+### `GetAnySpawnPosition()`
+*   **Description:** Public reference to `GetNextSpawnPosition()`; returns the world coordinates of the next available spawn point.
+*   **Parameters:** None.
+*   **Returns:** `x` (number), `y` (always `0`), `z` (number) — spawn coordinates.
 
 ### `IsPlayersInitialSpawn(player)`
-* **Description:** Returns `true` if the given player has never spawned before (based on `userid` tracking in `_players_spawned`).  
-* **Parameters:**  
-  - `player`: The player entity to check.
-
-### `OnSave()`
-* **Description:** Serializes the `_players_spawned` tracking table for persistence across saves.  
-* **Returns:** A table containing `{ _players_spawned = _players_spawned }` if non-empty; `nil` otherwise.
-
-### `OnLoad(data)`
-* **Description:** Restores the `_players_spawned` tracking table from saved data.  
-* **Parameters:**  
-  - `data`: Saved data table containing `_players_spawned` if present.
-
-### `GetNextSpawnPosition()`
-* **Description:** Private helper that returns the next spawn coordinate (x, y, z) based on current mode. Resets cycles by swapping `_openpts` and `_usedpts` when exhausted.  
-* **Returns:** `x, y, z` (y always `0`).
+*   **Description:** Returns whether the given `player` has ever spawned in the current session.
+*   **Parameters:**  
+    - `player` (Entity) — the player to check.  
+*   **Returns:** `true` if this is the player’s first spawn, `false` otherwise.
 
 ### `OnRemoveEntity()`
-* **Description:** Cleans up all registered migration portals by clearing the global `ShardPortals` table. Called when the host entity is removed.
+*   **Description:** Cleans up `ShardPortals` list on component/entity removal.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens for:**
-  - `"ms_playerdespawn"` → triggers `OnPlayerDespawn` (standard spawn effect + callback-based removal)
-  - `"ms_playerdespawnanddelete"` → triggers `OnPlayerDespawnAndDelete` (removes player immediately after despawn FX)
-  - `"ms_playerdespawnandmigrate"` → triggers `OnPlayerDespawnAndMigrate` (migrates player to another shard after FX)
-  - `"ms_setspawnmode"` → triggers `OnSetSpawnMode` (updates internal spawn mode)
-  - `"ms_registerspawnpoint"` → triggers `OnRegisterSpawnPoint` (registers a new spawn point)
-  - `"ms_registermigrationportal"` → triggers `OnRegisterMigrationPortal` (adds portal to global list)
+### `OnSave()`
+*   **Description:** Saves `_players_spawned` state for serialization across sessions.
+*   **Parameters:** None.
+*   **Returns:** `nil` or a table `{ _players_spawned = _players_spawned }`.
 
-- **Emits:**
-  - `"ms_newplayercharacterspawned"` (via `TheWorld:PushEvent`) only when spawning normally (not loading or scatter mode).
+### `OnLoad(data)`
+*   **Description:** Restores `_players_spawned` state from saved data.
+*   **Parameters:**  
+    - `data` (table or `nil`) — the saved state.  
+*   **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:**  
+  - `ms_playerdespawn` — triggers `OnPlayerDespawn` to begin fade-out and removal.  
+  - `ms_playerdespawnanddelete` — triggers immediate despawn + deletion (no migration).  
+  - `ms_playerdespawnandmigrate` — triggers migration-aware despawn with portal FX.  
+  - `ms_setspawnmode` — updates spawn mode (`fixed` or `scatter`).  
+  - `ms_registerspawnpoint` — registers a spawn point entity for future spawns.  
+  - `ms_registermigrationportal` — registers a migration portal entity.  
+- **Pushes:**  
+  - None directly (but `OnPlayerDespawn` and its callbacks push via `player:PushEvent` or component internals).

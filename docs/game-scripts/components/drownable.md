@@ -1,174 +1,182 @@
 ---
 id: drownable
 title: Drownable
-description: Manages an entity's interaction with water and void environments, handling conditions for falling, applying drowning penalties, and managing emergency teleportation.
+description: Manages drowning and void-falling logic for entities, including damage application, item dropping, and teleportation behavior.
+tags: [drowning, physics, inventory, damage, player]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 2f4c101e
+system_scope: entity
 ---
 
 # Drownable
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Drownable` component makes an entity susceptible to falling into the ocean or the void. It provides checks to determine if an entity is over unsafe terrain, triggers appropriate "sink" or "fall" events, applies damage and status penalties (like hunger, sanity, moisture) when drowning, and handles emergency teleportation back to a safe location. It also manages the dropping of inventory items upon falling.
+The `Drownable` component handles all gameplay effects related to an entity submerging in water or falling into the void. It determines when drowning or falling should occur, applies penalties (health, hunger, sanity, moisture), triggers item dropping based on conditions, and manages teleportation to shore or safe ground. The component interacts closely with `health`, `hunger`, `sanity`, `moisture`, `inventory`, `sleeper`, `flotationdevice`, `equippable`, and `inventoryitem` components.
 
-## Dependencies & Tags
-This component relies on the presence of several other components on its `inst` (or items it interacts with) for full functionality:
-*   `health`: For checking invincibility and applying health penalties.
-*   `sleeper`: To wake up the entity when falling.
-*   `inventory`: For managing item drops and checking flotation devices.
-*   `moisture`: To apply wetness penalties.
-*   `hunger`: To apply hunger penalties.
-*   `sanity`: To apply sanity penalties.
-*   `Transform`: For getting and setting the entity's world position.
-*   `Physics`: For teleporting the entity.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("drownable")
 
-Additionally, it interacts with components found on items:
-*   `flotationdevice`: On items to prevent drowning damage.
-*   `equippable`: On items to check if they are equipped.
-*   `inventoryitem`: On items to check the `keepondrown` property.
+-- Enable drowning logic (default is `true`)
+inst.components.drownable.enabled = true
 
-Tags utilized (not added/removed by this component):
-*   `player` (on `self.inst`): Used for camera effects during "WashAshore" and "VoidArrive".
-*   `stronggrip` (on `self.inst`): Prevents certain item drops.
-*   `irreplaceable` (on items): Prevents specific items from being dropped.
+-- Set custom damage tuning via a function
+inst.components.drownable:SetCustomTuningsFn(function(entity)
+    return { HEALTH = 5, HUNGER = 10, SANITY = 5, WETNESS = 15 }
+end)
+
+-- Manually trigger drowning behavior (e.g., during a cutscene)
+inst.components.drownable:OnFallInOcean()
+```
+
+## Dependencies & tags
+**Components used:** `health`, `hunger`, `sanity`, `moisture`, `inventory`, `sleeper`, `flotationdevice`, `equippable`, `inventoryitem`  
+**Tags:** Checks `stronggrip` (to prevent item dropping), `player` (for camera/fade behavior)
 
 ## Properties
-| Property                      | Type       | Default Value | Description                                                                                             |
-| :---------------------------- | :--------- | :------------ | :------------------------------------------------------------------------------------------------------ |
-| `inst`                        | `Entity`   | -             | The entity this component is attached to.                                                               |
-| `enabled`                     | `boolean`  | `true`        | Controls whether the entity is currently susceptible to drowning or falling checks. Initialized to `true` after a brief delay, unless explicitly set otherwise. |
-| `ontakedrowningdamage`        | `function` | `nil`         | A custom callback function executed when the entity takes drowning damage.                              |
-| `customtuningsfn`             | `function` | `nil`         | A custom function that, if provided, can override default drowning damage tunings.                      |
-| `src_x`, `src_y`, `src_z`     | `number`   | `nil`         | The world coordinates of the entity just before it falls into the ocean or void.                        |
-| `dest_x`, `dest_y`, `dest_z`  | `number`   | `nil`         | The target world coordinates for emergency teleportation after falling.                                 |
-| `shoulddropitemsfn`           | `function` | `nil`         | A custom function that, if provided, determines whether the entity should drop its inventory items.     |
-| `teleport_pt_stack`           | `table`    | `nil`         | A stack of custom teleport destination points, potentially set by other game logic for specific overrides. |
-| `teleport_pt_stack_ent_onremoved` | `function` | `nil`         | An internal callback used to clean up entries in `teleport_pt_stack` when an associated source entity is removed. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `enabled` | boolean | `nil` → initialized to `true` via deferred task | Whether drowning mechanics are active for this entity. |
+| `dest_x`, `dest_y`, `dest_z` | number | `nil` | Destination coordinates for teleportation after drowning/void-fall. |
+| `src_x`, `src_y`, `src_z` | number | `nil` | Source coordinates where drowning/void-fall began. |
+| `teleport_pt_stack` | table | `nil` | Stack of teleport point overrides keyed by source entity. |
+| `shoulddropitemsfn` | function | `nil` | Optional custom function to override default item-drop behavior. |
+| `ontakedrowningdamage` | function | `nil` | Optional callback when drowning damage is applied. |
+| `customtuningsfn` | function | `nil` | Optional function returning custom damage tunings per entity. |
 
-## Main Functions
-### `SetOnTakeDrowningDamageFn(fn)`
-*   **Description:** Sets a custom function to be called when the entity takes drowning damage. This allows for custom handling or additional effects.
-*   **Parameters:**
-    *   `fn` (`function`): The function to call, which receives the `inst` and the `tunings` table as arguments.
-
-### `SetCustomTuningsFn(fn)`
-*   **Description:** Sets a custom function that can provide alternative drowning damage tunings based on the entity.
-*   **Parameters:**
-    *   `fn` (`function`): The function to call, which receives the `inst` as an argument and should return a tunings table.
-
+## Main functions
 ### `IsInDrownableMapBounds(x, y, z)`
-*   **Description:** Checks if the given world coordinates are within the playable map bounds, primarily used to ignore out-of-bounds entities for drowning logic.
-*   **Parameters:**
-    *   `x` (`number`): The X-coordinate.
-    *   `y` (`number`): The Y-coordinate.
-    *   `z` (`number`): The Z-coordinate.
+*   **Description:** Checks whether the given world coordinates are within the playable map bounds (used to avoid overreaching for out-of-bounds mods).
+*   **Parameters:** `x`, `y`, `z` (numbers) — world coordinates.
+*   **Returns:** `true` if inside bounds; `false` otherwise.
+*   **Error states:** None.
 
 ### `IsSafeFromFalling()`
-*   **Description:** Determines if the entity is currently in a "safe" state or location where it should not fall. This includes being on a platform, outside map bounds, or on visual ground.
+*   **Description:** Determines if the entity is on solid ground or otherwise safe from falling (e.g., on a platform or solid ground).
 *   **Parameters:** None.
+*   **Returns:** `true` if safe; `false` if falling risk exists.
+*   **Error states:** None.
 
 ### `IsOverVoid()`
-*   **Description:** Checks if the entity is currently positioned over an "invalid" map tile, which typically represents the void, provided it's not already in a safe location.
+*   **Description:** Returns `true` if the entity is currently positioned over a void tile (invalid tile), and not safe from falling.
 *   **Parameters:** None.
+*   **Returns:** `true` if over void; `false` otherwise.
+*   **Error states:** None.
 
 ### `IsOverWater()`
-*   **Description:** Checks if the entity is currently positioned over an ocean tile, provided it's not already in a safe location.
+*   **Description:** Returns `true` if the entity is positioned over an ocean tile (deep or shallow water), and not safe from falling.
 *   **Parameters:** None.
+*   **Returns:** `true` if over water; `false` otherwise.
+*   **Error states:** None.
 
 ### `ShouldDrown()`
-*   **Description:** Determines if the entity should be actively drowning based on its position over water and general eligibility checks (e.g., component `enabled`, not invincible).
+*   **Description:** Checks if the entity should begin drowning (enabled + not invincible + over water).
 *   **Parameters:** None.
+*   **Returns:** `true` if drowning is required; `false` otherwise.
+*   **Error states:** None.
 
 ### `ShouldFallInVoid()`
-*   **Description:** Determines if the entity should be actively falling into the void based on its position over void tiles and general eligibility checks.
+*   **Description:** Checks if the entity should fall into the void (enabled + not invincible + over void).
 *   **Parameters:** None.
+*   **Returns:** `true` if void-fall is triggered; `false` otherwise.
+*   **Error states:** None.
 
 ### `GetFallingReason()`
-*   **Description:** Returns the specific reason for falling (`FALLINGREASON.OCEAN` or `FALLINGREASON.VOID`) if the entity is in a falling state.
+*   **Description:** Returns the current falling condition (`FALLINGREASON.OCEAN` or `FALLINGREASON.VOID`), or `nil` if neither.
 *   **Parameters:** None.
+*   **Returns:** `FALLINGREASON.OCEAN`, `FALLINGREASON.VOID`, or `nil`.
 
 ### `CheckDrownable()`
-*   **Description:** Performs the core check for whether the entity should fall into the ocean or void. If so, it pushes the corresponding event (`"onsink"` or `"onfallinvoid"`).
+*   **Description:** Evaluates falling state and fires `onsink` or `onfallinvoid` events if applicable.
 *   **Parameters:** None.
-
-### `Teleport()`
-*   **Description:** Teleports the entity to the previously set `dest_x`, `dest_y`, `dest_z` coordinates, attempting to find a walkable offset if necessary.
-*   **Parameters:** None.
-
-### `GetWashingAshoreTeleportSpot(excludeclosest)`
-*   **Description:** (Note: Code comment indicates this function might be unused.) Calculates a suitable teleport spot on the shore from the entity's current ocean position, considering walkable offsets.
-*   **Parameters:**
-    *   `excludeclosest` (`boolean`): If true, attempts to find a shore point that is not the closest.
+*   **Returns:** `true` if a drowning/fall event occurred; `false` otherwise.
 
 ### `WashAshore()`
-*   **Description:** Initiates the "washing ashore" process. It teleports the entity to a safe shore location, applies screen fade effects for players, and triggers the `"on_washed_ashore"` event.
+*   **Description:** Teleports the entity to a safe shore location after drowning in ocean and triggers `on_washed_ashore` event.
 *   **Parameters:** None.
-
-### `ShouldDropItems()`
-*   **Description:** Determines if the entity should drop its inventory items, considering the "stronggrip" tag and any custom `shoulddropitemsfn`.
-*   **Parameters:** None.
-
-### `GetTeleportPtFor(src)`
-*   **Description:** Retrieves a custom teleport point previously pushed onto the stack for a specific source.
-*   **Parameters:**
-    *   `src` (`any`): The source associated with the teleport point.
-
-### `PushTeleportPt(src, pt)`
-*   **Description:** Pushes a custom teleport point onto an internal stack, associating it with a source. If the source is an entity, it listens for its removal to clean up the stack.
-*   **Parameters:**
-    *   `src` (`any`): The source (e.g., an entity) setting this teleport point.
-    *   `pt` (`Vector3`): The `Vector3` object representing the desired teleport destination.
-
-### `PopTeleportPt(src)`
-*   **Description:** Removes a custom teleport point associated with a specific source from the stack.
-*   **Parameters:**
-    *   `src` (`any`): The source whose teleport point should be removed.
-
-### `GetTeleportPtOverride()`
-*   **Description:** Retrieves the most recently pushed custom teleport point from the stack, if any, for overriding default teleport destinations.
-*   **Parameters:** None.
-
-### `OnFallInOcean(shore_x, shore_y, shore_z)`
-*   **Description:** Handles the initial setup when the entity falls into the ocean. It stores the entity's current position, determines a destination shore point (using overrides or finding one), wakes up the entity, and handles dropping the active and equipped hand items.
-*   **Parameters:**
-    *   `shore_x` (`number`, optional): The preferred X-coordinate for the shore destination.
-    *   `shore_y` (`number`, optional): The preferred Y-coordinate for the shore destination.
-    *   `shore_z` (`number`, optional): The preferred Z-coordinate for the shore destination.
+*   **Returns:** Nothing.
+*   **Error states:** None.
 
 ### `VoidArrive()`
-*   **Description:** Initiates the "void arrive" process. It teleports the entity to a safe location, applies screen fade effects for players, and triggers the `"on_void_arrive"` event.
+*   **Description:** Teleports the entity to a shore point after falling into the void and triggers `on_void_arrive` event.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `OnFallInOcean(shore_x, shore_y, shore_z)`
+*   **Description:** Handles logic when an entity falls into ocean: records source position, sets destination, wakes sleeper, and drops active/hand items (if not `keepondrown` or `irreplaceable`).
+*   **Parameters:** `shore_x`, `shore_y`, `shore_z` (numbers or `nil`) — optional override shore coordinates.
+*   **Returns:** Nothing.
+*   **Error states:** If `shore_x` is `nil`, tries `GetTeleportPtOverride()`, then `FindRandomPointOnShoreFromOcean`.
 
 ### `OnFallInVoid(teleport_x, teleport_y, teleport_z)`
-*   **Description:** Handles the initial setup when the entity falls into the void. It stores the entity's current position, determines a destination teleport point (using overrides or finding one), and wakes up the entity.
-*   **Parameters:**
-    *   `teleport_x` (`number`, optional): The preferred X-coordinate for the teleport destination.
-    *   `teleport_y` (`number`, optional): The preferred Y-coordinate for the teleport destination.
-    *   `teleport_z` (`number`, optional): The preferred Z-coordinate for the teleport destination.
-
-### `GetDrowningDamageTuning()`
-*   **Description:** Determines the appropriate drowning damage tunings for the entity, prioritizing custom tunings, then prefab-specific tunings, and finally default player or creature tunings.
-*   **Parameters:** None.
+*   **Description:** Handles logic when an entity falls into the void: records source, sets destination, wakes sleeper. Void penalties are currently not implemented.
+*   **Parameters:** `teleport_x`, `teleport_y`, `teleport_z` (numbers or `nil`) — optional override destination.
+*   **Returns:** Nothing.
 
 ### `TakeDrowningDamage()`
-*   **Description:** Applies various penalties (moisture, hunger, health, sanity) to the entity due to drowning, scaling them based on whether it's shallow ocean. It also checks for and utilizes flotation devices.
+*   **Description:** Applies drowning-related damage and stat penalties in a specific order: moisture → flotation protection → hunger → health penalty/health → sanity.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:**  
+    *   Flotation devices (if enabled and equipped) prevent damage; calls `OnPreventDrowningDamage` on the first such item.  
+    *   Damage values are clamped with a 30-unit buffer (e.g., can’t reduce health below 30).  
+    *   Health penalties are applied unscaled; other damage is scaled by shallow water (`TUNING.DROWNING_SHALLOW_SCALE`) if applicable.
 
 ### `DropInventory()`
-*   **Description:** Drops a portion of the entity's inventory items when it falls into the water or void, excluding "irreplaceable" items or those with `keepondrown`. The number of items dropped is scaled based on whether it's shallow ocean.
+*   **Description:** Drops a subset of inventory items if conditions allow (`ShouldDropItems` is `true`, not `irreplaceable`, not `keepondrown`). Drop count depends on tile type (shallow vs normal ocean).
 *   **Parameters:** None.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-*   **Listens for:**
-    *   `"onremove"` (on entities that were used as `src` for `PushTeleportPt`): Cleans up corresponding entries in `teleport_pt_stack`.
-*   **Pushes/Triggers:**
-    *   `"onsink"`: Triggered when `CheckDrownable` determines the entity is over water and should sink.
-    *   `"onfallinvoid"`: Triggered when `CheckDrownable` determines the entity is over the void and should fall.
-    *   `"on_washed_ashore"`: Triggered after the entity has been teleported to shore by `WashAshore`.
-    *   `"on_void_arrive"`: Triggered after the entity has been teleported to safety by `VoidArrive`.
+### `ShouldDropItems()`
+*   **Description:** Determines whether items should drop when drowning (defaults to `true`, unless `stronggrip` tag or `shoulddropitemsfn` returns `false`).
+*   **Parameters:** None.
+*   **Returns:** `true` if items drop; `false` otherwise.
+
+### `GetDrowningDamageTuning()`
+*   **Description:** Retrieves tunings table for damage (by prefab name uppercase, or `DEFAULT`/`CREATURE` fallback), optionally overridden by `customtuningsfn`.
+*   **Parameters:** None.
+*   **Returns:** Table of tunings (e.g., `{HEALTH=...}`, or `nil` if none defined).
+
+### `Teleport()`
+*   **Description:** Teleports the entity to `self.dest_x`, `self.dest_y`, `self.dest_z`, using a random offset within radius to avoid holes and players.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `GetWashingAshoreTeleportSpot(excludeclosest)`
+*   **Description:** (Currently unused) Returns a random shore point near the entity’s ocean location, with walkable offset.
+*   **Parameters:** `excludeclosest` (boolean) — whether to exclude the nearest shore point.
+*   **Returns:** `x`, `y`, `z` (numbers) — destination coordinates.
+
+### `GetTeleportPtOverride()`
+*   **Description:** Returns the top-most teleport point override from the stack, or `nil`.
+*   **Parameters:** None.
+*   **Returns:** `Vector3` point, or `nil`.
+
+### `PushTeleportPt(src, pt)`
+*   **Description:** Pushes a teleport point override onto the stack, keyed by `src`. Registers `onremove` event if `src` is an entity.
+*   **Parameters:**  
+    * `src` — source entity or token (any hashable value)  
+    * `pt` (`Vector3`) — teleport destination.
+*   **Returns:** Nothing.
+
+### `PopTeleportPt(src)`
+*   **Description:** Removes the teleport point override for `src` from the stack and cleans up the event listener if applicable.
+*   **Parameters:** `src` — source entity or token.
+*   **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:**  
+  * `onremove` (on source entity) — used internally in `PushTeleportPt` to clean up teleport overrides when the source is removed.
+- **Pushes:**  
+  * `onsink` — fired when entity begins sinking in ocean (`CheckDrownable`).  
+  * `onfallinvoid` — fired when entity begins falling into void (`CheckDrownable`).  
+  * `on_washed_ashore` — fired after washing ashore (`WashAshore`).  
+  * `on_void_arrive` — fired after void-teleport completion (`VoidArrive`).

@@ -1,62 +1,85 @@
 ---
 id: upgrademodule
 title: Upgrademodule
-description: Manages the state and lifecycle of an upgrade module that can be attached to an entity, including activation, deactivation, and cleanup logic via callback functions.
+description: Manages the activation state and lifecycle callbacks for a modular upgrade attached to an entity.
+tags: [upgrade, gameplay, component]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 8ecfc643
+system_scope: entity
 ---
 
 # Upgrademodule
 
-## Overview
-This component encapsulates the core logic for an upgrade module that can be attached to an entity (typically via an `upgrademoduleowner`). It tracks whether the module is activated, manages the number of slots it occupies, holds a reference to a target entity, and executes optional callback functions when activated, deactivated, or removed from its owner.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`UpgradeModule` is a lightweight component that encapsulates the state and callbacks for a single upgrade slot. It tracks whether the upgrade is activated (`self.activated`), stores the number of required upgrade slots (`self.slots`), and allows external components to register optional callback functions for activation, deactivation, and removal events. It is designed to be used by the `upgrademoduleowner` component and should not be manipulated directly by other systems.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("upgrademodule")
+
+-- Configure the module
+inst.components.upgrademodule:SetRequiredSlots(2)
+
+-- Register callbacks
+inst.components.upgrademodule.onactivatedfn = function(module_inst, target, isloading)
+    print("Upgrade activated!")
+end
+
+inst.components.upgrademodule.ondeactivatedfn = function(module_inst, target)
+    print("Upgrade deactivated!")
+end
+
+-- Activate the upgrade (typically invoked by upgrademoduleowner)
+inst.components.upgrademodule:TryActivate(false)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (injected via constructor) | Reference to the entity the component is attached to. |
-| `slots` | `number` | `1` | Number of upgrade slots this module occupies; configurable via `SetRequiredSlots`. |
-| `activated` | `boolean` | `false` | Whether the module is currently active. |
-| `target` | `Entity?` | `nil` | Optional reference to a target entity; set via `SetTarget`. |
-| `onactivatedfn` | `function?` | `nil` | Optional callback executed when the module is activated. |
-| `ondeactivatedfn` | `function?` | `nil` | Optional callback executed when the module is deactivated. |
-| `onremovedfromownerfn` | `function?` | `nil` | Optional callback executed when the module is removed from its owner. |
+| `slots` | number | `1` | Number of upgrade slots this module occupies. |
+| `activated` | boolean | `false` | Whether the module is currently activated. |
+| `target` | entity or `nil` | `nil` | Optional reference to a target entity (e.g., the entity being upgraded). |
+| `onactivatedfn` | function or `nil` | `nil` | Callback invoked when `TryActivate` is called successfully. |
+| `ondeactivatedfn` | function or `nil` | `nil` | Callback invoked when `TryDeactivate` is called successfully. |
+| `onremovedfromownerfn` | function or `nil` | `nil` | Callback invoked when `RemoveFromOwner` is called. |
 
-> **Note:** The `onactivatedfn`, `ondeactivatedfn`, and `onremovedfromownerfn` fields are commented out in the constructor but are still used in the class methods, implying they are expected to be assigned externally (e.g., by the `upgrademoduleowner` component or in user code).
-
-## Main Functions
-
+## Main functions
 ### `SetRequiredSlots(slots)`
 * **Description:** Sets the number of upgrade slots required by this module.
-* **Parameters:**  
-  `slots` (`number`) — The number of slots to assign.
+* **Parameters:** `slots` (number) — the required number of slots.
+* **Returns:** Nothing.
 
 ### `SetTarget(target)`
-* **Description:** Sets the target entity for this module (e.g., the entity being upgraded or affected).
-* **Parameters:**  
-  `target` (`Entity?`) — The target entity; may be `nil`.
+* **Description:** Assigns an optional target entity for this upgrade module (e.g., a character, item, or structure being upgraded).
+* **Parameters:** `target` (entity or `nil`) — the entity to associate with this module.
+* **Returns:** Nothing.
 
 ### `TryActivate(isloading)`
-* **Description:** Activates the module if it is not already active. Executes the `onactivatedfn` callback (if set) with the module instance, target, and loading state.
-* **Parameters:**  
-  `isloading` (`boolean`) — Indicates whether activation is happening during world/entity loading (e.g., from save data).
+* **Description:** Attempts to activate the module. Only has effect if the module is not already activated. Triggers the `onactivatedfn` callback if set. Intended to be called only by the `upgrademoduleowner` component.
+* **Parameters:** `isloading` (boolean) — indicates whether activation occurs during world/entity loading.
+* **Returns:** Nothing.
 
 ### `TryDeactivate()`
-* **Description:** Deactivates the module if currently active. Executes the `ondeactivatedfn` callback (if set) with the module instance and target.
+* **Description:** Attempts to deactivate the module. Only has effect if the module is currently activated. Triggers the `ondeactivatedfn` callback if set. Intended to be called only by the `upgrademoduleowner` component.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `RemoveFromOwner()`
-* **Description:** Handles cleanup when the module is removed from its owner. Clears the target and executes the `onremovedfromownerfn` callback (if set) with the module instance.
+* **Description:** Clears the target reference and invokes the `onremovedfromownerfn` callback if set. Typically called when the module is being removed from its owning entity.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified

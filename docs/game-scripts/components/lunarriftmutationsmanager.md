@@ -1,97 +1,116 @@
 ---
 id: lunarriftmutationsmanager
 title: Lunarriftmutationsmanager
-description: Manages the progression and state tracking of defeated lunar rift mutations (Warg, Bearger, Deerclops) and controls Wagstaff's quest-related appearances and reward logic.
+description: Manages thequest progression and defeated mutation tracking for lunar rift boss encounters, including Wagstaff NPC appearances and reward logic.
+tags: [boss, quest, world, combat]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 54b2a794
+system_scope: world
 ---
 
 # Lunarriftmutationsmanager
 
-## Overview
-This component tracks which lunar rift mutations (mutated warg, bearger, and deerclops) have been defeated by the player, manages the optional quest progression tied to these defeats (including Wagstaff's appearance and dialogue), and handles reward state for the associated questline. It exists only on the master simulation and is attached to the world entity, not individual players or entities.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Requires**: `TheWorld.ismastersim` (asserted in constructor).
-- **Interacts with**:
-  - `TheWorld.components.wagboss_tracker` (checks Wagboss defeat status).
-  - `ent.components.health.destroytime` (temporarily extended upon mutation defeat if Wagstaff not spawned).
-- **No tags added or removed**.
-- **No components explicitly added** to `inst`.
+## Overview
+`LunarRiftMutationsManager` tracks the defeat of specific lunar rift mutated creatures (`mutatedwarg`, `mutatedbearger`, `mutateddeerclops`) and orchestrates related quest logic. It handles Wagstaff NPC appearances after defeating mutations, reward conditions, and persistence across saves. This component exists only on the server (`TheWorld.ismastersim`) and resides on the `TheWorld` entity. It collaborates closely with `wagboss_tracker` and `health` components.
+
+## Usage example
+```lua
+-- The component is automatically added to TheWorld and should not be manually instantiated.
+-- Typical interaction from mod code:
+if TheWorld.components.lunarriftmutationsmanager then
+    TheWorld.components.lunarriftmutationsmanager:OnRewardGiven()
+end
+```
+
+## Dependencies & tags
+**Components used:** `health`, `wagboss_tracker`
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the world entity the component is attached to. |
-| `task_completed` | `boolean` | `false` | Indicates whether the full mutation quest reward has been given. |
-| `_MUTATIONS_NAMES` | `table` (array) | `{"mutatedwarg", "mutatedbearger", "mutateddeerclops"}` | List of mutation prefab names (for mods compatibility). |
-| `_MUTATIONS` | `table` (map) | inverted `_MUTATIONS_NAMES` | Maps prefab names to numeric indices (e.g., `"mutatedwarg" → 1`). |
-| `defeated_mutations` | `table` (array) | `{}` | List of mutation *indices* (from `_MUTATIONS`) corresponding to defeated bosses. |
-| `num_mutations` | `number` | `3` | Total number of tracked mutations (`#_MUTATIONS_NAMES`). |
-| `wagstaff` | `Entity?` | `nil` | Reference to the currently spawned `wagstaff_npc_mutations` NPC. |
+| `task_completed` | boolean | `false` | Whether the final reward for completing the mutation quest has been given. |
+| `_MUTATIONS_NAMES` | table | `{ "mutatedwarg", "mutatedbearger", "mutateddeerclops" }` | Copy of the mutation prefab names (for mods). |
+| `_MUTATIONS` | table | inverted `MUTATIONS_NAMES` | Mapping from prefab name to 1-based index. |
+| `wagstaff` | Entity or `nil` | `nil` | Reference to the currently spawned Wagstaff NPC. |
+| `defeated_mutations` | table | `{}` | List of indices (1-based) corresponding to defeated mutations. |
+| `num_mutations` | number | `3` | Total number of tracked mutations (size of `MUTATIONS_NAMES`). |
 
-## Main Functions
+## Main functions
 ### `RefreshDefeatedMutationsTable()`
-* **Description:** Resets internal tracking: clears `defeated_mutations`, sets `wagstaff` to `nil`, and refreshes `num_mutations`.
+* **Description:** Resets internal state by clearing defeated mutations and Wagstaff reference, and reinitializes `num_mutations`.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `IsWagstaffSpawned()`
-* **Description:** Returns `true` if `wagstaff` is non-`nil`, currently valid, and not in the process of eroding out (`erodingout` false).
+* **Description:** Checks if a Wagstaff NPC is currently spawned and valid (not eroding out).
 * **Parameters:** None.
+* **Returns:** `true` if `wagstaff` is valid and not eroding, otherwise `false`.
 
 ### `GetNumDefeatedMutations()`
-* **Description:** Returns the count of defeated mutations (length of `defeated_mutations` array).
+* **Description:** Returns the number of mutations recorded as defeated.
 * **Parameters:** None.
+* **Returns:** Number of defeated mutations (length of `defeated_mutations`).
 
 ### `HasDefeatedAllMutations()`
-* **Description:** Returns `true` if the number of defeated mutations equals `num_mutations`.
+* **Description:** Returns whether all tracked mutations have been defeated.
 * **Parameters:** None.
+* **Returns:** `true` if `GetNumDefeatedMutations()` ≥ `num_mutations`, otherwise `false`.
 
 ### `HasDefeatedThisMutation(prefab)`
-* **Description:** Returns `true` if the given `prefab` name (e.g., `"mutatedwarg"`) corresponds to a defeated mutation.
-* **Parameters:**  
-  `prefab` (string) — The prefab name to check.
+* **Description:** Checks if the specified mutation prefab has been defeated.
+* **Parameters:** `prefab` (string) — prefab name (e.g., `"mutatedwarg"`).
+* **Returns:** `true` if the prefab is recognized and recorded as defeated; otherwise `false`.
+* **Error states:** Returns `false` if `prefab` is not in `MUTATIONS_NAMES`.
 
 ### `SetMutationDefeated(ent)`
-* **Description:** Records a new defeat when a tracked mutation boss (`mutatedwarg`, `mutatedbearger`, or `mutateddeerclops`) dies. Triggers Wagstaff appearance or reward logic.
-* **Parameters:**  
-  `ent` (Entity) — The defeated mutation entity.
+* **Description:** Records a defeated mutation and triggers appropriate behavior: spawns Wagstaff (if Wagboss is not yet defeated), sets extended destroy time on the corpse, or awards the reward if quest is complete.
+* **Parameters:** `ent` (Entity) — the defeated mutation entity.
+* **Returns:** Nothing.
+* **Error states:** No effect if the mutation is already recorded or not in the tracked list.
 
 ### `TriggerWagstaffAppearance(ent)`
-* **Description:** Spawns `wagstaff_npc_mutations` near the defeated entity (`ent`) if not already spawned, faces him toward the corpse, and has him comment on the kill.
-* **Parameters:**  
-  `ent` (Entity) — The defeated mutation entity to reference in placement and dialogue.
+* **Description:** Spawns a `wagstaff_npc_mutations` NPC near the defeated mutation's position and makes Wagstaff comment on the encounter.
+* **Parameters:** `ent` (Entity) — the defeated mutation entity (used for positioning and facing).
+* **Returns:** Nothing.
 
 ### `ShouldGiveReward()`
-* **Description:** Returns `true` if either the task is completed or all mutations have been defeated.
+* **Description:** Determines whether the quest reward should be given (either task is completed or all mutations defeated).
 * **Parameters:** None.
+* **Returns:** `true` if `task_completed` is `true` or `HasDefeatedAllMutations()` is `true`; otherwise `false`.
+
+### `IsTaskCompleted()`
+* **Description:** Returns whether the final reward has been awarded.
+* **Parameters:** None.
+* **Returns:** `true` if `task_completed` is `true`; otherwise `false`.
 
 ### `OnRewardGiven()`
-* **Description:** Marks the quest task as completed, broadcasts `"ms_lunarriftmutationsmanager_taskcompleted"` event, and resets `defeated_mutations` if all mutations were defeated.
+* **Description:** Marks the task as completed and fires the `ms_lunarriftmutationsmanager_taskcompleted` event. Resets defeated mutations table if all mutations were defeated.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Serializes `defeated_mutations` and `task_completed` state for networked or save-game persistence.
-* **Parameters:** None.  
-* **Returns:** `table?` — Non-`nil` only if data exists to save.
+* **Description:** Serializes component state for world save.
+* **Parameters:** None.
+* **Returns:** Table with `defeated_mutations` (array of indices) and `task_completed` (boolean), or `nil` if empty.
 
 ### `OnLoad(data)`
-* **Description:** Restores saved state: `defeated_mutations` and `task_completed`, re-broadcasting `"ms_lunarriftmutationsmanager_taskcompleted"` if needed.
-* **Parameters:**  
-  `data` (table?) — Save data from `OnSave()`.
+* **Description:** Restores component state from world save data.
+* **Parameters:** `data` (table or `nil`) — serialized state from `OnSave()`.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted string for debug logs showing defeated mutation names, count, and task completion status.
-* **Parameters:** None.  
-* **Returns:** `string`
+* **Description:** Returns a formatted debug string for inspecting the manager’s current state.
+* **Parameters:** None.
+* **Returns:** String in format: `"Mutations Defeated: X/Y [ list ]  ||  Task Completed: YES/NO"`.
 
-## Events & Listeners
-- **Listens for**: None (explicit event listeners not found).
-- **Triggers/Pushes**:
-  - `"ms_lunarriftmutationsmanager_taskcompleted"` — Pushed on world when reward is given via `OnRewardGiven()` (either on first reward or task reset).
+## Events & listeners
+- **Listens to:** None identified.
+- **Pushes:** `ms_lunarriftmutationsmanager_taskcompleted` — fired when `OnRewardGiven()` is called.

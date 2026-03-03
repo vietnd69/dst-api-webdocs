@@ -1,50 +1,67 @@
 ---
 id: follower_replica
 title: Follower Replica
-description: A networked component that tracks and synchronizes a follower's current leader and item owner, returning the leader when queried (preferring item owner if set).
+description: Manages networked references to an entity's leader or item owner for follower behavior synchronization between client and server.
+tags: [network, entity, leader, follower]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: components
 source_hash: 00bdfa10
+system_scope: network
 ---
 
 # Follower Replica
 
-## Overview
-This component acts as a lightweight network replica for followers (e.g., pets or summons), managing two synchronized networked references—`_leader` and `_itemowner`—and providing a unified getter that prioritizes `_itemowner` as the effective leader when present.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on the `net_entity` helper (internal to DST) to manage synchronized entity references across clients and server.
-- Does not add or remove any standard component tags.
-- Requires the `inst.GUID` to be valid for `net_entity` to function.
+## Overview
+`Follower` is a network-replicated component that tracks the relationship between an entity and its leader or item owner. It uses `net_entity` to synchronize leadership or item-ownership state across the network (server to client). This component is typically attached to follower entities (e.g., pets, minions, or items held by followers) to ensure consistent awareness of who they follow or serve on both sides of the network boundary.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("follower_replica")
+
+-- Set the leader entity
+local leader = TheWorld.components.leaderboard:GetLeader()
+inst.components.follower_replica:SetLeader(leader)
+
+-- Or set an item owner
+inst.components.follower_replica:SetItemOwner(someOwner)
+
+-- Retrieve the effective leader (preferring item owner if set)
+local effectiveLeader = inst.components.follower_replica:GetLeader()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed to constructor) | The entity instance this component is attached to. |
-| `_leader` | `net_entity` | `nil` (initialized lazily) | Networked reference to the entity’s primary leader. |
-| `_itemowner` | `net_entity` | `nil` (initialized lazily) | Networked reference to the entity’s item owner (e.g., a player holding its item form). |
+| `_leader` | `net_entity` | `nil` | Networked reference to the entity's leader. |
+| `_itemowner` | `net_entity` | `nil` | Networked reference to the entity's item owner (higher priority than leader). |
 
-## Main Functions
-
+## Main functions
 ### `SetLeader(leader)`
-* **Description:** Sets the primary leader entity reference (`_leader`) to the provided entity.  
-* **Parameters:**  
-  - `leader`: An `Entity` instance (or `nil`), passed to `self._leader:set()`.
+* **Description:** Sets the networked leader reference for this follower entity. The leader is used when no item owner is set.
+* **Parameters:** `leader` (`entity` or `nil`) — the entity that acts as the leader, or `nil` to clear the reference.
+* **Returns:** Nothing.
 
 ### `SetItemOwner(owner)`
-* **Description:** Sets the item owner entity reference (`_itemowner`) to the provided entity. This typically reflects ownership when the follower is in item form (e.g., held by a player).  
-* **Parameters:**  
-  - `owner`: An `Entity` instance (or `nil`), passed to `self._itemowner:set()`.
+* **Description:** Sets the networked item owner reference. This takes precedence over `_leader` when determining the effective leader via `GetLeader()`.
+* **Parameters:** `owner` (`entity` or `nil`) — the entity that owns the item/follower, or `nil` to clear the reference.
+* **Returns:** Nothing.
 
 ### `GetLeader()`
-* **Description:** Returns the effective leader. If `_itemowner` is set (non-nil), it takes precedence; otherwise, `_leader` is returned.  
-* **Parameters:** None.  
-* **Returns:** `Entity?` — Either the item owner or leader entity, or `nil` if neither is set.
+* **Description:** Returns the effective leader: the item owner if set, otherwise the leader. This is used for logic that needs a single authoritative "follow target".
+* **Parameters:** None.
+* **Returns:** `entity?` — the effective leader entity, or `nil` if neither `_itemowner` nor `_leader` is set.
 
-## Events & Listeners
-None.
+## Events & listeners
+- **Listens to:** None identified  
+- **Pushes:** None identified

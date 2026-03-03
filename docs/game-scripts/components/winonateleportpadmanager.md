@@ -1,55 +1,66 @@
 ---
 id: winonateleportpadmanager
 title: Winonateleportpadmanager
-description: Manages the collection and lifecycle of Winona teleport pads on the server, registering them when built and removing them when destroyed.
+description: Tracks and manages all registered Winona teleport pads on the map for network synchronization and world-wide navigation.
+tags: [teleport, map, network, winona]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: e45cb09b
+system_scope: world
 ---
 
 # Winonateleportpadmanager
 
-## Overview
-This server-side component maintains an up-to-date registry of all Winona teleport pads present in the world. It listens for registration events when pads are built (or become active), adds them to an internal dictionary, and automatically removes them when they are destroyed. It exists only on the master simulation (server) and is attached to the world entity.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Uses the `TheWorld.ismastersim` assertion to ensure it only runs on the server.
-- No additional component dependencies are declared or implied.
-- No tags are added or removed by this component.
+## Overview
+`WinonaTeleportPadManager` is a master-only component that maintains a registry of all active Winona teleport pads in the world. It listens for pad registration events, tracks their lifecycle (including removal), and exposes the full set of pads via a public accessor. This component ensures the world knows which pads are available for inter-pad teleportation and prevents memory leaks by cleaning up callbacks when pads are removed.
+
+## Usage example
+```lua
+-- Typically added automatically to TheWorld on the master
+-- No direct modder interaction required
+-- To retrieve all registered pads:
+local pads = TheWorld.components.winonateleportpadmanager:GetAllWinonaTeleportPads()
+for pad, _ in pairs(pads) do
+    print("Registered pad:", pad.prefab)
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *(passed in)* | The entity (typically `TheWorld`) this component is attached to. |
-| `winonateleportpads` | `table` | `{}` | Dictionary mapping each registered teleport pad entity to a metadata table containing its removal callback. |
+| `winonateleportpads` | table | `{}` | Dictionary mapping each registered `WinonaTeleportPad` entity instance to internal tracking data (currently only `onremove` callback). |
 
-## Main Functions
-
+## Main functions
 ### `GetAllWinonaTeleportPads()`
-* **Description:** Returns the complete dictionary of currently registered Winona teleport pads.
+* **Description:** Returns the complete table of registered teleport pads.
 * **Parameters:** None.
+* **Returns:** `table` — Keyed by entity instance; values are internal tables (for implementation use only).
+* **Error states:** None.
 
 ### `OnRegisterWinonaTeleportPad(winonateleportpad)`
-* **Description:** Registers a new Winona teleport pad entity for tracking. It ensures the pad is only added to the registry once it has been fully built (or is already built), and sets up a removal callback so it is automatically deregistered when the pad is destroyed. Multiple build-related events (`onbuilt`, `entitywake`, `entitysleep`) are used to guarantee registration occurs reliably regardless of build state transitions.
-* **Parameters:**  
-  - `winonateleportpad` (`Entity`): The entity representing the Winona teleport pad to register.
+* **Description:** Registers a newly built or awakened `WinonaTeleportPad` entity, setting up lifecycle callbacks to track its presence.
+* **Parameters:** `winonateleportpad` (Entity) — The entity instance of the teleport pad being registered.
+* **Returns:** Nothing.
+* **Error states:** If the pad is already registered, this call has no additional effect (idempotent). The internal `onremove` callback ensures cleanup only occurs once.
 
 ### `OnRemoveFromEntity()`
-* **Description:** Cleanup method called when the component is removed from its entity. Removes the primary registration event listener and cleans up all per-pad event listeners and entries in the `winonateleportpads` dictionary.
+* **Description:** Cleans up all event listeners and callback references when the component is removed from the entity (rare in practice).
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens for:**
-  - `"ms_registerwinonateleportpad"` → triggers `OnRegisterWinonaTeleportPad_Bridge`, which forwards to `OnRegisterWinonaTeleportPad`.
-  - `"onbuilt"` (on each pad) → triggers internal `onbuilt` callback to finalize registration.
-  - `"entitywake"` (on each pad) → triggers same `onbuilt` callback.
-  - `"entitysleep"` (on each pad) → triggers same `onbuilt` callback.
-  - `"onremove"` (on each pad) → triggers `onremove` callback to remove it from the dictionary.
-
-- **No events are pushed/triggers by this component.**
+## Events & listeners
+- **Listens to:**
+  - `ms_registerwinonateleportpad` — Bridge event (received from other systems) to trigger registration of a pad.
+  - `onbuilt`, `entitywake`, `entitysleep` — Internal flags used to determine when a pad becomes active/ready (non-critical for initial registration).
+  - `onremove` — Registered per-pad to auto-deregister it from the manager when removed.
+- **Pushes:** None.

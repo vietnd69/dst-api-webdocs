@@ -1,51 +1,60 @@
 ---
 id: lunarhailbirdsoundmanager
 title: Lunarhailbirdsoundmanager
-description: Manages audio state and sound playback for lunar hail bird events based on server-controlled sound level updates.
+description: Manages audio levels for the lunar hail bird event, controlling ambient sound playback based on event intensity.
+tags: [audio, event, server, client]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: audio
+category_type: components
 source_hash: 5dd843ff
+system_scope: audio
 ---
 
 # Lunarhailbirdsoundmanager
 
-## Overview
-This component handles audio cue synchronization and playback for lunar hail bird events (e.g., scuffles, falling corpses) in Don't Starve Together. It listens for sound-level updates via networked parameters and controls the playback of shared ambient sounds via `TheFocalPoint.SoundEmitter`, separating responsibilities between server (authoritative) and clients (sound emitter).
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on `net_tinybyte` networked parameter system (`net_tinybyte(self.inst.GUID, ...)`).
-- Uses `TheWorld.Map`, `TheWorld`, `TheFocalPoint.SoundEmitter`, `TheNet`, and `TheNet:IsDedicated()` from core globals.
-- Listens for the custom event `"hailbirddirty"` on clients.
-- Tags: None added or removed.
+## Overview
+`lunarhailbirdsoundmanager` is a client-side component that manages sound playback during lunar hail events. It listens for updates to a networked parameter (`birds_dropping_param`) and adjusts ambient audio levels accordingly — playing "scuffling/fighting" or "corpses falling" sounds as event intensity increases, or silencing the audio when the event ends. The component delegates ambient sound management to `ambientsound.lua` and sound playback to `TheFocalPoint.SoundEmitter`.
+
+Note: The component comment indicates it is "Handled by birdmanager.lua", but this file contains the complete implementation for sound control.
+
+## Usage example
+```lua
+-- The component is automatically added to the world entity during event initialization
+-- No manual usage is typical for modders; event intensity is controlled via birdmanager.lua
+-- Example usage if invoked manually:
+inst.components.lunarhailbirdsoundmanager:SetLevel(inst.components.lunarhailbirdsoundmanager.HAIL_SOUND_LEVELS.CORPSES)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified  
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (passed to constructor) | The owning entity instance (typically the world). |
-| `birds_dropping_param` | `net_tinybyte` | `0` | Networked parameter synced with clients to drive sound level changes. |
-| `sound_level` | `integer` | `0` | Current sound level (cached from `birds_dropping_param`), ranging 0–3. |
-| `HAIL_SOUND_LEVELS` | `table` | `{NONE = 0, SCUFFLES = 1, CORPSES = 2, NO_AMBIENCE = 3}` | Enum defining four distinct auditory states for the event. |
+| `inst` | `Entity` | `nil` | The owner entity (typically `TheWorld`). |
+| `birds_dropping_param` | `net_tinybyte` | `0` | Networked parameter synced to clients to reflect current event intensity. |
+| `sound_level` | number | `0` | Local cached copy of the current sound level (aligned with `birds_dropping_param`). |
+| `HAIL_SOUND_LEVELS` | table | `{NONE=0, SCUFFLES=1, CORPSES=2, NO_AMBIENCE=3}` | Constants defining possible sound levels. |
 
-## Main Functions
+## Main functions
 ### `GetIsBirdlessAmbience()`
-* **Description:** Returns `true` if the current sound level indicates bird ambience is absent or degraded (i.e., `sound_level > 0`), indicating no active bird chirps in ambient sound.
-* **Parameters:** None.
+*   **Description:** Returns whether the bird ambience has been removed (i.e., `sound_level > 0`). Used to determine if bird-related ambience should be suppressed elsewhere (e.g., turf ambience).
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if bird ambience is active (`sound_level > 0`), otherwise `false`.
+*   **Error states:** None.
 
 ### `SetLevel(level)`
-* **Description:** Sets the server-authoritative sound level, updates the networked parameter, and triggers sound playback (on non-dedicated servers only). Should only be called on the server.
-* **Parameters:**
-  - `level` (*integer*): One of the `HAIL_SOUND_LEVELS` constants (0–3).
+*   **Description:** Sets the sound level for the lunar hail event. Syncs the value to clients via `birds_dropping_param` and triggers sound playback locally on non-dedicated servers.
+*   **Parameters:** `level` (number) — One of the `HAIL_SOUND_LEVELS` constants.
+*   **Returns:** Nothing.
+*   **Error states:** None.
 
-### `PlaySoundLevel(level)` *(local helper)*
-* **Description:** Plays or stops the shared "gestalt_attack_storm" sound and sets the `"birds_dropping"` sound parameter; kills the sound if `level` is 0 or 3.
-* **Parameters:**
-  - `level` (*integer*): Desired sound level (0–3). Used to decide whether to play/kill sounds and what parameter value to apply.
-
-## Events & Listeners
-- Listens for `"hailbirddirty"` event on non-mastersim (client) instances to update `sound_level` and re-trigger sound playback via `OnHailBirdDirty`.
-- Pushes `"updateambientsoundparams"` event via `TheWorld:PushEvent(...)` when changing sound states to refresh ambient sound systems.
+## Events & listeners
+- **Listens to:** `hailbirddirty` — Fired when `birds_dropping_param` is updated on the client; triggers local sound update.
+- **Pushes:** None identified.

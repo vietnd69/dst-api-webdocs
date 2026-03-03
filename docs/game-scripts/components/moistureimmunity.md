@@ -1,49 +1,70 @@
 ---
 id: moistureimmunity
 title: Moistureimmunity
-description: Grants and manages temporary immunity to moisture accumulation for an entity by registering sources of immunity and syncing with the moisture component.
+description: Grants temporary immunity to moisture accumulation by forcing an entity's moisture level to remain dry via external sources.
+tags: [moisture, status, immunity, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: b521f009
+system_scope: entity
 ---
 
 # Moistureimmunity
 
-## Overview
-This component provides a mechanism for entities to gain temporary immunity to moisture accumulation. It tracks one or more *sources* of immunity—such as equipped items or active buffs—and ensures the entity is marked as dry (via the `moisture` component) while at least one source is active. Immunity is automatically revoked when the last source is removed.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependency:** Requires the `moisture` component to be present on the same entity for full functionality (`self.inst.components.moisture`).
-- **Tags Added/Removed:** Adds or removes the `"moistureimmunity"` tag from the entity based on whether any immunity sources are active.
+## Overview
+`MoistureImmunity` is a component that grants temporary immunity to moisture accumulation on an entity by interfacing with the `moisture` component. When sources are active, it forces the entity to remain dry (`moisture:ForceDry(true, ...)`) and adds the `moistureimmunity` tag. Each source tracks independently, and the immunity deactivates when the last source is removed—this also removes the component from the entity entirely.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("moistureimmunity")
+
+-- Grant immunity from an external source (e.g., an item or effect)
+inst.components.moistureimmunity:AddSource(some_item)
+
+-- Remove immunity from that source later
+inst.components.moistureimmunity:RemoveSource(some_item)
+```
+
+## Dependencies & tags
+**Components used:** `moisture`  
+**Tags:** Adds `moistureimmunity`; removes `moistureimmunity`.
 
 ## Properties
-No public properties are explicitly declared or documented beyond internal state.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `sources` | table | `{}` | Dictionary of active immunity sources (keys are source entities or tokens, values are `true`). |
+| `_onremovesource` | function | `function(src)` | Internal callback used to clean up a source and potentially remove the component when no sources remain. |
 
-## Main Functions
-
+## Main functions
 ### `AddSource(src)`
-* **Description:** Registers a new source of moisture immunity. If this is the first source, the entity gains the `"moistureimmunity"` tag and the moisture component is instructed to force-dry the entity. Event listeners are also established to track source removal.
-* **Parameters:**
-  - `src`: The source object (e.g., an item or component instance). Must be truthy. If it is *not* the entity itself (`src ~= self.inst`), an `"onremove"` event listener is attached to the source.
+* **Description:** Adds a new immunity source. Ensures the `moistureimmunity` tag is present and calls `moisture:ForceDry(true, src)` if the `moisture` component exists.
+* **Parameters:** `src` (entity or token) — the entity or unique identifier granting immunity.
+* **Returns:** Nothing.
+* **Error states:** No-op if `src` is already in `sources`.
 
 ### `RemoveSource(src)`
-* **Description:** Explicitly removes a source of immunity. Invokes internal cleanup and checks whether the immunity should be fully dropped.
-* **Parameters:**
-  - `src`: The source object to remove. Must have been previously added via `AddSource`.
+* **Description:** Removes an immunity source, cleaning up event listeners and moisture forcing. If this was the last source, removes the component from the entity.
+* **Parameters:** `src` (entity or token) — the source to remove.
+* **Returns:** Nothing.
 
 ### `RemoveSource_Internal(src)`
-* **Description:** Handles the internal mechanics of removing a source—specifically, notifying the moisture component to stop forcing dryness and cleaning up event callbacks. It does *not* check whether immunity should be fully dropped; that is handled separately by `_onremovesource`.
-* **Parameters:**
-  - `src`: The source object to remove.
+* **Description:** Internal helper that stops moisture forcing via `moisture:ForceDry(false, src)` and removes event listeners. Does *not* modify `sources` or invoke cleanup logic.
+* **Parameters:** `src` (entity or token).
+* **Returns:** Nothing.
 
 ### `OnRemoveFromEntity()`
-* **Description:** Called when the component itself is removed from the entity. Clears all registered sources, removes the `"moistureimmunity"` tag, and cleans up all associated listeners.
+* **Description:** Cleanup method called when the component is removed from the entity. Removes all sources, clears the `moistureimmunity` tag, and stops moisture forcing for each source.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens for:** `"onremove"` event on registered sources (via `inst:ListenForEvent`) to detect when a source is destroyed.
-- **Triggers:** `"onremove"` event on the entity’s component root via `inst:RemoveComponent("moistureimmunity")` when the last source is removed.
+## Events & listeners
+- **Listens to:** `onremove` — registered per external source (`src ~= self.inst`) to automatically clean up when the source entity is destroyed.
+
+- **Pushes:** None.

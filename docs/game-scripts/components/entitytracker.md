@@ -1,68 +1,92 @@
 ---
 id: entitytracker
 title: Entitytracker
-description: Tracks named entity references and automatically removes them when tracked entities are removed from the world.
+description: Manages a set of named entity references and tracks their lifecycle to prevent dangling references.
+tags: [entity, lifecycle, tracking]
 sidebar_position: 1
 
-last_updated: 2026-02-25
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 37c21cec
+system_scope: entity
 ---
 
 # Entitytracker
 
-## Overview
-The `EntityTracker` component maintains a dictionary of named entity references, automatically listening for the `"onremove"` event on each tracked entity to clean up the reference when the entity is removed from the world. It supports saving/loading of tracked entities using GUID-based persistence and provides utility methods for managing and inspecting tracked entities.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-* Relies on the instance having an `inst` reference (standard for all components).
-* Internally uses `inst:ListenForEvent`, `inst:RemoveEventCallback`, `inst:PushEvent` — but does not declare or emit any custom events itself.
-* No tags are added or removed by this component.
-* Depends on `GUID` property existing on tracked entities (standard for most networked entities in DST).
+## Overview
+`EntityTracker` provides a safe mechanism for an entity to hold named references to other entities without creating memory leaks or stale references. It listens for the `onremove` event on tracked entities and automatically removes them from its internal registry when they are removed from the world. It also implements standard save/load (`OnSave`/`LoadPostPass`) for serialization across network and persistence contexts.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("entitytracker")
+
+-- Track another entity under a custom name
+inst.components.entitytracker:TrackEntity("ally", ally_entity)
+
+-- Retrieve a tracked entity
+local ally = inst.components.entitytracker:GetEntity("ally")
+
+-- Stop tracking a specific entity
+inst.components.entitytracker:ForgetEntity("ally")
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (injected) | The entity instance that owns this component. |
-| `entities` | `table` | `{}` | Dictionary mapping string names to tracked entity entries. Each entry has fields `inst` (the entity) and `onremove` (the cleanup callback). |
+| `entities` | table | `{}` | Dictionary mapping string names to tracked entity objects (`{inst, onremove}`). |
 
-## Main Functions
+## Main functions
 ### `TrackEntity(name, inst)`
-* **Description:** Registers an entity under a given name, and sets up a one-time listener to automatically remove the entry when the tracked entity is removed from the world.
-* **Parameters:**
-  * `name` (`string`): A unique key used to identify the tracked entity in the internal dictionary.
-  * `inst` (`Entity`): The entity instance to track.
+* **Description:** Begins tracking a new entity under the given name. Automatically registers an `onremove` listener so the entity is untracked when it is removed.
+* **Parameters:**  
+  * `name` (string) — The key used to identify this entity in subsequent lookups.  
+  * `inst` (Entity) — The entity instance to track.
+* **Returns:** Nothing.
+* **Error states:** If `name` is already in use, the previous entry is silently overwritten.
 
 ### `ForgetEntity(name)`
-* **Description:** Removes a tracked entity by name, cleaning up the event callback and deleting the entry.
-* **Parameters:**
-  * `name` (`string`): The name under which the entity was previously tracked.
+* **Description:** Stops tracking the entity associated with the given name and cleans up its event listener.
+* **Parameters:**  
+  * `name` (string) — The name used when tracking the entity.
+* **Returns:** Nothing.
+* **Error states:** No-op if `name` is not currently tracked.
 
 ### `GetEntity(name)`
-* **Description:** Returns the tracked entity instance associated with the given name, or `nil` if not found.
-* **Parameters:**
-  * `name` (`string`): The name of the tracked entity.
-* **Returns:** `Entity?` — the tracked entity, or `nil`.
-
-### `GetDebugString()`
-* **Description:** Returns a formatted multi-line debug string listing all currently tracked entities and their instances.
-* **Returns:** `string` — human-readable debug representation.
+* **Description:** Retrieves the tracked entity instance by name, if still present.
+* **Parameters:**  
+  * `name` (string) — The name used when tracking the entity.
+* **Returns:** `Entity` if tracked, otherwise `nil`.
 
 ### `OnSave()`
-* **Description:** Prepares tracking data for save serialization. Collects GUIDs of all tracked entities and returns a compact snapshot plus a list of GUID references.
-* **Returns:** `table` — Two-part save data:  
-  * Main table: `{ entities = { { name = ..., GUID = ... }, ... } }`  
-  * Second return value: `table` of GUIDs for cross-referencing.
+* **Description:** Serializes the set of tracked entities into a compact data structure using GUIDs for persistence across game sessions or network sync.
+* **Parameters:** None.
+* **Returns:**  
+  * A table `{ entities = { {name, GUID}, ... } }` and  
+  * A list of GUIDs used for reference resolution during `LoadPostPass`.  
+  * `nil` if no entities are tracked.
 
 ### `LoadPostPass(ents, data)`
-* **Description:** Restores tracked entities after save loading. Uses the `ents` dictionary (mapping GUIDs to resolved entities) to re-register each previously tracked entity.
-* **Parameters:**
-  * `ents` (`table`): A dictionary mapping GUIDs to entity resolution records (i.e., `{ GUID = { entity = ... } }`).
-  * `data` (`table?`): The data returned by `OnSave()`. Must contain `data.entities` to be processed.
+* **Description:** Reconstructs tracked entity references after game data is loaded, using the saved GUID-to-entity map (`ents`).
+* **Parameters:**  
+  * `ents` (table) — A map of GUID to resolved entity data (typically from the world state).  
+  * `data` (table) — The `entities` array returned by `OnSave`.
+* **Returns:** Nothing.
 
-## Events & Listeners
-* Listens to `"onremove"` event on each tracked entity to remove its entry from `self.entities`.
-* Does not emit any events.
+## Events & listeners
+- **Listens to:** `onremove` — registered per tracked entity to remove it from internal tracking when removed.  
+- **Pushes:** None identified.
+
+## Constructor
+### `Class(function(self, inst) ... end)`
+* **Description:** Initializes the tracker with the owning entity instance and an empty `entities` table.
+* **Parameters:** `inst` (Entity) — The entity that owns this component.
+* **Returns:** Nothing (constructor only).

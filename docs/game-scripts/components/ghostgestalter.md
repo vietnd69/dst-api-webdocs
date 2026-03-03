@@ -1,52 +1,67 @@
 ---
 id: ghostgestalter
 title: Ghostgestalter
-description: Manages activation tags and mutation logic for ghost-based entities in the Entity Component System.
+description: Manages activation flags and mutation logic for ghost entities in the world.
+tags: [ghost, activation, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: 8e806889
+system_scope: entity
 ---
 
 # Ghostgestalter
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Ghostgestalter` component manages activation-related tags (e.g., `standingactivation`, `quickactivation`, `activatable_forceright`, `activatable_forcenopickup`) for an entity, enabling dynamic control over how the entity responds to interaction types (e.g., standing, quick, right-click, or force-pickup activation). It also supports optional mutation logic via a customizable function (`domutatefn`) and ensures proper cleanup of tags upon removal.
+`Ghostgestalter` is a lightweight component responsible for tracking activation state flags on ghost-type entities and enabling a custom mutation callback. It supports four activation types—standing, quick, force-right-click, and force-no-pickup—and maintains corresponding tags for state synchronization. This component is typically attached to ghost-related prefabs that require dynamic activation behavior and modifiable mutation logic.
 
-## Dependencies & Tags
-**Dependencies:**
-- None identified (relies only on standard engine APIs: `inst:AddOrRemoveTag`, `inst:RemoveTag`, `Class` framework).
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("ghostgestalter")
 
-**Tags Added/Removed:**
-- `standingactivation`
-- `quickactivation`
-- `activatable_forceright`
-- `activatable_forcenopickup`
+inst.components.ghostgestalter:SetOnActivate(function(inst, doer)
+    -- Custom activation logic
+    print("Ghost activated by", doer and doer.name or "unknown")
+end)
+
+inst.components.ghostgestalter:SetMutateFunction(function(inst, doer)
+    -- Custom mutation logic
+    return true
+end)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds/removes: `quickactivation`, `standingactivation`, `activatable_forceright`, `activatable_forcenopickup`
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the owning entity instance. |
-| `OnActivate` | `function?` | `nil` | Callback function invoked on activation; provided at construction. |
-| `standingaction` | `boolean` | `false` | Whether the entity supports standing activation. |
-| `quickaction` | `boolean` | `false` | Whether the entity supports quick activation. |
-| `forcerightclickaction` | `boolean` | `false` | Whether the entity requires force-right-click activation. |
-| `forcenopickupaction` | `boolean` | `false` | Whether the entity is non-pickupable (requires force activation). |
-| `domutatefn` | `function?` | `nil` | Optional mutation function accepting `(inst, doer)` and returning a value. |
+| `inst` | `Entity` | — | The entity instance owning this component. |
+| `OnActivate` | function or `nil` | `nil` | Callback invoked on activation; signature: `fn(inst, doer)`. |
+| `standingaction` | boolean | `false` | Flag indicating if standing activation is enabled. |
+| `quickaction` | boolean | `false` | Flag indicating if quick activation is enabled. |
+| `forcerightclickaction` | boolean | `false` | Flag indicating if force-right-click activation is enabled. |
+| `forcenopickupaction` | boolean | `false` | Flag indicating if force-no-pickup activation is enabled. |
+| `domutatefn` | function or `nil` | `nil` | Optional mutation function; signature: `fn(inst, doer)` returning `true`/`false`/`nil`. |
 
-## Main Functions
+## Main functions
 ### `OnRemoveFromEntity()`
-* **Description:** Removes all activation-related tags from the entity when the component is removed (e.g., on entity destruction or component unregistration).  
+* **Description:** Cleans up tags when the component is removed from an entity.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `DoMutate(doer)`
-* **Description:** Executes the optional `domutatefn` mutation callback (if set) with the entity and activator as arguments. Returns the result of the callback.  
-* **Parameters:**  
-  - `doer`: The entity performing the mutation (e.g., player).
+* **Description:** Invokes the optional mutation function (`domutatefn`) if set.
+* **Parameters:** `doer` (Entity or `nil`) — the entity triggering the mutation.
+* **Returns:** The return value of `domutatefn` if defined, otherwise `nil`.
 
-## Events & Listeners
-* Listens for changes to `standingaction`, `quickaction`, `forcerightclickaction`, and `forcenopickupaction` via direct function hooks defined in the class metatable (not `ListenForEvent`). These are *property setters*—when assigned (e.g., `component.standingaction = true`), the corresponding callback (`onstandingaction`, etc.) runs, updating the relevant tag.
+## Events & listeners
+- **Listens to:** N/A  
+- **Pushes:** N/A

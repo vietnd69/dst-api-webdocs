@@ -3,7 +3,7 @@ id: lockandkey
 title: Lockandkey
 description: Provides global lookup tables for locks and keys used in world generation task sequencing.
 tags: [world, tasks, generation]
-sidebar_position: 1
+sidebar_position: 100
 
 last_updated: 2026-02-27
 build_version: 714014

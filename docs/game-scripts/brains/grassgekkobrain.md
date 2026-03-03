@@ -1,47 +1,64 @@
 ---
 id: grassgekkobrain
 title: Grassgekkobrain
-description: Implements the behavior tree for grassgekko entities, managing movement, panic responses, and leash-based herd following.
+description: Implements AI behavior for the grassgekko entity, coordinating panic responses, fleeing, and wandering.
+tags: [ai, locomotion, panic]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: d79b9791
+system_scope: brain
 ---
 
 # Grassgekkobrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
+`Grassgekkobrain` defines the behavior tree for the grassgekko entity, a small prey animal in DST. It prioritizes panic responses to electric fences and scaring entities (e.g., players), then falls back to fleeing or wandering. It uses the `knownlocations` component to determine a target for wandering behavior (specifically, the "herd" location).
 
-The `GrassgekkoBrain` component defines the behavioral logic for grassgekko entities in `Don't Starve Together`. It implements an AI behavior tree (`BT`) using a priority-based node structure to handle panic responses (e.g., fleeing from players or scary entities), wanders to a herd location, and respects leash constraints via the `leash` behavior. This component is attached to grassgekko entities and coordinates movement through DST's behavior system.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("knownlocations")
+-- ... populate knownlocations with "herd" ...
+inst.brain = GrassgekkoBrain(inst)
+inst.brain:OnStart()
+```
 
-## Dependencies & Tags
-
-- **Components used:**
-  - `knownlocations`: Accessed via `self.inst.components.knownlocations:GetLocation("herd")` to retrieve the herd's current position for wandering.
-- **Tags checked:**
-  - `NO_TAGS = {"FX", "NOCLICK", "DECOR", "INLIMBO", "stump", "burnt"}` is passed to `RunAway` to exclude entities with these tags from triggering avoidance behavior.
-- **Behaviors used:**
-  - `wander`, `faceentity`, `runaway`, `leash` (referenced via `require` but only `Wander` and `RunAway` are used in the tree).
-- **Brain utilities:**
-  - `BrainCommon.PanicTrigger`, `BrainCommon.ElectricFencePanicTrigger` from `brains/braincommon.lua`.
+## Dependencies & tags
+**Components used:** `knownlocations` (accessed via `inst.components.knownlocations:GetLocation("herd")`)
+**Tags:** Uses the tag `"scarytoprey"` for one `RunAway` behavior; `"player"` for another. Uses `NO_TAGS` set (`{"FX", "NOCLICK", "DECOR","INLIMBO", "stump", "burnt"}`) to exclude those entities from avoidance.
 
 ## Properties
+No public properties.
 
-No explicit properties are initialized in the constructor or elsewhere in this file beyond standard `Brain` inheritance. All configuration is done via local constants.
+## Main functions
+### `OnStart()`
+*   **Description:** Initializes and assigns the behavior tree for the grassgekko. Sets up a priority node ordering behavior: panic triggers first, then flight from scary entities and players, and finally wandering.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Requires `inst.components.knownlocations` to be present and contain a `"herd"` location; otherwise, `GetLocation("herd")` returns `nil`, and wander behavior may malfunction.
 
-## Main Functions
+## Events & listeners
+None identified.
 
-### `GrassgekkoBrain:OnStart()`
-* **Description:** Initializes the behavior tree root node when the brain starts. Constructs a priority node that evaluates behaviors in order of urgency: panic triggers first, followed by `RunAway` for specific entity types, and finally a `Wander` action targeting the herd location.
-* **Parameters:** None.
-* **Returns:** `nil`.
+## Behaviors and constants
+The following constants control behavior thresholds (all distances are in game units):
+- `MIN_FOLLOW_DIST = 0`, `MAX_FOLLOW_DIST = 25`, `TARGET_FOLLOW_DIST = 6` — unused in current code.
+- `MAX_WANDER_DIST = 8` — passed to `Wander` via `GetWanderDistFn`.
+- `LEASH_RETURN_DIST = 15`, `LEASH_MAX_DIST = 30` — unused in current code.
+- `AVOID_PLAYER_DIST = 7`, `AVOID_PLAYER_STOP = 12` — distance thresholds for fleeing players.
+- `AVOID_DIST = 7`, `AVOID_STOP = 12` — distance thresholds for fleeing from other "scarytoprey" entities.
+- `NO_TAGS` — list of tags to ignore during avoidance logic.
+- `GetWanderDistFn(inst)` — returns `MAX_WANDER_DIST` (8) as a dynamic wander range.
 
-## Events & Listeners
-
-This component does not register or fire any events directly. All event-driven behavior is encapsulated within the behavior tree nodes (`RunAway`, `Wander`, `BrainCommon.PanicTrigger`, etc.) and their underlying logic.
+The behavior tree root uses `PriorityNode` with these behaviors in order:
+1. `BrainCommon.PanicTrigger` — immediate panic reaction (e.g., to fire).
+2. `BrainCommon.ElectricFencePanicTrigger` — panic when near electrified fences.
+3. `RunAway(self.inst, "scarytoprey", 7, 12, ...)` — flee from entities tagged `"scarytoprey"`.
+4. `RunAway(self.inst, "player", 7, 12, nil, nil, NO_TAGS)` — flee from players, excluding entities with `NO_TAGS`.
+5. `Wander(self.inst, ...)` — wander toward the `"herd"` location returned by `knownlocations:GetLocation("herd")`, up to 8 units away.

@@ -1,44 +1,62 @@
 ---
 id: boattrailmover
 title: Boattrailmover
-description: Manages the movement and orientation of a boat's wake effect, simulating its travel and dissipation.
+description: Manages movement and trajectory tracking for a boat entity in the game world.
+tags: [locomotion, boat, physics]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 4076a7ff
+system_scope: locomotion
 ---
 
 # Boattrailmover
 
-## Overview
-The `Boattrailmover` component is responsible for the independent movement of an entity, typically a visual effect like a boat's wake. Once set up, it propels the entity in a specified direction with an initial velocity and constant acceleration, simulating the effect's movement and dissipation across the water's surface.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`BoatTrailMover` is a movement component responsible for updating a boat entity's position over time based on velocity and acceleration. It handles linear motion along a calculated direction vector and dynamically rotates the entity to align with its movement direction (via rudder angle). The component is started via `Setup` and updated each frame through `OnUpdate`.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("boattrailmover")
+inst.components.boattrailmover:Setup(1, 0, 5.0, -1.0) -- Move right with deceleration
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :--- | :--- | :--- | :--- |
-| `track_boat_time` | number | `0.4` | A countdown timer, decremented on each update tick. |
-| `dir_x` | number | `nil` | The x-component of the movement direction vector, set during `Setup`. |
-| `dir_z` | number | `nil` | The z-component of the movement direction vector, set during `Setup`. |
-| `velocity` | number | `nil` | The current speed of the entity along its direction vector. |
-| `acceleration` | number | `nil` | The rate at which the entity's velocity changes over time. |
+|----------|------|---------------|-------------|
+| `track_boat_time` | number | `0.4` | Internal timer (unused in current implementation). |
+| `dir_x` | number | — | Negative X-component of the movement direction vector. |
+| `dir_z` | number | — | Negative Z-component of the movement direction vector. |
+| `velocity` | number | — | Current movement speed (updated each frame). |
+| `acceleration` | number | — | Rate of change of velocity (positive accelerates, negative decelerates). |
 
-## Main Functions
+## Main functions
 ### `Setup(dir_x, dir_z, velocity, acceleration)`
-* **Description:** Initializes the component with all necessary movement parameters. It sets the initial direction and rotation of the entity, defines its velocity and acceleration, and starts the component's update loop.
+* **Description:** Initializes the component's motion parameters, computes and sets the entity's rotation to match the rudder angle, and starts the update loop.
 * **Parameters:**
-    * `dir_x` (number): The x-component of the desired movement direction.
-    * `dir_z` (number): The z-component of the desired movement direction.
-    * `velocity` (number): The initial speed of the entity.
-    * `acceleration` (number): The constant acceleration to apply to the entity's velocity on each update.
+  * `dir_x` (number) — X direction of motion (forward is positive).
+  * `dir_z` (number) — Z direction of motion (forward is positive).
+  * `velocity` (number) — Initial velocity (in units per second).
+  * `acceleration` (number) — Constant acceleration (positive for speed up, negative for slow down).
+* **Returns:** Nothing.
+* **Error states:** None identified.
 
 ### `OnUpdate(dt)`
-* **Description:** This function is called every frame to update the entity's state. It calculates the new position based on the current velocity and direction, and then updates the velocity using the defined acceleration. It also decrements the `track_boat_time` property.
+* **Description:** Advances the boat's position by applying velocity and acceleration over the time delta `dt`, and updates the entity's position in world space.
 * **Parameters:**
-    * `dt` (number): The time elapsed since the last update (delta time).
+  * `dt` (number) — Delta time since the last frame (in seconds).
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:** None identified  
+- **Pushes:** None identified

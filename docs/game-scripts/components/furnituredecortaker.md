@@ -1,89 +1,99 @@
 ---
 id: furnituredecortaker
 title: Furnituredecortaker
-description: Manages the placement, acceptance, and removal of decorative furniture items on entities in the game.
+description: Manages the attachment and detachment of decorative items to furniture entities in the game.
+tags: [inventory, decoration, furniture, network]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 3df78c6c
+system_scope: entity
 ---
 
 # Furnituredecortaker
 
-## Overview
-This component enables an entity to accept, hold, and manage decorative furniture items—handling placement logic, event callbacks for item removal or pickup, and persistence across save/load cycles. It automatically adds/removes the `"furnituredecortaker"` and `"hasfurnituredecoritem"` tags based on state changes.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Tags Added/Removed:**
-  - `"furnituredecortaker"` — added when the component is enabled; removed when disabled or entity is destroyed.
-  - `"hasfurnituredecoritem"` — added when a decor item is placed on the entity; removed when it is taken or removed.
-- **Component Dependencies:**
-  - Relies on `item.components.furnituredecor` (for `PutOnFurniture` and `TakeOffFurniture` calls).
-  - Relies on `item.components.stackable` and `item.components.inventoryitem` for item handling during `AcceptDecor`.
+## Overview
+`FurnitureDecorTaker` handles the logic for accepting, attaching, and removing decorative items placed on furniture entities (e.g., lamps on desks). It ensures proper tag management (`furnituredecortaker`, `hasfurnituredecoritem`) and coordinates with `furnituredecor` and `inventoryitem` components to manage item ownership and placement state. The component supports event callbacks, save/load persistence, and network synchronization.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("furnituredecortaker")
+
+-- Optional: Set custom acceptance logic and callbacks
+inst.components.furnituredecortaker.abletoaccepttest = function(inst, item, giver) return item:HasTag("lamp") end
+inst.components.furnituredecortaker.ondecorgiven = function(inst, item, giver) print("Decoration placed!") end
+inst.components.furnituredecortaker.ondecortaken = function(inst, item) print("Decoration removed!") end
+
+-- Accept a decorative item
+inst.components.furnituredecortaker:AcceptDecor(lamp_entity, player_entity)
+```
+
+## Dependencies & tags
+**Components used:** `furnituredecor`, `inventoryitem`, `stackable`  
+**Tags:** Adds `furnituredecortaker` when the component is active; adds `hasfurnituredecoritem` when a decoration is present.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `enabled` | `boolean` | `true` | Controls whether the entity is currently accepting new decor items. Set via `SetEnabled()`. |
-| `decor_item` | `Entity?` | `nil` | Reference to the currently placed decor item. `nil` if no item is placed. |
-| `_on_decor_item_removed` | `function` | (internal) | Callback for `"onremove"` event — clears decor item and triggers `ondecortaken`. |
-| `_on_decor_item_picked_up` | `function` | (internal) | Callback for `"onpickup"` event — detaches decor, triggers `ondecortaken`, and re-enables acceptance. |
-| `abletoaccepttest` | `function?` | `nil` | Optional callback `(inst, item, giver) -> boolean` to override acceptance logic. |
-| `ondecorgiven` | `function?` | `nil` | Optional callback invoked when decor is successfully placed: `(inst, item, giver)`. |
-| `ondecortaken` | `function?` | `nil` | Optional callback invoked when decor is removed: `(inst, item)` (note: `item` is `nil` only if removed via `"onremove"`). |
+| `enabled` | boolean | `true` | Whether the entity can accept new decorative items. |
+| `decor_item` | Entity or `nil` | `nil` | The current decorative item attached to this entity, or `nil` if none. |
+| `abletoaccepttest` | Function or `nil` | `nil` | Optional callback: `(inst, item, giver)` → boolean to override acceptance logic. |
+| `ondecorgiven` | Function or `nil` | `nil` | Optional callback: `(inst, item, giver)` fired when an item is placed. |
+| `ondecortaken` | Function or `nil` | `nil` | Optional callback: `(inst, item)` fired when an item is removed or taken. |
 
-## Main Functions
+## Main functions
 ### `SetEnabled(enabled)`
-* **Description:** Enables or disables acceptance of new decor items. Triggers tag updates via the `enabled` property handler.
-* **Parameters:**
-  - `enabled` (`boolean`) — the new enabled state.
+* **Description:** Enables or disables acceptance of new decorative items. Automatically manages the `furnituredecortaker` tag.
+* **Parameters:** `enabled` (boolean) — whether to allow accepting decorations.
+* **Returns:** Nothing.
 
 ### `AbleToAcceptDecor(item, giver)`
-* **Description:** Determines whether the entity can currently accept the given item as decor. Checks item validity, enabled state, and optional custom test callback.
-* **Parameters:**
-  - `item` (`Entity?`) — the candidate decor item.
-  - `giver` (`Entity?`) — the entity giving the item (e.g., a player).
-* **Returns:** `boolean` — `true` if the item can be accepted; `false` otherwise.
+* **Description:** Checks if the entity can currently accept the given decorative item. Honors the `enabled` state and optional `abletoaccepttest` callback.
+* **Parameters:**  
+  - `item` (Entity) — the proposed decorative item.  
+  - `giver` (Entity) — the entity giving/placing the item (may be `nil`).  
+* **Returns:** `true` if the item can be accepted, otherwise `false`.
+* **Error states:** Returns `false` if `item` is `nil` or `enabled` is `false`.
 
 ### `AcceptDecor(item, giver)`
-* **Description:** Places the given item onto the entity as a decor item. Removes ownership, sets up event listeners, updates internal state, and invokes `PutOnFurniture`.
-* **Parameters:**
-  - `item` (`Entity`) — the decor item to place.
-  - `giver` (`Entity?`) — the entity giving the item (passed to `ondecorgiven` if defined).
-* **Returns:** `true` on success.
+* **Description:** Accepts and attaches a decorative item. Removes the item from its previous owner, sets up callbacks for removal/pickup events, and notifies connected systems via `furnituredecor:PutOnFurniture`.
+* **Parameters:**  
+  - `item` (Entity) — the decorative item to attach.  
+  - `giver` (Entity) — the entity providing the item (may be `nil`).  
+* **Returns:** `true`.
+* **Error states:** Returns early (no action) if `AbleToAcceptDecor` would return `false`. Handles stackable items by converting to their base unit if necessary.
 
 ### `TakeItem()`
-* **Description:** Manually removes the current decor item (if present). Detaches listeners, calls `TakeOffFurniture`, triggers `ondecortaken`, and re-enables acceptance.
+* **Description:** Removes the current decorative item, restores the entity to an `enabled` state, cleans up event listeners, and notifies connected systems via `furnituredecor:TakeOffFurniture`.
 * **Parameters:** None.
-* **Returns:** `Entity?` — the removed decor item (or `nil` if none existed).
+* **Returns:** The removed decorative item (Entity), or `nil` if no item was attached.
 
 ### `OnSave()`
-* **Description:** Serializes the current decor item by GUID. Returns save data if an item is present.
+* **Description:** Serializes the GUID of the attached decorative item for saving to disk.
 * **Parameters:** None.
-* **Returns:** `{item_guid = number}?` — save data containing the GUID of the placed item, or `nil`.
+* **Returns:** `{item_guid = GUID}`, or `nil` if no decorative item is attached.
 
 ### `LoadPostPass(ents, data)`
-* **Description:** Restores the decor item after loading by retrieving the entity from `data.item_guid` and calling `AcceptDecor`.
-* **Parameters:**
-  - `ents` (`table`) — map of GUID → entity data (from save).
-  - `data` (`table?`) — save data previously returned by `OnSave`.
+* **Description:** Reattaches a previously saved decorative item after world load, by retrieving the entity from `ents` using the stored GUID.
+* **Parameters:**  
+  - `ents` (table) — mapping of GUIDs to entity data.  
+  - `data` (table) — must contain `item_guid`.  
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a debug string summarizing the current acceptance status.
+* **Description:** Returns a human-readable string for debugging UI (e.g., in entity inspection tools).
 * **Parameters:** None.
-* **Returns:** `string` — e.g., `"Can Take: True"` or `"Can Take: False"`.
+* **Returns:** `"Can Take: True"` or `"Can Take: False"` based on `enabled`.
 
-### `OnRemoveFromEntity()`
-* **Description:** Cleanup method called when the component is removed from the entity. Removes the `"furnituredecortaker"` tag.
-* **Parameters:** None.
-
-## Events & Listeners
-- **Listens for Events (on the `decor_item` entity):**
-  - `"onremove"` — triggers `_on_decor_item_removed`.
-  - `"onpickup"` — triggers `_on_decor_item_picked_up`.
-- **Triggers Events (on `self.inst`):**
-  - None (this component does not push events directly; it invokes optional callback functions like `ondecorgiven`, `ondecortaken`).
+## Events & listeners
+- **Listens to:**  
+  - `onremove` (on `decor_item`) — triggers `_on_decor_item_removed` when the item is destroyed.  
+  - `onpickup` (on `decor_item`) — triggers `_on_decor_item_picked_up` when the item is picked up.  
+- **Pushes:**  
+  - None directly. Callbacks (`ondecorgiven`, `ondecortaken`) are invoked as side effects of `AcceptDecor` and `TakeItem`.

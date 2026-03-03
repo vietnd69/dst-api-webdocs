@@ -1,117 +1,142 @@
 ---
 id: moisture
 title: Moisture
-description: Manages an entity's moisture level, including soaking from rain, drying mechanics, waterproofing modifiers, and associated UI/audio feedback.
+description: Manages a character's moisture level, including precipitation absorption, drying rates, waterproofing modifiers, and state transitions like wet or soaked.
+tags: [weather, player, status, inventory]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 49dc8fd3
+system_scope: entity
 ---
 
 # Moisture
 
-## Overview
-The `Moisture` component tracks and manages how wet an entity becomes over time due to environmental factors (e.g., rain, bathing, water-based interactions) and how it dries out (e.g., via temperature, drying equipment like sleeping bags, or desiccants). It computes dynamic moisture change rates, enforces waterproofing via modifiers, handles state transitions (e.g., damp/wet/wetter/soaked), and synchronizes relevant data to clients via the `player_classified` and `replica.moisture` systems.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Components used: `temperature`, `inventory`, `sheltered`, `rainimmunity`, `moistureabsorberuser`, `talker`
-- Tags: none added or removed directly by this component
-- Notes: Interacts with `replica.moisture` for networked wet-state (`wet` property) and `player_classified` for client-side UI updates
+## Overview
+`Moisture` tracks and updates an entity's moisture level (from 0 to `maxmoisture`). It handles rain exposure via `GetMoistureRate`, drying based on temperature, shelter, and external heat sources (`externalheaterpower`), and equipment contributions via the `inventory` component. It also supports forced drying (e.g., from sleeping bags), waterproofing modifiers via `SourceModifierList`, and UI state updates (e.g., wet/soaked announcements and segmented visual bars). The component integrates closely with `inventory`, `sheltered`, `temperature`, `sleepingbag`, `rainimmunity`, `moistureabsorberuser`, and `talker`.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("moisture")
+inst.components.moisture:SetPercent(0.5)  -- Set to 50% moisture
+inst.components.moisture:ForceDry(true)   -- Instantly dry the character
+```
+
+## Dependencies & tags
+**Components used:** `inventory`, `sheltered`, `temperature`, `sleepingbag`, `rainimmunity`, `moistureabsorberuser`, `talker`  
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `maxmoisture` | `number` | `100` | Upper bound of moisture level. |
-| `moisture` | `number` | `0` | Current moisture level (0–`maxmoisture`). |
-| `numSegs` | `number` | `5` | Number of visual moisture segments used for UI and announcement thresholds. |
-| `baseDryingRate` | `number` | `0` | Base drying rate coefficient. |
-| `maxDryingRate` | `number` | `0.1` | Upper cap on ambient drying rate. |
-| `minDryingRate` | `number` | `0` | Lower cap on ambient drying rate. |
-| `maxPlayerTempDrying` | `number` | `5` | Max drying boost from high player temperature (≥ 3 full segments). |
-| `optimalPlayerTempDrying` | `number` | `2` | Drying boost from moderate player temperature (< 3 full segments). |
-| `minPlayerTempDrying` | `number` | `0` | Minimum temperature-based drying boost. |
-| `maxMoistureRate` | `number` | `0.75` | Maximum rate of moisture gain during rain. |
-| `minMoistureRate` | `number` | `0` | Minimum rate of moisture gain during rain. |
-| `inherentWaterproofness` | `number` | `0` | **Deprecated**. Use `waterproofnessmodifiers` instead. |
-| `waterproofnessmodifiers` | `SourceModifierList` | `SourceModifierList(inst, 0, additive)` | Aggregates additive waterproofness modifiers (e.g., gear, shelter). |
-| `externalbonuses` | `SourceModifierList` | `SourceModifierList(inst, 0, additive)` | Aggregates external rate bonuses (e.g., items boosting drying/moisture gain). |
-| `forcedrysources` | `table?` | `nil` | Map of force-dry sources; entity dries instantly to 0 when non-empty. |
-| `optimalDryingTemp` | `number` | `50` | Temperature (°C) at which ambient drying rate peaks. |
-| `rate` | `number` | `0` | Current computed rate of moisture change (per tick). |
-| `ratescale` | `RATE_SCALE` enum | `RATE_SCALE.NEUTRAL` | Rate magnitude category (e.g., `DECREASE_HIGH`, `INCREASE_MED`). |
-| `wet` | `boolean` | `false` | Whether entity has ≥2 moisture segments. |
+| `maxmoisture` | number | `100` | Maximum moisture capacity. |
+| `moisture` | number | `0` | Current moisture level. |
+| `numSegs` | number | `5` | Number of UI segments (drops) used for moisture bar. |
+| `baseDryingRate` | number | `0` | Base drying rate multiplier. |
+| `maxDryingRate` | number | `0.1` | Upper bound for drying rate from environment. |
+| `minDryingRate` | number | `0` | Lower bound for drying rate. |
+| `maxPlayerTempDrying` | number | `5` | Max drying bonus from optimal player temperature. |
+| `optimalPlayerTempDrying` | number | `2` | Optimal drying bonus when < 3 segments wet. |
+| `minPlayerTempDrying` | number | `0` | Min player temperature drying bonus. |
+| `maxMoistureRate` | number | `0.75` | Max precipitation absorption rate. |
+| `minMoistureRate` | number | `0` | Min precipitation absorption rate. |
+| `inherentWaterproofness` | number | `0` | *Deprecated* — use `waterproofnessmodifiers`. |
+| `waterproofnessmodifiers` | `SourceModifierList` | (additive list, initial value `0`) | Handles additive waterproofness bonuses. |
+| `externalbonuses` | `SourceModifierList` | (additive list, initial value `0`) | External rate bonuses (e.g., from gear). |
+| `forcedrysources` | table or `nil` | `nil` | Tracks active forced-dry sources; non-nil means forced dry. |
+| `optimalDryingTemp` | number | `50` | Temperature (local scale) for maximum environmental drying. |
+| `rate` | number | `0` | Current per-second moisture change. |
+| `ratescale` | `RATE_SCALE_*` | `RATE_SCALE.NEUTRAL` | UI rate indicator scale. |
+| `wet` | boolean | `false` | `true` when `GetSegs() >= 2`. |
 
-## Main Functions
-
+## Main functions
 ### `ForceDry(force, source)`
-* **Description:** Forces drying (sets moisture to 0 and halts updates) if `force = true`, or cancels force-dry for a given source if `force = false`. Once all sources are removed, normal drying resumes.
-* **Parameters:**
-  * `force` (`boolean`): Whether to activate or deactivate force-dry.
-  * `source` (`Entity`): The actor triggering force-dry (defaults to `self.inst`).
+*   **Description:** Instantly dries the entity (if `force` is `true`) or cancels forced dry state. When activated, the component stops updating and moisture is reset to `0`. Optional `source` tracks the origin (e.g., sleeping bag), preventing duplicates.
+*   **Parameters:**  
+    `force` (boolean) — whether to enable or disable forced dry.  
+    `source` (Entity or `nil`) — entity responsible for the dry effect; used for cleanup listeners.
+*   **Returns:** Nothing.
 
 ### `DoDelta(num, no_announce)`
-* **Description:** Applies a raw moisture delta (e.g., `+25`, `-10`). Clamps result to `[0, maxmoisture]`, updates `wet` flag, and announces state changes (if enabled).
-* **Parameters:**
-  * `num` (`number`): Amount to add to current moisture.
-  * `no_announce` (`boolean?`): If truthy, skips announcements and events.
+*   **Description:** Applies a moisture delta. If in forced dry mode, returns immediately. Triggers `AnnounceMoisture` and pushes `"moisturedelta"` unless `no_announce` is `true`.
+*   **Parameters:**  
+    `num` (number) — moisture delta to apply.  
+    `no_announce` (boolean, optional) — skip character speech announcements.
+*   **Returns:** Nothing.
 
 ### `SetMoistureLevel(num)`
-* **Description:** Sets moisture directly (clamped to `[0, maxmoisture]`). Unlike `DoDelta`, it does *not* trigger drying updates and only emits `moisturedelta` event.
-* **Parameters:**
-  * `num` (`number`): Absolute moisture value to set.
+*   **Description:** Directly sets the moisture level to `num` (clamped to `[0, maxmoisture]`). Updates `wet` state and fires `"moisturedelta"` event.
+*   **Parameters:**  
+    `num` (number) — target moisture level.
+*   **Returns:** Nothing.
 
 ### `GetMoistureRate()`
-* **Description:** Computes net moisture gain rate due to environmental factors (e.g., rain, floating items, bathing pools). Returns 0 if not raining or immune.
-* **Parameters:** None.
+*   **Description:** Calculates current precipitation absorption rate (in moisture/second). Returns `0` if not raining, if floating (floater held or in bathing pool), or if immune to rain. Uses `_GetMoistureRateAssumingRain()` otherwise.
+*   **Parameters:** None.
+*   **Returns:** `number` — current rain-based moisture gain rate (≥ `0`).
 
 ### `GetDryingRate(moisturerate)`
-* **Description:** Computes net drying rate based on heater power, local temperature, moisture level, and optionally passed-in `moisturerate`.
-* **Parameters:**
-  * `moisturerate` (`number?`): Current moisture gain rate; used to avoid drying while wetting (e.g., raining). Defaults to `GetMoistureRate()`.
-
-### `GetEquippedMoistureRate(dryingrate)`
-* **Description:** Retrieves moisture rate from equipped inventory items (e.g., moisture-absorbing gear or water-repellent items). Adjusts for stability when at saturation.
-* **Parameters:**
-  * `dryingrate` (`number`): Computed drying rate; used to prevent oscillation when moisture is maxed.
-
-### `AddRateBonus(src, bonus, key)` / `RemoveRateBonus(src, key)` / `GetRateBonus()`
-* **Description:** Manages dynamic rate modifiers (e.g., from temporary buff items or status effects). Use `src` + `key` for unique modifier identification.
-* **Parameters:**
-  * `src` (`Entity` or `any`): Source object identifier.
-  * `bonus` (`number`): Rate value to add.
-  * `key` (`string` or `any`): Key to identify modifier within `src`.
-
-### `OnUpdate(dt)` / `LongUpdate(dt)`
-* **Description:** Called every frame (or long update interval). Computes net moisture change rate (`moisturerate + equipped_rate - dryingrate + bonuses - desiccant`) and applies delta (`rate * dt`) to `moisture`.
-* **Parameters:** `dt` (`number`): Delta time in seconds.
-
-### `GetDebugString()`
-* **Description:** Returns a human-readable debug string summarizing moisture, rate components, and force-dry status.
-* **Parameters:** None.
+*   **Description:** Calculates net drying rate based on temperature, external heater, segment count, and current moisture level. Returns `0` if `moisturerate > 0` (i.e., it's raining).
+*   **Parameters:**  
+    `moisturerate` (number or `nil`) — if provided, overrides `GetMoistureRate()` for rain check.
+*   **Returns:** `number` — non-negative drying rate (≥ `0`). Composed of:  
+    - `baseDryingRate`  
+    - Linear interpolation of `externalheaterpower`  
+    - Linear interpolation of local temperature around `optimalDryingTemp`  
+    - Exponential increase as moisture rises (dries faster when wetter)
 
 ### `GetWaterproofness()`
-* **Description:** Computes effective waterproofness from inventory, inherent (deprecated), and `waterproofnessmodifiers`. Returns value clamped to `[0, 1]`.
-* **Parameters:** None.
+*   **Description:** Computes total waterproofness from inventory, inherent, and modifier lists. Used for determining rain absorption severity.
+*   **Parameters:** None.
+*   **Returns:** `number` — clamped value in `[0, 1]`.
 
-### `GetSegs()`
-* **Description:** Returns UI segment count (`full` drops) and alpha (`fractional` part) for rendering.
-* **Returns:** 
-  * `full` (`number`): Count of fully filled segments (0–`numSegs-1`).
-  * `alpha` (`number`): Fractional part for partial segment rendering.
+### `GetEquippedMoistureRate(dryingrate)`
+*   **Description:** Retrieves moisture rate contribution from equipped items (via `inventory:GetEquippedMoistureRate`). If at or above equipment moisture capacity, rates are clamped to prevent UI flicker.
+*   **Parameters:**  
+    `dryingrate` (number) — current global drying rate (used to cap negative rates).
+*   **Returns:** `number` — equipment-based moisture rate (non-negative). Returns `0` if no inventory component.
 
-### `AnnounceMoisture(oldSegs, newSegs)`
-* **Description:** Triggers dialogue announcements (e.g., "ANNOUNCE_WET") via `talker` component when moisture segments cross thresholds.
-* **Parameters:**
-  * `oldSegs` (`number`): Previous segment count.
-  * `newSegs` (`number`): Current segment count.
+### `AddRateBonus(src, bonus, key)`, `RemoveRateBonus(src, key)`, `GetRateBonus()`
+*   **Description:** Manages external rate modifiers via `externalbonuses` (`SourceModifierList`). Used by external systems (e.g., gear effects) to tweak moisture change rates.
+*   **Parameters:**  
+    `src` (any hashable key) — source identifier.  
+    `bonus` (number) — additive bonus to apply.  
+    `key` (any hashable key) — sub-key for overriding bonuses per source.  
+*   **Returns (GetRateBonus):** `number` — sum of all active bonuses.
 
-## Events & Listeners
-- **Listens for:**
-  - `"onremove"` on `source` (used in `ForceDry` to clean up force-dry state when source is destroyed)
-- **Pushes events:**
-  - `"moisturedelta"` — `{ old = oldLevel, new = newLevel }` — emitted when moisture changes (via `DoDelta` or `SetMoistureLevel`)
+### `GetDesiccantBonus(rate, dt)`
+*   **Description:** Queries `moistureabsorberuser` component to determine moisture removed per-second by equipped desiccant items.
+*   **Parameters:**  
+    `rate` (number) — current net moisture rate.  
+    `dt` (number) — delta time.
+*   **Returns:** `number` — desiccant’s moisture removal amount.
+
+### `GetDebugString()`
+*   **Description:** Returns a formatted diagnostic string for debugging UI.
+*   **Parameters:** None.
+*   **Returns:** `string` — e.g., `"moisture: 20.00 rate: +0.45 (precip: +0.75 equip: +0.00 drying: -0.30)"` or `"moisture: 0.00 rate: 0.00 FORCED DRY"`.
+
+### `OnUpdate(dt)`
+*   **Description:** Core update loop called every frame. Computes net rate from precipitation, drying, equipment, external bonuses, and desiccants; applies `DoDelta` using `dt`. Also updates `ratescale` for UI feedback.
+*   **Parameters:**  
+    `dt` (number) — frame delta time.
+*   **Returns:** Nothing.
+
+### `OnSave()`, `OnLoad(data)`
+*   **Description:** Serialization hooks for modded savegames.
+*   **Parameters (OnLoad):**  
+    `data` (table or `nil`) — saved data, expected to contain `data.moisture`.
+*   **Returns (OnSave):** `table` — `{ moisture = <number> }`.
+
+## Events & listeners
+- **Listens to:**  
+  - `"onremove"` (on source entities passed to `ForceDry`) — used to remove forced-dry source entries and resume updating.  
+- **Pushes:**  
+  - `"moisturedelta"` — fired in `DoDelta`/`SetMoistureLevel` with payload `{ old = <number>, new = <number> }`.  
+  - *Note:* `"moisturechanged"` and `"announce"` events are *not* used here (announcements use talker directly).

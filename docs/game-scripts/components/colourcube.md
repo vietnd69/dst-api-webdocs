@@ -1,70 +1,89 @@
 ---
 id: colourcube
 title: Colourcube
-description: This component manages ambient, insanity, and lunacy visual post-processing effects based on the player's state and environmental conditions.
+description: Manages dynamic colour grading via colour cubes (LUTs) to reflect in-game conditions such as time of day, season, sanity, and environment (caves or overworld).
+tags: [fx, lighting, player, environment]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 77c58f50
+system_scope: fx
 ---
 
 # Colourcube
 
-## Overview
-The Colourcube component is responsible for controlling various post-processing visual effects in Don't Starve Together. It dynamically applies different "colour cube" filters and screen distortions (like fisheye) to the game world as perceived by the active player. These effects are triggered by changes in game state, including time of day, season, moon phase, the player's sanity level (including lunacy mode), environmental factors like moon storms or rain domes, and specific component overrides. It blends between these visual states smoothly to enhance the game's atmosphere and player feedback.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-This component relies on the `easing` library for smooth transitions.
-It checks if its associated entity `inst` has the `"cave"` tag to determine initial behaviour and effect tables.
+## Overview
+`colourcube` is a client-side component responsible for applying and animating colour correction via colour cube (LUT) textures. It drives visual state such as sanity distortions, lunacy effects, and environmental mood (e.g., seasonal or cave lighting) by interacting with the `PostProcessor` system. The component is typically attached to the world or a global entity, and reacts to player events (sanity, phase, season, overrides) to update visual effects in real time. It depends on the `playervision` component to retrieve active overrides.
+
+## Usage example
+```lua
+-- Attaching to a global/world instance (common in init scripts)
+inst:AddComponent("colourcube")
+
+-- Overrides may be triggered via events, e.g., from sanity system:
+inst:PushEvent("overridecolourcube", { cc = "images/colour_cubes/custom_cc.tex" })
+inst:PushEvent("ccoverrides", { cctable = myCustomCCTable })
+inst:PushEvent("ccphasefn", { fn = myPhaseFn })
+
+-- Adjust distortion sensitivity (e.g., for modded items):
+inst.components.colourcube:SetDistortionModifier(1.5)
+```
+
+## Dependencies & tags
+**Components used:** `playervision` (reads via `GetCCTable()` and `GetCCPhaseFn()`)
+**Tags:** None added or removed by this component.
 
 ## Properties
-No public properties were clearly identified from the source other than the instance itself (`self.inst`). All other initialized variables are `local` within the component's closure, making them internal state.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `GObject` | `nil` | Entity instance this component is attached to. |
+| `_iscave` | `boolean` | `false` or `true` depending on `"cave"` tag | Whether the host entity resides in caves. |
+| `_activatedplayer` | `GObject?` | `nil` | Currently active player entity, used for event subscriptions. |
+| `_distortion_modifier` | `number` | `Profile:GetDistortionModifier()` | Global multiplier for distortion intensity. |
 
-| Property   | Type     | Default Value                                        | Description                                                          |
-| :--------- | :------- | :--------------------------------------------------- | :------------------------------------------------------------------- |
-| `self.inst`| `Entity` | The entity this component is attached to.            | A reference to the entity that owns this component.                  |
+*Note:* Most member variables are private and prefixed with `_`.
 
-## Main Functions
+## Main functions
+### `SetDistortionModifier(modifier)`
+*   **Description:** Updates the global distortion intensity multiplier and re-applies sanity-based visual effects if a player is active.
+*   **Parameters:** `modifier` (number) — scalar factor applied to distortion calculations (e.g., modded items may increase this).
+*   **Returns:** Nothing.
 
-### `self:OnUpdate(dt)`
-*   **Description:** This function is called every frame to update the component's state. It manages the blending of colour cubes, updates distortion effects (time, speed, intensity), and adjusts lunacy intensity based on delta time. It triggers a sanity update if other effects necessitated a post-processor change.
-*   **Parameters:**
-    *   `dt`: (`number`) The time elapsed since the last frame.
+### `OnUpdate(dt)`
+*   **Description:** Handles per-frame interpolation and effect updates, including blending colour cubes, lens distortion (fisheye), and lunacy/sanity intensity transitions.
+*   **Parameters:** `dt` (number) — time delta in seconds.
+*   **Returns:** Nothing. Mutates internal state and `PostProcessor` settings.
 
-### `self:LongUpdate(dt)`
-*   **Description:** This function is currently implemented to call `self:OnUpdate` with the remaining blend time, suggesting it might be used for specific blend-related updates, though its direct purpose here seems to be a fallback or specific-case update.
-*   **Parameters:**
-    *   `dt`: (`number`) The delta time, specifically passed as `_remainingblendtime` from `OnUpdate`.
+### `LongUpdate(dt)`
+*   **Description:** Periodic update used for slower-changing effects; internally delegates to `OnUpdate`.
+*   **Parameters:** `dt` (number) — time delta.
+*   **Returns:** Nothing.
 
-### `self:SetDistortionModifier(modifier)`
-*   **Description:** Sets a global modifier for the distortion effects. After setting, it forces an update of the sanity-related distortion parameters on the currently activated player.
-*   **Parameters:**
-    *   `modifier`: (`number`) A numerical value to modify distortion intensity.
-
-### `self:GetDebugString()`
-*   **Description:** Returns a formatted string containing various internal state variables for debugging purposes, including override statuses, remaining blend time, and the current and target colour cube textures for ambient, sanity, and lunacy channels.
+### `GetDebugString()`
+*   **Description:** Returns a formatted string summarising the current state of colour cube blending and overrides for debugging.
 *   **Parameters:** None.
+*   **Returns:** `string` — multi-line debug description including override status, blend progress, and source texture paths.
 
-## Events & Listeners
-This component listens for several events to react to game state changes and player actions.
+## Events & listeners
+- **Listens to:**
+  - `playeractivated` / `playerdeactivated` — manages subscription to per-player events.
+  - `phasechanged` — triggers ambient colour cube blending on day/dusk/night transitions.
+  - `moonphasechanged2` — updates blending for moon phase (`full` → `"full_moon"`).
+  - `moonphasestylechanged` — updates blending when moon phase style changes (e.g., alter active).
+  - `seasontick` — updates ambient colour cube table when season changes (overworld only).
+  - `overridecolourcube` — sets a full override LUT texture.
+  - `overridecolourmodifier` — updates global colour modifier.
+  - `ccoverrides` — sets a custom colour cube lookup table (e.g., from `playervision`).
+  - `ccphasefn` — sets a function returning current phase string (e.g., for custom phases).
+  - `sanitydelta` — updates distortion and lunacy effects based on sanity level.
+  - `stormlevel` — updates blending when moonstorm status changes.
+  - `enterraindome` / `exitraindome` — triggers fisheye distortion.
 
-*   `inst:ListenForEvent("playeractivated", OnPlayerActivated)`: Triggered when a player becomes the active player, initiating event listeners specific to that player.
-*   `inst:ListenForEvent("playerdeactivated", OnPlayerDeactivated)`: Triggered when a player ceases to be the active player, removing player-specific event listeners and resetting effects.
-*   `inst:ListenForEvent("phasechanged", OnPhaseChanged)`: Triggered when the game's day/dusk/night phase changes, updating ambient colour cubes.
-*   `inst:ListenForEvent("moonphasechanged2", OnMoonPhaseChanged2)`: Triggered when the moon phase changes, specifically checking for full moon.
-*   `inst:ListenForEvent("moonphasestylechanged", OnMoonPhaseStyleChanged)`: Triggered when the moon phase style changes (e.g., "alter_active" for a lunar event).
-*   `inst:ListenForEvent("seasontick", OnSeasonTick)`: Triggered when the game season changes (only outside of caves), updating ambient colour cubes.
-*   `inst:ListenForEvent("overridecolourcube", OnOverrideColourCube)`: Allows external entities to temporarily override the active colour cube texture.
-*   `inst:ListenForEvent("overridecolourmodifier", OnOverrideColourModifier)`: Allows external entities to temporarily override the global colour modifier.
+- **Pushes:** None — this component only reacts to events.
 
-When a player is activated, the component also listens to these events *on the activated player*:
-*   `player:ListenForEvent("sanitydelta", OnSanityDelta)`: Triggered when the player's sanity changes, adjusting sanity and lunacy distortion effects.
-*   `player:ListenForEvent("ccoverrides", OnOverrideCCTable)`: Allows external components on the player (e.g., `playervision`) to provide an overriding colour cube table.
-*   `player:ListenForEvent("ccphasefn", OnOverrideCCPhaseFn)`: Allows external components on the player to provide an overriding function for determining the current colour cube phase. This can include listening to dynamic events specified by the override function.
-*   `player:ListenForEvent("stormlevel", OnStormLevelChanged)`: Triggered when the player's storm level changes, specifically checking for moon storms.
-*   `player:ListenForEvent("enterraindome", OnEnterRainDome)`: Triggered when the player enters a rain dome, affecting fisheye intensity.
-*   `player:ListenForEvent("exitraindome", OnExitRainDome)`: Triggered when the player exits a rain dome, affecting fisheye intensity.
+**Note:** Event handlers are registered conditionally (e.g., `seasontick` is excluded for caves).

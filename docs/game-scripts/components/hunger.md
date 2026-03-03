@@ -1,137 +1,163 @@
 ---
 id: hunger
 title: Hunger
-description: Manages a character's hunger level, decay over time, starvation effects, and interaction with health damage.
+description: Manages hunger and starvation mechanics, including decay, damage application, and synchronization with the health component.
+tags: [player, entity, metabolism, damage]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 9084000e
+system_scope: entity
 ---
 
 # Hunger
 
-## Overview
-The Hunger component tracks and regulates a character's hunger value, which decays periodically based on configured rates and burn modifiers. When hunger reaches zero, the character begins taking health damage from starvation unless a custom starvation function is provided or the hunger is paused.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Dependencies:**
-  - `inst.components.health`: Required for starvation-based health damage and invincibility checks.
-- **Tags:** None explicitly added or removed by this component.
+## Overview
+`Hunger` manages the hunger level (a value between `0` and `max`) and its decay over time. It triggers starvation when `current` reaches `0`, and can apply health damage via the `health` component. The component uses a periodic task to decrement hunger and integrates with the network replication system (`replica.hunger`) to synchronize state between server and clients.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("hunger")
+inst.components.hunger:SetMax(100)
+inst.components.hunger:SetCurrent(80)
+inst.components.hunger:Resume()
+```
+
+## Dependencies & tags
+**Components used:** `health` — accessed only for `DoDelta` and `IsInvincible`.
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `max` | `number` | `100` | Maximum hunger value; also used to initialize `current`. |
-| `current` | `number` | `max` | Current hunger level; clamped to `[0, max]`. |
-| `hungerrate` | `number` | `1` | Base rate of hunger decay per tick. |
-| `hurtrate` | `number` | `1` | Health damage rate applied per tick when starving. |
-| `overridestarvefn` | `function?` | `nil` | Optional custom function called when starving instead of default health damage. |
-| `burning` | `boolean` | `true` | Controls whether hunger is actively decaying (`false` = paused). |
-| `burnrate` | `number` | `1` | Deprecated multiplier for burn rate; retained for compatibility. |
-| `burnratemodifiers` | `SourceModifierList` | `SourceModifierList(self.inst)` | Dynamic modifier list used to compute effective burn rate. |
-| `updatetask` | `Task?` | Periodic task running every `UPDATE_PERIOD` (1 sec) | Scheduled task responsible for calling `DoDec()` regularly. |
+| `max` | number | `100` | Maximum hunger value. |
+| `current` | number | `max` | Current hunger value; constrained to `[0, max]`. |
+| `hungerrate` | number | `1` | Base rate of hunger loss per second. |
+| `hurtrate` | number | `1` | Health damage rate applied per second while starving. |
+| `burnrate` | number | `1` | **Deprecated**; use `burnratemodifiers` instead. |
+| `burnratemodifiers` | SourceModifierList | Instance | List of modifiers to scale burn rate. |
+| `overridestarvefn` | function or nil | `nil` | Custom function to call instead of default starvation damage. |
+| `burning` | boolean | `true` | Whether hunger is currently active (i.e., not paused). |
+| `updatetask` | Task or nil | Periodic task | Reference to the scheduled task; `nil` when paused. |
+| `redirect` | function or nil | `nil` | Optional redirect callback for hunger changes. |
 
-## Main Functions
+## Main functions
+### `SetMax(amount)`
+*   **Description:** Sets the maximum hunger value and resets current hunger to match.
+*   **Parameters:** `amount` (number) — new maximum hunger value.
+*   **Returns:** Nothing.
 
-### `Hunger:SetMax(amount)`
-* **Description:** Sets the maximum hunger value and immediately resets current hunger to this new maximum.
-* **Parameters:**
-  - `amount` (`number`): The new maximum hunger value.
+### `SetRate(rate)`
+*   **Description:** Sets the base hunger decay rate.
+*   **Parameters:** `rate` (number) — new hunger loss per second.
+*   **Returns:** Nothing.
 
-### `Hunger:SetRate(rate)`
-* **Description:** Updates the base hunger decay rate (`hungerrate`).
-* **Parameters:**
-  - `rate` (`number`): New hunger decay rate per tick.
+### `SetKillRate(rate)`
+*   **Description:** Sets the health damage rate applied per second while starving.
+*   **Parameters:** `rate` (number) — new health damage per second.
+*   **Returns:** Nothing.
 
-### `Hunger:SetKillRate(rate)`
-* **Description:** Updates the rate of health damage per tick while starving (`hurtrate`).
-* **Parameters:**
-  - `rate` (`number`): New health damage rate per tick during starvation.
+### `SetOverrideStarveFn(fn)`
+*   **Description:** Assigns a custom function to handle starvation behavior instead of calling `health:DoDelta`.
+*   **Parameters:** `fn` (function) — function of signature `fn(inst, dt)`.
+*   **Returns:** Nothing.
 
-### `Hunger:SetOverrideStarveFn(fn)`
-* **Description:** Assigns a custom function to handle starvation logic instead of the default health damage behavior.
-* **Parameters:**
-  - `fn` (`function?`): A function with signature `fn(inst, dt)` that will be called when the character is starving.
+### `IsPaused()`
+*   **Description:** Returns whether hunger decay is currently paused.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if hunger is paused, otherwise `false`.
 
-### `Hunger:IsPaused()`
-* **Description:** Returns whether hunger decay is currently paused.
-* **Returns:** `boolean` — `true` if `burning` is `false`, otherwise `false`.
+### `IsStarving()`
+*   **Description:** Returns whether the entity is currently starving (current hunger ≤ `0`).
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if starving, otherwise `false`.
 
-### `Hunger:IsStarving()`
-* **Description:** Returns whether the character is currently starving (i.e., hunger ≤ 0).
-* **Returns:** `boolean` — `true` if `current ≤ 0`, otherwise `false`.
+### `Pause()`
+*   **Description:** Pauses hunger decay and cancels the update task.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `Hunger:Pause()`
-* **Description:** Pauses hunger decay by disabling the periodic task and setting `burning` to `false`.
-* **Parameters:** None.
+### `Resume()`
+*   **Description:** Resumes hunger decay by restarting the update task if needed.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `Hunger:Resume()`
-* **Description:** Resumes hunger decay by re-enabling the periodic task if not already active, and setting `burning` to `true`.
-* **Parameters:** None.
+### `GetPercent()`
+*   **Description:** Returns current hunger as a fraction of `max`.
+*   **Parameters:** None.
+*   **Returns:** `number` in `[0, 1]`.
 
-### `Hunger:GetPercent()`
-* **Description:** Returns the current hunger as a fraction (0.0 to 1.0) of maximum hunger.
-* **Returns:** `number` — `current / max`.
+### `SetPercent(p, overtime)`
+*   **Description:** Sets current hunger to `p * max`.
+*   **Parameters:**  
+    - `p` (number) — fraction of max (clamped to `[0, 1]`).  
+    - `overtime` (boolean) — whether the change should be applied over time (currently only used for event context).
+*   **Returns:** Nothing.
 
-### `Hunger:SetPercent(p, overtime)`
-* **Description:** Sets current hunger to `p * max`, effectively scaling hunger by percentage.
-* **Parameters:**
-  - `p` (`number`): Target percentage (e.g., 0.5 for 50%).
-  - `overtime` (`boolean?`): Flag passed to `SetCurrent`.
+### `SetCurrent(current, overtime)`
+*   **Description:** Sets hunger to a specific value, clamped to `[0, max]`. Fires `hungerdelta`, `startstarving`, and `stopstarving` events as appropriate.
+*   **Parameters:**  
+    - `current` (number) — new hunger value.  
+    - `overtime` (boolean) — passed to `hungerdelta` event.
+*   **Returns:** Nothing.
+*   **Error states:** None.
 
-### `Hunger:SetCurrent(current, overtime)`
-* **Description:** Sets the current hunger value (clamped between 0 and `max`), and triggers relevant events (`hungerdelta`, `startstarving`, or `stopstarving`).
-* **Parameters:**
-  - `current` (`number`): New hunger value.
-  - `overtime` (`boolean?`): Optional flag indicating whether the change occurred over time.
+### `DoDelta(delta, overtime, ignore_invincible)`
+*   **Description:** Adjusts hunger by `delta`, respecting invincibility via the `health` component and optional redirect.
+*   **Parameters:**  
+    - `delta` (number) — amount to add to current hunger.  
+    - `overtime` (boolean) — passed to `SetCurrent`.  
+    - `ignore_invincible` (boolean) — if `true`, bypasses health invincibility check.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if `redirect` is set (does nothing else), or if health is invincible/teleporting.
 
-### `Hunger:DoDelta(delta, overtime, ignore_invincible)`
-* **Description:** Adjusts current hunger by `delta`, respecting invincibility and optional redirection via `redirect`.
-* **Parameters:**
-  - `delta` (`number`): Amount to add to current hunger (can be negative).
-  - `overtime` (`boolean`): Passed through to `SetCurrent`.
-  - `ignore_invincible` (`boolean?`): Skip invincibility check if `true`.
+### `DoDec(dt, ignore_damage)`
+*   **Description:** Applies hunger decay for `dt` seconds. If starvation begins and `ignore_damage` is `false`, applies health damage.
+*   **Parameters:**  
+    - `dt` (number) — time delta in seconds.  
+    - `ignore_damage` (boolean) — if `true`, skips health damage even while starving.
+*   **Returns:** Nothing.
 
-### `Hunger:DoDec(dt, ignore_damage)`
-* **Description:** Decrements hunger over a time interval `dt`, or applies health damage if already starving.
-* **Parameters:**
-  - `dt` (`number`): Time delta in seconds.
-  - `ignore_damage` (`boolean?`): Skip health damage if `true` (used by `LongUpdate`).
+### `LongUpdate(dt)`
+*   **Description:** Equivalent to `DoDec(dt, true)`; used for long-time-step updates without health damage.
+*   **Parameters:** `dt` (number).
+*   **Returns:** Nothing.
 
-### `Hunger:LongUpdate(dt)`
-* **Description:** Calls `DoDec` with `ignore_damage = true`, used for slower, damage-safe updates (e.g., world tick intervals).
-* **Parameters:**
-  - `dt` (`number`): Time delta in seconds.
+### `TransferComponent(newinst)`
+*   **Description:** Copies current hunger state (as a percentage) to another entity's `hunger` component.
+*   **Parameters:** `newinst` (Entity) — target entity instance.
+*   **Returns:** Nothing.
 
-### `Hunger:TransferComponent(newinst)`
-* **Description:** Transfers current hunger state to a new entity’s Hunger component by percentage.
-* **Parameters:**
-  - `newinst` (`Entity`): Destination entity instance.
+### `OnSave()`
+*   **Description:** Returns a table containing hunger data only if non-full; used for save optimization.
+*   **Parameters:** None.
+*   **Returns:** `{ hunger = number }` if `current ~= max`, otherwise `nil`.
 
-### `Hunger:OnSave()`
-* **Description:** Returns minimal save data (only if current hunger differs from max).
-* **Returns:** `{ hunger = self.current }` or `nil` if hunger is full.
+### `OnLoad(data)`
+*   **Description:** Loads hunger value from save data.
+*   **Parameters:** `data` (table) — must contain `data.hunger` to apply.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if `data.hunger` is missing or matches `current`.
 
-### `Hunger:OnLoad(data)`
-* **Description:** Restores hunger value from save data if present and non-default.
-* **Parameters:**
-  - `data` (`table`): Save data table, may contain `hunger`.
+### `OnRemoveFromEntity()`
+*   **Description:** Cleans up the periodic update task when the component is removed.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `Hunger:OnRemoveFromEntity()`
-* **Description:** Cleans up the periodic task upon component removal.
-* **Parameters:** None.
+### `GetDebugString()`
+*   **Description:** Returns a formatted string for debugging the current hunger state.
+*   **Parameters:** None.
+*   **Returns:** `string` — e.g., `"75.0/100.0 | Rate: 1.00 (1.0*1.0) | Paused: false"`.
 
-### `Hunger:GetDebugString()`
-* **Description:** Returns a formatted string for debug overlays showing current state and rates.
-* **Returns:** `string` — Human-readable debug info.
-
-## Events & Listeners
-- **Events Pushed:**
-  - `"hungerdelta"` — Pushed when `current` changes (via `SetCurrent`), with payload: `{ oldpercent, newpercent, overtime, delta }`.
-  - `"startstarving"` — Pushed when `current` drops from >0 to ≤0.
-  - `"stopstarving"` — Pushed when `current` rises from ≤0 to >0.
-- **Events Not Explicitly Listened For:** This component does not register listeners for external events.
+## Events & listeners
+- **Listens to:** `ticking` (via `DoPeriodicTask`) — triggers `OnTaskTick` every `UPDATE_PERIOD` seconds (1.0s).
+- **Pushes:**  
+  - `hungerdelta` — fired whenever `current` changes, with `{ oldpercent, newpercent, overtime, delta }`.  
+  - `startstarving` — fired when `current` transitions from >0 to ≤0.  
+  - `stopstarving` — fired when `current` transitions from ≤0 to >0.

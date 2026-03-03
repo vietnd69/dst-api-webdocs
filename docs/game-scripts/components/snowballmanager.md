@@ -1,121 +1,116 @@
 ---
 id: snowballmanager
 title: Snowballmanager
-description: Manages the spawning, despawning, and density regulation of snowballs in the world during winter.
+description: Manages snowball spawn, despawn, and density distribution in the world during winter events.
+tags: [environment, winter, world]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: fe680a1c
+system_scope: world
 ---
-
 # Snowballmanager
 
-## Overview
-This component controls the dynamic generation and removal of snowball items in the world during winter. It enforces spatial density limits using a grid-based system, ensures snowballs only spawn on valid snow-covered terrain, and synchronizes snowball lifecycle with world weather and seasonal state (e.g., Winter's Feast). It operates exclusively on the server (master) simulation.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- `TheWorld.ismastersim` — Asserted to ensure the component only exists on the master simulation.
-- Components on the owner `inst` (typically `TheWorld`): None explicitly added by this script.
-- Tags: None added or removed by this component.
+## Overview
+`SnowballManager` is a server-side component responsible for dynamically managing the spawn and despawn of `snowball_item` prefabs in the world. It enforces density limits using a spatial grid, ensures snowballs only spawn under appropriate conditions (e.g., during Winter's Feast and while snowing/snow-covered), and coordinates melting behavior via the `snowballmelting` component. It only exists on the mastersim and does not run on clients.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("snowballmanager")
+inst.components.snowballmanager:SetEnabled(true)
+-- Snowballs will spawn/despawn automatically based on world state and tuning values
+```
+
+## Dependencies & tags
+**Components used:** `snowballmelting` (via external reference)
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The owning entity (typically `TheWorld`). |
-| `accumulator` | `number` | `0` | Time accumulator used to gate snowball spawn/despawn cycles. |
-| `enabled` | `boolean` | `false` | Whether the snowball spawner is active. |
-| `snowballs` | `table` | `{}` | Map of snowball entity references to grid indices. |
-| `snowballscount` | `number` | `0` | Total count of registered snowballs. |
-| `snowballgrid` | `DataGrid` | `nil` | Grid for tracking snowball density per region. |
-| `issnowing` | `boolean` | `nil` | Latest world snowing state (set via `WatchWorldState`). |
-| `issnowcovered` | `boolean` | `nil` | Latest world snow-covered state (set via `WatchWorldState`). |
+| `accumulator` | number | `0` | Accumulates time elapsed between spawn/despawn checks. |
+| `enabled` | boolean | `false` | Whether the manager is actively spawning snowballs. |
+| `snowballs` | table | `{}` | Maps snowball entities to their grid index. |
+| `snowballscount` | number | `0` | Total count of registered snowballs. |
+| `snowballgrid` | DataGrid | `nil` | Spatial grid for tracking snowball density per region. |
 
-## Main Functions
-
-### `GetGridCoordsForSnowball(x, z)`
-* **Description:** Computes the lower-left grid coordinate (grid-aligned origin) for a given world position, based on the configured region size.
-* **Parameters:**
-  - `x` (`number`): World X coordinate.
-  - `z` (`number`): World Z coordinate.
-
-### `UnregisterSnowball(snowball)`
-* **Description:** Removes a snowball from management: decrements its grid cell density, clears tracking, and removes listeners/melting suppression.
-* **Parameters:**
-  - `snowball` (`Entity`): The snowball entity to unregister.
-
-### `RegisterSnowball(snowball)`
-* **Description:** Adds a snowball to management: increments its grid cell density, records its mapping, and suppresses its melting while in the world.
-* **Parameters:**
-  - `snowball` (`Entity`): The snowball entity to register.
-
-### `NoSnowballTest(map, x, y, z)`
-* **Description:** Validation function used to determine if a snowball may spawn at a location. Checks for land tile, absence of ground overlays, empty physics radius, and local snowball density threshold.
-* **Parameters:**
-  - `map` (`Map`): The world map instance.
-  - `x`, `y`, `z` (`number`): World coordinates to test.
-
-### `TryToCreateSnowballAtPoint(x, y, z, skipsnowballtest)`
-* **Description:** Attempts to spawn a snowball at the specified point. Bypasses test if `skipsnowballtest` is true.
-* **Parameters:**
-  - `x`, `y`, `z` (`number`): Spawn coordinates.
-  - `skipsnowballtest` (`boolean`): If true, skips the `NoSnowballTest`.
-
-### `TryToCreateSnowballAnywhere()`
-* **Description:** Finds a random valid location within ~50 units using `NoSnowballTest`, and attempts to spawn a snowball there.
-* **Parameters:** None.
-
-### `TryToCreateSnowballForEachPlayer()`
-* **Description:** For each live player not on a platform, generates up to 10 randomly offset snowballs around them, clustering closer to the player.
-* **Parameters:** None.
-
+## Main functions
 ### `SetEnabled(enabled)`
-* **Description:** Enables or disables the component’s spawner functionality, starting or stopping its update loop accordingly.
-* **Parameters:**
-  - `enabled` (`boolean`): Desired state.
+*   **Description:** Enables or disables snowball management. When enabled, the component begins updating and spawning snowballs; when disabled, it begins despawning.
+*   **Parameters:** `enabled` (boolean) — target state.
+*   **Returns:** `enabled` (boolean) — the resulting state.
+*   **Error states:** Calls `StartUpdatingComponent`/`StopUpdatingComponent` appropriately.
 
 ### `TryToEnable()`
-* **Description:** Conditionally enables the component if Winter's Feast is active and both snowing and snow-covered states are true.
-* **Parameters:** None. Returns `true` if successfully enabled, otherwise `false`.
+*   **Description:** Attempts to enable snowball management only if Winter's Feast is active and both `issnowing` and `issnowcovered` world states are true.
+*   **Parameters:** None.
+*   **Returns:** `true` if successfully enabled, `false` otherwise.
 
-### `OnIsSnowing(issnowing)`
-* **Description:** Updates the component’s `issnowing` state and attempts to enable/disable the spawner.
-* **Parameters:**
-  - `issnowing` (`boolean`): Current world snowing state.
+### `RegisterSnowball(snowball)`
+*   **Description:** Registers a snowball entity for tracking, updates the spatial grid's density count, and stops its melting behavior.
+*   **Parameters:** `snowball` (Entity) — the snowball entity to register.
+*   **Returns:** Nothing.
+*   **Error states:** Registers `onremove` and `onputininventory` callbacks to automatically unregister later.
 
-### `OnIsSnowCovered(issnowcovered)`
-* **Description:** Updates the component’s `issnowcovered` state and attempts to enable/disable the spawner.
-* **Parameters:**
-  - `issnowcovered` (`boolean`): Current world snow-covered state.
+### `UnregisterSnowball(snowball)`
+*   **Description:** Unregisters a snowball entity, decrements its grid's density count, and allows melting to resume. Removes event callbacks.
+*   **Parameters:** `snowball` (Entity) — the snowball entity to unregister.
+*   **Returns:** Nothing.
+*   **Error states:** Safely cancels callbacks and handles invalid entities.
 
-### `OnPostInit()`
-* **Description:** Initializes `issnowing` and `issnowcovered` state based on the world at startup.
+### `NoSnowballTest(map, x, y, z)`
+*   **Description:** Validation function used to determine if a snowball can be placed at a given point. Checks land tile, absence of ground overlays, no overlapping physics, and grid density limits.
+*   **Parameters:** 
+  - `map` (WorldMap) — world map instance.
+  - `x`, `y`, `z` (numbers) — world coordinates.
+*   **Returns:** `true` if placement is valid, `false` otherwise.
+
+### `TryToCreateSnowballAtPoint(x, y, z, skipsnowballtest)`
+*   **Description:** Attempts to spawn a snowball at a specific point, optionally bypassing the placement test.
+*   **Parameters:** 
+  - `x`, `y`, `z` (numbers) — spawn coordinates.
+  - `skipsnowballtest` (boolean?) — if truthy, skips `NoSnowballTest`.
+*   **Returns:** `true` if a snowball was spawned, `false` otherwise.
+
+### `TryToCreateSnowballAnywhere()`
+*   **Description:** Attempts to find and spawn a snowball at a random location satisfying `NoSnowballTest`.
+*   **Parameters:** None.
+*   **Returns:** `true` if successful, `false` otherwise.
+
+### `TryToCreateSnowballForEachPlayer()`
+*   **Description:** Spawns up to 10 snowballs near each player who is not standing on a platform, using a biased distribution (closer to the player).
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-* **Description:** Main update loop. Handles either:
-  - Despawning (when disabled): removes one snowball per `SNOWBALL_SECONDS_PER_DESPAWN` if not snow-covered.
-  - Spawning (when enabled): spawns one snowball anywhere and one per player every `SNOWBALL_SECONDS_PER_SPAWN`.
-* **Parameters:**
-  - `dt` (`number`): Delta time since last frame.
+*   **Description:** Drives spawn/despawn logic based on `accumulator` and game state. When enabled, spawns periodically; when disabled, deserializes and removes snowballs one at a time if snow is not covered.
+*   **Parameters:** `dt` (number) — delta time in seconds.
+*   **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Returns serializable data for saving: a table of snowball GUIDs and an entities list.
-* **Parameters:** None.
+*   **Description:** Serializes snowball entity GUIDs for world save.
+*   **Parameters:** None.
+*   **Returns:** `{snowballs = {guid1, guid2, ...}}, {guid1, guid2, ...}` on success; `nil` if none.
 
 ### `LoadPostPass(newents, savedata)`
-* **Description:** Reloads registered snowballs from saved data during world load.
-* **Parameters:**
-  - `newents` (`table`): Map of GUID → `{entity}` from loaded entities.
-  - `savedata` (`table`): Saved data, expected to contain `savedata.snowballs` array of GUIDs.
+*   **Description:** Re-registers snowball entities after loading from save.
+*   **Parameters:** 
+  - `newents` (table) — map of GUID to entity.
+  - `savedata` (table) — saved component data.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- Listens to `worldmapsetsize` on `TheWorld` to initialize the snowball grid.
-- Watches `issnowing` via `WatchWorldState("issnowing", ...)` and triggers `OnIsSnowing`.
-- Watches `issnowcovered` via `WatchWorldState("issnowcovered", ...)` and triggers `OnIsSnowCovered`.
-- For each registered snowball:
-  - Listens to `"onremove"` and `"onputininventory"` to unregister the snowball.
-  - Calls `UnregisterSnowball` on removal or inventory placement.
-- Calls `inst:StartUpdatingComponent(self)` or `inst:StopUpdatingComponent(self)` as needed to manage `OnUpdate`.
+## Events & listeners
+- **Listens to:** 
+  - `worldmapsetsize` (via `_world`) — initializes the spatial grid.
+  - `onremove` — registered per snowball to auto-unregister.
+  - `onputininventory` — registered per snowball to auto-unregister.
+- **World state watches:** 
+  - `issnowing` — triggers `OnIsSnowing`.
+  - `issnowcovered` — triggers `OnIsSnowCovered`.
+- **Pushes:** None.
+

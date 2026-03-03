@@ -3,7 +3,7 @@ id: forest_map
 title: Forest Map
 description: Handles procedural generation of the Forest biome's terrain, topology, entities, roads, and seasonal/weather configuration for Don't Starve Together world generation.
 tags: [world, generation, terrain, procedural, season]
-sidebar_position: 1
+sidebar_position: 100
 
 last_updated: 2026-02-27
 build_version: 714014

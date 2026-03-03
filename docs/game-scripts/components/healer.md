@@ -1,60 +1,75 @@
 ---
 id: healer
 title: Healer
-description: Provides a reusable item component that restores health to valid targets when used, consuming itself afterward.
+description: Applies healing to a target entity and consumes the healer item upon use.
+tags: [healing, consumable, utility]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: c508c8c5
+system_scope: entity
 ---
 
 # Healer
 
-## Overview
-The `Healer` component enables an entity (typically a consumable item) to heal a target entity by restoring a configurable amount of health. It supports custom validation logic, heal modifiers via `efficientuser`, and post-heal effects, while consuming or removing itself upon successful use.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- `inst.components.health` (on target entity): Required for applying healing; healing is skipped if missing or `canheal` is false.
-- `inst.components.efficientuser` (on doer entity): Optional; applies a multiplier to the heal amount.
-- `inst.components.stackable` (on healer entity): Optional; if present and the item is part of a stack, only one unit is consumed; otherwise, the entire item entity is removed.
+## Overview
+The `Healer` component enables an entity (typically a consumable item) to heal a target's `health` component. It supports configurable healing amount, conditional healing via callback functions, multiplier application via the `efficientuser` component, and automatic consumption of the healer item upon successful use.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("healer")
+inst.components.healer:SetHealthAmount(TUNING.HEALING_LARGE)
+inst.components.healer:SetOnHealFn(function(inst, target, doer)
+    print(target_prefab .. " was healed by " .. doer_prefab)
+end)
+-- Later, during interaction:
+inst.components.healer:Heal(target_entity, doer_entity)
+```
+
+## Dependencies & tags
+**Components used:** `health`, `efficientuser`, `stackable`
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `health` | `number` | `TUNING.HEALING_SMALL` | Base amount of health restored per use. |
-| `canhealfn` | `function?` | `nil` | Optional callback `(healer, target, doer) → valid, reason` to determine if healing is allowed. |
-| `onhealfn` | `function?` | `nil` | Optional callback `(healer, target, doer)` executed after successful healing. |
+| `health` | number | `TUNING.HEALING_SMALL` | The base amount of health restored per heal. |
+| `canhealfn` | function? | `nil` | Optional callback: `(healer_inst, target_inst, doer_inst) -> valid: boolean, reason: string?` |
+| `onhealfn` | function? | `nil` | Optional callback: `(healer_inst, target_inst, doer_inst) -> void` |
 
-## Main Functions
-
-### `SetHealthAmount(health)`
-* **Description:** Updates the base health amount restored by this healer.
-* **Parameters:**
-  * `health` (`number`): New heal value.
+## Main functions
+### `SetHealthAmount(amount)`
+* **Description:** Sets the base healing amount applied per use.
+* **Parameters:** `amount` (number) – the healing value to assign.
+* **Returns:** Nothing.
 
 ### `SetOnHealFn(fn)`
-* **Description:** Sets a callback function invoked after a successful heal operation.
-* **Parameters:**
-  * `fn` (`function`): Function with signature `(healer, target, doer)`.
+* **Description:** Assigns a callback function that executes *after* successful healing.
+* **Parameters:** `fn` (function) – signature `(healer_inst, target_inst, doer_inst)`.
+* **Returns:** Nothing.
 
 ### `SetCanHealFn(fn)`
-* **Description:** Sets a predicate function used to validate whether the healer can act on a given target.
-* **Parameters:**
-  * `fn` (`function`): Function with signature `(healer, target, doer)`, returning `valid (boolean), reason? (string)`.
+* **Description:** Assigns a validation callback that determines if healing is allowed before execution.
+* **Parameters:** `fn` (function) – signature `(healer_inst, target_inst, doer_inst) -> valid: boolean, reason: string?`.
+* **Returns:** Nothing.
 
 ### `Heal(target, doer)`
-* **Description:** Attempts to heal the `target` entity using `doer` as the source. Applies modified healing, checks validity, and consumes the healer item.
+* **Description:** Attempts to heal the `target` entity. Returns success status, consumes the healer item on success.
 * **Parameters:**
-  * `target` (`Entity`): Entity to heal.
-  * `doer` (`Entity`): Entity performing the heal (used for efficiency multipliers and validation context).
-* **Returns:**
-  * `true` on success.
-  * `false, reason` if healing is blocked by `canhealfn` or the target is unhealable.
+  - `target` (Entity) – Entity to heal (must have `health` component).
+  - `doer` (Entity) – Entity using the healer (used for multiplier checks and callbacks).
+* **Returns:** `true` on successful heal, `false` otherwise (optionally with a `reason` string).
+* **Error states:** 
+  - Returns `false` if `target` lacks the `health` component.
+  - Returns `false, reason` if `canhealfn` returns `false`.
+  - Does not apply healing if `target.components.health.canheal` is `false`, but still does *not* consume the item.
 
-## Events & Listeners
-None.
+## Events & listeners
+- **Listens to:** None identified.
+- **Pushes:** None identified.

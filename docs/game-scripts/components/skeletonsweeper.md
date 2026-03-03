@@ -1,49 +1,60 @@
 ---
 id: skeletonsweeper
 title: Skeletonsweeper
-description: Manages a collection of player-placed skeletons and automatically removes the oldest ones when the count exceeds the configured maximum.
+description: Manages a cap on the number of active skeletons in the world by removing the oldest skeletons when the limit is exceeded.
+tags: [skeleton, entity, world, cleanup, limit]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 52d704d6
+system_scope: world
 ---
 
 # Skeletonsweeper
 
-## Overview
-This component tracks player-placed skeletons on the master simulation, maintains them in age-descending order, and enforces a maximum cap (`TUNING.MAX_PLAYER_SKELETONS`) by removing or decaying the oldest skeletons when the threshold is exceeded. It responds to skeleton spawn events, enables/disables itself dynamically, and performs cleanup during post-initialization.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- `TheWorld.ismastersim` — Enforces exclusive existence on the master simulation (clients cannot instantiate this component).
-- Listens to events:
-  - `ms_skeletonspawn` — Broadcast when a new skeleton is placed.
-  - `ms_enableskeletonsweeper` — Broadcast to toggle sweeping behavior.
-- Removes event callbacks for `onremove` on skeleton entities it has previously tracked.
+## Overview
+`Skeletonsweeper` is a server-only component that monitors and limits the number of active skeleton entities in the world. It listens for skeleton spawn events, maintains an ordered list of skeletons by spawn time (newest first), and automatically removes the oldest skeletons when the count exceeds the configured maximum (`TUNING.MAX_PLAYER_SKELETONS` by default). It supports dynamic enabling/disabling and optional skipping of decay (i.e., immediate removal vs. calling `Decay()`).
+
+## Usage example
+```lua
+-- Typical usage: component is added automatically to the world entity
+-- and activated on server startup.
+-- Manual interaction is rare, but possible:
+local world = TheWorld
+if world.components.skeletonsweeper then
+    world.components.skeletonsweeper:Sweep(5) -- limit to 5 skeletons
+    world:PushEvent("ms_enableskeletonsweeper", { enable = false }) -- temporarily disable
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `inst` | `Entity` | *N/A* | Reference to the owning entity (typically the player). |
-| `_enabled` | `boolean` | `true` | Controls whether the sweeper actively manages skeletons. |
-| `_nosweep` | `boolean` | `true` initially, then `nil` | Flag preventing sweeps during initialization; cleared on `OnPostInit`. |
-| `_skeletons` | `table` | `{}` | Ordered list of tracked skeleton entities (newest at end, oldest at index 1). |
+No public properties
 
-## Main Functions
-
+## Main functions
 ### `Sweep(max_to_keep, no_decay)`
-* **Description:** Removes or decays skeletons until the collection size is ≤ `max_to_keep`. Skeletons are removed in age-descending order (oldest first). If `no_decay` is true or the skeleton lacks a `Decay` method, the skeleton is removed directly; otherwise, `Decay()` is invoked.
-* **Parameters:**
-  - `max_to_keep` (*number?*): Maximum number of skeletons to retain. Defaults to `TUNING.MAX_PLAYER_SKELETONS`.
-  - `no_decay` (*boolean?*): If `true`, skeletons are removed outright instead of decaying.
+*   **Description:** Enforces the skeleton count limit by removing the oldest skeletons until the count is ≤ `max_to_keep`. Oldest skeletons are defined as those with the smallest `skeletonspawntime`.
+*   **Parameters:**
+    *   `max_to_keep` (number, optional): Maximum number of skeletons to retain. Defaults to `TUNING.MAX_PLAYER_SKELETONS`.
+    *   `no_decay` (boolean, optional): If `true`, removed skeletons are removed directly via `:Remove()` instead of calling `:Decay()`. Used during initialization to avoid transient decay animations.
+*   **Returns:** Nothing.
+*   **Error states:** Early return with no effect if `_enabled` is `false`.
 
 ### `OnPostInit()`
-* **Description:** Called after full initialization. Disables the `_nosweep` restriction and triggers a sweep if enabled, ensuring the skeleton count complies with the cap.
+*   **Description:** Final initialization step triggered after prefab post-init. Disables `_nosweep` so future skeleton spawns can trigger sweeps, and performs an initial sweep if enabled.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- Listens to `ms_skeletonspawn(inst, skeleton)` → Adds skeleton to `_skeletons`, subscribes to its `onremove` event, and triggers a sweep if enabled and not post-init-blocked.
-- Listens to `ms_enableskeletonsweeper(inst, enable)` → Updates `_enabled`, and if newly enabled, triggers a sweep.
-- Listens to `onremove(skeleton)` on each tracked skeleton → Removes the skeleton from `_skeletons` when it is destroyed externally.
+## Events & listeners
+- **Listens to:**  
+  `ms_skeletonspawn` – triggered when a skeleton is spawned; registers the skeleton, sets up a removal listener, and initiates a sweep if enabled and `_nosweep` is false.  
+  `ms_enableskeletonsweeper` – enables/disables the sweeper; triggers a sweep if newly enabled and `_nosweep` is false.
+- **Pushes:** None identified

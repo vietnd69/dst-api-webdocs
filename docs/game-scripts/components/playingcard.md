@@ -1,77 +1,85 @@
 ---
 id: playingcard
 title: Playingcard
-description: Manages the identity (suit and pips) and persistence of a playing card entity in the game world.
+description: Manages the identity (suit and pips) of a playing card entity in the game.
+tags: [inventory, entity, save_load]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 2a74fe65
+system_scope: inventory
 ---
-
 # Playingcard
 
-## Overview
-This component encapsulates the state and behavior of a playing card entity within the Entity Component System. It stores a compact `card_id` integer that encodes both suit and pip information, provides getter methods to extract those values, supports dynamic pip count changes (affecting the encoding scheme), and handles save/load persistence. It also manages the `"playingcard"` tag on its owner entity.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Tags added on construction:** `"playingcard"`
-- **Tags removed on entity removal:** `"playingcard"` (via `OnRemoveEntity`)
-- **Dependencies:** Relies on `TUNING.PLAYINGCARDS_NUM_PIPS` for default pip count initialization.
+## Overview
+`PlayingCard` is a component that encapsulates the identity of a playing card entity, storing its unique `card_id` as a composite of suit and pip values. It supports saving and loading, and automatically maintains a `playingcard` tag on its owning entity. The component is designed to work with DST's entity-component system and integrates with prefabs representing physical playing cards (e.g., in the "Fortitude" minigame).
+
+## Usage example
+```lua
+local inst = Prefab("playingcard")
+inst:AddComponent("playingcard")
+inst.components.playingcard:SetID(203)  -- e.g., Hearts suit (2), 3 pips
+local suit, pips = inst.components.playingcard:GetSuitAndPip()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `playingcard` on initialization; removes `playingcard` on entity removal.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity this component is attached to (stored during construction). |
-| `_card_id` | `number` | `-1` | Internal encoded ID representing the card (suit and pips). `-1` indicates an uninitialized or invalid card. |
-| `pip_count` | `number` | `TUNING.PLAYINGCARDS_NUM_PIPS` | Total number of pips per suit (e.g., 13 for standard cards). Used to determine pip magnitude in ID encoding. |
-| `pip_digit_barrier` | `number` | `100` | Divisor/mask used to split `card_id` into suit (high-order) and pips (low-order) components. Initialized based on `pip_count` digits. |
+| `_card_id` | number | `-1` | Unique identifier encoding suit (high digits) and pips (low digits). |
+| `pip_count` | number | `TUNING.PLAYINGCARDS_NUM_PIPS` | Maximum number of pips per suit; used to compute digit barrier for suit/pip separation. |
+| `pip_digit_barrier` | number | `100` | Divider used to extract suit from `card_id` (based on `pip_count`). |
 
-## Main Functions
+## Main functions
 ### `SetID(id)`
-* **Description:** Sets the card's internal `card_id` and, if registered, triggers the `on_new_id` callback with the new ID.
-* **Parameters:**  
-  `id` (`number`) — The new encoded card ID to assign.
+*   **Description:** Sets the card’s unique identifier. Triggers the optional `on_new_id` callback if defined.
+*   **Parameters:** `id` (number) — The composite card ID to assign.
+*   **Returns:** Nothing.
 
 ### `GetID()`
-* **Description:** Returns the current `card_id`.
-* **Parameters:** None.
+*   **Description:** Returns the current card ID.
+*   **Parameters:** None.
+*   **Returns:** `number` — The stored `_card_id`, or `-1` if unset.
 
 ### `GetSuit()`
-* **Description:** Extracts and returns the suit value from `card_id` using the current `pip_digit_barrier`. Returns `0` for invalid/uninitialized cards (`card_id <= 0`).
-* **Parameters:** None.
+*   **Description:** Extracts and returns the suit component from `_card_id`.
+*   **Parameters:** None.
+*   **Returns:** `number` — Suit value (e.g., `0` to `3`), or `0` if `_card_id <= 0`.
 
 ### `GetPips()`
-* **Description:** Extracts and returns the pip value (remainder) from `card_id` using the current `pip_digit_barrier`. Returns `0` for invalid/uninitialized cards.
-* **Parameters:** None.
+*   **Description:** Extracts and returns the pip count component from `_card_id`.
+*   **Parameters:** None.
+*   **Returns:** `number` — Pip count (e.g., `1` to `13`), or `0` if `_card_id <= 0`.
 
 ### `GetSuitAndPip()`
-* **Description:** Convenience method that returns both `GetSuit()` and `GetPips()` values as a pair.
-* **Parameters:** None.
-
-### `OnSave()`
-* **Description:** Returns a table containing the `card_id` for serialization (e.g., saving to disk).
-* **Parameters:** None.  
-* **Returns:** `table` — `{ card_id = self._card_id }`.
-
-### `OnLoad(data, newents)`
-* **Description:** Restores the `card_id` from saved data.
-* **Parameters:**  
-  `data` (`table`) — The saved data table, expected to contain `data.card_id`.  
-  `newents` (`table`) — Unused parameter (included for API compatibility).
+*   **Description:** Returns both suit and pips as a tuple.
+*   **Parameters:** None.
+*   **Returns:** `number, number` — Suit and pip values, respectively.
 
 ### `OnRemoveEntity()`
-* **Description:** Removes the `"playingcard"` tag from the entity when the component is removed.
-* **Parameters:** None.  
-* **Note:** Also aliased as `OnRemoveFromEntity`.
+*   **Description:** Cleanup callback fired when the entity is removed. Removes the `playingcard` tag.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `onpipcount(self, pipcount)` *(internal callback)*
-* **Description:** Recalculates and updates `pip_digit_barrier` based on the numeric digit count of `pipcount`, then recomputes `card_id` to preserve suit/pip semantics under the new barrier.
-* **Parameters:**  
-  `pipcount` (`number`) — The new pip count value (typically from `pip_count` assignment).  
+### `OnSave()`
+*   **Description:** Prepare data for persistence.
+*   **Parameters:** None.
+*   **Returns:** `table` — A table with key `card_id` and value `_card_id`.
 
-## Events & Listeners
-None. This component does not listen for or push events.
+### `OnLoad(data, newents)`
+*   **Description:** Restore state from saved data.
+*   **Parameters:**  
+    - `data` (table) — Saved data with `card_id` field.  
+    - `newents` (table) — Reserved for future use; not used.  
+*   **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:** None identified  
+- **Pushes:** None identified  

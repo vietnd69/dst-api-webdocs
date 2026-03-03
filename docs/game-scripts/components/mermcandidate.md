@@ -1,54 +1,77 @@
 ---
 id: mermcandidate
 title: Mermcandidate
-description: Tracks caloric intake to determine when a merm should transform into a more powerful variant.
+description: Tracks calorie consumption to determine if a merm should transform into a stronger variant.
+tags: [entity, lifecycle, merm]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 089fa9e7
+system_scope: entity
 ---
 
 # Mermcandidate
 
-## Overview
-This component tracks the calories consumed by a merm entity to determine whether it has accumulated enough energy to trigger a transformation into a stronger variant. It acts as a state manager for merm metamorphosis progression.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`MermCandidate` is an entity component that accumulates calories from consumed food items. It determines whether a merm entity should undergo a transformation (e.g., into a Merm Guard) based on a threshold of accumulated calories. This component is used to implement the mechanic where certain merms grow stronger by eating — specifically, it integrates with the `edible` component to quantify the nutritional value of eaten food.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("mermcandidate")
+
+-- Simulate eating food
+local food = ...
+inst.components.mermcandidate:AddCalories(food)
+
+-- Check if transformation is triggered
+if inst.components.mermcandidate:ShouldTransform() then
+    -- Proceed with transformation logic
+    inst.components.mermcandidate:ResetCalories()
+end
+```
+
+## Dependencies & tags
+**Components used:** `edible` (read via `food.components.edible:GetHunger`)  
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `calories` | number | `0` | Current accumulated calorie count from consumed food. |
-| `transformation_calories` | number | `50` | Threshold of calories required for transformation to occur. |
+| `calories` | number | `0` | Total calories accumulated from eaten food. |
+| `transformation_calories` | number | `50` | Minimum calories required to trigger transformation. |
 
-## Main Functions
+## Main functions
 ### `AddCalories(food)`
-* **Description:** Adds the hunger value (calories) of the given edible item to the internal calorie counter. Only processes items with an `edible` component.
-* **Parameters:**
-  * `food` (Entity): The food entity to consume; must have an `edible` component for calories to be added.
+* **Description:** Adds nutritional value from the given food item to the current calorie count. Only processes food with an `edible` component.
+* **Parameters:** `food` (Entity) — The food item being consumed.
+* **Returns:** Nothing.
+* **Error states:** Silently ignores food without an `edible` component.
 
 ### `ResetCalories()`
-* **Description:** Resets the current calorie count to zero, typically used after a successful transformation or to reset progress.
+* **Description:** Resets the calorie counter to zero, typically after a successful transformation.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `ShouldTransform()`
-* **Description:** Returns `true` if the current calorie count meets or exceeds the transformation threshold, indicating the merm is ready to transform.
+* **Description:** Returns whether the accumulated calories meet or exceed the transformation threshold.
 * **Parameters:** None.
+* **Returns:** `true` if `calories >= transformation_calories`, otherwise `false`.
 
 ### `OnSave()`
-* **Description:** Serializes the component's state for save/load purposes, returning a table containing current calorie and threshold values.
+* **Description:** Returns the component's state for persistence.
 * **Parameters:** None.
-* **Returns:** `{ calories: number, transformation_calories: number }`
+* **Returns:** Table containing `calories` and `transformation_calories`.
 
 ### `OnLoad(data)`
-* **Description:** Restores component state from saved data, updating `calories` and `transformation_calories` if present in the input table.
-* **Parameters:**
-  * `data` (table): Saved state data containing optional `calories` and `transformation_calories` keys.
+* **Description:** Restores the component's state from saved data.
+* **Parameters:** `data` (table) — Table with optional `calories` and `transformation_calories` keys.
+* **Returns:** Nothing.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified.

@@ -3,7 +3,7 @@ id: layouts
 title: Layouts
 description: Defines reusable static layouts for world generation, supporting pre-defined shapes, static layouts from files, and dynamic prefab placement via area functions.
 tags: [world, generation, layout]
-sidebar_position: 1
+sidebar_position: 100
 
 last_updated: 2026-02-27
 build_version: 714014

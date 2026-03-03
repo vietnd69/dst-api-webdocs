@@ -1,49 +1,67 @@
 ---
 id: rainimmunity
 title: Rainimmunity
-description: Grants and manages immunity to rain damage by tracking external sources and automatically removing itself when no sources remain active.
+description: Grants and manages immunity to rain damage for an entity by tracking external sources of immunity.
+tags: [environment, entity, damage]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 8ef1602a
+system_scope: environment
 ---
 
 # Rainimmunity
 
-## Overview
-The `RainImmunity` component grants temporary immunity to rain damage for an entity by maintaining a registry of active immunity sources. It automatically adds the `"rainimmunity"` tag to the entity upon initialization, triggers the `"gainrainimmunity"` event, and removes the component (and its tag) when all immunity sources are removed.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds the `"rainimmunity"` tag to the entity.
-- Does not require any other components to be present on the entity.
+## Overview
+`RainImmunity` is an entity component that provides immunity to rain-based damage. It tracks one or more external sources that grant this immunity, and automatically removes the component—and the `rainimmunity` tag—when no sources remain active. This component is typically used by entities (e.g., characters, structures, or creatures) that must be protected from environmental rain effects, such as damage accumulation or weather-related penalties.
+
+The component is self-contained and does not depend on other components directly. Instead, it relies on the game's event system (`onremove` events) to monitor the lifecycle of immunity sources.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("rainimmunity")
+
+-- Add a source (e.g., an equipped item or proximity to a shelter)
+local item = prefabs.my_shelter_item
+inst.components.rainimmunity:AddSource(item)
+
+-- Later, remove the source
+inst.components.rainimmunity:RemoveSource(item)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `rainimmunity` on initialization; removes it when the component is removed from the entity.
 
 ## Properties
-No public properties are initialized in the constructor. All internal state is held in private members:
-- `self.sources`: A table used as a set to track active immunity sources (keys are source entities or identifiers; values are `true`).
-- `self._onremovesource`: A private callback function used to deregister a source and potentially remove the component.
+No public properties
 
-## Main Functions
+## Main functions
 ### `AddSource(src)`
-* **Description:** Registers a new source of rain immunity. If the source is not already tracked, it is added to the internal list, and an `"onremove"` event listener is attached (unless the source is the entity itself).
-* **Parameters:**  
-  `src` — A reference (typically an entity or identifier) representing a source of immunity. May be the entity itself.
+*   **Description:** Registers a new source that grants rain immunity. The source is tracked internally; immunity is lost only when all sources are removed.
+*   **Parameters:** `src` (entity or object reference) — the source of immunity (e.g., an item, structure, or proximity zone). May be the same entity (`self.inst`) but is typically external.
+*   **Returns:** Nothing.
+*   **Error states:** If `src` is already registered, this call has no effect.
 
 ### `RemoveSource(src)`
-* **Description:** Deregisters a previously added immunity source. If the source was tracked, it removes the associated event listener and triggers `self._onremovesource(src)`, which may lead to full removal of the component if no sources remain.
-* **Parameters:**  
-  `src` — The immunity source to remove.
+*   **Description:** Unregisters a source of rain immunity. If no sources remain, the component automatically removes itself from the entity and fires `loserainimmunity`.
+*   **Parameters:** `src` (entity or object reference) — the source to remove.
+*   **Returns:** Nothing.
+*   **Error states:** If `src` is not currently registered, this call has no effect.
 
 ### `OnRemoveFromEntity()`
-* **Description:** Cleanup routine called when the component is fully removed from the entity. Removes the `"rainimmunity"` tag, cleans up all event listeners for tracked sources, and emits the `"loserainimmunity"` event.
-* **Parameters:** None.
+*   **Description:** Internal method called when the component is removed (e.g., via `inst:RemoveComponent("rainimmunity")`). Cleans up event listeners, removes the `rainimmunity` tag, and broadcasts `loserainimmunity`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens to:**
-  - `"onremove"` on each tracked source entity (via `inst:ListenForEvent("onremove", self._onremovesource, src)`), to deregister the source automatically when it is removed from the world.
-- **Triggers:**
-  - `"gainrainimmunity"` — emitted once during initialization (immediately after adding the component and tag).
-  - `"loserainimmunity"` — emitted once when the component is fully removed from the entity.
+## Events & listeners
+- **Listens to:** `onremove` — registered on each external source to detect when it is destroyed; triggers automatic removal of that source.
+- **Pushes:**  
+  - `gainrainimmunity` — fired once during component initialization (after adding the `rainimmunity` tag).  
+  - `loserainimmunity` — fired when the last source is removed and the component is about to be destroyed.

@@ -4,7 +4,6 @@ title: Generic
 description: Defines static cave room templates including impassable pit rooms and cave exit rooms with distributed flora and light assets.
 tags: [map, room, cave, procedural, worldgen]
 sidebar_position: 1
-
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: f4c22b3e
 ---
-
 # Generic
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -62,4 +60,3 @@ This file does not define any reusable functions. It calls `AddRoom` directly wi
 ## Events & listeners
 None — this script performs static registration and does not use the event system.
 
----

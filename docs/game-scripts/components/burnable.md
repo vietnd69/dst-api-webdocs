@@ -1,149 +1,182 @@
 ---
 id: burnable
 title: Burnable
-description: Manages an entity's state of being on fire, smoldering, and the visual effects associated with burning.
+description: Manages the burning and smoldering state of an entity, including fire effects, propagation, fuel consumption, and lifecycle hooks.
+tags: [fire, state, propagation, effects]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: environment
+category_type: components
 source_hash: b6632502
+system_scope: entity
 ---
 
 # Burnable
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The Burnable component handles all logic related to an entity catching fire. This includes smoldering due to ambient heat, igniting into a full fire, burning for a set duration, being extinguished, and managing all associated visual and audio effects. It interacts with other components like `propagator` to spread fire and `fueled` to consume fuel while burning.
+`Burnable` is a core component that governs the ignition, sustained burning, and smoldering behavior of an entity. It manages fire effects (via `firefx`), integrates with `propagator` for heat spread, interacts with `fueled` for consumption control, and coordinates damage timing through the `health` component. It exposes customizable callbacks for ignition, extinction, smoldering transitions, and final burn-out events. The component also supports *controlled burns* (skill-modified) and *smothering* actions (e.g., via items like the Fire Stick).
 
-## Dependencies & Tags
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("burnable")
+inst:AddTag("burnable")
+inst:AddTag("ignitable")
 
-**Dependencies:**
-This component interacts with, but does not strictly require, the following components on its entity:
-- `propagator`: To spread heat and fire to nearby objects.
-- `fueled`: To consume fuel as a resource while burning.
-- `health`: To handle charring on death and other health-related fire interactions.
-- `rainimmunity`: To check if rain should affect smoldering.
+-- Configure custom callbacks
+inst.components.burnable:SetOnIgniteFn(function() print("Lit!") end)
+inst.components.burnable:SetOnExtinguishFn(function() print("Out!") end)
 
-**Tags Added:**
-- `fire`: Added when the entity is burning.
-- `smolder`: Added when the entity is smoldering.
-- `canlight`: Added when the entity is not burning and can be lit.
-- `nolight`: Added when the entity is burning or cannot be lit.
-- `stokeablefire`: Added for controlled burns that can be stoked into a regular fire.
-- `burnableignorefuel`: Added if the entity should not consume fuel from its `fueled` component when burning.
+-- Start smoldering or ignite directly
+inst.components.burnable:StartWildfire()
+inst.components.burnable:Ignite()
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `diseaseable`, `explosive`, `finiteuses`, `firefx`, `fueled`, `health`, `heater`, `propagator`, `rainimmunity`, `skilltreeupdater`, `stackable`  
+**Tags:** Adds/removes tags dynamically: `fire`, `smolder`, `canlight`, `nolight`, `burnableignorefuel`, `stokeablefire`
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `flammability` | number | `1` | Multiplier for how easily the entity ignites. Not directly used in this file; intended for external callers. |
+| `burning` | boolean | `false` | Whether the entity is currently burning. |
+| `smoldering` | boolean | `false` | Whether the entity is currently smoldering (precursor to burning). |
+| `burntime` | number? | `nil` | Optional fixed time until the entity finishes burning; overrides default logic. |
+| `extinguishimmediately` | boolean | `true` | If `true`, calling `Extinguish` or auto-burn completion triggers immediate `Extinguish()` (vs delayed). |
+| `stokeablefire` | boolean | `false` | Indicates if the fire can be stoked (converted to uncontrolled) via `StokeControlledBurn`. |
+| `controlled_burn` | table? | `nil` | Non-`nil` when currently a controlled burn; contains `duration_creature` and `damage` multipliers. |
+| `canlight` | boolean | `true` | Controls presence of `canlight`/`nolight` tags and lighting logic. |
+| `ignorefuel` | boolean | (not set by default) | If set to `true`, ignition/extinguishing won't affect `fueled` consumption. |
+| `fastextinguish` | boolean | `false` (set temporarily during entity removal) | Enables faster extinguish animation when available. |
+| `smoldertimeremaining` | number? | `nil` | Remaining smolder time in seconds; used to determine transition to actual burning. |
+| `fxdata` | table | `{}` | List of effect descriptors (prefabs, offsets, follow symbols) for fire FX. |
+| `fxchildren` | table | `{}` | Active FX entities spawned for burning (e.g., fire prefabs). |
+| `fxoffset` | Vector3? | `nil` | Global offset added to all FX positions. |
+| `fxlevel` | number | `1` | Base intensity level for fire effects (affects radius, color, sound). |
 
-| Property            | Type      | Default Value | Description                                                                                 |
-| ------------------- | --------- | ------------- | ------------------------------------------------------------------------------------------- |
-| `flammability`      | number    | `1`           | A modifier for how easily this object catches fire (used by the `propagator` component).    |
-| `burning`           | boolean   | `false`       | True if the entity is currently on fire.                                                    |
-| `smoldering`        | boolean   | `false`       | True if the entity is currently smoldering and about to catch fire.                         |
-| `burntime`          | number    | `nil`         | The duration, in seconds, that the entity will burn before being consumed.                  |
-| `fxdata`            | table     | `{}`          | A table containing data for creating fire visual effects (FX).                              |
-| `fxlevel`           | number    | `1`           | The current intensity level of the fire visual effects.                                     |
-| `canlight`          | boolean   | `true`        | Determines if the entity can be lit on fire by a player.                                    |
-| `lightningimmune`   | boolean   | `false`       | If true, the entity cannot be ignited by lightning.                                         |
-| `onignite`          | function  | `nil`         | Callback function triggered when the entity ignites.                                        |
-| `onextinguish`      | function  | `nil`         | Callback function triggered when the entity is extinguished.                                |
-| `onburnt`           | function  | `nil`         | Callback function triggered when the entity has completely burned away.                     |
-| `onsmoldering`      | function  | `nil`         | Callback function triggered when the entity begins to smolder.                              |
-| `onstopsmoldering`  | function  | `nil`         | Callback function triggered when the entity stops smoldering.                               |
-| `extinguishimmediately`| boolean | `true`       | If true, the entity is extinguished immediately after the `onburnt` event.                  |
-| `stokeablefire`     | boolean   | `false`       | If true, this fire is a controlled burn (e.g., from Willow) that can be stoked.           |
-
-## Main Functions
-
-### `SetOnIgniteFn(fn)`
-* **Description:** Sets a custom callback function to be executed when the entity ignites.
-* **Parameters:**
-    * `fn`: The function to call. It will receive the entity instance (`inst`), the fire source, and the instigator (`doer`) as arguments.
-
-### `SetOnBurntFn(fn)`
-* **Description:** Sets a custom callback function to be executed when the entity has finished burning.
-* **Parameters:**
-    * `fn`: The function to call. It will receive the entity instance (`inst`) as an argument.
-
-### `SetOnExtinguishFn(fn)`
-* **Description:** Sets a custom callback function to be executed when the entity's fire is extinguished.
-* **Parameters:**
-    * `fn`: The function to call. It will receive the entity instance (`inst`) as an argument.
-
-### `SetBurnTime(time)`
-* **Description:** Sets the duration in seconds that the entity will burn for once ignited.
-* **Parameters:**
-    * `time`: (number) The burn duration.
-
-### `IsBurning()`
-* **Description:** Returns whether the entity is currently on fire.
-* **Parameters:** None.
-
-### `IsSmoldering()`
-* **Description:** Returns whether the entity is currently smoldering.
-* **Parameters:** None.
-
-### `AddBurnFX(prefab, offset, followsymbol, followaschild, scale, followlayered)`
-* **Description:** Registers a visual effect prefab to be spawned when the entity is burning.
-* **Parameters:**
-    * `prefab`: (string) The prefab name of the effect to spawn.
-    * `offset`: (Vector3) The position offset for the effect relative to the entity's origin or `followsymbol`.
-    * `followsymbol`: (string, optional) The symbol in the entity's animation build that the effect should follow.
-    * `followaschild`: (boolean, optional) If true, makes the FX a child of the entity even when following a symbol.
-    * `scale`: (number, optional) A scale multiplier for the effect.
-    * `followlayered`: (boolean, optional) If true, the effect follows the symbol's transform and layering.
-
-### `SetFXLevel(level, percent)`
-* **Description:** Sets the intensity level of currently active and future fire visual effects.
-* **Parameters:**
-    * `level`: (number) The intensity level to set.
-    * `percent`: (number, optional) The percentage progress within the given level (default is 1).
-
-### `StartWildfire()`
-* **Description:** Initiates the smoldering process on the entity, typically triggered by high ambient heat. If not extinguished, this will lead to ignition.
-* **Parameters:** None.
-
+## Main functions
 ### `Ignite(immediate, source, doer)`
-* **Description:** Sets the entity on fire. This stops any smoldering, spawns fire effects, starts the burn timer, and triggers the `onignite` event.
-* **Parameters:**
-    * `immediate`: (boolean, optional) If true, fire effects may appear instantly.
-    * `source`: (entity, optional) The entity that is the source of the fire (e.g., a torch).
-    * `doer`: (entity, optional) The entity that caused the ignition (e.g., the player holding the torch).
-
-### `ExtendBurning()`
-* **Description:** Resets the burn timer to its full duration. This is typically called when adding fuel to an existing fire.
-* **Parameters:** None.
-
-### `SmotherSmolder(smotherer)`
-* **Description:** Stops the entity from smoldering.
-* **Parameters:**
-    * `smotherer`: (entity, optional) The item or entity used to smother the smolder, which may be consumed or damaged in the process.
-
-### `StopSmoldering(heatpct)`
-* **Description:** Halts the smoldering process and cleans up smolder effects.
-* **Parameters:**
-    * `heatpct`: (number, optional) A heat percentage to reset the `propagator` component to.
+*   **Description:** Ignites the entity, spawning fire FX and starting propagation/fuel consumption. Supports controlled burns if `doer` or `source` has tag `controlled_burner`.  
+*   **Parameters:**  
+    - `immediate` (boolean) – Controls whether FX animations start instantly or with a pre-transition.  
+    - `source` (entity?) – The entity that caused ignition (e.g., match).  
+    - `doer` (entity?) – The actor performing ignition (used for controlled burn logic).  
+*   **Returns:** Nothing.  
+*   **Error states:** Early exit if already burning or `fireimmune` tag is present.
 
 ### `Extinguish(resetpropagator, heatpct, smotherer)`
-* **Description:** Puts out the fire on the entity. This stops burning, kills fire effects, and triggers the `onextinguish` event.
-* **Parameters:**
-    * `resetpropagator`: (boolean, optional) If true, resets the heat in the `propagator` component.
-    * `heatpct`: (number, optional) The heat percentage to reset the `propagator` to.
-    * `smotherer`: (entity, optional) The item or entity used to extinguish the fire.
+*   **Description:** Extinguishes the fire, stopping propagation, halting fuel consumption, and removing all fire FX.  
+*   **Parameters:**  
+    - `resetpropagator` (boolean) – Whether to reset propagator state (default: `false`).  
+    - `heatpct` (number?) – Heat percentage to preserve in propagator after stopping spread.  
+    - `smotherer` (entity?) – Optional item/entity used to smother fire; deducts uses/stack/health.  
+*   **Returns:** Nothing.
+
+### `StartWildfire()`
+*   **Description:** Initiates smoldering phase before full ignition. Spawns a `smoke_plant` FX and starts a periodic timer that reduces `smoldertimeremaining` based on local heat and rain. Upon timer expiry, triggers `Ignite()`.  
+*   **Parameters:** None.  
+*   **Returns:** Nothing.  
+*   **Error states:** Early exit if already burning, smoldering, or `fireimmune`.
+
+### `StopSmoldering(heatpct)`
+*   **Description:** Cancels the smoldering phase and cleans up associated FX (e.g., smoke). Updates the `propagator` component with leftover heat.  
+*   **Parameters:**  
+    - `heatpct` (number?) – Heat percentage to restore in the propagator component.  
+*   **Returns:** Nothing.
+
+### `SetOnIgniteFn(fn)`
+*   **Description:** Sets a callback invoked when ignition completes. Signature: `function(inst, source, doer)`.  
+*   **Parameters:** `fn` (function) – Custom function to call.  
+*   **Returns:** Nothing.
+
+### `SetOnExtinguishFn(fn)`
+*   **Description:** Sets a callback invoked when extinguishing completes. Signature: `function(inst)`.  
+*   **Parameters:** `fn` (function) – Custom function to call.  
+*   **Returns:** Nothing.
+
+### `SetOnBurntFn(fn)`
+*   **Description:** Sets a callback invoked when burning finishes (after `DoneBurning` internal logic). Wraps internal cleanup (e.g., lunar hail removal) for modders. Signature: `function(inst)`.  
+*   **Parameters:** `fn` (function) – Custom function to call.  
+*   **Returns:** Nothing.
+
+### `SetOnSmolderingFn(fn)`
+*   **Description:** Sets a callback invoked when smoldering starts. Signature: `function(inst)`.  
+*   **Parameters:** `fn` (function) – Custom function to call.  
+*   **Returns:** Nothing.
+
+### `SetOnStopSmolderingFn(fn)`
+*   **Description:** Sets a callback invoked when smoldering ends (via `StopSmoldering`). Signature: `function(inst)`.  
+*   **Parameters:** `fn` (function) – Custom function to call.  
+*   **Returns:** Nothing.
+
+### `AddBurnFX(prefab, offset, followsymbol, followaschild, scale, followlayered)`
+*   **Description:** Registers a fire effect prefab to spawn during burning. Effects can follow a symbol or be positioned absolutely.  
+*   **Parameters:**  
+    - `prefab` (string) – Name of the FX prefab to spawn.  
+    - `offset` (Vector3) – Local position offset for the FX.  
+    - `followsymbol` (string?) – Optional symbol name on the parent to follow.  
+    - `followaschild` (boolean?) – If `true`, makes FX a direct child even when following.  
+    - `scale` (number?) – Optional additional scale multiplier.  
+    - `followlayered` (boolean?) – If `true`, respects layered transform for the symbol.  
+*   **Returns:** Nothing.
+
+### `SetFXLevel(level, percent)`
+*   **Description:** Updates the intensity level of all active fire FX. Affects radius, color, sound, and animation.  
+*   **Parameters:**  
+    - `level` (number) – Target level index (1-based).  
+    - `percent` (number) – Interpolation factor within the level (0.0–1.0); defaults to `1`.  
+*   **Returns:** Nothing.
 
 ### `KillFX()`
-* **Description:** Destroys all active fire visual effect children associated with this component.
-* **Parameters:** None.
+*   **Description:** Removes all FX children, playing the extinguish animation if available (via `firefx.Extinguish`).  
+*   **Parameters:** None.  
+*   **Returns:** Nothing.
 
-## Events & Listeners
+### `StokeControlledBurn()`
+*   **Description:** Converts a controlled burn back to a standard burn, removing the controlled burn multiplier fields and disabling stokeability. Resets FX level to full.  
+*   **Parameters:** None.  
+*   **Returns:** Nothing.
 
-**Listens To:**
-- `death`: When the entity is burning, it listens for its own death to apply a charred visual effect.
+### `IsControlledBurn()`
+*   **Description:** Returns whether the entity is currently undergoing a controlled burn.  
+*   **Parameters:** None.  
+*   **Returns:** boolean.
 
-**Pushes:**
-- `onignite`: Pushed on the entity when it is set on fire. Passes `{ source, doer }`.
-- `onburnt`: Pushed on the entity when it has completely burned away.
-- `onextinguish`: Pushed on the entity when its fire is extinguished.
-- `plantkilled`: Pushed to `TheWorld` if a burning entity with the "plant" tag is destroyed by fire.
-- `burnt`: Pushed on a `smotherer` entity if it takes fire damage while putting out a smolder.
+### `GetControlledBurn()`
+*   **Description:** Returns the internal `controlled_burn` table (or `nil`). Contains `duration_creature` and `damage` multipliers.  
+*   **Parameters:** None.  
+*   **Returns:** table?.
+
+### `CalculateControlledBurnDuration()`
+*   **Description:** Returns the adjusted burn duration for a controlled burn, based on skill tree multipliers. Only valid if `controlled_burn.duration_creature` is set and a `health` component exists.  
+*   **Parameters:** None.  
+*   **Returns:** number? (duration multiplier).
+
+### `IsBurning()`
+*   **Description:** Returns whether the entity is currently burning.  
+*   **Parameters:** None.  
+*   **Returns:** boolean.
+
+### `IsSmoldering()`
+*   **Description:** Returns whether the entity is currently smoldering.  
+*   **Parameters:** None.  
+*   **Returns:** boolean.
+
+### `GetDebugString()`
+*   **Description:** Returns a human-readable status string for debugging: `"BURNING"`, `"SMOLDERING X.XX"`, or `"NOT BURNING"`.  
+*   **Parameters:** None.  
+*   **Returns:** string.
+
+### `GetLargestLightRadius()`
+*   **Description:** Computes the maximum light radius among all active fire FX children.  
+*   **Parameters:** None.  
+*   **Returns:** number? (`nil` if no FX children emit light).
+
+## Events & listeners
+- **Listens to:** `death` – triggers `OnKilled` to check for charring and sync burn FX with health destruction.
+- **Pushes:** `onignite`, `onextinguish`, `onburnt`, `startfiredamage`, `changefiredamage`, `firedamage` (via propagation and `health` interaction).

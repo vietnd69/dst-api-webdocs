@@ -1,67 +1,77 @@
 ---
 id: butterflyspawner
 title: Butterflyspawner
-description: Manages the periodic spawning of butterflies near active players based on environmental conditions.
+description: Manages butterfly spawning behavior based on active players and world conditions.
+tags: [spawn, world, entity, environment]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: environment
+category_type: map
 source_hash: 82b6d3bc
+system_scope: world
 ---
 
 # Butterflyspawner
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component is a world-level manager responsible for spawning butterflies into the environment. It operates only on the master simulation. The spawner activates during the day and outside of winter, scheduling butterfly spawns near each active player. It finds suitable spawn locations (flowers), respects a global maximum number of butterflies, and tracks certain butterflies to remove them if they become inactive.
+`Butterflyspawner` is a server-only component responsible for dynamically spawning and tracking butterflies in the world. It activates during daylight hours (excluding winter) and spawns butterflies near flowers when active players are present. The component uses task scheduling to stagger spawns and avoids overpopulating the world by respecting `TUNING.MAX_BUTTERFLIES`. It integrates with the `homeseeker` and `pollinator` components to ensure spawned butterflies properly link to flower targets and are cleaned up when asleep.
 
-## Dependencies & Tags
-**Dependencies:**
-- This component adds the `homeseeker` component to butterflies it tracks if they don't already have one.
-- It interacts with the `pollinator`, `homeseeker`, and `Physics` components of spawned butterfly entities.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("butterflyspawner")
+inst.components.butterflyspawner:StartTracking(butterfly_prefab)
+-- Later, to stop tracking a butterfly and restore its original persistence state:
+inst.components.butterflyspawner:StopTracking(butterfly_prefab)
+```
 
-**Tags:**
-- It searches for entities with the `"flower"` tag to use as spawn points.
-- It searches for entities with the `"butterfly"` tag to count existing butterflies.
+## Dependencies & tags
+**Components used:** `homeseeker`, `pollinator`
+**Tags:** Checks `flower` and `butterfly` tags during entity searches; does not add or remove any tags directly.
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :--- | :--- | :--- | :--- |
-| `inst` | `table` | `inst` | The entity instance this component is attached to. |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | `nil` | The entity instance to which this component is attached (public for direct access). |
+| `_activeplayers` | table | `{}` | List of currently active players. Internal state; not directly exposed. |
+| `_scheduledtasks` | table | `{}` | Map of pending spawn tasks indexed by player. Internal state. |
+| `_maxbutterflies` | number | `TUNING.MAX_BUTTERFLIES` | Maximum number of butterflies allowed in the world at once. |
+| `_butterflies` | table | `{}` | Map tracking tracked butterflies and their restoration state. Internal state. |
+| `_updating` | boolean | `false` | Whether the spawner is currently active and scheduling spawns. |
 
-## Main Functions
-
-### `OnPostInit()`
-* **Description:** A lifecycle function called after the component is fully initialized. It kicks off the spawning logic by calling `ToggleUpdate(true)`.
-
+## Main functions
 ### `StartTracking(target)`
-* **Description:** Begins tracking a specific butterfly entity (`target`). This makes the butterfly non-persistent for the duration of tracking and adds a listener to automatically remove it if it goes to sleep. It also ensures the butterfly has a `homeseeker` component.
-* **Parameters:**
-    * `target`: The butterfly entity instance to start tracking.
+*   **Description:** Begins tracking a butterfly entity, temporarily disabling its persistence and ensuring it has a `homeseeker` component for home association. Used to manage entity lifetime during gameplay.
+*   **Parameters:** `target` (`Entity`) — the butterfly entity to track.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `target` is already being tracked.
 
 ### `StopTracking(target)`
-* **Description:** Stops tracking a specific butterfly entity (`target`). This restores the butterfly's original persistence state, potentially removes the `homeseeker` component if it was added by this system, and removes the "sleep" event listener.
-* **Parameters:**
-    * `target`: The butterfly entity instance to stop tracking.
+*   **Description:** Stops tracking a butterfly, restoring its original `persists` state and conditionally removing the `homeseeker` component.
+*   **Parameters:** `target` (`Entity`) — the butterfly entity to stop tracking.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `target` is not currently tracked.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted string containing debug information about the spawner's state, including whether it is active and the current count of tracked butterflies versus the maximum allowed.
-* **Parameters:** None.
+*   **Description:** Returns a formatted debug string containing current update status and butterfly counts.
+*   **Parameters:** None.
+*   **Returns:** `string` — formatted as `"updating:{boolean} butterflies:{count}/{max}"`.
 
-### Deprecated Functions
-The following functions are present in the code but are empty and marked as deprecated:
-- `SpawnModeNever()`
-- `SpawnModeLight()`
-- `SpawnModeMed()`
-- `SpawnModeHeavy()`
+### `SpawnModeNever()` / `SpawnModeLight()` / `SpawnModeMed()` / `SpawnModeHeavy()`
+*   **Description:** These methods are deprecated and contain no implementation.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-This component listens for the following events:
+## Events & listeners
+- **Listens to:**  
+  - `ms_playerjoined` — triggers on player join (world event), adds player to active list and schedules initial spawn if active.  
+  - `ms_playerleft` — triggers on player leave (world event), cancels pending spawns and removes player from active list.  
+  - `entitysleep` (on tracked butterflies) — schedules automatic removal of sleeping butterflies via `AutoRemoveTarget`.  
+  - World state changes `"isday"` and `"iswinter"` — triggers `ToggleUpdate` to start/stop scheduling spawns based on season and time.  
 
-*   **`isday` (World State):** Triggers `ToggleUpdate` to start or stop the spawning logic when the world transitions between day and night.
-*   **`iswinter` (World State):** Triggers `ToggleUpdate` to start or stop the spawning logic when the world enters or leaves the winter season.
-*   **`ms_playerjoined`:** Listens on `TheWorld` to add new players to the active player list for spawning.
-*   **`ms_playerleft`:** Listens on `TheWorld` to remove players from the active list and cancel their scheduled spawns.
-*   **`entitysleep`:** A listener is dynamically added to each tracked butterfly. When a tracked butterfly goes to sleep, this triggers its removal from the world.
+- **Pushes:**  
+  - None. This component does not fire custom events.

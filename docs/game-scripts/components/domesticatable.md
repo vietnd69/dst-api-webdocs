@@ -1,147 +1,154 @@
 ---
 id: domesticatable
 title: Domesticatable
-description: This component manages an entity's domestication and obedience levels, controlling their progression, decay, and associated behavioral state changes.
+description: Manages the domestication and obedience mechanics for tameable entities, tracking changes via periodic decay tasks and broadcasting relevant events.
+tags: [domestication, ai, entity, npc, behavior]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 0fb45858
+system_scope: entity
 ---
 
 # Domesticatable
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Domesticatable` component is responsible for implementing the domestication system for creatures within Don't Starve Together. It tracks and manages an entity's `domestication` and `obedience` values, allowing them to progress towards a domesticated state or revert to a feral state. It handles the continuous decay of these stats, triggers state changes (like becoming domesticated or feral), and integrates with other components for saving/loading and applying skill-based modifiers.
+`Domesticatable` implements the core logic for how an entity progresses toward and maintains domestication status — a state that allows interaction such as riding or wearing saddle items. It tracks `domestication` (a measure of taming progress), `obedience` (a measure of responsiveness to commands), and `tendencies` (behavioral preferences). The component uses periodic decay tasks to simulate attrition over time and exposes events for external systems to react to domestication milestones. It integrates closely with `hunger`, `rideable`, and `skilltreeupdater` components.
 
-## Dependencies & Tags
-This component relies on or interacts with the following:
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("domesticatable")
+inst.components.domesticatable:DeltaDomestication(0.2)
+inst.components.domesticatable:DeltaObedience(0.1)
+inst.components.domesticatable:SetMinObedience(0.5)
+```
 
-*   **Components**:
-    *   `hunger`: Used to check the entity's hunger percentage for determining feral state.
-    *   `rideable` (optional): Used for saving/loading rideable-specific data related to domestication and for identifying the rider as a potential doer for domestication gains.
-    *   `skilltreeupdater` (optional): Used by a `doer` (e.g., a player) to check for relevant domestication skill tags that modify domestication gain rates.
-
-*   **Tags**:
-    *   Adds `"domesticatable"` to the entity upon instantiation.
-    *   Removes `"domesticatable"` from the entity upon removal of the component.
-    *   Adds `"domesticated"` to the entity when it becomes domesticated.
-    *   Removes `"domesticated"` from the entity when it becomes feral.
+## Dependencies & tags
+**Components used:** `hunger`, `rideable`, `skilltreeupdater`  
+**Tags:** Adds `domesticatable` on construction; adds/removes `domesticated` tag when `SetDomesticated(true/false)` is called.
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :------- | :--- | :------------ | :---------- |
-| `domesticated` | boolean | `false` | A flag indicating whether the entity is currently considered fully domesticated. |
-| `domestication` | number | `0` | The current domestication progress, a value between 0 and 1. |
-| `domestication_latch` | boolean | `false` | A internal flag that becomes true when domestication reaches 1.0, enabling the `BecomeDomesticated` action. |
-| `lastdomesticationgain` | number | `0` | The `GetTime()` timestamp when the entity last gained domestication. Used to calculate domestication loss. |
-| `domestication_triggerfn` | function | `nil` | A callback function, expected to return `true` if the entity meets conditions to gain domestication, causing positive domestication changes. |
-| `obedience` | number | `0` | The current obedience level of the entity, a value typically between `minobedience` and `maxobedience`. |
-| `minobedience` | number | `0` | The minimum possible obedience level for this entity. |
-| `maxobedience` | number | `1` | The maximum possible obedience level for this entity. |
-| `domesticationdecaypaused` | boolean | `false` | A flag that, when true, pauses the decay of domestication, but not obedience. |
-| `tendencies` | table | `{}` | A table storing various behavioral tendencies as key-value pairs (e.g., "brave": 0.5). |
-| `decaytask` | task | `nil` | The handle for the periodic task that manages domestication and obedience decay. |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | *(assigned via constructor)* | The entity instance this component belongs to. |
+| `domesticated` | boolean | `false` | Whether the entity is currently domesticated. |
+| `domestication` | number | `0` | Current domestication level, clamped to `0..1`. |
+| `domestication_latch` | boolean | `false` | Latch that captures when domestication reaches `>= 1.0` before being reset. |
+| `lastdomesticationgain` | number | `0` | Timestamp of the last domestication gain. |
+| `obedience` | number | `0` | Current obedience level. |
+| `minobedience` | number | `0` | Minimum allowed obedience value. |
+| `maxobedience` | number | `1` | Maximum allowed obedience value. |
+| `domesticationdecaypaused` | boolean | `false` | Whether domestication decay is paused. |
+| `tendencies` | table | `{}` | Map of tendency names to float values (e.g., `{ "aggressive" = 0.3 }`). |
+| `decaytask` | `Task` | `nil` | Periodic task managing decay updates. |
 
-## Main Functions
+## Main functions
 ### `OnRemoveFromEntity()`
-*   **Description:** Called when the component is removed from the entity. It cancels the periodic decay task and removes the "domesticatable" tag.
-*   **Parameters:** None.
+* **Description:** Cleans up the component on removal: cancels any pending decay task and removes the `domesticatable` tag.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SetDomesticationTrigger(fn)`
-*   **Description:** Sets a callback function that determines when the entity should gain domestication. This function will be called periodically by the decay task.
-*   **Parameters:**
-    *   `fn`: `function` - A function that takes the entity as an argument and returns `true` if domestication should be gained.
+* **Description:** Registers a callback function used to determine whether domestication should increase during decay updates.
+* **Parameters:** `fn` (function) — A function expecting the entity instance as its sole argument, returning `true` to trigger gain.
+* **Returns:** Nothing.
 
 ### `GetObedience()`
-*   **Description:** Returns the current obedience level of the entity.
-*   **Parameters:** None.
+* **Description:** Returns the current obedience value.
+* **Parameters:** None.
+* **Returns:** number — Current obedience.
 
 ### `GetDomestication()`
-*   **Description:** Returns the current domestication progress of the entity.
-*   **Parameters:** None.
+* **Description:** Returns the current domestication value.
+* **Parameters:** None.
+* **Returns:** number — Current domestication (`0..1`).
 
 ### `Validate()`
-*   **Description:** Checks if the conditions for the domestication decay task to run are met. If obedience, hunger, and domestication are all at their minimum/zero values, the task is cancelled.
-*   **Parameters:** None.
+* **Description:** Checks if the entity should remain domesticatable; cancels decay task and returns `false` if obedience ≤ minobedience, hunger depleted, and domestication ≤ 0.
+* **Parameters:** None.
+* **Returns:** boolean — `true` if valid, `false` otherwise.
 
 ### `CheckForChanges()`
-*   **Description:** Evaluates the current domestication level and hunger to determine if the entity should become domesticated (if `domestication_latch` is set) or become feral. Pushes relevant events upon state changes.
-*   **Parameters:** None.
+* **Description:** Detects state transitions: latches domestication at `1.0`, resets latch below `0.95`, and triggers `"goneferal"` event if hunger is depleted and domestication is zero.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `BecomeDomesticated()`
-*   **Description:** Transitions the entity to the fully domesticated state, clears the `domestication_latch`, sets the `domesticated` flag, and pushes a "domesticated" event.
-*   **Parameters:** None.
+* **Description:** Converts the entity to domesticated state: latches domestication, sets domesticated flag, adds `domesticated` tag, and pushes `"domesticated"` event with current tendencies.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `DeltaObedience(delta)`
-*   **Description:** Adjusts the entity's obedience level by the given `delta` amount, clamping it between `minobedience` and `maxobedience`. If the obedience changes, it pushes an "obediencedelta" event and ensures the decay task is running.
-*   **Parameters:**
-    *   `delta`: `number` - The amount to add or subtract from the current obedience.
+* **Description:** Adjusts obedience by `delta`, clamping between `minobedience` and `maxobedience`. If changed, starts or restarts the decay task.
+* **Parameters:** `delta` (number) — Amount to change obedience.
+* **Returns:** Nothing.
 
 ### `DeltaDomestication(delta, doer)`
-*   **Description:** Adjusts the entity's domestication progress by the given `delta` amount, clamping it between 0 and 1. If `delta` is positive, it applies skill-based multipliers if a `doer` with relevant skills is provided. If domestication changes, it pushes a "domesticationdelta" event, checks for state changes, and ensures the decay task is running.
-*   **Parameters:**
-    *   `delta`: `number` - The amount to add or subtract from the current domestication.
-    *   `doer`: `entity` (optional) - The entity (e.g., a player) responsible for the domestication change, used for skill checks.
+* **Description:** Adjusts domestication by `delta`, applying skill-based multipliers if `doer` has the `"beefalodomestication"` skill tag. Clamps value to `0..1`.
+* **Parameters:**  
+  - `delta` (number) — Amount to change domestication.  
+  - `doer` (Entity or `nil`) — The actor applying the domestication change. If omitted, defaults to current rider (if any).
+* **Returns:** Nothing.
 
 ### `DeltaTendency(tendency, delta)`
-*   **Description:** Adjusts the value of a specific behavioral tendency by the given `delta`. If the tendency doesn't exist, it's initialized.
-*   **Parameters:**
-    *   `tendency`: `string` - The name of the tendency to modify (e.g., "brave", "lazy").
-    *   `delta`: `number` - The amount to add to the tendency's value.
+* **Description:** Updates the numeric value of a named tendency.
+* **Parameters:**  
+  - `tendency` (string) — The name of the tendency (e.g., `"peaceful"`).  
+  - `delta` (number) — Amount to change the tendency value.
+* **Returns:** Nothing.
 
 ### `PauseDomesticationDecay(pause)`
-*   **Description:** Sets a flag to pause or unpause the decay of domestication. Obedience decay is unaffected.
-*   **Parameters:**
-    *   `pause`: `boolean` - `true` to pause decay, `false` to resume.
+* **Description:** Enables or disables decay of domestication (obedience decay continues unaffected).
+* **Parameters:** `pause` (boolean) — `true` to pause decay, `false` to resume.
+* **Returns:** Nothing.
 
 ### `TryBecomeDomesticated()`
-*   **Description:** Checks if the `domestication_latch` is set and, if so, calls `BecomeDomesticated()` to finalize the domestication process.
-*   **Parameters:** None.
-
-### `CancelTask()`
-*   **Description:** Cancels the periodic decay task if it is currently running.
-*   **Parameters:** None.
-
-### `CheckAndStartTask()`
-*   **Description:** Validates the current state and, if appropriate, starts the periodic decay task if it's not already running.
-*   **Parameters:** None.
+* **Description:** Attempts to transition to domesticated if the latch is set.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SetDomesticated(domesticated)`
-*   **Description:** Sets the internal `domesticated` flag and adds or removes the "domesticated" tag from the entity accordingly. Also triggers a validation check.
-*   **Parameters:**
-    *   `domesticated`: `boolean` - `true` to mark as domesticated, `false` otherwise.
+* **Description:** Explicitly sets the domesticated state and manages the `domesticated` tag and validation.
+* **Parameters:** `domesticated` (boolean)
+* **Returns:** Nothing.
 
 ### `IsDomesticated()`
-*   **Description:** Returns `true` if the entity is currently domesticated, `false` otherwise.
-*   **Parameters:** None.
+* **Description:** Returns whether the entity is currently domesticated.
+* **Parameters:** None.
+* **Returns:** boolean — `true` if domesticated, `false` otherwise.
 
 ### `SetMinObedience(min)`
-*   **Description:** Sets the minimum obedience level for the entity. If the current obedience is below this new minimum, it is adjusted upwards. Also ensures the decay task is running.
-*   **Parameters:**
-    *   `min`: `number` - The new minimum obedience value.
+* **Description:** Sets the minimum obedience threshold and corrects current obedience if below the new minimum.
+* **Parameters:** `min` (number)
+* **Returns:** Nothing.
 
 ### `OnSave()`
-*   **Description:** Gathers the current state of the component's properties into a table for saving persistence. Includes specific handling for the `rideable` component if present.
-*   **Parameters:** None.
+* **Description:** Serializes domestication state for saving, including optional rideable data.
+* **Parameters:** None.
+* **Returns:** table — Save data including `domestication`, `tendencies`, `domestication_latch`, `domesticated`, `obedience`, `minobedience`, `lastdomesticationgaindelta`, and `rideable`.
 
 ### `OnLoad(data, newents)`
-*   **Description:** Restores the component's state from saved `data`. Handles default values for missing data and specific loading for the `rideable` component if present. Ensures the decay task starts after loading.
-*   **Parameters:**
-    *   `data`: `table` - The saved data table.
-    *   `newents`: `table` - A table of new entities created during world loading (currently unused in this component's `OnLoad`).
+* **Description:** Restores domestication state from save data and initializes the decay task.
+* **Parameters:**  
+  - `data` (table or `nil`) — Save data from `OnSave()`.  
+  - `newents` (table) — Used for entity respawn resolution (passed to `rideable:OnLoadDomesticatable`).
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-*   **Description:** Returns a formatted string containing debug information about the entity's domestication, obedience, and tendencies.
-*   **Parameters:** None.
+* **Description:** Returns a human-readable debug string showing domestication status, obedience range, tendencies, and latch.
+* **Parameters:** None.
+* **Returns:** string — Debug representation of internal state.
 
-## Events & Listeners
-This component pushes the following events:
-
-*   `"goneferal"`: Triggered when the entity's domestication and hunger reach zero, indicating it has reverted to a wild state. Contains `domesticated` (boolean) indicating if it *was* previously domesticated.
-*   `"domesticated"`: Triggered when the entity fully reaches the domesticated state. Contains `tendencies` (table) reflecting its final behavioral tendencies.
-*   `"obediencedelta"`: Triggered when the entity's obedience level changes. Contains `old` (number) and `new` (number) obedience values.
-*   `"domesticationdelta"`: Triggered when the entity's domestication progress changes. Contains `old` (number) and `new` (number) domestication values.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:**  
+  - `"domesticated"` — fired when `BecomeDomesticated()` is called; payload includes `tendencies`.  
+  - `"goneferal"` — fired when entity becomes feral due to starvation and zero domestication; payload includes `domesticated`.  
+  - `"domesticationdelta"` — fired when domestication value changes; payload `{ old = number, new = number }`.  
+  - `"obediencedelta"` — fired when obedience value changes; payload `{ old = number, new = number }`.

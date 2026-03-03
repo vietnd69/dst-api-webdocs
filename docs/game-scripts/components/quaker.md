@@ -1,81 +1,95 @@
 ---
 id: quaker
 title: Quaker
-description: This component manages global earthquake events in DST, including timing, debris spawning, sound playback, and player-specific dropping logic during quakes.
+description: Manages environmental quaking events that spawn falling debris and trigger player-specific particle and audio effects in response to time, explosions, or forced triggers.
+tags: [environment, event, debris, world]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: c07f1a7b
+system_scope: environment
 ---
-
 # Quaker
 
-## Overview
-The Quaker component orchestrates large-scale environmental earthquakes across the world. It handles scheduling quake phases (waiting, warning, quaking), spawning debris based on terrain and configuration, managing player-specific drop timing, emitting earthquake sounds, and responding to game events like explosions, player joins/leaves, and mini-quakes. It runs exclusively on the master simulation and synchronizes playback state to clients via network variables.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on `TheWorld` and its components (`Map`, `SoundEmitter`, `riftspawner`, `rabbitkingmanager`).
-- Uses `SourceModifierList` to support pausing/quarantining earthquake activity.
-- Registers the network variables `quakesoundintensity` and `miniquakesoundintensity`.
-- Listens to common world-scoped events: `ms_playerjoined`, `ms_playerleft`, `ms_miniquake`, `ms_forcequake`, `explosion`, `pausequakes`, `unpausequakes`.
-- Adds no tags to entities.
+## Overview
+`Quaker` is a world-level component responsible for orchestrating timed quaking events, where debris (including items, animals, and structures) falls from above and may collide with or destroy nearby entities. It handles scheduling, state transitions (`WAITING`, `WARNING`, `QUAKING`), player-specific drop logic, and sound/camera effects. It integrates with physics, world topology, entities, and network replication to coordinate client-server behavior during quakes.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("quaker")
+inst.components.quaker:SetQuakeData({
+    warningtime = 7,
+    quaketime = function() return math.random(5, 10) + 5 end,
+    debrispersecond = function() return math.random(5, 6) end,
+    nextquake = function() return TUNING.TOTAL_DAY_TIME + math.random() * TUNING.TOTAL_DAY_TIME * 2 end,
+    mammals = 1,
+})
+```
+
+## Dependencies & tags
+**Components used:** `talker`, `workable`, `combat`, `inventoryitem`, `mine`, `childspawner`, `spawner`, `rabbitkingmanager`, `riftspawner`  
+**Tags added or removed:** None directly; checks tags on debris (`heavy`, `quakedebris`, `smashable`, `NPC_workable`, `INLIMBO`, etc.) to determine interactions.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Component` | `self.inst` passed to constructor | The owning entity (typically `TheWorld`) for the quaker component. |
-| `_debrispersecond` | `number` | `1` | Controls debris spawn rate (items per second) during an active quake. |
-| `_mammalsremaining` | `number` | `0` | Tracks remaining valid mammal spawns (rabbit, mole, carrat); prevents overpopulation during quakes. |
-| `_task` | `Task` | `nil` | Future task scheduled to transition between quake states (WAITING → WARNING → QUAKING). |
-| `_frequencymultiplier` | `number` | `TUNING.QUAKE_FREQUENCY_MULTIPLIER` | Global multiplier applied to next quake delay (e.g., for mod overrides). |
-| `_quakedata` | `table` | `nil` | Configuration data for quake timing, duration, debris, and mammals. Populated in initialization. |
-| `_debris` | `table` | Default loot table (rocks, flint, gems, etc.) | Global fallback debris table when no matching tile tag is found. |
-| `_tagdebris` | `table` | `{ lunacyarea = ..., nocavein = {} }` | Tile-tag-specific debris tables, indexed by tile tag name. |
-| `_activeplayers` | `table` | `{}` | List of players currently subscribed to quake debris events. |
-| `_scheduleddrops` | `table` | `{}` | Maps player entities to their pending drop-task references. |
-| `_pausesources` | `SourceModifierList` | Initialized with `boolean` mode and `false` default | Tracks paused states of earthquakes (e.g., from world mods or achievements). |
-| `_quakesoundintensity` | `net_tinybyte` | `0` | Network variable indicating quake sound intensity: `0` (off), `1` (warning), `2` (quaking). |
-| `_miniquakesoundintensity` | `net_bool` | `false` | Network variable indicating whether a mini-quake is playing. |
+| `inst` | `Entity` | — | Reference to the entity (typically the world or a world generator) that owns the `quaker` component. |
+| `_debrispersecond` | number | `1` | Current rate (debris per second) during a quake. |
+| `_mammalsremaining` | number | `0` | Remaining count of small mammals (`rabbit`, `mole`, `carrat`) allowed to drop during the current quake. |
+| `_quakedata` | table or `nil` | `nil` | Configuration data for quake timing, duration, and behavior. |
+| `_state` | `QUAKESTATE` enum | `nil` | Current state: `0 = WAITING`, `1 = WARNING`, `2 = QUAKING`. |
+| `_activeplayers` | table | `{}` | List of players currently registered to receive debris drops. |
+| `_scheduleddrops` | table | `{}` | Mapping from player → scheduled task for debris drops. |
+| `_frequencymultiplier` | number | `TUNING.QUAKE_FREQUENCY_MULTIPLIER` | Multiplier applied to quake frequency (used for tuning or debugging). |
+| `_quakesoundintensity` | `net_tinybyte` | `0` | Networked value representing main quake sound intensity (0 = none, 1 = warning, 2 = quaking). |
+| `_miniquakesoundintensity` | `net_bool` | `false` | Networked flag indicating whether a mini-quake sound is playing. |
+| `_pausesources` | `SourceModifierList` | — | Tracks sources that have paused quaking; stops quake events when any source is active. |
 
-## Main Functions
-
+## Main functions
 ### `SetQuakeData(data)`
-* **Description:** Sets the global quake configuration (timing, debris, mammals) and schedules the next quake if enabled (non-zero frequency multiplier).
-* **Parameters:** `data` — A table containing `warningtime`, `quaketime`, `debrispersecond`, `nextquake`, and optionally `mammals` fields, each supporting functions for dynamic values.
+* **Description:** Sets the configuration table for quaking behavior (timing, durations, rates) and schedules the next quake if `data` is valid and frequency is enabled.
+* **Parameters:** `data` (table) — Must contain keys like `warningtime`, `quaketime`, `debrispersecond`, `nextquake`, `mammals`. Each value may be a literal or a function returning a value.
+* **Returns:** Nothing.
+* **Error states:** No-op on non-master simulation (`_ismastersim == false`).
 
 ### `SetDebris(data)`
-* **Description:** Replaces the global fallback debris loot table.
-* **Parameters:** `data` — An array of debris table entries, each with `weight` (number) and `loot` (array of prefab names).
+* **Description:** Replaces the global debris drop table with the provided list. Each entry is a table with `weight` and `loot` (array of prefab names or identifiers).
+* **Parameters:** `data` (table) — Array of debris drop configurations.
+* **Returns:** Nothing.
+* **Error states:** No-op on non-master simulation.
 
 ### `SetTagDebris(tile, data)`
-* **Description:** Assigns or clears a tile-specific debris table (for overwriting fallback debris on specific tile types like `lunacyarea` or `nocavein`).
-* **Parameters:** `tile` — Tile tag string; `data` — Debris table or an empty table to prevent debris on that tile.
+* **Description:** Associates a custom debris table with a specific world topology tile (e.g., `"lunacyarea"`). Used to override debris based on location.
+* **Parameters:** `tile` (string) — Tile identifier/name in the world topology. `data` (table) — Debris table to use for that tile, or an empty table `{}` to produce no debris.
+* **Returns:** Nothing.
+* **Error states:** No-op on non-master simulation.
 
 ### `IsQuaking()`
-* **Description:** Returns `true` if a full quake or mini-quake is currently active (sound intensity > 1 or mini-quake active).
-* **Returns:** `boolean`
+* **Description:** Returns `true` if a main quake or mini-quake is currently active.
+* **Parameters:** None.
+* **Returns:** boolean — `true` if `_quakesoundintensity > 1` or `_miniquakesoundintensity` is `true`.
+* **Error states:** None.
 
-## Events & Listeners
-
+## Events & listeners
 - **Listens to:**
-  - `quakesoundintensitydirty`: Triggers `OnQuakeSoundIntensityDirty` on non-dedicated clients to manage global earthquake sound playback and intensity.
-  - `miniquakesoundintensitydirty`: Triggers `OnMiniQuakeSoundIntensityDirty` on non-dedicated clients to manage mini-quake sound playback.
-  - `ms_playerjoined` (on master): Triggers `OnPlayerJoined` to add player to active players list and schedule drops if quaking.
-  - `ms_playerleft` (on master): Triggers `OnPlayerLeft` to cancel pending drops and remove player from active list.
-  - `ms_miniquake` (on master): Triggers `OnMiniQuake` to handle mini-quake events (spawn debris, shake cameras, play sound).
-  - `ms_forcequake` (on master): Triggers `OnForceQuake` to immediately start a quake (full or override), returning `false` if already quaking.
-  - `explosion` (on master): Triggers `OnExplosion` to accelerate or skip warning phase depending on quake state.
-  - `pausequakes` (on master): Adds a pause modifier via `_pausesources`.
-  - `unpausequakes` (on master): Removes a pause modifier via `_pausesources`.
+  - `quakesoundintensitydirty` (client) — Updates earthquake sound playback and intensity based on `_quakesoundintensity` value.
+  - `miniquakesoundintensitydirty` (client) — Handles mini-quake sound playback.
+  - `ms_playerjoined` (master) — Registers new player and schedules drops if quaking.
+  - `ms_playerleft` (master) — Cancels pending debris drops for the leaving player.
+  - `ms_miniquake` (master) — Triggers a localized mini-quake with configurable parameters.
+  - `ms_forcequake` (master) — Immediately starts a quake if not already quaking.
+  - `explosion` (master) — Shortens remaining wait time or resets warning phase if an explosion occurs during a pending quake.
+  - `pausequakes` (master) — Adds a pause source via `_pausesources`.
+  - `unpausequakes` (master) — Removes a pause source via `_pausesources`.
+- **Pushes:**
+  - `startquake` — Fired when the quake phase begins; includes `duration` and `debrisperiod`.
+  - `warnquake` — Fired during the warning phase.
+  - `endquake` — Fired when a quake ends.
+  - `startfalling`, `stopfalling`, `detachchild`, `destroy` — Emitted by debris entities during simulation.
 
-- **Emits:**
-  - `startquake`: Sent when a full quake begins, with payload `{ duration = ..., debrisperiod = ... }`.
-  - `warnquake`: Sent during the warning phase before the main quake starts.
-  - `endquake`: Sent when a full quake ends (after quake time expires).
-
-## Events & Listeners
-*Listens to world-scoped events (as detailed in the table above). Does not emit any custom events beyond those listed.*
+## Events & listeners

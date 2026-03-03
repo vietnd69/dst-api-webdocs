@@ -1,87 +1,110 @@
 ---
 id: constructionbuilder
 title: Constructionbuilder
-description: This component manages an entity's capability to initiate, maintain, and complete construction projects by handling a temporary material container and interacting with construction sites.
+description: Manages the construction state and UI container for a builder entity performing construction tasks.
+tags: [crafting, inventory, state, container]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: f7a6c9cc
+system_scope: crafting
 ---
 
 # Constructionbuilder
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Constructionbuilder` component provides the core logic for an entity (typically a player) to engage in construction. It manages the state of an ongoing build project, including the temporary container that holds construction materials, and interacts directly with the `constructionsite` component of the target structure being built. This component handles starting, stopping, finishing, and persisting construction progress.
+`ConstructionBuilder` is a client-server aware component that coordinates the construction workflow for an entity (typically a player or controllable character). It tracks the active construction target (`constructionsite`), manages a temporary UI container (`constructioninst`), and synchronizes state transitions in the builder's stategraph (e.g., entering `construct`, `constructing`, or `construct_pst`). It depends on `ConstructionBuilderUIData` to expose the current container and target to the UI layer, and interacts with `ConstructionSite` to initiate/complete construction actions.
 
-## Dependencies & Tags
-This component relies on or interacts with the following:
-*   **`constructionsite` (component)**: Expected to be present on the target entity being built.
-*   **`container` (component)**: Expected to be present on the `constructioninst` (the temporary prefab spawned to hold materials).
-*   **`inventory` (component)**: Expected to be present on the `inst` (the builder entity) when stopping construction to return items.
-*   **`constructionbuilderuidata` (client-side component)**: This client-side component is expected to exist and is used to update the UI with information about the current construction container and target.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("constructionbuilder")
 
-**Tags Checked:**
-*   `burnt`: Checked on the target entity to prevent construction on burnt objects.
+-- Begin constructing a site
+local site = some_constructionsite_entity
+local success, reason = inst.components.constructionbuilder:StartConstruction(site)
+
+-- Finish construction (e.g., after player deposits all materials)
+if inst.components.constructionbuilder:FinishConstruction() then
+    -- Transition to post-construction state in the stategraph
+end
+
+-- Clean up on entity removal
+inst.components.constructionbuilder:StopConstruction()
+```
+
+## Dependencies & tags
+**Components used:** `constructionbuilderuidata`, `constructionsite`, `container`, `inventory`, `stategraph`
+**Tags:** None identified.
 
 ## Properties
-No public properties were clearly identified from the source. The component primarily uses internal state variables which are managed through its methods.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `constructioninst` | `Entity` or `nil` | `nil` | The temporary container entity used during construction (e.g., a crafting table or chest opened by the builder). |
+| `constructionsite` | `Entity` or `nil` | `nil` | The target `ConstructionSite` entity being built. |
 
-## Main Functions
-### `onconstructioninst(self, constructioninst)`
-*   **Description:** This internal setter function is triggered when `self.constructioninst` is updated. It delegates to the `constructionbuilderuidata` component to set the current construction container for UI display.
-*   **Parameters:**
-    *   `constructioninst` (Entity): The temporary prefab instance (e.g., a "build" container) associated with the current construction project.
-
-### `onconstructionsite(self, constructionsite)`
-*   **Description:** This internal setter function is triggered when `self.constructionsite` is updated. It delegates to the `constructionbuilderuidata` component to set the current target construction site for UI display.
-*   **Parameters:**
-    *   `constructionsite` (Entity): The target entity with a `constructionsite` component currently being built.
-
+## Main functions
 ### `CanStartConstruction()`
-*   **Description:** Determines if the entity is in a valid state to begin a new construction project. It checks if the entity's state graph is in the "construct" state and if there isn't an ongoing construction already.
-*   **Parameters:** None
+*   **Description:** Checks whether the builder is allowed to begin a new construction. Ensures the builder is in the `construct` state and not already constructing.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if construction can be started, `false` otherwise.
 
 ### `IsConstructing(constructioninst)`
-*   **Description:** Checks if the entity is currently constructing a *specific* temporary `constructioninst`.
-*   **Parameters:**
-    *   `constructioninst` (Entity): The specific temporary prefab instance to check against.
+*   **Description:** Verifies whether the builder is currently constructing a specific construction container instance.
+*   **Parameters:** `constructioninst` (`Entity` or `nil`) — the expected construction container to check.
+*   **Returns:** `boolean` — `true` if the current construction matches the provided instance, `false` otherwise.
 
 ### `IsConstructingAny()`
-*   **Description:** Checks if the entity is currently involved in *any* construction project. This is true if `self.constructioninst` is set and the entity's state graph is in the "constructing" state.
-*   **Parameters:** None
+*   **Description:** Checks whether the builder is actively in the `constructing` state and has a construction container.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if the builder is in the `constructing` state with a valid `constructioninst`, `false` otherwise.
 
 ### `StartConstruction(target)`
-*   **Description:** Initiates a construction project towards a specified target entity. It verifies the target's validity, spawns a temporary `constructioninst` prefab (e.g., a container for materials), sets it up as a child of the builder, opens its container for the builder, and updates the state graph. Returns `true` on success, or `false` with a reason string if construction cannot start.
-*   **Parameters:**
-    *   `target` (Entity): The entity with a `constructionsite` component that is intended to be built.
+*   **Description:** Attempts to begin construction on the given `ConstructionSite` entity. Opens the construction container, sets up event listeners, and transitions the builder to the `constructing` state.
+*   **Parameters:** `target` (`Entity` or `nil`) — the `ConstructionSite` to construct.
+*   **Returns:** `boolean` or `{boolean, string}` — `true` on success; `false` or `{false, "INUSE"/"BURNT"}` on failure (e.g., site already in use or burnt).
+*   **Error states:** Returns `"INUSE"` if the site already has a builder; `"BURNT"` if the site is burnt.
 
 ### `StopConstruction()`
-*   **Description:** Halts any ongoing construction project. If a `constructioninst` is active, it drops its contents (either to the builder's inventory or onto the ground) and removes itself. It also cleans up references to the `constructionsite` and notifies it that construction has stopped.
-*   **Parameters:** None
+*   **Description:** Aborts construction, cancels event listeners, drops or returns materials to the builder’s inventory, and removes the temporary container. Pushes the `stopconstruction` event.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `FinishConstruction()`
-*   **Description:** Prepares the construction for final completion. It verifies that a construction is active, the container is not empty, and the target `constructionsite` is enabled. It then closes the construction container and transitions the builder's state graph to "construct_pst". This is typically a precursor to `OnFinishConstruction`.
-*   **Parameters:** None
+*   **Description:** Verifies that all materials are in the construction container and transitions the builder to the `construct_pst` state (post-construction). Does *not* finalize the `ConstructionSite`; that is handled by `OnFinishConstruction`.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if the builder is ready to transition, `false` if conditions are not met.
 
 ### `OnFinishConstruction()`
-*   **Description:** Finalizes the construction project. This method is typically called after the builder has completed the "construct_pst" animation state. It gathers all items from the temporary `constructioninst` container, notifies the `constructionsite` to perform its build logic (consuming the items), and then cleans up the temporary `constructioninst` and references.
-*   **Parameters:** None
+*   **Description:** Finalizes construction by transferring materials from the container to the `ConstructionSite`, calling `ConstructionSite:OnConstruct`, and cleaning up temporary state.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `OnSave()`
-*   **Description:** Serializes the current construction state for saving. It returns a save record for the active `constructioninst` if one exists and its container is not empty.
-*   **Parameters:** None
+*   **Description:** Captures the current construction state for persistence. Returns data only if construction is in progress and the container has items.
+*   **Parameters:** None.
+*   **Returns:** `{ constructing = table }` or `nil` — save record containing the container’s state, or `nil` if not constructing.
 
 ### `OnLoad(data)`
-*   **Description:** Deserializes and restores a previously saved construction state. It spawns the `constructioninst` from the provided save data and re-establishes its connection to the builder entity.
-*   **Parameters:**
-    *   `data` (table): The save data containing information about the `constructioninst`.
+*   **Description:** Restores construction state from saved data. Recreates the container entity and reattaches it to the builder.
+*   **Parameters:** `data` (`table` or `nil`) — save data from `OnSave`.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-*   **Listens For:**
-    *   `onremove` (from `self.constructionsite`): If the target `constructionsite` entity is removed while construction is active, `StopConstruction()` is called.
-*   **Pushes/Triggers:**
-    *   `stopconstruction` (on `self.inst`): Pushed when `StopConstruction()` is called, indicating that construction has ceased.
+### `OnRemoveFromEntity`
+*   **Description:** Alias for `StopConstruction`, invoked automatically when the component is removed from its entity.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `OnRemoveEntity`
+*   **Description:** Alias for `StopConstruction`, invoked automatically when the owning entity is destroyed.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:** `onremove` — triggered on the `constructionsite` entity to abort construction if the site is removed.
+- **Pushes:** `stopconstruction` — fired when `StopConstruction` is called.

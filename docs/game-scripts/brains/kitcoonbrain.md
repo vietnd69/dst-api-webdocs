@@ -1,127 +1,71 @@
 ---
 id: kitcoonbrain
 title: Kitcoonbrain
-description: Controls the decision-making logic for Kitcoon entities, handling behaviors like following the owner, avoiding combat, playing with toys, and interacting with minigames.
+description: Manages the AI behavior of a kitcoon, handling owner following, combat avoidance, playful interactions with other kitcoons and toys, and minigame observation.
+tags: [ai, mob, companion, minigame]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 0a44d87e
+system_scope: brain
 ---
 
 # Kitcoonbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **7140014** | Last updated: 2026-03-03
 
 ## Overview
-The `KitcoonBrain` component implements the behavior tree logic for Kitcoon entities in Don't Starve Together. It orchestrates high-level decision making, prioritizing behaviors such as staying near and following the owner, avoiding active combat, playing with toys or other Kitcoons, and watching minigames when the owner participates. The brain integrates several behaviors (`Follow`, `Wander`, `FaceEntity`, `Panic`, `RunAway`, `StandStill`, `Leash`) and dynamically selects the most appropriate action based on context provided by multiple components.
+`KitcoonBrain` is an AI brain component for the kitcoon prefab, implementing behavior trees to orchestrate movement, social, and reactive behaviors. It extends `Brain` and coordinates interactions with the `follower`, `entitytracker`, `combat`, `locomotor`, `sleeper`, `burnable`, and `minigame_participator` components. The kitcoon follows its owner under normal conditions, avoids ongoing combat, plays with toys or other kitcoons, and may watch minigames if the owner participates in one.
 
-## Dependencies & Tags
-- **Components used:**
-  - `burnable` (via `IsBurning`)
-  - `combat` (to check combat participation)
-  - `entitytracker` (to locate owner, home den, and nearby entities)
-  - `follower` (to retrieve owner/leader)
-  - `grouptargeter` (to check if entity is targeting the owner)
-  - `locomotor` (to check if owner is moving)
-  - `minigame` (to access minigame watch distances)
-  - `minigame_participator` (to detect if owner is in a minigame)
-  - `sleeper` (to avoid playing with sleeping entities)
-  - `timer` (to check for panic state)
-- **Tags:** The brain references tags such as `"busy"`, `"playerghost"`, `"kitcoon"`, `"cattoy"`, `"cattoyairborne"`, `"catfood"`, `"scarytoprey"`, `"_combat"`, `"_health"`, `"wall"`, `"INLIMBO"`, `"FX"`, `"NOCLICK"`, `"DECOR"`, `"stump"`, `"burnt"`, `"notarget"`, `"flight"`, `"fire"`, `"irreplaceable"` for filtering and conditionals. It does not directly manipulate tags but reads them via `FindEntity` and `HasTag` calls.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("brain")
+inst.components.brain:SetBrain("kitcoonbrain")
+-- Additional setup (tags, follower component, etc.) required for full functionality
+```
+
+## Dependencies & tags
+**Components used:** `follower`, `entitytracker`, `combat`, `locomotor`, `sleeper`, `burnable`, `minigame_participator`, `grouptargeter`, `timer`, `minigame`  
+**Tags:** Checks for and temporarily removes/ restores tags: `cattoy`, `cattoyairborne`, `catfood`, `busy`, `kitcoon`, `FX`, `NOCLICK`, `DECOR`, `INLIMBO`, `stump`, `burnt`, `notarget`, `flight`, `fire`, `irreplaceable`
 
 ## Properties
-The `KitcoonBrain` class has no public properties beyond inherited Behavior Tree (`BT`) state. All internal logic is driven by local functions and node data captured in the behavior tree.
+No public properties.
 
-## Main Functions
-### `KitcoonBrain:OnStart()`
-* **Description:** Initializes the behavior tree by constructing a priority-based hierarchy of behavior nodes. This method defines the full behavioral sequence, including combat avoidance, minigame watching, toy play, affection, and wandering.
+## Main functions
+### `GetOwner(inst)`
+* **Description:** Returns the kitcoon's owner via the `follower` component, or `nil`.
+* **Parameters:** `inst` (entity instance) — the kitcoon entity.
+* **Returns:** `inst` or `nil` — the owner entity, or `nil` if not set.
+
+### `ShouldPanic(inst)`
+* **Description:** Determines if the kitcoon should panic (e.g., due to owner being absent or its den burning).
+* **Parameters:** `inst` (entity instance) — the kitcoon entity.
+* **Returns:** `true` if the panic timer exists or the den is burning; otherwise `false`.
+
+### `FindPlaymate(self)`
+* **Description:** Attempts to locate or retain a nearby kitcoon to play with, based on cooldowns, proximity, and availability.
+* **Parameters:** `self` (brain instance) — the kitcoon brain.
+* **Returns:** `true` if a valid playmate is found or retained; otherwise `false`.
+
+### `PlayAction(inst)`
+* **Description:** Finds and initiates playing with a compatible toy or food item.
+* **Parameters:** `inst` (entity instance) — the kitcoon entity.
+* **Returns:** A `BufferedAction` on success, or `nil` if no valid target or in a `busy` state.
+
+### `WatchingMinigame(inst)`
+* **Description:** Returns the `minigame` component of the owner if the owner is a participator.
+* **Parameters:** `inst` (entity instance) — the kitcoon entity.
+* **Returns:** The `minigame` component or `nil`.
+
+### `OnStart()`
+* **Description:** Constructs and assigns the behavior tree on brain initialization. Defines priority-based logic including: standing when being named, panicking, following/avoiding owner, watching minigames, playing, and wandering.
 * **Parameters:** None.
 * **Returns:** None.
 
-### `GetOwner(inst)`
-* **Description:** Helper that retrieves the Kitcoon’s owner/leader from the `follower` component.
-* **Parameters:** `inst` — the Kitcoon entity instance.
-* **Returns:** The leader instance, or `nil` if not present.
-
-### `OwnerIsClose(inst)`
-* **Description:** Determines if the owner is within a maximum follow distance.
-* **Parameters:** `inst` — the Kitcoon entity instance.
-* **Returns:** `true` if owner exists and is within `MAX_FOLLOW_DIST` units; otherwise `false`.
-
-### `GetDenPos(inst)`
-* **Description:** Retrieves the position of the Kitcoon’s den (home entity) tracked via `entitytracker`.
-* **Parameters:** `inst` — the Kitcoon entity instance.
-* **Returns:** Position vector of the den, or `nil` if den is not found.
-
-### `LoveOwner(inst)`
-* **Description:** Attempts to initiate a nuzzle action toward the owner, respecting timing and luck constraints.
-* **Parameters:** `inst` — the Kitcoon entity instance.
-* **Returns:** Action result (via `BufferedAction`), or `nil` if conditions are not met.
-
-### `_avoidtargetfn(self, target)`
-* **Description:** Core combat-avoidance predicate. Determines if a given entity represents a dangerous combat situation the Kitcoon should avoid.
-* **Parameters:**  
-  - `self` — the behavior context.  
-  - `target` — the entity to evaluate for combat threat.
-* **Returns:** `true` if the target poses a combat risk to the owner (per proximity, active targeting, or recent combat); otherwise `false`.
-
-### `CombatAvoidanceFindEntityCheck(self)`
-* **Description:** Factory function returning a filter predicate for `FindEntity`, used to locate combat threats for avoidance.
-* **Parameters:** `self` — the behavior context.
-* **Returns:** A function `(ent) -> boolean` that evaluates if `ent` should trigger combat avoidance.
-
-### `ValidateCombatAvoidance(self)`
-* **Description:** Re-validates an active combat avoidance state to ensure the threat persists and remains in range before terminating it.
-* **Parameters:** `self` — the behavior context.
-* **Returns:** `true` if the combat threat remains valid and within range; otherwise `false`.
-
-### `ShouldPanic(inst)`
-* **Description:** Checks if the Kitcoon should enter a panic state (due to explicit panic timer or a burning den).
-* **Parameters:** `inst` — the Kitcoon entity instance.
-* **Returns:** `true` if panic timer exists or den is burning; otherwise `false`.
-
-### `FindPlaymate(self)`
-* **Description:** Attempts to locate or retain a nearby Kitcoon playmate, respecting play cooldowns, proximity to owner, and sleep state.
-* **Parameters:** `self` — the behavior context.
-* **Returns:** `true` if a valid playmate is found or retained; otherwise `false`.
-
-### `TargetCanPlay(self, target, owner)`
-* **Description:** Verifies if a given entity is eligible to play (e.g., not busy, not sleeping, on passable terrain).
-* **Parameters:**  
-  - `self` — the behavior context.  
-  - `target` — the candidate playmate.  
-  - `owner` — the Kitcoon’s owner.
-* **Returns:** `true` if the target can play; otherwise `false`.
-
-### `PlayAction(inst)`
-* **Description:** Attempts to play with a nearby toy or food item, reserving it briefly to prevent concurrent access.
-* **Parameters:** `inst` — the Kitcoon entity instance.
-* **Returns:** A `BufferedAction` or `nil` if no valid target or cooldown active.
-
-### `GetFollowToy(inst)`
-* **Description:** Retrieves the current toy object being followed, if valid and not in limbo.
-* **Parameters:** `inst` — the Kitcoon entity instance.
-* **Returns:** The toy entity, or `nil`.
-
-### `WatchingMinigame(inst)`
-* **Description:** Returns the minigame the Kitcoon’s owner is participating in, if any.
-* **Parameters:** `inst` — the Kitcoon entity instance.
-* **Returns:** The `minigame` component instance, or `nil`.
-
-### `WatchingMinigame_MinDist(inst)`, `WatchingMinigame_TargetDist(inst)`, `WatchingMinigame_MaxDist(inst)`
-* **Description:** Convenience helpers returning minigame watch distance thresholds (`watchdist_min`, `watchdist_target`, `watchdist_max`) from the owner’s minigame component.
-* **Parameters:** `inst` — the Kitcoon entity instance.
-* **Returns:** Float value of the respective distance threshold, or `0` if no minigame.
-
-## Events & Listeners
-- **Pushes:**
-  - `"critter_avoidcombat"` with `{avoid=true}` or `{avoid=false}` — to notify system of combat avoidance entry/exit.
-  - `"start_playwithplaymate"` with `{target=playfultarget}` — to signal intent to interact with playmate.
-  - `"on_played_with"` with `target` — fired after successfully playing with a toy.
-
-- **Listens to:**
-  - None defined in this brain (all event usage is via pushing; listening is handled by external systems like state graphs or other components).
+## Events & listeners
+- **Listens to:** None (no `inst:ListenForEvent` calls are present).
+- **Pushes:** `critter_avoidcombat`, `start_playwithplaymate`, `on_played_with`

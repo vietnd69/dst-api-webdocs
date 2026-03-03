@@ -1,118 +1,228 @@
 ---
 id: builder
 title: Builder
-description: Manages an entity's ability to craft items, learn recipes, and interact with prototyping stations.
+description: Manages crafting recipes, prototyper access, tech tree progress, and ingredient consumption for builder-type entities.
+tags: [crafting, inventory, player, techtree]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: crafting
+category_type: components
 source_hash: 4e2bad0f
+system_scope: crafting
 ---
 
 # Builder
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The Builder component is the core of the crafting system for player characters. It manages all aspects of crafting, including tracking learned recipes, calculating accessible technology levels from nearby crafting stations (prototypers), and handling the consumption of ingredients. It also manages character-specific crafting bonuses, temporary tech boosts, and "buffered" builds for placeable structures. This component is essential for any entity that can create items or structures from recipes.
+`Builder` is a core component that enables entities (primarily players) to craft items, access prototyper machines, manage unlocked recipes, and consume ingredient costs—including character-based costs like health, sanity, and tech-levels. It integrates with `inventory`, `craftingstation`, `prototyper`, `sanity`, `health`, `hunger`, `locomotor`, `petleash`, and `itemmimic` components, and synchronizes state via replica updates.
 
-## Dependencies & Tags
+The component dynamically evaluates nearby prototyper machines, updates accessible tech trees (including bonuses and temporary bonuses), and supports buffered builds, free build mode, and ingredient mimics.
 
-**Dependencies:**
-* `inventory`: Required for checking and removing item ingredients.
-* `health`: Used for recipes that have a health cost.
-* `sanity`: Used for recipes with a sanity cost and for the sanity gain upon learning a new recipe.
-* `locomotor`: Used to initiate the `BUILD` action.
-* `rider`: Checked to prevent crafting while mounted.
-* `petleash`: Checked for recipes with pet-related restrictions.
+## Usage example
+```lua
+local inst = ThePlayer
+inst:AddComponent("builder")
 
-**Tags:**
-* `prototyper`: The Builder scans for entities with this tag to determine available crafting stations.
-* `hungrybuilder`: If the owner has this tag, crafting can consume Hunger for a speed boost.
-* `INLIMBO`, `fire`: Tags on a prototyper that will prevent it from being used.
-* `builder_tag` / `no_builder_tag`: Specific tags on the owner that can be required (or disallowed) by certain recipes.
+-- Unlock a specific recipe (requires tech and recipe constraints)
+inst.components.builder:UnlockRecipe("stone_pickaxe")
+
+-- Check if a recipe is known and buildable
+if inst.components.builder:KnowsRecipe("stone_pickaxe") then
+    -- Attempt to build at a position
+    inst.components.builder:MakeRecipe("stone_pickaxe", inst:GetPosition(), 0, nil)
+end
+
+-- Set free build mode (grants access to all recipes)
+inst.components.builder:GiveAllRecipes()
+```
+
+## Dependencies & tags
+**Components used:** `container`, `craftingstation`, `equippable`, `giftreceiver`, `health`, `hunger`, `inventory`, `inventoryitem`, `itemmimic`, `locomotor`, `petleash`, `prototyper`, `rider`, `sanity`, `skilltreeupdater`, `stackable`, `talker`  
+**Tags added/removed:** None identified by `Builder` itself. It checks tags like `"INLIMBO"`, `"fire"`, `"prototyper"`, and `v.owner_tag` from `CUSTOM_RECIPETABS`.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
-|---|---|---|---|
-| `recipes` | `table` | `{}` | A list of recipe names the entity has permanently unlocked. |
-| `station_recipes` | `table` | `{}` | A map of recipe names available from the current crafting station. |
-| `accessible_tech_trees` | `table` | `TechTree.Create()` | The current effective technology levels, including from stations and all bonuses. |
-| `accessible_tech_trees_no_temp` | `table` | `TechTree.Create()` | The current technology levels, excluding any temporary bonuses. |
-| `current_prototyper` | `Entity` | `nil` | The crafting station entity the builder is currently using. |
-| `buffered_builds` | `table` | `{}` | A map of recipe names for which ingredients have been consumed but the item has not yet been placed in the world. |
-| `ingredientmod` | `number` | `1` | A multiplier affecting the number of ingredients required for crafting. A value less than 1 represents a discount. |
-| `freebuildmode` | `boolean` | `false` | If true, the entity can craft anything without needing ingredients. |
-| `exclude_tags` | `table` | `{ "INLIMBO", "fire", ... }` | A list of tags that will prevent a nearby prototyper from being used. |
+|----------|------|---------------|-------------|
+| `recipes` | table (array of strings) | `{}` | List of unlocked recipe names (by name). |
+| `station_recipes` | table (key: string, value: number or `true`) | `{}` | Recipes available via current crafting station; `true` if unlimited, otherwise max allowed per station. |
+| `accessible_tech_trees` | TechTree | `TechTree.Create()` | Current effective tech levels (base + temp bonuses). |
+| `accessible_tech_trees_no_temp` | TechTree | `TechTree.Create()` | Tech levels without temporary bonuses. |
+| `old_accessible_tech_trees` | table | `{}` | Backup of previous tech tree for change detection. |
+| `current_prototyper` | Entity (optional) | `nil` | Closest valid prototyper machine in range. |
+| `buffered_builds` | table | `{}` | Set of recipe names that are buffered for build-on-command. |
+| `ingredientmod` | number | `1` | Multiplier for ingredient amounts (e.g., from equipment like chef’s hat). |
+| `freebuildmode` | boolean | `false` | If `true`, skip ingredient/recipe checks and grant access to all recipes. |
+| `override_current_prototyper` | Entity (optional) | `nil` | Override used to force a specific prototyper. |
+| `exclude_tags` | table | `{"INLIMBO", "fire"}` | Tags that exclude prototyper entities from consideration. |
+| `temptechbonus_count` | number (optional) | `nil` | Counter for how many pending temp bonus consumptions exist. |
 
-## Main Functions
+## Main functions
+### `ActivateCurrentResearchMachine(recipe)`
+*   **Description:** Attempts to activate the current prototyper/crafting station to prototype a recipe (e.g., to unlock it).
+*   **Parameters:** `recipe` (table or string) — Recipe to activate.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `current_prototyper` is invalid or missing `prototyper` component.
+
+### `OnSave()`
+*   **Description:** Serializes state for world save, including buffered builds, unlocked recipes, hungry builder state, and temporary tech bonuses.
+*   **Parameters:** None.
+*   **Returns:** Table containing `buffered_builds`, `recipes`, `hungrytime`, `hungrypt`, `tempbonuses`, `temptechbonus_count`.
+
+### `OnLoad(data)`
+*   **Description:** Restores builder state from save data.
+*   **Parameters:** `data` (table) — Serialized builder state.
+*   **Returns:** Nothing.
+
+### `IsBuildBuffered(recname)`
+*   **Description:** Checks if `recname` is currently buffered for later build.
+*   **Parameters:** `recname` (string) — Recipe name.
+*   **Returns:** `boolean` — Whether the recipe is buffered.
 
 ### `GiveAllRecipes()`
-Toggles `freebuildmode`. When enabled, all recipes become available without ingredient costs. This also pushes an `unlockrecipe` event to refresh the crafting UI.
+*   **Description:** Toggles free build mode (grants access to all recipes) and fires `unlockrecipe`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `UnlockRecipe(recname)`
-* **Description:** Permanently learns a recipe for the character. This grants a medium sanity boost, adds the recipe to the `recipes` table, and pushes an `unlockrecipe` event. Will not unlock recipes marked as `nounlock`.
-* **Parameters:**
-    * `recname` (`string`): The name of the recipe to unlock.
+### `UnlockRecipesForTech(tech)`
+*   **Description:** Unlocks all recipes whose tech levels are satisfied by `tech`.
+*   **Parameters:** `tech` (table) — Tech level map.
+*   **Returns:** Nothing.
+
+### `GetTechBonuses()`
+*   **Description:** Returns combined permanent and temporary tech bonuses.
+*   **Parameters:** None.
+*   **Returns:** Table mapping tech keys (e.g., `"PERCEPTION"`) to numeric bonus values.
+
+### `GetTempTechBonuses()`
+*   **Description:** Returns only temporary tech bonuses.
+*   **Parameters:** None.
+*   **Returns:** Table mapping tech keys to temporary bonus values.
+
+### `GiveTempTechBonus(tech)`
+*   **Description:** Applies temporary tech bonuses and increments `temptechbonus_count`.
+*   **Parameters:** `tech` (table) — Map of tech keys to bonus values.
+*   **Returns:** Nothing.
+
+### `ConsumeTempTechBonuses()`
+*   **Description:** Decrements `temptechbonus_count` and clears temp bonuses if count reaches `0`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Asserts in dev builds if called without `temptechbonus_count` set.
 
 ### `EvaluateTechTrees()`
-* **Description:** This is the core update function for the component. It scans for nearby entities with the `prototyper` tag, determines the closest valid one, and calculates the final accessible technology levels by combining station tech with the character's inherent and temporary bonuses. It updates the client with any changes to tech levels or available station-specific recipes.
+*   **Description:** Scans nearby prototyper entities, updates accessible tech trees, syncs crafting station recipes, and notifies listeners of changes. Also updates gift machine state.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `UsePrototyper(prototyper)`
-* **Description:** Attempts to force the builder to use a specific prototyping station. This is used for actions like right-clicking on a science machine. It will fail if the target is invalid or if crafting is disabled.
-* **Parameters:**
-    * `prototyper` (`Entity`): The crafting station entity to use.
+*   **Description:** Forces the builder to use a specific prototyper (overrides automatic selection).
+*   **Parameters:** `prototyper` (Entity or `nil`) — Prototyper instance.
+*   **Returns:** `boolean` — Success; `fail_reason` string if failure (e.g., `"RESTRICTEDTAG"`).
+*   **Error states:** Returns `false` if target lacks `prototyper` tag, is excluded by `exclude_tags`, or fails `restrictedtag` checks.
+
+### `AddRecipe(recname)`
+*   **Description:** Adds a recipe to the unlocked list and replicates addition.
+*   **Parameters:** `recname` (string) — Recipe name.
+*   **Returns:** Nothing.
+
+### `RemoveRecipe(recname)`
+*   **Description:** Removes a recipe from the unlocked list and replicates removal.
+*   **Parameters:** `recname` (string) — Recipe name.
+*   **Returns:** Nothing.
+
+### `UnlockRecipe(recname)`
+*   **Description:** Unlocks a recipe, grants sanity, and fires `unlockrecipe` event.
+*   **Parameters:** `recname` (string) — Recipe name.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if recipe does not exist or has `nounlock = true`.
+
+### `GetIngredientWetness(ingredients)`
+*   **Description:** Computes average wetness of ingredients based on item moisture and world wetness.
+*   **Parameters:** `ingredients` (table) — Map of item instances to counts.
+*   **Returns:** number — Total wetness sum.
+
+### `GetIngredients(recname)`
+*   **Description:** Finds and returns ingredient items and their available counts for `recname`.
+*   **Parameters:** `recname` (string) — Recipe name.
+*   **Returns:** `ingredients` (table), `discounted` (boolean). `ingredients` maps item types to slot/item counts; `discounted` indicates if some ingredients fell short.
+
+### `CheckIngredientsForMimic(ingredients)`
+*   **Description:** Scans ingredients for item mimics; triggers evil reveal if found.
+*   **Parameters:** `ingredients` (table) — Map of item instances to counts.
+*   **Returns:** `boolean` — `true` if any mimic triggered.
+
+### `CheckDiscountEquipsForMimic()`
+*   **Description:** Scans equipped items (e.g., green amulet) for mimics.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if mimic triggered.
+
+### `RemoveIngredients(ingredients, recname, discounted)`
+*   **Description:** Deducts items from inventory and applies character-based costs (health, sanity, etc.). Skips if `freebuildmode`.
+*   **Parameters:** `ingredients` (table), `recname` (string), `discounted` (boolean).
+*   **Returns:** Nothing.
+
+### `HasCharacterIngredient(ingredient)`
+*   **Description:** Checks if the builder meets character-based ingredient requirements.
+*   **Parameters:** `ingredient` (table) — `{type = HEALTH | MAX_HEALTH | SANITY | MAX_SANITY, amount = number}`.
+*   **Returns:** `canafford` (boolean), `current_amount` (number or `0`).
+
+### `HasTechIngredient(ingredient)`
+*   **Description:** Checks if the builder meets tech-level ingredient requirements.
+*   **Parameters:** `ingredient` (table) — `{type = TECH_MATERIAL, amount = number}`.
+*   **Returns:** `canafford` (boolean), `level` (number or `0`).
+
+### `MakeRecipe(recipe, pt, rot, skin, onsuccess)`
+*   **Description:** Prepares a buffered build action (not immediate).
+*   **Parameters:** `recipe` (table), `pt` (Vector3 or `nil`), `rot` (number), `skin` (string), `onsuccess` (function or `nil`).
+*   **Returns:** `boolean` — `true` if buffered action was queued.
 
 ### `DoBuild(recname, pt, rotation, skin)`
-* **Description:** Executes the final step of crafting. It consumes ingredients (unless in free build mode or if it's a buffered build), spawns the product, and places it in the player's inventory or in the world. It also handles logic for special cases like the `hungrybuilder` perk and item mimics.
-* **Parameters:**
-    * `recname` (`string`): The name of the recipe to build.
-    * `pt` (`Point`): The world position to build the item at (for structures).
-    * `rotation` (`number`): The rotation to apply to the placed structure.
-    * `skin` (`string`): The name of the skin to apply to the crafted item.
+*   **Description:** Performs full crafting logic: checks ingredients, spawns product, modifies inventory/character stats, handles stacking/equipping.
+*   **Parameters:** `recname` (string), `pt` (Vector3), `rotation` (number), `skin` (string).
+*   **Returns:** `success` (boolean), `failure_reason` (string or `nil`) — `"MOUNTED"`, `"HASPET"`, `"ITEMMIMIC"`, or `nil`.
+*   **Error states:** No-op if built from a mounted entity, invalid prototyper, or mimics present.
 
-### `KnowsRecipe(recipe, ignore_tempbonus)`
-* **Description:** Checks if the builder can craft a given recipe. It verifies against permanently unlocked recipes, station-specific recipes, and current technology levels. It also checks for character-specific tag and skill requirements.
-* **Parameters:**
-    * `recipe` (`string` or `table`): The recipe name or recipe data table.
-    * `ignore_tempbonus` (`boolean`): If true, temporary tech bonuses will not be considered in the calculation.
+### `KnowsRecipe(recipe, ignore_tempbonus, cached_tech_trees)`
+*   **Description:** Checks if the recipe is known, unlocked, or available via temp bonus or free build.
+*   **Parameters:** `recipe` (string or table), `ignore_tempbonus` (boolean), `cached_tech_trees` (table, optional).
+*   **Returns:** `boolean`.
 
 ### `HasIngredients(recipe)`
-* **Description:** Checks if the builder possesses all the necessary item and character-stat ingredients (like health or sanity) to craft a given recipe.
-* **Parameters:**
-    * `recipe` (`string` or `table`): The recipe name or recipe data table.
+*   **Description:** Checks if all ingredient, character, and tech requirements for a recipe are met.
+*   **Parameters:** `recipe` (string or table).
+*   **Returns:** `boolean`.
+
+### `CanBuild(recipe_name)`
+*   **Description:** *Deprecated*. Alias for `HasIngredients(recipe)`.
+*   **Parameters:** `recipe_name` (string).
+*   **Returns:** `boolean`.
+
+### `CanLearn(recname)`
+*   **Description:** Checks if the recipe’s builder/skill constraints are satisfied (ignores unlocks).
+*   **Parameters:** `recname` (string).
+*   **Returns:** `boolean`.
 
 ### `MakeRecipeFromMenu(recipe, skin)`
-* **Description:** An RPC function called from the client when a player clicks a recipe in the crafting menu. It performs validation and then initiates the crafting process via `MakeRecipe`. For recipes that are ingredients for another item, it can recursively craft the prerequisite.
-* **Parameters:**
-    * `recipe` (`table`): The recipe data table.
-    * `skin` (`string`): The name of the skin selected by the player.
+*   **Description:** Handles crafting initiated from an open inventory UI, including recipe buffering and ingredient substitution for nested recipes.
+*   **Parameters:** `recipe` (table), `skin` (string).
+*   **Returns:** Nothing.
 
 ### `BufferBuild(recname)`
-* **Description:** An RPC function called from the client for placeable items. It consumes the ingredients immediately but does not spawn the item. Instead, it "buffers" the build, allowing the player to enter placement mode. The actual item is created later by `MakeRecipeAtPoint`.
-* **Parameters:**
-    * `recname` (`string`): The name of the recipe to buffer.
+*   **Description:** Buffers a build action for later execution (placers only), consuming ingredients and unlocking if possible.
+*   **Parameters:** `recname` (string).
+*   **Returns:** Nothing.
+*   **Error states:** No-op if inventory not open, non-placer, already buffered, or ingredients missing.
 
-### `MakeRecipeAtPoint(recipe, pt, rot, skin)`
-* **Description:** An RPC function called from the client when a player confirms the placement of a buffered build. It calls `MakeRecipe` to create the final structure at the specified location.
-* **Parameters:**
-    * `recipe` (`table`): The recipe data table.
-    * `pt` (`Point`): The world position to place the structure.
-    * `rot` (`number`): The final rotation of the structure.
-    * `skin` (`string`): The skin to apply to the structure.
+### `LongUpdate(dt)`
+*   **Description:** Updates time-sensitive state like `last_hungry_build`.
+*   **Parameters:** `dt` (number) — Delta time in seconds.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-
-This component pushes the following events:
-
-*   **`unlockrecipe`**: Fired when a recipe is learned or when `freebuildmode` is toggled.
-*   **`techtreechange`**: Fired when the available technology levels change, typically after moving near or away from a crafting station.
-*   **`makerecipe`**: Fired when a crafting action is initiated.
-*   **`consumeingredients`**: Fired after ingredients have been removed from the player's inventory for a craft.
-*   **`consumehealthcost`**: Fired specifically when a craft costs health.
-*   **`builditem`**: Fired when an inventory item has been successfully crafted.
-*   **`buildstructure`**: Fired when a structure has been successfully built in the world.
-*   **`refreshcrafting`**: Fired when a build is successfully initiated, used to update UI.
-*   **`hungrybuild`**: Fired when a character with the `hungrybuilder` tag performs a fast craft.
+## Events & listeners
+- **Listens to:** `onremove` (via `inst:ListenForEvent`) for doers (players) when using prototyper machines.
+- **Pushes:** `unlockrecipe`, `healthdelta`, `sanitydelta`, `builditem`, `buildstructure`, `consumeingredients`, `refreshcrafting`, `techtreechange`, `hungrybuild`, `makerecipe`.
+- **Replica updates:** Sets `IsBuildBuffered`, `AddRecipe`, `RemoveRecipe`, `SetTechTrees`, `SetTechBonus`, `SetTempTechBonus`, `SetIngredientMod`, `SetIsFreeBuildMode`, `SetCurrentPrototyper`, `SetRecipeCraftingLimit`.

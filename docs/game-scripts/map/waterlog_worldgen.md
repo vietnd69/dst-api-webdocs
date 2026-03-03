@@ -3,8 +3,7 @@ id: waterlog_worldgen
 title: Waterlog Worldgen
 description: Generates waterlog terrain features and marker entities in ocean regions during world generation.
 tags: [worldgen, terrain, entity, ocean]
-sidebar_position: 1
-
+sidebar_position: 100
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: 43184cf5
 ---
-
 # Waterlog Worldgen
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -61,4 +59,3 @@ No properties are defined on a per-instance basis because this script is a modul
 ## Events & listeners
 None. This script does not register or dispatch any events.
 
----

@@ -1,76 +1,95 @@
 ---
 id: leashandavoid
 title: Leashandavoid
-description: A behaviour node that moves an entity toward a home location while avoiding an optional target object, ceasing movement if the entity is within the leash radius or succeeding when the return distance is reached.
+description: Manages AI movement to return an entity toward a home location while optionally avoiding specified obstacles, used primarily for leash-based behavior in world navigation.
+tags: [ai, locomotion, pathfinding]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: behaviour
-system_scope: entity
+category_type: behaviours
 source_hash: 7d8f022b
+system_scope: locomotion
 ---
 
 # Leashandavoid
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Leashandavoid` component is a behaviour node (inheriting from `BehaviourNode`) used in the AI decision-making system. It controls entity movement by navigating toward a specified home position while optionally avoiding a detected target object, and enforces a *leash* distance boundary. If the entity strays outside the leash distance, it attempts to return; if it gets too far beyond a stricter *return* distance, it actively moves toward home using the locomotor. Once it re-enters the return radius, the behaviour succeeds.
+`Leashandavoid` is a behaviour node used in the AI state machine system to enforce a "leash" mechanic — moving an entity back toward a designated home position while avoiding certain objects or danger zones. It inherits from `BehaviourNode` and integrates with the `locomotor` component to issue movement commands. The behaviour succeeds once the entity re-enters the allowed return radius around the home position, or fails if the home position is invalid or the entity is within the leash radius at activation. It optionally computes avoidance offsets around targets identified by a provided callback function.
 
-This behaviour is primarily used for AI entities that must patrol, tether, or retreat within a bounded area (e.g., domesticated creatures, stationary guardians), and integrates with the `Locomotor` component for movement control.
+## Usage example
+```lua
+inst:AddComponent("locomotor")
+inst:AddBehaviourNode("leashandavoid", {
+    findavoidanceobjectfn = function(ent) return ent.components.combat and ent.components.combat.target or nil end,
+    avoid_dist = 2.5,
+    homelocation = Vector3(0, 0, 0),
+    max_dist = 15,
+    inner_return_dist = 10,
+    running = true
+})
+```
 
-## Dependencies & Tags
-- **Components used:**  
-  - `inst.components.locomotor` — Accessed to call `GoToPoint` and `Stop`.
-- **Tags:** None identified.
+## Dependencies & tags
+**Components used:** `locomotor`
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `homepos` | `vector3 | function` | — | Target position (either a `vector3` or a function returning one) representing the home location. |
-| `maxdist` | `number | function` | — | Maximum leash radius (distance from home); can be dynamic (via function). |
-| `inst` | `Entity` | — | Reference to the owning entity instance. |
-| `returndist` | `number | function` | — | Strict return radius; entity actively moves home only when outside this distance. |
-| `running` | `boolean | function` | `false` | Controls whether the entity runs (`true`) or walks (`false`) when moving home; supports functions for dynamic behavior. |
-| `findavoidanceobjectfn` | `function?` | `nil` | Optional callback that returns an `Entity` to avoid during movement. |
-| `avoid_dist` | `number?` | `0` | Minimum lateral distance to maintain from the avoidance target. |
-| `avoidtarget` | `Entity?` | `nil` | Cached avoidance target set during `Visit()`; only valid for the current run. |
+| `homepos` | function or Vector3 | — | The home location (either a `Vector3` or a function returning one) relative to which leash distance is measured. |
+| `maxdist` | function or number | `nil` | Maximum leash distance (scalar or function returning scalar). Beyond this, behaviour fails. |
+| `returndist` | function or number | `nil` | Distance threshold within which the entity must return to succeed. Must be less than `maxdist`. |
+| `running` | function or boolean | `false` | Whether the entity should run (`true`) or walk (`false`) toward home. |
+| `findavoidanceobjectfn` | function | `nil` | Callback returning an avoidance target (e.g., a danger entity) or `nil`. |
+| `avoid_dist` | number | `0` | Minimum distance to maintain from the avoidance target, if any. |
 
-## Main Functions
-### `LeashAndAvoid:Visit()`
-* **Description:** The core execution method of the behaviour. Evaluates the entity's position relative to the home location and leash/return boundaries. If outside the return distance, it calculates a destination toward home (with optional avoidance offset) and commands `Locomotor.GoToPoint`; otherwise, it succeeds. If already inside the leash radius, it fails immediately.  
-* **Parameters:** None.  
-* **Returns:** `nil` — Status is stored internally (`FAILED`, `RUNNING`, or `SUCCESS`).
+## Main functions
+### `Visit()`
+*   **Description:** Core execution method called by the behaviour tree. Evaluates current leash status, initiates avoidance steering if needed, and issues movement commands to return the entity home.
+*   **Parameters:** None.
+*   **Returns:** Modifies internal `self.status` to `FAILED`, `RUNNING`, or `SUCCESS`.
+*   **Error states:** Returns early without movement if `homepos` resolves to `nil` at activation, setting status to `FAILED`.
 
-### `LeashAndAvoid:GetHomePos()`
-* **Description:** Resolves and returns the current home position, evaluating if `homepos` is a function.  
-* **Parameters:** None.  
-* **Returns:** `vector3?` — The home position, or `nil` if unresolved.
+### `GetHomePos()`
+*   **Description:** Resolves the home position, supporting both static `Vector3` and dynamic function values.
+*   **Parameters:** None.
+*   **Returns:** `Vector3` or `nil` — the resolved home location.
+*   **Error states:** Returns `nil` if `homepos` is `nil` or a function returning `nil`.
 
-### `LeashAndAvoid:GetDistFromHomeSq()`
-* **Description:** Computes the squared distance from the entity to the home position.  
-* **Parameters:** None.  
-* **Returns:** `number?` — Squared distance, or `nil` if home position is unavailable.
+### `GetDistFromHomeSq()`
+*   **Description:** Computes the squared distance between the entity's current position and the resolved home position.
+*   **Parameters:** None.
+*   **Returns:** `number` (squared distance) or `nil` if `homepos` is `nil`.
 
-### `LeashAndAvoid:IsInsideLeash()`
-* **Description:** Checks whether the entity is currently inside the leash radius.  
-* **Parameters:** None.  
-* **Returns:** `boolean` — `true` if the squared distance to home is less than the squared leash radius.
+### `GetMaxDistSq()`
+*   **Description:** Returns the squared maximum leash distance.
+*   **Parameters:** None.
+*   **Returns:** `number` — squared `maxdist` value.
 
-### `LeashAndAvoid:IsOutsideReturnDist()`
-* **Description:** Checks whether the entity is farther from home than the return distance.  
-* **Parameters:** None.  
-* **Returns:** `boolean` — `true` if the entity should actively move home.
+### `GetReturnDistSq()`
+*   **Description:** Returns the squared inner return distance threshold.
+*   **Parameters:** None.
+*   **Returns:** `number` — squared `returndist` value.
 
-### `LeashAndAvoid:GetMaxDistSq()`
-* **Description:** Returns the squared leash radius (used to determine if the entity is too far and should *not* flee).  
-* **Parameters:** None.  
-* **Returns:** `number` — `maxdist^2`.
+### `IsInsideLeash()`
+*   **Description:** Checks if the entity is currently within the maximum leash radius.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if inside, `false` otherwise.
 
-### `LeashAndAvoid:GetReturnDistSq()`
-* **Description:** Returns the squared return distance (used to trigger active homing).  
-* **Parameters:** None.  
-* **Returns:** `number` — `returndist^2`.
+### `IsOutsideReturnDist()`
+*   **Description:** Checks if the entity is currently outside the required return radius.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if outside, `false` otherwise.
 
-## Events & Listeners
-None — This behaviour interacts solely via direct component calls (`Locomotor`) and internal state transitions.
+### `DBString()`
+*   **Description:** Returns a debug string summarizing the current state (home pos, distance, avoidance target).
+*   **Parameters:** None.
+*   **Returns:** `string` — human-readable debug output.
+
+## Events & listeners
+- **Listens to:** None identified.
+- **Pushes:** None identified.

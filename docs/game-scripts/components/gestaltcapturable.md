@@ -1,97 +1,108 @@
 ---
 id: gestaltcapturable
 title: Gestaltcapturable
-description: Provides logic for tracking and managing the capturable state of a Gestalt entity, including targeting, capture, and tag management.
+description: Tracks targeting and capture state for Gestalt-based entities, enabling them to be captured by the Gestalt Cage.
+tags: [gestalt, capture, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: bb2c573f
+system_scope: entity
 ---
 
 # Gestaltcapturable
 
-## Overview
-This component manages whether a Gestalt entity can be targeted and captured, primarily by the Gestalt Cage. It tracks targeting entities (e.g., Gestalt Cages), exposes state via properties and callbacks, and maintains the `gestaltcapturable` tag on the entity.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds/removes the `gestaltcapturable` tag via `AddOrRemoveTag` and `RemoveTag`.
-- Interacts with the `gestaltcage` component (via external calls to `OnTargeted`, `OnUntargeted`, and `OnCaptured`).
-- Listens to `"onremove"` events on targeting objects to clean up targeting state.
+## Overview
+The `gestaltcapturable` component enables an entity to be targeted and captured by Gestalt Cage mechanisms. It tracks which objects (e.g., Gestalt Cages) are currently targeting the entity, fires callback functions when targeting state changes, and notifies associated systems upon capture. It is designed for use with entities that participate in Gestalt mechanics, such as monster versions of characters.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("gestaltcapturable")
+inst.components.gestaltcapturable:SetLevel(3)
+inst.components.gestaltcapturable:SetOnTargetedFn(function(ent) print(ent.prefab .. " is now targeted") end)
+inst.components.gestaltcapturable:SetOnCapturedFn(function(ent, cage, doer) print(ent.prefab .. " captured by " .. doer.prefab) end)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `gestaltcapturable` tag when enabled; removes it on removal from entity.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (passed to constructor) | Reference to the parent entity instance. |
-| `level` | `number` | `1` | The capture level of the Gestalt; used by capture logic. |
-| `enabled` | `boolean` | `true` | Whether the entity is currently capturable. |
-| `targeters` | `table` | `{}` | Map of entities (e.g., Gestalt Cages) currently targeting this Gestalt. |
-| `ontargetedfn` | `function?` | `nil` | Optional callback invoked when targeting begins. |
-| `onuntargetedfn` | `function?` | `nil` | Optional callback invoked when targeting ends. |
-| `oncapturedfn` | `function?` | `nil` | Optional callback invoked upon successful capture. |
-| `_onremovetargeter` | `function` | (internal) | Handler to remove a targeter when the targeting entity is removed. |
+| `level` | number | `1` | Capturable level (e.g., difficulty or stage). |
+| `enabled` | boolean | `true` | Whether the component is active and the entity is capturable. |
+| `targeters` | table | `{}` | Map of objects currently targeting this entity. |
+| `ontargetedfn` | function | `nil` | Callback invoked when the entity transitions from untargeted to targeted. |
+| `onuntargetedfn` | function | `nil` | Callback invoked when the entity transitions from targeted to untargeted. |
+| `oncapturedfn` | function | `nil` | Callback invoked when the entity is captured. |
 
-## Main Functions
-
+## Main functions
 ### `SetEnabled(enabled)`
-* **Description:** Sets whether the entity is currently capturable. This also updates the `gestaltcapturable` tag on the entity.
-* **Parameters:**
-  - `enabled` (boolean): Whether to enable or disable capturability.
+*   **Description:** Enables or disables capturability. When disabled, the `gestaltcapturable` tag is removed from the entity.
+*   **Parameters:** `enabled` (boolean) — whether the entity should be capturable.
+*   **Returns:** Nothing.
 
 ### `IsEnabled()`
-* **Description:** Returns whether capturability is currently enabled.
-* **Parameters:** None.
+*   **Description:** Returns whether the component is currently enabled.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if enabled, `false` otherwise.
 
 ### `SetLevel(level)`
-* **Description:** Sets the capture level (e.g., for Gestalt tiering).
-* **Parameters:**
-  - `level` (number): The new capture level.
+*   **Description:** Sets the capturable level for this entity (e.g., used by Gestalt Cages to determine compatibility).
+*   **Parameters:** `level` (number) — the capturable level.
+*   **Returns:** Nothing.
 
 ### `GetLevel()`
-* **Description:** Returns the current capture level.
-* **Parameters:** None.
-
-### `SetOnTargetedFn(fn)`
-* **Description:** Registers a callback to be invoked when targeting begins (i.e., first targeter adds itself).
-* **Parameters:**
-  - `fn` (function): A function accepting the target entity (`inst`) as its only argument.
-
-### `SetOnUntargetedFn(fn)`
-* **Description:** Registers a callback to be invoked when targeting ends (i.e., last targeter removes itself).
-* **Parameters:**
-  - `fn` (function): A function accepting the target entity (`inst`) as its only argument.
+*   **Description:** Gets the current capturable level.
+*   **Parameters:** None.
+*   **Returns:** `number` — the capturable level.
 
 ### `SetOnCapturedFn(fn)`
-* **Description:** Registers a callback to be invoked upon capture (e.g., when a Gestalt Cage completes the capture process).
-* **Parameters:**
-  - `fn` (function): A function accepting three arguments: `inst` (target entity), `obj` (the capturer, e.g., cage), and `doer` (the player/component performing the capture).
+*   **Description:** Registers a function to be called when the entity is captured.
+*   **Parameters:** `fn` (function) — function with signature `fn(inst, cage, doer)`.
+*   **Returns:** Nothing.
+
+### `SetOnTargetedFn(fn)`
+*   **Description:** Registers a function to be called when the entity becomes targeted.
+*   **Parameters:** `fn` (function) — function with signature `fn(inst)`.
+*   **Returns:** Nothing.
+
+### `SetOnUntargetedFn(fn)`
+*   **Description:** Registers a function to be called when the entity is no longer targeted.
+*   **Parameters:** `fn` (function) — function with signature `fn(inst)`.
+*   **Returns:** Nothing.
 
 ### `IsTargeted()`
-* **Description:** Returns whether the entity is currently being targeted (i.e., one or more targeters exist).
-* **Parameters:** None.
+*   **Description:** Checks whether the entity is currently targeted by at least one object.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if targeted, `false` otherwise.
 
 ### `OnTargeted(obj)`
-* **Description:** Called by a targeter (e.g., Gestalt Cage) to indicate it is now targeting this entity. Initializes targeting logic and triggers events/callbacks if first targeter.
-* **Parameters:**
-  - `obj` (Entity): The targeting entity being registered.
+*   **Description:** Called by `gestaltcage` component when it begins targeting this entity. Registers internal listener for removal of the targeter and fires the `ontargetedfn` callback and `gestaltcapturable_targeted` event if this is the first targeter.
+*   **Parameters:** `obj` (Entity) — the object (e.g., Gestalt Cage) that is now targeting this entity.
+*   **Returns:** Nothing.
 
 ### `OnUntargeted(obj)`
-* **Description:** Called by a targeter to indicate it is no longer targeting this entity. Removes the targeter and triggers events/callbacks if no targeters remain.
-* **Parameters:**
-  - `obj` (Entity): The targeting entity being removed.
+*   **Description:** Called by `gestaltcage` component when it stops targeting this entity. Unregisters internal listener and fires the `onuntargetedfn` callback and `gestaltcapturable_untargeted` event if no targeters remain.
+*   **Parameters:** `obj` (Entity) — the object that is no longer targeting this entity.
+*   **Returns:** Nothing.
 
 ### `OnCaptured(obj, doer)`
-* **Description:** Called upon successful capture to trigger callbacks and push a `"gestaltcaptured"` event on the doer (if present).
-* **Parameters:**
-  - `obj` (Entity): The capturing entity (e.g., Gestalt Cage).
-  - `doer` (Entity | nil): The entity performing the capture (e.g., the player). May be `nil`.
+*   **Description:** Called by `gestaltcage` component upon successful capture. Notifies the capturer (`doer`) via `gestaltcaptured` event and invokes `oncapturedfn` callback.
+*   **Parameters:**  
+  * `obj` (Entity) — the Gestalt Cage or capture object.  
+  * `doer` (Entity or `nil`) — the entity performing the capture (e.g., player).
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens for:**
-  - `"onremove"` on each targeting entity (`obj`) — triggers cleanup via `OnUntargeted(obj)`.
-  - When targeting begins (i.e., first targeter added): pushes `"gestaltcapturable_targeted"` on `self.inst`.
-  - When targeting ends (i.e., last targeter removed): pushes `"gestaltcapturable_untargeted"` on `self.inst`.
-  - Upon capture: pushes `"gestaltcaptured"` on the `doer` entity (if provided).
+## Events & listeners
+- **Listens to:** `onremove` (on targeter entities) — triggers `OnUntargeted` for that targeter.  
+- **Pushes:**  
+  * `gestaltcapturable_targeted` — fired when the entity transitions from untargeted to targeted.  
+  * `gestaltcapturable_untargeted` — fired when the entity transitions from targeted to untargeted.

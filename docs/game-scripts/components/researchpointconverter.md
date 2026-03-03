@@ -1,46 +1,61 @@
 ---
 id: researchpointconverter
 title: Researchpointconverter
-description: A simple toggleable component that triggers optional callback functions when activated, turned on, or turned off.
+description: A placeholder component that provides stub methods for activation and toggle states; it is intended to be replaced by prototyper.lua.
+tags: [research, placeholder]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 2cc86799
+system_scope: entity
 ---
 
 # Researchpointconverter
 
-## Overview
-This component provides a minimal abstraction for entities that need to track activation state and optionally respond to state changes via user-defined callbacks. It stores simple state variables (`val`, `active`, `level`, `on`) and exposes `TurnOn`, `TurnOff`, and `Activate` methods that invoke optional callback hooks if present. According to the source comment, this component is deprecated and should not be used; `prototyper.lua` is recommended instead.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-No external components are added or required by this script. No tags are applied or removed. The component simply attaches to an entity via `Class(function(self, inst) ...)`.
+## Overview
+`ResearchPointConverter` is a stub component that initializes basic internal state and provides minimal toggle/activation hooks. It is explicitly marked as deprecated in its source file with the comment `--DON'T USE THIS! Use prototyper.lua instead.` It exists only to maintain API compatibility in legacy contexts and should not be used in new development. The component defines no meaningful game logic or side effects beyond conditionally invoking optional callback functions.
+
+## Usage example
+```lua
+-- Not recommended. Use prototyper.lua instead.
+local inst = CreateEntity()
+inst:AddComponent("researchpointconverter")
+inst.components.researchpointconverter:TurnOn()
+inst.components.researchpointconverter:Activate()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (passed to constructor) | The entity instance the component is attached to. |
-| `val` | `number` | `0` | An arbitrary numeric value (unused internally). |
-| `active` | `boolean` | `false` | Logical state flag (unused internally). |
-| `level` | `number` | `1` | An arbitrary level value (unused internally). |
-| `on` | `boolean` | `false` | Tracks whether the converter is currently "on". |
+| `val` | number | `0` | Unused internal counter/state value. |
+| `active` | boolean | `false` | Unused boolean flag. |
+| `level` | number | `1` | Unused level indicator. |
+| `on` | boolean | `false` | Tracks whether the component is currently "on". |
 
-## Main Functions
+## Main functions
 ### `TurnOn()`
-* **Description:** Turns the converter "on" if it is currently off, and invokes the optional `onturnon` callback (passed externally) with `self.inst` as its argument.
+* **Description:** Attempts to call the optional `self.onturnon` callback and sets the `on` flag to `true`, but only if the component is currently off. Does nothing if already on or if `onturnon` is not defined.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `TurnOff()`
-* **Description:** Turns the converter "off" if it is currently on, and invokes the optional `onturnoff` callback (passed externally) with `self.inst` as its argument.
+* **Description:** Attempts to call the optional `self.onturnoff` callback and sets the `on` flag to `false`, but only if the component is currently on. Does nothing if already off or if `onturnoff` is not defined.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `Activate()`
-* **Description:** Invokes the optional `onactivate` callback if defined. No entity reference is passed in this case.
+* **Description:** Invokes the optional `self.onactivate` callback. Does nothing if `onactivate` is not defined.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-No events are listened to or emitted by this component.
+## Events & listeners
+None identified

@@ -1,118 +1,131 @@
 ---
 id: aoecharging
 title: Aoecharging
-description: Handles charging logic, UI feedback, and release behavior for charged area-of-effect attacks.
+description: Manages the state and visual feedback for a charging area-of-effect attack, synchronizing charge progress and owner tracking across networked clients.
+tags: [combat, network, ui, player]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: d6999c24
+system_scope: combat
 ---
 
-# aoecharging
+# Aoecharging
+
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-This component manages the logic and visual feedback for items that support a "charged" area-of-effect (AOE) attack in Don't Starve Together. It tracks the charging progress, synchronizes charging state between server and client, displays a reticule for aiming, and handles the release of the charged attack based on player input.
+`AOECharging` manages the charging process and visual reticule for area-of-effect (AOE) attacks in Don't Starve Together. It tracks charge state via `ischarging`, `enabled`, and `chargeticks` networked properties, and coordinates the spawn/update of the `ChargingReticule` prefab when a player begins charging. The component operates differently on server (`ismastersim`) and client, handling synchronization, input polling, and event handling for the charging lifecycle.
 
-## Dependencies & Tags
-*   **Dependencies:**
-    *   The entity using this component is expected to have a `replica` containing `inventoryitem` and `equippable` components for ownership and equipping checks (e.g., `inst.replica.inventoryitem`, `inst.replica.equippable`).
-    *   The `owner` entity (typically a player) is expected to have a `sg` (StateGraph) component, a `HUD` table, and potentially a `playercontroller` component (e.g., `owner.sg`, `owner.HUD`, `owner.components.playercontroller`).
-    *   The component implicitly relies on the game's component update system, allowing it to register for and receive `OnUpdate` calls when `StartUpdatingComponent` is called.
-*   **Tags:** None identified.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("aoecharging")
+inst.components.aoecharging.reticuleprefab = "my_reticule"
+inst.components.aoecharging.pingprefab = "my_ping"
+inst.components.aoecharging:SetAllowRiding(false)
+inst.components.aoecharging:SetRefreshChargeTicksFn(function(self, reticule, ticks)
+    reticule:SetChargeTicks(ticks)
+end)
+```
+
+## Dependencies & tags
+**Components used:** `inventoryitem`, `equippable`, `playercontroller`, `chargingreticule`
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :------- | :--- | :------------ | :---------- |
-| `inst` | `Entity` | (set in constructor) | A reference to the entity that owns this component. |
-| `ismastersim` | `boolean` | (set in constructor) | `true` if this component instance is running on the master simulation (server), `false` otherwise (client). |
-| `reticuleprefab` | `string` | `nil` | The prefab name for the reticule entity that is spawned when charging. This should be set by the item using the component. |
-| `pingprefab` | `string` | `nil` | The prefab name for the "ping" effect spawned when a charged attack is released. |
-| `reticule` | `Entity` | `nil` | A reference to the currently active reticule entity. |
-| `owner` | `Entity` | `nil` | The entity (e.g., player) that is currently charging the AOE attack. |
-| `allowriding` | `boolean` | `true` | Determines if charging is allowed while riding a mount. |
-| `enabled` | `net_bool` | `true` | A network-synchronized boolean indicating if the AOE charging component is currently enabled. |
-| `ischarging` | `net_bool` | `false` | A network-synchronized boolean indicating if the item is currently being charged. |
-| `chargeticks` | `net_byte` | `0` | A network-synchronized byte value representing the number of "ticks" or duration of the charge. |
-| `syncdelay` | `number` | `0` | (Master sim only) A counter used to manage the frequency of `chargeticks` network synchronization, reducing network traffic. |
-| `refreshchargeticksfn` | `function` | `nil` | A callback function to be executed when the charge ticks need to be visually refreshed on the reticule. Set via `SetRefreshChargeTicksFn`. |
-| `onchargedattackfn` | `function` | `nil` | (Master sim only) A callback function to be executed when a charged attack is released. Set via `SetOnChargedAttackFn`. |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | — | The entity instance this component belongs to. |
+| `ismastersim` | `boolean` | — | Whether this instance is running on the master simulation (server). |
+| `reticuleprefab` | `string?` | `nil` | Prefab name for the reticule to spawn. |
+| `pingprefab` | `string?` | `nil` | Prefab name for the charge-release ping effect. |
+| `reticule` | `Entity?` | `nil` | Reference to the active `ChargingReticule` entity, if spawned. |
+| `owner` | `Entity?` | `nil` | The player entity currently charging the attack. |
+| `allowriding` | `boolean` | `true` | Whether charging is allowed while riding. |
+| `enabled` | `net_bool` | `true` | Networked property controlling whether charging is enabled. |
+| `ischarging` | `net_bool` | — | Networked property indicating if charging is active. |
+| `chargeticks` | `net_byte` | — | Networked property tracking charge duration in ticks. |
+| `syncdelay` | `number` | `0` (server), not used (client) | Delay counter before sending full sync on server. |
+| `refreshchargeticksfn` | `function?` | `nil` | Callback when charge ticks are updated. |
+| `onchargedattackfn` | `function?` | `nil` | Server-only callback when a charged attack is released. |
 
-## Main Functions
-### `AOECharging:OnRemoveEntity()`
-*   **Description:** Called automatically when the component's parent entity is being removed from the world. It ensures that any active charging state is properly cleared by calling `SetChargingOwner(nil)`.
-*   **Parameters:** None.
+## Main functions
+### `OnRemoveEntity()`
+* **Description:** Cleans up when the owner entity is removed. Cancels any active charge and removes the reticule.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `AOECharging:SetAllowRiding(val)`
-*   **Description:** Sets whether the AOE charging mechanic is allowed to be active while the `owner` is riding a mount.
-*   **Parameters:**
-    *   `val`: (`boolean`) If `false`, charging will not be possible while riding. Any other truthy value will allow charging while riding.
+### `SetAllowRiding(val)`
+* **Description:** Sets whether charging is allowed while the owner is riding another entity.
+* **Parameters:** `val` (boolean) — if `false`, riding while charging is disallowed; otherwise allowed.
+* **Returns:** Nothing.
 
-### `AOECharging:SetRefreshChargeTicksFn(fn)`
-*   **Description:** Registers a custom callback function that will be invoked whenever the visual representation of the charge ticks needs to be updated, typically on the reticule entity.
-*   **Parameters:**
-    *   `fn`: (`function`) The callback function. It is expected to accept three arguments: `inst` (the item entity), `reticule` (the reticule entity), and `chargeticks` (the current charge value).
+### `IsEnabled()`
+* **Description:** Returns whether the charging system is currently enabled for this item.
+* **Parameters:** None.
+* **Returns:** `boolean` — current value of the `enabled` networked property.
 
-### `AOECharging:OnRefreshChargeTicks(reticule)`
-*   **Description:** Executes the `refreshchargeticksfn` callback, if one has been registered, passing the provided `reticule` and the current `chargeticks` value.
-*   **Parameters:**
-    *   `reticule`: (`Entity`) The reticule entity that needs its visual charge state refreshed.
+### `GetChargeTicks()`
+* **Description:** Returns the current number of charge ticks.
+* **Parameters:** None.
+* **Returns:** `number` — current `chargeticks` value.
 
-### `AOECharging:SetChargingOwner(owner)`
-*   **Description:** This is a core function that manages the lifecycle of the charging process. It is responsible for:
-    *   Destroying the reticule if it exists when stopping charging.
-    *   Stopping the component's update loop (`OnUpdate`) if no owner is provided.
-    *   Resetting network variables (`ischarging`, `chargeticks`) on the master sim when stopping charging.
-    *   Spawning the `reticuleprefab` and linking it to the new `owner`'s HUD if an owner is provided and `reticuleprefab` is set.
-    *   Starting the component's update loop (`OnUpdate`) if an owner is provided.
-    *   Initializing network variables (`ischarging`, `chargeticks`) on the master sim when starting charging.
-    *   Triggering a `OnRefreshChargeTicks` call for the newly spawned reticule.
-*   **Parameters:**
-    *   `owner`: (`Entity` or `nil`) The entity (typically a player) that will initiate or stop the charging process. Passing `nil` stops charging.
+### `SetRefreshChargeTicksFn(fn)`
+* **Description:** Sets a callback function used to propagate charge tick updates to the reticule.
+* **Parameters:** `fn` (function) — signature `fn(inst, reticule, chargeticks)`.
+* **Returns:** Nothing.
 
-### `AOECharging:OnUpdate(dt)`
-*   **Description:** The primary update loop for the component. This function is called every frame when the component is actively updating (i.e., when an `owner` is set). It performs the following tasks:
-    *   **Validation:** Continuously checks if the item is still owned and equipped by the `owner`, and if the `owner` is in a state allowing AOE charging. If any condition fails, charging is cancelled via `SetChargingOwner(nil)`.
-    *   **Charge Ticks Update:** Increments `chargeticks`. On the master sim, it uses `syncdelay` to control how often the `chargeticks` value is fully synchronized over the network, otherwise it's updated locally. On clients, `chargeticks` is updated locally.
-    *   **Reticule Refresh:** Calls `OnRefreshChargeTicks` to update the reticule's visual state.
-    *   **Input Handling & Release:** Monitors for player input (CONTROL_SECONDARY or CONTROL_CONTROLLER_ALTACTION) being released. If released:
-        *   The reticule is instructed to "snap" to its final position.
-        *   A "ping" visual effect (`pingprefab`) is spawned at the reticule's location.
-        *   The charging `owner` is cleared via `SetChargingOwner(nil)`.
-        *   The `owner`'s state graph receives a `"chargingreticulereleased"` event, including the final `chargeticks` value.
-    *   **Rotation Update:** If charging is still active, it continuously calls `UpdateRotation` to align the owner's facing with the reticule.
-*   **Parameters:**
-    *   `dt`: (`number`) The delta time (time elapsed) since the last update.
+### `OnRefreshChargeTicks(reticule)`
+* **Description:** Invokes the `refreshchargeticksfn` callback (if set) to notify subscribers of a charge tick update.
+* **Parameters:** `reticule` (Entity) — the reticule entity to update.
+* **Returns:** Nothing.
 
-### `AOECharging:UpdateRotation()`
-*   **Description:** Aligns the `owner`'s `Transform` rotation with that of the `reticule`. On client simulations, it also sends a remote command via the `owner`'s `playercontroller` component to synchronize the AOE charging direction across the network.
-*   **Parameters:** None.
+### `SetChargingOwner(owner)`
+* **Description:** Starts or stops the charging process for a given owner. Spawns or destroys the reticule and manages server/client state.
+* **Parameters:** `owner` (`Entity?`) — player entity to begin charging as, or `nil` to cancel.
+* **Returns:** Nothing.
+* **Error states:** If the `owner` lacks `HUD` or `reticuleprefab` is `nil`, no reticule is spawned.
 
-### `AOECharging:SetEnabled(enabled)`
-*   **Description:** (Master Sim Only) Controls the overall enabled state of the AOE charging component. When set to `false`, any ongoing charging will be cancelled.
-*   **Parameters:**
-    *   `enabled`: (`boolean`) `true` to enable the component, `false` to disable it.
+### `OnUpdate(dt)`
+* **Description:** Called each frame while charging. Validates ownership, updates charge ticks, handles input, updates rotation, and triggers release on input release.
+* **Parameters:** `dt` (number) — delta time in seconds.
+* **Returns:** Nothing.
+* **Error states:** Exits early if owner is no longer valid (not equipped, no longer owner, or SG tag lost).
 
-### `AOECharging:SetChargeTicks(ticks)`
-*   **Description:** (Master Sim Only) Allows directly setting the current number of charge ticks. This can be used to modify the starting charge or accelerate the charging process for the `owner`. If an `owner` is currently charging, the reticule's visual state will be refreshed.
-*   **Parameters:**
-    *   `ticks`: (`number`) The desired number of charge ticks.
+### `UpdateRotation()`
+* **Description:** Syncs the reticule's rotation to the owner's transform and, on clients, sends the rotation to the server.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `AOECharging:SetOnChargedAttackFn(fn)`
-*   **Description:** (Master Sim Only) Registers a custom callback function that will be executed when a charged attack is released. This function defines the actual effect or logic of the charged attack.
-*   **Parameters:**
-    *   `fn`: (`function`) The callback function. It is expected to accept three arguments: `inst` (the item entity), `doer` (the entity performing the attack), and `chargeticks` (the final charge value).
+### `SetEnabled(enabled)`
+* **Description:** (Server only) Sets the `enabled` state and triggers dirty event.
+* **Parameters:** `enabled` (boolean).
+* **Returns:** Nothing.
 
-### `AOECharging:ReleaseChargedAttack(doer, chargeticks)`
-*   **Description:** (Master Sim Only) This function is called when a charged attack is finalized. It triggers the `onchargedattackfn` callback, if one has been registered, passing the attacking `doer` and the accumulated `chargeticks`. This is the entry point for custom charged attack behavior.
-*   **Parameters:**
-    *   `doer`: (`Entity`) The entity (e.g., player) that performed the charged attack.
-    *   `chargeticks`: (`number`) The total number of ticks the attack was charged for.
+### `SetChargeTicks(ticks)`
+* **Description:** (Server only, for debugging/overrides) Manually sets the charge tick count during an active charge.
+* **Parameters:** `ticks` (number).
+* **Returns:** Nothing.
 
-## Events & Listeners
-*   `inst:ListenForEvent("enableddirty", OnEnabledDirty)`: Listens on the client for changes to the `self.enabled` network variable. When `enabled` becomes `false`, it triggers a cancellation of charging.
-*   `inst:ListenForEvent("ischargingdirty", OnIsCharging)`: Listens on the client for changes to the `self.ischarging` network variable. If `ischarging` is `true` for `ThePlayer` and the item is equipped, it manages the `chargingowner`.
-*   `inst:ListenForEvent("chargeticksdirty", OnChargeTicksDirty)`: Listens on the client for changes to the `self.chargeticks` network variable. If `ThePlayer` owns the item and it's equipped, it refreshes the reticule's display.
+### `SetOnChargedAttackFn(fn)`
+* **Description:** (Server only) Sets the callback executed when a charged attack is released.
+* **Parameters:** `fn` (function) — signature `fn(item, doer, chargeticks)`.
+* **Returns:** Nothing.
+
+### `ReleaseChargedAttack(doer, chargeticks)`
+* **Description:** (Server only) Triggers the `onchargedattackfn` callback for the charged attack.
+* **Parameters:**  
+  - `doer` (Entity) — the entity performing the attack (typically the `owner`).  
+  - `chargeticks` (number) — final tick count at release time.
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to (client only):**  
+  - `enableddirty` — handled by `OnEnabledDirty` to cancel charge if disabled.  
+  - `ischargingdirty` — handled by `OnIsCharging` to link owner if local player charges.  
+  - `chargeticksdirty` — handled by `OnChargeTicksDirty` to refresh reticule ticks.  
+- **Pushes:** None (does not fire custom events internally; relies on owner’s stategraph to push `"chargingreticulereleased"` or `"chargingreticulecancelled"`).

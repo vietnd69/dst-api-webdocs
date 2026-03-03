@@ -1,51 +1,67 @@
 ---
 id: recipescanner
 title: Recipescanner
-description: This component enables an entity to scan targets and unlock crafting recipes for the doer based on the scanned item's recipe data.
+description: Enables scanning of entities to automatically unlock associated recipes for a builder.
+tags: [crafting, discovery, interaction]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: crafting
+category_type: components
 source_hash: 4f546cbd
+system_scope: crafting
 ---
 
 # Recipescanner
 
-## Overview
-The Recipescanner component is attached to entities that act as scanning devices (e.g., the Scanning Station). When a target is scanned, it resolves the corresponding recipe, validates unlock conditions, unlocks the recipe for the doer if possible, and triggers associated events. It integrates with the builder system and enforces recipe unlock logic, including restrictions like `nounlock`, `no_deconstruction`, and builder capacity.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds the `"recipescanner"` tag to the entity on initialization.
-- Removes the `"recipescanner"` tag when the component is removed from the entity.
-- Relies on the following components being present on relevant entities:
-  - `doer` must have a `"builder"` component.
-  - `target` must support `"NOCLICK"` tag and may define `SCANNABLE_RECIPENAME` or rely on `target.prefab`.
+## Overview
+The `Recipescanner` component allows an entity to scan other entities in the world to discover and unlock new recipes for a designated builder. It is typically attached to entities like the Recluse, Science Machine, or similar devices that can analyze objects to grant crafting knowledge. The component delegates recipe validation and unlocking logic to the `builder` component on the scanning doer.
+
+## Usage example
+```lua
+-- Example: Adding recipescanner to a custom device
+local inst = CreateEntity()
+inst:AddComponent("recipescanner")
+
+-- Optionally set a callback for post-scan actions
+inst.components.recipescanner:SetOnScannedFn(function(scanner, target, doer, recipe_name)
+    print("Recipe", recipe_name, "was scanned by", doer.name)
+end)
+
+-- Example: Triggering a scan (e.g., from an action)
+if inst.components.recipescanner then
+    local success, reason = inst.components.recipescanner:Scan(some_target_entity, player_entity)
+end
+```
+
+## Dependencies & tags
+**Components used:** `builder` (on the doer entity)  
+**Tags:** Adds `recipescanner` on construction; removes `recipescanner` on entity removal.
 
 ## Properties
-| Property       | Type     | Default Value | Description                                                                 |
-|----------------|----------|---------------|-----------------------------------------------------------------------------|
-| `inst`         | `Entity` | —             | Reference to the entity the component is attached to (set in constructor). |
-| `onscanned`    | `function` | `nil`       | Optional callback function invoked after a successful scan; set via `SetOnScannedFn`. |
+No public properties.
 
-## Main Functions
-
+## Main functions
 ### `SetOnScannedFn(fn)`
-* **Description:** Sets an optional callback function to be invoked whenever a scan operation completes successfully.
-* **Parameters:**
-  - `fn` (`function`): A function that accepts four arguments: `scanner` (the scanning entity), `target` (the scanned entity), `doer` (the player/entity performing the scan), and `recipe_name` (string).
+*   **Description:** Sets a custom callback function to be invoked after a successful scan.
+*   **Parameters:** `fn` (function) - A function with signature `fn(scanner, target, doer, recipe_name)`.
+*   **Returns:** Nothing.
 
 ### `Scan(target, doer)`
-* **Description:** Attempts to scan a `target` entity and unlock its corresponding recipe for the `doer`. Returns a boolean indicating success, and optionally a reason string on failure (e.g., `"CANTLEARN"`, `"KNOWN"`).
-* **Parameters:**
-  - `target` (`Entity`): The entity being scanned (must be a valid scannable item).
-  - `doer` (`Entity`): The entity performing the scan (must have a `"builder"` component).
-* **Returns:**
-  - `success` (`boolean`): `true` if the recipe was unlocked, `false` otherwise.
-  - `reason` (`string`, optional): A string explaining why the scan failed (`"CANTLEARN"` or `"KNOWN"`).
+*   **Description:** Attempts to scan a target entity and unlock the corresponding recipe for the doer if valid. Performs checks for builder capability, recipe availability, and deconstruction restrictions.
+*   **Parameters:**
+    *   `target` (GObject) - The entity being scanned; must have a resolvable recipe (e.g., via `target.SCANNABLE_RECIPENAME` or `target.prefab`).
+    *   `doer` (GObject) - The entity performing the scan; must have a `builder` component.
+*   **Returns:**
+    *   `true` if the recipe was successfully unlocked.
+    *   `false, "CANTLEARN"` if the recipe cannot be learned (e.g., missing builder tags, skill requirements, or explicit deconstruction restriction).
+    *   `false, "KNOWN"` if the doer already knows the recipe.
+*   **Error states:** Returns early with `false` if the doer lacks a `builder` component or the target has the `NOCLICK` tag.
 
-## Events & Listeners
-- **Pushes:** `"onrecipescanned"` on the `target` entity with payload `{ scanner = self.inst, doer = doer, recipe = recipe.name }` after a successful scan.
-- **No internal event listeners are registered**—the component does not listen for any events via `inst:ListenForEvent`.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** `onrecipescanned` - fired on the `target` entity after successful scan with payload `{ scanner = self.inst, doer = doer, recipe = recipe.name }`.
+- **Callback support:** Invokes `self.onscanned(scanner, target, doer, recipe_name)` if set via `SetOnScannedFn`.

@@ -1,57 +1,87 @@
 ---
 id: attackdodger
 title: Attackdodger
-description: Enables an entity to perform a dodge action in response to an attack, with configurable conditions and a cooldown period.
+description: Manages attack dodging logic including cooldown state and custom dodge/can-dodge behavior callbacks for an entity.
+tags: [combat, ai, utility]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: combat
+category_type: components
 source_hash: 9dfca8d9
+system_scope: combat
 ---
 
 # Attackdodger
 
-## Overview
-The Attackdodger component provides a framework for an entity to evade incoming attacks. It allows for custom logic to determine if a dodge is possible and what action occurs during the dodge. It also manages a cooldown to prevent the entity from dodging too frequently. This component is typically used in conjunction with a `combat` component, which would call `CanDodge` and `Dodge` when the entity is targeted.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`AttackDodger` provides a flexible, callback-driven system for controlling when and how an entity can dodge incoming attacks. It supports configurable cooldowns and custom logic for determining whether a dodge attempt is allowed and what happens when a dodge succeeds. The component is typically attached to entities that need dynamic dodge mechanics (e.g., bosses or agile creatures), and integrates with the combat system via custom functions rather than hardcoded behavior.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("attackdodger")
+
+-- Configure behavior
+inst.components.attackdodger:SetCooldownTime(3)
+inst.components.attackdodger:SetCanDodgeFn(function(ent, attacker) return ent:HasTag("player") end)
+inst.components.attackdodger:SetOnDodgeFn(function(ent, attacker) ent:PushEvent("dodged", { attacker = attacker }) end)
+
+-- Later, when an attack is incoming:
+if inst.components.attackdodger:CanDodge(attacker) then
+    inst.components.attackdodger:Dodge(attacker)
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | Entity reference | `nil` | The entity instance that owns this component. |
+| `ondodgefn` | function | `nil` | Callback invoked when a dodge succeeds (`(entity, attacker)`). |
+| `candodgefn` | function | `nil` | Callback invoked to determine if dodging is allowed (`(entity, attacker)`). |
+| `cooldowntime` | number | `nil` | Duration (in seconds) of the dodge cooldown. If `nil`, no cooldown is enforced. |
+| `oncooldown` | boolean | `false` | Whether the entity is currently in dodge cooldown. |
 
-| Property      | Type     | Default Value | Description                                                              |
-|---------------|----------|---------------|--------------------------------------------------------------------------|
-| `ondodgefn`     | function | `nil`         | A callback function that is executed when the entity performs a dodge.   |
-| `candodgefn`    | function | `nil`         | A callback function that determines if the entity is allowed to dodge.   |
-| `cooldowntime`  | number   | `nil`         | The duration in seconds that the entity must wait before dodging again.  |
-| `oncooldown`    | boolean  | `false`       | A flag indicating if the dodge ability is currently on cooldown.         |
-| `cooldowntask`  | task     | `nil`         | A reference to the scheduled task that will end the cooldown.            |
-
-## Main Functions
+## Main functions
 ### `SetOnDodgeFn(fn)`
-* **Description:** Sets the callback function to be executed when the entity successfully dodges an attack.
-* **Parameters:**
-    * `fn` (function): The function to call on a dodge. It receives the entity instance (`inst`) and the `attacker` as arguments.
+* **Description:** Sets the callback function executed when an attack is successfully dodged.
+* **Parameters:** `fn` (function) – A function accepting two arguments: the dodging entity and the attacker entity.
+* **Returns:** Nothing.
 
 ### `SetCanDodgeFn(fn)`
-* **Description:** Sets the callback function that determines if the entity is currently capable of dodging. This function is checked before a dodge is attempted.
-* **Parameters:**
-    * `fn` (function): The function to call to check for dodge eligibility. It receives the entity instance (`inst`) and the `attacker` as arguments and should return `true` or `false`.
+* **Description:** Sets the callback function used to determine whether dodging is currently allowed.
+* **Parameters:** `fn` (function) – A function accepting two arguments: the candidate dodging entity and the attacker entity; must return a boolean (or truthy/falsy value).
+* **Returns:** Nothing.
 
 ### `SetCooldownTime(n)`
-* **Description:** Sets the cooldown period for the dodge ability. After a dodge, the entity will be unable to dodge again until this time has passed.
-* **Parameters:**
-    * `n` (number): The cooldown duration in seconds.
+* **Description:** Configures the duration of the dodge cooldown period after a successful dodge.
+* **Parameters:** `n` (number) – Cooldown duration in seconds. If `nil`, cooldown is disabled.
+* **Returns:** Nothing.
 
 ### `CanDodge(attacker)`
-* **Description:** Checks if the entity is able to perform a dodge. It evaluates both the custom `candodgefn` (if set) and the current cooldown status (if a `cooldowntime` is set). If both are configured, both must pass. If only one is configured, only that condition is checked.
-* **Parameters:**
-    * `attacker` (Entity): The entity that is initiating the attack.
+* **Description:** Evaluates whether the entity can currently dodge an attack from the specified attacker, based on `candodgefn` and cooldown state.
+* **Parameters:** `attacker` (Entity reference or `nil`) – The entity attempting to attack; passed to `candodgefn`.
+* **Returns:** `boolean` – `true` if dodging is allowed, `false` otherwise.
+* **Error states:** Returns `true` if either `candodgefn` or cooldown logic is missing but the other condition is met; no robust fallback is enforced.
 
 ### `Dodge(attacker)`
-* **Description:** Executes the dodge action. This calls the `ondodgefn` and, if a cooldown is configured, puts the ability on cooldown.
-* **Parameters:**
-    * `attacker` (Entity): The entity that is initiating the attack.
+* **Description:** Executes a successful dodge: invokes `ondodgefn` and starts the cooldown timer if configured.
+* **Parameters:** `attacker` (Entity reference or `nil`) – The attacker entity; passed to `ondodgefn`.
+* **Returns:** Nothing.
+* **Error states:** No cooldown task is started if `cooldowntime` is `nil`; no callback is invoked if `ondodgefn` is `nil`.
+
+### `OnRemoveFromEntity()`
+* **Description:** Cleanup method called when the component is removed from its entity; cancels any pending cooldown task.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:** None  
+- **Pushes:** None

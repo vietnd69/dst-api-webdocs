@@ -1,34 +1,45 @@
 ---
 id: forcecompostable
 title: Forcecompostable
-description: Marks an entity as compostable in green or brown categories for compost heaps.
+description: Marks an entity as capable of being composted, with optional green/brown categorization for composting mechanics.
+tags: [environment, crafting]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: 8de3ece8
+system_scope: environment
 ---
 
 # Forcecompostable
 
-## Overview
-This lightweight component flags an entity as compostable and assigns it to one or both composting categories—green (nitrogen-rich) or brown (carbon-rich)—based on its `green` and `brown` boolean flags. It serves as metadata for compost heap systems to determine acceptable input items.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`ForceCompostable` is a lightweight component that designates an entity as compostable and optionally assigns it a green or brown classification, which the composting system uses to determine composition behavior and visual state in compost bins. It does not implement composting logic itself but provides the necessary metadata for other systems (e.g., `compostbin`) to process the item.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddTag("compostable")
+inst:AddComponent("forcecompostable")
+inst.components.forcecompostable.green = true
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Requires `compostable` tag on the entity; does not modify tags.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *(inherited)* | Reference to the owner entity. |
-| `green` | `boolean` | `false` | Whether the entity is considered green compostable. |
-| `brown` | `boolean` | `false` | Whether the entity is considered brown compostable. |
+| `green` | boolean | `false` | Indicates if the item is "green" (e.g., organic waste like vegetables). |
+| `brown` | boolean | `false` | Indicates if the item is "brown" (e.g., dry materials like leaves or sticks). |
 
-## Main Functions
-No public functions are defined beyond constructor initialization.
+## Main functions
+No public methods beyond property accessors.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified

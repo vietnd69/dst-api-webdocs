@@ -1,101 +1,95 @@
 ---
 id: wildfires
 title: Wildfires
-description: Manages the logic for spontaneous wildfire ignition during summer days in hot, dry conditions, using active players as potential ignition sources.
+description: Manages wildfire ignition mechanics based on environmental conditions and active players.
+tags: [environment, world, fire]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: environment
+category_type: map
 source_hash: c0be1b7a
+system_scope: environment
 ---
 
 # Wildfires
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component monitors environmental conditions (season, phase, temperature, and wetness) to determine when wildfires can spontaneously ignite. When active, it periodically attempts to start a fire at random valid locations near each active player. It only operates on the master simulation, enforcing server-side exclusivity.
+`Wildfires` is a world-scoped component responsible for scheduling and triggering wildfires during valid environmental conditions (summer, daytime, hot, dry weather). It monitors active players and initiates fire events at random intervals using proximity-based FindEntities logic. This component only runs on the master simulation (server) and integrates with several components (`burnable`, `pickable`, `crop`, `growable`, `workable`, `witherable`, `sandstorms`) to validate and execute fire ignition attempts.
 
-## Dependencies & Tags
-**Component Dependencies:**
-- `TheWorld` (global world instance)
-- `TheSim` (global simulation accessor)
-- `AllPlayers` (global list of players)
+## Usage example
+```lua
+-- Typically added automatically by the world initialization system.
+-- Modders do not normally add this component directly.
+-- Example of triggering a forced wildfire for a specific player:
+inst:PushEvent("ms_lightwildfireforplayer", { player = someplayer })
+```
 
-**Tags Used for Filtering:**
-- `_excludetags`: `"wildfireprotected"`, `"fire"`, `"burnt"`, `"player"`, `"companion"`, `"NOCLICK"`, `"INLIMBO"`
-
-**Tags Checked During Validation:**
-- `"fireimmune"`, `"wildfirepriority"`, `"shadecanopy"`, `"shadecanopysmall"`
-- `Pickable` component: `IsWildfireStarter()` method
-- `Witherable` component: `IsProtected()`, `IsWithered()` methods
-- `Workable` component: `GetWorkAction() == ACTIONS.CHOP`
-
-**Events Registered:**
-- `"weathertick"`, `"seasontick"`, `"temperaturetick"`, `"phasechanged"`
-- `"ms_lightwildfireforplayer"`, `"ms_playerjoined"`, `"ms_playerleft"`
+## Dependencies & tags
+**Components used:** `burnable`, `pickable`, `crop`, `growable`, `workable`, `witherable`, `sandstorms`  
+**Tags checked (excluded from fire start):** `wildfireprotected`, `fire`, `burnt`, `player`, `companion`, `NOCLICK`, `INLIMBO`  
+**Tags checked (wildfire priority):** `wildfirepriority`  
+**Tags checked (canopy shade):** `shadecanopy`, `shadecanopysmall`
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity this component is attached to (the world). |
-| `_activeplayers` | `table` | `{}` | List of currently active player entities. |
-| `_scheduledtasks` | `table` | `{}` | Maps player entities to their pending fire-ignition tasks. |
-| `_issummer` | `boolean` | `false` | Whether the current season is Summer. |
-| `_isday` | `boolean` | `true` | Whether the current world phase is "day". |
-| `_iswet` | `boolean` | `false` | Whether current weather makes ignition difficult (wetness or snow > 0). |
-| `_ishot` | `boolean` | `TUNING.STARTING_TEMP > TUNING.WILDFIRE_THRESHOLD` | Whether ambient temperature exceeds the wildfire ignition threshold. |
-| `_chance` | `number` | `TUNING.WILDFIRE_CHANCE` | Base probability per tick for ignition (if conditions are met). |
-| `_radius` | `number` | `25` | Radius around players within which to search for ignition targets. |
-| `_updating` | `boolean` | `false` | Whether the component is actively scheduling ignition attempts. |
-| `_excludetags` | `table` | `{ "wildfireprotected", "fire", "burnt", "player", "companion", "NOCLICK", "INLIMBO" }` | Tags that disqualify entities as fire starters. |
+| `inst` | `Entity` | *(none)* | The world entity instance that owns this component. |
 
-## Main Functions
-
-### `CheckValidWildfireStarter(obj)`
-* **Description:** Determines whether an entity is eligible to ignite a wildfire, based on tags, components, environmental protection, and temperature.
-* **Parameters:**
-  * `obj` (`Entity`): The entity to evaluate.
+## Main functions
+### `GetDebugString()`
+* **Description:** Returns a debug string indicating whether wildfire scheduling is currently active.
+* **Parameters:** None.
+* **Returns:** `"Active"` if wildfires are being scheduled; `"Inactive"` otherwise.
 
 ### `LightFireForPlayer(player, rescheduleFn)`
-* **Description:** Attempts to ignite a wildfire for a specific player. It performs a luck roll, checks for sandstorm interference, finds candidate fire-starting entities nearby, and selects one to ignite.
-* **Parameters:**
-  * `player` (`Entity`): The player whose position is used as the origin for finding ignition targets.
-  * `rescheduleFn` (`function`): Callback function used to reschedule the next ignition attempt for this player.
+* **Description:** Attempts to ignite a wildfire near the given player if luck roll passes, weather permits, and a valid fire starter entity exists within radius.
+* **Parameters:**  
+  * `player` (`Entity`) — the player to use as center for fire search.  
+  * `rescheduleFn` (`function`) — callback function used to reschedule the next attempt for the player.
+* **Returns:** Nothing.
+* **Error states:** May return without effect if luck fails, player is in a sandstorm, no valid fire starters found, or all candidates fail `CheckValidWildfireStarter`.
 
 ### `ScheduleSpawn(player)`
-* **Description:** Schedules a fire-ignition task for a given player if no task is already pending.
-* **Parameters:**
-  * `player` (`Entity`): The player for whom to schedule an ignition attempt.
+* **Description:** Schedules a delayed wildfire attempt for a player after `TUNING.WILDFIRE_RETRY_TIME` seconds.
+* **Parameters:**  
+  * `player` (`Entity`) — the player to schedule wildfire for.
+* **Returns:** Nothing.
+* **Error states:** Does nothing if a task is already scheduled for the player.
 
 ### `CancelSpawn(player)`
-* **Description:** Cancels any pending fire-ignition task for a given player and clears its schedule entry.
-* **Parameters:**
-  * `player` (`Entity`): The player whose scheduled task should be cancelled.
+* **Description:** Cancels any pending wildfire attempt task for a player.
+* **Parameters:**  
+  * `player` (`Entity`) — the player whose task should be canceled.
+* **Returns:** Nothing.
 
 ### `ToggleUpdate()`
-* **Description:** Enables or disables the wildfire engine based on current environmental conditions (summer, day, hot, dry). When activated, schedules ignition tasks for all active players; when deactivated, cancels all pending tasks.
+* **Description:** Enables or disables wildfire scheduling based on current season, weather, temperature, and time-of-day conditions.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `ForceWildfireForPlayer(inst, player)`
-* **Description:** Immediately attempts to ignite a wildfire for a given player, bypassing the normal scheduling logic. Only proceeds if environmental conditions are currently favorable.
-* **Parameters:**
-  * `inst` (`Entity`): The world instance.
-  * `player` (`Entity`): The player for whom to force a fire ignition.
+### `CheckValidWildfireStarter(obj)`
+* **Description:** Evaluates whether an entity is a valid candidate to be ignited by a wildfire (e.g., not immune, not under canopy shade, not withered crop with protection).
+* **Parameters:**  
+  * `obj` (`Entity`) — the candidate entity to evaluate.
+* **Returns:** `true` if valid; `false` otherwise.
 
-### `GetDebugString()`
-* **Description:** Returns a string indicating whether the wildfire system is currently active.
-* **Parameters:** None.
+### `Checkforcanopyshade(obj)`
+* **Description:** Checks if an entity is under dense foliage that suppresses wildfires.
+* **Parameters:**  
+  * `obj` (`Entity`) — the entity whose position is checked.
+* **Returns:** `true` if under canopy; `false` otherwise.
 
-## Events & Listeners
+## Events & listeners
 - **Listens to:**
-  - `"weathertick"` → updates `_iswet` and calls `ToggleUpdate()`
-  - `"seasontick"` → updates `_issummer` and calls `ToggleUpdate()`
-  - `"temperaturetick"` → updates `_ishot` and calls `ToggleUpdate()`
-  - `"phasechanged"` → updates `_isday` and calls `ToggleUpdate()`
-  - `"ms_lightwildfireforplayer"` → triggers `ForceWildfireForPlayer()`
-  - `"ms_playerjoined"` → adds the new player and schedules ignition if active
-  - `"ms_playerleft"` → removes the player and cancels pending tasks
-- **Emits (via `inst:PushEvent`):**
-  - None directly. Uses internal state and external triggers.
+  * `weathertick` — updates `_iswet` condition and toggles wildfire state.
+  * `seasontick` — updates `_issummer` condition and toggles wildfire state.
+  * `temperaturetick` — updates `_ishot` condition and toggles wildfire state.
+  * `phasechanged` — updates `_isday` condition and toggles wildfire state.
+  * `ms_lightwildfireforplayer` — triggers immediate wildfire attempt for specified player.
+  * `ms_playerjoined` — registers new active player and schedules tasks if updating.
+  * `ms_playerleft` — unregisters departing player and cancels pending tasks.
+- **Pushes:** None.

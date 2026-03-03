@@ -1,39 +1,51 @@
 ---
 id: heavyobstacleusetarget
 title: Heavyobstacleusetarget
-description: This component manages whether an entity can be used as a target for heavy obstacle interactions by dynamically adding or removing the `can_use_heavy` tag based on internal state.
+description: Controls whether an entity can interact with heavy obstacles and updates the `can_use_heavy` tag accordingly.
+tags: [interaction, obstacle, tag]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: f14b4be8
+system_scope: entity
 ---
 
 # Heavyobstacleusetarget
 
-## Overview
-This component controls whether an entity can be used as a valid target for heavy obstacle actions in the game. It exposes a `can_use_heavy` boolean property whose state directly controls the presence of the `"can_use_heavy"` tag on the associated entity. When enabled, the tag is added; when disabled, it is removed. It also provides a hook (`on_use_fn`) for defining custom behavior when the entity is used with a heavy obstacle.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Tag Managed:** `"can_use_heavy"` — added or removed dynamically on `inst` depending on `self.can_use_heavy`.
-- **No external component dependencies** are declared or used in this script.
+## Overview
+`HeavyObstacleUseTarget` is a simple component that manages whether an entity is allowed to use heavy obstacles (e.g., large boulders or obstacles requiring special tools to move). It exposes a `can_use_heavy` property and automatically keeps the `can_use_heavy` tag synchronized on the entity based on that property's value. It also provides a `UseHeavyObstacle` method to delegate heavy-obstacle usage behavior via an optional callback function.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("heavyobstacleusetarget")
+inst.components.heavyobstacleusetarget.can_use_heavy = false
+-- The entity will no longer have the "can_use_heavy" tag.
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds or removes `can_use_heavy` based on the `can_use_heavy` property.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `can_use_heavy` | `boolean` | `true` | Controls whether the `"can_use_heavy"` tag should be present on the entity. Changing this property triggers the `oncan_use_heavy` callback to update the entity's tags. |
+| `can_use_heavy` | boolean | `true` | Indicates whether the entity is allowed to use heavy obstacles. When set, it automatically updates the `can_use_heavy` tag on `self.inst`. |
+| `on_use_fn` | function (optional) | `nil` | Callback function invoked by `UseHeavyObstacle`. Signature: `fn(inst, doer, heavy_obstacle)`. |
 
-Note: `on_use_fn` is referenced in `UseHeavyObstacle` but is commented out in the constructor and never initialized. It is not a functional property in current code.
-
-## Main Functions
+## Main functions
 ### `UseHeavyObstacle(doer, heavy_obstacle)`
-* **Description:** Invokes the optional callback function `on_use_fn` (if set) to handle custom logic when this entity is used with a heavy obstacle. Returns the result of `on_use_fn`, or `false` if `on_use_fn` is `nil`.
-* **Parameters:**
-  - `doer`: The entity performing the use action (typically a player or AI).
-  - `heavy_obstacle`: The heavy obstacle entity being used.
+*   **Description:** Invokes the optional `on_use_fn` callback (if set) to handle heavy-obstacle usage logic. Returns `false` if no callback is defined or if the callback returns `nil`/`false`.
+*   **Parameters:**  
+    * `doer` (Entity) — The entity performing the action.  
+    * `heavy_obstacle` (Entity) — The heavy obstacle being used.  
+*   **Returns:** `boolean` — The result of `on_use_fn(...)`, or `false` if `on_use_fn` is `nil`.  
+*   **Error states:** None.
 
-## Events & Listeners
+## Events & listeners
 None.

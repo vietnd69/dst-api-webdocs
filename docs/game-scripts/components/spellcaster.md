@@ -1,95 +1,117 @@
 ---
 id: spellcaster
 title: Spellcaster
-description: This component enables an entity to cast spells by defining casting restrictions, tag management, and spell execution logic.
+description: Manages spell casting behavior and restrictions for an entity, including target validity, casting conditions, and tag management.
+tags: [spellcasting, target, inventory, ai]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 0da1e6cb
+system_scope: entity
 ---
 
 # Spellcaster
 
-## Overview
-The `SpellCaster` component manages spell-casting capabilities for an entity within the DST Entity Component System. It defines which objects, targets, and locations a spell may be used on, dynamically updates entity tags based on spell configuration, and handles spell execution via a provided callback function.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-**Components**: None explicitly required (though the component expects `inst.entity:IsVisible()`, `target.components.health`, `target.sg`, `doer.components.locomotor`, and `doer.components.combat` to exist in certain paths, they are not added by this component).  
-**Tags Added/Removed**:
-- `castfrominventory`
-- `castontargets`
-- `castonrecipes`
-- `castonlocomotors`
-- `castonlocomotorspvp`
-- `castonworkable`
-- `castoncombat`
-- `castonpoint`
-- `castonpointwater`
-- `quickcast`
-- `veryquickcast`
-- `<spelltype>_spellcaster`
+## Overview
+`SpellCaster` governs how an entity may cast spells, including *when*, *where*, and *on whom* a spell can be used. It supports a range of casting restrictions—such as only usable on workables, combat targets, or recipes—and dynamically manages tags (e.g., `castontargets`, `castonpoint`) to signal casting capabilities to the UI and gameplay systems. It works closely with the `combat`, `health`, `locomotor`, and `workable` components to enforce casting rules at runtime.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("spellcaster")
+
+inst.components.spellcaster:SetSpellFn(function(inst, target, pos, doer)
+    -- Custom spell logic here
+end)
+
+inst.components.spellcaster:SetCanCastFn(function(doer, target, pos, spellcaster)
+    -- Custom cast validation logic
+    return true, nil
+end)
+
+inst.components.spellcaster:SetSpellType("shadow")
+inst.components.spellcaster.canuseontargets = true
+inst.components.spellcaster.canusefrominventory = false
+
+local can_cast = inst.components.spellcaster:CanCast(player, target, nil)
+if can_cast then
+    inst.components.spellcaster:CastSpell(target, nil, player)
+end
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `health`, `locomotor`, `workable`  
+**Tags added/removed:** `castfrominventory`, `castontargets`, `castonrecipes`, `castonlocomotors`, `castonlocomotorspvp`, `castonworkable`, `castoncombat`, `castonpoint`, `castonpointwater`, `quickcast`, `veryquickcast`, `spelltype.."_spellcaster"` (e.g., `shadow_spellcaster`), `nospellcaster` (removed on removal)
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the parent entity. |
-| `onspellcast` | `function?` | `nil` | Optional callback invoked after a spell is cast. |
-| `canusefrominventory` | `boolean` | `false` | Whether the spell can be cast from inventory (no target or point required). |
-| `canuseontargets` | `boolean` | `false` | Whether the spell can be cast on valid targets. |
-| `canuseondead` | `boolean` | `false` | Whether the spell can be cast on dead targets. |
-| `canonlyuseonrecipes` | `boolean` | `false` | Restricts targeting to destructible recipe items (e.g., crafted structures). |
-| `canonlyuseonlocomotors` | `boolean` | `false` | Restricts targeting to entities with a `Locomotor` component. |
-| `canonlyuseonlocomotorspvp` | `boolean` | `false` | Restricts targeting to locomotor-equipped entities *including* player-vs-player contexts. |
-| `canonlyuseonworkable` | `boolean` | `false` | Restricts targeting to workable entities (e.g., trees, rocks). |
-| `canonlyuseoncombat` | `boolean` | `false` | Restricts targeting to entities the wielder can directly attack. |
-| `canuseonpoint` | `boolean` | `false` | Whether the spell can be cast on a world position (on land). |
-| `canuseonpoint_water` | `boolean` | `false` | Whether the spell can be cast on water (e.g., ocean tiles). |
-| `spell` | `function?` | `nil` | Main spell function: `(inst, target, pos, doer) → nil`. |
-| `quickcast` | `boolean` | `false` | If `true`, adds the `quickcast` tag. |
-| `veryquickcast` | `boolean` | `false` | If `true`, adds the `veryquickcast` tag. |
-| `spelltype` | `string?` | `nil` | Type (e.g., `"dark"`, `"magic"`) used to enforce spell-user tag requirements. |
-| `can_cast_fn` | `function?` | `nil` | Optional custom casting validation function. |
+| `spell` | function or `nil` | `nil` | Function `(inst, target, pos, doer)` to invoke when `CastSpell()` is called. |
+| `canusefrominventory` | boolean | `false` | Whether the spell can be cast directly from inventory (without target or position). |
+| `canuseontargets` | boolean | `false` | Whether the spell can be cast on targets (must be true to enable most target-specific logic). |
+| `canuseondead` | boolean | `false` | Whether the spell can be cast on dead targets (ignored unless `canuseontargets` is `true`). |
+| `canonlyuseonrecipes` | boolean | `false` | If true, spell only works on deconstructable recipes. |
+| `canonlyuseonlocomotors` | boolean | `false` | If true, spell only works on entities with `locomotor` component (non-PvP exclusive). |
+| `canonlyuseonlocomotorspvp` | boolean | `false` | If true, spell works on any `locomotor` entity (including PvP). Overrides `canonlyuseonlocomotors`. |
+| `canonlyuseonworkable` | boolean | `false` | If true, spell only works on workable objects performing valid actions (e.g., `CHOP`, `MINE`). |
+| `canonlyuseoncombat` | boolean | `false` | If true, spell only works on targets the *doer* can attack (checked via `combat:CanTarget`). |
+| `canuseonpoint` | boolean | `false` | Whether spell can be cast at a ground point (above-ground only). |
+| `canuseonpoint_water` | boolean | `false` | Whether spell can be cast at a water point (ocean only). |
+| `quickcast` | boolean | `false` | Enables `quickcast` tag when true. |
+| `veryquickcast` | boolean | `false` | Enables `veryquickcast` tag when true. |
+| `spelltype` | string or `nil` | `nil` | Required type tag for *users* (e.g., `"shadow"` requires `doer:HasTag("shadow_spelluser")`). |
+| `can_cast_fn` | function or `nil` | `nil` | Optional custom cast validation callback `(doer, target, pos, self.inst)` returning `bool, reason?`. |
+| `onspellcast` | function or `nil` | `nil` | Callback fired after successful `CastSpell()` call. |
 
-## Main Functions
-
+## Main functions
 ### `SetSpellFn(fn)`
-* **Description:** Assigns the primary spell function to execute when `CastSpell` is called.  
-* **Parameters:**  
-  - `fn` (`function`): A callable with signature `(inst, target, pos, doer)`.
+* **Description:** Sets the spell function to be invoked when `CastSpell()` is called.
+* **Parameters:** `fn` (function) — signature: `fn(inst, target, pos, doer)`.
+* **Returns:** Nothing.
 
 ### `SetOnSpellCastFn(fn)`
-* **Description:** Sets a callback function triggered *after* the spell function completes (if the spell exists).  
-* **Parameters:**  
-  - `fn` (`function`): A callable with signature `(inst, target, pos, doer)`.
+* **Description:** Sets a callback to be triggered *after* the spell function executes.
+* **Parameters:** `fn` (function) — signature: `fn(inst, target, pos, doer)`.
+* **Returns:** Nothing.
 
 ### `SetCanCastFn(fn)`
-* **Description:** Assigns a custom validation function for casting logic, used in `CanCast` when evaluating point/target constraints.  
-* **Parameters:**  
-  - `fn` (`function`): A callable with signature `(doer, target, pos, spellcaster_inst)` returning `can_cast (boolean) [, reason (string)]`.
+* **Description:** Assigns a custom validation function for casting. Overrides internal checks in `CanCast()` where applicable.
+* **Parameters:** `fn` (function) — signature: `fn(doer, target, pos, spellcaster_inst)`, returning `(can_cast: boolean, reason: string?)`.
+* **Returns:** Nothing.
 
 ### `SetSpellType(type)`
-* **Description:** Sets the spell type, which adds the `<type>_spellcaster` tag and enforces that casters must carry the corresponding `<type>_spelluser` tag.  
-* **Parameters:**  
-  - `type` (`string`): A string identifier (e.g., `"dark"`).
+* **Description:** Sets the required type tag that spell *users* must possess (e.g., `"shadow"` → requires `shadow_spelluser` tag on `doer`).
+* **Parameters:** `type` (string) — the spell type identifier.
+* **Returns:** Nothing.
 
 ### `CastSpell(target, pos, doer)`
-* **Description:** Executes the assigned `spell` function (if present), then invokes `onspellcast` if defined.  
+* **Description:** Invokes the configured `spell` function (if present) with the given arguments, then fires `onspellcast` if set.
 * **Parameters:**  
-  - `target` (`Entity?`): The target entity, or `nil` for point-based casting.  
-  - `pos` (`Vector3?`): World position for point-target casting.  
-  - `doer` (`Entity`): The entity performing the cast.
+  - `target` (Entity or `nil`) — The target entity, if any.  
+  - `pos` (Vector3 or `nil`) — Position for point casting.  
+  - `doer` (Entity) — The entity performing the cast.
+* **Returns:** Nothing.
 
 ### `CanCast(doer, target, pos)`
-* **Description:** Validates whether the spell can be cast under current conditions, considering tag/ability restrictions, target state, and custom logic. Returns `true`/`false`, optionally with a `cast_fail_reason` string.  
+* **Description:** Validates whether the spell can be cast under the current conditions, applying all configured constraints and component checks.
 * **Parameters:**  
-  - `doer` (`Entity`): The casting entity.  
-  - `target` (`Entity?`): The intended target, or `nil`.  
-  - `pos` (`Vector3?`): World position, required only for point casting.  
-* **Return:** `boolean, string?` — Whether casting is allowed, and optionally a failure reason.
+  - `doer` (Entity) — The entity attempting to cast.  
+  - `target` (Entity or `nil`) — The intended target (may be `nil` for point casting).  
+  - `pos` (Vector3 or `nil`) — The target position (used if `target == nil`).
+* **Returns:** `can_cast: boolean` — `true` if casting is allowed.  
+  - If `can_cast_fn` is set and returns `false`, also returns `reason: string`.
+* **Error states:**  
+  - Returns `false` if `spell` is `nil`.  
+  - Returns `false` if `spelltype` is set but `doer` lacks `spelltype.."_spelluser"` tag.  
+  - Returns `false` if `target` is `nil` and neither `canusefrominventory` nor point-casting flags (`canuseonpoint`, `canuseonpoint_water`) are enabled.  
+  - Returns `false` if `target` is in limbo, invisible, dead (unless `canuseondead`), or in forbidden states (`death`, `flight`, `invisible`, `nospellcasting`).  
+  - Returns `false` if `canuseontargets` is `false` but target is specified.
 
-## Events & Listeners
-The component does not use `inst:ListenForEvent` and does not emit events via `inst:PushEvent`. Tag updates are immediate side effects of property assignments or explicit method calls.
+## Events & listeners
+* **Listens to:** None (tags are managed directly during property assignment and `OnRemoveFromEntity`).
+* **Pushes:** None (events are emitted by higher-level logic, not `SpellCaster` itself).

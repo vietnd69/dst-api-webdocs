@@ -1,157 +1,162 @@
 ---
 id: skilltreeupdater
 title: Skilltreeupdater
-description: Manages player-specific skill progression, including activation, XP gain, and network synchronization for the Don't Starve Together skill tree system.
+description: Manages player skill tree activation, XP progression, and network synchronization across client and server.
+tags: [skill_tree, progression, network, player]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 1f40b1d4
+system_scope: player
 ---
 
 # Skilltreeupdater
 
-## Overview
-This component acts as the primary interface for handling player skill progression in the game's Entity Component System. It wraps lower-level `skilltreedata` logic and ensures consistent behavior across client and server, including RPC network communication, skill activation/deactivation callbacks, and save/load state persistence. It is attached to player entities and coordinates with the global `TheSkillTree` system only after player activation.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies:**
-  - Relies on the entity having `userid` (for dedicated/multiplayer RPC targets).
-  - Uses global `TheSkillTree` and `ThePlayer` references only after player activation.
-  - Uses `TheNet:IsDedicated()` and `TheWorld.ismastersim` for logic branching.
-  - Interacts with RPC endpoints: `RPC.SetSkillActivatedState`, `RPC.AddSkillXP`, and `CLIENT_RPC.SetSkillActivatedState`.
-- **Tags Added:** None
-- **Tags Removed:** None
+## Overview
+`SkillTreeUpdater` is a player-owned component that provides a client-server abstraction layer for managing character skill tree state. It wraps lower-level operations from `skilltreedata` and ensures proper networking, validation, and event propagation when skills are activated/deactivated or XP is modified. It is typically attached to player entities and coordinates with the global `TheSkillTree` system during activation.
+
+## Usage example
+```lua
+local inst = ThePlayer
+inst:AddComponent("skilltreeupdater")
+
+-- Add XP to a skill
+inst.components.skilltreeupdater:AddSkillXP(100)
+
+-- Activate a skill
+inst.components.skilltreeupdater:ActivateSkill("agility")
+
+-- Check if a skill is activated
+if inst.components.skilltreeupdater:IsActivated("agility") then
+    print("Agility skill is active!")
+end
+
+-- Get available skill points
+print("Available points:", inst.components.skilltreeupdater:GetAvailableSkillPoints())
+```
+
+## Dependencies & tags
+**Components used:** None (uses `skilltreedata` via `require`, but does not directly access other components via `inst.components.X`).
+
+**Tags:** None identified.
 
 ## Properties
-The following public properties are initialized during construction or dynamically.
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | The entity (player) this component belongs to. |
-| `skilltree` | `skilltreedata` | `require("skilltreedata")()` | Internal data store managing skill states, XP, and selections per character prefab. |
-| `silent` | `boolean`/`nil` | `nil` | When true, suppresses network updates and callbacks (used during batch operations like load). |
-| `skilltreeblob` | `table`/`nil` | `nil` | Encoded skill tree state loaded from save data; cleared after successful decode and validation. |
-| `skilltreeblobprefab` | `string`/`nil` | `nil` | Character prefab name associated with `skilltreeblob`; used for validation during load. |
+| `skilltree` | `skilltreedata` instance | Created in constructor | Internal data store for skill state (XP, activation, points). |
+| `silent` | boolean (or `nil`) | `nil` | When `true`, suppresses networking and event callbacks for skill operations. |
+| `skilltreeblob` | table or `nil` | `nil` | Encoded skill tree state persisted from save/load. |
+| `skilltreeblobprefab` | string or `nil` | `nil` | Character prefab associated with `skilltreeblob` for validation. |
 
-## Main Functions
-
+## Main functions
 ### `IsActivated(skill)`
-* **Description:** Checks whether a given skill is currently activated for the entity’s character prefab.
-* **Parameters:**
-  - `skill` (`string`): The skill identifier.
+*   **Description:** Checks if the given skill is currently activated for this character.
+*   **Parameters:** `skill` (string) — The skill identifier (key in `SKILLTREE_DEFS`).
+*   **Returns:** `boolean` — `true` if activated, `false` otherwise.
 
 ### `IsValidSkill(skill)`
-* **Description:** Verifies whether a given skill is defined for the entity’s character prefab.
-* **Parameters:**
-  - `skill` (`string`): The skill identifier.
+*   **Description:** Validates whether the given skill exists and is valid for this character's prefab.
+*   **Parameters:** `skill` (string) — The skill identifier.
+*   **Returns:** `boolean` — `true` if valid, `false` otherwise.
 
 ### `GetSkillXP()`
-* **Description:** Returns the total XP accumulated for the entity’s character prefab.
-* **Parameters:** None.
+*   **Description:** Returns total XP accumulated across all skills for this character.
+*   **Parameters:** None.
+*   **Returns:** `number` — Total XP value.
 
 ### `GetPointsForSkillXP(skillxp)`
-* **Description:** Computes the number of available skill points corresponding to a given XP amount.
-* **Parameters:**
-  - `skillxp` (`number`): XP value.
+*   **Description:** Calculates how many skill points correspond to a given amount of XP.
+*   **Parameters:** `skillxp` (number) — XP amount.
+*   **Returns:** `number` — Number of skill points.
 
 ### `GetAvailableSkillPoints()`
-* **Description:** Returns the number of unspent skill points for the entity’s character prefab.
-* **Parameters:** None.
-
-### `GetPlayerSkillSelection()`
-* **Description:** Returns an array table of bitfield-encoded activated skill IDs.
-* **Parameters:** None.
-
-### `GetNamesFromSkillSelection(skillselection)`
-* **Description:** Converts an array of bitfield-encoded skill IDs into a table of skill names.
-* **Parameters:**
-  - `skillselection` (`table`): Array of bitfield-encoded skill IDs.
+*   **Description:** Returns the number of unspent skill points for this character.
+*   **Parameters:** None.
+*   **Returns:** `number` — Available points.
 
 ### `GetActivatedSkills()`
-* **Description:** Returns a table of skill names currently activated for the entity’s character prefab.
-* **Parameters:** None.
+*   **Description:** Gets the list of currently activated skill names (keys).
+*   **Parameters:** None.
+*   **Returns:** `table` — Array-like table of skill names (strings).
 
 ### `CountSkillTag(tag)`
-* **Description:** Counts how many activated skills match a given tag (via `skilltreedefs.FN.CountTags`).
-* **Parameters:**
-  - `tag` (`string`): The tag to count.
+*   **Description:** Counts how many activated skills carry a specific tag.
+*   **Parameters:** `tag` (string) — The tag to count (e.g., `"melee"`, `"magic"`).
+*   **Returns:** `number` — Number of activated skills with the tag.
 
 ### `HasSkillTag(tag)`
-* **Description:** Returns true if at least one activated skill matches the given tag.
-* **Parameters:**
-  - `tag` (`string`): The tag to check.
+*   **Description:** Checks if at least one activated skill carries a specific tag.
+*   **Parameters:** `tag` (string) — The tag to check.
+*   **Returns:** `boolean` — `true` if any skill has the tag.
 
 ### `ActivateSkill(skill, prefab, fromrpc)`
-* **Description:** Activates a skill, updating local state, invoking server/client callbacks, and broadcasting the change via RPC when appropriate. Ignores `prefab` parameter (deprecated); uses `self.inst.prefab`.
-* **Parameters:**
-  - `skill` (`string`): Skill identifier.
-  - `prefab` (`string`, ignored): Previously used by frontend; now ignored.
-  - `fromrpc` (`boolean`, optional): If true, prevents redundant RPC transmission.
+*   **Description:** Activates a skill with proper client-server syncing and callbacks. **Do not use `prefab`** — it is ignored and retained for compatibility.
+*   **Parameters:**  
+  • `skill` (string) — Skill key to activate.  
+  • `prefab` (string, unused) — Obsolete; pass `nil`.  
+  • `fromrpc` (boolean, optional) — If `true`, suppresses redundant RPC calls.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `skill` is invalid or `self.silent` is `true`.
 
 ### `DeactivateSkill(skill, prefab, fromrpc)`
-* **Description:** Deactivates a skill, updating local state, invoking callbacks, and broadcasting via RPC. Does not recursively deactivate dependent skills (see FIXME).
-* **Parameters:**
-  - `skill` (`string`): Skill identifier.
-  - `prefab` (`string`, ignored): Deprecated; ignored.
-  - `fromrpc` (`boolean`, optional): Prevents redundant RPC if true.
+*   **Description:** Deactivates a skill with proper client-server syncing and callbacks. **Do not use `prefab`** — it is ignored.
+*   **Parameters:**  
+  • `skill` (string) — Skill key to deactivate.  
+  • `prefab` (string, unused) — Obsolete; pass `nil`.  
+  • `fromrpc` (boolean, optional) — If `true`, suppresses redundant RPC calls.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `skill` is invalid or `self.silent` is `true`.
 
 ### `AddSkillXP(amount, prefab, fromrpc)`
-* **Description:** Adds XP to a skill for the entity’s character prefab, updates state, triggers events, and networks changes. Also triggers the `newskillpointupdated` event locally if points become available.
-* **Parameters:**
-  - `amount` (`number`): XP amount to add.
-  - `prefab` (`string`, ignored): Deprecated; ignored.
-  - `fromrpc` (`boolean`, optional): Skips redundant RPC if true.
+*   **Description:** Adds XP to the skill tree and handles updating available points and UI state (e.g., showing the new skill point popup).
+*   **Parameters:**  
+  • `amount` (number) — XP to add.  
+  • `prefab` (string, unused) — Obsolete; pass `nil`.  
+  • `fromrpc` (boolean, optional) — If `true`, suppresses redundant RPC calls.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `amount` is `nil` or `self.inst ~= ThePlayer` and XP would trigger local UI updates.
 
 ### `SetSilent(silent)`
-* **Description:** Enables/disables "silent mode," which suppresses network updates and callbacks (e.g., during bulk loading).
-* **Parameters:**
-  - `silent` (`boolean`): If truthy, sets silent mode.
+*   **Description:** Sets whether to suppress networking, callbacks, and validation during skill operations.
+*   **Parameters:** `silent` (boolean) — `true` to silence events and syncing.
+*   **Returns:** Nothing.
 
 ### `SetSkipValidation(skip)`
-* **Description:** Enables/disables skill validation checks in the underlying `skilltreedata` object.
-* **Parameters:**
-  - `skip` (`boolean`): If truthy, skips validation.
+*   **Description:** Skips skill validation checks (e.g., prerequisite checks) in `skilltreedata`.
+*   **Parameters:** `skip` (boolean) — `true` to skip validation.
+*   **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Returns a table containing encoded skill tree data for persistence.
-* **Parameters:** None.
-
-### `TransferComponent(newinst)`
-* **Description:** Transfers the current skill tree blob to a new component instance (e.g., during entity replacement).
-* **Parameters:**
-  - `newinst` (`Entity`): Target entity instance.
-
-### `SetPlayerSkillSelection(skillselection)`
-* **Description:** Applies a pre-encoded skill selection array (bitfield IDs), activating all skills silently and without network sync. Updates internal blob after.
-* **Parameters:**
-  - `skillselection` (`table`): Array of bitfield-encoded skill IDs.
-
-### `SendFromSkillTreeBlob(inst)`
-* **Description:** Processes and validates saved skill data blob (e.g., on load). Deactivates then reactivates skills after validation. Clears blob on success.
-* **Parameters:**
-  - `inst` (`Entity`): Unused parameter (legacy).
+*   **Description:** Encodes and returns the current skill tree state for saving to disk.
+*   **Parameters:** None.
+*   **Returns:** `table` — `nil` if no data; otherwise `{skilltreeblob = ..., skilltreeblobprefab = ...}`.
 
 ### `OnLoad(data)`
-* **Description:** Loads skill tree blob data from save.
-* **Parameters:**
-  - `data` (`table`): Save data table with `skilltreeblob` and `skilltreeblobprefab` keys.
+*   **Description:** Loads persisted skill tree state from save data into the component.
+*   **Parameters:** `data` (table) — Data returned from `OnSave()`.
+*   **Returns:** Nothing.
 
-## Events & Listeners
+### `SetPlayerSkillSelection(skillselection)`
+*   **Description:** Instantly applies a raw bitfield-based skill selection array (typically from frontend or modding tools), bypassing validation and networking.
+*   **Parameters:** `skillselection` (table) — Array of bitfield entries representing activated skills.
+*   **Returns:** Nothing.
 
-### Listeners:
-- `"playeractivated"` → calls `onplayeractivated`, which initializes `self.skilltree` with `TheSkillTree` and disables saving until handshake complete.
+### `SendFromSkillTreeBlob(inst)`
+*   **Description:** Applies skill activation state from `skilltreeblob` after validating against current XP and prefab. Typically invoked on client connection or post-load.
+*   **Parameters:** `inst` — The entity instance (unused internally).
+*   **Returns:** Nothing.
+*   **Note:** Pushes `"onsetskillselection_server"` after completion.
 
-### Events Pushed:
-- `"onactivateskill_client"`
-- `"onactivateskill_server"`
-- `"ondeactivateskill_client"`
-- `"ondeactivateskill_server"`
-- `"onaddskillxp_client"`
-- `"onaddskillxp_server"`
-- `"newskillpointupdated"` (local player only, when new XP grants points)
-- `"onsetskillselection_server"` (called at the end of `SendFromSkillTreeBlob`)
-- `"onactivateskill"` and `"ondeactivateskill"` are *not* directly used; the component uses prefixed variants (`_client`/`_server`).
+## Events & listeners
+- **Listens to:**  
+  `playeractivated` — When the local player activates, initializes `TheSkillTree` with owner and disables saving until handshake completes.
+- **Pushes (server):**  
+  `onactivateskill_server`, `ondeactivateskill_server`, `onaddskillxp_server`, `onsetskillselection_server`, `newskillpointupdated` (via `ThePlayer`).  
+- **Pushes (client):**  
+  `onactivateskill_client`, `ondeactivateskill_client`, `onaddskillxp_client`.  
+- **Notes:** Client and server variants exist but are internal — the public `ActivateSkill`, `DeactivateSkill`, `AddSkillXP` methods handle invoking both.

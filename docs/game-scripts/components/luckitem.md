@@ -1,71 +1,90 @@
 ---
 id: luckitem
 title: Luckitem
-description: This component calculates and applies luck value to an owner entity based on the item's equipped status and stack size.
+description: Manages luck contribution from an item to its owner, adjusting based on equipped state and stack size.
+tags: [luck, inventory, equipment]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 2cdce8b2
+system_scope: inventory
 ---
 
 # Luckitem
 
-## Overview
-This component manages the luck contribution of an inventory item to its owner entity. It calculates effective luck based on the item's base luck, equipped status, and stack size, then applies it to the owner via the `luckuser` component when the item is equipped or held as part of the inventory source. It also ensures proper cleanup when the item is unequipped, removed, or ownership changes.
+> Based on game build **7140014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components relied on:** `inventoryitem`, `equippable`, `luckuser`
-- **Tags added:** None identified
-- **Inheritance helpers:** Uses `MakeComponentAnInventoryItemSource(self)` and `RemoveComponentInventoryItemSource(self)` for inventory source integration.
+## Overview
+`Luckitem` is a component that allows an item to contribute luck to its owner (a `luckuser` entity). It dynamically computes and applies luck based on whether the item is equipped, its stack size, and the luck values set for equipped and unequipped states. It integrates with the `equippable`, `inventoryitem`, and `luckuser` components and automatically updates the owner’s luck when the item is equipped, unequipped, or its stack size changes.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("luckitem")
+inst:AddComponent("equippable")
+inst:AddComponent("inventoryitem")
+inst:AddComponent("luckuser")
+
+inst.components.luckitem:SetLuck(0.05)          -- 5% luck when unequipped
+inst.components.luckitem:SetEquippedLuck(0.10)  -- 10% luck when equipped
+inst.components.luckitem:UpdateOwnerLuck_Internal()  -- Apply current luck to owner
+```
+
+## Dependencies & tags
+**Components used:** `equippable`, `inventoryitem`, `luckuser`
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (assigned in constructor) | Reference to the entity this component is attached to. |
-| `luck` | `number` or `function` | `0` | Base luck value provided by the item when not equipped. |
-| `equippedluck` | `number` or `function` | `0` | Luck value provided by the item when equipped (overrides `luck` when equipped). |
+| `luck` | number | `0` | Base luck contribution when the item is unequipped (can be a function). |
+| `equippedluck` | number | `0` | Luck contribution when the item is equipped (can be a function). |
 
-## Main Functions
-### `UpdateOwnerLuck_Internal(owner)`
-* **Description:** Calculates the current effective luck from the item and updates the owner's `luckuser` component. Uses equipped luck if the item is equipped, otherwise base luck. Multiplies by stack size. If no owner is provided, it determines the grand owner via the `inventoryitem` component.
-* **Parameters:**  
-  `owner` (optional `Entity`): The entity receiving the luck. If omitted, determined automatically.
-
-### `RemoveOwnerLuck_Internal(owner)`
-* **Description:** Removes the item’s luck contribution from the owner’s `luckuser` component. If no owner is provided, it determines the grand owner via the `inventoryitem` component.
-* **Parameters:**  
-  `owner` (optional `Entity`): The entity from which to remove the luck source. If omitted, determined automatically.
-
+## Main functions
 ### `SetLuck(luck)`
-* **Description:** Sets the base luck value for the item (used when unequipped).
-* **Parameters:**  
-  `luck` (`number` or `function`): The luck value or a function returning the value.
+*   **Description:** Sets the base luck value applied when the item is unequipped. Accepts either a number or a callable function.
+*   **Parameters:** `luck` (number or function) — luck multiplier (e.g., `0.05` for +5%).
+*   **Returns:** Nothing.
 
 ### `GetLuck()`
-* **Description:** Returns the current base luck value, resolving it through `FunctionOrValue` to support dynamic values based on item owner context.
-* **Parameters:** None.
+*   **Description:** Returns the current base luck value, resolving it as a function if necessary.
+*   **Parameters:** None.
+*   **Returns:** number — resolved luck value.
 
 ### `SetEquippedLuck(luck)`
-* **Description:** Sets the luck value applied when the item is equipped.
-* **Parameters:**  
-  `luck` (`number` or `function`): The equipped luck value or a function returning the value.
+*   **Description:** Sets the luck value applied when the item is equipped. Accepts either a number or a callable function.
+*   **Parameters:** `luck` (number or function) — equipped luck multiplier (e.g., `0.10` for +10%).
+*   **Returns:** Nothing.
 
 ### `GetEquippedLuck()`
-* **Description:** Returns the current equipped luck value, resolving it through `FunctionOrValue` to support dynamic values based on item owner context.
-* **Parameters:** None.
+*   **Description:** Returns the current equipped luck value, resolving it as a function if necessary.
+*   **Parameters:** None.
+*   **Returns:** number — resolved luck value.
+
+### `UpdateOwnerLuck_Internal([owner])`
+*   **Description:** Calculates and applies the item’s luck contribution to the owner based on current equipped state and stack size. If `owner` is not provided, it attempts to infer it from `inventoryitem:GetGrandOwner()`.
+*   **Parameters:** `owner` (Entity, optional) — the entity to update luck on.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if `owner` is missing, or if `owner.components.luckuser` is not present.
+
+### `RemoveOwnerLuck_Internal([owner])`
+*   **Description:** Removes this item’s luck contribution from the owner.
+*   **Parameters:** `owner` (Entity, optional) — the entity to remove luck from; inferred from `inventoryitem` if omitted.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if `owner` is missing, or if `owner.components.luckuser` is not present.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted debug string showing the calculated luck percentages for both base and equipped states (multiplied by 100 for readability).
-* **Parameters:** None.
+*   **Description:** Returns a formatted string for debugging, showing percentage-formatted luck values adjusted for stack size.
+*   **Parameters:** None.
+*   **Returns:** string — e.g., `"luck: 5.0%, equippedluck: 10.0%"`.
 
-## Events & Listeners
-- Listens for `"equipped"` → calls `UpdateOwnerLuck_Internal()`
-- Listens for `"unequipped"` → calls `RemoveOwnerLuck_Internal()`
-- Listens for `"stacksizechange"` → calls `UpdateOwnerLuck_Internal()`
-- Listens for `"updateownerluck"` → calls `UpdateOwnerLuck_Internal()`
-- Implements `OnItemSourceRemoved(owner)` callback → calls `RemoveOwnerLuck_Internal(owner)`
-- Implements `OnItemSourceNewOwner(owner)` callback → calls `UpdateOwnerLuck_Internal(owner)`
+## Events & listeners
+- **Listens to:**  
+  - `equipped` — triggers `UpdateOwnerLuck_Internal()` when the item is equipped.  
+  - `unequipped` — triggers `RemoveOwnerLuck_Internal()` when the item is unequipped.  
+  - `stacksizechange` — triggers `UpdateOwnerLuck_Internal()` when stack size changes.  
+  - `updateownerluck` — triggers `UpdateOwnerLuck_Internal()` for manual refreshes.
+- **Pushes:** None.

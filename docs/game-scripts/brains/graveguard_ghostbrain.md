@@ -1,73 +1,52 @@
 ---
 id: graveguard_ghostbrain
 title: Graveguard Ghostbrain
-description: Controls the behavioral decision-making and task execution of the Graveguard ghost, including following targets, interacting with other ghosts, wandering, and despawning.
+description: Controls the AI behavior of a ghost entity in DST, including following living targets, playful interaction with other ghosts, and periodic despawning.
+tags: [ai, ghost, combat, locomotion]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 25c82fb7
+system_scope: brain
 ---
 
 # Graveguard Ghostbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The `GraveGuardBrain` component defines the behavior tree for the Graveguard ghost entity in Don't Starve Together. It orchestrates high-level behaviors such as following a target character, playing with other ghosts (e.g., Abigail), wandering near the ghost's home location, and eventually despawning after a full game cycle. It extends the base `Brain` class and constructs a `BT` (Behavior Tree) instance in `OnStart`, delegating movement and decision logic to external behavior nodes (`Follow`, `Wander`, `Leash`, `StandStill`, etc.). The brain interacts with key components: `health` (to verify targets are alive), `knownlocations` (to locate the "home" point), and `timer` (to enforce play cooldowns).
+`GraveGuardBrain` implements the behavior tree for a ghost entity, determining how it moves, searches for targets, and interacts. It extends `Brain` and constructs a behavior tree (`BT`) in `OnStart()` that orchestrates three primary behaviors: following a valid living target, engaging in playful interactions with nearby ghosts, and eventually despawning after a full day cycle. It relies heavily on `knownlocations` (for home position), `health` (to verify target vitality), and `timer` (to prevent overly frequent play behavior).
 
-## Dependencies & Tags
-- **Components used:**
-  - `health` — checks if targets are alive via `IsDead()`
-  - `knownlocations` — retrieves the "home" location via `GetLocation("home")`
-  - `timer` — checks for a "played_recently" timer via `TimerExists("played_recently")`
-- **Tags used in filtering:**
-  - `PLAYMATE_NO_TAGS`: `{"abigail", "busy"}`
-  - `PLAYMATE_ONEOF_TAGS`: `{"ghost"}`
-  - `TARGET_CANT_TAGS`: `{"INLIMBO", "noauradamage"}`
-  - `TARGET_ONEOF_TAGS`: `{"character", "hostile", "monster", "smallcreature"}`
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddTag("ghost")
+inst:AddComponent("brain")
+inst.brain = inst:AddBrain("graveguard_ghostbrain")
+inst.components.knownlocations:SetLocation("home", Vector3(0,0,0))
+inst:ListenForEvent("beattacked", function() inst.sg:GoToState("panic") end)
+```
+
+## Dependencies & tags
+**Components used:** `knownlocations`, `health`, `timer`, `transform`
+**Tags:** Checks and prevents targeting `INLIMBO`, `noauradamage`, `abigail`, `busy`; seeks targets with one of `character`, `hostile`, `monster`, `smallcreature`; seeks playmates with one of `ghost`.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `playfultarget` | `Entity` | `nil` | Reference to the ghost currently being played with; set/cleared by `FindPlaymate` and `PlayWithPlaymate`. |
-| `followtarget` | `Entity` | `nil` | The living target the ghost is currently following; updated by `GetFollowTarget`. |
-| `bt` | `BehaviorTree` | `nil` | Behavior tree instance created in `OnStart`; stores the active root node. |
+| `playfultarget` | `Entity` or `nil` | `nil` | The currently selected ghost to play with, or `nil`. |
+| `followtarget` | `Entity` or `nil` | `nil` | The current living entity this ghost is pursuing. |
 
-## Main Functions
-
-### `GraveGuardBrain:OnStart()`
-* **Description:** Initializes the behavior tree for the ghost. Constructs a priority-weighted root node that evaluates in order: (1) follow a valid target, (2) despawn if requested, (3) play with another ghost if conditions allow, and (4) wander near home until timing out and despawning.
+## Main functions
+### `OnStart()`
+* **Description:** Initializes and assigns the behavior tree root node. This is called once when the brain becomes active and constructs a priority-based behavior tree with the following nodes: (1) follow a living target, (2) despawn if queued, (3) play with a nearby ghost, (4) wander and despawn after a full day.
 * **Parameters:** None.
-* **Returns:** None.
+* **Returns:** Nothing.
+* **Error states:** None identified.
 
-### `FindPlaymate(self)`
-* **Description:** Determines whether the ghost can or should play with another ghost. Checks proximity to home, cooldown state (`played_recently` timer), and searches for a valid ghost within range using `FindEntity`. If a playmate is found and valid, it is stored in `self.playfultarget`.
-* **Parameters:**
-  - `self` (`GraveGuardBrain`): The brain instance.
-* **Returns:** `true` if a valid playmate is found and selected; `false` otherwise.
-
-### `PlayWithPlaymate(self)`
-* **Description:** Triggers a `start_playwithghost` event with the current `playfultarget` and clears the playmate reference. Used after the ghost has completed its playful interaction sequence.
-* **Parameters:**
-  - `self` (`GraveGuardBrain`): The brain instance.
-* **Returns:** None.
-
-### `IsAlive(target)`
-* **Description:** Helper function to verify if a target entity is alive and visible, used during target selection. Checks visibility, presence of a health component, and that the entity is not dead.
-* **Parameters:**
-  - `target` (`Entity`): The entity to evaluate.
-* **Returns:** `true` if the target is visible, has a `health` component, and `health:IsDead()` is `false`; otherwise `false`.
-
-### `GetFollowTarget(ghost)`
-* **Description:** Updates and returns the ghost's current follow target. Clears the stored target if it becomes invalid (e.g., dead, hidden, too far). If no valid target exists, it searches for the nearest living character within 10 units that satisfies `_target_test` (e.g., not an ally under PvP rules). Updates `ghost.brain.followtarget` as a side effect.
-* **Parameters:**
-  - `ghost` (`Entity`): The ghost entity whose brain is performing the search.
-* **Returns:** `Entity` or `nil` — the selected follow target, or `nil` if none found.
-
-## Events & Listeners
-- **Pushes:**
-  - `"start_playwithghost"` — Fired by `PlayWithPlaymate` with payload `{target=self.playfultarget}` to signal a play interaction has started.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** `"start_playwithghost"` with `{target=<Entity>}` when initiating play with a playmate; internal events from behavior tree nodes (e.g., `SequenceNode`, `Follow`) trigger state transitions in the owner's `stategraph`.

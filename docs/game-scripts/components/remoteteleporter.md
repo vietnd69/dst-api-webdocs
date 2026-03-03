@@ -1,120 +1,129 @@
 ---
 id: remoteteleporter
 title: Remoteteleporter
-description: This component enables remote teleportation logic by selecting a target teleporter and moving the player (and optionally nearby items) to it using configurable activation and teleportation callbacks.
+description: Handles remote teleportation logic by selecting a valid destination pad and moving the doer and nearby items.
+tags: [teleport, navigation, map, inventory]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: components
 source_hash: 2b06eb31
+system_scope: world
 ---
-
 # Remoteteleporter
 
-## Overview
-This component provides the core logic for remote teleportation in DST, primarily used by Winona's Teleportation Pads. It identifies valid target teleporters, verifies teleportation permissions, executes the teleport (including optional item transport), and invokes custom callback functions at key stages. It does not manage networking directly but supports networked behavior via event propagation and server-side teleport logic.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Usage**: Relies on `TheWorld.components.winonateleportpadmanager` (if present) to enumerate teleporter targets.
-- **Entity Tags Checked**: Uses internal filtering tags for items:  
-  `MustHaveTags = {"_inventoryitem"}`  
-  `CantHaveTags = {"INLIMBO", "FX", "NOCLICK", "DECOR"}`  
-- **No tags are added or removed** by this component.
+## Overview
+`RemoteTeleporter` manages the logic for initiating and executing remote teleportation from one location to the nearest or farthest valid Winona Teleport Pad. It supports dynamic destination selection based on camera proximity, custom activation/check callbacks, and optional movement of nearby inventory items. This component is typically attached to teleported entities (e.g., players or objects with a teleported target) and relies on the `winonateleportpadmanager` component in `TheWorld` to discover valid destinations.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("remoteteleporter")
+
+-- Set optional callbacks
+inst.components.remoteteleporter:SetCanActivateFn(function(inst, doer) return true end)
+inst.components.remoteteleporter:SetCheckDestinationFn(function(inst, target, doer) return true end)
+inst.components.remoteteleporter:SetOnStartTeleportFn(function(inst, doer) print("Teleport started") end)
+inst.components.remoteteleporter:SetOnTeleportedFn(function(inst, doer, success, target, items) print("Teleport result:", success) end)
+inst.components.remoteteleporter:SetOnStopTeleportFn(function(inst, doer, success) end)
+
+-- Trigger teleportation
+inst.components.remoteteleporter:Teleport(doer_entity)
+```
+
+## Dependencies & tags
+**Components used:** `inventoryitem` (via `item.components.inventoryitem`), `winonateleportpadmanager` (via `TheWorld.components.winonateleportpadmanager`)  
+**Tags:** Checks `canbepickedup` on items, filters by `ITEM_MUST_TAGS = {"_inventoryitem"}` and `ITEM_CANT_TAGS = {"INLIMBO", "FX", "NOCLICK", "DECOR"}`
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity instance this component is attached to (e.g., a teleporter). |
-| `canactivatefn` | `function (self.inst, doer) → boolean?` | `nil` | Optional callback to determine if teleportation can be initiated by `doer`. Returns `true` if `nil`. |
-| `checkdestinationfn` | `function (self.inst, target, doer) → boolean?` | `nil` | Optional callback to validate a target teleporter for the `doer`. Returns `true` if `nil`. |
-| `onstartteleportfn` | `function (self.inst, doer)` | `nil` | Callback invoked *before* teleport begins. |
-| `onteleportedfn` | `function (self.inst, doer, success, target, items, from_x, from_z)` | `nil` | Callback invoked *after* teleport completes, with success status and item list. |
-| `onstopteleportfn` | `function (self.inst, doer, success)` | `nil` | Callback invoked on teleport abort or completion (success/failure). |
-| `itemteleportradius` | `number` | `nil` | Radius around the player to scan for items to teleport alongside them. |
-| `nearbyitems` | `table` (array of `Entity`) | `nil` | Precomputed list of items to teleport; populated via `Teleport_GetNearbyItems()` and stored for use in `Teleport_Internal()`. |
+| `canactivatefn` | function or `nil` | `nil` | Callback determining if teleport can start. Signature: `fn(inst, doer) → boolean` |
+| `checkdestinationfn` | function or `nil` | `nil` | Callback validating a destination pad. Signature: `fn(inst, target, doer) → boolean` |
+| `onstartteleportfn` | function or `nil` | `nil` | Callback fired when teleport begins. Signature: `fn(inst, doer)` |
+| `onteleportedfn` | function or `nil` | `nil` | Callback fired after teleport attempt (success or failure). Signature: `fn(inst, doer, success, target?, items?, from_x, from_z)` |
+| `onstopteleportfn` | function or `nil` | `nil` | Callback fired on teleport completion/cancellation. Signature: `fn(inst, doer, success)` |
+| `itemteleportradius` | number or `nil` | `nil` | Radius around the doer to search for items to teleport. `nil` disables item movement. |
+| `nearbyitems` | table or `nil` | `nil` | List of items passed to `Teleport_Internal`; usually set via `SetNearbyItems` or computed internally. |
 
-## Main Functions
-
+## Main functions
 ### `SetCanActivateFn(fn)`
-* **Description:** Sets the callback used to determine whether a specific entity (`doer`) is allowed to activate this teleporter.
-* **Parameters:**  
-  `fn` (`function`): Signature `(self.inst, doer) → boolean`. Return `false` to block activation.
+*   **Description:** Assigns the callback used to determine whether the teleport can be initiated.
+*   **Parameters:** `fn` (function or `nil`) - function taking `(self.inst, doer)` and returning `true`/`false`.
+*   **Returns:** Nothing.
 
 ### `SetCheckDestinationFn(fn)`
-* **Description:** Sets the callback used to validate each potential teleport destination target.
-* **Parameters:**  
-  `fn` (`function`): Signature `(self.inst, target, doer) → boolean`. Return `false` to exclude a target.
+*   **Description:** Assigns the callback used to validate each potential destination teleport pad.
+*   **Parameters:** `fn` (function or `nil`) - function taking `(self.inst, target, doer)` and returning `true`/`false`.
+*   **Returns:** Nothing.
 
 ### `SetOnStartTeleportFn(fn)`
-* **Description:** Registers a callback invoked immediately before teleport execution begins.
-* **Parameters:**  
-  `fn` (`function`): Signature `(self.inst, doer)`.
+*   **Description:** Assigns the callback fired before teleport physics occur.
+*   **Parameters:** `fn` (function or `nil`) - function taking `(self.inst, doer)`.
+*   **Returns:** Nothing.
 
 ### `SetOnTeleportedFn(fn)`
-* **Description:** Registers a callback invoked after teleport completes, regardless of success.
-* **Parameters:**  
-  `fn` (`function`): Signature `(self.inst, doer, success, target, items, from_x, from_z)`.  
-  - `success`: `true` if teleport succeeded, else `false`.  
-  - `target`: Target teleporter entity or `nil` on failure.
+*   **Description:** Assigns the callback fired after teleport physics (success or failure).
+*   **Parameters:** `fn` (function or `nil`) - function with signature `fn(self.inst, doer, success, target?, items?, from_x, from_z)`.
+*   **Returns:** Nothing.
 
 ### `SetOnStopTeleportFn(fn)`
-* **Description:** Registers a callback invoked when teleport is interrupted or finished.
-* **Parameters:**  
-  `fn` (`function`): Signature `(self.inst, doer, success)`.
+*   **Description:** Assigns the callback fired when teleport completes (regardless of success).
+*   **Parameters:** `fn` (function or `nil`) - function taking `(self.inst, doer, success)`.
+*   **Returns:** Nothing.
 
 ### `SetItemTeleportRadius(radius)`
-* **Description:** Configures the radius for scanning nearby items to teleport alongside the player.
-* **Parameters:**  
-  `radius` (`number`): Radius to search (world units). If `nil`, no items are collected.
+*   **Description:** Sets the radius around the doer used to collect nearby items for teleportation.
+*   **Parameters:** `radius` (number or `nil`) - radius to scan. `nil` disables item movement.
+*   **Returns:** Nothing.
 
 ### `CanActivate(doer)`
-* **Description:** Determines if `doer` is permitted to use this teleporter.
-* **Parameters:**  
-  `doer` (`Entity`): The entity attempting to teleport.  
-  Returns `true` if no `canactivatefn` is set or if the callback returns truthy.
+*   **Description:** Checks if the teleport can start using the `canactivatefn` callback, if set.
+*   **Parameters:** `doer` (Entity) - the entity attempting to teleport.
+*   **Returns:** `true` if `canactivatefn` returns truthy or is `nil`; otherwise `false`.
 
 ### `Teleport_GetNearbyItems(doer)`
-* **Description:** Collects and returns items within `itemteleportradius` of `doer` that meet filtering criteria (must have `_inventoryitem`, must not have blocking tags, and must be pickable up).
-* **Parameters:**  
-  `doer` (`Entity`): Source entity whose position is used for radius search.  
-  Returns: Array of valid `Entity` items.
+*   **Description:** Finds and returns items near the doer within `itemteleportradius` that can be picked up.
+*   **Parameters:** `doer` (Entity) - the center point for the search.
+*   **Returns:** `{Entity}` - list of valid items. Filters out items with `canbepickedup == false`.
+*   **Error states:** Returns `nil` if `itemteleportradius` is `nil`.
 
 ### `SetNearbyItems(nearbyitems)`
-* **Description:** Stores a precomputed list of items to teleport later during `Teleport_Internal()`.
-* **Parameters:**  
-  `nearbyitems` (`table`): Array of `Entity` items to include in teleport.
+*   **Description:** Manually sets the list of items to be teleported with the doer.
+*   **Parameters:** `nearbyitems` (`{Entity}` or `nil`) - list of items; `nil` clears the list.
+*   **Returns:** Nothing.
 
 ### `Teleport(doer)`
-* **Description:** Initiates the full remote teleport sequence: finds the best valid target (preferably *outside* the detection radius if possible, else closest *within*), performs the teleport, and triggers callbacks.  
-  Selects the **closest out-of-camera** target first (by distance), falling back to the **furthest in-camera** target if none are out-of-range. Skips destinations blocked by line-of-sight or failing `checkdestinationfn`.
-* **Parameters:**  
-  `doer` (`Entity`): Entity performing teleport (usually a player).  
-  Returns: `true` on success, or `false, "NODEST"` on failure (no valid destination).
+*   **Description:** Executes remote teleportation logic. Finds the best destination pad, moves the doer and nearby items, and fires callbacks.
+*   **Parameters:** `doer` (Entity) - the entity to teleport.
+*   **Returns:** `true` on success, `false` otherwise. On failure, also returns `"NODEST"`.
+*   **Error states:** Returns `false, "NODEST"` if no valid destination pads exist or all candidates are blocked by `IsTeleportingPermittedFromPointToPoint` or `checkdestinationfn`.
 
 ### `Teleport_Internal(target, from_x, from_z, to_x, to_z, doer)`
-* **Description:** Executes the actual teleport physics for the `doer` and any collected `items`. Invokes the `onteleportedfn` callback and emits the `"remoteteleportreceived"` event on the target teleporter. Also moves items relative to `doer`’s new position.
-* **Parameters:**  
-  `target` (`Entity`): Destination teleporter.  
-  `from_x`, `from_z` (`number`): Original world coordinates of `doer`.  
-  `to_x`, `to_z` (`number`): Destination world coordinates.  
-  `doer` (`Entity`): Entity being teleported.
+*   **Description:** Performs the actual movement of the doer and any collected items.
+*   **Parameters:**  
+  `target` (Entity) - destination teleport pad.  
+  `from_x, from_z` (number) - source world coordinates.  
+  `to_x, to_z` (number) - destination world coordinates.  
+  `doer` (Entity) - the entity being teleported.
+*   **Returns:** Nothing.
+*   **Notes:** Moves items using their physics if available, otherwise directly modifies transform. Pushes `"teleported"` event on moved entities and fires `onteleportedfn`. Pushes `"remoteteleportreceived"` on the destination pad.
 
 ### `OnStartTeleport(doer)`
-* **Description:** Calls the `onstartteleportfn` callback (if set).
-* **Parameters:**  
-  `doer` (`Entity`).
+*   **Description:** Invokes `onstartteleportfn`, if set.
+*   **Parameters:** `doer` (Entity).
+*   **Returns:** Nothing.
 
 ### `OnStopTeleport(doer, success)`
-* **Description:** Calls the `onstopteleportfn` callback (if set), indicating teleport termination.
-* **Parameters:**  
-  `doer` (`Entity`), `success` (`boolean`).
+*   **Description:** Invokes `onstopteleportfn`, if set.
+*   **Parameters:** `doer` (Entity), `success` (boolean).
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens For:** None (this component does not use `inst:ListenForEvent`).
-- **Emits Events:**  
-  - `"teleported"`: Pushed on each teleported item.  
-  - `"remoteteleportreceived"`: Pushed on the *target* teleporter entity with payload `{ teleporter = self.inst, doer = doer, items = items, from_x = from_x, from_z = from_z }`.  
-  - *(Callback `onteleportedfn` also fires separately with structured data.)*
+## Events & listeners
+- **Pushes:**  
+  - `"teleported"` on each teleported item and the `doer`.  
+  - `"remoteteleportreceived"` on the destination pad (`target`), with payload `{ teleporter = self.inst, doer = doer, items = items, from_x = from_x, from_z = from_z }`.  
+- **Listens to:** None.  

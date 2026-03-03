@@ -1,79 +1,92 @@
 ---
 id: oldager
 title: Oldager
-description: The Oldager component manages age-related time damage and health degradation for entities, simulating aging effects over time.
+description: Manages time-based aging mechanics by converting accumulated damage into health damage over time, simulating biological aging effects on entities.
+tags: [aging, combat, time, health]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 4b8161ed
+system_scope: entity
 ---
 
 # Oldager
 
-## Overview
-The Oldager component implements a time-based damage system that tracks and processes age-related health degradation (or reversal) for an entity. It uses a "damage remaining" meter to accumulate time damage, which is then converted into actual health damage over time via the entity's health component. It integrates with `player_classified` to synchronize age progression percentages to clients and supports special logic for healing sources that may reverse aging.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- `inst.components.health`: Required for applying time damage; accessed frequently.
-- `inst.player_classified`: Required for client-side sync of age percentage (`oldager_yearpercent`).
-- Adds public property `damage_per_second` with custom setter `onset_damage_per_second`.
-- Uses `inst:StartUpdatingComponent(self)` to register for periodic updates.
+## Overview
+The `OldAger` component implements a legacy aging system where entities accumulate "time damage" that gradually translates into health damage over time. This mimics natural aging by converting damage events (typically negative health deltas) into a damage-per-second (`damage_per_second`) value that scales with accumulated damage, which is then applied to the entity's `health` component at a fixed base rate. It works closely with the `health` component and the `player_classified` component to synchronize aging progress across clients.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("oldager")
+inst.components.oldager:AddValidHealingCause("food") -- e.g., healing via food reverses aging slightly
+inst.components.oldager:FastForwardDamageOverTime() -- e.g., to rapidly age an entity
+```
+
+## Dependencies & tags
+**Components used:** `health`, `player_classified`
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `base_rate` | `number` | `1/40` | Base aging rate (years per second) before modifiers. |
-| `rate` | `number` | `1` | Multiplicative modifier applied to aging rate (todo:计划改为 source modifier list). |
-| `year_timer` | `number` | `0` | Fractional part of accumulated years (0 ≤ `year_timer` < 1). |
-| `damage_remaining` | `number` | `0` | Accumulated unprocessed time damage (positive = aging forward, negative = aging backward). |
-| `damage_per_second` | `number` | `0` | Current rate of time damage processing (years per second). |
-| `valid_healing_causes` | `table` | `{}` | Set of causes (strings) that, when healing the entity, reverse aging instead of normal healing. |
-| `_taking_time_damage` | `boolean` | `nil` | Internal flag to prevent recursive age-damage loops. |
+| `base_rate` | number | `1/40` | Base aging rate in years per second. |
+| `rate` | number | `1` | Multiplier applied to `base_rate` for effective aging rate. |
+| `year_timer` | number | `0` | Fractional year counter; full integer parts trigger health damage. |
+| `damage_remaining` | number | `0` | Accumulated unprocessed time damage; positive means aging forward, negative means aging backward. |
+| `damage_per_second` | number | `0` | Current rate of aging, derived from `damage_remaining`. |
+| `valid_healing_causes` | table | `{}` | Set of healing causes that reverse aging instead of causing it. |
+| `_taking_time_damage` | boolean | `false` | Internal flag to prevent recursive aging during aging-induced health changes. |
 
-## Main Functions
-
+## Main functions
 ### `AddValidHealingCause(cause_name)`
-* **Description:** Registers a healing cause that, when applied, reverses aging (i.e., reduces age) instead of restoring health in the normal direction.
-* **Parameters:**
-  * `cause_name` (string): The identifier for the healing source to be recognized as an age-reversing cause.
+* **Description:** Registers a healing cause that, when applied, reduces accumulated age damage (i.e., reverses aging).
+* **Parameters:** `cause_name` (string) — identifier for the healing cause (e.g., `"food"`, `"healing_potion"`).
+* **Returns:** Nothing.
+* **Error states:** None.
 
 ### `OnTakeDamage(amount, overtime, cause, ignore_invincible, afflicter, ignore_absorb)`
-* **Description:** Handles incoming damage or healing events. If `amount < 0` (healing) or the `cause` is registered in `valid_healing_causes`, it treats the event as time healing and adjusts `damage_remaining` and `damage_per_second` accordingly (reversing aging). Otherwise, it normalizes and ignores the event.
-* **Parameters:**
-  * `amount` (number): Health delta (negative = healing, positive = damage).
-  * Other parameters are accepted but not used in the current implementation.
+* **Description:** Handles incoming damage or healing to update the aging meter. Negative health changes (damage) increase aging; valid healing causes reduce aging. This method calculates the new `damage_per_second` and updates `damage_remaining`.
+* **Parameters:**  
+  - `amount` (number) — health delta (negative = damage, positive = healing).  
+  - `overtime` (boolean) — unused in this implementation.  
+  - `cause` (string) — source of damage/healing (e.g., `"fire"`, `"food"`).  
+  - Other parameters (`ignore_invincible`, `afflicter`, `ignore_absorb`) are ignored.  
+* **Returns:** `true` — always, allowing the damage event to proceed normally.  
+* **Error states:** Early return with `false` if `_taking_time_damage` is already `true` (prevents recursion).
 
 ### `OnUpdate(dt)`
-* **Description:** The core update loop. Processes time damage: converts `damage_remaining` into actual health damage over `dt`, updates `year_timer`, and synchronizes client state. Handles transitions across zero damage, death, and full health states.
-* **Parameters:**
-  * `dt` (number): Time delta (seconds) since last update.
+* **Description:** Processes frame-by-frame aging: converts `damage_remaining` into `damage_per_second`, updates `year_timer`, and triggers health damage when accumulated years reach integer thresholds. Syncs aging progress to clients via `player_classified`.
+* **Parameters:** `dt` (number) — delta time in seconds.
+* **Returns:** Nothing.
+* **Error states:** None. Handles edge cases such as crossing zero in `damage_remaining`, entity death, and zero damage scenarios.
 
 ### `StopDamageOverTime()`
-* **Description:** Immediately halts ongoing time damage by resetting `damage_remaining` and `damage_per_second`, and forces a health component update to refresh HUD/badge indicators.
+* **Description:** Immediately ends all ongoing aging damage by resetting `damage_remaining`, `damage_per_second`, and `year_timer`. Forces a health update event to refresh UI badges.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `GetCurrentYearPercent()`
-* **Description:** Returns the current fractional year value (`year_timer`), representing the percentage of a year completed.
+* **Description:** Returns the fractional year component of `year_timer`, representing progress within the current year of aging.
 * **Parameters:** None.
-
-### `LongUpdate(dt)`
-* **Description:** Alias for `OnUpdate(dt)`. Allows integration with systems expecting a `LongUpdate` interface.
-* **Parameters:**
-  * `dt` (number): Time delta.
+* **Returns:** `number` — value in `[0, 1)`.
 
 ### `FastForwardDamageOverTime()`
-* **Description:** Instantly processes all remaining time damage if currently aging forward. Halts further aging after completion.
+* **Description:** Immediately processes all accumulated `damage_remaining` by applying aging at full rate until all damage is resolved.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Early return with no effect if `damage_per_second <= 0` or `damage_remaining <= 0`.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted debug string summarizing key internal state variables for logging or debugging.
+* **Description:** Returns a formatted string with debugging info: current year timer, damage meter, DPS, rate, and delta.
 * **Parameters:** None.
+* **Returns:** `string` — e.g., `"Year timer: 0.750, Meter: 120.00, DPS: 30.000, Rate: 1.000, delta 0.02500"`.
 
-## Events & Listeners
-- Listens for: None (no `inst:ListenForEvent` calls).
-- Pushes events: None (no `inst:PushEvent` calls).
+## Events & listeners
+- **Listens to:** None (the component is self-scheduling via `inst:StartUpdatingComponent(self)`).
+- **Pushes:** `healthdelta` — indirectly via `health:DoDelta()`; used for UI updates (e.g., badges).

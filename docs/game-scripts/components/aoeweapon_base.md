@@ -1,110 +1,117 @@
 ---
 id: aoeweapon_base
 title: Aoeweapon Base
-description: Provides shared interaction logic for area-of-effect weapons, handling work actions, picking, combat hits, and physics-based tosses.
+description: Provides shared behavior for area-of-effect weapons that can destroy workables, pick pickables, or attack combat targets.
+tags: [combat, workable, pickable, aoe]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: bd3f5de8
+system_scope: combat
 ---
 
-# aoeweapon_base
+# Aoeweapon Base
+
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The `aoeweapon_base` component serves as a versatile base for entities (typically weapons or tools) that need to interact with various types of targets in an Area-of-Effect (AOE) or general interaction manner. It centralizes logic for performing work actions (chopping, mining, hammering), picking items, and engaging in combat. It also provides customizable callbacks for pre-hit, hit, and miss events, and handles the physics-based tossing of entities.
+`Aoeweapon_Base` is a helper component that encapsulates common logic for area-of-effect (AOE) weapons used by characters or projectiles. It determines how a thrown or launched object interacts with entities in its path: either destroys `workable` objects (like trees or walls), picks `pickable` objects (like saplings or bushes), or attacks valid `combat` targets. It supports custom hit/miss callbacks and filters targets by work actions, stimuli, and tags.
 
-## Dependencies & Tags
-This component interacts with and expects the following components on other entities:
-*   `target.components.workable`
-*   `target.components.pickable`
-*   `doer.components.combat`
-*   `target.components.mine`
-*   `target.components.inventoryitem`
-*   `target.Physics` (Physics component)
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("aoeweapon_base")
 
-**Tags Set/Used by this Component:**
-*   **Initial `self.tags`**: `{"_combat", "pickable", "NPC_workable"}`
-*   **`self.notags`**: `{"FX", "DECOR", "INLIMBO"}`
-*   **Generated `self.combinedtags`**: This table dynamically combines `self.tags` with tags derived from `self.workactions` (e.g., `ACTIONS.CHOP` adds "CHOP_workable" to `combinedtags`).
+inst.components.aoeweapon_base:SetDamage(25)
+inst.components.aoeweapon_base:SetStimuli({ "fire", "hot" })
+inst.components.aoeweapon_base:SetWorkActions(ACTIONS.CHOP, ACTIONS.MINE)
+inst.components.aoeweapon_base:SetTags("_combat", "projectile")
+inst.components.aoeweapon_base:SetOnHitFn(function(inst, doer, target)
+    -- custom logic on successful hit
+end)
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `workable`, `pickable`, `mine`, `inventoryitem`, `spawner`, `childspawner`
+
+**Tags:** Adds `"_combat"`, `"pickable"`, `"NPC_workable"` by default; uses `workactions` to dynamically append `"<action_id>_workable"` tags. Supports `notags` filtering (e.g., `"FX"`, `"DECOR"`, `"INLIMBO"`).
 
 ## Properties
-| Property         | Type                           | Default Value                       | Description                                                                                             |
-| :--------------- | :----------------------------- | :---------------------------------- | :------------------------------------------------------------------------------------------------------ |
-| `inst`           | `Entity`                       | The component's owning entity       | A reference to the entity this component is attached to.                                                |
-| `damage`         | `number`                       | `10`                                | The base damage value inflicted when attacking a combat target.                                           |
-| `onprehitfn`     | `function`                     | `nil`                               | A callback function executed before the main `OnHit` logic. Signature: `(weapon_inst, doer, target)`.   |
-| `onhitfn`        | `function`                     | `nil`                               | A callback function executed after a successful interaction (work, pick, or combat hit) in `OnHit`. Signature: `(weapon_inst, doer, target)`. |
-| `onmissfn`       | `function`                     | `nil`                               | A callback function executed if no successful interaction occurs during `OnHit`. Signature: `(weapon_inst, doer, target)`. |
-| `canpick`        | `boolean`                      | `nil`                               | If `true`, the weapon can attempt to pick `pickable` targets via `OnHit`.                               |
-| `stimuli`        | `string`                       | `nil`                               | An optional string representing a combat stimulus (e.g., "POISON") to be applied during attacks.        |
-| `tags`           | `table` (of strings)           | `{"_combat", "pickable", "NPC_workable"}` | A list of general tags associated with the weapon's interaction capabilities, used in `_CombineTags`.   |
-| `notags`         | `table` (of strings)           | `{"FX", "DECOR", "INLIMBO"}`        | A list of tags that targets *must not* possess for certain interactions to proceed.                       |
-| `combinedtags`   | `table` (of strings)           | `nil` (dynamically generated)       | A unique, combined list of `tags` and dynamically generated tags based on `workactions` (e.g., "CHOP_workable"). |
-| `workactions`    | `table` (indexed by `ACTIONS`) | `nil` (initially `ACTIONS.CHOP`, `ACTIONS.HAMMER`, `ACTIONS.MINE`, `ACTIONS.DIG`) | A lookup table (`[ACTION_CONSTANT] = true`) indicating which `ACTIONS` this weapon can perform on `workable` targets. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `damage` | number | `10` | Base damage applied when attacking combat targets. |
+| `stimuli` | table or nil | `nil` | Optional stimuli array passed to combat attacks. |
+| `tags` | table | `{ "_combat", "pickable", "NPC_workable" }` | Tags used to identify the weapon for filtering targets. |
+| `notags` | table or nil | `nil` | Tags that disqualify a target from being affected. |
+| `combinedtags` | table | populated at runtime | Combined list of custom tags and generated `workable` tags. |
+| `workactions` | table (keyed by `ACTIONS.X`) | empty | Set of action types this weapon can use on workables. |
+| `onprehitfn` | function or nil | `nil` | Callback fired before hit logic evaluates. |
+| `onhitfn` | function or nil | `nil` | Callback fired on successful hit or work/pick. |
+| `onmissfn` | function or nil | `nil` | Callback fired when no valid target interaction occurs. |
+| `canpick` | boolean or nil | `nil` | If set, determines whether pickables are considered; unset means pickables are ignored. |
 
-## Main Functions
-### `AOEWeapon_Base:SetDamage(dmg)`
-*   **Description:** Sets the base damage value for this weapon.
-*   **Parameters:** `dmg` (`number`) - The new damage value.
+## Main functions
+### `SetDamage(dmg)`
+*   **Description:** Sets the damage value used when attacking combat targets.
+*   **Parameters:** `dmg` (number) - damage amount.
+*   **Returns:** Nothing.
 
-### `AOEWeapon_Base:SetStimuli(stimuli)`
-*   **Description:** Sets the combat stimulus string to be applied by this weapon during attacks.
-*   **Parameters:** `stimuli` (`string`) - The stimulus string (e.g., "POISON").
+### `SetStimuli(stimuli)`
+*   **Description:** Sets the stimuli table passed to `Combat:DoAttack`, affecting how the target perceives the damage source.
+*   **Parameters:** `stimuli` (table) - array-like list of stimuli strings (e.g., `{ "fire", "hot" }`).
+*   **Returns:** Nothing.
 
-### `AOEWeapon_Base:SetWorkActions(...)`
-*   **Description:** Configures the specific types of work actions (e.g., chopping, mining) this weapon can perform on `workable` targets. This method automatically updates the `combinedtags` property.
-*   **Parameters:** `...` (`ACTIONS` constants) - One or more `ACTIONS` constants (e.g., `ACTIONS.CHOP`, `ACTIONS.HAMMER`).
+### `SetWorkActions(...)`
+*   **Description:** Specifies the set of work actions this weapon can perform (e.g., `ACTIONS.CHOP`, `ACTIONS.MINE`). Generates `workable` tags internally.
+*   **Parameters:** Variadic list of action constants (e.g., `ACTIONS.CHOP, ACTIONS.DIG`).
+*   **Returns:** Nothing.
 
-### `AOEWeapon_Base:SetTags(...)`
-*   **Description:** Sets a list of general tags associated with this weapon. These tags are incorporated into the `combinedtags` property.
-*   **Parameters:** `...` (`string`) - One or more string tags.
+### `SetTags(...)`
+*   **Description:** Replaces the default `tags` list with a new set of custom tags.
+*   **Parameters:** Variadic list of tag strings.
+*   **Returns:** Nothing.
 
-### `AOEWeapon_Base:_CombineTags()`
-*   **Description:** An internal helper function responsible for generating the `self.combinedtags` table. It collects unique tags from `self.tags` and dynamically generates tags based on `self.workactions` (e.g., `ACTIONS.CHOP` results in "CHOP_workable"). This combined list can be useful for target filtering and interaction logic.
-*   **Parameters:** None.
+### `SetNoTags(...)`
+*   **Description:** Specifies tags that exclude a target from interaction (e.g., `FX`, `INLIMBO`).
+*   **Parameters:** Variadic list of tag strings.
+*   **Returns:** Nothing.
 
-### `AOEWeapon_Base:SetNoTags(...)`
-*   **Description:** Sets a list of tags that targets *must not* possess for certain interactions to be considered valid (e.g., for picking).
-*   **Parameters:** `...` (`string`) - One or more string tags.
+### `SetOnPreHitFn(fn)`
+*   **Description:** Registers a callback invoked just before target interaction logic runs.
+*   **Parameters:** `fn` (function) - function signature: `fn(inst, doer, target)`.
+*   **Returns:** Nothing.
 
-### `AOEWeapon_Base:SetOnPreHitFn(fn)`
-*   **Description:** Sets a callback function that will be executed *before* the main interaction logic in `AOEWeapon_Base:OnHit`.
-*   **Parameters:** `fn` (`function`) - The function to call. It receives `(weapon_inst, doer, target)` as arguments.
+### `SetOnHitFn(fn)`
+*   **Description:** Registers a callback invoked after a successful interaction (work, pick, or combat hit).
+*   **Parameters:** `fn` (function) - function signature: `fn(inst, doer, target)`.
+*   **Returns:** Nothing.
 
-### `AOEWeapon_Base:SetOnHitFn(fn)`
-*   **Description:** Sets a callback function that will be executed *after* a successful interaction (working, picking, or combat hit) within `AOEWeapon_Base:OnHit`.
-*   **Parameters:** `fn` (`function`) - The function to call. It receives `(weapon_inst, doer, target)` as arguments.
+### `SetOnMissFn(fn)`
+*   **Description:** Registers a callback invoked when no target interaction occurs.
+*   **Parameters:** `fn` (function) - function signature: `fn(inst, doer, target)`.
+*   **Returns:** Nothing.
 
-### `AOEWeapon_Base:SetOnMissFn(fn)`
-*   **Description:** Sets a callback function that will be executed if `AOEWeapon_Base:OnHit` fails to perform any valid interaction.
-*   **Parameters:** `fn` (`function`) - The function to call. It receives `(weapon_inst, doer, target)` as arguments.
-
-### `AOEWeapon_Base:OnHit(doer, target)`
-*   **Description:** This is the core interaction method. It attempts to interact with the `target` based on its components and tags, following a priority order: `workable` > `pickable` > `combat`.
-    1.  If `self.onprehitfn` is set, it is called.
-    2.  It checks if the `target` is `workable` and if this weapon has a matching `workaction` for it.
-        *   Special handling for `NPC_workable` (e.g., campfires).
-        *   For `ACTIONS.DIG`, it ensures the target is not a spawner.
-        *   If workable, `target.components.workable:Destroy(doer)` is called. If the target remains valid and gains the "stump" tag (e.g., after chopping a tree), it is immediately removed.
-    3.  If not workable, it then checks if `self.canpick` is `true`, and if the `target` is `pickable` and not `intense`. If so, `target.components.pickable:Pick(self.inst)` is called.
-    4.  If neither workable nor pickable, it checks if `doer.components.combat` can target the `target` and if they are not allies. If so, `doer.components.combat:DoAttack(target, nil, nil, self.stimuli)` is performed.
-    5.  Finally, if any interaction was successful, `self.onhitfn` is called; otherwise, `self.onmissfn` is called.
+### `OnHit(doer, target)`
+*   **Description:** Executes the core hit logic: tries to destroy a workable, pick a pickable, or attack a combat target. Calls the appropriate `onhitfn` or `onmissfn` based on outcome.
 *   **Parameters:**
-    *   `doer` (`Entity`) - The entity performing the action (e.g., the player wielding the weapon).
-    *   `target` (`Entity`) - The entity being interacted with.
+    * `doer` (entity) - the entity performing the action.
+    * `target` (entity) - the entity being hit.
+*   **Returns:** Nothing.
+*   **Error states:** Will skip interaction if the target has any tag in `notags`, if `canpick` is `nil` and the target is pickable, or if combat targeting rules fail.
 
-### `AOEWeapon_Base:OnToss(doer, target, sourceposition, basespeed, startradius)`
-*   **Description:** Simulates the physical tossing of the `target` entity from the `doer`. It deactivates `mine` components on the target if present, ensures the target has active `Physics`, and calculates a trajectory. It includes logic to prevent tossing objects out of the world boundaries by adjusting the initial angle.
+### `OnToss(doer, target, sourceposition, basespeed, startradius)`
+*   **Description:** Applies physical tossing physics to the target upon impact, used for thrown objects (e.g., rocks). Deactivates mines, skips bouncing if `nobounce`, and attempts to find a valid landing position.
 *   **Parameters:**
-    *   `doer` (`Entity`) - The entity initiating the toss.
-    *   `target` (`Entity`) - The entity to be tossed.
-    *   `sourceposition` (`Vector3`, optional) - The explicit starting position for the toss. If `nil`, the `doer`'s world position is used.
-    *   `basespeed` (`number`, optional) - The base linear speed applied during the toss. Defaults to `1`.
-    *   `startradius` (`number`, optional) - The initial distance from the `sourceposition` at which to place the `target` before applying velocity. Defaults to `0`, but is set to at least the combined physics radii of `doer` and `target` to prevent clipping.
+    * `doer` (entity) - entity that threw the object.
+    * `target` (entity) - the thrown object entity.
+    * `sourceposition` (Vector3 or nil) - starting position; uses `doer`'s position if `nil`.
+    * `basespeed` (number or nil) - base forward speed; actual speed varies randomly.
+    * `startradius` (number or nil) - minimum distance offset; computed from physics radii if `nil`.
+*   **Returns:** Nothing.
 
-## Events & Listeners
+## Events & listeners
 None identified.
+

@@ -1,60 +1,83 @@
 ---
 id: sheltered_replica
 title: Sheltered Replica
-description: This component manages the shading state (sheltered vs. exposed) of an entity's animation by dynamically adjusting its override shade value over time based on network-synchronized shelter status.
+description: Manages the dynamic shadeoverride state for an entity's animation based on its sheltered status, with smooth interpolation between exposed and sheltered values.
+tags: [animation, rendering, world, environment]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: b46dadbb
+system_scope: environment
 ---
 
 # Sheltered Replica
 
-## Overview
-The `Sheltered` component controls the visual shading transition of an entity between `SHELTERED_SHADE` (.6) and `EXPOSED_SHADE` (1.0). It responds to changes in the sheltered state—synchronized via a `net_bool`—and smoothly interpolates the shade value over time using either a sheltering or exposing speed. The final shade is applied to the entity’s `AnimState`. This component is typically used for entities like replicas or shades that should visually dim when sheltered (e.g., behind cover) and brighten when exposed.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components used:** `inst.AnimState` (assumed present on the entity), `inst:DoTaskInTime`, `inst:StartUpdatingComponent`, `inst:StopUpdatingComponent`, `inst:ListenForEvent`
-- **Networked property:** `net_bool("sheltered._issheltered")` named `"issheltereddirty"` on client
-- **Tags added/removed:** None
+## Overview
+`Sheltered` is a client-side component responsible for smoothly animating the `AnimState.OverrideShade()` value of an entity based on whether it is currently sheltered. It uses a networked boolean (`_issheltered`) to determine the target shade, and interpolates smoothly using precomputed speeds over fixed time constants. The component updates its shade value each frame until it reaches the target, then stops updating to conserve resources.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("sheltered_replica")
+
+-- Mark the entity as sheltered (e.g., under a roof or inside a cave entrance)
+inst.components.sheltered_replica:StartSheltered()
+
+-- Later, expose the entity to full light
+inst.components.sheltered_replica:StopSheltered()
+
+-- Check if the entity is currently sheltered and fully transitioned
+if inst.components.sheltered_replica:IsSheltered() then
+    -- Perform sheltered-specific logic
+end
+```
+
+## Dependencies & tags
+**Components used:** `AnimState` (accessed via `inst.AnimState`), `net_bool` via `net_bool(...)` helper  
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `_updating` | `boolean` | `false` | Indicates whether the component is actively updating the shade each frame. |
-| `_shade` | `number` | `1.0` (EXPOSED_SHADE) | Current interpolated shade value applied to `AnimState`. |
-| `_targetshade` | `number` | `1.0` (EXPOSED_SHADE) | Target shade value based on `_issheltered` status. |
-| `_shelterspeed` | `number` | `(1.0 - 0.6) / 0.2 = 2.0` | Rate of decrease per second when transitioning from exposed to sheltered. |
-| `_exposespeed` | `number` | `(1.0 - 0.6) / 0.1 = 4.0` | Rate of increase per second when transitioning from sheltered to exposed. |
-| `_issheltered` | `net_bool` | `nil` | Networked boolean flag representing whether the entity is in a sheltered state. |
+| `_updating` | boolean | `false` | Whether the component is currently being updated each frame. |
+| `_shade` | number | `1` (EXPOSED_SHADE) | Current interpolated shade value applied to `AnimState`. |
+| `_targetshade` | number | `1` (EXPOSED_SHADE) | Target shade (either `SHELTERED_SHADE` or `EXPOSED_SHADE`). |
+| `_shelterspeed` | number | `2` | Rate at which shade decreases when moving to sheltered state. |
+| `_exposespeed` | number | `4` | Rate at which shade increases when moving to exposed state. |
+| `_issheltered` | net_bool | N/A | Networked boolean tracking shelter status (client-server synced). |
 
-## Main Functions
-
+## Main functions
 ### `StartSheltered(level)`
-* **Description:** Marks the entity as sheltered (sets `_issheltered` to `true`) and triggers a shade check to initiate transition to sheltered shading.
-* **Parameters:**
-  - `level` — *Unused* in current implementation (appears to be for future/extensibility compatibility).
+*   **Description:** Marks the entity as sheltered and triggers a transition toward the sheltered shade value. The `level` parameter is unused in current implementation.
+*   **Parameters:** `level` (any) — retained for API compatibility but ignored.
+*   **Returns:** Nothing.
 
 ### `StopSheltered()`
-* **Description:** Marks the entity as not sheltered (sets `_issheltered` to `false`) and triggers a shade check to initiate transition to exposed shading.
+*   **Description:** Marks the entity as no longer sheltered and triggers a transition toward the exposed shade value.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `IsSheltered()`
-* **Description:** Returns `true` if the entity is currently considered sheltered, i.e., `_issheltered` is `true` *and* the current `_shade` is at or below `SHELTERED_SHADE`.
-* **Returns:** `boolean`
+*   **Description:** Returns whether the entity is considered fully transitioned to the sheltered state (i.e., currently marked sheltered *and* shade value at or below `SHELTERED_SHADE`).
+*   **Parameters:** None.
+*   **Returns:** `true` if sheltered, `false` otherwise.
 
 ### `CheckShade()`
-* **Description:** Updates `_targetshade` based on `_issheltered`’s current value and starts/stops the animation update loop if the current shade (`_shade`) does/does not match the target. Ensures the shade interpolation loop is active only when needed.
-* **Parameters:** None
+*   **Description:** Recalculates the target shade based on `_issheltered` status and starts or stops per-frame updates if needed. This is the core logic gate for initiating or halting interpolation.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-* **Description:** Interpolates `_shade` toward `_targetshade` using `_shelterspeed` (decrease) or `_exposespeed` (increase), clamping between `SHELTERED_SHADE` and `EXPOSED_SHADE`. Updates the `AnimState` override with the new `_shade`. Stops the update loop when the target is reached.
-* **Parameters:**
-  - `dt` — Delta time in seconds (passed automatically by the entity update loop).
+*   **Description:** Interpolates `_shade` toward `_targetshade` each frame using fixed-speed stepping, applying the current value via `AnimState:OverrideShade()`. Stops updating when the target is reached.
+*   **Parameters:** `dt` (number) — Delta time in seconds since last frame.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- Listens for `"issheltereddirty"` event (client-side only) to trigger `CheckShade()` when the networked `_issheltered` value changes.
-- Triggers: `"issheltereddirty"` internally via `net_bool` synchronization (not explicitly `PushEvent`-based, but implied by the `net_bool` setter).
+## Events & listeners
+- **Listens to:** `issheltereddirty` — Triggered by the `net_bool` when the sheltered state changes on the client. Fires `CheckShade()` to recompute the target shade.
+
+- **Pushes:** None identified.

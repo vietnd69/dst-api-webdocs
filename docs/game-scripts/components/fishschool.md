@@ -1,58 +1,72 @@
 ---
 id: fishschool
 title: Fishschool
-description: Manages a fish school entity that spawns fish when caught in a fishing net and automatically replenishes fish over time.
+description: Manages a fish school entity that spawns fish when caught by a fishing net and replenishes its fish over time.
+tags: [environment, entity, loot]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: f3a7fa57
+system_scope: entity
 ---
 
 # Fishschool
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Fishschool` component governs the behavior of a fish school entity in the game. It maintains a fish count (`fish_level`) up to a maximum (`max_fish_level`), supports periodic replenishment of fish, and spawns fish prefabs when a fishing net overlaps with the school. It also manages animation transitions based on the current fish level.
+`FishSchool` is a component that represents a school of fish which can be caught using a fishing net. It tracks the current number of fish available (`fish_level`) up to a maximum (`max_fish_level`), controls animation states for visual feedback, and periodically replenishes fish. When a net interacts with the school (`on_pre_net` event), it spawns individual fish prefabs and consumes all remaining fish.
 
-## Dependencies & Tags
-- `inst.components.animator` (via `inst.AnimState`) for animation playback.
-- Listens to the `"on_pre_net"` event (triggered when a net collides with the entity).
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("fishschool")
+inst.components.fishschool:SetNettedPrefab("antchovies")
+inst.components.fishschool:StartReplenish(30)  -- Replenish every 30 seconds
+```
 
-No components are added programmatically by this script. The component assumes the host entity already has an `AnimState` component and supports the `"on_pre_net"` collision event.
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `max_fish_level` | `number` | `3` | The maximum number of fish the school can hold. |
-| `fish_level` | `number` | `max_fish_level` (i.e., 3) | Current number of fish available in the school. |
-| `fish_prefab_name` | `string?` | `nil` | The prefab name of the fish to spawn when the school is netted. |
-| `replenish_task` | `DoTaskInTime?` | `nil` | A periodic task used to replenish fish; `nil` if not active. |
+| `max_fish_level` | number | `3` | Maximum number of fish the school can hold. |
+| `fish_level` | number | `max_fish_level` | Current number of fish available to be caught. |
+| `fish_prefab_name` | string? | `nil` | Name of the prefab to spawn when caught (set via `SetNettedPrefab`). |
+| `replenish_task` | Task? | `nil` | Reference to the periodic task responsible for fish replenishment. |
 
-## Main Functions
+## Main functions
 ### `StartReplenish(replenish_rate)`
-* **Description:** Starts a periodic task that increases `fish_level` by 1 every `replenish_rate` seconds (default 10s) until `max_fish_level` is reached. Cancels any existing replenish task first. Also resets animations if `fish_level` was 0.
-* **Parameters:**  
-  `replenish_rate: number?` — Time interval (in seconds) between replenishment ticks. Defaults to `10`.
+* **Description:** Starts a periodic task that calls `Replenish()` at the specified interval. If a replenishment task is already running, it is cancelled and replaced.
+* **Parameters:** `replenish_rate` (number, optional) — time in seconds between replenishment ticks. Defaults to `10` if omitted.
+* **Returns:** Nothing.
 
 ### `StopReplenish()`
-* **Description:** Cancels the active replenish task (if any) and sets `replenish_task` to `nil`.
+* **Description:** Cancels any active replenishment task and clears the `replenish_task` reference.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SetNettedPrefab(fishing_net_prefab)`
-* **Description:** Sets the prefab name to spawn when the fish school is netted. Must be called before netting to ensure fish spawn.
-* **Parameters:**  
-  `fishing_net_prefab: string` — The name of the fish prefab to spawn.
+* **Description:** Sets the prefab name to be spawned when the fish school is caught by a net.
+* **Parameters:** `fishing_net_prefab` (string) — the name of the prefab entity to spawn.
+* **Returns:** Nothing.
 
 ### `OnPreNet(net)`
-* **Description:** Triggered when a net overlaps the entity. If `fish_level > 0`, spawns `fish_level` copies of the configured fish prefab at the net's position, fires `"on_caught_in_net"` on each, sets `fish_level` to `0`, and plays the post-animation sequence.
-* **Parameters:**  
-  `net: table` — The net entity involved in the collision, used to retrieve its world position.
+* **Description:** Triggered when the fish school entity is targeted by a fishing net. Spawns one instance of `fish_prefab_name` for each remaining fish, positions them at the net's location, and pushes `on_caught_in_net` on each spawned fish. Sets `fish_level` to `0` and plays the post-animation.
+* **Parameters:** `net` (Entity) — the fishing net entity that triggered this event.
+* **Returns:** Nothing.
+* **Error states:** Does nothing if `fish_level <= 0`. Does nothing if `fish_prefab_name` is `nil`.
 
 ### `Replenish()`
-* **Description:** Increments `fish_level` by 1 (up to `max_fish_level`). Plays the pre- and loop animations when transitioning from 0 → 1 fish.
+* **Description:** Increases `fish_level` by `1`, up to `max_fish_level`. If fish were depleted (`fish_level == 0`), it plays the "group_pre" animation followed by looping "group_loop1" to reset visual state.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- Listens to `"on_pre_net"` → calls `OnPreNet(net)`
-- **No events are pushed/triggers** by this component (all event consumption is inbound).
+## Events & listeners
+- **Listens to:** `on_pre_net` — handled by `OnPreNet` to catch fish when a net interacts with the school.  
+- **Pushes:** Nothing.

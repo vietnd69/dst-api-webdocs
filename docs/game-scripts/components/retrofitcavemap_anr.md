@@ -1,103 +1,109 @@
 ---
 id: retrofitcavemap_anr
 title: Retrofitcavemap Anr
-description: Applies worldgen retrofits for post-release content such as Heart of the Ruins, Return of Them, and Daywalker systems by spawning missing prefabs and updating topology/layout data.
+description: Applies worldgen retrofits for "A New Reign" and other DLC content to existing worlds by spawning missing prefabs, adjusting topology, and scheduling server resets.
+tags: [world, retrofit, dlc, map, network]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: e6237c75
+system_scope: world
 ---
 
 # Retrofitcavemap Anr
 
-## Overview
-This component orchestrates late-stage world initialization ("retrofitting") on the server master simulation. It is instantiated only on the server and applies dynamic modifications to an already-generated world—such as inserting missing prefabs (e.g., toadstool_caps, cave_holes, atrium mazes), adjusting topology node data, repositioning entities, and ensuring proper entity respawner populations. It does not own gameplay logic itself but acts as a coordination layer that invokes specialized retrofit functions based on flags stored in the world save data or world state.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Requirement:** Must be instantiated only on the master simulation (`TheWorld.ismastersim`).
-- **Uses internal constants:** `MAX_PLACEMENT_ATTEMPTS = 50`.
-- **Uses internal tags:** `STRUCTURE_TAGS`, `ALTAR_TAGS`, `LOCOMOTOR_TAGS`.
-- **No explicit component dependencies declared in `_ctor`**, but it heavily relies on `TheWorld`, `TheSim`, `Ents`, and various map/components (e.g., `Transform`, `teleporter`, `objectspawner`) on other entities.
+## Overview
+`RetrofitCaveMap_ANR` is a world-scoped component that applies retroactive changes to an existing world’s generation to incorporate content introduced in the "A New Reign" and other DLCs. It is designed to run once per world on world startup and perform tasks such as inserting new prefabs (e.g., atrium structures, altars, respawners), modifying topology nodes, and fixing layout inconsistencies. Because world generation data is immutable after creation, this component modifies the world via runtime spawning and topology updates, and triggers a server reset if necessary to finalize changes.
+
+The component is only active on the master simulation and relies heavily on map and world generation utilities (`TheWorld.Map`, `TheWorld.topology`, `TheSim:FindEntities`) and interacts with components like `teleporter`, `objectspawner`, and `undertile`.
+
+## Usage example
+```lua
+local world = TheWorld
+if world.ismastersim then
+    world:AddComponent("retrofitcavemap_anr")
+    local retrofit = world.components.retrofitcavemap_anr
+
+    -- Enable retrofits for A New Reign content
+    retrofit.retrofit_heartoftheruins = true
+    retrofit.retrofit_sacred_chest = true
+
+    -- Manually trigger retrofit logic (typically done on World PostInit)
+    if retrofit.OnPostInit then
+        retrofit:OnPostInit()
+    end
+end
+```
+
+## Dependencies & tags
+**Components used:** `heavyobstaclephysics`, `objectspawner`, `teleporter`, `undertile`  
+**Tags:** Checks `STRUCTURE_TAGS` ({"structure"}), `ALTAR_TAGS` ({"altar"}), `LOCOMOTOR_TAGS` ({"locomotor"}). Does not add or remove tags on itself.
 
 ## Properties
-The constructor defines a minimal set of public and private state variables:
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `self.inst` | `Entity` | (passed in) | Reference to the world entity (`TheWorld`) hosting this component. |
-| `retrofit_warts` | `boolean` | `false` | Private flag; true when "Warts and All" retrofit is enabled. |
-| `self.requiresreset` | `boolean` | `nil` | Flag indicating whether a server save/restart is required to finalize retrofits. |
+| `inst` | `Entity` | `self.inst` | The world entity instance owning this component. |
+| `requiresreset` | `boolean` | `false` | Set to `true` when retrofits require a server restart to finalize (e.g., topology or navmesh updates). |
+| `retrofit_warts` | `boolean` | `nil` | Enables spawning of `toadstool_cap` prefabs for the "Warts and All" retrofit. |
+| `retrofit_artsandcrafts` | `boolean` | `nil` | Enables spawning of `fossil_piece` prefabs if `spiderhole` count is below threshold. |
+| `retrofit_heartoftheruins` | `boolean` | `nil` | Triggers full Heart of the Ruins retrofit (atrium + ruins). |
+| `retrofit_heartoftheruins_respawnerfix` | `boolean` | `nil` | Reduces respawner counts to intended cap values (post-override). |
+| `retrofit_heartoftheruins_altars` | `boolean` | `nil` | Adds respawners for `ancient_altar_broken` and `ancient_altar`. |
+| `retrofit_heartoftheruins_caveholes` | `boolean` | `nil` | Ensures at least 8 `cave_hole` prefabs exist in the world. |
+| `retrofit_heartoftheruins_oldatriumfixup` | `boolean` | `nil` | Moves atrium gateway entities and ensures valid topology for retrofitted atriums. |
+| `retrofit_heartoftheruins_statuechessrespawners` | `boolean` | `nil` | Adds respawners for statues and chess junk entities. |
+| `retrofit_sacred_chest` | `boolean` | `nil` | Spawns `sacred_chest` near the Sacred Altar. |
+| `retrofit_acientarchives` | `boolean` | `nil` | Initiates retrofit of the Ancient Archives via `retrofit_archiveteleporter`. |
+| `retrofit_acientarchives_fixes` | `boolean` | `nil` | Fixes node tags (`MushGnomeSpawnArea`, `nocavein`) and removes extra nightmare spawners if not retrofitted. |
+| `retrofit_dispencer_fixes` | `boolean` | `nil` | Repairs dispencer product assignments (`turfcraftingstation`, `archive_resonator_item`, `refined_dust`). |
+| `retrofit_archives_navmesh` | `boolean` | `nil` | Forces a recalculation of the nav grid for the retrofitted archives. |
+| `retrofit_nodeidtilemap_atriummaze` | `boolean` | `nil` | Repopulates tile node IDs for the AtriumMaze zone. |
+| `retrofit_daywalker_content` | `boolean` | `nil` | Spawns a `daywalkerspawningground` if missing. |
+| `console_beard_turf_fix` | `boolean` | `nil` | Replaces `RIFT_MOON` tiles with `BEARD_RUG` where undertile data is absent (console-specific fix). |
+| `retrofit_rifts6_add_fumarole` | `boolean` | `nil` | Initiates fumarole retrofit via `retrofit_fumaroleteleporter`. |
+| `floating_heavyobstaclephysics_fix` | `boolean` | `nil` | Enables `deprecated_floating_exploit` on all `HeavyObstaclePhysics` components. |
+| `retrofit_missing_retrofits_generated_densities` | `boolean` | `nil` | Fixes density populations for retrofit zones (e.g., MoonMush, FumaroleRetrofit). |
+| `retrofit_cave_mite_spawners` | `boolean` | `nil` | Spawns `cave_vent_mite_spawner` in vent and fumarole zones. |
 
-No other public properties are initialized in `_ctor`. Other attributes (e.g., `self.retrofit_artsandcrafts`, `self.retrofit_heartoftheruins`) are initialized and read during `OnLoad` and conditionally processed in `OnPostInit`.
+## Main functions
+### `OnPostInit()`
+* **Description:** Main driver for all retrofit logic. Called automatically by the game’s world initialization pipeline. Evaluates all retrofit flags, executes corresponding subroutines, and schedules a server reset if `requiresreset` is set.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** None; runtime failures are logged via `print()`.
 
-## Main Functions
+### `OnSave()`
+* **Description:** Serializes the component state. Returns a table of flags preserved across saves to resume incomplete retrofits after a restart.
+* **Parameters:** None.
+* **Returns:** `{}` — An empty table (all state is held in component properties and survives serialization via `OnLoad`).
+  
+### `OnLoad(data)`
+* **Description:** Restores state from save file data, particularly retrofits that may have been interrupted (e.g., due to `requiresreset`). Updates component properties to resume work or prevent re-processing.
+* **Parameters:** `data` (`table?`) — State table from `OnSave()` or save upgrades (e.g., `retrofit_heartoftheruins_respawnerfix`).
+* **Returns:** Nothing.
 
 ### `RemovePrefabs(prefabs_to_remove, biomes_to_cleanup)`
-* **Description:** Removes all instances of specified prefabs (and optionally only those in certain biomes/tiles) from the world.
-* **Parameters:**
-  - `prefabs_to_remove`: Table of prefab strings to remove.
-  - `biomes_to_cleanup`: Optional table; if provided, only removes prefabs in tiles listed in this table.
+* **Description:** (Private helper) Iterates all entities and removes those matching `prefabs_to_remove`, optionally filtering by tile biome.
+* **Parameters:** `prefabs_to_remove` (`table<string>`) — List of prefab names to remove. `biomes_to_cleanup` (`table<string>?`) — Optional tile biome filter.
+* **Returns:** `number` — Count of removed entities.
 
 ### `RetrofitNewCaveContentPrefab(inst, prefab, min_space, dist_from_structures, nightmare, searchnodes_override, ignore_terrain)`
-* **Description:** Attempts to spawn a given prefab into a valid cave or ruin node. It randomly selects candidate nodes, computes placement points, validates spacing and terrain, and places the prefab if possible. Returns success boolean and spawned entity (if any).
-* **Parameters:**
-  - `inst`: World entity reference (unused directly, passed for logging context).
-  - `prefab`: Name of the prefab to spawn.
-  - `min_space`: Minimum radius around the spawn point to be clear of other entities.
-  - `dist_from_structures`: If non-nil, ensures no *structures* exist within this radius.
-  - `nightmare`: Optional boolean; if true, restricts candidate nodes to those marked with `"Nightmare"` and excludes `"Atrium"`/`"lunacyarea"`/`"RuinedGuarden"` nodes.
-  - `searchnodes_override`: Optional array of node indices to restrict searching; otherwise, default node filtering is used.
-  - `ignore_terrain`: Optional boolean; if true, skips terrain placement checks.
+* **Description:** (Private helper) Attempts up to `MAX_PLACEMENT_ATTEMPTS` (50) to spawn a prefab in a valid cave node, ensuring spacing and terrain constraints.
+* **Parameters:**  
+  * `inst` (`Entity`) — The world entity (unused, retained for legacy).  
+  * `prefab` (`string`) — Prefab to spawn.  
+  * `min_space` (`number`) — Minimum radius around spawn point to keep free of entities and terrain.  
+  * `dist_from_structures` (`number?`) — If provided, also checks radius for entities with `STRUCTURE_TAGS`.  
+  * `nightmare` (`boolean?`) — Filters nodes by `Nightmare` tag. Defaults to `false`.  
+  * `searchnodes_override` (`table<number>?`) — Optional explicit list of node indices to search (bypasses default logic).  
+  * `ignore_terrain` (`boolean?`) — Skip `CanPlacePrefabFilteredAtPoint` terrain checks.  
+* **Returns:** `success` (`boolean`) — Whether spawn succeeded. `ret` (`Entity?`) — Spawned entity on success.
 
-### `HeartOfTheRuinsAtriumRetrofitting(inst)`
-* **Description:** Adds a new AtriumMaze node to the world topology and constructs its interior using predefined mazes. Placed in an unused corner area of the map (if valid) and triggers a world reset upon success.
-* **Parameters:**
-  - `inst`: World entity reference.
-
-### `AddRuinsRespawner(prefab, spawnerprefab)`
-* **Description:** Scans the world for entities of `prefab`, replaces them with respawner instances (e.g., `bishop_nightmare_ruinsrespawner_inst`), and optionally takes ownership of the original entity if the spawner matches the target prefab.
-* **Parameters:**
-  - `prefab`: Prefab name to scan for (e.g., `"bishop_nightmare"`).
-  - `spawnerprefab`: Optional; defaults to `prefab`, used to override the spawner name prefix.
-
-### `HeartOfTheRuinsRuinsRetrofitting(inst)`
-* **Description:** Ensures that the Ruins area contains appropriate respawners for specific nightmare and ruins entities (e.g., `bishop_nightmare`, `minotaur`, `monkeybarrel`). Uses a mix of proximity-based respawning near existing targets (e.g., `nightmarelight`) and random global spawning (`RetrofitNewCaveContentPrefab`). Also attempts to place the `atrium_key` if the `minotaur` respawner is missing.
-
-### `HeartOfTheRuinsRuinsRetrofittingRespawnerFix(inst, first_hotr_retrofit)`
-* **Description:** Reduces total numbers of certain respawners (e.g., `bishop_nightmare` capped at 10) to expected population caps. Skips if this is the first full HOTR retrofit. Removes excess respawners asynchronously.
-
-### `HeartOfTheRuinsRuinsRetrofittingAltar(inst)`
-* **Description:** Ensures every existing Altar node has a respawner for `ancient_altar_broken`, adding one if missing.
-
-### `HeartOfTheRuinsRuinsRetrofittingCaveHoles(inst)`
-* **Description:** Ensures at least 8 `cave_hole` prefabs exist in nightmare caves, spawning more via `RetrofitNewCaveContentPrefab` if needed.
-
-### `HeartOfTheRuinsRuinsRetrofitting_RepositionAtriumGate(inst)`
-* **Description:** Repositions an `atrium_gate` to a valid location between adjacent `atrium_light` entities. Used for fixing early-generations of atrium mazes.
-
-### `HeartOfTheRuinsRuinsRetrofitting_StatueChessRespawners(inst)`
-* **Description:** Adds respawners for `chessjunk`, `ruins_statue_head`, `ruins_statue_mage`, etc., if they are missing.
-
-### `ArchiveDispencerFixup()`
-* **Description:** Ensures that archive dispencers have a valid `product_orchestrina` set to one of three required types (`turfcraftingstation`, `archive_resonator_item`, `refined_dust`). Fixes dispencers and lockboxes as needed.
-
-### `self:OnPostInit()`
-* **Description:** Main entry point for applying all retrofits based on flags (e.g., `self.retrofit_heartoftheruins`, `self.retrofit_acientarchives`). Iterates through flags and invokes specialized functions. Handles topology fixes, navmesh updates, node tile map repairs, and ultimately triggers a server reset if `self.requiresreset` is true.
-
-### `self:OnSave()`
-* **Description:** Returns an empty table. All persistent state is stored in the world’s save data via `OnLoad`.
-
-### `self:OnLoad(data)`
-* **Description:** Loads retrofit flags (e.g., `retrofit_warts`, `requiresreset`) from the world save data into local state. Called during world load before `OnPostInit`.
-
-## Events & Listeners
-- Listens for internal save/load mechanics (`OnSave`, `OnLoad`), but no `inst:ListenForEvent` calls exist.
-- Triggers events: None directly.
-- however, if `requiresreset` is true, it schedules:
-  - `TheWorld:PushEvent("ms_save")` (5 seconds before rollback)
-  - `TheNet:SendWorldRollbackRequestToServer(0)` (after ~45 seconds total)
-  - Also uses `TheNet:Announce(...)` with localized retrofit messages.
+## Events & listeners
+- **Listens to:** None (this component does not register event listeners).
+- **Pushes:** Does not directly push events; however, `OnPostInit` may schedule server-wide resets via `TheWorld:PushEvent("ms_save")`.

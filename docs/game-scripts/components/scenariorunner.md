@@ -1,63 +1,81 @@
 ---
 id: scenariorunner
 title: Scenariorunner
-description: Executes scenario-specific logic by loading and invoking lifecycle callbacks (OnCreate, OnLoad, OnDestroy) on demand during gameplay.
+description: Manages loading, executing, and cleaning up scenario scripts associated with an entity.
+tags: [scenario, lifecycle, script]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 6e41873c
+system_scope: world
 ---
 
 # Scenariorunner
 
-## Overview
-The `Scenariorunner` component enables an entity to dynamically execute custom scenario logic—typically used in modding to inject world-initialization or runtime behavior defined in external script files. It manages the loading, execution, saving, and cleanup of such scenario scripts by invoking standardized callback functions (`OnCreate`, `OnLoad`, `OnDestroy`) at appropriate times.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-* **Component Dependency**: Relies on the entity having no mandatory components beyond `inst` (the owning entity instance) passed to its constructor.  
-* **Tags**: None added or removed by this component.  
-* **Note**: Does *not* automatically register events—it assumes external orchestration (e.g., via `WorldPostInit` or `ClientWorldPostInit`) triggers the `:Run()` call.
+## Overview
+`Scenariorunner` is a component that enables an entity to execute scenario-specific logic defined in external Lua modules. It handles script initialization (via `OnCreate` and `OnLoad` hooks), tracks whether the scenario has been run once, and supports cleanup via `OnDestroy`. It is typically attached to entities involved in dynamic world events or scripted sequences (e.g., bosses, arena triggers, event structures), and integrates with DST’s save/load system.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("scenariorunner")
+
+-- Associate and run a scenario script
+inst.components.scenariorunner:SetScript("lava_arena")
+inst.components.scenariorunner:Run()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity this component is attached to. |
-| `scriptname` | `string?` | `nil` | Name (filename) of the loaded scenario script (without path), e.g., `"example"` for `scenarios/example.lua`. |
-| `script` | `table?` | `nil` | Module object returned by `require("scenarios/...")`, expected to expose optional callbacks. |
-| `hasrunonce` | `boolean` | `false` | Flag indicating whether the `OnCreate` callback (if present) has been executed. |
+| `scriptname` | string or `nil` | `nil` | Name of the currently assigned scenario script (without path or `.lua`). |
+| `script` | table or `nil` | `nil` | The loaded scenario script module (expects `OnCreate`, `OnLoad`, and optionally `OnDestroy`). |
+| `hasrunonce` | boolean | `false` | Whether the `OnCreate` hook has already executed for this scenario. |
 
-## Main Functions
-
-### `SetScript(name)`
-* **Description**: Loads a scenario script by name, validates that it exports at least one required callback (`OnCreate` or `OnLoad`), and stores it internally. Emits a warning if a script is already assigned.
-* **Parameters**:
-  * `name` (`string`): The scenario filename (without extension or path).
-
-### `Run()`
-* **Description**: Executes the scenario lifecycle. If `OnCreate` exists and `hasrunonce` is `false`, it runs `OnCreate` and marks `hasrunonce = true`. Then, it *always* attempts to run `OnLoad`. If no `OnLoad` is defined, it calls `:ClearScenario()`.
-* **Parameters**: None.
-
-### `ClearScenario()`
-* **Description**: Removes the `scenariorunner` component from the entity and invokes the scenario's `OnDestroy` callback (if defined).
-* **Parameters**: None.
-
-### `Reset()`
-* **Description**: Tears down the current scenario by invoking `OnDestroy` (if present), then clears `script`, `scriptname`, and resets `hasrunonce` to `false`, allowing the component to be reused.
-* **Parameters**: None.
-
+## Main functions
 ### `OnLoad(data)`
-* **Description**: Restores state from saved data—specifically `scriptname` (if present, calls `SetScript`) and `hasrunonce`.
-* **Parameters**:
-  * `data` (`table?`): Saved state, typically containing keys `scriptname` (string) and `hasrunonce` (boolean).
+* **Description:** Restores component state from saved data during world load. Typically called automatically by DST’s save system.
+* **Parameters:**  
+  `data` (table or `nil`) — Save data containing `scriptname` and `hasrunonce`.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description**: Returns a serializable table containing the current state (`hasrunonce` and optionally `scriptname`).
-* **Parameters**: None.
-* **Returns** (`table`): `{ hasrunonce = bool, [scriptname] = string? }`
+* **Description:** Collects component state to persist to disk during world save. Typically called automatically by DST’s save system.
+* **Parameters:** None.
+* **Returns:**  
+  `data` (table) — A table containing `scriptname` (if present) and `hasrunonce`.
 
-## Events & Listeners
-None identified. This component does not register or emit events directly; it operates synchronously via explicit method calls.
+### `SetScript(name)`
+* **Description:** Assigns and loads a scenario script from `scenarios/` by name. Prints a warning if a script is already assigned.
+* **Parameters:**  
+  `name` (string) — The filename (without extension) of the scenario script (e.g., `"lava_arena"`).
+* **Returns:** Nothing.
+* **Error states:** Asserts if the loaded script does not export either `OnCreate` or `OnLoad`.
+
+### `Run()`
+* **Description:** Executes the scenario logic. Runs `OnCreate` once (only if `hasrunonce` is `false`), then always runs `OnLoad` if present. If no `OnLoad` exists, clears the scenario.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `ClearScenario()`
+* **Description:** Immediately terminates and removes the scenario: calls `OnDestroy` (if defined) and removes the component from `self.inst`.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `Reset()`
+* **Description:** Clears the scenario without removing the component. Calls `OnDestroy` (if defined), then resets all state (`script`, `scriptname`, `hasrunonce`).
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:** None identified  
+- **Pushes:** None identified

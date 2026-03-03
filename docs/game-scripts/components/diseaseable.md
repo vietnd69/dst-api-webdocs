@@ -1,86 +1,101 @@
 ---
 id: diseaseable
 title: Diseaseable
-description: This component manages an entity's ability to become diseased, spread disease to other entities, and handle related visual effects and timers.
+description: Manages disease progression, symptoms, and transmission for entities, including timed warnings, environmental effects, and spread mechanics.
+tags: [disease, ai, combat, environment]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 4964f7ba
+system_scope: entity
 ---
 
 # Diseaseable
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component integrates into the game's Entity Component System to manage the disease state of an entity. It enables entities to develop a disease over time, display visual cues, potentially spread the disease to nearby eligible entities, and persist their disease state across game saves. It handles the scheduling of various stages of disease progression, from an initial delay, through a warning phase, to full-blown disease and subsequent spreading attempts.
+`Diseaseable` implements a state machine for entity disease, handling the transition from healthy → warning → diseased → spreading. It integrates with game tunings (e.g., `TUNING.DISEASE_*`) to control timing, spread radius, and chance. The component automatically manages tasks (delays, warnings, FX, spread), persists state via `OnSave`/`OnLoad`, and adds/removes tags (`diseaseable`, `diseased`) to reflect current condition.
 
-## Dependencies & Tags
-This component explicitly adds and removes the following tags from its associated entity:
-*   `diseaseable` (added in `_ctor` and removed on `OnRemoveFromEntity`)
-*   `diseased` (added when the `diseased` property is true, removed when false or on `OnRemoveFromEntity`)
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("diseaseable")
 
-It relies on the global `TUNING` table for various disease-related parameters such as chance, delay times, warning times, and spread radius. It also leverages other components of nearby entities (specifically `v.components.diseaseable`) to interact with them for disease spread and delay rescheduling. The component also spawns the `diseaseflies` prefab for visual effects.
+-- Optionally set a custom callback when disease is contracted
+inst.components.diseaseable:SetDiseasedFn(function(entity)
+    print(entity.prefab .. " is now diseased!")
+end)
+
+-- Force immediate disease (bypasses delay/warning)
+inst.components.diseaseable:Disease()
+```
+
+## Dependencies & tags
+**Components used:** None identified.
+**Tags:** Adds `diseaseable` on construction; adds/removes `diseased` based on state.
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :------- | :--- | :------------ | :---------- |
-| `inst` | `Entity` | (set in `_ctor`) | A reference to the entity this component is attached to. |
-| `onDiseasedFn` | `function` | `nil` | A custom callback function that is invoked when the entity becomes fully diseased. |
-| `diseased` | `boolean` | `false` | Indicates whether the entity is currently in a diseased state. Setting this property triggers the `ondiseased` observer, which manages the "diseased" tag. |
-| `_lastfx` | `number` | `0` | Timestamp of the last time disease visual effects (flies) were spawned, used to prevent rapid re-spawning. |
-| `_fxtask` | `Task` | `nil` | Reference to the `Task` object managing the scheduling of disease visual effects. |
-| `_spreadtask` | `Task` | `nil` | Reference to the `Task` object managing the scheduling of disease spread attempts. |
-| `_delaytask` | `Task` | `nil` | Reference to the `Task` object managing the initial delay before a disease attempt is made. |
-| `_warningtask` | `Task` | `nil` | Reference to the `Task` object managing the warning period before an entity becomes fully diseased. |
+|----------|------|---------------|-------------|
+| `diseased` | boolean | `false` | Whether the entity is currently diseased. |
+| `_delaytask` | Task | `nil` | Pending delay task before warning/disease check. |
+| `_warningtask` | Task | `nil` | Pending warning countdown before disease onset. |
+| `_spreadtask` | Task | `nil` | Pending task to attempt disease spread. |
+| `_fxtask` | Task | `nil` | Pending task to spawn disease FX (flies). |
+| `onDiseasedFn` | function | `nil` | Optional callback fired when `Disease()` is called. |
 
-## Main Functions
-### `ondiseased(self, diseased)`
-*   **Description:** This function is an observer callback triggered when the `diseased` property of the component changes. It is responsible for adding or removing the "diseased" tag from the entity based on the new state.
-*   **Parameters:**
-    *   `self`: A reference to the Diseaseable component instance.
-    *   `diseased`: A boolean indicating the new state of the `diseased` property (`true` if diseased, `false` otherwise).
-
-### `OnRemoveFromEntity()`
-*   **Description:** Called when the component is removed from its entity. This function cancels all active tasks (`_fxtask`, `_spreadtask`, `_delaytask`, `_warningtask`) and removes both the "diseased" and "diseaseable" tags from the entity to ensure a clean state.
-*   **Parameters:** None.
-
-### `IsDiseased()`
-*   **Description:** Returns whether the entity is currently in a fully diseased state.
-*   **Parameters:** None.
-
-### `IsBecomingDiseased()`
-*   **Description:** Returns whether the entity is currently undergoing the warning phase before becoming fully diseased.
-*   **Parameters:** None.
-
-### `SetDiseasedFn(fn)`
-*   **Description:** Sets a custom callback function that will be executed when the entity transitions into a fully diseased state.
-*   **Parameters:**
-    *   `fn`: The function to be called. It receives the entity instance as its argument: `fn(inst)`.
-
+## Main functions
 ### `Disease()`
-*   **Description:** Initiates the transition of the entity into a diseased state. If the entity is not already diseased, it cancels any existing tasks (delay, warning), sets `diseased` to `true`, schedules disease visual effects (`_fxtask`), schedules disease spread attempts (`_spreadtask`), and invokes the `onDiseasedFn` if one is set.
-*   **Parameters:** None.
+* **Description:** Immediately transitions the entity to the diseased state, cancels pending tasks, schedules spread attempts, and spawns FX. No-op if already diseased.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Returns early with no effect if `self.diseased` is `true`.
 
 ### `Spread()`
-*   **Description:** Attempts to spread the disease from the current diseased entity to a nearby eligible entity. It finds a random nearby entity with the "diseaseable" tag within `TUNING.DISEASE_SPREAD_RADIUS`. If found, it calls `Disease()` on that entity's `diseaseable` component and then reschedules its own spread task.
-*   **Parameters:** None.
+* **Description:** Attempts to infect one nearby `diseaseable` entity within `TUNING.DISEASE_SPREAD_RADIUS`. If successful, reschedules itself for future spread attempts.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No-op if not diseased. If no target found, no further spread occurs until manually restarted.
+
+### `SetDiseasedFn(fn)`
+* **Description:** Registers a callback function that fires once when the entity transitions to `diseased` state.
+* **Parameters:** `fn` (function) – Called with `inst` as sole argument at disease onset.
+* **Returns:** Nothing.
+
+### `IsDiseased()`
+* **Description:** Returns whether the entity is currently diseased.
+* **Parameters:** None.
+* **Returns:** boolean – `true` if diseased, else `false`.
+
+### `IsBecomingDiseased()`
+* **Description:** Returns whether the entity is in the warning phase (warning timer active, but not yet diseased).
+* **Parameters:** None.
+* **Returns:** boolean – `true` if warning is pending, else `false`.
 
 ### `RestartNearbySpread()`
-*   **Description:** Finds all nearby entities within `TUNING.DISEASE_SPREAD_RADIUS` that are currently diseased and have the "diseased" tag. For each found entity, it cancels its current spread task and immediately reschedules a new one. This is used to make spread attempts more responsive.
-*   **Parameters:** None.
+* **Description:** Cancels and restarts spread timers for all diseased entities within `TUNING.DISEASE_SPREAD_RADIUS`. Used to accelerate spread when disease becomes more aggressive (e.g., after Certain events).
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-*   **Description:** Serializes the current state of the component for saving. It stores information about active tasks (`_spreadtask`, `_delaytask`, `_warningtask`) and their remaining times if the entity is diseased or in a pre-diseased state.
-*   **Parameters:** None.
+* **Description:** Serializes current state and pending timers for save/load compatibility.
+* **Parameters:** None.
+* **Returns:** table or `nil` – Contains keys `spreadtime`, `delaytime`, or `warningtime` with remaining seconds (or `-1` for cancelled). Returns `nil` if no active timers or disease state.
 
 ### `OnLoad(data)`
-*   **Description:** Deserializes the component's state from saved `data`. It restores the disease state, including active tasks and their remaining durations, effectively resuming the disease progression from where it was saved.
-*   **Parameters:**
-    *   `data`: A table containing the saved state information for the component.
+* **Description:** Restores state and pending tasks from serialized data.
+* **Parameters:** `data` (table) – Result from `OnSave()`.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-*   **Description:** Provides a formatted string containing debug information about the component's current state, including whether it's diseased and the remaining times for its active spread, delay, and warning tasks.
-*   **Parameters:** None.
+* **Description:** Returns a human-readable debug string for console/log inspection.
+* **Parameters:** None.
+* **Returns:** string – Formatted as `"diseased: <bool>, spreadtime: <sec>, delaytime: <sec>, warningtime: <sec>"`.
+
+## Events & listeners
+- **Listens to:** None identified.
+- **Pushes:** None identified. (Note: `ondiseased` is a hook for the class’s `_OnAddTag` system, not an event pushed via `inst:PushEvent`.)

@@ -1,65 +1,93 @@
 ---
 id: lighttweener
 title: Lighttweener
-description: Provides linear interpolation (tweening) support for dynamically adjusting a light entity's falloff, intensity, radius, and colour over time.
+description: Interpolates light properties (radius, intensity, falloff, colour) over time for an entity's attached light component.
+tags: [light, animation, tween]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 7f5f55aa
+system_scope: fx
 ---
 
 # Lighttweener
 
-## Overview
-This component implements a light property tweener for entities in the Entity Component System. It enables smooth animation of a light's `radius`, `intensity`, `falloff`, and `colour` from current values to specified target values over a given duration, using linear interpolation. It manages the tween lifecycle, updates values per-frame via `OnUpdate`, and optionally invokes a callback upon completion.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on `inst:StartUpdatingComponent(self)` and `inst:StopUpdatingComponent(self)` to manage frame updates.
-- Uses `Lerp` (linear interpolation) — typically available globally in the DST engine.
-- No entity tags are added or removed.
-- No other components are directly required by name.
+## Overview
+`LightTweener` provides linear interpolation (tweening) for dynamic lighting effects. It modifies the visual properties of a `light` component attached to the same entity over a specified duration. This component is used to create smooth transitions between lighting states—such as dimming, brightening, or shifting colour—commonly seen in ambient effects, ambient alerts, or event-driven environmental changes.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("lighttweener")
+
+local light = inst:AddChild()
+light:AddComponent("light")
+light:GetComponent("light"):SetRadius(3)
+light:GetComponent("light"):SetIntensity(0.5)
+light:GetComponent("light"):SetFalloff(1.0)
+light:GetComponent("light"):SetColour(1, 1, 1)
+
+inst.components.lighttweener:StartTween(
+    light,           -- light to tween
+    5,               -- target radius
+    1.0,             -- target intensity
+    0.5,             -- target falloff
+    {0.8, 0.2, 0.2}, -- target colour (red-ish)
+    2.0,             -- duration in seconds
+    function() print("Tween finished!") end -- callback
+)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | The entity to which this component is attached. |
-| `light` | `Light` (or `nil`) | `nil` | The light component/reference to be tweened. |
-| `i_falloff`, `i_intensity`, `i_radius` | `number` or `nil` | `nil` | Initial (current) values for light properties at start of tween. |
+| `inst` | `Entity` | `nil` | Reference to the entity that owns this component. |
+| `light` | `LightComponent` or `nil` | `nil` | The light component being tweened. |
+| `i_falloff`, `i_intensity`, `i_radius` | `number` or `nil` | `nil` | Initial (start) values for light properties. |
 | `i_colour_r`, `i_colour_g`, `i_colour_b` | `number` or `nil` | `nil` | Initial RGB colour components. |
-| `t_falloff`, `t_intensity`, `t_radius` | `number` or `nil` | `nil` | Target values to interpolate towards. |
+| `t_falloff`, `t_intensity`, `t_radius` | `number` or `nil` | `nil` | Target (end) values for light properties. |
 | `t_colour_r`, `t_colour_g`, `t_colour_b` | `number` or `nil` | `nil` | Target RGB colour components. |
-| `callback` | `function` or `nil` | `nil` | Function to call after tween completes (signature: `callback(inst, light)`). |
-| `time` | `number` | `nil` | Total duration of the tween in seconds. |
-| `timepassed` | `number` | `0` | Elapsed time since the tween started. |
+| `callback` | `function` or `nil` | `nil` | Function called when tween completes. |
+| `time` | `number` or `nil` | `nil` | Total duration of the tween in seconds. |
+| `timepassed` | `number` | `0` | Time elapsed since tween started. |
 | `tweening` | `boolean` | `false` | Whether a tween is currently in progress. |
 
-## Main Functions
+## Main functions
+### `StartTween(light, rad, intensity, falloff, colour, time, callback)`
+*   **Description:** Begins a tween operation on the specified light, interpolating its properties from current values to target values over `time` seconds. If `time` is `0`, the tween completes immediately.
+*   **Parameters:**
+    *   `light` (`LightComponent`) — The light component to animate.
+    *   `rad` (`number` or `nil`) — Target radius.
+    *   `intensity` (`number` or `nil`) — Target intensity.
+    *   `falloff` (`number` or `nil`) — Target falloff.
+    *   `colour` (`table` or `nil`) — Table of `{r, g, b}`; values expected in `[0, 1]` range.
+    *   `time` (`number`) — Duration in seconds.
+    *   `callback` (`function` or `nil`) — Function to call upon completion, receiving `(inst, light)` as arguments.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early and prints a warning if `light` is `nil` or not provided; sets `self.light` but skips updating if unset.
 
 ### `EndTween()`
-* **Description:** Forces the light to its target values and terminates the tween (stops updates and triggers the callback if present).  
-* **Parameters:** None.
-
-### `StartTween(light, rad, intensity, falloff, colour, time, callback)`
-* **Description:** Begins a tween on the specified light, storing initial values and interpolating toward the given targets over `time` seconds. If `time <= 0`, jumps immediately to target values.  
-* **Parameters:**
-  - `light` (`Light`): The light entity to animate. Required for tweening.
-  - `rad` (`number` or `nil`): Target radius. Uses current radius if `nil`.
-  - `intensity` (`number` or `nil`): Target intensity. Uses current intensity if `nil`.
-  - `falloff` (`number` or `nil`): Target falloff. Uses current falloff if `nil`.
-  - `colour` (`table` of size ≥ 3 or `nil`): Target RGB colour (e.g., `{r, g, b}`). Falls back to current colour if `nil`.
-  - `time` (`number`): Duration of the tween in seconds.
-  - `callback` (`function` or `nil`): Optional function executed when the tween finishes.
+*   **Description:** Immediately sets the light to its final (target) values and stops the update loop.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `self.light` is `nil`.
 
 ### `OnUpdate(dt)`
-* **Description:** Called each frame during an active tween. Computes interpolated values based on elapsed time and updates the light properties accordingly. Stops automatically when the tween completes.  
-* **Parameters:**
-  - `dt` (`number`): Delta time since the last frame.
+*   **Description:** Updates the tween per frame by linearly interpolating between initial and target values. Called automatically while `tweening` is `true`.
+*   **Parameters:**
+    *   `dt` (`number`) — Time in seconds since last frame.
+*   **Returns:** Nothing.
+*   **Error states:** Prints warning and stops updates if `self.light` is `nil`. Automatically calls `EndTween()` when `timepassed >= time`.
 
-## Events & Listeners
-- Listens to: **None** (no `inst:ListenForEvent` calls).
-- Triggers: **None** (no `inst:PushEvent` calls).  
-  *(Note: While it calls a user-defined `callback`, this is not an event in the DST event system.)*
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** None.

@@ -1,63 +1,81 @@
 ---
 id: nightlightmanager
 title: Nightlightmanager
-description: Manages the registration, tracking, and position updates of night light entities on the server.
+description: Manages registration, tracking, and filtering of night light entities within the world for master simulation.
+tags: [world, lighting, network, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 3a83f46a
+system_scope: world
 ---
 
 # Nightlightmanager
 
-## Overview
-This component is responsible for managing night light entities on the server side of Don't Starve Together. It tracks registered night lights, updates their world positions and associated map node information, and provides utilities to query and filter them by tag or proximity.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires the `inst` entity to have `TheWorld.ismastersim` (i.e., runs only on the master simulation).
-- Listens for the `"ms_registernightlight"` event to register new night lights.
-- Adds no new tags to the entity.
+## Overview
+`Nightlightmanager` is a master-only component that tracks registered night light entities and maintains their positions and associated node tags. It enables filtering night lights by gameplay-relevant criteria (e.g., region tags) and locating the closest one to a given entity. It is intended to exist only on the master simulation (`TheWorld.ismastersim`) and is typically attached to a persistent world-level entity.
+
+## Usage example
+```lua
+-- Assuming `world` is a master-only entity with the component attached
+world:AddComponent("nightlightmanager")
+-- Night lights register themselves with `inst:PushEvent("ms_registernightlight", nightlight)`
+-- To get all night lights in forest region (tag: "forest"):
+local forestLights = world.components.nightlightmanager:GetNightLightsWithFilter(
+    NightLightManager.Filter_OnlyInTags, {"forest"}
+)
+-- To get the closest night light to the player:
+if #forestLights > 0 then
+    local closest = world.components.nightlightmanager:FindClosestNightLightFromListToInst(forestLights, player)
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** The component checks and stores node tags (e.g., `"forest"`, `"cave"`) per night light via `TheWorld.Map:FindVisualNodeAtPoint`, but does not directly add or remove entity tags.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity the component is attached to. |
-| `nightlights` | `table` | `{}` | Map of registered night light entities to their internal metadata tables. |
+| `inst` | `Entity` | — | The entity instance this component is attached to (must be master). |
+| `nightlights` | `table` | `{}` | Map of night light entities → metadata tables containing position and node tags. |
 
-## Main Functions
+## Main functions
 ### `IsNightLightDataInAnyTag(nightlightdata, tags)`
-* **Description:** Checks whether any of the given `tags` are present in the `nightlightdata.node_tags` table.
-* **Parameters:**
-  - `nightlightdata`: Table containing metadata for a night light, including `node_tags`.
-  - `tags`: Array of strings representing tag names to check.
+*   **Description:** Checks whether `nightlightdata.node_tags` contains any of the provided tags.
+*   **Parameters:**  
+    - `nightlightdata` (table) — metadata table associated with a night light (must include `node_tags` or `nil`).  
+    - `tags` (table of strings) — list of tags to test against.  
+*   **Returns:** `true` if any tag matches; `false` otherwise.
 
 ### `GetNightLightsWithFilter(filterfn, ...)`
-* **Description:** Iterates over all registered night lights and returns a list of those that satisfy the provided filter function.
-* **Parameters:**
-  - `filterfn`: A function taking `(nightlightmanager, nightlight, nightlightdata, ...)` and returning `true` if the night light should be included.
-  - `...`: Additional arguments passed to the filter function.
+*   **Description:** Returns a list of night light entities that satisfy the provided filter function.
+*   **Parameters:**  
+    - `filterfn` (function) — a callable with signature `filterfn(manager, nightlight, nightlightdata, ...)` returning a boolean.  
+    - `...` — additional arguments passed to `filterfn`.  
+*   **Returns:** `table` — array of night light entities satisfying the filter.
 
 ### `FindClosestNightLightFromListToInst(nightlights, inst)`
-* **Description:** Returns the night light in the given list that is closest (by squared distance) to the given entity instance.
-* **Parameters:**
-  - `nightlights`: Array of night light entity references.
-  - `inst`: Entity to measure distance from.
+*   **Description:** Finds the night light in `nightlights` with the smallest squared distance to `inst`.
+*   **Parameters:**  
+    - `nightlights` (table of entities) — list of night light entities to search.  
+    - `inst` (Entity) — target entity for distance comparison.  
+*   **Returns:** `Entity` — the closest night light, or `nil` if `nightlights` is empty.
 
 ### `UpdateNightLightPosition(nightlight)`
-* **Description:** Updates the stored world position and associated map node index/tags for a given night light. Clears old node tag data if the node changes or becomes unavailable.
-* **Parameters:**
-  - `nightlight`: The night light entity whose position should be updated.
+*   **Description:** Updates stored position (`x`, `y`, `z`) and node index/tags for a given night light.
+*   **Parameters:**  
+    - `nightlight` (Entity) — the night light entity to update.  
+*   **Returns:** Nothing.
 
-### `OnRegisterNightLight(nightlight)`
-* **Description:** Registers a new night light entity, attaching callbacks to detect changes in its built state and platform availability. Only registers the night light if it currently has no platform (i.e., is not yet built). Also sets up cleanup when the night light is removed.
-* **Parameters:**
-  - `nightlight`: The night light entity to register.
-
-## Events & Listeners
-- **Listens for `"ms_registernightlight"`**: Triggers `OnRegisterNightLight_Bridge`, which forwards the event to `OnRegisterNightLight`.
-- **Listens for `"onremove"`** (on registered night lights): Removes the night light from the internal tracking table.
-- **Listens for `"onbuilt"`, `"entitywake"`, `"entitysleep"`**: Triggers internal position and platform state updates during registration.
+## Events & listeners
+- **Listens to:**  
+  - `ms_registernightlight` — triggers internal registration of a night light.  
+  - `onremove` (on night lights) — cleans up the night light from tracking when removed.  
+  - `onbuilt`, `entitywake`, `entitysleep` — triggers position update and registration when a night light becomes active.  
+- **Pushes:** None identified.

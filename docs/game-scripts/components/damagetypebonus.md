@@ -1,55 +1,73 @@
 ---
 id: damagetypebonus
 title: Damagetypebonus
-description: This component manages and applies bonus damage multipliers based on the tags of a target entity.
+description: Calculates multiplicative damage bonuses based on target tags by aggregating source-specific modifiers per tag.
+tags: [combat, damage, modifier]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: combat
+category_type: components
 source_hash: 312f5585
+system_scope: combat
 ---
 
 # Damagetypebonus
 
-## Overview
-The `Damagetypebonus` component allows an entity to apply multiplicative damage bonuses against targets that possess specific tags. It uses `SourceModifierList` internally to manage multiple sources of bonuses for each tag, ensuring they are correctly combined. This enables complex damage modification rules, such as a weapon dealing extra damage to "monster" type enemies.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-*   **Dependencies:** None identified.
-*   **Tags:** None identified.
+## Overview
+`DamageTypeBonus` manages conditional damage multipliers that apply based on whether the damage target possesses certain tags. It uses `SourceModifierList` (from `util/sourcemodifierlist.lua`) to track and combine modifiers from multiple sources per tag, ensuring correct stacking and removal behavior. This component is typically attached to entities that deal damage and need to support tag-based bonus calculations (e.g., weapons or character abilities that deal extra damage to specific entity types).
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("damagetypebonus")
+inst.components.damagetypebonus:AddBonus("monster", "player_great_hammer", 0.5, "primary")
+inst.components.damagetypebonus:AddBonus("monster", "player_magic", 0.25, "spell")
+local mult = inst.components.damagetypebonus:GetBonus(target_entity)
+```
+
+## Dependencies & tags
+**Components used:** None directly accessed via `inst.components.X`; relies on the external `SourceModifierList` utility (not a component).  
+**Tags:** Adds no tags to the entity; checks tags on the *target* entity (via `target:HasTag(k)`) during `GetBonus`.
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :------- | :--- | :------------ | :---------- |
-| `inst` | `Entity` | `nil` | The entity this component is attached to. |
-| `tags` | `table` | `{}` | A table mapping damage type tags (string) to `SourceModifierList` instances, which manage the actual percentage bonuses for that tag. |
+|----------|------|---------------|-------------|
+| `tags` | table of `SourceModifierList` | `{}` | Maps tag strings to their associated modifier lists. Keys are tags; values are `SourceModifierList` instances. |
 
-## Main Functions
+## Main functions
 ### `AddBonus(tag, src, pct, key)`
-*   **Description:** Adds or updates a damage bonus for a specific tag. If no bonus list exists for the given tag, one is created. The `SourceModifierList` ensures that multiple sources for the same bonus type are handled correctly.
-*   **Parameters:**
-    *   `tag` (string): The tag to which this bonus applies (e.g., "monster", "shadow").
-    *   `src` (any): The source of the bonus (e.g., the item providing the bonus). Used by `SourceModifierList` for tracking.
-    *   `pct` (number): The percentage bonus as a multiplier (e.g., 1.25 for +25% damage).
-    *   `key` (any, optional): An optional key used by `SourceModifierList` to differentiate multiple modifiers from the same source.
+* **Description:** Adds or updates a damage bonus multiplier for a specific tag. Applies only while the *target* has the specified tag.
+* **Parameters:**
+  * `tag` (string) – The tag the *target* must have to trigger this bonus.
+  * `src` (string) – Unique source identifier (e.g., weapon or ability name) for modifier tracking.
+  * `pct` (number) – Relative bonus percentage (e.g., `0.5` for +50% damage).
+  * `key` (string) – Optional key for fine-grained modifier differentiation.
+* **Returns:** Nothing.
 
 ### `RemoveBonus(tag, src, key)`
-*   **Description:** Removes a previously added damage bonus. If removing the bonus leaves the `SourceModifierList` for that tag empty, the list itself is removed from the component.
-*   **Parameters:**
-    *   `tag` (string): The tag associated with the bonus to remove.
-    *   `src` (any): The source that added the bonus.
-    *   `key` (any, optional): The optional key used when the bonus was added.
+* **Description:** Removes a specific bonus modifier added via `AddBonus` for a given tag and source.
+* **Parameters:**
+  * `tag` (string) – The tag associated with the bonus to remove.
+  * `src` (string) – Source identifier matching the original `AddBonus` call.
+  * `key` (string) – Optional key matching the original `AddBonus` call.
+* **Returns:** Nothing.
+* **Error states:** If the modifier list for `tag` becomes empty after removal, the entry for `tag` is automatically deleted from `self.tags`.
 
 ### `GetBonus(target)`
-*   **Description:** Calculates the total multiplicative damage bonus to be applied against a given `target` entity. It iterates through all configured bonus tags and checks if the target has that tag.
-*   **Parameters:**
-    *   `target` (`Entity`): The entity being targeted, whose tags will be checked against the component's configured bonuses.
-*   **Returns:** `number` - The total damage multiplier. Returns `1` if no target is provided or if the target has no matching tags for any bonuses.
+* **Description:** Calculates the cumulative multiplicative damage multiplier for a given *target* entity based on tags with registered bonuses.
+* **Parameters:**
+  * `target` (Entity or nil) – The entity being damaged. If `nil`, returns `1`.
+* **Returns:** `number` – Multiplicative multiplier (e.g., `1.75` = 75% bonus). Starts at `1.0` and multiplies values from all matching tag modifier lists.
+* **Error states:** Returns `1` if `target` is `nil` or has no matching tags.
 
 ### `GetDebugString()`
-*   **Description:** Generates a formatted string representing the current state of all damage bonuses, useful for debugging purposes.
-*   **Parameters:** None.
-*   **Returns:** `string` - A string containing each tag and its combined bonus multiplier, or `nil` if no bonuses are configured.
+* **Description:** Returns a formatted string summarizing active tag bonuses for debugging.
+* **Parameters:** None.
+* **Returns:** `string` – Multi-line string listing each tag and its current modifier value (e.g., `"\n\t[monster] 1.750000"`). Returns `nil` if no bonuses exist.
+
+## Events & listeners
+None.

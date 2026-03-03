@@ -1,158 +1,184 @@
 ---
 id: teleporter
 title: Teleporter
-description: This component enables teleportation between paired destinations, supports migration between worlds, and manages teleporting players, items, and followers.
-
+description: Manages inter- and intra-world teleportation of entities, including followers and items, with support for migration, camera transitions, and walkable offset alignment.
+tags: [teleport, world, entity, migration]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 486b596e
+system_scope: world
 ---
 
 # Teleporter
 
-## Overview
-The `Teleporter` component is a core system in the Entity Component System that handles teleportation logic for entities such as players, items, and followers. It coordinates pairing with a target teleporter, manages entry/exit timing, ensures safe placement (including walkable terrain checks), and supports cross-world migration via `migration_data`. It also tracks active teleportees and saves/loads state to ensure items in transit persist correctly.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds/removes the `"teleporter"` tag from the entity based on whether the teleporter is active (`IsActive()`).
-- Relies on components: `Transform`, `Physics` (for teleportation), `locomotor`, `amphibiouscreature`, `drownable`, `inventoryitem`, `leader`, `follower`, `container`.
-- Internal event listeners: `"onremove"` (on teleportees being removed).
-- Uses `TheWorld.Map`, `TheShard`, `Shard_IsWorldAvailable` for world and terrain checks.
+## Overview
+The `teleporter` component enables teleportation of entities between locations (local or across worlds) and handles associated logic such as follower synchronization, item handling, camera transitions, and walkable offset alignment. It is typically added to portal-like prefabs (e.g., Teleporters, Wormholes) and coordinates with `leader`, `inventory`, `container`, `locomotor`, `amphibiouscreature`, `drownable`, `follower`, and `inventoryitem` components to ensure safe and consistent teleportation of dependents.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("teleporter")
+inst.components.teleporter:Target(other_teleporter_entity)
+inst.components.teleporter:SetEnabled(true)
+
+-- Trigger teleport for a player
+inst.components.teleporter:Activate(player_entity)
+
+-- Or trigger a migration
+inst.components.teleporter:MigrationTarget("caves", 100, 5, -200)
+inst.components.teleporter:Activate(player_entity)
+```
+
+## Dependencies & tags
+**Components used:** `locomotor`, `amphibiouscreature`, `drownable`, `leader`, `inventory`, `container`, `inventoryitem`, `follower`
+**Tags:** Adds `teleporter` when active; removes it on deactivation or removal from entity.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `targetTeleporter` | `Entity?` | `nil` | The target teleporter entity to teleport *to* (persistent across saves). |
-| `targetTeleporterTemporary` | `Entity?` | `nil` | Temporary override target (used for immediate/exact entry teleportation). |
-| `migration_data` | `{ worldid: string, x: number, y: number, z: number }?` | `nil` | World migration coordinates (non-nil indicates cross-world teleport). |
-| `enabled` | `boolean` | `true` | Whether teleporting is currently enabled. |
-| `offset` | `number` | `2` | Radial buffer radius used to find safe landing spots around the target position. |
-| `numteleporting` | `number` | `0` | Count of entities currently teleporting through this teleporter (player or item). |
-| `teleportees` | `table<Entity: true>` | `{}` | List of entities registered as teleportees (used for cleanup on removal). |
-| `items` | `table<Entity: true>` | `{}` | Items currently in transit (tracked during teleport). |
-| `saveenabled` | `boolean` | `true` | Whether to save `targetTeleporter` and `migration_data` on world save. |
-| `selfmanaged` | `boolean?` | `nil` | If set, the same teleporter instance acts as both sender and receiver. |
-| `travelcameratime` | `number` | `3` | Time (in seconds) before camera fade completes. |
-| `travelarrivetime` | `number` | `4` | Total time (in seconds) for teleport completion sequence. |
-| `onActivate` | `function(inst, doer, migration_data)?` | `nil` | Callback invoked when teleportation is initiated. |
-| `onActivateByOther` | `function(inst, source, entity)?` | `nil` | Callback invoked when receiving a teleporting player or item. |
+| `targetTeleporter` | `Entity?` | `nil` | Reference to the destination teleporter entity. Also used for local teleportation. |
+| `targetTeleporterTemporary` | `Entity?` | `nil` | Temporary override for the destination teleporter (used in one-way exits). |
+| `migration_data` | `{worldid: string, x: number, y: number, z: number}?` | `nil` | Data for cross-world migration; if present, overrides local teleport. |
+| `enabled` | boolean | `true` | Whether teleportation is enabled. Affects `IsActive()` result. |
+| `selfmanaged` | boolean? | `nil` | If set, the same teleporter instance handles both sending and receiving (e.g., for circular loops). |
+| `offset` | number | `2` | Desired minimum offset from teleporter center where entities land. |
+| `numteleporting` | number | `0` | Count of entities currently teleporting (including items and followers). |
+| `teleportees` | `table<Entity: true>` | `{}` | Set of entities registered for teleportation. |
+| `travelcameratime` | number | `3` | Seconds to wait before fading camera in for players. |
+| `travelarrivetime` | number | `4` | Seconds to wait before completing teleport for players. |
+| `saveenabled` | boolean | `true` | Whether to save the targetTeleporter and migration_data on save. |
+| `items` | `table<Entity: true>` | `{}` | Set of items currently in-flight during teleport. |
 
-## Main Functions
-
-### `SetActiveTag()`
-* **Description:** Internal helper `onavailable` function that adds or removes the `"teleporter"` tag based on whether `IsActive()` is true.
-* **Parameters:** Not directly called by user code; used as a callback in the metatable for property changes (`targetTeleporter`, `migration_data`, `enabled`).
-
+## Main functions
 ### `IsActive()`
-* **Description:** Returns `true` if the teleporter is enabled and has a valid destination (temporary, persistent, or migration data).
+* **Description:** Checks if the teleporter is ready to teleport (enabled and has a valid target, temporary target, or migration data).
 * **Parameters:** None.
+* **Returns:** `boolean` — `true` if teleportation can be initiated.
+* **Error states:** None.
 
 ### `IsBusy()`
-* **Description:** Returns `true` if any entity is currently teleporting through this teleporter (either as sender or receiver).
+* **Description:** Checks if the teleporter is currently handling any teleporting entities.
 * **Parameters:** None.
+* **Returns:** `boolean` — `true` if `numteleporting > 0` or `teleportees` is non-empty.
 
 ### `IsTargetBusy()`
-* **Description:** Returns `true` if the *target* teleporter is currently busy teleporting another entity.
+* **Description:** Checks if the destination teleporter (if present) is currently busy.
 * **Parameters:** None.
+* **Returns:** `boolean` — `true` if `targetTeleporter` exists and its `teleporter` component reports `IsBusy()` as `true`.
 
 ### `RegisterTeleportee(doer)`
-* **Description:** Registers an entity as a teleportee, and sets up an `"onremove"` event listener to automatically unregister if the entity is removed before teleport completes.
-* **Parameters:**
-  * `doer` (Entity): The entity that will be teleporting (e.g., player, item, follower).
+* **Description:** Registers an entity to be teleported next time `Activate()` is called. Prevents the entity from being removed prematurely.
+* **Parameters:** `doer` (`Entity`) — The entity to register.
+* **Returns:** Nothing.
+* **Error states:** Registers each entity only once; duplicates are ignored.
 
 ### `UnregisterTeleportee(doer)`
-* **Description:** Removes an entity from the `teleportees` list and cancels the associated `"onremove"` listener.
-* **Parameters:**
-  * `doer` (Entity): The entity to unregister.
+* **Description:** Removes a registered teleportee. Used internally via `onremove` event listener.
+* **Parameters:** `doer` (`Entity`) — The entity to unregister.
+* **Returns:** Nothing.
 
 ### `UseTemporaryExit(doer, temporaryexit)`
-* **Description:** Sets a temporary teleport destination and initiates teleportation (e.g., for instant exits like Chester’s Eyebone), adjusting timing for short journeys.
-* **Parameters:**
-  * `doer` (Entity): The entity initiating teleportation.
-  * `temporaryexit` (Entity): The teleporter to use as an immediate destination.
+* **Description:** Activates a one-way exit (e.g., for a exit portal). Temporarily sets `targetTeleporterTemporary` and applies reduced `travelarrivetime`.
+* **Parameters:**  
+  `doer` (`Entity`) — The entity initiating teleport.  
+  `temporaryexit` (`Entity`) — The exit destination (usually the same as `inst` for one-way exits).  
+* **Returns:** `boolean` — Result of `Activate(doer)`.
+* **Error states:** None.
 
 ### `Activate(doer)`
-* **Description:** Initiates teleportation for the given entity (and its followers), handling world migration if `migration_data` is set. Triggers callbacks, teleports the entity and followers, and sends events to the target teleporter.
-* **Parameters:**
-  * `doer` (Entity): The primary entity to teleport (e.g., player).
+* **Description:** Initiates teleportation for the calling entity and its followers or inventory items. Handles migration if `migration_data` is set.
+* **Parameters:** `doer` (`Entity`) — The primary entity initiating teleport.
+* **Returns:** `boolean` — `true` if teleport succeeded, `false` if `IsActive()` is `false` or migration target world is unavailable.
+* **Error states:** Returns `false` if `migration_data.worldid` is invalid or unreachable.
 
 ### `Teleport(obj)`
-* **Description:** Performs the actual location change for an entity, computing a safe offset and terrain type (land/water) before teleporting via `Physics:Teleport()` or `Transform:SetPosition()`.
-* **Parameters:**
-  * `obj` (Entity): The entity to teleport.
-
-### `ReceiveItem(item, source)`
-* **Description:** Handles arrival of a teleporting item at the destination teleporter. Adds the item to the local scene, delays its re-appearance, and triggers physical "pop-in" effects.
-* **Parameters:**
-  * `item` (Entity): The teleporting item.
-  * `source` (Entity): The teleporter where the item originated.
+* **Description:** Moves a single entity to the target teleporter’s position, applying walkable/swimmable offset. Enforces terrain restrictions (ocean vs land).
+* **Parameters:** `obj` (`Entity`) — Entity to teleport.
+* **Returns:** Nothing.
+* **Error states:** No-op if `targetTeleporter` is `nil`; returns early if terrain incompatibility (e.g., land entity to ocean) is detected.
 
 ### `ReceivePlayer(doer, source, skiptime)`
-* **Description:** Handles arrival of a teleporting player at the destination teleporter. Manages camera fades and state transitions based on timing and `"teleportarrivestate"`.
-* **Parameters:**
-  * `doer` (Entity): The teleporting player.
-  * `source` (Entity): The source teleporter.
-  * `skiptime` (number?): Optional time to reduce delay (e.g., for fast exits).
+* **Description:** Handles the arrival phase for a player, scheduling camera fades and state transitions.
+* **Parameters:**  
+  `doer` (`Entity`) — The player entity.  
+  `source` (`Entity?`) — Source teleporter (optional).  
+  `skiptime` (`number?`) — Time reduction for camera/arrival phases (clamped).  
+* **Returns:** Nothing.
+* **Error states:** If `skiptime` is `nil`, no camera fade is scheduled.
+
+### `ReceiveItem(item, source)`
+* **Description:** Handles arrival of a teleporting item (e.g., Chest’s Eyebone). Applies physics and visual effects.
+* **Parameters:**  
+  `item` (`Entity`) — The item entity.  
+  `source` (`Entity?`) — Source teleporter (optional).  
+* **Returns:** Nothing.
 
 ### `Target(otherTeleporter)`
-* **Description:** Sets the persistent target teleporter for this teleporter (used for long-term pairing).
-* **Parameters:**
-  * `otherTeleporter` (Entity): The destination teleporter entity.
+* **Description:** Sets the destination teleporter entity.
+* **Parameters:** `otherTeleporter` (`Entity?`) — The teleporter to link to; `nil` clears it.
+* **Returns:** Nothing.
 
 ### `MigrationTarget(worldid, x, y, z)`
-* **Description:** Sets or clears migration data to enable teleportation to another world (and location).
-* **Parameters:**
-  * `worldid` (string?): The target world ID (`nil` clears it).
-  * `x`, `y`, `z` (number): Destination coordinates in the target world.
+* **Description:** Sets migration data for cross-world teleportation.
+* **Parameters:**  
+  `worldid` (`string?`) — Target world ID (e.g., `"caves"`); `nil` clears it.  
+  `x, y, z` (`number`) — Destination coordinates in the target world.  
+* **Returns:** Nothing.
 
 ### `GetTarget()`
-* **Description:** Returns the currently set persistent target teleporter.
+* **Description:** Returns the currently set destination teleporter.
 * **Parameters:** None.
+* **Returns:** `Entity?` — The `targetTeleporter` or `nil`.
 
 ### `SetEnabled(enabled)`
-* **Description:** Enables or disables teleporting functionality.
-* **Parameters:**
-  * `enabled` (boolean): Whether the teleporter should be enabled.
+* **Description:** Enables or disables teleportation.
+* **Parameters:** `enabled` (`boolean`) — New enabled state.
+* **Returns:** Nothing.
 
 ### `GetEnabled()`
-* **Description:** Returns whether teleporting is currently enabled.
+* **Description:** Returns whether teleportation is enabled.
 * **Parameters:** None.
+* **Returns:** `boolean`.
 
 ### `OnSave()`
-* **Description:** Prepares save data, including target teleporter GUID, migration data, and items in transit.
+* **Description:** Serializes teleporter state for persistence.
 * **Parameters:** None.
-* **Returns:** `{ data: table, references: table<string> }` — Save record and referenced entity GUIDs.
+* **Returns:**  
+  `data` (`table`) — Saved data (`target`, `migration_data`, `items`).  
+  `references` (`table<string>`) — List of referenced entity GUIDs for post-pass resolution.
 
 ### `OnLoad(data, newents)`
-* **Description:** Loads items that were teleporting when the world saved, placing them back in transit at the destination.
-* **Parameters:**
-  * `data` (table): Saved data from `OnSave()`.
-  * `newents` `(table<string, Entity>)`: Map of saved GUIDs to current entities.
+* **Description:** Loads saved items into the teleporter during entity load.
+* **Parameters:**  
+  `data` (`table`) — Saved data.  
+  `newents` (`table<GUID: Entity>`) — Mapped entity instances.  
+* **Returns:** Nothing.
 
 ### `LoadPostPass(newents, savedata)`
-* **Description:** Resolves the saved `targetTeleporter` GUID to an entity after load and linking is complete.
-* **Parameters:**
-  * `newents` `(table<string, Entity>)`: Map of GUIDs to loaded entities.
-  * `savedata` (table): The full world save data (includes `target` field).
+* **Description:** Resolves the destination teleporter reference after `newents` is fully populated.
+* **Parameters:**  
+  `newents` (`table<GUID: Entity>`) — Mapped entity instances.  
+  `savedata` (`table?`) — Raw savedata (contains `target` GUID).  
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a human-readable debug string for logging or editor UI.
+* **Description:** Returns a debug-friendly status string.
 * **Parameters:** None.
-* **Returns:** `string`: e.g., `"Enabled: T Target: Entity(12345)"`.
+* **Returns:** `string` — e.g., `"Enabled: T Target: 12345"`.
 
-### `PushDoneTeleporting(obj)`
-* **Description:** Fires the `"doneteleporting"` event and optional `OnDoneTeleporting` callback for a completed teleportation.
-* **Parameters:**
-  * `obj` (Entity): The entity that finished teleporting.
-
-## Events & Listeners
-- **Listens:**
-  - `"onremove"` on each registered teleportee entity (cleans up `teleportees` table).
-- **Triggers:**
-  - `"doneteleporting"` event on the teleporter entity with the object (player or item) as payload.
-  - `"ms_playerdespawnandmigrate"` event via `TheWorld` when migrating across worlds.
+## Events & listeners
+- **Listens to:**  
+  - `onremove` on teleportee entities (via `inst:ListenForEvent`) to unregister them automatically.  
+- **Pushes:**  
+  - `doneteleporting` — fired when an entity or item completes teleport. Includes the entity as event data.  
+  - Also fires `ms_playerdespawnandmigrate` via `TheWorld` when migration is triggered.  
+- **Callback hooks (via fields):**  
+  - `self.onActivate` — called during `Activate()` (first); signature: `(teleporter_inst, doer, migration_data)`.  
+  - `self.onActivateByOther` — called during `ReceivePlayer()` / `ReceiveItem()`; signature: `(teleporter_inst, source, doer/item)`.  
+  - `self.OnDoneTeleporting` — optional hook after `doneteleporting` is pushed; signature: `(teleporter_inst, obj)`.

@@ -1,104 +1,89 @@
 ---
 id: chaseandram
 title: Chaseandram
-description: A behaviour node that makes an entity chase and ram toward a combat target, executing attacks along the way while respecting distance, time, and attack count limits.
+description: A behavior node that executes a charged ram attack toward a target, managing pursuit, alignment, and termination conditions such as distance, time, or attack count limits.
+tags: [ai, combat, locomotion, boss]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: behaviour
-system_scope: combat
+category_type: ai
 source_hash: bee17ea9
+system_scope: ai
 ---
 
 # Chaseandram
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
+`Chaseandram` is a `BehaviourNode` subclass responsible for orchestrating a target-chasing and ramming maneuver (e.g., a charging attack) for an entity. It coordinates movement via `locomotor`, triggers combat actions via `combat`, and enforces runtime limits based on time, distance, or number of attacks. It is typically used for boss or aggressive AI entities that must close distance before striking.
 
-`ChaseAndRam` is a behaviour node used in the DST AI system to orchestrate a charging or chasing attack pattern against a selected target. It inherits from `BehaviourNode` and manages the entity’s locomotion and combat state during pursuit. When active, it lines up the entity for a charged "ram" (i.e., directional charge), executes attacks via `combat:TryAttack()`, and tracks progress using distance, time, and attack count limits. It integrates tightly with the `combat`, `locomotor`, and `embarker` components, and listens for `onattackother` and `onmissother` events to update internal state.
+The node listens for `onattackother` and `onmissother` events to track attack attempts and resets pursuit timers accordingly. During execution, it adds the `ChaseAndRam` tag to the entity and removes it upon success or failure.
 
-## Dependencies & Tags
-- **Components used:**
-  - `combat`: Used for `BattleCry()`, `ForceAttack()`, `TryAttack()`, and `SetTarget()`.
-  - `locomotor`: Used for `GoToPoint()`, `RunInDirection()`, and `Stop()`.
-  - `health`: Checked via `IsDead()` to terminate on target death.
-  - `embarker`: Checked for platform-hopping logic via `GetCurrentPlatform()`.
-- **Tags:**
-  - Adds `"ChaseAndRam"` when the behaviour starts running or while charging.
-  - Removes `"ChaseAndRam"` on status change (e.g., failure, success, or interruption).
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("combat")
+inst:AddComponent("locomotor")
+inst:AddComponent("health")
+inst:AddComponent("embarker") -- optional, affects platform-hopping logic
+
+local chase_node = Chaseandram(inst, max_chase_time=5, give_up_dist=12, max_charge_dist=20, max_attacks=3)
+chase_node:Visit() -- Called during AI update loop
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `locomotor`, `health`, `embarker` (optional, used for platform detection)  
+**Tags:** Adds `ChaseAndRam` while running; removes on failure/success.
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | Entity | — | The entity instance this behavior controls. |
+| `max_chase_time` | number | — | Maximum time (seconds) allowed for the chase before aborting. |
+| `give_up_dist` | number | — | Distance (squared threshold via `distsq`) beyond which the behavior fails if the target is missed while overshooting. |
+| `max_charge_dist` | number | — | Maximum distance from start point allowed during the charge; exceeded → fail. |
+| `max_attacks` | number? | `nil` | Optional limit on number of attacks; exceeded → succeed. |
+| `numattacks` | number | `0` | Counter for successful attacks (incremented on `onattackother`/`onmissother`). |
+| `startruntime` | number? | `nil` | Timestamp when the run began, used to enforce `max_chase_time`. |
+| `startloc` | Vector? | `nil` | Position vector at start of charge. |
+| `ram_angle` | number? | `nil` | Target angle for the ram (in radians). |
+| `ram_vector` | Vector? | `nil` | Normalized direction vector of the ram. |
+| `onattackfn` | function | — | Internal callback for `onattackother` and `onmissother` events. |
 
-| Property           | Type     | Default Value | Description |
-|--------------------|----------|---------------|-------------|
-| `inst`             | `Entity` | —             | The entity instance to which this behaviour is attached. |
-| `max_chase_time`   | `number` | —             | Maximum duration (in seconds) the entity will continue chasing before aborting. `nil` disables the limit. |
-| `give_up_dist`     | `number` | —             | Distance (in units) beyond which the target is considered too far; chaser gives up if it overshoots or falls too far behind. |
-| `max_charge_dist`  | `number` | —             | Maximum total distance moved from the start of the charge before aborting. `nil` disables the limit. |
-| `max_attacks`      | `number` | —             | Maximum number of attacks to perform before succeeding. `nil` disables the limit. |
-| `numattacks`       | `number` | `0`           | Tracks how many attacks have been recorded (via `onattackother` or `onmissother`). |
-| `onattackfn`       | `function` | —          | Internal callback for `onattackother` / `onmissother` events. |
-| `startruntime`     | `number?` | `nil`        | Timestamp marking when the chase began; used for timing out. |
-| `startloc`         | `Vector?` | `nil`        | World position at the start of the chase. |
-| `ram_angle`        | `number?` | `nil`        | Angle (in degrees) of the intended charge direction. |
-| `ram_vector`       | `Vector?` | `nil`        | Normalized direction vector of the intended charge. |
-
-## Main Functions
-
+## Main functions
 ### `OnStop()`
-* **Description:** Cleans up event callbacks when the behaviour node is stopped (e.g., by parent behaviour or priority override). Prevents memory leaks or stale callbacks.
+* **Description:** Cleans up event listeners and is called when the behavior is aborted or preempted (e.g., by a higher-priority node).
 * **Parameters:** None.
-* **Returns:** `nil`.
+* **Returns:** Nothing.
 
 ### `OnAttackOther(target)`
-* **Description:** Increments the `numattacks` counter and resets the `startruntime` timer (to restart the chase-time limit) whenever an attack event occurs—regardless of hit or miss. This ensures both successful and missed attacks count toward `max_attacks`.
-* **Parameters:**
-  - `target` (`Entity?`): The target of the attack event (may be `nil` for misses).
-* **Returns:** `nil`.
+* **Description:** Increments `numattacks` and resets `startruntime` (to delay time-based timeout). Called automatically on attack events.
+* **Parameters:** `target` — the target entity involved in the attack (ignored; stored in `data.target` in event handler).
+* **Returns:** Nothing.
 
 ### `AreDifferentPlatforms(inst, target)`
-* **Description:** Determines if the entity and target are on different platforms (e.g., ground vs. bridge) using the `embarker` component. Used to adjust movement logic (e.g., disable ram and fall back to direct pathing).
-* **Parameters:**
-  - `inst` (`Entity`): The owner entity.
-  - `target` (`Entity`): The target entity.
-* **Returns:** `boolean` — `true` if the two entities are on different platforms and `embarker` is present; otherwise `false`.
+* **Description:** Determines whether the entity and target are on different platforms (e.g., ground vs. floating). Checks `embarker` component if present.
+* **Parameters:**  
+  - `inst` (Entity) — usually `self.inst`  
+  - `target` (Entity) — the target entity  
+* **Returns:** `true` if platforms differ and `embarker` exists; otherwise `false`.
+* **Error states:** Returns `false` if `embarker` component is absent.
 
 ### `Visit()`
-* **Description:** The core execution logic of the behaviour node. Operates in two phases: `READY` (initialization and setup) and `RUNNING` (main chase/ram loop).
-  
-  **In `READY`:**
-  - Validates target exists and is alive.
-  - Sets `startruntime`, `startloc`, `ram_angle`, and `ram_vector`.
-  - Adds `"ChaseAndRam"` tag and transitions to `RUNNING`.
-  - If no valid target, sets `status = FAILED` and removes `"ChaseAndRam"`.
-
-  **In `RUNNING`:**
-  - Checks for invalid/dead target and transitions to `FAILED`/`SUCCESS` accordingly.
-  - Continuously updates `ram_angle` and `ram_vector` if in a rotatable state.
-  - Handles platform transitions (`on_different_platforms`) by disabling ram and switching to point pathing.
-  - If angle to target ≤ 60°, performs `RunInDirection()` (i.e., the ram).
-  - If overstepped (`offset_angle > 60°` and too far), stops, performs `ForceAttack()`, and fails.
-  - Attempts `combat:TryAttack()` when not in `atk_pre` state.
-  - Monitors all three termination conditions:
-    1. `max_attacks` reached → `SUCCESS`.
-    2. Distance moved ≥ `max_charge_dist` → `FAILED`.
-    3. Elapsed time ≥ `max_chase_time` → `FAILED`.
-  - Calls `self:Sleep(0.125)` to yield control between ticks.
-
+* **Description:** Core behavior execution logic. Handles state transitions (`READY` → `RUNNING` → `SUCCESS`/`FAILED`) and movement logic. Must be called periodically by the AI system.
 * **Parameters:** None.
-* **Returns:** `nil` (modifies internal `status` and invokes component actions).
+* **Returns:** Nothing.
+* **Error states:**  
+  - Immediately sets `status = FAILED` if target is invalid or missing at `READY` stage.  
+  - Sets `status = SUCCESS` if target dies mid-run.  
+  - Sets `status = FAILED` on timeout, distance limit, missed charge, or different-platform failure.  
+  - Resets `ram_vector`, stops locomotion, removes `ChaseAndRam` tag, and clears combat target on failure.
 
-## Events & Listeners
-
-- **Listens to:**
-  - `"onattackother"` — Triggers `OnAttackOther()` to count attacks and reset timer.
-  - `"onmissother"` — Also triggers `OnAttackOther()` (missed attacks count toward `max_attacks`).
-- **Pushes:** None. (Only fires actions on other components; does not emit game events.)
-
-## Notes for Modders
-
-- This behaviour expects the target to be set via `combat:SetTarget(entity)` *before* it is started.
-- The `Combat` component’s `BattleCry()` is called upon entering `RUNNING` and when `startruntime` resets.
-- Platform-hopping logic is sensitive to presence of the `embarker` component—without it, `AreDifferentPlatforms` always returns `false`.
-- The comment in `Visit()` notes that `Stop()` was deliberately omitted on entry to avoid stutter during state transitions (e.g., from `RunAway`), implying `ChaseAndRam` should be inserted into a behaviour tree carefully, ideally after states that own movement clearing.
+## Events & listeners
+- **Listens to:**  
+  - `onattackother` — tracked via `onattackfn` to count attacks and reset chase timer.  
+  - `onmissother` — also tracked via `onattackfn` (both events increment `numattacks`).  
+- **Pushes:** None (relies on `combat:ForceAttack()` and `locomotor` side effects to trigger further gameplay events).

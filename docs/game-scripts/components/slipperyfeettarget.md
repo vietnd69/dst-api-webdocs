@@ -1,56 +1,76 @@
 ---
 id: slipperyfeettarget
 title: Slipperyfeettarget
-description: Marks an entity as a target for slippery feet effects and defines how slipperiness is evaluated at specific positions and over time.
+description: Marks an entity as a target location where slippery surface effects can be evaluated.
+tags: [physics, environment, slippery]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 0d105353
+system_scope: physics
 ---
-
 # Slipperyfeettarget
 
-## Overview
-This component marks an entity as a slippery feet target and provides configurable logic to determine whether a given point is "slippery" (i.e., within the entity's influence radius or via a custom predicate), and what slip rate should be applied. It is primarily used by the Slippery Feet mod (e.g., for ice, mud, or other traversal-impacting entities) to inform the player’s movement system.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds the `"slipperyfeettarget"` tag to the entity upon creation.
-- Removes the `"slipperyfeettarget"` tag when the component is removed from the entity (in `OnRemoveFromEntity`).
-- Relies on the entity potentially having the `"Physics"` and `"Transform"` components for default behavior (e.g., radius and world position). No explicit component registration is performed.
+## Overview
+`Slipperyfeettarget` is a lightweight component that marks an entity as a point of interest for slippery surface logic. It allows other systems (e.g., character locomotion or environment effects) to query whether the entity is "slippery at feet" (i.e., at a given position relative to the entity) and to retrieve a slip rate multiplier. It does not implement physics itself, but provides callback hooks (`isslipperyatfeetfn`, `ratefn`) for customizable behavior.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("slipperyfeettarget")
+
+-- Set a custom function to determine slipperiness at a point
+inst.components.slipperyfeettarget:SetIsSlipperyAtPoint(function(ent, x, y, z)
+    -- Custom logic: e.g., only slippery if entity has a specific tag
+    return ent:HasTag("icy")
+end)
+
+-- Set a custom rate function (e.g., based on target state)
+inst.components.slipperyfeettarget:SetSlipperyRate(function(ent, target)
+    return target.components.locomotor and target.components.locomotor.isrunning and 1.5 or 1.0
+end)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `"slipperyfeettarget"` on component creation; removes it on removal.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the owning entity, set in constructor. |
-| `isslipperyatfeetfn` | `function` | `nil` | Optional custom function to determine if a point `(x,y,z)` is slippery. Signature: `(self_inst, x, y, z) → boolean`. |
-| `ratefn` | `function` | `nil` | Optional custom function to determine the slip rate for a given target. Signature: `(self_inst, target_entity) → number`. |
+| `isslipperyatfeetfn` | function or `nil` | `nil` | Optional callback: `fn(inst, x, y, z) → boolean` to determine slipperiness at a world point. |
+| `ratefn` | function or `nil` | `nil` | Optional callback: `fn(inst, target) → number` to compute the slip rate multiplier for a given target. |
 
-## Main Functions
+## Main functions
 ### `SetIsSlipperyAtPoint(fn)`
-* **Description:** Assigns a custom function to determine whether a point in world space is considered slippery relative to this target. Overrides the default radius-based check.
-* **Parameters:**  
-  `fn` (`function?`) — A function of signature `(entity, x, y, z) → boolean`, where `(x, y, z)` are world coordinates. If `nil`, reverts to default behavior on next `IsSlipperyAtPosition` call.
+*   **Description:** Assigns a custom function to determine whether the target is slippery at a specified world point.
+*   **Parameters:** `fn` (function or `nil`) - function taking `(entity, x, y, z)` and returning `true`/`false`.
+*   **Returns:** Nothing.
 
 ### `IsSlipperyAtPosition(x, y, z)`
-* **Description:** Determines whether the point `(x, y, z)` is within the slippery zone of this target. Uses the custom `isslipperyatfeetfn` if present; otherwise falls back to checking distance against the entity’s physics radius (ignoring Y/height).
-* **Parameters:**  
-  `x` (`number`) — World X coordinate.  
-  `y` (`number`) — World Y coordinate (unused in radius check but accepted).  
-  `z` (`number`) — World Z coordinate.
+*   **Description:** Determines if the target is slippery at the given world coordinates. Uses the custom callback if set; otherwise falls back to a default check based on the entity's physics radius.
+*   **Parameters:**
+    *   `x` (number) - X coordinate in world space.
+    *   `y` (number) - Y coordinate (currently unused in fallback).
+    *   `z` (number) - Z coordinate in world space.
+*   **Returns:** `boolean` — `true` if the target is considered slippery at `(x, z)` (within radius), `false` otherwise.
+*   **Error states:** Returns `false` if no custom callback is set *and* the entity has no `Physics` component.
 
 ### `SetSlipperyRate(fn)`
-* **Description:** Assigns a custom function to compute the slip rate for a given target entity (e.g., the player), allowing context-sensitive slip behavior.
-* **Parameters:**  
-  `fn` (`function?`) — A function of signature `(self_inst, target_entity) → number`. Return values typically represent a multiplier (e.g., `1.0` = full friction, `0.0` = no friction).
+*   **Description:** Assigns a custom function to compute the slip rate multiplier for a given target entity.
+*   **Parameters:** `fn` (function or `nil`) - function taking `(entity, target)` and returning a number (typically `>= 1.0`).
+*   **Returns:** Nothing.
 
 ### `GetSlipperyRate(target)`
-* **Description:** Returns the current slip rate for the given `target`. Uses `ratefn` if assigned; otherwise returns `1` (default non-slippery rate).
-* **Parameters:**  
-  `target` (`Entity`) — The entity attempting to move over this target’s slippery area.
+*   **Description:** Computes the slip rate multiplier for the provided target entity.
+*   **Parameters:** `target` (Entity) — the entity moving over the target location.
+*   **Returns:** `number` — the slip rate (e.g., `1.5` for higher slip). If no custom rate function is set, returns `1`.
+*   **Error states:** None — always returns a numeric value.
 
-## Events & Listeners
-None.
+## Events & listeners
+*   **Listens to:** None identified  
+*   **Pushes:** None identified

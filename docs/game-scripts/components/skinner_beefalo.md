@@ -1,82 +1,99 @@
 ---
 id: skinner_beefalo
 title: Skinner Beefalo
-description: Manages equippable skin items (clothing) for beefalo entities and applies associated animation overrides.
+description: Manages wearable equipment slots (body, feet, head, horn, tail) and skin application for beefalo entities.
+tags: [equipment, skin, animation, beefalo, clothing]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 144d6ff8
+system_scope: entity
 ---
 
 # Skinner Beefalo
 
-## Overview
-This component handles the equipping, Unequipping, and visual representation of beefalo clothing/skins. It stores the currently equipped skin items by slot, provides methods to update and query them, and triggers animation overrides to render the equipped skins on the beefalo entity. It integrates with the animation system via `AnimState` to apply skin-specific symbol overrides and build overrides.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires the presence of an `AnimState` component on the entity (`inst.AnimState` must exist).
-- Adds no component dependencies directly, but relies on external tables and functions:
-  - `BEEFALO_CLOTHING` (lookup table for clothing definitions)
-  - `BEEFALO_CLOTHING_SYMBOLS` (set of symbols potentially overridden by beefalo skins)
-  - `BEEFALO_HIDE_SYMBOLS` (set of symbols to show by default)
-  - `IsValidBeefaloClothing(name)`, `GetBuildForItem(name)`, `SetBeefaloSkinsOnAnim`, `SetBeefaloFaceSkinsOnAnim` (defined elsewhere)
-- Emits the `"onclothingchanged"` event when clothing slots are modified.
+## Overview
+`Skinner_Beefalo` manages cosmetic equipment slots for beefalo entities. It tracks equipped clothing items per slot (`beef_body`, `beef_feet`, `beef_head`, `beef_horn`, `beef_tail`), updates animation symbol overrides when clothing changes, and persists clothing state across saves. It interacts with the `AnimState` component to apply skin builds and with `BEEFALO_CLOTHING` lookup tables for clothing metadata.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("skinner_beefalo")
+
+-- Equip a new head item
+inst.components.skinner_beefalo:SetClothing("beefalo_head_robot")
+
+-- Check current clothing
+local current = inst.components.skinner_beefalo:GetClothing()
+print(current.beef_head) -- prints "beefalo_head_robot"
+
+-- Clear all clothing
+inst.components.skinner_beefalo:ClearAllClothing()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed in) | Reference to the parent entity (typically a beefalo). |
-| `clothing` | `table` | `{ beef_body = "", beef_horn = "", beef_head = "", beef_feet = "", beef_tail = "", }` | Tracks currently equipped skin names indexed by slot type (`beef_body`, `beef_horn`, etc.). Empty strings indicate no skin equipped. |
+| `clothing` | table | `{ beef_body = "", beef_horn = "", beef_head = "", beef_feet = "", beef_tail = "" }` | Holds equipped item names indexed by slot type. |
 
-## Main Functions
+## Main functions
 ### `SetClothing(name)`
-* **Description:** Equips a skin item to the appropriate slot based on `BEEFALO_CLOTHING[name].type`. Validates the item, updates the internal `clothing` table, triggers `"onclothingchanged"`, and re-applies all animation overrides.
-* **Parameters:**  
-  - `name` (`string`): The name of the clothing/skin item to equip (must be valid per `IsValidBeefaloClothing`).
+* **Description:** Equips a valid beefalo clothing item. Updates the corresponding slot and triggers an `onclothingchanged` event, followed by rebuilding animation overrides.
+* **Parameters:** `name` (string) — the item name (key from `BEEFALO_CLOTHING`).
+* **Returns:** Nothing.
+* **Error states:** Has no effect if `name` is not valid (validated via `IsValidBeefaloClothing`).
 
 ### `GetClothing()`
-* **Description:** Returns a copy of the current `clothing` table, mapping slot types to the names of equipped skins.
+* **Description:** Returns a copy of the current clothing table.
 * **Parameters:** None.
+* **Returns:** table — e.g., `{ beef_body = "...", beef_head = "..." }`.
 
 ### `IsClothingDifferent(newclothes)`
-* **Description:** Compares the given `newclothes` table against the currently equipped clothing, returning `true` if any slot differs, `false` otherwise. Handles missing keys safely.
-* **Parameters:**  
-  - `newclothes` (`table`, optional): Table of clothing slot keys to skin names. Defaults to `{}` if omitted.
+* **Description:** Compares current clothing with a candidate set. Returns `true` if any slot differs.
+* **Parameters:** `newclothes` (table, optional) — candidate clothing table keyed by slot names.
+* **Returns:** boolean — `true` if any mismatch, `false` otherwise.
 
 ### `HideAllClothing(anim_state)`
-* **Description:** Clears all skin symbol overrides (via `ClearOverrideSymbol`) for *all* currently equipped items on the given `AnimState`. Does not modify internal state or send events.
-* **Parameters:**  
-  - `anim_state` (`AnimState`): The animation state instance to clear overrides on.
+* **Description:** Removes all active clothing symbol overrides *without* modifying the `clothing` table.
+* **Parameters:** `anim_state` (AnimState) — the animation state to clear overrides on.
+* **Returns:** Nothing.
 
 ### `ClearAllClothing()`
-* **Description:** Resets all clothing slots to empty strings, fires `"onclothingchanged"` for each slot, and re-applies animation overrides. Effectively unequips all items.
+* **Description:** Clears all clothing slots, fires `onclothingchanged` for each, and rebuilds animation overrides.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `ClearClothing(type)`
-* **Description:** Clears a specific clothing slot (e.g., `"beef_body"`), fires `"onclothingchanged"` for that slot, but does *not* re-apply animation overrides (assumes caller will do so).
-* **Parameters:**  
-  - `type` (`string`): The slot type to clear (e.g., `"beef_horn"`, `"beef_head"`).
+* **Description:** Clears a single clothing slot by type, fires `onclothingchanged`, and does *not* rebuild animation overrides (caller must invoke `ApplyBuildOverrides` if needed).
+* **Parameters:** `type` (string) — slot key (e.g., `"beef_head"`).
+* **Returns:** Nothing.
 
 ### `ApplyTargetSkins(skins, player)`
-* **Description:** Applies a full set of skins (via `AssignItemSkins`) from a `skins` table, then sequentially equips each item using `SetClothing`. Used when one entity skins another (e.g., via player action). Clears existing clothing first.
-* **Parameters:**  
-  - `skins` (`table`): Table with keys `beef_body`, `beef_feet`, `beef_horn`, `beef_tail`, `beef_head` containing skin item names. May include `nil` or empty strings.  
-  - `player` (`Entity`): The player performing the operation; required to get `userid` for `AssignItemSkins`.
+* **Description:** Assigns item skins directly to the entity via `AnimState:AssignItemSkins`, then reapplies clothing via `ClearAllClothing` and sequential `SetClothing` calls.
+* **Parameters:**
+  * `skins` (table) — must contain keys: `beef_body`, `beef_feet`, `beef_horn`, `beef_tail`, `beef_head`.
+  * `player` (Entity) — required to obtain `userid`.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Serializes the component's state for saving. Returns a table containing the `clothing` table.
+* **Description:** Returns the current clothing state for serialization.
 * **Parameters:** None.
+* **Returns:** table — `{ clothing = self.clothing }`.
 
 ### `reloadclothing(clothing)`
-* **Description:** Restores clothing state from a saved table (e.g., on world load or snapshot restore). Applies each item via `PushEvent("onclothingchanged")` and re-applies animation overrides.
-* **Parameters:**  
-  - `clothing` (`table` or `nil`): The clothing state to restore. If `nil`, no action is taken.
+* **Description:** Restores clothing state (used on world load or save restore). Validates data and fires `onclothingchanged` per slot, then rebuilds animation overrides.
+* **Parameters:** `clothing` (table, optional) — clothing table to apply (usually from save data).
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens for:** None.
-- **Emits:**
-  - `"onclothingchanged"`: Triggered whenever a clothing slot is set, cleared, or reloaded. Payload: `{ type = "slot_name", name = "skin_name_or_empty_string" }`.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** `onclothingchanged` — fired when any clothing slot is set or cleared. Payload: `{ type = string, name = string }`, where `name` is the item name (empty string when cleared).

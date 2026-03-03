@@ -1,66 +1,67 @@
 ---
 id: faceentity
 title: Faceentity
-description: A behaviour node that orients an entity toward a dynamic target entity and optionally triggers an alert state, primarily used during AI decision-making.
+description: A behavior node that orients an entity toward a target entity, optionally triggering alert states and stopping locomotion during the facing operation.
+tags: [ai, behavior, rotation, locomotion]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: behaviour
-system_scope: brain
+category_type: behaviors
 source_hash: 36e43862
+system_scope: ai
 ---
 
 # Faceentity
 
-## Overview
-`FaceEntity` is a behaviour node used in AI decision trees to rotate an entity (e.g., a creature or character) to face a target entity, as determined by a provided function (`getfn`). It is part of the `behaviours` subsystem, inheriting from `BehaviourNode`, and integrates with the state graph via `inst.sg` to manage transitions like entering the `"alert"` state. The node supports optional timeout enforcement, a custom alert state, and verification that the target remains valid and suitable via a `keepfn` predicate. It interacts directly with the `locomotor` component to halt movement before rotating, ensuring stable orientation.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components used:**  
-  - `inst.components.locomotor`: Used to stop motion before rotating (`Stop()` method).
-- **Tags:**  
-  - Reads state graph tags: `"idle"`, `"alert"`, `"canrotate"` via `self.inst.sg:HasStateTag(tag)`.
-  - Does not add or remove any tags.
+## Overview
+`FaceEntity` is a behavior node that extends `BehaviourNode` and is used in AI decision trees to make an entity rotate to face a specific target. It supports optional locomotor cancellation, timeout-based termination, and automatic state transitions (e.g., entering "alert" state). This component is typically used in scripts that define combat or interactive behavior where visual orientation toward a target is required.
+
+## Usage example
+```lua
+-- Example usage inside a brain or behavior tree:
+local get_target = function(inst)
+    return inst.components.combat and inst.components.combat.target
+end
+
+local keep_target = function(inst, target)
+    return target:IsValid() and inst:GetDistanceToInst(target) < 10
+end
+
+local face_node = FaceEntity(inst, get_target, keep_target, 2.0, "alert")
+```
+
+## Dependencies & tags
+**Components used:** `locomotor` — accessed to stop movement while facing.
+**Tags:** Checks `idle`, `alert`, and `canrotate` state tags on the entity’s stategraph.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | The entity instance this behaviour node controls. |
-| `getfn` | `function(inst): Entity?` | `nil` | Callback function that returns the current target entity to face; may return `nil` if no valid target exists. |
-| `keepfn` | `function(inst, target): boolean` | `nil` | Predicate function that verifies whether the target remains acceptable (e.g., still in range or visible). |
-| `timeout` | `number?` | `nil` | Optional maximum duration (in seconds) to allow rotation before succeeding. |
-| `customalert` | `string?` | `nil` | Optional custom state name to transition to instead of `"alert"` when entering alert mode. |
-| `starttime` | `number` | `0` | Internal timestamp marking when rotation began; used for timeout evaluation. |
-| `target` | `Entity?` | `nil` | The currently targeted entity. |
+| `getfn` | function | *required* | A function that returns the target entity to face; signature: `fn(inst) → entity \| nil`. |
+| `keepfn` | function | *required* | A predicate function determining if the target remains valid; signature: `fn(inst, target) → boolean`. |
+| `timeout` | number \| nil | `nil` | Maximum time (in seconds) the behavior may run before succeeding. |
+| `customalert` | string \| nil | `nil` | Optional custom state name to enter instead of default `"alert"` on detected idle state. |
+| `inst` | Entity | *inherited* | The entity instance the behavior operates on. |
+| `target` | Entity \| nil | `nil` | The current target entity being faced. |
+| `starttime` | number | `0` | Timestamp (from `GetTime()`) when the behavior started running. |
+| `status` | number | `READY` | Current status of the behavior node (`READY`, `RUNNING`, `SUCCESS`, `FAILED`). |
 
-## Main Functions
+## Main functions
 ### `HasLocomotor()`
-* **Description:** Checks whether the owner entity has a `locomotor` component attached. Used internally to determine if motion should be stopped before rotating.
+* **Description:** Checks whether the entity has a `locomotor` component attached.
 * **Parameters:** None.
 * **Returns:** `boolean` — `true` if `inst.components.locomotor` exists, otherwise `false`.
 
 ### `Visit()`
-* **Description:** Core behaviour execution method, called each tick while the behaviour is active. Handles target acquisition, motion stopping, orientation (`FacePoint`), alert state transitions, timeout enforcement, and failure/success conditions.
+* **Description:** The core behavior execution logic. Handles initiating facing, stopping movement, entering alert state, handling timeouts, and evaluating target validity.
 * **Parameters:** None.
-* **Returns:** `void`.
+* **Returns:** Nothing.
+* **Error states:** No explicit error handling; fails gracefully by setting status to `FAILED` if target is invalid or `keepfn` returns `false`. Does not throw exceptions.
 
-**Logic flow:**
-- **If `status == READY`:**
-  - Invokes `getfn(inst)` to retrieve the target.
-  - If target is `nil`, sets status to `FAILED`.
-  - If target exists:
-    - Sets status to `RUNNING`.
-    - If `locomotor` exists, calls `Stop()` to halt movement.
-    - Records `starttime`.
-- **If `status == RUNNING`:**
-  - *Alert transition:* If in `"idle"` state and not already `"alert"`, and the `"alert"` state exists in the state graph, transitions to either `customalert` (if specified) or `"alert"`.
-  - *Timeout check:* If `timeout` is set and elapsed time exceeds it, sets status to `SUCCESS` and exits early.
-  - *Target validation:* If target is `nil`, invalid, or `keepfn(inst, target)` returns `false`, sets status to `FAILED`.
-  - *Rotation:* If `"canrotate"` state tag is present, calls `inst:FacePoint(target.Transform:GetWorldPosition())`.
-  - Calls `self:Sleep(0.5)` to defer next execution to the next tick (prevents busy looping).
-
-## Events & Listeners
-None.  
-The component does not register or emit any events via `inst:ListenForEvent` or `inst:PushEvent`. Interaction with the game occurs solely through state graph transitions (`GoToState`), component method calls (`Stop`, `FacePoint`), and polling logic within `Visit`.
+## Events & listeners
+- **Listens to:** None (state transitions are triggered directly via `inst.sg:GoToState(...)`).
+- **Pushes:** None (does not fire events directly; relies on stategraph transitions and behavior-tree consumer to interpret result).

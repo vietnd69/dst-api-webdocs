@@ -1,177 +1,165 @@
 ---
 id: dryingrack
 title: Dryingrack
-description: This component manages the drying process of items within an associated container, dynamically adjusting to environmental conditions like rain and acid rain.
+description: Manages drying behavior for items placed in a container, handling time-based drying, weather effects (rain/acid rain), and state persistence.
+tags: [inventory, weather, drying, persistence]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: inventory
+category_type: components
 source_hash: f3dc5ab8
+system_scope: inventory
 ---
 
 # Dryingrack
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Dryingrack` component orchestrates the drying process for items held within an entity's container. It manages the timing of drying, pauses the process during rain or acid rain, and applies special perish rate modifiers during acid rain. It also handles the visual representation of drying items and ensures proper state persistence across game saves and loads.
+The `Dryingrack` component enables and controls the drying process for items placed in a container (typically a drying rack entity). It monitors world state for rain and acid rain, adjusts drying or spoilage behavior accordingly, and manages item transitions (from raw to dried product). It integrates with `preserver`, `rainimmunity`, `perishable`, `moisture`, and `dryable` components to calculate spoilage rates and apply drying logic. It is commonly used on static structures like the Drying Rack and Woby Rack.
 
-## Dependencies & Tags
-This component relies on or interacts with the following other components and aspects:
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("dryingrack")
+-- Optionally pass a custom container
+local container = inst.components.container or CreateEntity():AddComponent("container")
+inst.components.dryingrack = Dryingrack(inst, container)
+inst.components.dryingrack:EnableDrying()
+```
 
-*   **`container` component**: The primary component this `Dryingrack` manages, storing the items to be dried.
-*   **`preserver` component**: Added to the `container.inst` when drying is enabled to manage perish rates of contained items.
-*   **`rainimmunity` component**: Checked on the `inst` and its potential `_rider` to determine if the drying rack is immune to rain effects. Can also be added to the `container.inst`.
-*   **`rideable` component**: If present on the `inst`, this component listens for `riderchanged` events to update rain immunity status.
-*   **`dryable` component**: Items placed in the container are expected to have this component, which defines their drying time, product, and build files.
-*   **`perishable` component**: Checked on items within the container to apply acid rain perish rate modifiers.
-*   **`moisture` component**: Checked on items within the container to factor into acid rain perish rate calculation.
-*   **`inventoryitem` component**: Used to inherit moisture properties and apply acid sizzling visual effects to items.
-*   **World State**: Listens for changes in `TheWorld.state.israining` and `TheWorld.state.isacidraining`.
-
-**Tags:** None identified as explicitly added or removed by this component.
+## Dependencies & tags
+**Components used:** `container`, `dryable`, `inventoryitem`, `moisture`, `perishable`, `preserver`, `rainimmunity`, `rideable`, `inventoryitemmoisture`, `sheltered` (indirect via `moisture`).
+**Tags:** None added or removed directly; relies on component presence for conditional logic.
 
 ## Properties
-| Property              | Type     | Default Value                            | Description                                                                                             |
-| :-------------------- | :------- | :--------------------------------------- | :------------------------------------------------------------------------------------------------------ |
-| `inst`                | Entity   | (self)                                   | The entity this component is attached to.                                                               |
-| `container`           | Component| `inst.components.container` or passed in | The `container` component instance that this drying rack manages.                                       |
-| `enabled`             | boolean  | `false`                                  | Indicates if the drying functionality of the component is currently active.                             |
-| `dryingpaused`        | boolean  | `true`                                   | Indicates if the drying process is currently paused (e.g., due to rain or external factors).            |
-| `isinacid`            | boolean  | `false`                                  | Indicates if the container and its contents are currently exposed to acid rain.                         |
-| `dryinginfo`          | table    | `{}`                                     | A table mapping drying items (Entity) to their drying state (remaining task, time, or final build).     |
-| `showitemfn`          | function | `nil`                                    | An optional callback function to visually display an item in a specific slot on the rack.               |
-| `hideitemfn`          | function | `nil`                                    | An optional callback function to visually hide an item from a specific slot on the rack.                |
-| `_dryingperishratefn` | function | (internal)                               | An internal function used by the `preserver` component to determine custom perish rate multipliers.     |
-| `_onrainimmunity`     | function | (closure)                                | Internal callback function bound to the `gainrainimmunity` event on the `inst` and potential `_rider`.|
-| `_onrainvulnerable`   | function | (closure)                                | Internal callback function bound to the `loserainimmunity` event on the `inst` and potential `_rider`.|
-| `_onriderchanged`     | function | (closure)                                | Internal callback function bound to the `riderchanged` event if the `inst` has a `rideable` component. |
-| `_rider`              | Entity   | `nil`                                    | The entity currently riding the `inst`, if applicable.                                                  |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `GEntity` | `nil` | Owner entity instance. |
+| `container` | `Container` | `inst.components.container` | Container that holds items to be dried. |
+| `enabled` | `boolean` | `false` | Whether drying is currently active. |
+| `dryingpaused` | `boolean` | `true` | Whether drying is paused (e.g., due to rain). |
+| `isinacid` | `boolean` | `false` | Whether the container is exposed to acid rain. |
+| `dryinginfo` | `table` | `{}` | Map from item entity to drying state info (`task`, `drytime`, or `build`). |
+| `showitemfn` | `function?` | `nil` | Optional callback to display item on rack. |
+| `hideitemfn` | `function?` | `nil` | Optional callback to hide item on rack removal. |
+| `_rider` | `GEntity?` | `nil` | Rider entity, if the rack is rideable (e.g., Woby Rack). |
 
-## Main Functions
-### `OnRemoveFromEntity()`
-*   **Description:** Called when the component is removed from its entity. It disables drying, removes the `preserver` component from the container, and if the container is a separate entity, it drops its contents and removes the container entity itself.
-*   **Parameters:** None.
-
-### `GetContainer()`
-*   **Description:** Returns the `container` component instance managed by this `Dryingrack`.
-*   **Parameters:** None.
-
-### `SetShowItemFn(fn)`
-*   **Description:** Sets a callback function that will be executed when an item needs to be visually shown in a specific slot on the rack.
-*   **Parameters:**
-    *   `fn`: `function` - The function to call, typically `fn(dryingrack_inst, slot, prefab_name, build_name)`.
-
-### `SetHideItemFn(fn)`
-*   **Description:** Sets a callback function that will be executed when an item needs to be visually hidden from a specific slot on the rack.
-*   **Parameters:**
-    *   `fn`: `function` - The function to call, typically `fn(dryingrack_inst, slot, prefab_name)`.
-
-### `GetItemInSlot(slot)`
-*   **Description:** Retrieves an item from the specified slot in the container and provides additional information relevant to its drying status or visual representation.
-*   **Parameters:**
-    *   `slot`: `number` - The index of the slot to check.
-*   **Returns:** `item` (Entity), `item.prefab` (string), `build` (string) - The item entity, its prefab name, and the build file to use for its visual.
-
+## Main functions
 ### `EnableDrying()`
-*   **Description:** Activates the drying functionality. This adds a `preserver` component to the container, starts listening for world state changes (rain, acid rain) and rain immunity events, and initializes the drying state based on current environmental conditions.
+*   **Description:** Activates drying logic for the container. Enables the `preserver` component, registers weather listeners, and resumes drying tasks if no rain is present.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `DisableDrying()`
-*   **Description:** Deactivates the drying functionality. This removes the `preserver` component from the container, stops listening for all associated events, resets rain immunity and acid exposure, and pauses any ongoing drying processes.
+*   **Description:** Deactivates drying logic, removes the `preserver` component, and cancels all pending drying tasks. Typically called on destruction.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `GetItemInSlot(slot)`
+*   **Description:** Returns the item in the given slot, along with its prefab name and render build file (dried or default).
+*   **Parameters:** `slot` (number) - Slot index.
+*   **Returns:** `item` (GEntity or `nil`), `prefab` (string), `build` (string, e.g., `"meat_rack_food"` or `dryable` build).
+*   **Error states:** Returns `nil, nil, nil` if no item exists in slot.
 
 ### `OnGetItem(item, slot)`
-*   **Description:** Handles the logic when an item is placed into the container. It checks if the item is dryable, initiates or resumes its drying process, and updates its visual representation. Also applies acid sizzling effects if the rack is in acid rain.
-*   **Parameters:**
-    *   `item`: `Entity` - The item that was placed into the container.
-    *   `slot`: `number` - The slot where the item was placed.
+*   **Description:** Called when an item is added to the container. Starts a drying task for `dryable` items or records drying info for persistence/resumption.
+*   **Parameters:** `item` (GEntity), `slot` (number).
+*   **Returns:** Nothing.
 
 ### `OnLoseItem(item, slot)`
-*   **Description:** Handles the logic when an item is removed from the container. It cancels any ongoing drying tasks for the item, records its remaining dry time if it's still valid, and removes acid sizzling effects if applicable. It also triggers the `hideitemfn` if set.
-*   **Parameters:**
-    *   `item`: `Entity` - The item that was removed from the container.
-    *   `slot`: `number` - The slot from which the item was removed.
+*   **Description:** Called when an item leaves the container. Cancels drying task, saves remaining dry time for potential resumption, and clears acidizzling state.
+*   **Parameters:** `item` (GEntity), `slot` (number).
+*   **Returns:** Nothing.
 
-### `IsExposedToRain()`
-*   **Description:** Determines if the drying rack is currently exposed to any form of rain (normal or acid rain) and does not have rain immunity.
-*   **Parameters:** None.
-*   **Returns:** `boolean` - True if exposed to rain and not immune, false otherwise.
-
-### `HasRainImmunity()`
-*   **Description:** Checks if the drying rack entity or its current rider possesses a `rainimmunity` component.
-*   **Parameters:** None.
-*   **Returns:** `boolean` - True if immune to rain, false otherwise.
-
-### `SetContainerRainImmunity(isimmune)`
-*   **Description:** Adds or removes a `rainimmunity` component source on the container entity if it's separate from the main entity, effectively making the container immune or vulnerable to rain.
-*   **Parameters:**
-    *   `isimmune`: `boolean` - True to grant rain immunity to the container, false to remove it.
-
-### `SetContainerIsInAcid(isinacid)`
-*   **Description:** Sets the acid rain status for the container and all its items. If the status changes, it updates the `isinacid` property and applies/removes acid sizzling effects on all contained items.
-*   **Parameters:**
-    *   `isinacid`: `boolean` - True if the container is in acid rain, false otherwise.
+### `OnDoneDrying(inst, item)`
+*   **Description:** Internal callback executed when an item finishes drying. Spawns the dried product, transfers moisture/wet state, replaces the item, and updates UI.
+*   **Parameters:** `inst` (GEntity, the rack), `item` (GEntity, raw item).
+*   **Returns:** `product` (GEntity or `nil`) - the dried item spawned, if successful.
 
 ### `PauseDrying()`
-*   **Description:** Halts all ongoing drying processes. It cancels any active drying tasks for items and stores their remaining dry time.
+*   **Description:** Pauses all active drying tasks, saving remaining time for later resumption.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `ResumeDrying()`
-*   **Description:** Resumes all paused drying processes. It restarts drying tasks for items using their stored remaining dry times.
+*   **Description:** Resumes drying tasks for paused items using saved remaining time.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `IsExposedToRain()`
+*   **Description:** Checks if the rack is currently exposed to rain or acid rain.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if exposed, `false` otherwise.
+
+### `HasRainImmunity()`
+*   **Description:** Checks if the rack or its rider (if rideable) grants rain immunity to the container.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if rain-immune, `false` otherwise.
+
+### `SetContainerIsInAcid(isinacid)`
+*   **Description:** Updates the `isinacid` flag and applies acidizzling state to all items in the container.
+*   **Parameters:** `isinacid` (boolean).
+*   **Returns:** Nothing.
 
 ### `OnBurnt()`
-*   **Description:** Called when the drying rack entity is burnt. It instantly dries and drops all items currently in the container.
+*   **Description:** Called when the rack is burnt (e.g., via fire). Instantly dries all items in the container and spawns their products.
 *   **Parameters:** None.
-
-### `LongUpdate(dt)`
-*   **Description:** Provides an update mechanism for the drying process, primarily used for skipping large time durations in the game. It progresses drying tasks and resolves completed items.
-*   **Parameters:**
-    *   `dt`: `number` - The time delta (in seconds) to advance the drying process.
+*   **Returns:** Nothing.
 
 ### `OnSave()`
-*   **Description:** Serializes the drying information and container contents for persistence.
+*   **Description:** Serializes drying state and container contents for persistence.
 *   **Parameters:** None.
-*   **Returns:** `table`, `table` - A table containing `info` (drying status for items) and optionally `contents` (for separate container entities), and a table of references.
+*   **Returns:** `data`, `refs` — serialized tables (may be `nil` if container empty).
 
 ### `OnLoad(data, newents)`
-*   **Description:** Deserializes and restores the container contents and drying information from saved data during game loading, specifically for cases where the container is a separate entity.
-*   **Parameters:**
-    *   `data`: `table` - The table containing saved component data.
-    *   `newents`: `table` - A table mapping old entity IDs to new entity instances.
-
-### `LoadPostPass(newents, data)`
-*   **Description:** Performs a second pass of loading for drying information, specifically for cases where the `container.inst` is the same as `self.inst`, ensuring container data is loaded first.
-*   **Parameters:**
-    *   `newents`: `table` - A table mapping old entity IDs to new entity instances.
-    *   `data`: `table` - The table containing saved component data.
+*   **Description:** Loads container contents and defers drying info loading if needed.
+*   **Parameters:** `data`, `newents`.
+*   **Returns:** Nothing.
 
 ### `LoadInfo_Internal(data)`
-*   **Description:** Internal helper function to process and apply loaded drying information to items in the container, resuming tasks or setting custom builds as needed.
-*   **Parameters:**
-    *   `data`: `table` - The table containing saved component data, specifically the `info` field.
+*   **Description:** Loads drying state (remaining time or build info) for each item in the container.
+*   **Parameters:** `data.info` — table mapping slot numbers to drying state.
+*   **Returns:** Nothing.
 
 ### `GetDryingInfoSnapshot()`
-*   **Description:** Creates a snapshot of the current drying state for all items in the container, including remaining dry times or custom builds.
+*   **Description:** Returns a snapshot of current drying progress for all items (remaining time, build, or dry time).
 *   **Parameters:** None.
-*   **Returns:** `table` - A table mapping items to their drying info, or `nil` if no items are drying.
+*   **Returns:** `info` (table or `nil`) — keys are item entities, values are numbers or strings.
 
 ### `ApplyDryingInfoSnapshot(snapshot)`
-*   **Description:** Applies a previously generated snapshot of drying information to the current items in the container, resuming tasks or setting custom builds as specified.
-*   **Parameters:**
-    *   `snapshot`: `table` - The drying info snapshot to apply.
+*   **Description:** Restores drying state from a snapshot (used for sync or preview).
+*   **Parameters:** `snapshot` (table).
+*   **Returns:** Nothing.
 
-## Events & Listeners
-This component listens for the following events:
+### `OnRemoveFromEntity()`
+*   **Description:** Called when the component is removed from the entity. Disables drying, drops all items, and removes container if custom.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-*   **`itemget`** (from `self.container.inst`): Triggered when an item is added to the managed container. Handled by `OnGetItem`.
-*   **`itemlose`** (from `self.container.inst`): Triggered when an item is removed from the managed container. Handled by `OnLoseItem`.
-*   **`israining`** (WorldState): Listens for changes in `TheWorld.state.israining` to pause or resume drying.
-*   **`isacidraining`** (WorldState): Listens for changes in `TheWorld.state.isacidraining` to pause or resume drying and apply acid effects.
-*   **`gainrainimmunity`** (from `self.inst` and potentially `_rider`): Triggered when the entity or its rider gains rain immunity, leading to a potential drying resume.
-*   **`loserainimmunity`** (from `self.inst` and potentially `_rider`): Triggered when the entity or its rider loses rain immunity, potentially pausing drying if exposed to rain.
-*   **`riderchanged`** (from `self.inst` if `rideable` exists): Triggered when the entity's rider changes, updating rain immunity listeners.
-*   **`stacksizechange`** (from `item`): Listened to temporarily when an item is removed from the rack to clear stored dry time if the item is stacked.
-*   **`ondropped`** (from `item`): Listened to temporarily when an item is removed from the rack to clear stored dry time if the item is dropped.
+### `GetContainer()`
+*   **Description:** Returns the container associated with this rack.
+*   **Parameters:** None.
+*   **Returns:** `Container`.
+
+### `SetShowItemFn(fn)`
+*   **Description:** Sets the callback function used to show items in the UI (e.g., widget update).
+*   **Parameters:** `fn` (function) — signature: `fn(rack, slot, prefab, build)`.
+*   **Returns:** Nothing.
+
+### `SetHideItemFn(fn)`
+*   **Description:** Sets the callback function used to hide items in the UI.
+*   **Parameters:** `fn` (function) — signature: `fn(rack, slot, prefab)`.
+*   **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:**
+  - `itemget` (on container) — triggers `OnGetItem`.
+  - `itemlose` (on container) — triggers `OnLoseItem`.
+  - `israining` (via `WatchWorldState`) — triggers `OnIsRaining`.
+  - `isacidraining` (via `WatchWorldState`) — triggers `OnIsAcidRaining`.
+  - `gainrainimmunity` / `loserainimmunity` (on rack or rider) — updates rain immunity status.
+  - `riderchanged` (on rideable rack) — updates rider state and rain immunity logic.
+- **Pushes:** None (internally uses callbacks and events, but no custom events are pushed).

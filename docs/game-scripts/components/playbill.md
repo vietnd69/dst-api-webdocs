@@ -1,50 +1,62 @@
 ---
 id: playbill
 title: Playbill
-description: Manages the current act of a play script for performance-related gameplay elements in Don't Starve Together.
+description: Manages state for a theatrical playbill, tracking the current act and persisting it across save/load cycles.
+tags: [theatre, save, state]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: e62d69fd
+system_scope: entity
 ---
 
 # Playbill
 
-## Overview
-This component tracks and persists the current act being performed in a play script. It is used to manage state related to theatrical performances, storing and restoring the active act across game sessions via save/load hooks.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Playbill` is a simple state-holding component used to track the current act of a theatrical performance, such as for the Beefalo Zoo minigame. It is attached to an entity (typically a `playbill` prefab) and supports saving and loading its state via the `OnSave` and `OnLoad` methods. It does not manage logic, timing, or演出 flow — only persists the selected act.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("playbill")
+inst.components.playbill:SetCurrentAct("act2")
+-- State will be automatically saved/loaded during game save/load
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `scripts` | `table` | `{}` | Dictionary of available play scripts. Initialized in constructor. |
-| `costumes` | `table` | `{}` | Dictionary of costume data. Initialized in constructor. |
-| `starting_act` | `any` | `nil` | The first act in the play sequence. Stored but not modified or read in this implementation. |
-| `current_act` | `any` | `nil` | The currently active act in the performance. Updated via `SetCurrentAct` and persisted via save/load. |
-| `book_build` | `any` | `nil` | Placeholder for build/book state related to the play. Present in constructor but unused in this code. |
+| `scripts` | table | `{}` | Reserved for script references (not used in current implementation). |
+| `costumes` | table | `{}` | Reserved for costume references (not used in current implementation). |
+| `starting_act` | any | `nil` | Reserved for initial act value (not used in current implementation). |
+| `current_act` | any | `nil` | The currently active act in the playbill. |
+| `book_build` | any | `nil` | Reserved for build metadata (not used in current implementation). |
 
-## Main Functions
-
+## Main functions
 ### `SetCurrentAct(act)`
-* **Description:** Updates the `current_act` property to the specified act value. Used to advance or set the performance state.
-* **Parameters:**  
-  - `act`: The act identifier (type not strictly defined; could be string, number, or table) representing the current act to set.
+*   **Description:** Sets the `current_act` field to the specified act identifier.
+*   **Parameters:** `act` (any) — the act to set as current (e.g., a string like `"act1"` or `nil`).
+*   **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Serializes the component's persistent state into a table for saving to disk. Only includes the `current_act` field.
-* **Parameters:** None.  
-* **Returns:** `table` — A dictionary containing `{ current_act = self.current_act }`.
+*   **Description:** Returns a serializable table containing the component’s state for savegames.
+*   **Parameters:** None.
+*   **Returns:** Table — `{ current_act = self.current_act }`, or `{ current_act = nil }` if `self.current_act` is `nil`.
 
 ### `OnLoad(data)`
-* **Description:** Restores the component's state from saved data. Updates `current_act` if present in the input data.
-* **Parameters:**  
-  - `data`: `table` — The saved data table, expected to contain a `current_act` key if available.
+*   **Description:** Restores the component’s state from a savegame data table.
+*   **Parameters:** `data` (table or `nil`) — the data table returned by `OnSave()`.
+*   **Returns:** Nothing.
+*   **Error states:** Silently ignores malformed or missing `data` — only updates `self.current_act` if `data.current_act` is present.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified

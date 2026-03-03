@@ -1,43 +1,60 @@
 ---
 id: oceanthrowable
 title: Oceanthrowable
-description: This component enables an entity to be thrown into the ocean by attaching a complexprojectile component and optionally invoking a custom projectile setup function.
+description: Manages the attachment and configuration of the complexprojectile component for entities intended to be thrown into ocean water.
+tags: [projectile, ocean, water, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: f65c6490
+system_scope: entity
 ---
 
 # Oceanthrowable
 
-## Overview
-The Oceanthrowable component prepares an entity to function as an ocean-thrown object by ensuring it has a `complexprojectile` component and allowing optional customization of the projectile via a user-defined callback function. It is typically used for items thrown into the ocean by the player or other actors.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependency:** `complexprojectile`
-- **Tags Added/Removed:** None identified
+## Overview
+`Oceanthrowable` is a lightweight component responsible for ensuring that an entity can be launched as a projectile specifically for ocean contexts. It dynamically adds the `complexprojectile` component if not already present and invokes a configurable callback function (`onaddprojectilefn`) to customize the projectile's setup. This component is typically attached to prefabs that are intended to be thrown by the player into ocean bodies of water (e.g., rocks, spears, or other throwable items).
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("oceanthrowable")
+
+-- Optionally define custom projectile configuration
+inst.components.oceanthrowable:SetOnAddProjectileFn(function(proj_inst)
+    proj_inst.components.complexprojectile:SetSpeed(20)
+    proj_inst.components.complexprojectile:SetGravity(0.5)
+end)
+
+-- Trigger projectile attachment and setup
+inst.components.oceanthrowable:AddProjectile()
+```
+
+## Dependencies & tags
+**Components used:** `complexprojectile`
+**Tags:** None identified.
 
 ## Properties
-The component does not define any public properties in its constructor (`_ctor`). All state is held in instance fields (`self.*`) set during runtime.
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `onaddprojectilefn` | `function?` | `nil` | Optional callback function invoked during `AddProjectile()` to configure the projectile (e.g., set velocity, splash logic). |
+| `onaddprojectilefn` | function or nil | `nil` | Optional callback invoked when `AddProjectile` is called, allowing custom configuration of the added `complexprojectile` component. |
 
-## Main Functions
-
+## Main functions
 ### `SetOnAddProjectileFn(fn)`
-* **Description:** Assigns a callback function that will be executed when `AddProjectile` is called, allowing external code to customize the projectile before launch.
-* **Parameters:**  
-  - `fn` (`function`): A function that accepts the entity instance (`inst`) as its sole argument. Typically used to configure physics, effects, or behavior for the projectile.
+* **Description:** Sets the optional callback function that will be executed when `AddProjectile` is called.
+* **Parameters:** `fn` (function or nil) — A function accepting one argument (the instance to which `complexprojectile` was added), or `nil` to remove the callback.
+* **Returns:** Nothing.
 
 ### `AddProjectile()`
-* **Description:** Ensures the entity has a `complexprojectile` component and, if set, invokes the `onaddprojectilefn` callback to finalize projectile setup.
-* **Parameters:** None
+* **Description:** Ensures the entity has the `complexprojectile` component; if missing, it adds the component. If `onaddprojectilefn` is set, it is invoked with the instance as its argument.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** If `complexprojectile` is already present, it simply invokes the callback (if set) and returns without re-adding.
 
-## Events & Listeners
-None — this component does not register or emit events.
+## Events & listeners
+None identified.

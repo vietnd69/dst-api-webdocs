@@ -1,129 +1,142 @@
 ---
 id: complexprojectile
 title: Complexprojectile
-description: This component manages the physics and trajectory calculations for non-instant-hit projectiles, enabling customized launch and impact behaviors.
+description: Manages physics-based projectile trajectories with configurable launch conditions, gravity, and hit/miss callbacks for ranged attacks.
+tags: [combat, projectile, physics]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: combat
+category_type: components
 source_hash: 8c6e5772
+system_scope: physics
 ---
 
 # Complexprojectile
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Complexprojectile` component is responsible for simulating the trajectory and movement of projectiles in Don't Starve Together. It handles gravity, calculates launch angles to reach a target, applies custom offsets for launch and target points, and provides callback hooks for custom behavior on launch, update, and hit events. This allows for projectiles with realistic arcs and varying speeds, facilitating dynamic combat and environmental interactions.
+`Complexprojectile` handles complex projectile motion logic—including arc calculation, gravity, and target-based trajectory computation—for entities requiring precise throw mechanics (e.g., spears, rocks). It works alongside the base `projectile` tag and is mutually exclusive with `projectile`-only components due to shared tag usage. When attached, it automatically adds both `"projectile"` and `"complexprojectile"` tags to the entity.
 
-## Dependencies & Tags
-This component relies on the entity having `Physics` and `Transform` components for position, velocity, and rotation management.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("complexprojectile")
+inst.components.complexprojectile:SetHorizontalSpeed(6)
+inst.components.complexprojectile:SetGravity(-19.62)
+inst.components.complexprojectile:SetLaunchOffset(Vector3(1, 0.5, 0))
+inst.components.complexprojectile:SetOnLaunch(function(proj, attacker, targetPos)
+    -- custom launch logic
+end)
+inst.components.complexprojectile:Launch(Vector3(10, 0, 10), attacker, weapon)
+```
 
-*   **Adds Tags:**
-    *   `projectile`: General tag indicating the entity is a projectile.
-    *   `complexprojectile`: Specific tag for entities using this component.
-    *   `activeprojectile`: Added when the projectile is launched, removed when cancelled or hit.
-*   **Removes Tags:**
-    *   `complexprojectile`: Removed when the component is detached from the entity.
-    *   `projectile`: Removed if no other `projectile` component exists on the entity when this component is removed.
-    *   `activeprojectile`: Removed when `Cancel()` or `Hit()` is called.
+## Dependencies & tags
+**Components used:** None directly accessed beyond the owner entity's `Physics`, `Transform`, and optional platform physics.
+**Tags:** Adds `"projectile"` and `"complexprojectile"` in constructor; removes `"complexprojectile"` on removal; adds `"activeprojectile"` on launch; removes both `"activeprojectile"` and conditionally `"projectile"` on removal.
 
 ## Properties
-| Property          | Type            | Default Value    | Description                                                                                                                                                                                                                                                                                                                                    |
-| :---------------- | :-------------- | :--------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `velocity`        | `Vector3`       | `Vector3(0,0,0)` | The current velocity vector of the projectile. Updated each frame by `OnUpdate`.                                                                                                                                                                                                                                                               |
-| `gravity`         | `number`        | `-9.81`          | The gravitational acceleration applied to the projectile's vertical velocity (Y-axis). Negative values simulate downward pull.                                                                                                                                                                                                                    |
-| `horizontalSpeed` | `number`        | `4`              | The initial horizontal speed used when calculating the projectile's trajectory. Can be overridden by `SetHorizontalSpeed` or `SetHorizontalSpeedForDistance`.                                                                                                                                                                                      |
-| `launchoffset`    | `Vector3/table` | `nil`            | An optional offset (x: facing direction, y: height) from the attacker's position where the projectile is considered to originate. If set, the projectile's starting position will be adjusted relative to the attacker's facing direction.                                                                                                     |
-| `targetoffset`    | `Vector3/table` | `nil`            | An optional vertical offset (`y` component) added to the target's position for trajectory calculation. This can be used to aim slightly above the ground or a specific part of a target.                                                                                                                                                      |
-| `owningweapon`    | `Entity`        | `nil`            | The entity that represents the weapon or item responsible for launching this projectile. Defaults to the projectile entity itself if not specified during `Launch`.                                                                                                                                                                              |
-| `attacker`        | `Entity`        | `nil`            | The entity that initiated the attack or launched the projectile.                                                                                                                                                                                                                                                                               |
-| `onlaunchfn`      | `function`      | `nil`            | A callback function executed immediately after the projectile is launched. Signature: `fn(projectile_inst, attacker_inst, target_pos)`.                                                                                                                                                                                                             |
-| `onhitfn`         | `function`      | `nil`            | A callback function executed when the projectile is cancelled (e.g., hits the ground or a target). Signature: `fn(projectile_inst, attacker_inst, hit_target_inst_or_nil)`.                                                                                                                                                                     |
-| `onupdatefn`      | `function`      | `nil`            | A callback function executed on each game update tick (`OnUpdate`). If this function returns `true`, the component's default physics update logic for that frame is skipped. Signature: `fn(projectile_inst)`.                                                                                                                                  |
-| `usehigharc`      | `boolean`       | `true`           | Determines whether the trajectory calculation should prefer the higher possible arc when two valid launch angles exist to reach the target. If `false`, the lower arc is chosen.                                                                                                                                                               |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `velocity` | `Vector3` | `Vector3(0, 0, 0)` | Current velocity vector of the projectile. |
+| `gravity` | number | `-9.81` | Vertical acceleration due to gravity (negative = downward). |
+| `horizontalSpeed` | number | `4` | Target horizontal speed used in trajectory calculation. |
+| `launchoffset` | `Vector3` or `nil` | `nil` | Local offset (x = forward, y = height) from attacker position at launch. |
+| `targetoffset` | `Vector3` or `nil` | `nil` | Height offset applied to target position for impact detection (y = height). |
+| `owningweapon` | entity or `nil` | `nil` | The weapon entity associated with this projectile. |
+| `attacker` | entity or `nil` | `nil` | The entity that launched the projectile. |
+| `onlaunchfn` | function or `nil` | `nil` | Callback invoked on launch: `fn(proj, attacker, targetPos)`. |
+| `onhitfn` | function or `nil` | `nil` | Callback invoked on hit/ground contact: `fn(proj, attacker, target)`. |
+| `onmissfn` | function or `nil` | `nil` | Reserved for miss events (not used internally). |
+| `onupdatefn` | function or `nil` | `nil` | Callback invoked each update: `fn(proj)`. Returning `true` skips physics update. |
+| `usehigharc` | boolean | `true` | Whether to use the higher-angle solution for two-root trajectory calculations. |
 
-## Main Functions
-### `OnRemoveFromEntity()`
-*   **Description:** Called automatically when the component is removed from its owner entity. It cleans up by removing the `complexprojectile` tag and conditionally removing the general `projectile` tag if no other projectile component is present on the entity.
-*   **Parameters:** None.
-
-### `GetDebugString()`
-*   **Description:** Returns a string representation of the projectile's current velocity, primarily for debugging purposes.
-*   **Parameters:** None.
-
+## Main functions
 ### `SetHorizontalSpeed(speed)`
-*   **Description:** Sets the initial horizontal speed that will be used for trajectory calculations.
-*   **Parameters:**
-    *   `speed` (`number`): The desired horizontal speed.
+*   **Description:** Sets the horizontal speed used when computing the projectile trajectory.
+*   **Parameters:** `speed` (number) - horizontal speed in units/second.
+*   **Returns:** Nothing.
 
 ### `SetHorizontalSpeedForDistance(desired_horizontal_distance, fallback)`
-*   **Description:** Calculates and sets the minimum horizontal speed required to travel a `desired_horizontal_distance` given the current gravity and launch/target offsets. If a speed cannot be calculated (e.g., distance is unreachable), it uses a `fallback` speed.
-*   **Parameters:**
-    *   `desired_horizontal_distance` (`number`): The horizontal distance the projectile is intended to travel.
-    *   `fallback` (`number`): The speed to use if `CalculateMinimumSpeedForDistance` returns `nil`.
+*   **Description:** Computes and sets the minimum required horizontal speed to reach a given horizontal distance, using trajectory physics, or falls back to `fallback` if unreachable.
+*   **Parameters:**  
+    `desired_horizontal_distance` (number) - target horizontal distance.  
+    `fallback` (number or `nil`) - fallback speed if no solution exists.
+*   **Returns:** Nothing.
 
 ### `SetGravity(g)`
-*   **Description:** Sets the gravitational acceleration applied to the projectile.
-*   **Parameters:**
-    *   `g` (`number`): The new gravity value. A negative value is typically used for downward force.
+*   **Description:** Sets the gravitational acceleration used in trajectory and physics simulation.
+*   **Parameters:** `g` (number) - gravity value (typically negative).
+*   **Returns:** Nothing.
 
 ### `SetLaunchOffset(offset)`
-*   **Description:** Sets an offset from the attacker's position where the projectile visually or physically originates. The `x` component is an offset along the attacker's facing direction, `y` is a vertical offset.
-*   **Parameters:**
-    *   `offset` (`Vector3` or `table` with `x`, `y`): The offset vector.
+*   **Description:** Defines the local launch position offset relative to the attacker's facing direction.
+*   **Parameters:** `offset` (`Vector3` or `nil`) - x = forward offset, y = height above attacker, z ignored.
+*   **Returns:** Nothing.
 
 ### `SetTargetOffset(offset)`
-*   **Description:** Sets a vertical offset to be applied to the target's position during trajectory calculations. This allows for aiming at a specific height on the target.
-*   **Parameters:**
-    *   `offset` (`Vector3` or `table` with `y`): The offset vector. Only the `y` component is used.
+*   **Description:** Sets the target height used to determine when the projectile hits the ground.
+*   **Parameters:** `offset` (`Vector3` or `nil`) - y = height above ground to consider a hit.
+*   **Returns:** Nothing.
 
 ### `SetOnLaunch(fn)`
-*   **Description:** Sets a callback function to be invoked when the projectile is launched.
-*   **Parameters:**
-    *   `fn` (`function`): The function to call, with signature `fn(projectile_inst, attacker_inst, target_pos)`.
+*   **Description:** Registers a callback function executed when `Launch` is called.
+*   **Parameters:** `fn` (function or `nil`) - function signature: `fn(proj, attacker, targetPos)`.
+*   **Returns:** Nothing.
 
 ### `SetOnHit(fn)`
-*   **Description:** Sets a callback function to be invoked when the projectile hits something or the ground, or is manually cancelled.
-*   **Parameters:**
-    *   `fn` (`function`): The function to call, with signature `fn(projectile_inst, attacker_inst, hit_target_inst_or_nil)`.
+*   **Description:** Registers a callback function executed on impact (ground or custom hit).
+*   **Parameters:** `fn` (function or `nil`) - function signature: `fn(proj, attacker, target)`.
+*   **Returns:** Nothing.
 
 ### `SetOnUpdate(fn)`
-*   **Description:** Sets a callback function to be invoked on each game update tick while the projectile is active. If this function returns `true`, the component's default physics update logic for that frame is skipped.
-*   **Parameters:**
-    *   `fn` (`function`): The function to call, with signature `fn(projectile_inst)`.
+*   **Description:** Registers a callback function executed every physics update.
+*   **Parameters:** `fn` (function or `nil`) - function signature: `fn(proj)`. Returning `true` skips physics update.
+*   **Returns:** Nothing.
 
 ### `CalculateMinimumSpeedForDistance(desired_horizontal_distance)`
-*   **Description:** Calculates the minimum horizontal speed required for the projectile to travel a specified horizontal distance, considering current gravity and launch/target offsets. Returns `nil` if the distance is impossible to reach.
-*   **Parameters:**
-    *   `desired_horizontal_distance` (`number`): The target horizontal distance.
-*   **Returns:** `number` (minimum speed) or `nil`.
+*   **Description:** Computes the minimum horizontal speed required to reach the given horizontal distance, considering launch and target offsets.
+*   **Parameters:** `desired_horizontal_distance` (number) - target horizontal range.
+*   **Returns:** `number` if reachable, `nil` if no valid speed exists (e.g., impossible trajectory).
+*   **Error states:** Returns `nil` if the discriminant in the quadratic solution is negative (target out of range).
 
 ### `CalculateTrajectory(startPos, endPos, speed)`
-*   **Description:** Calculates the initial velocity vector (`self.velocity`) needed for the projectile to travel from `startPos` to `endPos` with a given `speed`, taking gravity and `usehigharc` into account. If multiple arcs are possible, `usehigharc` determines which is chosen. If no arc is possible, a default 30-degree angle is used.
-*   **Parameters:**
-    *   `startPos` (`Vector3`): The starting world position of the projectile.
-    *   `endPos` (`Vector3`): The target world position the projectile aims to hit.
-    *   `speed` (`number`): The magnitude of the initial horizontal velocity.
+*   **Description:** Computes the launch velocity vector to hit `endPos` from `startPos` at the given `speed`, using high or low arc based on `usehigharc`.
+*   **Parameters:**  
+    `startPos` (`Vector3` or `Vector`) - launch origin.  
+    `endPos` (`Vector3` or `Vector`) - target position.  
+    `speed` (number) - fixed speed for the projectile.
+*   **Returns:** Nothing (sets `self.velocity` internally).
+*   **Error states:** If no valid trajectory exists (e.g., speed too low), uses a default 30° elevation.
 
 ### `Launch(targetPos, attacker, owningweapon)`
-*   **Description:** Initiates the projectile's movement. It adjusts the projectile's starting position based on `launchoffset`, calculates the trajectory to `targetPos`, applies inherited velocity from the `attacker`'s platform if present, and then calls the `onlaunchfn` callback. The projectile starts updating and gains the `activeprojectile` tag.
-*   **Parameters:**
-    *   `targetPos` (`Vector3`): The world position the projectile aims to hit.
-    *   `attacker` (`Entity`): The entity that launched the projectile.
-    *   `owningweapon` (`Entity`): The weapon or item responsible for the launch. Defaults to the projectile's instance if `nil`.
+*   **Description:** Initiates the projectile by calculating its trajectory, adjusting its position (with `launchoffset`), inheriting platform velocity, and starting physics updates.
+*   **Parameters:**  
+    `targetPos` (`Vector3` or `Vector`) - intended target position.  
+    `attacker` (entity or `nil`) - entity launching the projectile.  
+    `owningweapon` (entity or `nil`) - weapon entity associated with this projectile.
+*   **Returns:** Nothing.
+*   **Error states:** Does not validate attacker/target validity; physics errors may occur if `Physics` component is missing or misconfigured.
 
 ### `Cancel()`
-*   **Description:** Immediately stops the projectile's movement, clears its velocity, and stops it from updating. Removes the `activeprojectile` tag and resets the physics motor.
+*   **Description:** Immediately stops the projectile by clearing velocity, removing physics motor velocity, and removing tags.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `Hit(target)`
-*   **Description:** Simulates the projectile hitting something. It calls `Cancel()` to stop the projectile and then invokes the `onhitfn` callback, passing the hit `target` (if any).
-*   **Parameters:**
-    *   `target` (`Entity`, optional): The entity that was hit by the projectile. Can be `nil` if it hit the ground.
+*   **Description:** Handles projectile impact. Cancels the projectile and invokes the registered `onhitfn`.
+*   **Parameters:** `target` (entity or `nil`) - target entity hit (if any).
+*   **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-*   **Description:** Called every game frame while the projectile is active (`StartUpdatingComponent`). It applies gravity to the vertical velocity and updates the entity's physics. If `onupdatefn` is set and returns `true`, the component's default physics update logic is skipped for that frame. Checks if the projectile has hit the ground `(Y <= 0.05)` and calls `Hit()` if so.
-*   **Parameters:**
-    *   `dt` (`number`): The delta time (time elapsed since the last frame).
+*   **Description:** Physics update step executed while the projectile is active. Applies gravity, sets motor velocity, and checks for ground contact.
+*   **Parameters:** `dt` (number) - time delta in seconds.
+*   **Returns:** Nothing.
+*   **Error states:** Triggers `Hit()` when `y <= 0.05` after descending (i.e., near-ground contact), invoking `onhitfn` with no explicit target.
+
+## Events & listeners
+- **Listens to:** None (does not register `inst:ListenForEvent`).
+- **Pushes:** None (does not fire `inst:PushEvent`).  
+    However, callbacks like `onhitfn` and `onlaunchfn` are invoked programmatically during `Launch`, `Hit`, and `OnUpdate`.

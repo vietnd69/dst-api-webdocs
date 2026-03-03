@@ -1,48 +1,68 @@
 ---
 id: lighter
 title: Lighter
-description: This component enables an entity to ignite burnable targets, optionally invoking a custom callback and broadcasting a downstream event.
+description: Enables an entity to ignite burnable targets by calling Ignite on their burnable component.
+tags: [ignition, fuel, utility]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: cd38eac6
+system_scope: entity
 ---
-
 # Lighter
 
-## Overview
-The `Lighter` component provides the ability for an entity (typically an item or character) to ignite burnable targets. It manages a callback function (`onlight`) triggered upon successful ignition and ensures appropriate event propagation.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds the tag `"lighter"` to the entity on construction.
-- Removes the `"lighter"` tag on entity removal via `OnRemoveFromEntity`.
-- Relies on the `burnable` component being present on target entities for ignition logic.
+## Overview
+The `Lighter` component allows an entity to act as a ignition source for burnable objects. It is typically attached to items like torches, lighters, or characters capable of lighting fires. When `Light` is called, it attempts to ignite a target by delegating to the target's `burnable` component, provided the target is not in an invalid state (e.g., fuel-depleted or in limbo). It also supports a custom callback function to be invoked upon successful lighting.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("lighter")
+inst:AddTag("fireproducer")
+
+inst.components.lighter:SetOnLightFn(function(inst, target)
+    print("Lit target:", target.prefab)
+end)
+
+-- Later, light a campfire
+local campfire = GetEntityWithBurnableComponent()
+inst.components.lighter:Light(campfire, inst)
+```
+
+## Dependencies & tags
+**Components used:** `burnable` (read-only access to `Ignite` method)
+**Tags:** Adds `lighter` on construction; removes `lighter` on component removal.
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `onlight` | function or `nil` | `nil` | Optional callback invoked after a successful light operation. Signature: `fn(inst, target)`. |
 
-| Property     | Type      | Default Value | Description                                      |
-|--------------|-----------|---------------|--------------------------------------------------|
-| `inst`       | `Entity`  | —             | Reference to the owning entity.                  |
-| `onlight`    | `function`| `nil`         | Optional callback executed after successful ignition. |
-
-## Main Functions
+## Main functions
+### `OnRemoveFromEntity()`
+*   **Description:** Cleanup method called when the component is removed from its entity. Removes the `lighter` tag to prevent stale references.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `SetOnLightFn(fn)`
-* **Description:** Sets or replaces the callback function that is invoked when the lighter successfully ignites a target. The callback receives two arguments: the lighter entity and the target entity.
-* **Parameters:**
-  - `fn` (`function` or `nil`): The callback to invoke on successful ignition; `nil` clears the callback.
+*   **Description:** Sets the optional callback function to be invoked after successfully lighting a target.
+*   **Parameters:** `fn` (function or `nil`) — the callback function, or `nil` to clear it.
+*   **Returns:** Nothing.
 
 ### `Light(target, doer)`
-* **Description:** Attempts to ignite the given `target` entity. Ignition succeeds only if the target has a `burnable` component and does not meet exclusion criteria (e.g., depleted fuel without override, or being in limbo). Upon success, the callback (`onlight`) is executed (if set), and the `onlighterlight` event is pushed on the target regardless of success or failure.
-* **Parameters:**
-  - `target` (`Entity`): The entity to ignite.
-  - `doer` (`Entity`): The entity performing the ignition (e.g., the player).
+*   **Description:** Attempts to ignite the given `target` using this lighter's ignition source. First checks that the target has a `burnable` component and is not blocked by fuel depletion or limbo state. If valid, calls `target.components.burnable:Ignite(...)`.
+*   **Parameters:**
+    *   `target` (Entity) — the entity to ignite.
+    *   `doer` (Entity or `nil`) — the entity performing the action (may be `nil`).
+*   **Returns:** Nothing.
+*   **Error states:** No ignition occurs if:
+    *   `target` lacks a `burnable` component.
+    *   `target` has `fueldepleted` and lacks `burnableignorefuel`.
+    *   `target` has `INLIMBO` tag.
 
-## Events & Listeners
-- **Listens for:** None.
-- **Triggers:**
-  - Pushes the `"onlighterlight"` event on the `target` entity in all cases via `target:PushEvent("onlighterlight")`, regardless of whether ignition succeeded.
+## Events & listeners
+- **Pushes:** `onlighterlight` — fired on the target entity after the `Light` method runs, regardless of whether ignition succeeded. No payload is provided.

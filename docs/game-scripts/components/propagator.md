@@ -1,131 +1,117 @@
 ---
 id: propagator
 title: Propagator
-description: Manages heat transfer, propagation, and fire-related effects for entities in the game world.
+description: Manages heat propagation and thermal effects (e.g., fire melting, freezing relief, damage) between nearby entities.
+tags: [heat, fire, environment, damage]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 63c70e54
+system_scope: environment
 ---
-
 # Propagator
 
-## Overview
-The Propagator component handles heat accumulation, decay, and spatial propagation for entities (e.g., fires), including interactions with nearby objects such as melting frozen items, damaging entities, and cooling adjacent heat acceptors. It operates as a periodic task that updates heat levels and triggers effects within a configurable range.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components used:**  
-  - `Transform` (via `GetWorldPosition`)  
-  - `heater` (for endothermic check)  
-  - `burnable` (for controlled burn state check)  
-  - `freezable` (for coldness application)  
-  - `health` (for fire damage)  
-- **Tags manipulated:**  
-  - Removes/Checks `firemelt`, `frozen`, `INLIMBO`, `fireimmune`  
-- **No components added by this component itself.**
+## Overview
+`Propagator` handles the simulation and spread of thermal energy from an entity to its surroundings. It is used to model fire-like behaviors, such as melting ice, thawing frozen entities, damaging nearby entities with heat, and heating adjacent `propagator` components. It works closely with the `burnable`, `freezable`, `health`, and `heater` components. The component supports seasonal range modifiers (`SPRING_FIRE_RANGE_MOD`) and implements per-update heat caps to prevent excessive heating.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("propagator")
+inst.components.propagator.flashpoint = 120
+inst.components.propagator.propagaterange = 4
+inst.components.propagator.heatoutput = 6
+inst.components.propagator.damages = true
+inst.components.propagator:StartSpreading(source)
+```
+
+## Dependencies & tags
+**Components used:** `burnable`, `freezable`, `health`, `heater`  
+**Tags:** Checks `fireimmune`, `frozen`, `meltable`, `firemelt`, `INLIMBO`; adds/removes `firemelt`
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the owning entity. |
-| `flashpoint` | `number` | `100` | Heat threshold at which the propagator "flashes" (ignites or triggers side effects). |
-| `currentheat` | `number` | `0` | Current accumulated heat on the entity. |
-| `decayrate` | `number` | `1` | Rate at which heat decays per second when not spreading. |
-| `propagaterange` | `number` | `3` | Maximum distance (world units) to propagate heat to adjacent entities/tiles. |
-| `heatoutput` | `number` | `5` | Heat amount transferred per second to adjacent heat-accepting entities. |
-| `damages` | `boolean` | `false` | Whether the propagator deals fire damage to entities in range. |
-| `damagerange` | `number` | `3` | Radius within which fire damage is applied. |
-| `pvp_damagemod` | `number` | `TUNING.PVP_DAMAGE_MOD or 1` | Damage multiplier applied when the heat source is a player. |
-| `acceptsheat` | `boolean` | `false` | Whether this entity can receive heat from propagators. |
-| `spreading` | `boolean` | `false` | Whether the propagator is actively spreading heat. |
-| `source` | `Entity?` | `nil` | Reference to the entity that caused this propagator to ignite/spread (for traceability). |
-| `onflashpoint` | `function?` | `nil` | Callback executed when `currentheat > flashpoint`. |
-| `pauseheating` | `boolean?` | `nil` | Internal flag preventing further heat addition after flashpoint. |
-| `heat_this_update` | `number` | `0` | Heat accumulated in the current update window. |
-| `max_heat_this_update` | `number` | `0` | Max allowable heat per update (dynamically calculated via `CalculateHeatCap`). |
-| `delay` | `Task?` | `nil` | Active delay timer (used for temporary heat block). |
-| `task` | `PeriodicTask?` | `nil` | Active update task scheduled at `PROPAGATOR_DT` intervals. |
+| `flashpoint` | number | `100` | The heat threshold at which `onflashpoint` callback fires and heating pauses. |
+| `currentheat` | number | `0` | Current accumulated heat, modified per `OnUpdate` and `AddHeat`. |
+| `decayrate` | number | `1` | Rate at which `currentheat` decays per second. |
+| `propagaterange` | number | `3` | Radius (world units) within which heat spreads and melting effects occur. |
+| `heatoutput` | number | `5` | Base amount of heat transferred per second to adjacent entities. |
+| `damages` | boolean | `false` | Whether nearby entities with `health` take fire damage. |
+| `damagerange` | number | `3` | Radius within which fire damage applies (if `damages == true`). |
+| `pvp_damagemod` | number | `TUNING.PVP_DAMAGE_MOD or 1` | Damage multiplier applied when source entity has `"player"` tag. |
+| `acceptsheat` | boolean | `false` | Whether this entity accepts heat from neighboring propagators. |
+| `pauseheating` | boolean \| nil | `nil` | Internal flag indicating if heating is paused (typically after `flashpoint` reached). |
+| `spreading` | boolean | `false` | Whether this propagator is actively spreading heat. |
+| `source` | entity \| nil | `nil` | Reference to the entity that originally caused this propagator to spread (e.g., a fire source). |
+| `delay` | task \| nil | `nil` | Ongoing delayed task (used for temporary heating suppression). |
 
-## Main Functions
-
-### `CalculateHeatCap()`
-* **Description:** Recalculates the maximum heat that can be added during the current update cycle using a randomized ease-out cubic factor and `PROPAGATOR_DT`. Resets `heat_this_update` to zero.
-* **Parameters:** None.
-
-### `OnRemoveFromEntity()`
-* **Description:** Cleanup when component is removed from an entity. Stops spreading, forces one last update, and cancels any pending delay task.
-* **Parameters:** None.
-
-### `OnRemoveEntity()`
-* **Description:** When the entity is fully removed from the world, stops fire-melting effects on nearby entities (if not endothermic). Pushes `"stopfiremelt"` and removes `"firemelt"` tag from affected entities.
-* **Parameters:** None.
-
+## Main functions
 ### `SetOnFlashPoint(fn)`
-* **Description:** Assigns a callback function to be invoked when `currentheat` exceeds `flashpoint`.
-* **Parameters:**  
-  - `fn`: `function(self)` — Callback accepting the propagator instance as argument.
-
-### `Delay(time)`
-* **Description:** Sets a delay during which heat addition is blocked. Cancels any existing delay before creating a new one.
-* **Parameters:**  
-  - `time`: `number` — Duration (in seconds) for the delay.
-
-### `StopUpdating()`
-* **Description:** Cancels the periodic update task and recalculates heat capacity (resetting per-update limits).
-* **Parameters:** None.
-
-### `StartUpdating()`
-* **Description:** Starts the periodic update task (`PROPAGATOR_DT` interval) to process heat decay and propagation logic. Skips if already running.
-* **Parameters:** None.
+* **Description:** Sets a callback function to be invoked when `currentheat` exceeds `flashpoint`. Typically used to trigger visual/sound effects (e.g., fire ignition).
+* **Parameters:** `fn` (function) — the callback to run when flashpoint is exceeded.
+* **Returns:** Nothing.
+* **Notes:** Callback only fires if the heat source is not controlled (i.e., not flagged as `controlled_burn` via `burnable:GetControlledBurn()`).
 
 ### `StartSpreading(source)`
-* **Description:** Begins heat propagation from this entity. Sets `spreading = true` and starts the update task.
-* **Parameters:**  
-  - `source`: `Entity` — The entity responsible for initiating spreading (e.g., a burning object).
+* **Description:** Begins heat propagation from this entity. Activates the update loop and stores `source`.
+* **Parameters:** `source` (entity) — the entity initiating the heat spread (often a fire source).
+* **Returns:** Nothing.
 
 ### `StopSpreading(reset, heatpct)`
-* **Description:** Stops propagation. If `reset = true`, resets current heat to zero or a specified percentage of `flashpoint`, and clears the pause flag.
+* **Description:** Stops heat propagation. Optionally resets `currentheat` to a fraction of `flashpoint`.
 * **Parameters:**  
-  - `reset`: `boolean` — Whether to reset state.  
-  - `heatpct`: `number?` — Optional heat fraction (0–1) to compute retained heat.
-
-### `GetHeatResistance()`
-* **Description:** Returns a multiplier (0–1) that reduces incoming heat based on tile properties (e.g., `no_fire_spread` tiles block propagation, `flashpoint_modifier` tiles dampen heat gain).
-* **Parameters:** None.
-
-### `CanSpreadHeat()`
-* **Description:** Checks if heat can spread from the current tile (i.e., not on a `no_fire_spread` tile).
-* **Parameters:** None.
+  - `reset` (boolean) — whether to reset `currentheat`.  
+  - `heatpct` (number \| nil) — percentage of `flashpoint` to set as the new `currentheat` if `reset == true`. Applies easing (`easing.outCubic`) for smoothing.
+* **Returns:** Nothing.
+* **Notes:** Cancels pending tasks; clears `source` and `spreading` state.
 
 ### `AddHeat(amount, source)`
-* **Description:** Adds heat to the propagator, respecting per-update limits, resistance, and delays. Triggers `onflashpoint` if flashpoint is exceeded.
+* **Description:** Increases `currentheat` by `amount`, applying heat resistance based on tile and `GetHeatResistance()`. Respects per-update heat cap (`max_heat_this_update`).
 * **Parameters:**  
-  - `amount`: `number` — Raw heat to apply.  
-  - `source`: `Entity?` — Optional source entity (used for controlled burn/PvP logic).
+  - `amount` (number) — raw heat to add before scaling.  
+  - `source` (entity \| nil) — source entity; used to determine if burn is controlled (i.e., `burnable:GetControlledBurn()`).
+* **Returns:** Nothing.
+* **Error states:** No effect if `delay` is active, entity has `"fireimmune"` tag, or heat cap is exceeded.
 
 ### `Flash()`
-* **Description:** Forces a flash by subtracting negative heat (simulating deficit) and adding a large amount of heat (`flashpoint + 1`), if heating is not paused and not delayed.
+* **Description:** Instantly floods `currentheat` with `flashpoint + 1` units of heat if `acceptsheat` is true and heating isn’t paused.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Notes:** Used to force ignition under specific conditions (e.g., explosive ignition).
 
 ### `OnUpdate(dt)`
-* **Description:** Main periodic update logic. Handles heat decay, propagation to nearby entities (via heat acceptors, freezing, and melting), and fire damage. Also handles cleanup of `"firemelt"` effects when not spreading.
-* **Parameters:**  
-  - `dt`: `number` — Delta time since last update.
+* **Description:** Core per-tick logic: decays heat, propagates heat to nearby entities, applies freezing relief (`AddColdness` with negative values), triggers melting events, and inflicts fire damage if enabled.
+* **Parameters:** `dt` (number) — delta time since last update.
+* **Returns:** Nothing.
+* **Notes:**  
+  - Only processes nearby entities if `spreading == true`.  
+  - Uses `TUNING.SPRING_FIRE_RANGE_MOD` to scale ranges in spring season.  
+  - Melting entities get `firemelt` tag and `"firemelt"` event.  
+  - Fire damage is scaled by `pvp_damagemod` only when source is a player.
+
+### `GetHeatResistance()`
+* **Description:** Returns a multiplicative modifier to heat input based on current tile properties.
+* **Parameters:** None.
+* **Returns:** number — resistance factor (e.g., `0` if `no_fire_spread`, or reduced value if `flashpoint_modifier` applies).
+* **Notes:** Tile-specific resistance also applies to cold spreading.
+
+### `CanSpreadHeat()`
+* **Description:** Checks if this entity can spread heat (i.e., tile permits fire).
+* **Parameters:** None.
+* **Returns:** boolean — `true` if tile allows fire spread, `false` otherwise.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted debug string showing current state values (range, heat output, resistance, flashpoint, delay status, spreading state, etc.).
+* **Description:** Returns a formatted string for debugging logs.
 * **Parameters:** None.
+* **Returns:** string — e.g., `"range: 3.00, output: 5.00, heatresist: 1.00, flashpoint: 100.00, delay: false, spread: true, acceptheat: false, curheat: 42.5"`.
 
-## Events & Listeners
-- **Listens to:**  
-  - *Internal periodic task callbacks* (via `DoPeriodicTask` / `DoTaskInTime`).  
-- **Triggers (pushes):**  
-  - `"firemelt"` — Pushed to entities in range that are frozen/meltable to initiate melting.  
-  - `"stopfiremelt"` — Pushed to nearby entities to halt melting (e.g., on propagator removal or when not spreading).  
-- **Uses (component-level events):**  
-  - `self.onflashpoint(self.inst)` — Custom callback invoked when flashpoint is breached.
+## Events & listeners
+- **Listens to:** None explicitly — tasks use `DoTaskInTime`, `DoPeriodicTask`.
+- **Pushes:** `stopfiremelt` (via `v:PushEvent("stopfiremelt")` during cleanup), `firemelt` (via `v:PushEvent("firemelt")` when melting).  
+  Also triggers `onflashpoint` callback when `flashpoint` is exceeded (not an event, but a custom callback).
+  

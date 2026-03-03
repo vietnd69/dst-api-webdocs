@@ -1,102 +1,105 @@
 ---
 id: age
 title: Age
-description: Tracks a player's in-game age in seconds and days, syncing it to the network and triggering progression milestones.
+description: Tracks and manages a player entity's elapsed time since spawn, including pause/resume functionality and age-based notifications.
+tags: [player, time, network]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: d83599b0
+system_scope: player
 ---
 
-# age
+# Age
+
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The `age` component is responsible for tracking an entity's in-game age, primarily used for player characters. It calculates age in seconds and days, handles pausing and resuming age progression, and integrates with the game's saving/loading system. Furthermore, it periodically synchronizes the entity's age with the network and triggers player achievements and notifications at specific age milestones.
+The `age` component tracks how much time has passed since a player entity was spawned, accounting for paused periods. It calculates age in seconds and days, periodically synchronizes age data over the network, and triggers in-game notifications and achievements at specific age milestones (20, 35, 55, and 70 days). It is attached exclusively to player entities and integrates with `inst.Network` for replication and `GetTime()` for time tracking.
 
-## Dependencies & Tags
-- **Dependencies:**
-    - `inst.Network`: For syncing the player's age (`SetPlayerAge`, `GetPlayerAge`).
-    - `TUNING.TOTAL_DAY_TIME`: For converting seconds to days.
-    - `AwardPlayerAchievement`, `NotifyPlayerProgress`, `NotifyPlayerPresence`, `ShardGameIndex:GetGameMode()`: Global functions/objects for game progression and networking.
-- **Tags:** None identified.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("age")
+inst.components.age:ResumeAging() -- ensure aging is active
+local days = inst.components.age:GetDisplayAgeInDays()
+print("Player age:", days, "days")
+```
+
+## Dependencies & tags
+**Components used:** `network` (via `inst.Network`)
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
-|---|---|---|---|
-| `inst` | `Entity` | N/A | A reference to the entity this component is attached to. |
-| `saved_age` | `number` | `0` | The accumulated age in seconds, primarily updated by `LongUpdate` or loaded from save data. |
-| `paused_time` | `number` | `0` | The total accumulated time (in seconds) during which the aging process was paused. |
-| `spawntime` | `number` | `GetTime()` | The game time (in seconds) when the component was initialized. Used as a baseline for age calculation. |
-| `last_pause_time` | `number` or `nil` | `nil` | The game time (in seconds) when the aging process was last paused. `nil` if not currently paused. |
-| `_synctask` | `task` or `nil` | `nil` | A reference to the `DoPeriodicTask` responsible for syncing the age with the network. |
+|----------|------|---------------|-------------|
+| `saved_age` | number | `0` | Accumulated elapsed time (in seconds) before last pause or at time of save. |
+| `paused_time` | number | `0` | Total accumulated time (in seconds) during which aging was paused. |
+| `spawntime` | number | `GetTime()` | Timestamp when the component (and entity) was created. |
+| `last_pause_time` | number \| nil | `nil` | If non-`nil`, represents the start timestamp of the current pause interval. |
+| `_synctask` | Task \| nil | `nil` | Ongoing periodic task used to sync age data every `SYNC_PERIOD` seconds. |
 
-## Main Functions
+## Main functions
+### `GetAge()`
+* **Description:** Returns the entity's total unpause-corrected age in seconds.
+* **Parameters:** None.
+* **Returns:** `number` — elapsed time in seconds.
 
-### `syncage(inst, self)`
-*   **Description:** A helper function that compares the component's current display age with the network's recorded age. If they differ, it updates the network age and triggers specific player achievements ("survive_20", "survive_35", "survive_55", "survive_70") and progress notifications when certain day milestones are reached.
-*   **Parameters:**
-    *   `inst` (`Entity`): The entity the component belongs to.
-    *   `self` (`Age`): The `age` component instance.
+### `GetAgeInDays()`
+* **Description:** Returns the entity's age in completed days (0-indexed, floored).
+* **Parameters:** None.
+* **Returns:** `number` — number of fully elapsed days.
 
-### `OnSetOwner(inst)`
-*   **Description:** A callback function invoked when the entity's owner is set. It ensures the player's age is immediately synchronized with the network.
-*   **Parameters:**
-    *   `inst` (`Entity`): The entity whose owner was set.
+### `GetDisplayAgeInDays()`
+* **Description:** Returns the entity's age in days, adjusted to be human-readable (1-indexed).
+* **Parameters:** None.
+* **Returns:** `number` — age in days, rounded up (e.g., the first day returns `1`, not `0`).
 
-### `Age:CancelPeriodicSync()`
-*   **Description:** Stops the currently running periodic age synchronization task (`_synctask`) if one exists. After cancellation, it immediately performs a manual age synchronization via `syncage`.
+### `PauseAging()`
+* **Description:** Pauses time accumulation. Stops the periodic sync task.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Has no effect if aging is already paused (`last_pause_time ~= nil`).
 
-### `Age:RestartPeriodicSync()`
-*   **Description:** Cancels any existing periodic synchronization task and then initiates a new one. This task will call the `syncage` helper function every `SYNC_PERIOD` seconds (which is `10` seconds).
+### `ResumeAging()`
+* **Description:** Resumes time accumulation if currently paused. Restarts the periodic sync task.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Has no effect if aging is not paused (`last_pause_time == nil`).
 
-### `Age:GetAge()`
-*   **Description:** Calculates the entity's total elapsed age in seconds. This calculation accounts for the `spawntime`, any accumulated `saved_age`, and time spent `paused_time`. It uses `GetTime()` if `last_pause_time` is `nil` (meaning not paused) to get the current time.
-*   **Parameters:** None.
-*   **Returns:** (`number`) The entity's age in seconds.
+### `OnSave()`
+* **Description:** Returns a serializable table containing state needed to restore the component later.
+* **Parameters:** None.
+* **Returns:** `{ age = number, ispaused = boolean }` — the current age and pause state.
 
-### `Age:GetAgeInDays()`
-*   **Description:** Calculates the entity's age in full days by dividing the total age in seconds by `TUNING.TOTAL_DAY_TIME` and flooring the result.
-*   **Parameters:** None.
-*   **Returns:** (`number`) The entity's age in full days.
+### `OnLoad(data)`
+* **Description:** Restores component state from `OnSave()` data.
+* **Parameters:** `data` (table?) — must contain optional `age` and `ispaused` keys.
+* **Returns:** Nothing.
 
-### `Age:GetDisplayAgeInDays()`
-*   **Description:** Calculates the entity's age in full days for display purposes. This is typically `GetAgeInDays()` plus one, meaning that on day 0, it displays as day 1. This value is used for achievements and network synchronization.
-*   **Parameters:** None.
-*   **Returns:** (`number`) The entity's display age in full days.
+### `LongUpdate(dt)`
+* **Description:** Called frequently (e.g., every frame) to update `saved_age` and adjust `paused_time` if aging is paused. Restarts sync task if not paused.
+* **Parameters:** `dt` (number) — delta time in seconds since last frame.
+* **Returns:** Nothing.
 
-### `Age:PauseAging()`
-*   **Description:** Halts the progression of the entity's age. It records the current `GetTime()` as `self.last_pause_time` and cancels the periodic age synchronization task. If the component is already paused, calling this function again has no effect.
-*   **Parameters:** None.
+### `CancelPeriodicSync()`
+* **Description:** Cancels the recurring periodic sync task and forces an immediate sync.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `Age:ResumeAging()`
-*   **Description:** Resumes the progression of the entity's age if it was previously paused. It calculates the duration of the pause, adds it to `self.paused_time`, clears `self.last_pause_time`, and restarts the periodic age synchronization task. If the component is not paused, calling this function has no effect.
-*   **Parameters:** None.
+### `RestartPeriodicSync()`
+* **Description:** Cancels any existing sync task and starts a new periodic sync every `SYNC_PERIOD` seconds.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `Age:OnSave()`
-*   **Description:** Gathers the necessary data to save the component's state. It returns the entity's current calculated age and a boolean indicating whether the aging process was paused.
-*   **Parameters:** None.
-*   **Returns:** (`table`) A table containing:
-    *   `age` (`number`): The entity's current age in seconds.
-    *   `ispaused` (`boolean`): `true` if aging is currently paused, `false` otherwise.
+### `GetDebugString()`
+* **Description:** Returns a human-readable debug string for the current age.
+* **Parameters:** None.
+* **Returns:** `string` — formatted age, either `X.XX s` (if < half a day) or `X.XX days`.
 
-### `Age:GetDebugString()`
-*   **Description:** Provides a formatted string representing the entity's age, suitable for debugging. If the age is more than half a day, it's displayed in days; otherwise, it's displayed in seconds.
-*   **Parameters:** None.
-*   **Returns:** (`string`) A formatted string showing the entity's age.
-
-### `Age:LongUpdate(dt)`
-*   **Description:** This function is called every game frame with the delta time. It accumulates `dt` into `self.saved_age`. If the aging process is paused, `dt` is also added to `self.paused_time`. If not paused, it ensures the periodic sync task is restarted (which acts as a heartbeat to re-establish the task if it somehow got canceled unexpectedly or to ensure it's running).
-*   **Parameters:**
-    *   `dt` (`number`): The time elapsed (in seconds) since the last `LongUpdate` call.
-
-### `Age:OnLoad(data)`
-*   **Description:** Restores the component's state from saved game data. It sets `self.saved_age` and conditionally sets `self.last_pause_time` and manages the periodic sync task based on the `ispaused` flag in the `data`.
-*   **Parameters:**
-    *   `data` (`table`): The table containing the saved component data, typically with `age` and `ispaused` fields.
-
-## Events & Listeners
-*   `inst:ListenForEvent("setowner", OnSetOwner)`: Listens for the "setowner" event on the entity, triggering `OnSetOwner` when an owner is assigned or changed.
+## Events & listeners
+- **Listens to:** `setowner` — triggers immediate age sync via `OnSetOwner`.
+- **Pushes:** None identified.

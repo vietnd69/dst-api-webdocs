@@ -1,91 +1,100 @@
 ---
 id: foodaffinity
 title: Foodaffinity
-description: This component tracks and applies hunger bonuses to a character based on preferences for specific food items, food types, prefabs, or tags.
+description: Manages hunger bonus bonuses a character receives when eating food, based on prefab, foodtype, or tag matches.
+tags: [hunger, character, food, affinity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: b5998670
+system_scope: entity
 ---
 
 # Foodaffinity
 
-## Overview
-The `FoodAffinity` component enables a character to gain increased hunger restoration from specific food items, food types, prefabs, or tagged items. It stores affinity definitions and computes the highest applicable bonus when a food item is consumed.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Dependencies:** Requires the `spicedfoods` module (`require("spicedfoods")`).
-- **Tags:** None added or removed by this component.
-- **Component Dependencies:** None explicitly added to the entity; it operates on external food entities passed as arguments.
+## Overview
+`Foodaffinity` is a component that allows a character entity to define preferences for certain types of food, granting increased hunger restoration when eating matching items. Preferences are registered via three categorization methods: prefab names, food types (using `EDIBLE.FOODTYPE`), and arbitrary tags. This component is typically added to playable characters to implement mechanics like Webber’s preference for spider eggs or WX-78’s affinity for electronic food. It uses external data from `spicedfoods.lua` to resolve spiced food base prefabs correctly.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("foodaffinity")
+inst.components.foodaffinity:AddPrefabAffinity("spider", 10)
+inst.components.foodaffinity:AddFoodtypeAffinity("MEAT", 15)
+inst.components.foodaffinity:AddTagAffinity("spicy", 5)
+```
+
+## Dependencies & tags
+**Components used:** `edible` (via `food.components.edible.foodtype`)
+**Tags:** Checks `food:HasTag(tag)` for registered tag affinities; no tags added or removed by this component.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (assigned in constructor) | Reference to the owner entity (typically a character). |
-| `tag_affinities` | `table` | `{}` | Maps tag strings to hunger bonus values (e.g., `{"meat": 10}`). |
-| `prefab_affinities` | `table` | `{}` | Maps prefab names to hunger bonus values (e.g., `{"blueberry": 5}`). |
-| `prefab_affinites` | `table` | `prefab_affinities` | Legacy alias for `prefab_affinities`; kept for backward compatibility with mods. |
-| `foodtype_affinities` | `table` | `{}` | Maps food types (e.g., `"VEGGIE"`, `"MEAT"`) to hunger bonus values. |
+| `tag_affinities` | table | `{}` | Map of tag strings to hunger bonus numbers (e.g., `{"spicy" = 5}`). |
+| `prefab_affinities` | table | `{}` | Map of prefab names to hunger bonus numbers (e.g., `{"spider" = 10}`). |
+| `prefab_affinites` | table | Alias of `prefab_affinities` | Legacy typo alias retained for mod compatibility. |
+| `foodtype_affinities` | table | `{}` | Map of `EDIBLE.FOODTYPE` constants to hunger bonus numbers (e.g., `{EDIBLE.FOODTYPE.MEAT = 15}`). |
 
-## Main Functions
-
+## Main functions
 ### `AddTagAffinity(tag, bonus)`
-* **Description:** Adds or updates a hunger bonus for all food items possessing the specified tag.
-* **Parameters:**
-  * `tag` *(string)* — The tag applied to food items (e.g., `"meat"`, `"veggie"`).
-  * `bonus` *(number)* — The hunger bonus value to apply.
+*   **Description:** Registers a hunger bonus for foods that have the specified tag.
+*   **Parameters:** `tag` (string) - a tag to match against food entities; `bonus` (number) - the extra hunger value to grant when eating matching food.
+*   **Returns:** Nothing.
 
 ### `AddPrefabAffinity(prefab, bonus)`
-* **Description:** Adds or updates a hunger bonus for a specific food prefab (e.g., `"blueberry"`).
-* **Parameters:**
-  * `prefab` *(string)* — The prefab name of the food item.
-  * `bonus` *(number)* — The hunger bonus value to apply.
+*   **Description:** Registers a hunger bonus for foods matching the specified prefab name.
+*   **Parameters:** `prefab` (string) - the prefab name to match (e.g., `"spider"`); `bonus` (number) - extra hunger value granted.
+*   **Returns:** Nothing.
 
 ### `AddFoodtypeAffinity(foodtype, bonus)`
-* **Description:** Adds or updates a hunger bonus for all food items of the specified food type.
-* **Parameters:**
-  * `foodtype` *(string)* — A food type constant (e.g., `"VEGGIE"`, `"MEAT"`, `"INSECT"`).
-  * `bonus` *(number)* — The hunger bonus value to apply.
+*   **Description:** Registers a hunger bonus for foods of the specified foodtype.
+*   **Parameters:** `foodtype` (string) - one of the constants from `EDIBLE.FOODTYPE` (e.g., `"MEAT"`, `"VEGGIE"`); `bonus` (number) - extra hunger value granted.
+*   **Returns:** Nothing.
 
 ### `RemoveTagAffinity(tag)`
-* **Description:** Removes the hunger bonus associated with the given tag.
-* **Parameters:**
-  * `tag` *(string)* — The tag whose affinity should be removed.
+*   **Description:** Removes a previously registered tag-based affinity.
+*   **Parameters:** `tag` (string) - the tag to remove.
+*   **Returns:** Nothing.
 
 ### `RemovePrefabAffinity(prefab)`
-* **Description:** Removes the hunger bonus associated with the given prefab.
-* **Parameters:**
-  * `prefab` *(string)* — The prefab name whose affinity should be removed.
+*   **Description:** Removes a previously registered prefab-based affinity.
+*   **Parameters:** `prefab` (string) - the prefab name to remove.
+*   **Returns:** Nothing.
 
 ### `RemoveFoodtypeAffinity(foodtype)`
-* **Description:** Removes the hunger bonus associated with the given food type.
-* **Parameters:**
-  * `foodtype` *(string)* — The food type whose affinity should be removed.
+*   **Description:** Removes a previously registered foodtype-based affinity.
+*   **Parameters:** `foodtype` (string) - the foodtype constant to remove.
+*   **Returns:** Nothing.
 
 ### `HasAffinity(food)`
-* **Description:** Returns `true` if the owner has *any* affinity (prefab, food type, or tag) for the given food item.
-* **Parameters:**
-  * `food` *(Entity)* — The food entity to check for affinity.
+*   **Description:** Checks whether the character has *any* affinity for the given food item.
+*   **Parameters:** `food` (table/entity) - a food item entity.
+*   **Returns:** `true` if the food matches a registered prefab, foodtype, or tag affinity; otherwise `false`.
+*   **Error states:** Returns `false` if `food` lacks the `edible` component and no prefab or tag match is found.
 
 ### `GetFoodBasePrefab(food)`
-* **Description:** Returns the base prefab name of the food item, resolving spiced food variants (e.g., `"spiced_fries"` → `"fries"`). Used to support affinities for base food items.
-* **Parameters:**
-  * `food` *(Entity)* — The food entity to resolve.
+*   **Description:** Returns the base prefab name for a food item, resolving spiced food variants using `spicedfoods.lua`.
+*   **Parameters:** `food` (table/entity) - a food item entity.
+*   **Returns:** (string) the resolved base prefab name (e.g., `"spicedbeef"` → `"beef"`), or `food.prefab` if not spiced.
+*   **Error states:** None identified.
 
 ### `HasPrefabAffinity(food)`
-* **Description:** Returns `true` if the owner has a direct or base-prefab affinity for the food item (including spiced variants).
-* **Parameters:**
-  * `food` *(Entity)* — The food entity to check.
+*   **Description:** Checks whether the character has a prefab affinity for the food, including via the resolved base prefab for spiced foods.
+*   **Parameters:** `food` (table/entity) - a food item entity.
+*   **Returns:** `true` if a direct or spiced-base prefab match exists; otherwise `false`.
+*   **Error states:** None identified.
 
 ### `GetAffinity(food)`
-* **Description:** Returns the highest applicable hunger bonus from any matching affinities (prefab, food type, tag). If multiple affinities match, the largest bonus is selected.
-* **Parameters:**
-  * `food` *(Entity)* — The food entity for which to compute the bonus.
-* **Returns:** `number?` — The bonus value (e.g., `10`) or `nil` if no affinity applies.
+*   **Description:** Computes and returns the *highest* hunger bonus applicable to the given food from all registered affinities.
+*   **Parameters:** `food` (table/entity) - a food item entity.
+*   **Returns:** (number) the largest hunger bonus applicable (e.g., `15`), or `nil` if no affinities match.
+*   **Error states:** Returns `nil` if no affinities are registered or the food has no matching criteria.
 
-## Events & Listeners
+## Events & listeners
 None identified.

@@ -1,75 +1,85 @@
 ---
 id: playingcardsmanager
 title: Playingcardsmanager
-description: Manages the global pool of available playing card IDs and coordinates the creation, registration, and lifecycle of deck and card entities.
+description: Manages the pool of available playing card IDs and handles the creation and lifecycle of playing card prefabs and decks.
+tags: [inventory, networking, savegame]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: fef37740
+system_scope: entity
 ---
-
 # Playingcardsmanager
 
-## Overview
-This component serves as the central manager for playing card resources in the game. It maintains a global pool of unique card IDs (representing combinations of suits and pips), assigns them to newly created cards or decks, and handles their reuse when entities are removed. It operates exclusively on the master simulation server and persists ID state across saves.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires the entity to be the **master** (`TheWorld.ismastersim`); throws an assertion if instantiated on a client.
-- Adds `"playingcardsmanager"` component to the entity (implicitly via `inst:AddComponent("playingcardsmanager")`).
-- Listens to `"onremove"` events on cards and decks it manages.
-- Does not explicitly add or remove tags.
+## Overview
+`PlayingCardsManager` maintains a global inventory of available card IDs (unique identifiers encoding suit and pip values) and ensures proper card ID allocation and recycling for decks and individual playing cards. It operates exclusively on the master simulation server and supports save/load state management for persistent card tracking across sessions. The component coordinates with `DeckContainer` (for decks) and `PlayingCard` (for individual cards) via their respective public methods.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("playingcardsmanager")
+
+-- Create a 5-card deck
+local deck = inst.components.playingcardsmanager:MakeDeck(5)
+
+-- Create a single faceup playing card with auto-assigned ID
+local card = inst.components.playingcardsmanager:MakePlayingCard(nil, false)
+
+-- Register an existing playing card prefab with an assigned ID
+local existing_card = SpawnPrefab("playing_card")
+inst.components.playingcardsmanager:RegisterPlayingCard(existing_card)
+```
+
+## Dependencies & tags
+**Components used:** `deckcontainer`, `playingcard`
+**Tags:** None identified.
 
 ## Properties
-No public properties are exposed as `self.property`. All internal state is held in local closures (`available_card_ids`, `decks`). The only public attribute is `self.inst`, inherited from the component constructor.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | entity instance | `nil` | The entity instance this component is attached to (asserted to be on master). |
 
-## Main Functions
-
+## Main functions
 ### `MakeDeck(size)`
-* **Description:** Spawns a new `deck_of_cards` entity and populates it with `size` uniquely assigned card IDs. Uses IDs from the available pool if possible; otherwise generates random IDs as fallback (typically only during world-gen or emergency reuse).
-* **Parameters:**
-  * `size` (number): Number of cards to include in the deck. Defaults to `1` if omitted or non-positive.
+*   **Description:** Spawns a new `deck_of_cards` prefab, assigns it `size` randomly selected available card IDs, and registers it for lifecycle management. If card IDs are exhausted, generates IDs using fallback randomization.
+*   **Parameters:** `size` (number) - number of cards to place in the deck; defaults to `1` if `nil` or non-positive.
+*   **Returns:** `deck` (entity instance) — the spawned deck entity.
+*   **Error states:** None — failsafe fallback to pseudo-random ID generation if available IDs are exhausted.
 
 ### `MakePlayingCard(id, facedown)`
-* **Description:** Spawns a new `playing_card` entity, assigns it an ID (either explicitly provided or drawn from the pool), and optionally sets it face-down. Registers it for automatic ID return on removal.
-* **Parameters:**
-  * `id` (number, optional): Specific card ID to assign. If omitted, draws from the available pool.
-  * `facedown` (boolean, optional): If `true`, sets the card as face-down.
+*   **Description:** Spawns a `playing_card` prefab, sets its ID (either provided or randomly selected from available pool), optionally sets initial face state, and registers it for lifecycle management.
+*   **Parameters:**  
+    - `id` (number?, optional) — specific card ID to assign; if `nil`, pulls from available pool or generates fallback ID.  
+    - `facedown` (boolean?, optional) — if `true`, initializes card as face-down.
+*   **Returns:** `card` (entity instance) — the spawned playing card entity.
+*   **Error states:** None — safe fallback ID generation if ID not provided and available pool is empty.
 
 ### `RegisterPlayingCard(card)`
-* **Description:** Assigns a unique card ID to an *already existing* playing card entity (e.g., loaded from save or spawned externally) and registers it for lifecycle management.
-* **Parameters:**
-  * `card` (Entity): A valid playing card entity with a `playingcard` component.
-
-### `OnSave()`
-* **Description:** Serializes the current state of available card IDs. Optionally includes GUIDs of active decks if any exist, for post-load restoration.
-* **Returns:** `data` (table) — containing `available_ids`, and optionally `living_decks` (array of GUIDs). May also return `data, ents` if decks are present.
-
-### `OnLoad(data)`
-* **Description:** Restores the `available_card_ids` pool from saved data during load.
-* **Parameters:**
-  * `data` (table): Saved state from `OnSave`.
-
-### `LoadPostPass(newents, data)`
-* **Description:** Re-registers deck entities after they are instantiated from save data, re-attaching their `"onremove"` listeners.
-* **Parameters:**
-  * `newents` (table): Map of GUID → entity reference for newly loaded entities.
-  * `data` (table): Contains `living_decks` array of GUIDs.
+*   **Description:** Assigns a unique card ID to an *already-spawned* playing card entity and registers it for lifecycle management (i.e., ID return on removal).
+*   **Parameters:** `card` (entity instance) — a `playing_card` entity with a `playingcard` component.
+*   **Returns:** `card` (entity instance) — the same card entity, now assigned an ID and registered.
+*   **Error states:** Fails if `card.components.playingcard` is missing.
 
 ### `GetDebugString()`
-* **Description:** Returns a string listing all currently available card IDs for debugging.
-* **Returns:** `s` (string) — Human-readable list of IDs.
+*   **Description:** Returns a human-readable string listing all currently available card IDs for debugging.
+*   **Parameters:** None.
+*   **Returns:** `s` (string) — debug string in format `"Available Cards: id1; id2; ...;"`.
+*   **Error states:** Returns empty string if no available IDs.
 
 ### `Debug_ResetAvailableIDs()`
-* **Description:** Reinitializes the `available_card_ids` pool using current `TUNING.PLAYINGCARDS_NUM_SUITS` and `TUNING.PLAYINGCARDS_NUM_PIPS` constants. Useful for development/testing without world restart.
-* **Note:** Uses `NUM_SUITS` and `NUM_PIPS`, likely defined constants in scope (possibly aliases for `TUNING.PLAYINGCARDS_NUM_*`).
+*   **Description:** Resets the internal available ID pool to full stock, using `NUM_SUITS` and `NUM_PIPS` globals. Intended for debugging/test scenarios.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** None — global variables `NUM_SUITS`/`NUM_PIPS` must be defined (typically via `TUNING.PLAYINGCARDS_NUM_*` in production).
 
-## Events & Listeners
+## Events & listeners
+- **Listens to:**  
+  - `onremove` on decks and playing cards — triggers ID回收 and unregisters from internal `decks` registry.  
+- **Pushes:** None.  
+- **Save/Load events handled internally:**  
+  - `OnSave`, `OnLoad`, `LoadPostPass` manage persistence of available IDs and live decks across server restarts.
 
-- **Listens for `"onremove"` on decks** — to return all contained card IDs to the available pool via `deck_onremove`.
-- **Listens for `"onremove"` on individual cards** — to return the card’s ID to the available pool via `card_onremove`.
-- **Listens for `"onremove"` on decks during `LoadPostPass`** — to ensure post-load cleanup is handled.
-- Does **not** push or emit any events itself.

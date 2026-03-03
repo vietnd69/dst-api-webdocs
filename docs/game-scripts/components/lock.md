@@ -1,100 +1,150 @@
 ---
 id: lock
 title: Lock
-description: Manages lock state, key interaction, and tag updates for entities like doors and chests.
+description: Manages lock/unlock state and key-based access control for entities such as doors and containers.
+tags: [inventory, access, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 6fc821df
+system_scope: entity
 ---
 
 # Lock
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Lock` component manages whether an entity (e.g., a door or chest) is locked or unlocked, handles key-based unlocking, tracks lock state persistence, and dynamically adds/removes tags (`locktype_lock`, `unlockable`) based on current conditions. It integrates with key and inventory components to enable interaction logic.
+`Lock` is a state-management component that controls whether an entity (e.g., a door or container) is locked, unlocked, or stuck, and handles interaction with a physical key item. It integrates with the `inventory`, `inventoryitem`, `key`, and `stackable` components to manage key consumption, removal, and state transitions. It also maintains optional callbacks (`onlocked`, `onunlocked`) and custom unlock tests via `unlocktest`. Tags such as `locktype_lock` and `unlockable` are dynamically applied/removed to reflect state.
 
-## Dependencies & Tags
-**Depends on components:**
-- `key` (for key usage/removal tracking)
-- `stackable` (optional, for stackable keys)
-- `inventory` (on doer entity during lock/unlock operations)
-- `inventoryitem` (on key entity for removal from owner)
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("lock")
 
-**Tags added/removed:**
-- `<locktype>_lock` (e.g., `door_lock`, `chest_lock`) — added/removed based on `locktype` and `isstuck`
-- `unlockable` — added when `key ~= nil`, `islocked == true`, and `isstuck == false`
+-- Configure the lock to use a door-type key
+inst.components.lock:SetOnUnlockedFn(function(inst, key, doer)
+    print("Door unlocked!")
+end)
+
+-- Optionally set a custom unlock test
+inst.components.lock.unlocktest = function(key, lock_inst)
+    if key.prefab == "brass_key" then
+        lock_inst:Unlock(key)
+    end
+end
+
+-- Attach a key and lock the entity
+local key = SpawnPrefab("brass_key")
+inst.components.lock:SetKey(key)
+inst.components.lock:SetLocked(true)
+```
+
+## Dependencies & tags
+**Components used:** `inventory`, `inventoryitem`, `key`, `stackable`
+**Tags:** Adds/Removes:
+- `<locktype>_"lock"` (e.g., `"door_lock"`), conditionally based on `locktype` and `isstuck`
+- `"unlockable"`, added only when `key ~= nil`, `islocked == true`, and `not isstuck`
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed in) | The entity the component is attached to |
-| `onlocked` | `function?` | `nil` | Optional callback invoked when the lock is manually re-locked |
-| `onunlocked` | `function?` | `nil` | Optional callback invoked when the lock is successfully unlocked |
-| `unlocktest` | `function?` | `nil` | Optional custom unlock test function; if set, overrides default `Unlock` behavior |
-| `islocked` | `boolean` | `true` | Whether the entity is currently locked |
-| `isstuck` | `boolean` | `false` | Whether the lock is stuck (cannot be changed via key) |
-| `key` | `Entity?` | `nil` | The key entity associated with this lock |
-| `locktype` | `LOCKTYPE enum` | `LOCKTYPE.DOOR` | The type of lock (e.g., `DOOR`, `CHEST`), used to generate tags and check compatibility |
+| `inst` | `Entity` | `nil` (set in constructor) | Entity instance owning this component. |
+| `onlocked` | function | `nil` | Callback fired when the lock is set to locked. Signature: `fn(inst, doer?)`. |
+| `onunlocked` | function | `nil` | Callback fired when the lock is set to unlocked. Signature: `fn(inst, key, doer)`. |
+| `unlocktest` | function | `nil` | Optional custom function to override default unlock logic. Signature: `fn(key, inst)`. If provided, `Unlock()` is not called automatically; the function must handle unlocking explicitly. |
+| `islocked` | boolean | `true` | Whether the entity is currently locked. |
+| `isstuck` | boolean | `false` | Whether the lock is stuck and cannot be toggled. |
+| `key` | `Entity?` | `nil` | The key entity currently associated with this lock. |
+| `locktype` | string | `LOCKTYPE.DOOR` | Type of key required (e.g., `"door"`, `"chest"`). |
 
-## Main Functions
-### `Lock:Unlock(key, doer)`
-* **Description:** Unlocks the entity using the provided key, provided the lock is not stuck and is currently locked. Decrements/removes the key and triggers the `onunlocked` callback if set.
-* **Parameters:**
-  - `key` (`Entity?`): The key entity to use for unlocking. If provided, it is consumed or returned to the doer.
-  - `doer` (`Entity`): The entity performing the unlock action (e.g., the player).
+## Main functions
+### `OnRemoveFromEntity()`
+*   **Description:** Clean-up function called when the component is removed from its entity. Removes associated tags.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `Lock:Lock(doer)`
-* **Description:** Manually re-locks the entity (e.g., after being opened without a key or via override). Returns the key to the doer’s inventory if one exists.
-* **Parameters:**
-  - `doer` (`Entity`): The entity performing the lock action.
+### `GetDebugString()`
+*   **Description:** Returns a human-readable debug representation of the lock’s current state.
+*   **Parameters:** None.
+*   **Returns:** `string` — formatted as `"type:<locktype>, locked:<bool>, isstuck:<bool>, key:<guid or nil>"`.
 
-### `Lock:TestForUnlock(key)`
-* **Description:** Attempts to unlock using the provided key. If a custom `unlocktest` function is set, it is invoked instead of the default unlock logic.
-* **Parameters:**
-  - `key` (`Entity`): The key entity to test against the lock.
+### `SetOnUnlockedFn(fn)`
+*   **Description:** Sets the callback to invoke when the lock is successfully unlocked.
+*   **Parameters:** `fn` (function) — callback with signature `fn(inst, key, doer)`.
+*   **Returns:** Nothing.
 
-### `Lock:SetLocked(locked)`
-* **Description:** Directly sets the `islocked` state without checking key compatibility. Triggers `onlocked` or `onunlocked` callbacks if defined.
-* **Parameters:**
-  - `locked` (`boolean`): Target lock state.
+### `SetOnLockedFn(fn)`
+*   **Description:** Sets the callback to invoke when the lock is locked.
+*   **Parameters:** `fn` (function) — callback with signature `fn(inst, doer?)`.
+*   **Returns:** Nothing.
 
-### `Lock:CompatableKey(keytype)`
-* **Description:** Checks if a given key type is compatible with this lock (ignoring case where `isstuck == true`).
-* **Parameters:**
-  - `keytype` (`LOCKTYPE`): The type of the key being tested.
+### `CompatableKey(keytype)`
+*   **Description:** Determines if a given key type is compatible with this lock. Returns `false` if stuck or type mismatch.
+*   **Parameters:** `keytype` (string) — the type of the key being tested.
+*   **Returns:** `boolean` — `true` only if `not IsStuck()` and `keytype == locktype`.
 
-### `Lock:SetKey(key)`
-* **Description:** Assigns a key entity to the lock, managing entity hierarchy (adding/removing as child). Handles scene transitions for key persistence.
-* **Parameters:**
-  - `key` (`Entity?`): The key entity to associate, or `nil` to clear.
+### `IsStuck()`
+*   **Description:** Returns whether the lock is stuck.
+*   **Parameters:** None.
+*   **Returns:** `boolean`.
 
-### `Lock:GetDebugString()`
-* **Description:** Returns a formatted string for debugging, including lock type, locked state, stuck state, and key GUID.
-* **Returns:** `string`
+### `IsLocked()`
+*   **Description:** Returns whether the lock is currently locked.
+*   **Parameters:** None.
+*   **Returns:** `boolean`.
 
-### `Lock:IsStuck()`, `Lock:IsLocked()`
-* **Description:** Simple getters for `isstuck` and `islocked` states.
-* **Returns:** `boolean`
+### `Unlock(key, doer)`
+*   **Description:** Unlocks the entity, consuming or decrementing the key stack. Fires `onunlocked` and removes the key from inventory if applicable.
+*   **Parameters:**  
+    `key` (Entity or `nil`) — the key entity used.  
+    `doer` (Entity) — the entity performing the unlock (e.g., a player).
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `isstuck == true` or `islocked == false`.
 
-### `Lock:SetOnUnlockedFn(fn)`, `Lock:SetOnLockedFn(fn)`
-* **Description:** Sets optional callback functions for unlock and lock events.
-* **Parameters:**
-  - `fn` (`function`): Function to be called on unlock/lock.
+### `Lock(doer)`
+*   **Description:** Locks the entity. Returns the key to the `doer`’s inventory if one exists.
+*   **Parameters:** `doer` (Entity) — the entity performing the lock.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `isstuck == true` or `islocked == true`.
 
-### `Lock:OnSave()`, `Lock:OnLoad(data)`, `Lock:LoadPostPass(newents, data)`
-* **Description:** Serialization/deserialization helpers for save/load. Stores `locked`, `isstuck`, and key GUID. `LoadPostPass` resolves the key entity reference post-load.
-* **Parameters:**
-  - `data` (`table?`): Persisted state table (keys: `locked`, `isstuck`, `key`).
-  - `newents` (`table`): Map of GUID → entity for post-load resolution.
+### `SetKey(key)`
+*   **Description:** Assigns a key entity to this lock. Handles scene hierarchy (add/remove as child).
+*   **Parameters:** `key` (Entity or `nil`) — the key entity to attach/detach.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-The component does not register any `inst:ListenForEvent` listeners and does not push events (`inst:PushEvent`). Tag changes (`AddTag`/`RemoveTag`) are immediate side effects of state updates, not events.
+### `TestForUnlock(key)`
+*   **Description:** Attempts to unlock using the given key. Uses either a custom `unlocktest` or defaults to `Unlock()`.
+*   **Parameters:** `key` (Entity) — the key to test/apply.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early with `false` if `IsStuck() == true`.
 
-## Notes
-- Tag updates (`_lock`, `unlockable`) are automatically managed via property setters registered in the class metatable (e.g., setting `locktype`, `islocked`, `key`, `isstuck` triggers associated handlers).
-- `isstuck` overrides tag management: when true, the `_lock` tag is removed; otherwise, it is applied based on `locktype`.
-- If a key is consumed during unlock, it is removed from the doer’s inventory *after* calling `key.components.key:OnUsed`.
+### `SetLocked(locked)`
+*   **Description:** Directly sets the `islocked` state without requiring a key, skipping key interactions and callbacks unless provided.
+*   **Parameters:** `locked` (boolean) — target lock state.
+*   **Returns:** Nothing.
+
+### `OnSave()`
+*   **Description:** Serializes lock state for world save.
+*   **Parameters:** None.
+*   **Returns:**  
+    `table, table?` — first table: `{ locked, isstuck, key = GUID? }`; second table: `{ GUID }` of the key if present.
+
+### `OnLoad(data)`
+*   **Description:** Restores lock state from save data.
+*   **Parameters:** `data` (table or `nil`) — contains `locked` and `isstuck` fields.
+*   **Returns:** Nothing.
+
+### `LoadPostPass(newents, data)`
+*   **Description:** Resolves key entity reference after load.
+*   **Parameters:**  
+    `newents` (table) — mapping of GUIDs to entity entries.  
+    `data` (table) — contains `key` GUID.
+*   **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:** None (no `inst:ListenForEvent` calls).
+- **Pushes:** None (no `inst:PushEvent` calls).

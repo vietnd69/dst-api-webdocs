@@ -1,37 +1,44 @@
 ---
 id: murderable
 title: Murderable
-description: Marks an entity as killable by hostile entities (e.g., Pigs, Houndius) by adding the "murderable" tag.
+description: Adds the `murderable` tag to an entity, marking it as a valid target for murder-related game logic.
+tags: [tag, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: da4e1201
+system_scope: entity
 ---
 
 # Murderable
 
-## Overview
-The `Murderable` component enables an entity to be targeted and killed by certain hostile entities (such as pigs, hounds, and other *murderers*) by tagging it with `"murderable"`. It ensures the tag is added on instantiation and cleanly removed when the component is detached from the entity.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependency:** None (relies only on core engine functionality).
-- **Tags Added:** `"murderable"`  
-- **Tags Removed (on removal):** `"murderable"`
+## Overview
+The `Murderable` component assigns the `murderable` tag to the entity it is attached to. This tag signals to other systems (e.g., AI, actions, or gameplay rules) that the entity can be murdered. It is a simple tag-based marker used for behavioral and rule-based filtering across the game.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("murderable")
+-- The entity now has the "murderable" tag and can be detected via `inst:HasTag("murderable")`
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `murderable` on construction; removes `murderable` on component removal.
 
 ## Properties
-| Property      | Type   | Default Value | Description                                      |
-|---------------|--------|---------------|--------------------------------------------------|
-| `inst`        | `Entity` | (passed to constructor) | Reference to the entity the component is attached to. |
-| `murdersound` | `string?` | `nil`         | Unused placeholder; no sound is assigned or used. |
+No public properties
 
-## Main Functions
-### `Murderable:OnRemoveFromEntity()`
-* **Description:** Removes the `"murderable"` tag from the entity when the component is removed, preventing unintended behavior after detachment.  
+## Main functions
+### `OnRemoveFromEntity()`
+* **Description:** Called when the component is removed from its entity. Removes the `murderable` tag.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified

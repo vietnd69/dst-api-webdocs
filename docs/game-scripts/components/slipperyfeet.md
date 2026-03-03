@@ -1,99 +1,108 @@
 ---
 id: slipperyfeet
 title: Slipperyfeet
-description: This component manages ice-based slippiness mechanics by tracking movement-based accumulation and decay of slip effects, responding to nearby ice entities and ocean ice tiles.
+description: Manages the accumulation and decay of slippiness on an entity, enabling ice-related movement mechanics and slip events based on speed and environmental factors.
+tags: [locomotion, physics, environment]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: b5bb16a7
+system_scope: physics
 ---
-
 # Slipperyfeet
 
-## Overview
-This component implements a slippiness system for player entities, dynamically adjusting a `slippiness` value based on movement speed while on slippery surfaces (e.g., ocean ice or ice-covered entities). It accumulates slip when running on ice and decays over time when stationary, triggering a `feetslipped` event when the value exceeds a defined threshold.
+> Based on game build **714004** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies:** None (no explicit `inst:AddComponent` calls).
-- **Tags Used:** Listens for entities with the `"slipperyfeettarget"` tag to determine local slip sources; checks for `"nonslipgritpool"` tag entities for grit-based nonslip effects.
-- **Tag Adds/Removes:** None.
+## Overview
+The `slipperyfeet` component tracks how much slippiness an entity accumulates based on movement speed and environmental conditions (e.g., ocean ice tiles or nearby slippery entities). When slippiness exceeds a predefined threshold, the `feetslipped` event is fired. The component supports gradual buildup during motion and decay when the entity slows or leaves icy zones. It cooperates closely with the `slipperyfeettarget`, `nonslipgritpool`, and `nonslipgrituser` components to modulate slippiness behavior dynamically.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("slipperyfeet")
+-- Slippiness accumulates automatically when the entity runs on ice.
+-- Event listener example:
+inst:ListenForEvent("feetslipped", function() 
+    print("Entity slipped!") 
+end)
+```
+
+## Dependencies & tags
+**Components used:** `slipperyfeettarget`, `nonslipgritpool`, `nonslipgrituser`
+**Tags:** Checks for `slipperyfeettarget` and `nonslipgritpool`; adds no new tags.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `_sources` | `SourceModifierList` | `SourceModifierList(inst, false, SourceModifierList.boolean)` | Tracks active slippery sources (e.g., `"ocean_ice"`, `"ice_entity"`). Boolean list used to gate `slippiness` accumulation. |
-| `_updating` | `table` | `{}` | Tracks which update loops are active (e.g., `"accumulate"`, `"decay"`, `"checkice"`). Keys are string identifiers; values are booleans. |
-| `onicetile` | `boolean` | `false` | `true` when the player is standing directly on an ocean ice tile. |
-| `started` | `boolean` | `false` | Indicates whether the component is actively updating (i.e., listening to state changes). |
-| `threshold` | `number` | `TUNING.WILSON_RUN_SPEED * 4` | Minimum `slippiness` value to trigger the `feetslipped` event. |
-| `decay_accel` | `number` | `TUNING.WILSON_RUN_SPEED * 2` | Acceleration used for decay rate calculation (applied over time). |
-| `decay_spd` | `number` | `0` | Current decay speed (used for linear interpolation of decay over time). |
-| `slippiness` | `number` | `0` | Current accumulated slippiness value. Ranges from `0` (not slippery) upward; triggers `feetslipped` when exceeding `threshold`. |
+| `slippiness` | number | `0` | Current slippiness value; increases with movement speed on ice and decreases over time. |
+| `threshold` | number | `TUNING.WILSON_RUN_SPEED * 4` | Threshold at which `feetslipped` event is triggered. |
+| `decay_accel` | number | `TUNING.WILSON_RUN_SPEED * 2` | Acceleration used to compute decay speed during slowdown. |
+| `decay_spd` | number | `0` | Current decay speed, updated each frame during decay. |
+| `onicetile` | boolean | `false` | Whether the entity is currently standing on an ocean ice tile. |
+| `started` | boolean | `false` | Whether the component has begun tracking slippiness (state-dependent). |
+| `_sources` | SourceModifierList | `SourceModifierList(...)` | Tracks active sources (e.g., `"ocean_ice"`, `"ice_entity"`) that enable slippiness. |
+| `_updating` | table | `{}` | Tracks active updater tasks (e.g., `"accumulate"`, `"decay"`) to prevent duplicates. |
 
-## Main Functions
-
+## Main functions
 ### `StartSlipperySource(src, key)`
-* **Description:** Enables a slippery source (e.g., `"ocean_ice"` or `"ice_entity"`), activates internal updates, and begins accumulation of `slippiness` if not already active.  
-* **Parameters:**  
-  * `src` (string): The source identifier (e.g., `"ice_entity"`).  
-  * `key` (any, optional): Optional key used for `SourceModifierList` scoping.
+*   **Description:** Activates a source (e.g., `"ocean_ice"`, `"ice_entity"`) that contributes to slippiness and starts internal update mechanisms if not already running.
+*   **Parameters:**  
+    `src` (string) – Name of the source.  
+    `key` (any, optional) – Identifier for deduplication when the same source may be added multiple times.
+*   **Returns:** Nothing.
 
 ### `StopSlipperySource(src, key)`
-* **Description:** Disables a slippery source. If no sources remain active, stops internal updates and `slippiness` accumulation.  
-* **Parameters:**  
-  * `src` (string): The source identifier to stop.  
-  * `key` (any, optional): Optional key used for `SourceModifierList` scoping.
-
-### `GetSlipperyAndNearbyEnts()`
-* **Description:** Scans for nearby entities with the `"slipperyfeettarget"` tag within `SLIPPERY_CHECK_RADIUS` (12 units). Returns the first *valid* slippery entity (where `IsSlipperyAtPosition` returns `true`) and the first entity found (even if non-slippery). Used for detecting nearby ice patches or entities.  
-* **Parameters:** None.
-
-### `SetCurrent(val)`
-* **Description:** Sets `slippiness` to `val`. If `val > 0`, starts the `decay` update loop; if `val ≥ threshold`, pushes the `feetslipped` event.  
-* **Parameters:**  
-  * `val` (number): The new `slippiness` value.
+*   **Description:** Deactivates a previously added source; stops internal updates if no sources remain.
+*   **Parameters:**  
+    `src` (string) – Name of the source.  
+    `key` (any, optional) – Identifier matching the key used in `StartSlipperySource`.
+*   **Returns:** Nothing.
 
 ### `DoDelta(delta)`
-* **Description:** Adjusts `slippiness` by `delta`, clamping to non-negative values. Handles both accumulation (positive `delta`) and decay (negative `delta`).  
-* **Parameters:**  
-  * `delta` (number): Change to apply to `slippiness`.
+*   **Description:** Adjusts `slippiness` by `delta`. Triggers decay or `feetslipped` event as appropriate.
+*   **Parameters:**  
+    `delta` (number) – Amount to add to `slippiness`.
+*   **Returns:** Nothing.
 
-### `CalcAccumulatingSpeed()`
-* **Description:** Computes a *curved* accumulation rate based on movement speed. Formula: `speed² / TUNING.WILSON_RUN_SPEED`. Used to increase slippiness faster at higher speeds.  
-* **Parameters:** None.
+### `Start_Internal()`
+*   **Description:** Begins update-related logic when slippiness can accumulate (e.g., entity is running and not blocked by `noslip`).
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `StartUpdating_Internal(reason)`, `StopUpdating_Internal(reason)`
-* **Description:** Manages component-level update cycles. `StartUpdating_Internal` activates `inst:StartUpdatingComponent`, cancelling any slow-check task; `StopUpdating_Internal` deactivates updates and restarts the slow-check task if no other updates are running.  
-* **Parameters:**  
-  * `reason` (string): Identifier for the update loop (e.g., `"accumulate"`, `"checkice"`).
+### `Stop_Internal()`
+*   **Description:** Stops update-related logic when slippiness should no longer accumulate (e.g., entity stops running or enters `noslip` state).
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `DoDecay(dt)`
-* **Description:** Applies decay to `slippiness` using a linearly accelerating speed (`decay_spd`), based on `decay_accel`. Simulates gradual loss of slip effect over time.  
-* **Parameters:**  
-  * `dt` (number): Delta time (seconds).
+### `SetCurrent(val)`
+*   **Description:** Sets the current `slippiness` value directly and manages decay task state.
+*   **Parameters:**  
+    `val` (number) – New slippiness value.
+*   **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-* **Description:** Main update loop called every frame when the component is active. Performs:  
-  1. Ocean ice tile tracking (stops slip if visually grounded off-ice).  
-  2. Slippery entity proximity checks (updates `"ice_entity"` source).  
-  3. Accumulation or decay logic, influenced by grit pools and entity-specific slip rates.  
-* **Parameters:**  
-  * `dt` (number): Delta time (seconds).
+*   **Description:** Primary per-frame update loop. Handles ice tile tracking, entity proximity checks, slippiness accumulation, and grit-based decay.
+*   **Parameters:**  
+    `dt` (number) – Delta time since last frame.
+*   **Returns:** Nothing.
 
 ### `LongUpdate(dt)`
-* **Description:** High-interval update (e.g., for infrequent but precise adjustments). Accumulates slip in a single-frame burst (`FRAMES`), or decays if `slippiness > 0`.  
-* **Parameters:**  
-  * `dt` (number): Delta time (seconds).
+*   **Description:** Infrequent update used when the entity moves slowly (e.g., paused in air), accumulating slippiness for a single simulated frame instead of per `dt`.
+*   **Parameters:**  
+    `dt` (number) – Delta time (used for decay, not accumulation).
+*   **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted debug string showing: current `slippiness`, `threshold`, and either accumulation rate or current decay speed.  
-* **Parameters:** None.
+*   **Description:** Returns a formatted string for debugging, showing current slippiness, threshold, and current accumulation/decay rate.
+*   **Parameters:** None.
+*   **Returns:**  
+    `string` – e.g., `"12.3/32.0 (+5.1/s)"`
 
-## Events & Listeners
-- **Listens to `"on_OCEAN_ICE_tile"`**: Calls `OnOceanIce` when the entity enters or exits ocean ice tiles.
-- **Listens to `"newstate"`**: Calls `OnNewState` to enable/disable accumulation when the entity enters or exits `"running"` state (and lacks `"noslip"`).
-- **Triggers `"feetslipped"`**: Pushed via `inst:PushEvent` when `slippiness ≥ threshold` (within `SetCurrent`).
+## Events & listeners
+- **Listens to:**  
+  `on_OCEAN_ICE_tile` – triggers state change when the entity enters or leaves ocean ice.  
+  `newstate` – detects when the entity enters/exits `running` state or `noslip` state.
+- **Pushes:**  
+  `feetslipped` – fired when `slippiness` reaches or exceeds `threshold`.

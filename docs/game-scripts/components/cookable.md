@@ -1,45 +1,63 @@
 ---
 id: cookable
 title: Cookable
-description: This component marks an entity as cookable and defines its transformation or callback upon being cooked.
+description: Enables an entity to be transformed into a cooked product when processed in a cooking station.
+tags: [cooking, inventory, crafting]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: inventory
+category_type: components
 source_hash: 302486cf
+system_scope: crafting
 ---
 
 # Cookable
 
-## Overview
-This component enables an entity to be cooked by various game mechanisms, such as a Crock Pot or fire. Its primary responsibility is to define the outcome of the cooking process, which can involve transforming the entity into a different prefab or executing a custom callback function. It also includes logic for transferring perishability status from the original item to the newly cooked product.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-*   **Tags Added:** `cookable` (to `self.inst`).
-*   **Components Interacted With:** `perishable` (on `self.inst` and the `product` entity, if present).
+## Overview
+`Cookable` allows an entity to be processed into a new cooked item via cooking devices (e.g., campfire, crock pot). It stores the product definition (either a static prefab name or a factory function) and handles the creation of the output item upon cooking. When applied to an entity, it adds the `cookable` tag and registers a callback function that executes during the cooking process. It optionally synchronizes perishability from the original item to the cooked product, reducing spoilage by half for non-small-creature items.
+
+This component is typically added to raw food prefabs and interacts with the `perishable` component to preserve freshness in the cooked output.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("cookable")
+inst.components.cookable:SetProduct(" cooked_item_name")
+inst.components.cookable:SetOnCookedFn(function(inst, cooker, chef)
+    -- custom logic (e.g., sound, effects)
+end)
+```
+
+## Dependencies & tags
+**Components used:** `perishable` (read-only access via `GetPercent`/`SetPercent` for spoilage transfer)
+**Tags:** Adds `cookable` tag to the entity on initialization; removes it on component removal.
 
 ## Properties
-| Property   | Type                   | Default Value | Description                                                                                                                                                                                                                                                         |
-| :--------- | :--------------------- | :------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `product`  | `string` or `function` | `nil`         | Specifies what the cookable item transforms into after cooking. This can be a string representing a prefab name, or a function that returns either a prefab name (string) or a spawned prefab instance (entity). The function receives `(inst, cooker, chef)` as arguments. |
-| `oncooked` | `function`             | `nil`         | A callback function executed immediately when the item is cooked. It receives `(inst, cooker, chef)` as arguments, where `inst` is the cookable item, `cooker` is the cooking device, and `chef` is the player who initiated the cooking.                               |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `product` | string or function | `nil` | The prefab name or a callable that returns a prefab name/function for the cooked result. |
+| `oncooked` | function | `nil` | Optional callback invoked when cooking completes; signature: `fn(inst, cooker, chef)`. |
 
-## Main Functions
-### `OnRemoveFromEntity()`
-*   **Description:** This function is automatically called when the `Cookable` component is removed from its associated entity. It ensures that the "cookable" tag is also removed from the entity, maintaining proper entity state.
-*   **Parameters:** None.
-
+## Main functions
 ### `SetOnCookedFn(fn)`
-*   **Description:** Sets the custom callback function that will be invoked when the item undergoes the cooking process. This allows mod developers to implement specific logic or effects upon cooking.
-*   **Parameters:**
-    *   `fn`: (`function`) The function to be called. It should accept three arguments: `inst` (the entity being cooked), `cooker` (the cooking device), and `chef` (the player who cooked the item, if applicable).
+* **Description:** Sets the callback function executed during cooking. Useful for side effects like particle effects, sounds, or custom logic.
+* **Parameters:** `fn` (function) — A function accepting three arguments: the cooked entity (`inst`), the cooking device (`cooker`), and the cooking character (`chef`).
+* **Returns:** Nothing.
+* **Error states:** No validation; setting `nil` disables the callback.
 
 ### `Cook(cooker, chef)`
-*   **Description:** Executes the core cooking logic for the entity. It first calls any assigned `oncooked` callback function. Then, if a `product` is defined, it spawns that product. If both the original item and the spawned product possess the `perishable` component (and the original item is not tagged "smallcreature"), it transfers a modified percentage of the original item's perishability to the new product.
-*   **Parameters:**
-    *   `cooker`: (`Entity`) The entity representing the cooking device (e.g., a `crockpot`, `fire`).
-    *   `chef`: (`Entity`) The player entity responsible for the cooking action, if any.
-*   **Returns:** (`Entity` or `nil`) The newly spawned product entity if the cooking process successfully yielded one, otherwise `nil`.
+* **Description:** Performs the cooking action. Executes the `oncooked` callback (if set), spawns the product prefab, and—if both original and product have `perishable` components and the item is not a `smallcreature`—adjusts the product's spoilage level based on the original’s freshness.
+* **Parameters:**  
+  - `cooker` (Entity) — The cooking device or appliance used.  
+  - `chef` (Entity) — The character performing the cooking.
+* **Returns:** `Entity?` — The newly spawned product entity, or `nil` if no product is defined or spawn fails.
+* **Error states:**  
+  - Returns `nil` if `self.product` is `nil`.  
+  - Spoilage transfer is skipped if `self.inst:HasTag("smallcreature")` is true, or if either entity lacks a `perishable` component.
+
+## Events & listeners
+- **Pushes:** No events are fired by this component itself. Event-driven behavior is expected via the `oncooked` callback.

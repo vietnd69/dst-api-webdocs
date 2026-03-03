@@ -1,60 +1,66 @@
 ---
 id: playertargetindicator
 title: Playertargetindicator
-description: Tracks off-screen players with HUD-indicatable components and manages target indicators for the local player's HUD.
+description: Tracks players who should display target indicators on screen and manages their visibility based on frustum culling and tracking eligibility.
+tags: [ui, camera, player, frustum]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: ui
+category_type: components
 source_hash: 4aba6f5f
+system_scope: ui
 ---
-
 # Playertargetindicator
 
-## Overview
-This component is responsible for managing the visibility of target indicators (e.g., health bars, icons) on the local player's HUD for other players who are currently off-screen but still within the indicator range. It detects when players enter/exit the screen using frustum checks and HUD-indicatable state, updating the HUD accordingly.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires the `hudindicatable` component on tracked targets (via `target.components.hudindicatable`).
-- Relies on `TheWorld.components.hudindicatablemanager` to maintain a list of indicatable entities.
-- Attaches to an entity (typically the player) and starts automatic updates via `inst:StartUpdatingComponent(self)`.
-- Registers for the `"unregister_hudindicatable"` event from `TheWorld`.
+## Overview
+`PlayerTargetIndicator` is a client-side component that manages the visibility of target indicators for other players. It monitors which players are currently within the camera frustum, ensures they meet tracking criteria (via `hudindicatable`), and updates the HUD accordingly by adding or removing target indicators. The component relies on the `hudindicatable` and `hudindicatablemanager` components to determine tracking eligibility and discovery of eligible targets.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("playertargetindicator")
+-- The component automatically registers for events and starts tracking when the entity is updated
+-- Typically added to player prefabs to manage their view of other players' target indicators
+```
+
+## Dependencies & tags
+**Components used:**  
+- `hudindicatable` (via `target.components.hudindicatable:ShouldTrack()`)  
+- `hudindicatablemanager` (via `TheWorld.components.hudindicatablemanager.items`)  
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity the component is attached to (the local player). |
-| `offScreenPlayers` | `table` | `{}` | List of players currently tracked off-screen and whose target indicators are active on the HUD. |
-| `onScreenPlayersLastTick` | `table` | `{}` | List of players that were on-screen (passed frustum check) during the last update cycle. |
-| `onplayerexited` | `function` | `OnPlayerExited(self, player)` | Event handler callback invoked when `"unregister_hudindicatable"` is fired. |
+| `offScreenPlayers` | table (array) | `{}` | List of players currently off-screen but whose indicators are visible (tracked for removal when they return on screen or become untrackable). |
+| `onScreenPlayersLastTick` | table (array) | `{}` | List of players who were within camera frustum in the previous update frame. |
 
-*Note:* No `_ctor` is explicitly defined; initialization occurs inline in the `Class()` function. Properties marked above are initialized during construction.
-
-## Main Functions
-### `OnRemoveFromEntity()`
-* **Description:** Cleans up when the component is removed. Removes all active target indicators from the HUD, unregisters the event listener, and clears internal state.
-* **Parameters:** None (method on the component instance).
-
+## Main functions
 ### `ShouldShowIndicator(target)`
-* **Description:** Determines whether a target player should have a HUD indicator shown (i.e., is off-screen, tracked, and indicatable).
-* **Parameters:**  
-  `target` (`Entity`): The potential target player entity.
+*   **Description:** Determines whether the target player should have a target indicator added to the HUD. Returns `true` only if the target is eligible for tracking *and* was on-screen in the previous frame (indicating it just moved off-screen).
+*   **Parameters:** `target` (Entity) — the potential target player entity.
+*   **Returns:** `boolean` — `true` if the indicator should be shown, otherwise `false`.
+*   **Error states:** Assumes `target.components.hudindicatable` exists; may fail if called on an entity without this component.
 
 ### `ShouldRemoveIndicator(target)`
-* **Description:** Determines whether a target player’s indicator should be removed (i.e., no longer tracked or indicatable).
-* **Parameters:**  
-  `target` (`Entity`): The player entity to check.
+*   **Description:** Determines whether an existing target indicator should be removed. Returns `true` if the target no longer qualifies for tracking.
+*   **Parameters:** `target` (Entity) — the target player entity currently shown.
+*   **Returns:** `boolean` — `true` if the indicator should be removed, otherwise `false`.
 
 ### `OnUpdate()`
-* **Description:** Main update loop (called each tick). Syncs active indicators: removes indicators for players who are no longer indicatable, adds indicators for newly off-screen indicatable players, and updates tracking lists.
-* **Parameters:** None.
+*   **Description:** The main update loop. Checks tracked off-screen players for removal conditions, identifies newly eligible targets via the world’s `hudindicatablemanager`, and updates HUD indicators. Also refreshes `onScreenPlayersLastTick` for next-frame comparison.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Relies on `TheWorld.components.hudindicatablemanager` being present; silently skips updates if missing.
 
-## Events & Listeners
-- Listens for `"unregister_hudindicatable"` on `TheWorld`, calling `OnPlayerExited`.
-- Removes listener during cleanup in `OnRemoveFromEntity()`.
-- Uses `TheWorld.components.hudindicatablemanager.items` to iterate over all indicatable entities.
+### `OnRemoveFromEntity()`
+*   **Description:** Cleanup function called when the component is removed. Removes all currently tracked target indicators and deregisters event callbacks.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-*Note:* No events are explicitly pushed/triggers by this component — it only consumes events and updates the HUD via `inst.HUD:AddTargetIndicator()` / `inst.HUD:RemoveTargetIndicator()`.
+## Events & listeners
+- **Listens to:** `unregister_hudindicatable` — triggers `OnPlayerExited` to remove target indicators when a player leaves the world or is unregistered.  
+- **Pushes:** None.

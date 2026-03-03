@@ -1,45 +1,44 @@
 ---
 id: moonstormstaticbrain
 title: Moonstormstaticbrain
-description: Controls a static entity's behavior by limiting wandering to land tiles within active moonstorm zones.
+description: Assigns a wandering behavior to an entity that restricts movement to land tiles within active moonstorm zones.
+tags: [ai, movement, environment]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 171c3a7f
+system_scope: entity
 ---
 
 # Moonstormstaticbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-This brain component defines a static entity's AI behavior by restricting its movement to land tiles that are currently inside an active moonstorm. It uses a single `Wander` behavior with a custom point-checking function (`CheckPointFn`) that validates terrain type (land only) and moonstorm zone presence. The brain initializes a behavior tree with this wandering action as its root priority node.
+`Moonstormstaticbrain` implements a behavior tree for an entity that instructs it to wander within a limited radius, constrained to land tiles and only while the moonstorm is active at the entity's location. It uses the `Wander` behavior and integrates with the `moonstorms` component to conditionally permit movement based on the current moonstorm state.
 
-It is designed for entities that should remain stationary relative to the world but only become active or move when located within a moonstorm (e.g., static structures or creatures that react to moonstorms).
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddBrain("moonstormstaticbrain")
+-- The brain automatically initializes its behavior tree on entity spawn
+```
 
-## Dependencies & Tags
-- **Components used:** 
-  - `TheWorld.net.components.moonstorms` (accessed via `TheWorld.net` during point validation)
-- **Tags:** None identified.
+## Dependencies & tags
+**Components used:** `moonstorms` (via `TheWorld.net.components.moonstorms`)
+**Tags:** None identified.
 
 ## Properties
-No explicit instance properties are declared or initialized in the constructor.
+No public properties.
 
-## Main Functions
+## Main functions
 ### `OnStart()`
-* **Description:** Initializes the behavior tree (`self.bt`) for the entity. It constructs a priority root node containing a single `Wander` behavior, configured to wander up to `MAX_WANDER_DIST` units, using predefined timing parameters, and only if `CheckPointFn` returns true for candidate positions.
+* **Description:** Initializes the entity’s behavior tree (`self.bt`) with a single `Wander` action. The wander is restricted to land tiles and only occurs when `moonstorms:IsXZInMoonstorm(x, z)` returns `true`.
 * **Parameters:** None.
-* **Returns:** `nil`.
+* **Returns:** Nothing.
 
-### `CheckPointFn(pt)` (local helper)
-* **Description:** Validates a candidate world position for wandering. Returns `true` only if the point is on a land tile (`TheWorld.Map:IsLandTileAtPoint`) and, if the `moonstorms` component exists, the point lies within the current moonstorm zone (`moonstorms:IsXZInMoonstorm(x, z)`). Returns `true` unconditionally if the `moonstorms` component is not present (e.g., single-player or pre-moonstorm).
-* **Parameters:** 
-  - `pt`: A point object supporting `Get()`, returning `(x, y, z)` world coordinates.
-* **Returns:** `boolean` — `true` if the point is valid for wandering; `false` otherwise.
-
-## Events & Listeners
-None. This brain does not register or fire events directly.
+## Events & listeners
+None identified.

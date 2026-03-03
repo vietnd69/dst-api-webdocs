@@ -1,131 +1,139 @@
 ---
 id: riftspawner
 title: Riftspawner
-description: This component manages the spawning, tracking, and lifecycle of rifts (lunar and shadow portals) in the game world based on difficulty settings and world state.
+description: Manages the spawning, tracking, and state of lunar and shadow rifts in the game world based on difficulty settings and world conditions.
+tags: [ rifts, world, spawner, event ]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 8eed78a6
+system_scope: world
 ---
 
 # Riftspawner
 
-## Overview
-The Riftspawner component is responsible for controlling the dynamic appearance of rifts (lunar and shadow portals) in *Don't Starve Together*. It runs exclusively on the master simulation and handles rift spawning timers, difficulty-based spawn rates, tracking active rifts, and persisting rift state across save/load cycles. It does not directly manage rift behavior but maintains a pool of active rift entities and coordinates their creation and removal.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components used:** `worldsettingstimer` (via `TheWorld.components.worldsettingstimer`), `wagpunk_manager` (optional), `Transform`, `riftthralltype` (optional on rift entities)
-- **Tags managed:** `LUNAR_RIFTS_ACTIVE`, `SHADOW_RIFTS_ACTIVE` (via `WORLDSTATETAGS.SetTagEnabled`)
-- **Tags added on rifts:** No tags added directly; relies on rift prefabs’ inherent tags.
-- **Listeners registered:** `rifts_setdifficulty`, `rifts_settingsenabled`, `rifts_settingsenabled_cave`, `lunarrift_opened`, `shadowrift_opened`, `ms_lunarrift_maxsize`, `ms_shadowrift_maxsize`, `onremove` (on rift entities)
-- **Events pushed:** `ms_riftaddedtopool`, `ms_riftremovedfrompool`
+## Overview
+`RiftSpawner` is a server-side world component responsible for dynamically spawning and maintaining rifts (lunar and shadow) in the game world. It responds to difficulty settings, world state changes, and timed events to control how and when rifts appear. It uses the `worldsettingstimer` component for scheduled spawns and ensures rifts maintain minimum spacing constraints.
+
+This component only exists on the master simulation (`TheWorld.ismastersim`) and works closely with `WagpunkManager` (to control hint/pop-up behavior) and `RiftThrallType` (to assign thrall types to spawned rifts).
+
+## Usage example
+```lua
+-- Typically added automatically to TheWorld during world initialization.
+-- Example of manual interaction:
+if TheWorld.components.riftspawner then
+    -- Enable lunar rifts at "always" difficulty
+    TheWorld.components.riftspawner:SetEnabledSetting(nil, "always")
+    -- Query current rift count
+    local count = TheWorld.components.riftspawner.rifts_count
+    -- Get all active lunar rifts
+    local lunar_rifts = TheWorld.components.riftspawner:GetRiftsOfAffinity("lunar")
+end
+```
+
+## Dependencies & tags
+**Components used:** `worldsettingstimer`, `wagpunk_manager` (optional), `riftthralltype` (on spawned rifts).
+**Tags:** Adds `LUNAR_RIFTS_ACTIVE` and `SHADOW_RIFTS_ACTIVE` via `WORLDSTATETAGS.SetTagEnabled`. Does not manipulate entity tags.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity the component is attached to (typically `TheWorld`). |
-| `_worldsettingstimer` | `WorldSettingsTimer` | — | Reference to the world's settings timer manager. |
-| `_map` | `Map` | — | Reference to the world map (`TheWorld.Map`). |
-| `spawnmode` | `int` | `3` | Spawn difficulty level: 1=never, 2=rare, 3=default, 4=often, 5=always. |
-| `lunar_rifts_enabled` | `boolean` | `false` | Whether lunar rifts are currently active. |
-| `shadow_rifts_enabled` | `boolean` | `false` | Whether shadow rifts are currently active. |
-| `rifts` | `table` | `{}` | Map of active rift entities → their prefab names. |
-| `rifts_count` | `int` | `0` | Total number of currently active rifts. |
+| `spawnmode` | number | `3` | Spawn intensity: `1=never`, `2=rare`, `3=default`, `4=often`, `5=always`. |
+| `lunar_rifts_enabled` | boolean | `false` | Whether lunar rifts are currently enabled. |
+| `shadow_rifts_enabled` | boolean | `false` | Whether shadow rifts are currently enabled. |
+| `rifts` | table | `{}` | Table mapping rift entities (keys) to their prefab names (values). |
+| `rifts_count` | number | `0` | Current number of active rifts in the pool. |
+| `_worldsettingstimer` | WorldSettingsTimer | `TheWorld.components.worldsettingstimer` | Reference to the world timer component. |
+| `_map` | Map | `TheWorld.Map` | Reference to the world map utility. |
 
-## Main Functions
-
-### `IsPointNearPreviousSpawn(x, z)`
-* **Description:** Checks if the given world position is too close (within 15 tiles) to any existing rift to prevent clustering. Uses squared distance for performance.
-* **Parameters:**  
-  - `x` (number): World X coordinate  
-  - `z` (number): World Z coordinate  
-* **Returns:** `boolean` — `true` if near an existing rift.
-
-### `OnRiftRemoved(rift)`
-* **Description:** Handles cleanup when a rift is destroyed. Removes it from the internal pool, decrements the count, and optionally restarts the spawn timer if conditions allow replacement.
-* **Parameters:**  
-  - `rift` (Entity): The destroyed rift entity.
-
-### `AddRiftToPool(rift, rift_prefab)`
-* **Description:** Registers a new rift in the component’s internal pool. Listens for the rift’s `onremove` event to track its lifecycle.
-* **Parameters:**  
-  - `rift` (Entity): The rift entity.  
-  - `rift_prefab` (string): The prefab name of the rift.
-
+## Main functions
 ### `SpawnRift(forced_pos)`
-* **Description:** Attempts to spawn a new rift at the specified or generated location, respecting spacing rules and rift type availability.
-* **Parameters:**  
-  - `forced_pos` (table or nil): Optional `{x, z}` position to spawn at. If `nil`, uses rift definition’s spawn logic.  
-* **Returns:** `Entity or nil` — The spawned rift entity, or `nil` if spawn fails.
+*   **Description:** Attempts to spawn a single rift at a valid location. If `forced_pos` is provided, uses that position; otherwise queries the rift definition's spawn logic.
+*   **Parameters:** `forced_pos` (`{x=number, z=number}`|nil) — Optional override spawn position.
+*   **Returns:** The spawned rift entity, or `nil` if spawning failed (invalid location, near existing rift, or no viable prefab).
+*   **Error states:** Returns `nil` if no rift prefab is selected (`GetNextRiftPrefab` returns `nil`) or if the location fails proximity checks.
 
 ### `TryToSpawnRift(forced_pos)`
-* **Description:** Wrapper around `SpawnRift` that first checks the rift count against `TUNING.MAXIMUM_RIFTS_COUNT`.
-* **Parameters:** Same as `SpawnRift`.
-* **Returns:** Same as `SpawnRift`.
-
-### `OnRiftTimerDone()`
-* **Description:** Called when the rift spawn timer expires. Attempts to spawn a new rift if the spawn mode permits and capacity allows. If spawning fails (e.g., no valid location), schedules another check in one full day.
-* **Parameters:** None.
+*   **Description:** Wrapper around `SpawnRift` that enforces the maximum rift count (`TUNING.MAXIMUM_RIFTS_COUNT`) before spawning.
+*   **Parameters:** `forced_pos` — Same as `SpawnRift`.
+*   **Returns:** The rift entity if spawned, else `nil`.
 
 ### `SetDifficulty(src, difficulty)`
-* **Description:** Updates the `spawnmode` based on a string difficulty setting (e.g., `"rare"`, `"always"`). Updates or resets the spawn timer accordingly.
-* **Parameters:**  
-  - `src` (Entity or nil): Source entity (unused in implementation).  
-  - `difficulty` (string): One of `"never"`, `"rare"`, `"default"`, `"often"`, `"always"`.
-
-### `TryToStartTimer(src)`
-* **Description:** Starts the rift spawn timer if rifts are enabled and the timer is not already active. Also triggers map arena-point recalculation.
-* **Parameters:** `src` (Entity or nil) — Source entity (unused).
+*   **Description:** Updates the global rift spawn intensity and adjusts the active timer accordingly.
+*   **Parameters:** `difficulty` (string) — One of `"never"`, `"rare"`, `"default"`, `"often"`, `"always"`.
+*   **Returns:** Nothing.
 
 ### `EnableLunarRifts(src)`
-* **Description:** Enables lunar rifts (sets `lunar_rifts_enabled = true`, activates `LUNAR_RIFTS_ACTIVE` tag), starts the spawn timer, and enables the `wagpunk_manager` if present.
+*   **Description:** Enables lunar rifts, sets the `"LUNAR_RIFTS_ACTIVE"` world state tag, starts the timer, and enables `WagpunkManager` if present.
+*   **Parameters:** None used (`src` argument present for event compatibility).
+*   **Returns:** Nothing.
 
 ### `EnableShadowRifts(src)`
-* **Description:** Enables shadow rifts (sets `shadow_rifts_enabled = true`, activates `SHADOW_RIFTS_ACTIVE` tag) and starts the spawn timer.
+*   **Description:** Enables shadow rifts and sets the `"SHADOW_RIFTS_ACTIVE"` world state tag.
+*   **Parameters:** None used (`src` argument present for event compatibility).
+*   **Returns:** Nothing.
 
-### `OnLunarRiftMaxSize(src, rift)`
-* **Description:** Notifies players >30 tiles away from a maximum-size lunar rift via `player._lunarportalmax:push()`.
-* **Parameters:**  
-  - `src` (Entity or nil)  
-  - `rift` (Entity): The rift that reached max size.
+### `AddRiftToPool(rift, rift_prefab)`
+*   **Description:** Registers a newly spawned rift in the spawner's internal pool and attaches a listener for its removal.
+*   **Parameters:** `rift` (Entity) — The rift entity instance. `rift_prefab` (string) — Prefab name of the rift.
+*   **Returns:** Nothing.
 
-### `OnShadowRiftMaxSize(src, rift)`
-* **Description:** Notifies players >30 tiles away from a maximum-size shadow rift via `player._shadowportalmax:push()`.
-
-### `SetEnabledSetting(src, enabled_difficulty)`
-* **Description:** Handles global lunar rift toggle via `"never"` (disable) or `"always"` (enable) settings.
-
-### `SetEnabledSettingCave(src, enabled_difficulty)`
-* **Description:** Handles cave-level shadow rift toggle via `"never"` (disable) or `"always"` (enable) settings.
+### `OnRiftRemoved(rift)`
+*   **Description:** Removes a rift from the pool and schedules the next rift spawn if possible.
+*   **Parameters:** `rift` (Entity) — The rift being removed.
+*   **Returns:** Nothing.
 
 ### `GetNextRiftPrefab()`
-* **Description:** Randomly selects a rift prefab based on enabled rift types (lunar/shadow).
-* **Returns:** `string or nil` — Prefab name, or `nil` if none available.
+*   **Description:** Randomly selects a rift prefab based on currently enabled rift types (lunar, shadow).
+*   **Parameters:** None.
+*   **Returns:** Prefab name (string) or `nil` if no rifts are enabled.
 
-### `GetRifts()`, `GetRiftsOfPrefab(prefab)`, `GetRiftsOfAffinity(affinity)`
-* **Description:** Helper methods returning active rifts in various formats (all rifts, by prefab name, or by affinity).
+### `GetRiftsOfAffinity(affinity)`
+*   **Description:** Returns a list of rifts matching the specified affinity (`"lunar"` or `"shadow"`).
+*   **Parameters:** `affinity` (string) — Affinity type.
+*   **Returns:** Table of rift entities, or `nil` if none match.
 
-### `GetEnabled()`, `GetLunarRiftsEnabled()`, `GetShadowRiftsEnabled()`
-* **Description:** Boolean getters for rift type activation status.
+### `OnSave()`
+*   **Description:** Prepares component state for persistence (e.g., rift GUIDs, enabled flags, timer state).
+*   **Parameters:** None.
+*   **Returns:** `{ data = { ... }, ents = {...} }` — Save data and list of rift entity GUIDs.
 
-### `IsLunarPortalActive()`, `IsShadowPortalActive()`
-* **Description:** Check if any rift of the respective affinity is currently active.
+### `LoadPostPass(newents, data)`
+*   **Description:** Restores rift references after world load by reconstructing the rift pool from saved GUIDs.
+*   **Parameters:** `newents` (table) — Mapping of GUIDs to loaded entities. `data` (table) — Loaded save data.
+*   **Returns:** Nothing.
 
-### `GetDebugString()`, `GetDebugRiftString()`, `DebugHighlightRifts()`
-* **Description:** Debug helpers for inspecting rift state and visualizing rift locations.
+### `GetDebugString()`
+*   **Description:** Returns a one-line summary of rift state for debugging.
+*   **Parameters:** None.
+*   **Returns:** String — e.g., `"Lunar Rifts: ON || Shadow Rifts: OFF || Rifts Count: 2 || Rift Spawn Time: 120.0"`.
 
-## Events & Listeners
-- Listens for `"rifts_setdifficulty"` → calls `SetDifficulty(...)`
-- Listens for `"rifts_settingsenabled"` → calls `SetEnabledSetting(...)`
-- Listens for `"rifts_settingsenabled_cave"` → calls `SetEnabledSettingCave(...)`
-- Listens for `"lunarrift_opened"` → calls `EnableLunarRifts(...)`
-- Listens for `"shadowrift_opened"` → calls `EnableShadowRifts(...)`
-- Listens for `"ms_lunarrift_maxsize"` → calls `OnLunarRiftMaxSize(...)`
-- Listens for `"ms_shadowrift_maxsize"` → calls `OnShadowRiftMaxSize(...)`
-- Listens for `"onremove"` (on each rift entity) → calls `OnRiftRemoved(rift)`
-- Pushes `"ms_riftaddedtopool"` with `{rift = rift}`
-- Pushes `"ms_riftremovedfrompool"` with `{rift = rift}`
+### `GetDebugRiftString()`
+*   **Description:** Returns a multi-line list of all rifts and their affinities.
+*   **Parameters:** None.
+*   **Returns:** String or `"NO RIFTS"`.
+
+### `DebugHighlightRifts()`
+*   **Description:** Spawns visual debug markers (`bluemooneye`, `redmooneye`, `greenmooneye`) above each rift for debugging.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:**  
+  - `"rifts_setdifficulty"` — Triggers `SetDifficulty`.  
+  - `"rifts_settingsenabled"` — Triggers `SetEnabledSetting` (lunar).  
+  - `"rifts_settingsenabled_cave"` — Triggers `SetEnabledSettingCave` (shadow).  
+  - `"lunarrift_opened"` — Triggers `EnableLunarRifts`.  
+  - `"shadowrift_opened"` — Triggers `EnableShadowRifts`.  
+  - `"ms_lunarrift_maxsize"` — Triggers `OnLunarRiftMaxSize`.  
+  - `"ms_shadowrift_maxsize"` — Triggers `OnShadowRiftMaxSize`.  
+  - `"onremove"` (on each rift) — Triggers `OnRiftRemoved`.
+
+- **Pushes:**  
+  - `"ms_riftaddedtopool"` — When a rift is added. Data: `{ rift = rift }`.  
+  - `"ms_riftremovedfrompool"` — When a rift is removed. Data: `{ rift = rift }`.

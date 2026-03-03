@@ -1,48 +1,50 @@
 ---
 id: shard_sinkholes
 title: Shard Sinkholes
-description: Manages synchronization of sinkhole target data between the master shard and shard-specific instances using network variables and event handling.
+description: Manages network synchronization of sinkhole target data between master and shard.
+tags: [network, world, synchronization]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: components
 source_hash: 45186884
+system_scope: network
 ---
-
 # Shard Sinkholes
 
-## Overview
-This component synchronizes sinkhole target information (such as player identifiers and state: idle, warning, or attack) across the master shard and individual shards in Don't Starve Together. It uses network variables for efficient state syncing and responds to relevant world-wide events to maintain consistency.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on `TheWorld.ismastershard` and `TheWorld.ismastersim` flags for conditional logic.
-- Uses network infrastructure: `net_hash`, `net_tinybyte`, and `TheWorld:PushEvent`.
-- Adds no explicit tags or components.
+## Overview
+`Shard_Sinkholes` is a network synchronization component that coordinates sinkhole target data between the master shard and a shard instance in Don't Starve Together's world partitioning system. It is strictly restricted to the master simulation (`TheWorld.ismastersim`) and uses `net_hash` and `net_tinybyte` to track and replicate sinkhole attack states for up to two targets.
+
+This component does not operate on its own entity logic but serves as a data conduit: on the master shard, it receives events (`master_sinkholesupdate`) and updates replicated network variables; on the shard, it detects changes and triggers network sync events (`sinkholesdirty`) to push updated data back to the master.
+
+## Usage example
+```lua
+-- This component is added internally by the world partitioning system
+-- and is not intended for manual addition by modders.
+-- Example placeholder only:
+local inst = CreateEntity()
+-- inst:AddComponent("shard_sinkholes") -- Not for direct use
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified  
 
 ## Properties
-No public properties are directly exposed or documented; initialization occurs via internal network variable construction. The only publicly accessible member explicitly set is:
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed in) | The entity instance this component is attached to. |
+| `inst` | `ENTITY` | — | The entity instance this component is attached to (typically a world object on the shard or master). |
 
-## Main Functions
-No public methods are defined. All functionality is handled internally by event callbacks and network variable updates.
+## Main functions
+No public functional methods are exposed — all functionality resides in private event handlers and network variable management.
 
-### `OnSinkholesUpdate(src, data)`
-* **Description:** (Master shard only) Processes sinkhole update events from the world, synchronizing local network variable values for up to two targets based on incoming data.
-* **Parameters:**
-  * `src`: The event source (typically `TheWorld`).
-  * `data`: A table containing a `targets` array with per-target data (e.g., `userhash`, `warn`, `attack`).
+## Events & listeners
+- **Listens to:**
+  - `master_sinkholesupdate` — on master shard, receives updated sinkhole target data and updates replicated network variables.
+  - `sinkholesdirty` — on shard, fires when network variables change and triggers propagation of updated data to the master.
+- **Pushes:**
+  - `secondary_sinkholesupdate` — on shard, sends updated target list (with `userhash`, `warn`, and `attack` states) to the master.
 
-### `OnSinkholesDirty()`
-* **Description:** (Non-master shard only) Collects current local sinkhole target data from network variables and pushes it to the master shard via the `"secondary_sinkholesupdate"` event.
-* **Parameters:** None (called as an event listener).
-
-## Events & Listeners
-- Listens for `"master_sinkholesupdate"` (master shard only) → triggers `OnSinkholesUpdate`.
-- Listens for `"sinkholesdirty"` (non-master shard only) → triggers `OnSinkholesDirty`.
-- Pushes `"secondary_sinkholesupdate"` (non-master shard only) with sinkhole target data during sync.

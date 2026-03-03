@@ -1,68 +1,71 @@
 ---
 id: hudindicatorwatcher
 title: Hudindicatorwatcher
-description: Manages the display and removal of player-specific HUD target indicators based on visibility and tracking conditions.
+description: Manages on-screen HUD target indicators for nearby entities tracked via the hudindicatable system.
+tags: [ui, hud, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: ui
+category_type: components
 source_hash: e1db281b
+system_scope: ui
 ---
 
 # Hudindicatorwatcher
 
-## Overview
-This component manages HUD target indicators for entities tracked by the player (e.g., allies or notable actors). It monitors visibility changes (via `playerexited` and `unregister_hudindicatable` events) and updates the HUD accordingly—adding indicators when an entity enters view and is marked as trackable, and removing them when the entity exits view or is no longer trackable.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies**:  
-  - Requires `inst.HUD` (HUD component) to be present on the entity.  
-  - Relies on `target.components.hudindicatable:ShouldTrack(self.inst)` for per-target tracking logic.  
-  - Requires `TheWorld.components.hudindicatablemanager` to provide the list of potential indicators (`items`).  
-- **Tags**: None identified.
+## Overview
+`Hudindicatorwatcher` is a client-side component that monitors tracked entities (via `hudindicatable`) and updates their on-screen target indicators for the owning entity (typically a player). It listens for world-level events (`playerexited`, `unregister_hudindicatable`) to remove outdated indicators and maintains an internal list (`offScreenItems`) of tracked entities currently outside the viewer's frustum. The component integrates with `hudindicatable` and `hudindicatablemanager` to ensure only relevant, visible indicators are shown.
+
+## Usage example
+```lua
+local inst = ThePlayer
+inst:AddComponent("hudindicatorwatcher")
+-- The component automatically starts monitoring and updating indicators via OnUpdate()
+-- No further manual setup required — it hooks into the HUD system internally.
+```
+
+## Dependencies & tags
+**Components used:** `hudindicatable`, `hudindicatablemanager`
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `offScreenItems` | `table` | `{}` | List of entities currently displayed as target indicators on the HUD. |
-| `onScreenItemsLastTick` | `table` | `{}` | Reserved for potential use (currently commented out in `OnUpdate()`). |
-| `onitemexited` | `function` | `nil` (set in constructor) | Event callback handler for `playerexited` and `unregister_hudindicatable` events. |
+| `offScreenItems` | table | `{}` | List of entities whose indicators are currently shown but off-screen. |
+| `onScreenItemsLastTick` | table | `{}` | Previously tracked on-screen items (commented out in current usage). |
 
-## Main Functions
+## Main functions
+### `ShouldShowIndicator(target)`
+*   **Description:** Determines whether the target entity should be shown with a target indicator for the viewer (owner of this component). Checks if the target is tracked and (previously) whether it was on-screen last tick (currently unused due to commented logic).
+*   **Parameters:** `target` (entity) - the entity to check.
+*   **Returns:** `boolean` — `true` if the indicator should be shown, `false` otherwise.
+*   **Error states:** If `target` lacks the `hudindicatable` component, an error will occur.
 
-### `HudIndicatorWatcher:ShouldShowIndicator(target)`
-* **Description:** Determines whether the HUD should display a target indicator for the given entity.  
-* **Parameters:**  
-  - `target`: Entity to evaluate. Must have a `hudindicatable` component.  
-* **Logic:** Checks if the target’s `hudindicatable` component indicates it should be tracked by the entity (`self.inst`).
+### `ShouldRemoveIndicator(target)`
+*   **Description:** Determines whether the target's indicator should be removed (i.e., it is no longer tracked).
+*   **Parameters:** `target` (entity) — the entity to check.
+*   **Returns:** `boolean` — `true` if the indicator should be removed, `false` otherwise.
 
-### `HudIndicatorWatcher:ShouldRemoveIndicator(target)`
-* **Description:** Determines whether a target indicator should be removed from the HUD.  
-* **Parameters:**  
-  - `target`: Entity to evaluate. Must have a `hudindicatable` component.  
-* **Logic:** Returns `true` if the target’s `hudindicatable` component indicates it should *not* be tracked by the entity.
+### `OnUpdate()`
+*   **Description:** Called each frame (via `StartUpdatingComponent`). Synchronizes the list of off-screen indicators with the current state: removes indicators for untracked entities and adds indicators for newly tracked entities currently off-screen.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `HudIndicatorWatcher:OnUpdate()`
-* **Description:** Periodically updates the HUD indicators based on entity visibility and tracking state.  
-* **Parameters:** None.  
-* **Logic:**  
-  - Removes indicators for entities no longer trackable or already processed.  
-  - Adds indicators for new entities that are trackable and not already in `offScreenItems`.  
-  - Uses `TheWorld.components.hudindicatablemanager.items` as the source of potential targets.
+### `OnRemoveFromEntity()`
+*   **Description:** Cleans up component resources on removal: deregisters event callbacks, removes all active indicators from the HUD, and clears internal state.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `HudIndicatorWatcher:OnRemoveFromEntity()`
-* **Description:** Cleans up state when the component is removed.  
-* **Parameters:** None.  
-* **Logic:**  
-  - Unregisters event listeners (`playerexited`, `unregister_hudindicatable`).  
-  - Removes all indicators from the HUD for entities in `offScreenItems`.  
-  - Nullifies `offScreenItems` to prevent stale references.
+### `OnItemExited(self, item)`
+*   **Description:** Private callback function triggered when an entity exits the world or unregisters itself from HUD tracking. Removes the item from `offScreenItems` and the HUD indicator if present.
+*   **Parameters:** `self` (HudIndicatorWatcher), `item` (entity) — the exiting entity.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens For:**  
-  - `"playerexited"` (from `TheWorld`) → triggers `OnItemExited`.  
-  - `"unregister_hudindicatable"` (from `TheWorld`) → triggers `OnItemExited`.  
-- **No events are explicitly pushed** by this component.
+## Events & listeners
+- **Listens to:** `playerexited` — handled via `OnItemExited`; triggered when an entity leaves the world.
+- **Listens to:** `unregister_hudindicatable` — handled via `OnItemExited`; triggered when an entity explicitly unregisters its HUD indicator.
+- **Pushes:** None.

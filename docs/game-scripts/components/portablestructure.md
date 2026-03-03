@@ -1,43 +1,59 @@
 ---
 id: portablestructure
 title: Portablestructure
-description: A lightweight component that stores and executes a custom callback function when the entity is dismantled.
+description: Provides a callback mechanism for custom dismantling logic when a portable structure is disassembled.
+tags: [structure, inventory, crafting]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 29055427
+system_scope: entity
 ---
 
 # Portablestructure
 
-## Overview
-This component enables an entity to define and execute a custom dismantling behavior. It acts as a callback registry for dismantle logic, allowing flexible behavior to be attached to specific portable structures (e.g.,Campfire, Lantern) when they are manually dismantled by a player or entity.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies:** None (does not require or add other components).
-- **Tags Added/Removed:** None.
+## Overview
+`PortableStructure` enables custom behavior to be executed when a portable structure entity is dismantled. It stores a user-defined callback function (`ondismantlefn`) that is invoked during dismantling, allowing modders to define specific dismantle logic (e.g., dropping unique items, spawning effects, or modifying world state) without subclassing or overriding core dismantle logic.
+
+This component is typically added to prefabs that represent portable or disassemblable structures (e.g., campfires, foundations, lanterns) and works in conjunction with dismantling actions triggered by players or tools.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("portablestructure")
+
+inst.components.portablestructure:SetOnDismantleFn(function(inst, doer)
+    -- Custom logic when dismantled
+    inst.Transform:SetPosition(doer.Transform:GetWorldPosition())
+    inst.components.lootdropper:DropLoot()
+end)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (set via constructor) | Reference to the entity the component is attached to. |
-| `ondismantlefn` | `function?` | `nil` | Optional callback function invoked during `Dismantle()`. Takes `(inst, doer)` as arguments. |
+| `ondismantlefn` | function or nil | `nil` | A function to call when `Dismantle()` is invoked. Signature: `fn(inst, doer)`. |
 
-## Main Functions
+## Main functions
 ### `SetOnDismantleFn(fn)`
-* **Description:** Assigns the function to be called when the entity is dismantled. Replaces any previously set dismantle function.
-* **Parameters:**  
-  `fn` (function): A callable function accepting two arguments: the entity instance (`inst`) and the dismantle initiator (`doer`).
+*   **Description:** Assigns the callback function to be executed when the entity is dismantled.
+*   **Parameters:** `fn` (function or nil) — the function to invoke on dismantle; `nil` clears the callback.
+*   **Returns:** Nothing.
 
 ### `Dismantle(doer)`
-* **Description:** Executes the stored dismantle callback function (if one exists), passing the entity and the dismantle initiator. Does nothing if no callback is set.
-* **Parameters:**  
-  `doer` (Entity): The entity that triggered the dismantling (typically a player).
+*   **Description:** Executes the stored dismantle callback (if set), passing the entity instance and the entity performing the dismantle action.
+*   **Parameters:** `doer` (entity or nil) — the entity (typically a player) triggering the dismantle.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `ondismantlefn` is `nil`.
 
-## Events & Listeners
-- **Events Triggered:** None (does not push any events).
-- **Events Listeners:** None (does not register any event listeners).
+## Events & listeners
+None identified

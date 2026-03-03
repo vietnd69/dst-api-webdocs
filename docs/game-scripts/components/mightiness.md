@@ -1,141 +1,125 @@
 ---
 id: mightiness
 title: Mightiness
-description: Tracks and manages a player character's mightiness level, dynamically adjusting physical attributes, animations, and behaviors based on a numeric value that evolves over time.
+description: Manages Wolfgang's physical transformation system based on his current mightiness level, dynamically adjusting stats, animations, sounds, and gameplay modifiers.
+tags: [player, transformation, combat, work, ai]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: f093f786
+system_scope: player
 ---
 
 # Mightiness
 
-## Overview
-The Mightiness component manages the dynamic transformation system for Wolfgang (and similar characters), maintaining a numeric `current` value that ranges between 0 and `max`. This value determines the player's "state" — `wimpy`, `normal`, or `mighty` — each of which triggers distinct visual, audio, stat, and gameplay effects. It automatically updates skin, sounds, damage modifiers, insulation, hunger rates, rowing performance, and work effectiveness based on the current state.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- `inst:AddTag("mightiness_normal")` added during initialization (also dynamically added/removed per state).
-- Relies on the following components being present on the entity:
-  - `skinner`
-  - `combat` (for `externaldamagemultipliers`)
-  - `temperature`
-  - `hunger`
-  - `talker`
-  - `expert sailor`
-  - `workmultiplier`
-  - `efficientuser`
-  - `rider` (forriding checks)
-- Listens for events: `hungerdelta`, `invincibletoggle`, `mounted`, `dismounted`.
+## Overview
+`Mightiness` implements the transformation logic for the character Wolfgang, switching between `wimpy`, `normal`, and `mighty` states based on a dynamic `current` value relative to `max`. It responds to hunger changes and gym usage, and synchronizes skin, sound, animation scale, insulation, and work multipliers across connected components. It integrates closely with `combat`, `temperature`, `hunger`, `expertsailor`, `workmultiplier`, `efficientuser`, `skinner`, `talker`, `rider`, `rider`, `coach`, `health`, and `rider` components.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("mightiness")
+inst.components.mightiness:SetMax(TUNING.MIGHTINESS_MAX)
+inst.components.mightiness:DoDelta(100) -- raise mightiness
+inst.components.mightiness:DelayDrain(5) -- prevent drain for 5 seconds
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `temperature`, `hunger`, `expertsailor`, `workmultiplier`, `efficientuser`, `skinner`, `talker`, `rider`, `coach`, `health`, `strongman`, `rider`  
+**Tags:** Adds `mightiness_wimpy`, `mightiness_normal`, or `mightiness_mighty`; checks `mightiness_wimpy`, `mightiness_normal`, `mightiness_mighty`, `playerghost`, `ingym`, `nomorph`
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | Reference to the owner entity. |
-| `max` | `number` | `TUNING.MIGHTINESS_MAX` | Maximum possible mightiness value. |
-| `current` | `number` | `max / 2` | Current mightiness value; determines state. |
-| `rate` | `number` | `TUNING.MIGHTINESS_DRAIN_RATE` | Base rate of passive mightiness loss per second. |
-| `drain_multiplier` | `number` | `TUNING.MIGHTINESS_DRAIN_MULT_NORMAL` | Hunger-based multiplier applied to the drain rate. |
-| `ratescale` | `RATE_SCALE` | `RATE_SCALE.NEUTRAL` | Global scaling factor applied to drain rate (e.g., from modifiers). |
-| `draining` | `boolean` | `true` | Whether passive draining is active (can be paused/resumed). |
-| `drain_delay` | `number` | `0` | Timestamp after which draining resumes (used after power-up). |
-| `ratemodifiers` | `SourceModifierList` | `SourceModifierList(self.inst)` | Aggregator for external rate modifiers. |
-| `state` | `string` | `"normal"` | Current mightiness state: `"wimpy"`, `"normal"`, or `"mighty"`. |
-| `invincible` | `boolean` | `false` | If true, prevents mightiness drain during state transitions. |
-| `overmaxmax` | `number` | `0` | Additional buffer above `max` achievable via gym use. |
+| `max` | number | `TUNING.MIGHTINESS_MAX` | Maximum mightiness threshold. |
+| `current` | number | `max / 2` | Current mightiness value. |
+| `rate` | number | `TUNING.MIGHTINESS_DRAIN_RATE` | Base drain rate per second. |
+| `drain_multiplier` | number | `TUNING.MIGHTINESS_DRAIN_MULT_NORMAL` | Multiplier applied to drain rate based on hunger level. |
+| `ratescale` | number | `RATE_SCALE.NEUTRAL` | Global scale factor for drain rate. |
+| `draining` | boolean | `true` | Controls whether mightiness automatically drains over time. |
+| `state` | string | `"normal"` | Current transformation state: `"wimpy"`, `"normal"`, or `"mighty"`. |
+| `invincible` | boolean | `false` | Prevents drain when true (set via `invincibletoggle` event). |
+| `overmaxmax` | number | `0` | Additional buffer above `max` (typically set by gym). |
 
-## Main Functions
-
+## Main functions
 ### `DoDelta(delta, force_update, delay_skin, forcesound, fromgym)`
-* **Description:** Adjusts `current` mightiness by `delta`, triggers state transitions if thresholds are crossed, and fires the `mightinessdelta` event.
-* **Parameters:**
-  - `delta` (number): Amount to change current mightiness. Positive increases it; negative decreases.
-  - `force_update` (boolean, optional): If `true`, state transition occurs even if current state matches new threshold.
-  - `delay_skin` (boolean, optional): If `true`, defers skin updates by ~88 frames.
-  - `forcesound` (boolean, optional): Forces sound to play even if state change is silent (e.g., for non-visual contexts).
-  - `fromgym` (boolean, optional): If `true`, allows raising `current` above `max` (up to `max + overmaxmax`).
+*   **Description:** Adjusts `current` mightiness by `delta`, triggers state transitions, and updates all associated game systems.
+*   **Parameters:** `delta` (number) - amount to change current mightiness; `force_update` (boolean) - skip checks and force transformation; `delay_skin` (boolean) - delay skin update; `forcesound` (boolean) - play sound even in silent context; `fromgym` (boolean) - allows raising above `max`.
+*   **Returns:** Nothing.
+*   **Error states:** `delta` can be negative or positive; negative values reduce mightiness, positive values increase it (capped at `max + overmaxmax` if `fromgym` is true).
 
 ### `BecomeState(state, silent, delay_skin, forcesound)`
-* **Description:** Transitions the player to the specified `state` (`wimpy`, `normal`, or `mighty`), applying corresponding visual (skin), audio (sound, speech), combat (damage multiplier), environmental (insulation), and gameplay (hunger rate, work effectiveness, sailing stats) effects.
-* **Parameters:**
-  - `state` (string): Target state to become.
-  - `silent` (boolean, optional): If `true`, suppresses announcement speech and sound.
-  - `delay_skin` (boolean, optional): Defer skin update.
-  - `forcesound` (boolean, optional): Play sound regardless of `silent`.
+*   **Description:** Transitions to a new state (`"wimpy"`, `"normal"`, or `"mighty"`), applying skins, sounds, scales, tags, and modifier updates.
+*   **Parameters:** `state` (string) - target state; `silent` (boolean) - skip announce/sound events; `delay_skin` (boolean) - defer skin update; `forcesound` (boolean) - override silence for sound.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early without action if transformation is blocked (e.g., ghost, dead, in `nomorph` state, or same state).
 
-### `OnHungerDelta(data)`
-* **Description:** Updates `drain_multiplier` based on the player’s hunger percentage, enabling hunger-aware mightiness drain rates (e.g., starving causes faster drain).
-* **Parameters:**
-  - `data` (table): Contains `newpercent`, the player’s new hunger fraction.
+### `GetScale()`
+*   **Description:** Returns the animation scale factor associated with the current state.
+*   **Parameters:** None.
+*   **Returns:** `number` (scale factor, e.g., `0.9`, `1.0`, or `1.2`).
 
-### `OnTaskTick(inst, self, period)`
-* **Description:** Periodically calls `DoDec(dt)` (drain logic) if the drain delay has elapsed.
-* **Parameters:**
-  - `inst` (Entity): The entity owning this component.
-  - `self` (Mightiness): The component instance.
-  - `period` (number): Tick interval (1 second).
+### `SetRate(rate)`
+*   **Description:** Overrides the base drain rate.
+*   **Parameters:** `rate` (number) - new per-second drain rate.
+*   **Returns:** Nothing.
 
-### `LongUpdate(dt)`
-* **Description:** Passive drain handler for longer time steps (e.g., from world updates).
-* **Parameters:**
-  - `dt` (number): Delta time in seconds.
-
-### `Pause()`, `Resume()`, `IsPaused()`
-* **Description:** Control active draining.
-  - `Pause()`: Sets `draining = false`.
-  - `Resume()`: Sets `draining = true`.
-  - `IsPaused()`: Returns whether draining is currently disabled.
+### `SetRateScale(ratescale)`
+*   **Description:** Sets the global rate multiplier.
+*   **Parameters:** `ratescale` (number, e.g., `RATE_SCALE.SLOW`, `RATE_SCALE.FAST`) - multiplier factor.
+*   **Returns:** Nothing.
 
 ### `DelayDrain(time)`
-* **Description:** Postpones the start of passive drain until `GetTime() + time`.
-* **Parameters:**
-  - `time` (number): Duration to delay in seconds.
+*   **Description:** Extends the cooldown before drain resumes (used after gaining mightiness or using dumbbells).
+*   **Parameters:** `time` (number) - seconds from now to delay drain until.
+*   **Returns:** Nothing.
 
-### `GetState()`, `IsMighty()`, `IsNormal()`, `IsWimpy()`
-* **Description:** State query helpers.
-  - `GetState()`: Returns current state string (`"wimpy"`, `"normal"`, `"mighty"`).
-  - `IsMighty()`: Returns `true` if state is `"mighty"` or `"over"`.
-  - `IsNormal()`, `IsWimpy()`: Equivalent checks.
+### `SetMax(amount)`
+*   **Description:** Resets `max` and `current` to the new value.
+*   **Parameters:** `amount` (number) - new maximum mightiness.
+*   **Returns:** Nothing.
 
-### `GetScale()`, `SetMax(amount)`, `GetMax()`, `GetCurrent()`, `SetOverMax(amount)`, `GetOverMax()`
-* **Description:** Basic getters and setters for attributes and lifecycle management.
+### `SetOverMax(amount)`
+*   **Description:** Sets additional buffer above `max` (e.g., from gym upgrades).
+*   **Parameters:** `amount` (number) - extra capacity above `max`.
+*   **Returns:** Nothing.
+
+### `GetPercent()`
+*   **Description:** Returns current mightiness as a fraction of `max`.
+*   **Parameters:** None.
+*   **Returns:** `number` in range `[0, 1]`.
 
 ### `SetPercent(percent, force_update, delay_skin, forcesound)`
-* **Description:** Sets `current` to `percent * max`, internally computes and applies delta.
-* **Parameters:**
-  - `percent` (number): Desired fraction of `max` (0–1 or beyond if `overmaxmax` is set).
-  - Other args: Same as in `DoDelta`.
+*   **Description:** Sets `current` to `percent * max`.
+*   **Parameters:** `percent` (number) - target fraction (e.g., `0.5`); other args same as `DoDelta`.
+*   **Returns:** Nothing.
 
-### `SetRate(rate)`, `SetRateScale(ratescale)`, `GetRateScale()`
-* **Description:** Configures drain rate and scaling.
+### `IsMighty()`, `IsNormal()`, `IsWimpy()`
+*   **Description:** Convenience methods to check current state.
+*   **Parameters:** None.
+*   **Returns:** `boolean`.
 
-### `GetDebugString()`
-* **Description:** Returns a formatted debug string including current value, rate components, and paused status.
+### `OnHungerDelta(data)`
+*   **Description:** Updates `drain_multiplier` based on hunger percentage (`data.newpercent`). Used as an event listener.
+*   **Parameters:** `data` (table, optional) - must contain `newpercent` if present.
+*   **Returns:** Nothing.
 
-### `UpdateSkinMode(skin_data, delay)`
-* **Description:** Applies skin changes via the `skinner` component. Supports delayed application.
-* **Parameters:**
-  - `skin_data` (table): Contains `skin_mode` and `default_build`.
-  - `delay` (boolean): Whether to defer the change.
+## Events & listeners
+- **Listens to:**  
+  `hungerdelta` – updates `drain_multiplier` based on hunger level.  
+  `invincibletoggle` – sets `invincible` flag (prevents drain).  
+  `mounted` – resets animation scale to `1`.  
+  `dismounted` – re-applies mightiness-based scale.  
+- **Pushes:**  
+  `mightinessdelta` – fired after each `DoDelta`, with `{ oldpercent, newpercent, delta }`.  
+  `mightiness_statechange` – fired after each state change, with `{ previous_state, state }`.  
 
-### `OnSave()`, `OnLoad(data)`
-* **Description:** Serialization hooks.
-  - `OnSave()`: Returns `{ mightiness = self.current }`.
-  - `OnLoad(data)`: Restores `current` from save data and triggers an immediate update if changed.
-
-### `GetSkinMode()`
-* **Description:** Returns the `skin_mode` string for the current state.
-
-## Events & Listeners
-- **Listens for:**
-  - `"hungerdelta"` → `OnHungerDelta(data)`
-  - `"invincibletoggle"` → `OnSetInvincible(data)`
-  - `"mounted"` → `ApplyAnimScale("mightiness", 1)`
-  - `"dismounted"` → `ApplyAnimScale("mightiness", GetScale())`
-- **Pushes:**
-  - `"mightinessdelta"`: `{ oldpercent, newpercent, delta }` on `DoDelta`.
-  - `"mightiness_statechange"`: `{ previous_state, state }` on state transitions.
+### Additional Notes
+- Network synchronization: `current` and `ratescale` use networked replica properties (`player_classified.currentmightiness`, `player_classified.mightinessratescale`) for client-server consistency.
+- The component automatically runs a periodic task (every `1` second) to apply drain if `draining` is `true` and not paused/invincible.
+- Skin updates for `mighty`/`wimpy` states are deferred by `88` frames unless `delay_skin` is `false`.

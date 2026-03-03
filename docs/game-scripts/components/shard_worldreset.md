@@ -1,37 +1,49 @@
 ---
 id: shard_worldreset
 title: Shard Worldreset
-description: Handles world reset countdown synchronization between master shard and secondary shards in multiplayer.
+description: Manages network synchronization of world reset countdown state between master shard and non-master shards.
+tags: [network, world, synchronization]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: network
 source_hash: 2d8692f2
+system_scope: network
 ---
 
 # Shard Worldreset
 
-## Overview
-This component manages the synchronization of the world reset countdown timer between the master shard and secondary shards in a multiplayer DST world, using a networked variable to propagate countdown updates and trigger local event-driven sync actions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Requires:** `TheWorld.ismastersim` (asserted at instantiation; component only exists on the simulation master).
-- **Uses Network Variable:** `net_byte` named `"shard_worldreset._countdown"` with sync trigger `"countdowndirty"`.
-- **No explicit component additions or tag modifications** are performed by this script.
+## Overview
+`Shard_WorldReset` is a network-aware component responsible for synchronizing the world reset countdown timer between the master shard and non-master shards in a multiplayer DST server environment. It enforces server-side-only execution via `TheWorld.ismastersim`, ensuring it only exists on the simulation server. The component uses a replicated network variable (`_countdown`) and event-based messaging to keep countdown state consistent across shards.
+
+## Usage example
+```lua
+-- This component is automatically added to the world entity during shard initialization.
+-- Manual usage is not intended; it operates internally.
+-- Example of internal usage pattern:
+inst:AddComponent("shard_worldreset")
+-- Countdown updates are triggered by the world reset system via master_worldresetupdate events.
+```
+
+## Dependencies & tags
+**Components used:** `net_byte` (networking utility), `TheWorld` global
+**Tags:** None identified
 
 ## Properties
-No public properties are initialized in the constructor. The component exclusively uses local module-scope and networked variables.
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `self.inst` | `Entity` | `inst` (constructor argument) | Reference to the entity the component is attached to (used as a sync anchor, not directly managed). |
+| `inst` | `Entity` | — | The entity instance this component is attached to (typically the world entity). |
 
-## Main Functions
-No public methods are defined. All logic resides in event handlers and closure-based callbacks initialized at construction.
+## Main functions
+This component does not expose any public methods. All logic is encapsulated and event-driven.
 
-## Events & Listeners
-- **Listens for `"master_worldresetupdate"` event (on master shard only):** Triggers `OnCountdownUpdate`, which updates the networked `_countdown` variable with the provided countdown value.
-- **Listens for `"countdowndirty"` event (on secondary shards only):** Triggers `OnCountdownDirty`, which pushes a `"secondary_worldresetupdate"` event to `TheWorld` with the current countdown value fetched from the networked variable.
+## Events & listeners
+- **Listens to:**
+  - `master_worldresetupdate` (on master shard only): Receives `{ countdown = number }` from `TheWorld`, updating the network variable.
+  - `countdowndirty` (on non-master shards only): Fires when the network variable changes, triggering `secondary_worldresetupdate` event.
+- **Pushes:**
+  - `secondary_worldresetupdate` (on non-master shards only): Broadcasts `{ countdown = number }` after receiving a network update.

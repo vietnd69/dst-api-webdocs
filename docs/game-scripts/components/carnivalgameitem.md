@@ -1,27 +1,42 @@
 ---
 id: carnivalgameitem
 title: Carnivalgameitem
-description: A component that marks an entity as an item intended for use in carnival games.
+description: A placeholder component for items used in carnival minigames.
+tags: [minigame, item]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 1c79e696
+system_scope: entity
 ---
 
 # Carnivalgameitem
 
-## Overview
-This component serves as a simple marker to identify an entity as an item associated with the carnival game system. It contains no inherent logic or functionality on its own and is likely used by other game systems to check if an entity is a valid carnival game item.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`CarnivalGameItem` is a minimal placeholder component intended for items participating in carnival-themed minigames. It currently does not implement any logic beyond storing the owning entity instance. This component likely serves as a marker or future extension point for minigame-specific behavior.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("carnivalgameitem")
+-- Placeholder component; no methods available yet.
+-- Used in conjunction with minigame systems to identify eligible items.
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-No public properties were clearly identified from the source.
+No public properties
 
-## Main Functions
-No functional methods are defined in this component.
+## Main functions
+No documented public functions
+
+## Events & listeners
+Not applicable

@@ -1,72 +1,88 @@
 ---
 id: wateryprotection
 title: Wateryprotection
-description: Applies protective effects—such as extinguishing fire, reducing withering, cooling, and adding wetness—to nearby entities within a specified radius.
+description: Applies protective effects (withering, cooling, extinguishing, and wetting) to entities within a radius, typically used for environmental interactions like rain or water-based abilities.
+tags: [environment, protection, weather]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: feaa5fa9
+system_scope: environment
 ---
 
 # Wateryprotection
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component provides area-of-effect protective functionalities when activated. It is designed to apply environmental protections—including fire extinguishing, withering protection, cooling, and moisture application—to nearby entities and, optionally, the surrounding terrain (soil moisture). It operates by scanning nearby entities within a configurable radius, excluding certain tags, and applying configured effects based on its property values.
+`Wateryprotection` provides area-based protection and mitigation against environmental hazards such as fire, overheat, freezing, and desiccation. It is typically added to entities (e.g., characters, furniture, or consumables) that need to generate a protective field — for instance, a water source extinguishing nearby fires or reducing ambient temperature. The component interacts closely with `burnable`, `freezable`, `temperature`, `moisture`, `witherable`, and `farming_manager`.
 
-## Dependencies & Tags
-**Required Components (for target entities):**  
-- `burnable` (for extinguishing/fire protection)  
-- `witherable` (for withering protection)  
-- `freezable` (for coldness addition)  
-- `temperature` (for temperature reduction)  
-- `moisture` or `inventoryitem` (for wetness application, depending on context and `applywetnesstoitems`)  
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("wateryprotection")
 
-**Ignored Tags (default):** `"FX"`, `"DECOR"`, `"INLIMBO"`, `"burnt"`  
-Additional tags may be added via `AddIgnoreTag`.
+inst.components.wateryprotection.witherprotectiontime = 5
+inst.components.wateryprotection.temperaturereduction = 15
+inst.components.wateryprotection.addcoldness = 5
+inst.components.wateryprotection.addwetness = 0.3
+inst.components.wateryprotection.extinguish = true
+inst.components.wateryprotection.applywetnesstoitems = true
+
+inst.components.wateryprotection:SpreadProtection(inst, 6)
+```
+
+## Dependencies & tags
+**Components used:**  
+`burnable`, `witherable`, `freezable`, `temperature`, `moisture`, `inventoryitem`, `farming_manager`  
+**Tags:** Adds `"FX"`, `"DECOR"`, `"INLIMBO"`, `"burnt"` to internal `ignoretags` list (excluded from protection application).  
+**Custom ignore tags:** Can be added via `AddIgnoreTag(tag)`.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `witherprotectiontime` | number | `0` | Duration (in seconds) to protect against withering if the target entity has a `witherable` component. |
-| `temperaturereduction` | number | `0` | Amount of temperature (in degrees) to subtract from target entities with a `temperature` component. |
-| `addcoldness` | number | `0` | Amount of coldness to add to targets with a `freezable` component. |
-| `addwetness` | number | `0` | Amount of wetness to apply to targets (adjusted by waterproofness) or items if `applywetnesstoitems` is `true`. |
-| `applywetnesstoitems` | boolean | `false` | If `true`, applies `addwetness` to entities with `inventoryitem` but *without* `moisture`. |
-| `extinguish` | boolean | `true` | Whether to extinguish fire (burning/smoldering) on targets with `burnable`. |
-| `extinguishheatpercent` | number | `0` | Percentage of max heat to retain after extinguishing (used only if `extinguish` is `true`). |
-| `ignoretags` | table of strings | `{ "FX", "DECOR", "INLIMBO", "burnt" }` | List of tags that entities must *not* have to be affected. |
+| `witherprotectiontime` | number | `0` | Duration (in seconds) to protect `witherable` entities from withering. |
+| `temperaturereduction` | number | `0` | Amount to *subtract* from the target's current temperature (cooling effect). |
+| `addcoldness` | number | `0` | Coldness value passed to `Freezable:AddColdness()` for `freezable` entities. |
+| `addwetness` | number | `0` | Net moisture added to `moisture` or `inventoryitem` components (scaled by waterproofness). |
+| `applywetnesstoitems` | boolean | `false` | If `true`, applies wetness to items in inventory even if they lack a `moisture` component. |
+| `extinguish` | boolean | `true` | Whether fire and smolder states are removed from `burnable` entities. |
+| `extinguishheatpercent` | number | `0` | Heat percentage used during extinguish — passed to `Burnable:Extinguish()`. |
+| `ignoretags` | table of strings | `{ "FX", "DECOR", "INLIMBO", "burnt" }` | Tags that cause entities to be *skipped* during protection spreading. |
 
-## Main Functions
-
+## Main functions
 ### `AddIgnoreTag(tag)`
-* **Description:** Adds a custom tag to the list of ignored entities, preventing entities with that tag from receiving protection effects.  
-* **Parameters:**  
-  - `tag` (string): The tag to add to `ignoretags`.
+* **Description:** Appends a tag to the list of entity tags to ignore during protection spreading.
+* **Parameters:** `tag` (string) — the tag to add.
+* **Returns:** Nothing.
 
 ### `ApplyProtectionToEntity(ent, noextinguish)`
-* **Description:** Applies all configured protective effects to a *single* entity. Effects include extinguishing fire, applying withering protection, reducing temperature/coldness, and adding wetness.  
+* **Description:** Applies all configured protections to a *single* entity. Skips components that are not present on the entity.
 * **Parameters:**  
-  - `ent` (Entity): The target entity to affect.  
-  - `noextinguish` (boolean, optional): If `true`, skips the extinguishing logic—even if `extinguish` is `true`.
+  - `ent` (Entity) — the target entity.  
+  - `noextinguish` (boolean, optional) — if `true`, skips fire extinguishing regardless of `extinguish` setting.
+* **Returns:** Nothing.
+* **Error states:** Silent no-op if entity lacks required components.
 
 ### `SpreadProtectionAtPoint(x, y, z, dist, noextinguish)`
-* **Description:** Finds and applies protection effects to all entities within a radius around the given world coordinates. Also optionally updates soil moisture and calls a custom callback (if set).  
+* **Description:** Finds and protects all entities within a spherical radius (`dist`) around a point. Also spreads moisture into soil (via `farming_manager`) if `addwetness > 0`. Fires `onspreadprotectionfn`, if set.
 * **Parameters:**  
-  - `x`, `y`, `z` (numbers): World coordinates around which to search for entities.  
-  - `dist` (number, optional): Radius to search; defaults to `self.protection_dist` or `4` if both are `nil`.  
-  - `noextinguish` (boolean, optional): Passed to `ApplyProtectionToEntity` to skip extinguishing.
+  - `x`, `y`, `z` (numbers) — world coordinates.  
+  - `dist` (number, optional) — search radius. Falls back to `self.protection_dist` or defaults to `4`.  
+  - `noextinguish` (boolean, optional) — see `ApplyProtectionToEntity`.
+* **Returns:** Nothing.
 
 ### `SpreadProtection(inst, dist, noextinguish)`
-* **Description:** Convenience wrapper for `SpreadProtectionAtPoint` that uses the current position of the component’s owner (`self.inst`).  
+* **Description:** Convenience wrapper around `SpreadProtectionAtPoint`. Uses `inst`'s current world position as the origin.
 * **Parameters:**  
-  - `inst` (Entity): The owner instance (source of position).  
-  - `dist` (number, optional): Search radius (see `SpreadProtectionAtPoint`).  
-  - `noextinguish` (boolean, optional): Passed through to `SpreadProtectionAtPoint`.
+  - `inst` (Entity) — the source entity whose position is used.  
+  - `dist` (number, optional) — search radius.  
+  - `noextinguish` (boolean, optional) — see `ApplyProtectionToEntity`.
+* **Returns:** Nothing.
 
-## Events & Listeners
-None identified.
+## Events & listeners
+- **Listens to:** None (no `ListenForEvent` calls).
+- **Pushes:** None (no `PushEvent` calls).

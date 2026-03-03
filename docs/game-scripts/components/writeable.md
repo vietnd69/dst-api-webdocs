@@ -1,125 +1,149 @@
 ---
 id: writeable
 title: Writeable
-description: Manages the state and behavior of entities that can be written on, including text storage, writing session management, and automatic UI interaction.
+description: Manages the ability for entities to hold and display custom text written by players.
+tags: [interaction, text, network, item, player]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: eba8b18d
+system_scope: entity
 ---
 
 # Writeable
 
-## Overview
-The `Writeable` component enables entities to hold and display user-provided text (e.g., signs, notebooks), tracks writing sessions initiated by players, manages associated UI widgets, and handles synchronization of writer identity and text content across clients. It integrates closely with the `inspectable` component to provide dynamic descriptions and supports events for custom behavior during writing completion or cancellation.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components:**
-  - Relies on `inspectable` (for custom description via `gettext`) if present.
-  - Uses `rider` component (to detect if writer is riding and auto-cancel writing).
-- **Tags:**
-  - Dynamically adds/removes `"writeable"` tag based on `writeable_by_default` state and whether text is present.
-  - AnimState layers `"WRITING"` shown/hidden in sync with tag changes when `AnimState` exists.
+## Overview
+`Writeable` enables entities (e.g., signs, scrolls, journals) to store, display, and persist custom text written by players. It handles the entire writing workflow—starting a writing session, updating text, and finalizing the written state—and synchronizes the writer identity and content over the network. It integrates with the `inspectable` component to provide special description text for written/unwritten states and reacts to proximity and riding states to auto-close writing sessions.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("writeable")
+inst.components.writeable:SetText("Hello world")
+inst.components.writeable:SetDefaultWriteable(false) -- Not auto-writeable by default
+inst.components.writeable:SetAutomaticDescriptionEnabled(true)
+```
+
+## Dependencies & tags
+**Components used:** `rider` (to check `IsRiding`), `inspectable` (for `getspecialdescription`)
+**Tags:** Adds/removes `writeable` tag based on state; uses `burnt` tag for special description.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `writeable_by_default` | `boolean` | `true` | Controls whether the entity starts with the `"writeable"` tag and default writing capability. |
-| `text` | `string?` | `nil` | The stored written text. `nil` indicates unwritten state. |
-| `writer` | `Entity?` | `nil` | The entity currently initiating or participating in the writing session. |
-| `screen` | `WriteableScreen?` | `nil` | Reference to the client-side UI screen/widget for writing (created on write start). |
-| `onclosepopups` | `function` | — | Internal callback triggered on popup close or writer removal to auto-end writing. |
-| `generatorfn` | `function?` | `nil` | Reserved for future use (uninitialized in current code). |
-| `automatic_description` | `boolean` | `true` | Enables/disables dynamic description updates (e.g., showing written text in inspect). |
-| `writeable_distance` | `number` | `3` | Maximum distance (in world units) required for a writer to remain valid during writing. |
-| `writer_netid` | `number?` | `nil` | Network ID of the writer, stored for safe replication and display (e.g., attribution). |
-| `writer_userid` | `string?` | `nil` | User ID of the writer, stored for attribution and safety. |
+| `writeable_by_default` | boolean | `true` | If `true`, the entity starts with the `writeable` tag and shows "UNWRITTEN" state. |
+| `text` | string or `nil` | `nil` | The currently written text content. |
+| `writer` | entity or `nil` | `nil` | The entity currently performing the writing action. |
+| `screen` | widget or `nil` | `nil` | The UI screen/widget shown during writing. |
+| `automatic_description` | boolean | `true` | If `true`, enables dynamic description handling for written/unwritten states. |
+| `writeable_distance` | number | `3` | Max distance the writer can be from the entity to begin/write. |
+| `onwritten` | function or `nil` | `nil` | Callback fired after successful write. Signature: `fn(inst, text, doer)`. |
+| `onwritingended` | function or `nil` | `nil` | Callback fired when a writing session ends. Signature: `fn(inst)`. |
 
-## Main Functions
+## Main functions
 ### `BeginWriting(doer)`
-* **Description:** Starts a writing session on the entity with the given writer (`doer`). Initializes the writer reference, opens the writing UI (if `doer.HUD` exists), and begins entity updates to check for writing session validity.
-* **Parameters:**
-  - `doer` (`Entity`): The entity initiating writing (typically a player).
+*   **Description:** Starts a writing session for the given entity (`doer`). Updates internal state, adds event listeners, and opens a writing UI if `doer.HUD` is present.
+*   **Parameters:** `doer` (entity) - the player or entity attempting to write.
+*   **Returns:** Nothing.
+*   **Error states:** Does nothing if `writer` is already set (no re-entry allowed).
 
 ### `EndWriting()`
-* **Description:** Ends the current writing session gracefully. Cleans up the UI screen, removes writer-related event listeners, stores writer identity info, invokes `onwritingended` callback (if set), and stops entity updates.
-* **Parameters:** None.
+*   **Description:** Finalizes and closes the current writing session. Clears UI, removes event listeners, and saves writer identity (userid/netid). Fires `onwritingended` callback.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `Write(doer, text)`
-* **Description:** Finalizes the writing session by storing the provided text, invoking the `onwritten` callback (if set), ending the writing session, and optionally destroying the entity if `remove_after_write` is true.
-* **Parameters:**
-  - `doer` (`Entity`): Must match the current `writer` (security check).
-  - `text` (`string?`): The written content (may be `nil` to clear; length is validated via `utf8len` or `MAX_WRITEABLE_LENGTH`).
+*   **Description:** Saves the provided `text` to the entity if validation passes (correct writer, text length within limit). Applies word filtering in RAIL builds. Removes the entity if `remove_after_write` is set.
+*   **Parameters:**  
+    *   `doer` (entity) - must match the current `writer`.  
+    *   `text` (string or `nil`) - the content to write; may be `nil` to erase. Length must be `<= maxcharacters` (from layout) or `MAX_WRITEABLE_LENGTH`.
+*   **Returns:** Nothing.
+*   **Error states:** Does nothing if `doer` is not the current writer, is `nil`, or text exceeds length limit.
 
 ### `GetText()`
-* **Description:** Returns the stored text. On Xbox One (`IsXB1()`), prepends and appends `\1` and includes `writer_netid` for platform-specific handling.
-* **Parameters:** None.
+*   **Description:** Returns the stored text. In XB1 builds, returns a special format string with writer netid for rendering.
+*   **Parameters:** None.
+*   **Returns:** `string or nil` — the written text or `"\1" .. text .. "\1" .. writer_netid` on XB1.
 
 ### `SetText(text)`
-* **Description:** Sets the internal `text` property (low-level; does not trigger side effects like tag updates—use `Write` instead for full behavior).
-* **Parameters:**
-  - `text` (`string?`): The new text value.
-
-### `SetAutomaticDescriptionEnabled(ad_enabled)`
-* **Description:** Enables or disables dynamic descriptions (e.g., showing written text when inspecting the entity). Modifies `inspectable.getspecialdescription`.
-* **Parameters:**
-  - `ad_enabled` (`boolean`): Whether to enable automatic description updates.
-
-### `SetDefaultWriteable(writeable_by_default)`
-* **Description:** Changes the `writeable_by_default` flag and immediately updates the `"writeable"` tag and `"WRITING"` animation state accordingly.
-* **Parameters:**
-  - `writeable_by_default` (`boolean`): New default writeable state.
-
-### `SetWriteableDistance(dist)`
-* **Description:** Sets the maximum distance (`writeable_distance`) the writer must remain within to keep the writing session active.
-* **Parameters:**
-  - `dist` (`number`): New distance threshold.
-
-### `SetOnWrittenFn(fn)`
-* **Description:** Assigns a custom callback to be invoked when writing is successfully completed via `Write()`.
-* **Parameters:**
-  - `fn` (`function`): Signature: `fn(inst, text, writer)`.
-
-### `SetOnWritingEndedFn(fn)`
-* **Description:** Assigns a custom callback to be invoked when a writing session ends (successfully or canceled).
-* **Parameters:**
-  - `fn` (`function`): Signature: `fn(inst)`.
+*   **Description:** Directly sets the `text` field without validation or side effects.
+*   **Parameters:** `text` (string or `nil`) — the new content.
+*   **Returns:** Nothing.
 
 ### `IsWritten()`
-* **Description:** Returns `true` if the entity has non-`nil` written text.
-* **Parameters:** None.
+*   **Description:** Checks if the entity has been written on.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if `text ~= nil`.
 
 ### `IsBeingWritten()`
-* **Description:** Returns `true` if a writing session is currently in progress (`writer` is set).
-* **Parameters:** None.
+*   **Description:** Checks if a writing session is currently active.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if `writer ~= nil`.
 
-### `OnUpdate(dt)`
-* **Description:** Handles auto-cancellation of writing sessions if the writer is no longer near, no longer visible, or riding an entity. Called each frame only while `writer` is set.
-* **Parameters:**
-  - `dt` (`number`): Delta time (unused directly, but required per component update contract).
+### `SetAutomaticDescriptionEnabled(ad_enabled)`
+*   **Description:** Enables/disables the automatic `inspectable.getspecialdescription` logic (which returns "BURNT", written text, or "UNWRITTEN").
+*   **Parameters:** `ad_enabled` (boolean).
+*   **Returns:** Nothing.
+
+### `SetDefaultWriteable(writeable_by_default)`
+*   **Description:** Toggles the `writeable_by_default` flag and updates the `writeable` tag and animation state accordingly.
+*   **Parameters:** `writeable_by_default` (boolean).
+*   **Returns:** Nothing.
+
+### `SetWriteableDistance(dist)`
+*   **Description:** Sets the maximum distance (`writeable_distance`) the writer must be within to write.
+*   **Parameters:** `dist` (number).
+*   **Returns:** Nothing.
+
+### `SetOnWrittenFn(fn)`
+*   **Description:** Registers a callback function to be invoked after a successful write.
+*   **Parameters:** `fn` (function) — callback with signature `fn(inst, text, doer)`.
+*   **Returns:** Nothing.
+
+### `SetOnWritingEndedFn(fn)`
+*   **Description:** Registers a callback function to be invoked when a writing session ends.
+*   **Parameters:** `fn` (function) — callback with signature `fn(inst)`.
+*   **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Serializes persistent state (text, writer netid, writer userid) for saving to disk.
-* **Parameters:** None.
+*   **Description:** serializes the written state for persistence. Returns `text`, `writer_netid`, and `writer_userid`.
+*   **Parameters:** None.
+*   **Returns:** `table` — ` { text, netid, userid }`.
 
 ### `OnLoad(data)`
-* **Description:** Restores state from saved data. Applies word filtering for RAIL builds.
-* **Parameters:**
-  - `data` (`table`): Contains keys `text`, `netid`, `userid`.
+*   **Description:** Restores the written state from saved data. Applies word filtering in RAIL builds.
+*   **Parameters:** `data` (table) — must contain `text`, `netid`, `userid`.
+*   **Returns:** Nothing.
 
-### `OnRemoveFromEntity()`
-* **Description:** Cleanup called when component is removed from the entity. Ends any active writing session, removes tags/events, and cleans up inspectable callbacks.
-* **Parameters:** None.
+## Events & listeners
+- **Listens to:**
+  - `onbuilt` — triggers `BeginWriting(data.builder)` when the entity is built.
+  - `ms_closepopups` (from writer only) — triggers `EndWriting()` if the writer closes popups.
+  - `onremove` (from writer only) — triggers `EndWriting()` if the writer is removed.
+  - `text`, `writer`, `automatic_description` — triggers corresponding listener functions (`ontextchange`, `onwriter`, `onautodescribechanged`).
+- **Pushes:** None.
 
-## Events & Listeners
-- **Listens for `"onbuilt"`:** Triggers `onbuilt` handler, which calls `BeginWriting(data.builder)`.
-- **Listens for `"ms_closepopups"` (on writer):** Triggered via `onclosepopups` to end writing if the writer closes popups.
-- **Listens for `"onremove"` (on writer):** Ensures writing is ended if the writer is removed.
-- **Pushes events:**
-  - `onwritten` (via callback, if set) after successful write.
-  - `onwritingended` (via callback, if set) when writing ends.
-  - (`onwritten` and `onwritingended` are *not* standard DST events but custom callbacks stored locally.)
+## Utility / Helper functions
+### `gettext(inst, viewer)`
+*   **Description:** INTERNAL — Returns description string for inspectable depending on burn and write state. Used as `inspectable.getspecialdescription`.
+*   **Parameters:**  
+    *   `inst` (entity) — the writeable entity.  
+    *   `viewer` (entity) — the inspecting entity (player).  
+*   **Returns:** `string or {string, context, netid}` — description string(s) based on state.
+
+### `onbuilt(inst, data)`
+*   **Description:** INTERNAL — Event handler for `onbuilt`; invokes `BeginWriting(data.builder)`.
+
+### `ontextchange(self, text)`
+*   **Description:** INTERNAL — Adds/removes the `writeable` tag and controls `"WRITING"` animation based on whether `text` is `nil`.
+
+### `onwriter(self, writer)`
+*   **Description:** INTERNAL — Syncs writer identity to the network replica (`self.inst.replica.writeable:SetWriter(writer)`).
+
+### `onautodescribechanged(self, new_ad, old_ad)`
+*   **Description:** INTERNAL — Attaches or detaches the `gettext` handler to `inspectable.getspecialdescription` based on `automatic_description`.

@@ -1,58 +1,73 @@
 ---
 id: ambientlighting
 title: Ambientlighting
-description: Calculates and interpolates global ambient lighting colours based on time of day, season, weather, and player night vision state.
+description: Manages dynamic ambient lighting color transitions based on world phase, moon phase, season, weather, and player night vision state.
+tags: [environment, lighting, world]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: af52a4cc
+system_scope: environment
 ---
 
-# ambientlighting
+# Ambientlighting
+
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The `ambientlighting` component is responsible for dynamically controlling the game's ambient and visual ambient lighting. It adjusts these lighting parameters based on various in-game factors such as the time of day, season, moon phase, weather effects (e.g., light percentage during rain), player night vision status, and screen flash events. It manages the smooth transitions between different lighting states through color interpolation.
+`AmbientLighting` computes and applies the current ambient lighting colour for the game world, using lerping to smoothly transition between colours for different phases of day, moon phases, seasons, and weather conditions. It responds to player activation/deactivation events to support per-player night vision overrides and ambient lighting customization. This component is attached to the world entity and drives the global `TheSim:SetAmbientColour` and `TheSim:SetVisualAmbientColour` calls.
 
-## Dependencies & Tags
-*   **Relies on Global State**: Interacts heavily with `TheWorld` (implicitly through `inst:ListenForEvent` for global events), `TheSim` (for setting ambient colors), and `Profile` (for screen flash intensity settings).
-*   **Player Components**: When a player is activated, it listens to events on the player entity itself, specifically interacting with `player.components.playervision` to determine night vision status and overrides.
-*   **Tags**: Checks `inst:HasTag("cave")` to apply different lighting logic for cave environments.
+It interacts with the `playervision` component to apply custom ambient overrides when night vision is active.
+
+## Usage example
+```lua
+-- This component is automatically added to the world prefab and is not typically added manually.
+-- Example of triggering a lighting override:
+TheWorld.inst.components.ambientlighting:OnOverrideAmbientLighting({ r = 0.5, g = 0.5, b = 0.5 })
+-- Note: `OnOverrideAmbientLighting` is an internal event handler — use the corresponding event instead.
+```
+
+## Dependencies & tags
+**Components used:** `playervision` (via `GetNightVisionAmbientOverrides`)
+**Tags:** Checks `cave` tag on the instance to adjust default lighting behaviour.
 
 ## Properties
-| Property   | Type          | Default Value | Description                                                    |
-| :--------- | :------------ | :------------ | :------------------------------------------------------------- |
-| `self.inst`| `Entity`      | `inst`        | A reference to the parent entity this component is attached to.|
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | *(instance passed to constructor)* | The entity that owns this component (typically the world). |
 
-## Main Functions
-### `self:OnUpdate(dt)`
-*   **Description:** This function is called every frame the component is actively updating. It manages the smooth interpolation of `_realcolour` and `_overridecolour` towards their target values. It also handles the timing and intensity of screen flash effects. If no color lerping or flashing is active, it stops further updates until a new lighting change is triggered.
-*   **Parameters:**
-    *   `dt`: (`number`) The time elapsed since the last frame.
+**Note:** Most member variables are private and internal to the component's state management.
 
-### `self:LongUpdate(dt)`
-*   **Description:** This function is called during a "long update," typically when the game is resuming from a pause or a significant time jump. It immediately resolves any pending color interpolations by setting the current colours to their target values, resets the flash state, and stops the component from updating until needed again. This ensures lighting is correct instantly after a pause.
-*   **Parameters:**
-    *   `dt`: (`number`) The time elapsed since the last long update.
-
-### `self:GetVisualAmbientValue()`
-*   **Description:** Returns a numerical representation of the current visual ambient light intensity. This value is derived from the `_overridecolour` (which includes night vision effects) or the `_flashcolour` if a screen flash is active. It's an average of the RGB components, potentially scaled by `lightpercent`.
+## Main functions
+### `GetVisualAmbientValue()`
+*   **Description:** Computes and returns a single scalar value representing the current visual ambient lighting intensity, used for UI or debugging purposes. Accounts for flash state, light percent, and RGB averages.
 *   **Parameters:** None.
+*   **Returns:** `number` — A float value derived from the override colour's RGB components weighted by light percent, or flash colour when active.
 
-## Events & Listeners
-This component listens for a variety of events from `TheWorld` and activated players to update the ambient lighting state.
+### `OnUpdate(dt)`
+*   **Description:** The main update loop for lighting interpolation and flash state handling. Calls internal update functions for real and override colour sets, handles screen flash sequences, and pushes final colour to the renderer. Runs during `Update` phase.
+*   **Parameters:** `dt` (number) — Delta time in seconds.
+*   **Returns:** Nothing. Updates internal state and calls `PushCurrentColour`.
 
-*   `inst:ListenForEvent("phasechanged", OnPhaseChanged)`: Triggered when the time of day (day, dusk, night) changes. Updates `_phase` and `_isfullmoon`.
-*   `inst:ListenForEvent("moonphasechanged2", OnMoonPhaseChanged2)`: Triggered when the moon phase changes. Updates `_moonphase` and recalculates full moon status.
-*   `inst:ListenForEvent("weathertick", OnWeatherTick)`: Triggered by the weather system, providing updates on `data.light` (e.g., during rain), which affects the overall light intensity.
-*   `inst:ListenForEvent("screenflash", OnScreenFlash)`: Triggered when a screen flash effect occurs. Initializes the flash state, intensity, and duration.
-*   `inst:ListenForEvent("seasontick", OnSeasonTick)` (only if not a "cave" entity): Triggered when the season changes. Updates `_season`.
-*   `inst:ListenForEvent("playeractivated", OnPlayerActivated)`: Triggered when a player entity becomes the active player. It then listens for `nightvision` and `nightvisionambientoverrides` events on that specific player.
-*   `inst:ListenForEvent("playerdeactivated", OnPlayerDeactivated)`: Triggered when a player entity is no longer the active player. It removes the `nightvision` and `nightvisionambientoverrides` event listeners from that player.
-*   `player:ListenForEvent("nightvision", OnNightVision)`: Listened on the *active player entity*. Triggered when the player's night vision status changes (e.g., wearing/removing a Mole Hat). Adjusts `_overridecolour` to use `NIGHTVISION_COLOURS`.
-*   `player:ListenForEvent("nightvisionambientoverrides", OnNightVisionAmbientOverrides)`: Listened on the *active player entity*. Triggered when the player's night vision color overrides change, allowing specific items or effects to alter the night vision palette.
-*   `inst:ListenForEvent("overrideambientlighting", OnOverrideAmbientLighting)`: Allows external sources to temporarily override the global ambient lighting color. *Note: The source code indicates this is "NOT safe to use!"*.
-*   `inst:ListenForEvent("continuefrompause", OnContinueFromPause)`: Triggered when the game resumes from a paused state, updating screen flash intensity scaling from profile settings.
+### `LongUpdate(dt)`
+*   **Description:** Called when the component has been paused or stopped. Ensures final interpolation is complete, resets flash and lerp state, and pushes final colour before stopping updates. Typically used when resuming from a long pause or large time skip.
+*   **Parameters:** `dt` (number) — Delta time in seconds.
+*   **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:**
+  - `"phasechanged"` — Updates _phase and triggers recomputation of ambient colour.
+  - `"moonphasechanged2"` — Updates _moonphase and triggers recomputation if phase is `"night"`.
+  - `"weathertick"` — Updates `_realcolour.lightpercent` and `_overridecolour.lightpercent`.
+  - `"screenflash"` — Initiates a screen flash sequence.
+  - `"seasontick"` — Updates _season (only if not in a cave).
+  - `"playeractivated"` — Caches the active player and registers `nightvision` and `nightvisionambientoverrides` event callbacks.
+  - `"playerdeactivated"` — Cleans up player-specific event listeners and disables night vision override.
+  - `"overrideambientlighting"` — Applies a fixed ambient colour override (note: marked `NOT safe to use!` in comments).
+  - `"continuefrompause"` — Refreshes screen flash scaling setting from profile.
+- **Pushes:** None — This component only consumes events and does not fire its own.
+
+**Note:** `OnOverrideAmbientLighting` is an internal event handler, not a public API. Modders should use the `"overrideambientlighting"` event to trigger it, but note the safety warning in comments.

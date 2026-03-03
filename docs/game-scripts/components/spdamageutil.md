@@ -1,76 +1,113 @@
 ---
 id: spdamageutil
 title: Spdamageutil
-description: A singleton utility managing special damage and defense types across entities, enabling modular damage systems via type registration and calculation.
+description: A singleton utility for managing and calculating special damage types and their interaction with special defenses across entities.
+tags: [combat, damage, utility]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: combat
+category_type: components
 source_hash: 80bdcfdb
+system_scope: combat
 ---
 
 # Spdamageutil
 
-## Overview
-This singleton component provides infrastructure for registering, querying, and manipulating special damage and defense types in DST’s combat system. It allows mods and core systems to define named damage types (e.g., "planar") with associated damage/defense calculation logic, and supports aggregating, merging, modifying, and applying such damage against entities.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-This component does not add any components or tags to entities. It is a utility module with no direct dependency on other components—however, its default "planar" type implementation checks for the presence of `planardamage` and `planardefense` components.
+## Overview
+`SpDamageUtil` is a singleton utility component that provides centralized support for defining and working with special damage types (e.g., planar damage). It allows registration of custom damage/defense calculation functions via `DefineSpType`, and offers helpers to collect, merge, and apply multipliers and defenses to special damage tables.
+
+It interfaces directly with the `planardamage` and `planardefense` components to provide default behavior for the built-in `"planar"` damage type.
+
+## Usage example
+```lua
+-- Define a new special damage type (e.g., "venom")
+SpDamageUtil.DefineSpType("venom", {
+    GetDamage = function(ent)
+        return ent.components.poison and ent.components.poison:GetDamage() or 0
+    end,
+    GetDefense = function(ent)
+        return ent.components.resistance and ent.components.resistance:GetDefenseForType("venom") or 0
+    end,
+})
+
+-- Calculate total special damage for a target
+local damageTable = SpDamageUtil.CollectSpDamage(target)
+local total = SpDamageUtil.CalcTotalDamage(damageTable)
+
+-- Apply multiplier and then defense
+SpDamageUtil.ApplyMult(damageTable, 1.5)
+damageTable = SpDamageUtil.ApplySpDefense(target, damageTable)
+```
+
+## Dependencies & tags
+**Components used:** `planardamage`, `planardefense`  
+**Tags:** None identified.
 
 ## Properties
-No public instance-level properties are initialized. All state is held in module-scoped tables (`SpTypeMap`, `Fallbacks`), which are accessible via `_SpTypeMap` and `_Fallbacks` for internal or modding use (with caution).
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `_SpTypeMap` | table | `{}` | Internal registry mapping special damage type names (`string`) to their definition tables (must contain `GetDamage` and/or `GetDefense` functions). Mods should not modify directly without caution. |
+| `_Fallbacks` | table | `{ GetDamage = fn, GetDefense = fn }` | Contains fallback functions used when a damage type definition is missing a required function (`GetDamage` or `GetDefense`). |
 
-## Main Functions
-
+## Main functions
 ### `DefineSpType(sptype, spdata)`
-* **Description:** Registers a new special damage type (e.g., `"planar"`) by mapping its name to a table of callback functions (`GetDamage`, `GetDefense`). Fails if the type is already defined.
+* **Description:** Registers a new special damage type with its associated calculation functions. Must be called before attempting to query damage/defense for that type. Overwrites existing definitions (but asserts uniqueness during definition).
 * **Parameters:**  
-  - `sptype` (string): Unique identifier for the damage type.  
-  - `spdata` (table): Table containing optional `GetDamage(entity)` and/or `GetDefense(entity)` functions.
+  `sptype` (string) — Unique identifier for the damage type (e.g., `"planar"`).  
+  `spdata` (table) — Table containing at least one of `GetDamage` or `GetDefense` functions. Each function must accept a single argument: `ent` (TheEntity).
+* **Returns:** Nothing.
 
 ### `GetSpDamageForType(ent, sptype)`
-* **Description:** Returns the special damage value of type `sptype` for the given entity, using the registered callback. Falls back to `0` if no definition or `GetDamage` is missing.
+* **Description:** Returns the special damage amount of the given type for the specified entity using the registered definition.
 * **Parameters:**  
-  - `ent` (Entity): The entity whose damage is queried.  
-  - `sptype` (string): The special damage type identifier.
+  `ent` (TheEntity) — Entity to calculate damage for.  
+  `sptype` (string) — Registered special damage type name.
+* **Returns:** number — Calculated damage value, or `0` if type is unknown or its `GetDamage` function returns `nil`.
 
 ### `GetSpDefenseForType(ent, sptype)`
-* **Description:** Returns the special defense value of type `sptype` for the given entity. Falls back to `0` if no definition or `GetDefense` is missing.
+* **Description:** Returns the special defense value of the given type for the specified entity using the registered definition.
 * **Parameters:**  
-  - `ent` (Entity): The entity whose defense is queried.  
-  - `sptype` (string): The special damage type identifier.
+  `ent` (TheEntity) — Entity to calculate defense for.  
+  `sptype` (string) — Registered special damage type name.
+* **Returns:** number — Calculated defense value, or `0` if type is unknown or its `GetDefense` function returns `nil`.
 
 ### `CollectSpDamage(ent, tbl)`
-* **Description:** Iterates over all registered damage types, queries the entity’s damage for each, and populates a table mapping `sptype → damage_amount` for all types where damage > 0. Returns the populated table (or `nil` if no damage found).
+* **Description:** Iterates over all registered damage types, calculates each special damage value for the entity, and populates a table mapping `sptype → damage`. Only non-zero values are added.
 * **Parameters:**  
-  - `ent` (Entity): The entity to query.  
-  - `tbl` (table?, optional): Existing table to populate; if `nil`, a new table is created.
+  `ent` (TheEntity) — Entity whose special damage values should be collected.  
+  `tbl` (table?, optional) — Pre-existing table to populate. If omitted or `nil`, a new table is created.
+* **Returns:** table — The populated damage table (same as `tbl` if provided).
 
 ### `MergeSpDamage(tbl1, tbl2)`
-* **Description:** Combines two damage tables by summing values per damage type key. Returns `tbl1` modified in-place if both are non-nil; otherwise returns whichever table is non-`nil`.
+* **Description:** Merges two special damage tables by summing values for matching keys. Handles `nil` inputs gracefully.
 * **Parameters:**  
-  - `tbl1` (table?, optional): First damage table.  
-  - `tbl2` (table?, optional): Second damage table.
+  `tbl1` (table?) — First damage table (updated in place if non-nil).  
+  `tbl2` (table?) — Second damage table.
+* **Returns:** table? — `tbl1` after modification if both inputs are non-nil; otherwise, whichever input is non-nil.
 
 ### `CalcTotalDamage(tbl)`
-* **Description:** Sums all values in the damage table to compute total damage.
+* **Description:** Sums all numeric values in the special damage table.
 * **Parameters:**  
-  - `tbl` (table?): Table of damage amounts per type.
+  `tbl` (table?) — Damage table produced by `CollectSpDamage` or similar.
+* **Returns:** number — Total special damage across all types, or `0` if `tbl` is `nil` or empty.
 
 ### `ApplyMult(tbl, mult)`
-* **Description:** Multiplies all damage values in the table by `mult`, setting entries to `nil` (removing them) if the result is zero or `mult` is zero. Returns the (possibly modified) table.
+* **Description:** Applies a multiplier to all values in the damage table. Removes entries where the result is `0` or `nil`.
 * **Parameters:**  
-  - `tbl` (table?): Damage table to scale.  
-  - `mult` (number): Multiplicative factor.
+  `tbl` (table?) — Damage table to modify.  
+  `mult` (number) — Multiplier to apply.
+* **Returns:** table? — The same table (`tbl`) after modification, or `nil` if all entries were removed.
 
 ### `ApplySpDefense(ent, tbl)`
-* **Description:** Applies special defense from `ent` to reduce damage in `tbl`. For each damage type in `tbl`, subtracts the entity’s defense of that type (if > 0); damage entries are set to `nil` if reduced to ≤ 0. Returns the modified table.
+* **Description:** Reduces special damage values in the table by the entity's matching special defense values. Values less than or equal to defense are set to `nil` (removed); overages are reduced to the difference.
 * **Parameters:**  
-  - `ent` (Entity): Entity providing defense.  
-  - `tbl` (table?): Damage table to apply defense against.
+  `ent` (TheEntity) — Entity whose special defenses are used to mitigate the damage.  
+  `tbl` (table?) — Damage table to adjust.
+* **Returns:** table? — The same table (`tbl`) after mitigation, or `nil` if all damage is negated.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified.

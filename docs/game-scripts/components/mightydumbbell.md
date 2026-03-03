@@ -1,94 +1,106 @@
 ---
 id: mightydumbbell
 title: Mightydumbbell
-description: Manages strength-based workout interactions for Strongman-tagged entities and adjusts their mightiness growth rate based on current mightiness level.
+description: Manages workout and attack interactions for strongman characters, dynamically adjusting mightiness gain rates and consumption based on current mightiness state.
+tags: [combat, player, interaction, stamina]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 48c6aa26
+system_scope: entity
 ---
 
 # Mightydumbbell
 
-## Overview
-This component enables and governs the "Mightydumbbell" item's workout functionality, specifically for entities with the `strongman` tag. It tracks the current workout user, applies efficiency multipliers based on the user's *mightiness* level (wimpy, normal, or mighty), modifies the growth rate of mightiness during workouts, and handles finite-usage consumption.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies:**
-  - `doer.components.mightiness` (required for workout effects)
-  - `self.inst.components.finiteuses` (optional; used for usage tracking)
-- **Entity Tags Added/Removed:**
-  - Adds tag `lifting` to the *Mightydumbbell* instance when workout begins (`StartWorkout`)
-  - Removes tag `lifting` when workout ends (`StopWorkout`)
+## Overview
+The `Mightydumbbell` component enables a durable exercise equipment item (e.g., a dumbbell) to interact with characters who have the `strongman` tag and a `mightiness` component. It provides workout functionality that scales based on the user's current mightiness level (wimpy, normal, or mighty), applyingdelta values to `mightiness` and optionally consuming finite uses via the `finiteuses` component. It also supports attack-based workouts via `DoAttackWorkout`.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("finiteuses")
+inst:AddComponent("mightydumbbell")
+inst.components.mightydumbbell:SetConsumption(1)
+inst.components.mightydumbbell:SetEfficiency(
+    TUNING.DUMBBELL_EFFICIENCY_LOW,
+    TUNING.DUMBBELL_EFFICIENCY_MED,
+    TUNING.DUMBBELL_EFFICIENCY_HIGH
+)
+```
+
+## Dependencies & tags
+**Components used:** `finiteuses`, `mightiness`  
+**Tags:** Adds `lifting` while a strongman is actively using the dumbbell; checks for `strongman` on users.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `efficiency_wimpy` | `number` (efficiency constant) | `TUNING.DUMBBELL_EFFICIENCY_LOW` | Mightiness gain rate multiplier applied when user's mightiness is below `WIMPY_THRESHOLD`. |
-| `efficiency_normal` | `number` (efficiency constant) | `TUNING.DUMBBELL_EFFICIENCY_LOW` | Mightiness gain rate multiplier applied when user's mightiness is between `WIMPY_THRESHOLD` and `MIGHTY_THRESHOLD`. |
-| `efficiency_mighty` | `number` (efficiency constant) | `TUNING.DUMBBELL_EFFICIENCY_LOW` | Mightiness gain rate multiplier applied when user's mightiness meets or exceeds `MIGHTY_THRESHOLD`. |
-| `strongman` | `entity or nil` | `nil` | Reference to the entity currently performing a workout using this item. |
-| `consumption` | `number` | *unset* (assigned via `SetConsumption`) | Amount of uses consumed per workout cycle. |
+| `efficiency_wimpy` | number | `TUNING.DUMBBELL_EFFICIENCY_LOW` | Mightiness delta multiplier when user is wimpy. |
+| `efficiency_normal` | number | `TUNING.DUMBBELL_EFFICIENCY_LOW` | Mightiness delta multiplier when user is in normal state. |
+| `efficiency_mighty` | number | `TUNING.DUMBBELL_EFFICIENCY_LOW` | Mightiness delta multiplier when user is mighty. |
+| `strongman` | entity (optional) | `nil` | Reference to the current user (if any) performing a workout. |
+| `consumption` | number | `0` | Number of uses consumed per workout call. |
 
-## Main Functions
-
+## Main functions
 ### `CanWorkout(doer)`
-* **Description:** Determines whether a given entity is allowed to use this workout item. Only entities with the `strongman` tag and a valid `mightiness` component qualify.
-* **Parameters:**  
-  `doer` (`entity`): The entity attempting to start a workout.
+* **Description:** Verifies if the given entity (`doer`) is eligible to use the dumbbell. Requires the `strongman` tag and presence of a `mightiness` component.
+* **Parameters:** `doer` (Entity) — the entity attempting to use the dumbbell.
+* **Returns:** `true` if eligible; `false` otherwise.
 
 ### `IsWorkingOut(doer)`
-* **Description:** Checks if the specified entity is currently the active workout user.
-* **Parameters:**  
-  `doer` (`entity`): The entity to check against the current workout user.
-
-### `CheckEfficiency(doer)`
-* **Description:** Calculates and applies the appropriate mightiness growth rate scale for the *current workout user*, returning the corresponding efficiency constant. Also adjusts the user's `mightiness` component's `RateScale`.
-* **Parameters:**  
-  `doer` (`entity`, *unused in implementation but passed*): Not used internally; logic relies on stored `self.strongman`.
-
-### `CheckAttackEfficiency(doer)`
-* **Description:** Computes the efficiency multiplier *for attack-based workouts* (e.g., punch-dumbbell interactions) without modifying the rate scale. Returns the efficiency constant (not scaled).
-* **Parameters:**  
-  `doer` (`entity`): The entity performing the attack workout.
+* **Description:** Checks if the given `doer` is the current active user of the dumbbell.
+* **Parameters:** `doer` (Entity) — the entity to check.
+* **Returns:** `true` if `doer` matches `self.strongman`; `false` otherwise.
 
 ### `StartWorkout(doer)`
-* **Description:** Begins a workout session for the specified entity. Marks the item as `lifting`, stores the user in `self.strongman`, and applies the appropriate mightiness growth rate.
-* **Parameters:**  
-  `doer` (`entity`): The entity initiating the workout.
+* **Description:** Begins a workout session for `doer`, setting them as the active user, adding the `lifting` tag to the dumbbell, and recalculating rate scale for their `mightiness`.
+* **Parameters:** `doer` (Entity) — the user starting the workout.
+* **Returns:** Nothing.
 
 ### `StopWorkout(doer)`
-* **Description:** Ends the current workout session. Removes the `lifting` tag, resets the user's mightiness rate scale to neutral, and clears `self.strongman`.
-* **Parameters:**  
-  `doer` (`entity`, *unused*): Included for API consistency but not used.
-
-### `SetConsumption(consumption)`
-* **Description:** Sets the per-workout usage amount for finite-usage items.
-* **Parameters:**  
-  `consumption` (`number`): Number of uses consumed per workout.
-
-### `SetEfficiency(wimpy, normal, mighty)`
-* **Description:** Configures custom efficiency constants for wimpy, normal, and mighty mightiness levels.
-* **Parameters:**  
-  `wimpy` (`number`): Efficiency constant for low mightiness.  
-  `normal` (`number`): Efficiency constant for mid-level mightiness.  
-  `mighty` (`number`): Efficiency constant for high mightiness.
-
-### `DoAttackWorkout(doer)`
-* **Description:** Applies a mightiness gain from an *attack-based* interaction (e.g., striking the dumbbell). Uses `CheckAttackEfficiency()` and scales by `TUNING.DUMBBELL_EFFICIENCY_ATTCK_SCALE`.
-* **Parameters:**  
-  `doer` (`entity`): The entity performing the attack workout.
+* **Description:** Ends the workout for `doer`, removes the `lifting` tag, resets the `mightiness` rate scale to `RATE_SCALE.NEUTRAL`, and clears `self.strongman`.
+* **Parameters:** `doer` (Entity) — the user ending the workout.
+* **Returns:** Nothing.
 
 ### `DoWorkout(doer)`
-* **Description:** Executes a standard workout: applies mightiness gain, consumes finite uses if present, and returns `false` if the item is exhausted (triggering auto-stop).
-* **Parameters:**  
-  `doer` (`entity`): The entity performing the workout.  
-* **Returns:**  
-  `true` if the workout succeeded and the item still has uses remaining; `false` if uses reached zero.
+* **Description:** Applies a mightiness delta based on current efficiency, optionally consumes uses if `finiteuses` is present, and cleans up if depleted.
+* **Parameters:** `doer` (Entity) — the user performing the workout.
+* **Returns:** `true` if workout completed successfully (or no `finiteuses` component); `false` if uses exhausted and workout stopped.
 
-## Events & Listeners
-None identified.
+### `DoAttackWorkout(doer)`
+* **Description:** Applies mightiness gain following an attack, using `CheckAttackEfficiency` to determine the delta based on the user’s state and a scaling constant.
+* **Parameters:** `doer` (Entity) — the attacker.
+* **Returns:** Nothing.
+
+### `SetConsumption(consumption)`
+* **Description:** Sets how many uses are deducted per `DoWorkout` call.
+* **Parameters:** `consumption` (number) — number of uses to consume.
+* **Returns:** Nothing.
+
+### `SetEfficiency(wimpy, normal, mighty)`
+* **Description:** Configures the efficiency constants for each mightiness state (used to compute `mightiness:DoDelta` deltas).
+* **Parameters:**  
+  `wimpy` (number) — efficiency multiplier when user is wimpy.  
+  `normal` (number) — efficiency multiplier when user is normal.  
+  `mighty` (number) — efficiency multiplier when user is mighty.
+* **Returns:** Nothing.
+
+### `CheckEfficiency(doer)`
+* **Description:** Returns the active efficiency value for the current user, and updates their `mightiness` rate scale accordingly. Returns `0` if no valid user or `mightiness` component.
+* **Parameters:** `doer` (Entity) — must match `self.strongman`.
+* **Returns:** One of `DUMBBELL_EFFICIENCY_*` constants (`LOW`, `MED`, or `HIGH`) or `0`.
+
+### `CheckAttackEfficiency(doer)`
+* **Description:** Returns the efficiency value that would apply to a given `doer` during an attack, *without* modifying the rate scale.
+* **Parameters:** `doer` (Entity) — the attacker.
+* **Returns:** One of `DUMMBELL_EFFICIENCY_*` constants or `0`.
+
+## Events & listeners
+- **Listens to:** None.  
+- **Pushes:** None.  
+*(This component does not directly listen for or fire events.)*

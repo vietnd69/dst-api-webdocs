@@ -1,49 +1,66 @@
 ---
 id: bait
 title: Bait
-description: Manages the state of an entity used as bait, linking it to a trap and notifying the trap when it is taken.
+description: Manages bait behavior for traps, handling attachment to and detachment from trap entities via lifecycle events.
+tags: [trap, inventory, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 56a0893d
+system_scope: world
 ---
 
 # Bait
 
-## Overview
-The `Bait` component is attached to entities that can be placed in traps. Its primary responsibility is to maintain a reference to the trap entity it has been placed in. It listens for events such as being eaten, stolen, or picked up, and notifies the trap so the trap can react accordingly (e.g., by springing shut).
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+The `Bait` component enables an entity to function as bait for traps. It tracks an optional association with a trap entity (`self.trap`) and responds to key lifecycle events (`onremove`, `onpickup`, `oneaten`, `onstolen`) to notify the trap of bait state changes. When the bait is removed or stolen without a connected trap, it attempts to give itself to the thief’s inventory.
+
+## Usage example
+```lua
+local inst = Prefab("bait_item", ...)
+inst:AddComponent("bait")
+-- Attach to a trap (e.g., a snare)
+inst.components.bait.trap = some_trap
+-- When bait is eaten, stolen, or removed, the trap is notified automatically.
+```
+
+## Dependencies & tags
+**Components used:** `inventory` (accessed only on thieves during `onstolen` when no trap is attached)
+**Tags:** None identified.
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `trap` | entity or `nil` | `nil` | Reference to the trap this bait is attached to. Set externally; not managed by this component. |
 
-| Property | Type   | Default Value | Description                                                               |
-|----------|--------|---------------|---------------------------------------------------------------------------|
-| `trap`     | Entity | `nil`           | A reference to the trap entity that this bait is currently placed inside. |
-
-## Main Functions
-### `OnRemoveFromEntity()`
-* **Description:** A lifecycle method called when the component is removed from its entity. It cleans up all registered event listeners to prevent memory leaks.
-* **Parameters:** None.
-
+## Main functions
 ### `GetDebugString()`
-* **Description:** Returns a string representation of the component's state for debugging purposes, indicating which trap entity it is associated with.
+* **Description:** Returns a string representation for debugging, showing the current trap reference.
 * **Parameters:** None.
+* **Returns:** `string` — formatted as `"Trap:"..tostring(trap)`, e.g., `"Trap:table"` or `"Trap:nil"`.
 
 ### `IsFree()`
-* **Description:** Checks whether the bait is currently associated with a trap.
+* **Description:** Indicates whether this bait is currently unattached to any trap.
 * **Parameters:** None.
-* **Returns:** `true` if the bait is not in a trap (`self.trap` is `nil`), otherwise `false`.
+* **Returns:** `boolean` — `true` if `trap` is `nil`, otherwise `false`.
 
-## Events & Listeners
-This component listens for the following events on its owner entity:
+### `OnRemoveFromEntity()`
+* **Description:** Cleanup function called when the component is removed from its entity. Unregisters all event callbacks to prevent memory leaks.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-*   **`onremove`**: When the bait entity is removed from the world, it calls `RemoveBait()` on the associated trap, if one exists.
-*   **`onpickup`**: When the bait entity is picked up by a player or creature, it behaves the same as `onremove`, notifying the trap that the bait has been removed.
-*   **`oneaten`**: When the bait is eaten, it calls `BaitTaken(eater)` on its associated trap, passing the entity that ate the bait.
-*   **`onstolen`**: When the bait is stolen, it calls `BaitTaken(thief)` on its associated trap. If the bait is not in a trap, it attempts to place the item directly into the thief's inventory.
+## Events & listeners
+- **Listens to:**  
+  - `onremove` — triggers `OnRemove`, which notifies the attached trap (if any) via `trap:RemoveBait()`.  
+  - `onpickup` — triggers `OnRemove`, same behavior as above.  
+  - `oneaten` — triggers `OnEaten`, which notifies the attached trap via `trap:BaitTaken(eater)` if attached.  
+  - `onstolen` — triggers `OnStolen`:  
+    - If a trap is attached, calls `trap:BaitTaken(thief)`.  
+    - Otherwise, gives the bait entity to the thief’s inventory via `thief.components.inventory:GiveItem(inst)`.
+
+- **Pushes:** None.

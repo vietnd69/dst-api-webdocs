@@ -1,104 +1,118 @@
 ---
 id: pointofinterest
 title: Pointofinterest
-description: Manages the visual and HUD indicators for point-of-interest entities (e.g., classified items), including world-space markers, HUD indicators, and removal animations.
+description: Manages visual indicators (HUD and world-space) for points of interest tied to entities, particularly when they are unlocked in the scrapbook and visible to the player.
+tags: [hud, world, indicator, scrapbook]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: d389d560
+system_scope: hud
 ---
-
 # Pointofinterest
 
-## Overview
-This component manages the visual representation and behavior of point-of-interest (POI) entities in the world—specifically, classified items in the Scrapbook that require player attention. It handles creation and removal of world-space indicators (e.g., stands and markers), HUD target indicators, and animated removal sequences (pulse and ring expansion). It operates only on the master simulation and is tightly integrated with the Scrapbook system and player HUD.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components used:** `transform`, `animstate`, `follower`
-- **Tags added by helper functions:** `CLASSIFIED`, `NOCLICK`, `FX`
-- **External dependencies:** `TheScrapbookPartitions`, `SCRAPBOOK_DATA_SET`, `ThePlayer.HUD`, `TUNING`, `Profile`
-- **No direct `AddComponent` calls in constructor**—this component is *added to an entity* externally (e.g., via `inst:AddComponent("pointofinterest")`), not the other way around.
+## Overview
+`Pointofinterest` is an entity component responsible for displaying visual and HUD indicators for special entities (points of interest) based on scrapbook progression and player proximity. It manages both in-world marker entities (e.g., a stand and pulsing marker) and HUD target indicators, updating them each frame while the entity is active and within valid conditions. It relies on scrapbook data from `TheScrapbookPartitions` and scrapbook settings (`Profile:GetPOIDisplay()`) to determine visibility and behavior.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("pointofinterest")
+inst.components.pointofinterest:SetShouldShowFn(function() return true end)
+inst.components.pointofinterest:SetHeight(0.5)
+-- The component automatically starts updating when conditions are met (e.g., scrapbook level >= 2).
+```
+
+## Dependencies & tags
+**Components used:** None (does not access other components directly).  
+**Tags added by component behavior:** Checks `inst:HasTag("CLASSIFIED")`, `inst:HasTag("NOCLICK")`, `inst:HasTag("FX")` on indicator entities (via `_CommonIndicator`).  
+**External modules:** Requires `screens/redux/scrapbookdata.lua` (`SCRAPBOOK_DATA_SET`).
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | The entity this component is attached to (set in constructor). |
+| `inst` | `GEntity` | `nil` | Reference to the entity this component is attached to (set in constructor). |
 | `_showinghud` | `boolean` | `nil` | Tracks whether the HUD indicator is currently active. |
-| `shouldshowfn` | `function` | `nil` | Optional predicate function; if provided, determines whether to show the HUD indicator. |
-| `_updating` | `boolean` | `false` | Indicates whether the component is actively updating (controls `StartUpdatingComponent`/`StopUpdatingComponent`). |
-| `height` | `number` | `0` | Vertical offset for follower-followed relationships (used in `FollowSymbol`). |
-| `_removing` | `boolean` | `false` | Set during removal sequence to trigger pulse animation. |
-| `stand` | `Entity?` | `nil` | World-space "stand" visual (e.g., `flint`-based model). |
-| `marker` | `Entity?` | `nil` | The animated "question mark" marker entity. |
-| `ring1`, `ring2` | `Entity?` | `nil` | Expansion ring effects used during removal. |
-| `_TryStartingUpdating` | `function` | N/A | Internal callback used to trigger `TryStartUpdating` after a 0-time task. |
+| `shouldshowfn` | `function?` | `nil` | Optional predicate function taking `inst` to determine if the HUD indicator should be shown. |
+| `_updating` | `boolean` | `false` | Whether the component is actively updated each frame. |
+| `height` | `number` | `0` | Vertical offset (Y) for world indicators (used in `FollowSymbol`). |
+| `stand`, `marker`, `ring1`, `ring2` | `GEntity?` | `nil` | Runtime-created indicator entities. |
 
-## Main Functions
-
-### `PointOfInterest:TryStartUpdating()`
-* **Description:** Begins updating this component if the associated entity is a classified item with Scrapbook level < 2 (i.e., not fully decrypted). Calls `StartUpdatingComponent` internally so `OnUpdate` is executed every frame.
+## Main functions
+### `TryStartUpdating()`
+* **Description:** Begins updating this component if the associated entity is present in the scrapbook and its discovery level is less than 2. Internally calls `inst:StartUpdatingComponent(self)` to enable `OnUpdate`.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `PointOfInterest:SetShouldShowFn(fn)`
-* **Description:** Sets a custom predicate function used to dynamically determine if the HUD indicator should be shown for this POI.
-* **Parameters:**
-  - `fn` (*function*): A function that takes the POI entity as an argument and returns `true`/`false`.
+### `SetShouldShowFn(fn)`
+* **Description:** Sets the optional predicate function used to decide whether the HUD indicator should be displayed (e.g., only if the point of interest is in scope).
+* **Parameters:** `fn` (`function`) — function taking `inst` as argument, returning `true` or `false`.
+* **Returns:** Nothing.
 
-### `PointOfInterest:SetHeight(height)`
-* **Description:** Sets the vertical offset for marker/stand relative positioning.
-* **Parameters:**
-  - `height` (*number*): Y-offset applied via `FollowSymbol(..., 0, height, 0)`.
+### `SetHeight(height)`
+* **Description:** Sets the vertical offset (in world units) used when positioning the `marker` relative to the `stand`.
+* **Parameters:** `height` (`number`) — vertical offset in world space.
+* **Returns:** Nothing.
 
-### `PointOfInterest:RemoveHudIndicator()`
-* **Description:** Removes the HUD target indicator if present, and sets `_showinghud = false`.
+### `CreateWorldIndicator()`
+* **Description:** Spawns and positions in-world indicator entities (`stand` and `marker`) as children of `self.inst`. Used to visually mark the point of interest in the world when applicable.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Returns early if `self.stand` or `self._removing` is already set.
 
-### `PointOfInterest:CreateWorldIndicator()`
-* **Description:** Creates and positions the world-space `stand` and `marker` entities (e.g., a flint base and animated question mark), ensuring the marker follows the stand at the configured height.
+### `TriggerPulse()`
+* **Description:** Initiates a visual removal pulse sequence: plays a sound, plays the `dark` animation on the marker, and prepares to animate rings expanding outward.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Returns early if `self.marker` is `nil`.
 
-### `PointOfInterest:TriggerPulse()`
-* **Description:** Initiates the removal animation: plays a sound, transitions the marker to the `"dark"` animation, and begins a three-stage scaling/removal sequence.
+### `TriggerRemove()`
+* **Description:** Initiates full removal of the indicator: removes the HUD indicator, triggers the pulse sequence, and begins cleanup.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `PointOfInterest:TriggerRemove()`
-* **Description:** Starts the full removal process: removes the HUD indicator (if any) and triggers the pulse/removal animation sequence.
+### `RemoveEverything()`
+* **Description:** Removes all created indicator entities (`stand`, `marker`, `ring1`, `ring2`), stops component updates, and resets internal state.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `PointOfInterest:RemoveEverything()`
-* **Description:** Cleans up all visual entities (`stand`, `marker`, `ring1`, `ring2`), stops updating if active, and resets `_removing` state.
+### `OnUpdate(dt)`
+* **Description:** Frame-by-frame logic that controls HUD visibility, world indicator creation/removal, and removal animation. Handles updates when the player is near and the scrapbook condition is met.
+* **Parameters:** `dt` (`number`) — delta time in seconds since the last frame.
+* **Returns:** Nothing.
+
+### `OnRemoveEntity()`
+* **Description:** Cleanup method called when the owning entity is removed. Removes HUD and world indicators and stops updates.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `PointOfInterest:UpdateRing(ring, dt)`
-* **Description:** Updates a single expansion ring’s scale and alpha over time. Removes and nulls the ring if it grows beyond scale 2.
-* **Parameters:**
-  - `ring` (*Entity?*): The ring entity to update.
-  - `dt` (*number*): Delta time since last frame.
-
-### `PointOfInterest:UpdateRemovePulse(dt)`
-* **Description:** Manages the full removal animation loop: updates both rings, animates marker scale/alpha decay, and progresses through three stages (`loops`) until cleanup.
-* **Parameters:**
-  - `dt` (*number*): Delta time.
-
-### `PointOfInterest:OnUpdate(dt)`
-* **Description:** Main per-frame logic. Handles HUD indicator visibility, world indicator creation/visibility (based on Scrapbook level), and removal animation updates.
-* **Parameters:**
-  - `dt` (*number*): Delta time.
-
-### `PointOfInterest:OnRemoveEntity()`
-* **Description:** Cleanup callback—calls `RemoveHudIndicator` and `RemoveEverything`. Alias assigned to `OnRemoveFromEntity`.
+### `DebugForceShowIndicator()`
+* **Description:** Forces display of the world indicator and ensures component updates continue, regardless of scrapbook state. Intended for debugging.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `PointOfInterest:DebugForceShowIndicator()`
-* **Description:** For debugging—forces creation of world indicators and starts updating without meeting normal conditions.
-* **Parameters:** None.
+### `UpdateRing(ring, dt)`
+* **Description:** Helper function that updates a single ring entity: scales it up, fades it out, and removes it once `scale > 2`.
+* **Parameters:** 
+  * `ring` (`GEntity?`) — the ring entity to update.
+  * `dt` (`number`) — delta time.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **ListenForEvents (implicit):**
-  - `entitysleep` → calls `OnEntitySleep()` (master sim only).
-  - `entitywake` → calls `OnEntityWake()` (master sim only).
-- **PushEvents (none in source)** — this component does not emit its own events.
+### `UpdateRemovePulse(dt)`
+* **Description:** Animates the marker contraction and ring expansions during the removal sequence (loops twice, then triggers cleanup).
+* **Parameters:** `dt` (`number`) — delta time.
+* **Returns:** Nothing.
+
+### `ShouldShowHudIndicator(distsq)`
+* **Description:** Determines if the HUD indicator should be shown based on player distance (squared).
+* **Parameters:** `distsq` (`number`) — squared distance from the player to the point of interest.
+* **Returns:** `true` if `TUNING.MIN_INDICATOR_RANGE <= distance <= TUNING.MAX_INDICATOR_RANGE`, else `false`.
+
+## Events & listeners
+- **Listens to:** None explicitly (does not call `inst:ListenForEvent`).
+- **Pushes:** None (does not call `inst:PushEvent`).
+- **State changes triggered by events:** `OnEntitySleep` and `OnEntityWake` (called automatically when the owning entity sleeps/wakes in the world).

@@ -1,43 +1,60 @@
 ---
 id: nonslipgritpool
 title: Nonslipgritpool
-description: Provides logic to determine whether a given point on the ground is covered by non-slip grit, used to prevent entities from sliding on icy surfaces.
+description: Provides logic to determine whether a point on the ground is covered in non-slip grit, used to prevent entities from sliding on ice or slippery surfaces.
+tags: [physics, environment, slippery]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: environment
+category_type: map
 source_hash: 15364425
+system_scope: physics
 ---
 
 # Nonslipgritpool
 
-## Overview
-This component enables an entity (typically a铺有 grit 的区域, such as a grit-spreader or a custom area) to define which ground positions are "non-slippery" — i.e., safe from ice-related sliding. It offers a flexible way to specify grit coverage via a custom callback function or, if none is provided, defaults to checking if the point lies within the entity's physical radius.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds the `"nonslipgritpool"` tag to the entity in its constructor.
-- Removes the `"nonslipgritpool"` tag when the component is removed from the entity.
-- Relies on the `inst.Physics` component (used only if no custom callback is set) to query radius.
-- Relies on the `inst.Transform` component to query world position.
+## Overview
+`NonSlipGritPool` is a component that enables an entity to act as a source of non-slip grit, typically used in icy or slippery environments to allow entities to walk without sliding. It is attached to entities (such as specific terrain features or placed objects) and provides a function to query whether a given world position is covered in grit. The component registers the `nonslipgritpool` tag on the owning entity and supports both custom grit-detection logic and a fallback radius-based check.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("nonslipgritpool")
+-- Set a custom grit detection function (e.g., based on placement mesh)
+inst.components.nonslipgritpool:SetIsGritAtPosition(function(entity, x, y, z)
+    -- Custom logic here
+    return false
+end)
+-- Or rely on default radius check if Physics component is present
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `nonslipgritpool`; removed on entity removal.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `isgritatfn` | `function?` | `nil` | Optional callback function `fn(inst, x, y, z) → boolean` that determines whether grit is present at a given world coordinate. If `nil`, falls back to circular radius-based check. |
+| `isgritatfn` | function or `nil` | `nil` | Optional callback used to determine if a point is grit-covered. Signature: `fn(entity, x, y, z) → boolean`. |
 
-## Main Functions
+## Main functions
 ### `SetIsGritAtPoint(fn)`
-* **Description:** Assigns a custom function used to determine if grit covers a specific point. This allows dynamic or irregular coverage logic (e.g., polygonal zones or procedural patterns).
-* **Parameters:**  
-  `fn` (`function?`) — A function taking `(inst, x, y, z)` and returning `true` if grit exists at that point, `false` otherwise. Set to `nil` to disable custom logic and fall back to radius-based detection.
+*   **Description:** Sets a custom function to determine whether a point (`x`, `y`, `z`) is covered in non-slip grit. This overrides the default radius-based logic.
+*   **Parameters:** `fn` (function or `nil`) – a function that takes `entity`, `x`, `y`, and `z` and returns `true` if grit is present at that point, or `nil` to disable custom logic.
+*   **Returns:** Nothing.
 
 ### `IsGritAtPosition(x, y, z)`
-* **Description:** Evaluates whether the grit pool covers the specified world position. Uses either the custom callback (if set) or a circular check based on the entity’s physics radius and position.
-* **Parameters:**  
-  `x`, `y`, `z` (`number`) — World-space coordinates to test.
+*   **Description:** Checks whether the point (`x`, `y`, `z`) is covered in grit. Uses either the custom `isgritatfn` (if set) or a distance check against the entity’s physics radius.
+*   **Parameters:**  
+    `x` (number) – X coordinate of the point to check.  
+    `y` (number) – Y coordinate of the point to check.  
+    `z` (number) – Z coordinate of the point to check.  
+*   **Returns:** `boolean` – `true` if the point is covered in grit, `false` otherwise.
+*   **Error states:** Returns `false` if no custom function is defined *and* the owning entity lacks a `Physics` component.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified

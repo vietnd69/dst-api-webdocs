@@ -490,10 +490,3 @@ local function OnPlayerStep(inst)
     end
 end
 ```
-
-## Related Modules
-
-- [`constants`](./constants.md): Defines GROUND tile type constants
-- [`gamelogic`](./gamelogic.md): Calls Initialize() during game startup
-- [`locomotor`](../components/locomotor.md): Uses TempGroundTile() for movement sounds
-- [`map`](../map/index.md): Provides tile type lookups for world positions

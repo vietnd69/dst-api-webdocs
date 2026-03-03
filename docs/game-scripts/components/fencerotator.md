@@ -1,39 +1,55 @@
 ---
 id: fencerotator
 title: Fencerotator
-description: Provides a method to rotate fence-like entities and spawns a visual effect upon rotation.
+description: Rotates a target entity's orientation and spawns a visual effect upon completion.
+tags: [rotation, fx, world, environment]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 2823941e
+system_scope: world
 ---
 
 # Fencerotator
 
-## Overview  
-The `Fencerotator` component offers a `Rotate` method that adjusts the orientation of a target entity (typically a fence) by a specified delta angle, falls back to the default fence rotation tuning if no delta is provided, and triggers a visual effect and event upon completion.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags  
-- Uses `TUNING.FENCE_DEFAULT_ROTATION` for default rotation delta.
-- Pushes the `"fencerotated"` event on the owner instance.
-- Spawns the `"fence_rotator_fx"` prefab at the target's world position.
+## Overview
+`Fencerotator` is a lightweight component that rotates a given target entity by a specified angular delta. It is typically used in scenarios where fence-like structures need to be reoriented dynamically. The component does not maintain internal state beyond the instance reference and delegates the actual rotation logic using either `SetOrientation` (if available) or `Transform:SetRotation`. After rotation, it fires the `fencerotated` event and spawns a localized particle effect (`fence_rotator_fx`) at the target's position for visual feedback.
 
-No explicit component dependencies (e.g., `AddComponent`) are declared in the source.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("fencerotator")
 
-## Properties  
-No public properties are initialized in the constructor or elsewhere; the component only stores a reference to the owner instance.
+-- Rotate the target entity by the default fence angle
+local target = TheWorld.entities["fence_01"]
+inst.components.fencerotator:Rotate(target)
 
-## Main Functions  
+-- Rotate by a custom angle
+inst.components.fencerotator:Rotate(target, math.rad(45))
+```
+
+## Dependencies & tags
+**Components used:** None  
+**Tags:** None identified  
+
+## Properties
+No public properties
+
+## Main functions
 ### `Rotate(target, delta)`
-* **Description:** Rotates the `target` entity’s orientation by `delta` degrees (or the default fence rotation value if `delta` is omitted). If `target.SetOrientation` exists, it is used; otherwise, `target.Transform:SetRotation` is called. After rotation, it triggers the `"fencerotated"` event and spawns a visual effect at the target’s position.  
-* **Parameters:**  
-  - `target`: The entity to rotate. Must have a `Transform` component and optionally `SetOrientation` or rely on `Transform:SetRotation`. If `nil`, the function exits early.  
-  - `delta` (optional, number): The angular change to apply, in degrees. Defaults to `TUNING.FENCE_DEFAULT_ROTATION` if omitted.
+*   **Description:** Rotates the provided `target` entity's orientation by `delta` radians (or a default value from `TUNING.FENCE_DEFAULT_ROTATION`). Then pushes the `fencerotated` event and spawns a rotation effect prefab.
+*   **Parameters:**  
+    * `target` (entity instance or `nil`) – The entity to rotate. If `nil`, the function returns early.  
+    * `delta` (number, optional) – The angular increment to apply, in radians. Defaults to `TUNING.FENCE_DEFAULT_ROTATION` if omitted.
+*   **Returns:** Nothing.
+*   **Error states:** Returns immediately if `target` is `nil`. No error is thrown otherwise.
 
-## Events & Listeners  
-- Pushes event `"fencerotated"` on the owner instance (`self.inst`) after rotation completes.  
-- Listens to no events (no `inst:ListenForEvent` calls present).
+## Events & listeners
+- **Listens to:** None  
+- **Pushes:** `fencerotated` – Fired after successful rotation of the target entity.  
+  Data: None.

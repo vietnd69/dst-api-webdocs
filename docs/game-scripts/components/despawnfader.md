@@ -1,59 +1,62 @@
 ---
 id: despawnfader
 title: Despawnfader
-description: This component manages the visual fading and eventual removal of an entity from the game world.
+description: Manages visual fading and removal of an entity when it is marked for despawning.
+tags: [fade, despawn, entity, network]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: e7e7c1fe
+system_scope: entity
 ---
 
 # Despawnfader
 
-## Overview
-This component is responsible for gracefully removing an entity from the game by visually fading it out over time. It handles both the animation of the fade and the eventual destruction of the entity, synchronizing the fade state between the server (master sim) and clients.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-*   **Dependencies:** While not explicitly added as components, this script interacts with `inst.AnimState` for visual effects and relies on the networking capabilities provided by `net_tinybyte` for synchronization.
-*   **Tags:**
-    *   Adds `NOCLICK` when fading out to prevent interaction with the entity during its removal process.
+## Overview
+`DespawnFader` handles the visual fading-out of an entity and ensures its removal after the fade completes. It supports both master and client simulation, synchronizing the fade progress across the network via `net_tinybyte`. When activated (e.g., via `FadeOut()`), the entity's opacity fades linearly over time, and the entity is either removed on the master or ceases updating on clients once faded.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("despawnfader")
+inst.components.despawnfader:FadeOut()
+-- The entity will fade out visually and be removed after ~1 second
+```
+
+## Dependencies & tags
+**Components used:** `AnimState`, `persists`, `replica.despawnfader._fade`
+**Tags:** Adds `NOCLICK` during fading; removes the entity entirely when fade completes.
 
 ## Properties
-| Property    | Type          | Default Value | Description                                                               |
-| :---------- | :------------ | :------------ | :------------------------------------------------------------------------ |
-| `_fade`     | `net_tinybyte`| `nil`         | A networked `net_tinybyte` variable used to synchronize the fade value between server and clients. |
-| `fadeval`   | `number`      | `0`           | The current normalized fade progress, ranging from 0 (fully transparent/removed) to 1 (fully opaque). |
-| `updating`  | `boolean`     | `false`       | A flag indicating whether the component is actively running its `OnUpdate` loop. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `fadeval` | number | `0` | Current fade progress, ranging from `1` (fully opaque) to `0` (fully transparent). |
+| `updating` | boolean | `false` | Whether the component is currently being updated via `StartUpdatingComponent`. |
+| `_fade` | net_tinybyte | `net_tinybyte(inst.GUID, ...)` | Networked value representing fade progress, synced as an integer scaled by `7`. |
 
-## Main Functions
-### `_ctor(self, inst)`
-*   **Description:** The constructor initializes the component, associating it with the entity instance, setting up the networked fade variable, and initializing internal state flags. On clients, it immediately registers an event listener for `fadedirty` to react to server-side fade changes.
-*   **Parameters:**
-    *   `self`: The `DespawnFader` component instance.
-    *   `inst`: The entity instance this component is attached to.
-
-### `OnFadeDirty(inst)`
-*   **Description:** This function is called on client machines when the `_fade` networked variable changes (becomes "dirty"). It triggers the client-side fade process to match the server's state, recalculating `fadeval` and starting the component's update loop if not already running.
-*   **Parameters:**
-    *   `inst`: The entity instance associated with the event.
-
-### `OnRemoveFromEntity()`
-*   **Description:** Performs cleanup operations when the component is removed from its entity. Specifically, on client machines, it removes the event callback for `fadedirty` to prevent memory leaks or errors.
-*   **Parameters:** None.
-
+## Main functions
 ### `FadeOut()`
-*   **Description:** Initiates the fade-out process for the entity. It sets the `fadeval` to 1, ensuring the entity is initially opaque, starts the component's update loop if not already active, adds the `NOCLICK` tag to prevent interaction, and sets the entity's `persists` property to `false` to prevent it from being saved. It then immediately calls `OnUpdate` to start the process.
-*   **Parameters:** None.
+* **Description:** Initiates the fade-out sequence: sets fade progress to full, starts updates, disables click interaction, and disables persistence.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No-op if already fading (i.e., `updating` is `true`); otherwise begins the fade and transition.
 
 ### `OnUpdate(dt)`
-*   **Description:** The core update logic for the despawn fader, called periodically. It decrements `fadeval` over time, calculates a non-linear transparency value (`k`), and applies it to the entity's `AnimState:OverrideMultColour`. When `fadeval` reaches 0, the entity is either removed on the master sim or the component stops updating on clients. On the master sim, it also synchronizes `fadeval` with clients via the `_fade` networked variable.
-*   **Parameters:**
-    *   `dt`: The time elapsed since the last update, in seconds.
+* **Description:** Runs each frame during fading; updates opacity based on `fadeval`, syncs progress on master, and removes the entity when fade completes.
+* **Parameters:** `dt` (number) — Delta time in seconds since last frame.
+* **Returns:** Nothing.
+* **Error states:** On clients, stops updating when `fadeval <= 0`; on master, removes the entity instance.
 
-## Events & Listeners
-*   **Listens For:**
-    *   `"fadedirty"`: Listened to on client instances of the entity to synchronize the fade state with the server.
+### `OnRemoveFromEntity()`
+* **Description:** Cleans up event listeners on the client side when the component is removed.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:** `fadedirty` — triggers manual recalculation of `fadeval` on clients when the networked value changes (via `_fade` update).
+- **Pushes:** None.

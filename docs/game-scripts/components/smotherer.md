@@ -1,30 +1,41 @@
 ---
 id: smotherer
 title: Smotherer
-description: A minimal placeholder component that serves as a base class for entities capable of being smothered, currently implementing only initialization logic without active functionality.
+description: A placeholder component with no functional logic, intended for potential future use in game systems.
+tags: [placeholder]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: d1f36c66
+system_scope: entity
 ---
 
 # Smotherer
 
-## Overview  
-This component acts as a foundational marker component for entities that may interact with smothering mechanics (e.g., fire extinguishing), but currently contains no functional logic beyond instantiation. It does not modify behavior, register events, or alter entity state.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags  
-None identified.
+## Overview
+`Smotherer` is a minimal, non-functional component attached to entities via the Entity Component System (ECS). It currently contains no executable logic, properties, or event handling beyond storing a reference to its owning instance (`self.inst`). It serves as a structural stub, possibly reserved for future implementation.
 
-## Properties  
-No public properties were clearly identified from the source. The constructor assigns only the instance reference (`self.inst`), with no additional state initialized.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("smotherer")
+-- No methods or behavior are currently exposed by this component
+```
 
-## Main Functions  
-No core functional methods are defined beyond the constructor (`_ctor`). All standard methods (e.g., `OnRemove`, `OnSave`, etc.) are absent.
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
-## Events & Listeners  
-None.
+## Properties
+No public properties
+
+## Main functions
+No public methods defined
+
+## Events & listeners
+None identified

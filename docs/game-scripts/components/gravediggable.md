@@ -1,48 +1,64 @@
 ---
 id: gravediggable
 title: Gravediggable
-description: Enables entities to be marked as diggable graves, managing the `gravediggable` tag and exposing a `DigUp` callback interface.
+description: Marks an entity as diggable by grave-digging actions and provides a hook for custom dig behavior.
+tags: [digging, interaction, state]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 96c5964b
+system_scope: entity
 ---
 
 # Gravediggable
 
-## Overview
-The `Gravediggable` component allows an entity to be marked as a diggable grave by toggling the `gravediggable` tag based on diggability state. It provides a `DigUp` method to invoke a custom callback when the grave is dug up, and supports save/load via `OnSave`/`OnLoad`.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds the `"gravediggable"` tag at construction time (for component actions).
-- Adds or removes the `"gravediggable"` tag dynamically via the `canbedug` property setter.
-- On removal from entity, explicitly removes the `"gravediggable"` tag.
+## Overview
+The `GraveDiggable` component enables an entity to be targeted and dug up by grave-digging actions (e.g., using a shovel). It manages whether the entity is currently diggable via the `canbedug` property and exposes a customizable `ondug` callback that executes when a dig attempt occurs. The component automatically toggles the `gravediggable` tag on the entity based on the diggable state to support action filtering in the UI (e.g., component actions).
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("gravediggable")
+inst.components.gravediggable.ondug = function(grave, tool, doer)
+    -- Custom logic when the grave is dug
+    return true, nil
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `gravediggable` at construction; removes it when component is removed or when `canbedug` is set to `false`.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `canbedug` | boolean | `true` | Controls whether the `"gravediggable"` tag is present on the entity. Setting this property triggers the `oncanbedug` callback to update the tag. |
-| `ondug` | function | `nil` | Optional callback invoked when `DigUp` is called. Signature: `function(inst, tool, doer) -> success: boolean, reason: ?string`. |
+| `canbedug` | boolean | `true` | Whether the entity is currently diggable. Controls presence of `gravediggable` tag. |
+| `ondug` | function | `nil` | Optional callback invoked on dig attempt. Signature: `function(inst, tool, doer) → success: boolean, reason: ?string` |
 
-## Main Functions
+## Main functions
 ### `DigUp(tool, doer)`
-* **Description:** Invokes the optional `ondug` callback to handle digging logic. Returns success status and optional reason string.
-* **Parameters:**
-  - `tool`: The item used to dig the grave (e.g., shovel).
-  - `doer`: The entity performing the dig action (usually a player).
+*   **Description:** Executes the dig action. Invokes the `ondug` callback if defined, otherwise returns `true, nil`.  
+*   **Parameters:**  
+    *   `tool` (TheEntity) — The entity used to dig (e.g., shovel).  
+    *   `doer` (TheCharacter) — The character performing the dig.  
+*   **Returns:**  
+    *   `success` (boolean) — Whether the dig succeeded.  
+    *   `reason` (?string) — Optional failure reason string if `ondug` returns `false`.  
+*   **Error states:** Returns `true, nil` if `ondug` is `nil` or not set.
 
-### `OnSave()`
-* **Description:** Returns a serializable table containing the current `canbedug` state for persistence.
-* **Returns:** `{ canbedug = boolean }`
+## Events & listeners
+- **Listens to:** None identified  
+- **Pushes:** None identified
 
-### `OnLoad(data)`
-* **Description:** Restores the `canbedug` state from saved data. If `data.canbedug` is missing or falsy, sets `canbedug = false`.
-* **Parameters:**
-  - `data`: Saved state table (expected to contain `canbedug` if saved previously).
+## Save/Load support
+- **`OnSave()`**: Returns `{ canbedug = self.canbedug }` for persistence.  
+- **`OnLoad(data)`**: Restores `canbedug` from `data.canbedug`, defaulting to `true` if missing.  
 
-## Events & Listeners
-None.
+## Notes
+- The component adds the `gravediggable` tag unconditionally during construction to ensure the action exists in the UI; the `canbedug` setter (`oncanbedug`) dynamically manages the tag presence based on current diggable state.  
+- This component does not handle dig animation or particle effects—those are typically managed by the action itself or the entity's stategraph.

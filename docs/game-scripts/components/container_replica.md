@@ -1,163 +1,329 @@
 ---
 id: container_replica
 title: Container Replica
-description: This component manages the client-side representation and interaction logic for a container, synchronizing its state with the server and handling UI updates.
+description: Manages the client-side replica of a container's state and user interaction, synchronizing with the server-hosted container component for UI and network coordination.
+tags: [inventory, network, ui]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: inventory
+category_type: components
 source_hash: f4d6c03f
+system_scope: network
 ---
 
 # Container Replica
 
-## Overview
-The `Container` replica component (often referred to as `container_replica` in client-side code) is responsible for managing the client's perception and interaction with container entities in Don't Starve Together. It works in conjunction with the server's `container` component, utilizing network synchronization through a `container_classified` prefab to reflect the server's container state locally. This component handles UI presentation, player input for item manipulation (e.g., picking up, putting down, splitting stacks), and triggers visual and auditory feedback for container interactions, ensuring a responsive and accurate client-side experience for inventory management.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-*   **Dependencies:**
-    *   `containers` (Lua module): Used for common container widget setup logic.
-    *   `container_classified` (Prefab): A classified network entity spawned by the server and managed by this component for synchronizing container slot states to clients.
-    *   `container_opener` (Prefab): A classified network entity spawned by the server and managed by this component to grant individual players access to container data.
-    *   `inventoryitem` (Component): Referenced on items to determine if they can be placed into the container.
-    *   `equippable` (Component): Referenced on items to determine if they are equipped items that might not be allowed in the container under certain game mode properties.
-    *   `ThePlayer`: Global reference to the local player entity, used for UI interactions.
-    *   `TheWorld`: Global reference for checking `ismastersim`.
-    *   `TheFocalPoint`: Global reference for playing sounds.
-*   **Tags:** None identified.
+## Overview
+`Container Replica` is a client-side component that mirrors the state of a server-hosted `container` component, enabling UI responsiveness and network synchronization. It delegates core container logic (e.g., item manipulation, open/close state) to the server `container` when present, otherwise acting as a client-side proxy via the `container_classified` and `container_opener` child entities. It is primarily used in multiplayer to ensure consistent UI updates and event propagation for players interacting with containers.
+
+Key relationships:
+- Works alongside the server-side `container` component (delegates methods like `IsHolding`, `Has`, `Open`, etc.).
+- Manages `container_classified` for slot and item data synchronization.
+- Coordinates `container_opener` to manage open/closed state and UI triggers for local players.
+
+## Usage example
+```lua
+-- Typically added automatically; not directly instantiated in prefabs.
+-- Example of interacting with a container replica:
+if inst.replica.container then
+    local has_item = inst.replica.container:Has("stick", 1)
+    local item = inst.replica.container:GetItemInSlot(1)
+    inst.replica.container:Open(ThePlayer)
+    inst.replica.container:Close()
+end
+```
+
+## Dependencies & tags
+**Components used:**  
+`container`, `inventoryitem` (via `inst.replica.inventoryitem`, `item.replica.inventoryitem`)  
+**Tags:** None identified.
 
 ## Properties
-| Property                 | Type      | Default Value | Description                                                                                             |
-| :----------------------- | :-------- | :------------ | :------------------------------------------------------------------------------------------------------ |
-| `_cannotbeopened`        | `net_bool`| `false`       | Networked boolean indicating if the container cannot be opened.                                         |
-| `_skipopensnd`           | `net_bool`| `false`       | Networked boolean indicating if the container should skip playing its open sound.                       |
-| `_skipclosesnd`          | `net_bool`| `false`       | Networked boolean indicating if the container should skip playing its close sound.                      |
-| `_isopen`                | `boolean` | `false`       | Local boolean indicating if the container's UI is currently open on the client.                         |
-| `_numslots`              | `number`  | `0`           | The number of inventory slots this container has.                                                       |
-| `acceptsstacks`          | `boolean` | `true`        | Determines if the container accepts stackable items.                                                    |
-| `usespecificslotsforitems`| `boolean` | `false`       | Determines if items should try to go into specific slots based on `itemtestfn`.                         |
-| `issidewidget`           | `boolean` | `false`       | Indicates if the container's UI widget should be displayed as a side widget (e.g., backpack).           |
-| `type`                   | `nil`     | `nil`         | A descriptor for the type of container (e.g., "backpack", "chest"). Typically set during prefab setup.  |
-| `widget`                 | `table`   | `nil`         | Reference to the UI widget associated with this container.                                              |
-| `itemtestfn`             | `function`| `nil`         | An optional function used to determine if a specific item can go into a specific slot.                  |
-| `priorityfn`             | `function`| `nil`         | An optional function used to determine if the container should be prioritized for an item.              |
-| `opentask`               | `Task`    | `nil`         | A task handle for a delayed open operation.                                                             |
-| `openers`                | `table`   | `{}`          | A table storing `container_opener` instances, mapped by the player entity that opened them (server-side). |
-| `opener`                 | `Entity`  | `nil`         | Reference to the `container_opener` prefab that grants access to this container for the local player (client-side). |
-| `classified`             | `Entity`  | `nil`         | Reference to the `container_classified` prefab used for network synchronization.                        |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `_cannotbeopened` | `net_bool` | `net_bool(inst.GUID, ...)` | Networked flag preventing the container from being opened. |
+| `_skipopensnd` | `net_bool` | `net_bool(inst.GUID, ...)` | Networked flag to skip the open sound effect. |
+| `_skipclosesnd` | `net_bool` | `net_bool(inst.GUID, ...)` | Networked flag to skip the close sound effect. |
+| `_isopen` | boolean | `false` | Local client-side open state (only used on client). |
+| `_numslots` | number | `0` | Total number of slots in the container. |
+| `acceptsstacks` | boolean | `true` | Whether the container allows stacking items. |
+| `usespecificslotsforitems` | boolean | `false` | Whether item placement uses specific slot filtering. |
+| `issidewidget` | boolean | `false` | Indicates if the container is a side-widget (e.g., inventory). |
+| `type` | string or `nil` | `nil` | Optional container type identifier. |
+| `widget` | table or `nil` | `nil` | Reference to UI widget for sound and layout. |
+| `itemtestfn` | function or `nil` | `nil` | Custom callback to test if an item belongs in a slot. |
+| `priorityfn` | function or `nil` | `nil` | Custom callback to prioritize this container for item placement. |
+| `opentask` | `DoTaskInTime` or `nil` | `nil` | Pending delayed open task (e.g., for inventory snapping). |
+| `openers` | table | `{}` | Mapping of players to their `container_opener` child entities. |
+| `opener` | entity or `nil` | `nil` | On client: the single opener entity (when not server-backed). |
+| `classified` | entity or `nil` | `nil` | `container_classified` entity holding slot/item data on client. |
 
-## Main Functions
-### `OnRemoveEntity()`
-*   **Description:** Handles cleanup when the entity owning this component is removed. On the master sim, it removes the classified data and all individual player openers. On client, it detaches the opener.
-*   **Parameters:** None.
-
+## Main functions
 ### `AttachClassified(classified)`
-*   **Description:** Attaches a `container_classified` entity to this replica, initializing its slots and setting up an `onremove` listener to detach it if the classified entity is removed. This is primarily a client-side function.
-*   **Parameters:**
-    *   `classified` (`Entity`): The `container_classified` entity to attach.
+* **Description:** Attaches a `container_classified` entity and initializes its slots to match this container’s count.
+* **Parameters:** `classified` (entity) — the `container_classified` prefab instance.
+* **Returns:** Nothing.
 
 ### `DetachClassified()`
-*   **Description:** Detaches the currently attached `container_classified` entity, removing its `onremove` listener and nullifying the reference. This is primarily a client-side function.
-*   **Parameters:** None.
+* **Description:** Removes the `container_classified` attachment and cleans up listeners.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `AttachOpener(opener)`
-*   **Description:** Attaches a `container_opener` entity to this replica. It sets up an `onremove` listener for the opener and schedules a task to open the container's UI on the client shortly after attachment. It also starts listening for `itemget` and `itemlose` events to refresh crafting UI. This is a client-side function.
-*   **Parameters:**
-    *   `opener` (`Entity`): The `container_opener` entity to attach.
+* **Description:** Attaches a player (as `container_opener`) to represent their open state on the client, schedules a delayed open if needed.
+* **Parameters:** `opener` (entity) — the player or opener entity.
+* **Returns:** Nothing.
 
 ### `DetachOpener()`
-*   **Description:** Detaches the currently attached `container_opener` entity. It cancels any pending open tasks, removes listeners, closes the container UI, and refreshes crafting UI. This is a client-side function.
-*   **Parameters:** None.
+* **Description:** Detaches the opener, cancels pending open tasks, closes the UI locally, and removes event listeners.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `AddOpener(opener)`
-*   **Description:** Registers a player as an opener of this container. It manages the `container_classified` target (switching to `nil` if multiple openers) and spawns a `container_opener` for the specific player. This is a server-side function.
-*   **Parameters:**
-    *   `opener` (`Entity`): The player entity who is opening the container.
+* **Description:** Adds a player as an opener, creating a child `container_opener` for it.
+* **Parameters:** `opener` (entity) — the player.
+* **Returns:** Nothing.
 
 ### `RemoveOpener(opener)`
-*   **Description:** Deregisters a player as an opener of this container. It updates the `container_classified` target based on remaining openers and removes the specific `container_opener` associated with the player. This is a server-side function.
-*   **Parameters:**
-    *   `opener` (`Entity`): The player entity who is closing the container.
+* **Description:** Removes a player opener, cleans up the corresponding child entity, and updates networked target.
+* **Parameters:** `opener` (entity) — the player to remove.
+* **Returns:** Nothing.
 
 ### `WidgetSetup(prefab, data)`
-*   **Description:** Initializes the container's widget and sets up event listeners related to item movement in and out of the container on the server-side, primarily for refreshing crafting.
-*   **Parameters:**
-    *   `prefab` (`string`): The prefab name of the container.
-    *   `data` (`table`): Additional data for widget setup.
+* **Description:** Initializes widget-related properties and UI handlers for inventory integration (e.g., `onputininventory`, `ondropped`).
+* **Parameters:**  
+  `prefab` (string) — prefab name of the container entity.  
+  `data` (table) — container setup configuration.  
+* **Returns:** Nothing.
+
+### `GetWidget()`
+* **Description:** Returns the associated UI widget, if any.
+* **Parameters:** None.
+* **Returns:** (table or `nil`) The widget object or `nil`.
+
+### `SetNumSlots(numslots)`
+* **Description:** Sets the number of slots; must be called before UI initialization.
+* **Parameters:** `numslots` (number) — total slot count.
+* **Returns:** Nothing.
+
+### `GetNumSlots()`
+* **Description:** Returns the number of slots.
+* **Parameters:** None.
+* **Returns:** (number) Slot count.
+
+### `SetCanBeOpened(canbeopened)`
+* **Description:** Sets whether the container can be opened (inverts and stores in `_cannotbeopened`).
+* **Parameters:** `canbeopened` (boolean) — `true` to allow opening.
+* **Returns:** Nothing.
+
+### `CanBeOpened()`
+* **Description:** Returns `true` if the container can be opened.
+* **Parameters:** None.
+* **Returns:** (boolean)
+
+### `SetSkipOpenSnd(skipopensnd)`
+* **Description:** Sets the networked flag to skip the open sound.
+* **Parameters:** `skipopensnd` (boolean)
+* **Returns:** Nothing.
+
+### `ShouldSkipOpenSnd()`
+* **Parameters:** None.
+* **Returns:** (boolean)
+
+### `SetSkipCloseSnd(skipclosesnd)`
+* **Parameters:** `skipclosesnd` (boolean)
+* **Returns:** Nothing.
+
+### `ShouldSkipCloseSnd()`
+* **Parameters:** None.
+* **Returns:** (boolean)
 
 ### `EnableInfiniteStackSize(enable)`
-*   **Description:** Sets whether the container's items should display as having infinite stack size in the UI. This is a networked property.
-*   **Parameters:**
-    *   `enable` (`boolean`): `true` to enable infinite stack size, `false` otherwise.
+* **Description:** Enables infinite stack size (e.g., for testing or special items).
+* **Parameters:** `enable` (boolean)
+* **Returns:** Nothing.
 
 ### `IsInfiniteStackSize()`
-*   **Description:** Returns whether the container's items are currently set to display as having infinite stack size.
-*   **Parameters:** None.
-*   **Returns:** (`boolean`) `true` if infinite stack size is enabled, `false` otherwise.
+* **Parameters:** None.
+* **Returns:** (boolean)
 
 ### `EnableReadOnlyContainer(enable)`
-*   **Description:** Sets whether the container is read-only, preventing items from being added or removed. This is a networked property and triggers a UI refresh for players with the container open.
-*   **Parameters:**
-    *   `enable` (`boolean`): `true` to make the container read-only, `false` otherwise.
+* **Description:** Makes the container read-only (items cannot be moved).
+* **Parameters:** `enable` (boolean)
+* **Returns:** Nothing.
 
 ### `IsReadOnlyContainer()`
-*   **Description:** Returns whether the container is currently read-only.
-*   **Parameters:** None.
-*   **Returns:** (`boolean`) `true` if the container is read-only, `false` otherwise.
+* **Parameters:** None.
+* **Returns:** (boolean)
 
 ### `CanTakeItemInSlot(item, slot)`
-*   **Description:** Determines if a given item can be placed into a specified slot in this container, considering various conditions like `inventoryitem` component properties, read-only status, and the `itemtestfn`.
-*   **Parameters:**
-    *   `item` (`Entity`): The item to test.
-    *   `slot` (`number`): The target slot index.
-*   **Returns:** (`boolean`) `true` if the item can be taken, `false` otherwise.
+* **Description:** Validates if `item` can be placed in `slot`, respecting inventory and container rules.
+* **Parameters:**  
+  `item` (entity) — the item to place.  
+  `slot` (number) — the target slot index.  
+* **Returns:** (boolean) `true` if placement is allowed.
 
 ### `GetSpecificSlotForItem(item)`
-*   **Description:** If `usespecificslotsforitems` is enabled, this function iterates through slots and returns the first slot index where the `itemtestfn` allows the item to be placed.
-*   **Parameters:**
-    *   `item` (`Entity`): The item to find a specific slot for.
-*   **Returns:** (`number` or `nil`) The specific slot index, or `nil` if no suitable slot is found or specific slots are not used.
+* **Description:** If `usespecificslotsforitems` and `itemtestfn` are set, returns the first slot index where `itemtestfn(item, slot)` is true.
+* **Parameters:** `item` (entity)
+* **Returns:** (number or `nil`) slot index or `nil`.
 
 ### `ShouldPrioritizeContainer(item)`
-*   **Description:** Determines if this container should be prioritized for placing a given item, based on `priorityfn` and other item placement rules.
-*   **Parameters:**
-    *   `item` (`Entity`): The item to evaluate.
-*   **Returns:** (`boolean`) `true` if the container should be prioritized, `false` otherwise.
+* **Description:** Checks if this container should be preferred for placing `item`, using `priorityfn`.
+* **Parameters:** `item` (entity)
+* **Returns:** (boolean)
+
+### `AcceptsStacks()`
+* **Parameters:** None.
+* **Returns:** (boolean) value of `acceptsstacks`.
+
+### `IsSideWidget()`
+* **Parameters:** None.
+* **Returns:** (boolean) value of `issidewidget`.
+
+### `IsOpenedBy(guy)`
+* **Description:** Determines if `guy` has this container open. Delegates to `container` when present; otherwise uses local state.
+* **Parameters:** `guy` (entity)
+* **Returns:** (boolean)
+
+### `IsHolding(item, checkcontainer)`
+* **Description:** Checks if `item` is present in the container, optionally checking sub-containers.
+* **Parameters:**  
+  `item` (entity or string) — item entity or prefab name.  
+  `checkcontainer` (boolean, optional) — whether to recurse into sub-containers.  
+* **Returns:** (boolean)
+
+### `FindItem(fn)`
+* **Description:** Searches all slots using predicate `fn(item)`; returns first matching item.
+* **Parameters:** `fn` (function) — `(item) -> boolean`
+* **Returns:** (entity or `nil`)
+
+### `GetItemInSlot(slot)`
+* **Description:** Returns the item in the specified slot.
+* **Parameters:** `slot` (number)
+* **Returns:** (entity or `nil`)
+
+### `GetItems()`
+* **Description:** Returns the slots array (server-backed) or classified items (client).
+* **Parameters:** None.
+* **Returns:** (table)
+
+### `IsEmpty()`
+* **Parameters:** None.
+* **Returns:** (boolean)
+
+### `IsFull()`
+* **Parameters:** None.
+* **Returns:** (boolean)
+
+### `Has(prefab, amount, iscrafting)`
+* **Description:** Checks if `amount` of `prefab` items exist. Returns success flag and count.
+* **Parameters:**  
+  `prefab` (string) — prefab name.  
+  `amount` (number) — required count.  
+  `iscrafting` (boolean, optional) — used for crafting-specific filtering.  
+* **Returns:** (boolean, number)
+
+### `HasItemWithTag(tag, amount)`
+* **Description:** Checks for `amount` of items with `tag`.
+* **Parameters:**  
+  `tag` (string) — item tag.  
+  `amount` (number)
+* **Returns:** (boolean, number)
 
 ### `Open(doer)`
-*   **Description:** Opens the container's UI for the specified player (`doer`). On the client, if `doer` is `ThePlayer`, it invokes `ThePlayer.HUD:OpenContainer` and plays an open sound. On the master, it defers to the `container` component.
-*   **Parameters:**
-    *   `doer` (`Entity`): The entity attempting to open the container (typically `ThePlayer` on client, or a player entity on master).
+* **Description:** Opens the container UI for `doer`.
+* **Parameters:** `doer` (entity) — player opening the container.
+* **Returns:** Nothing.
+* **Error states:** No-op if `doer ~= ThePlayer` on client (unless server-delegated).
 
 ### `Close()`
-*   **Description:** Closes the container's UI. On the client, if `ThePlayer`'s HUD is active and the container is open, it invokes `ThePlayer.HUD:CloseContainer` and plays a close sound. On the master, it defers to the `container` component.
-*   **Parameters:** None.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `IsBusy()`
-*   **Description:** Checks if the container replica is currently busy (e.g., waiting for classified data or the classified replica itself is busy). This is primarily for the client-side to manage UI state.
-*   **Parameters:** None.
-*   **Returns:** (`boolean`) `true` if busy, `false` otherwise.
+* **Parameters:** None.
+* **Returns:** (boolean) `true` if container classification is incomplete or queued.
 
-### Item Manipulation Functions (e.g., `PutOneOfActiveItemInSlot`, `TakeActiveItemFromAllOfSlot`, `SwapActiveItemWithSlot`, `MoveItemFromAllOfSlot`)
-*   **Description:** These functions are client-side handlers for player inventory actions. They typically forward the request to the underlying `container` component (if on master) or to the `container_classified` replica (if on client) to perform the actual item manipulation in a specific slot, involving `ThePlayer` as the implicit doer.
-*   **Parameters:**
-    *   `slot` (`number`): The inventory slot index.
-    *   `container` (`Entity`, optional): For move operations, the target container.
-    *   `count` (`number`, optional): For count-based take/move operations.
+### `PutOneOfActiveItemInSlot(slot)`
+* **Description:** Moves one item from active inventory slot to `slot`, stacking if possible.
+* **Parameters:** `slot` (number)
+* **Returns:** Nothing.
 
-## Events & Listeners
-*   **Listens to:**
-    *   `inst:ListenForEvent("itemget", self._onitemget)` (Master, in `_ctor`)
-    *   `inst:ListenForEvent("itemlose", self._onitemlose)` (Master, in `_ctor`)
-    *   `inst:ListenForEvent("onremove", self.ondetachclassified, classified)` (Client, in `AttachClassified`)
-    *   `inst:ListenForEvent("onremove", self.ondetachopener, opener)` (Client, in `AttachOpener`)
-    *   `inst:ListenForEvent("itemget", OnRefreshCrafting)` (Client, in `AttachOpener`)
-    *   `inst:ListenForEvent("itemlose", OnRefreshCrafting)` (Client, in `AttachOpener`)
-    *   `inst:ListenForEvent("onputininventory", self._onputininventory)` (Master, in `WidgetSetup`)
-    *   `inst:ListenForEvent("ondropped", self._ondropped)` (Master, in `WidgetSetup`)
-*   **Triggers/Pushes:**
-    *   `inst.components.inventoryitem.owner:PushEvent("refreshcrafting")` (Master, in `_onitemget`, `_onitemlose`, `_onputininventory`, `_ondropped`)
-    *   `ThePlayer:PushEvent("refreshcrafting")` (Client, in `OpenContainer`, `DetachOpener`, `OnRefreshCrafting` utility function, `RefreshLocalPlayerUI`)
+### `PutAllOfActiveItemInSlot(slot)`
+* **Description:** Moves all items from active inventory slot to `slot`, stacking if possible.
+* **Parameters:** `slot` (number)
+* **Returns:** Nothing.
+
+### `TakeActiveItemFromHalfOfSlot(slot)`
+* **Description:** Takes half the stack from `slot` and places it in the active inventory slot.
+* **Parameters:** `slot` (number)
+* **Returns:** Nothing.
+
+### `TakeActiveItemFromCountOfSlot(slot, count)`
+* **Parameters:**  
+  `slot` (number)  
+  `count` (number)
+* **Returns:** Nothing.
+
+### `TakeActiveItemFromAllOfSlot(slot)`
+* **Description:** Moves the entire stack from `slot` to active inventory.
+* **Parameters:** `slot` (number)
+* **Returns:** Nothing.
+
+### `AddOneOfActiveItemToSlot(slot)`
+* **Description:** Adds one item from active stack to `slot` stack (non-destructive).
+* **Parameters:** `slot` (number)
+* **Returns:** Nothing.
+
+### `AddAllOfActiveItemToSlot(slot)`
+* **Description:** Adds all items from active stack to `slot` stack (non-destructive).
+* **Parameters:** `slot` (number)
+* **Returns:** Nothing.
+
+### `SwapActiveItemWithSlot(slot)`
+* **Description:** Swaps the active inventory item with the item in `slot`.
+* **Parameters:** `slot` (number)
+* **Returns:** Nothing.
+
+### `SwapOneOfActiveItemWithSlot(slot)`
+* **Description:** Swaps one item from the active stack with one item in `slot`.
+* **Parameters:** `slot` (number)
+* **Returns:** Nothing.
+
+### `MoveItemFromAllOfSlot(slot, container)`
+* **Description:** Moves all items from `slot` to `container`.
+* **Parameters:**  
+  `slot` (number)  
+  `container` (Container or table)
+* **Returns:** Nothing.
+
+### `MoveItemFromHalfOfSlot(slot, container)`
+* **Description:** Moves half the stack from `slot` to `container`.
+* **Parameters:**  
+  `slot` (number)  
+  `container` (Container or table)
+* **Returns:** Nothing.
+
+### `MoveItemFromCountOfSlot(slot, container, count)`
+* **Parameters:**  
+  `slot` (number)  
+  `container` (Container or table)  
+  `count` (number)
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:**  
+  - `itemget` — refreshes crafting UI when an item is placed.  
+  - `itemlose` — refreshes crafting UI when an item is removed.  
+  - `onremove` — detach classified/opener on entity removal.  
+  - `onputininventory` — track owner for crafting refresh.  
+  - `ondropped` — clear owner on drop.
+
+- **Pushes:**  
+  - `refreshcrafting` — whenever container state changes (via `OnRefreshCrafting`).  
+  - `onclose` — when container is closed (delegated to `container`).

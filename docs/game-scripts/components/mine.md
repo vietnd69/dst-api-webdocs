@@ -1,137 +1,133 @@
 ---
 id: mine
 title: Mine
-description: Manages a trap mine's behavior, including activation testing for nearby targets, explosion triggering, and state persistence.
+description: Triggers an explosion effect when a valid nearby entity enters its detection radius, commonly used for traps.
+tags: [trap, combat, trigger]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: environment
+category_type: components
 source_hash: 55c647e3
+system_scope: world
 ---
 
 # Mine
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component implements a deployable trap mine that periodically scans for eligible targets within a defined radius. When a target is detected meeting specific criteria, the mine springs (activates), triggers an explosion callback, and enters a sprung state. It supports deactivation (e.g., when picked up), reuse logic, alignment-based filtering, and persistence across save/load cycles.
+The `mine` component enables an entity to act as a proximity-triggered trap. It periodically scans its surroundings for suitable targets within a configurable radius using a custom test function (`mine_test_fn`), and detonates upon detection. The component integrates with the `health` and `combat` components to determine target viability (e.g., ignoring dead or non-attackable entities). It manages lifecycle states (`mineactive`, `minesprung`) and supports reusable or single-use designs via tags.
 
-## Dependencies & Tags
-**Dependencies (components/tags used internally or required on `inst`):**
-- `"health"` (accessed via `CanBeAttacked` in target test function)
-- `"combat"` (accessed via `CanBeAttacked` in target test function)
-- `"entityreplica"` (referenced in comment; implied dependency)
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("mine")
+inst.components.mine:SetRadius(5)
+inst.components.mine:SetOnExplodeFn(function(mine_inst, target)
+    --引爆邏輯，例如造成傷害或施加效果
+end)
+inst.components.mine:Reset() --启用陷阱并开始检测
+```
 
-**Tags added/removed:**
-- Added: `"minesprung"`, `"mineactive"`, `"mine_not_reusable"` (conditionally)
-- Removed: `"minesprung"`, `"mineactive"`, `"mine_not_reusable"` on removal; `"mineactive"`/`"minesprung"` toggled on `inactive`/`issprung` changes.
+## Dependencies & tags
+**Components used:** `health`, `combat`  
+**Tags:** Adds/removes `mineactive`, `minesprung`, `mine_not_reusable`.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity the component is attached to. |
-| `radius` | `number?` | `nil` | Radius around the mine to scan for targets. |
-| `onexplode` | `function?` | `nil` | Callback invoked when the mine explodes. |
-| `onreset` | `function?` | `nil` | Callback invoked when the mine is reset. |
-| `onsetsprung` | `function?` | `nil` | Callback invoked when the mine springs. |
-| `ondeactivate` | `function?` | `nil` | Callback invoked when the mine is deactivated. |
-| `testtimefn` | `function?` | `nil` | Optional custom function to determine time until next test. |
-| `target` | `Entity?` | `nil` | The most recently detected target (if any). |
-| `inactive` | `boolean` | `true` | Whether the mine is currently inactive (e.g., due to being picked up). |
-| `issprung` | `boolean` | `false` | Whether the mine has already sprung. |
-| `testtask` | `Task?` | `nil` | Periodic task handle used for scanning. |
-| `alignment` | `string` | `"player"` | Alignment tag used to exclude targets (e.g., `"player"` means enemies are not targeted). |
+| `radius` | number or nil | `nil` | Detection radius; must be set to enable scanning. |
+| `onexplode` | function or nil | `nil` | Callback fired on explosion: `fn(inst, target)`. |
+| `onreset` | function or nil | `nil` | Callback fired on reset: `fn(inst)`. |
+| `onsetsprung` | function or nil | `nil` | Callback fired when sprung: `fn(inst)`. |
+| `ondeactivate` | function or nil | `nil` | Callback fired when deactivated: `fn(inst)`. |
+| `testtimefn` | function or nil | `nil` | Returns next test delay; defaults to `1 + math.random()`. |
+| `inactive` | boolean | `true` | Whether the mine is currently inactive. |
+| `issprung` | boolean | `false` | Whether the mine has been triggered. |
+| `alignment` | string | `"player"` | Tag to exclude from targets (e.g., `"player"`, `"monster"`). |
+| `target` | entity or nil | `nil` | Last detected target. |
 
-## Main Functions
+## Main functions
+### `SetRadius(radius)`
+* **Description:** Sets the radius (in world units) within which the mine detects targets.
+* **Parameters:** `radius` (number) – detection radius; must be non-negative.
+* **Returns:** Nothing.
 
-### `Mine:SetRadius(radius)`
-* **Description:** Sets the scanning radius for the mine. Must be called before the mine starts testing to take effect.
-* **Parameters:**
-  - `radius` (`number`): The radius in world units to scan for targets.
-
-### `Mine:SetOnExplodeFn(fn)`
+### `SetOnExplodeFn(fn)`
 * **Description:** Sets the callback function executed when the mine explodes.
-* **Parameters:**
-  - `fn` (`function(inst, target)`): Function to call on explosion; receives the mine entity and the target entity.
+* **Parameters:** `fn` (function) – signature: `fn(mine_inst, target)`.
+* **Returns:** Nothing.
 
-### `Mine:SetOnSprungFn(fn)`
-* **Description:** Sets the callback function executed when the mine springs.
-* **Parameters:**
-  - `fn` (`function(inst)`): Function to call when the mine springs.
+### `SetOnSprungFn(fn)`
+* **Description:** Sets the callback executed when the mine is sprung (but before explosion logic).
+* **Parameters:** `fn` (function) – signature: `fn(mine_inst)`.
+* **Returns:** Nothing.
 
-### `Mine:SetOnResetFn(fn)`
-* **Description:** Sets the callback function executed when the mine is reset (after explosion or deactivation, before reuse).
-* **Parameters:**
-  - `fn` (`function(inst)`): Function to call on reset.
-
-### `Mine:SetOnDeactivateFn(fn)`
-* **Description:** Sets the callback function executed when the mine is deactivated (e.g., when removed from the world).
-* **Parameters:**
-  - `fn` (`function(inst)`): Function to call on deactivation.
-
-### `Mine:SetTestTimeFn(fn)`
-* **Description:** Sets a custom function to compute the interval between scans.
-* **Parameters:**
-  - `fn` (`function(inst): number`): Returns the delay in seconds until the next scan.
-
-### `Mine:SetAlignment(alignment)`
-* **Description:** Sets the alignment tag to exclude from target detection. Targets matching this alignment tag are ignored.
-* **Parameters:**
-  - `alignment` (`string`): The alignment string (e.g., `"player"`, `"monster"`).
-
-### `Mine:SetReusable(reusable)`
-* **Description:** Controls whether the mine can be reused after springing. Non-reusable mines are tagged `mine_not_reusable`.
-* **Parameters:**
-  - `reusable` (`boolean`): `true` to allow reuse; `false` to mark as spent.
-
-### `Mine:Reset()`
-* **Description:** Resets the mine to its initial ready state (ready to be triggered again). Cancels testing, clears target, and fires the `onreset` callback.
+### `Reset()`
+* **Description:** Resets the mine to an armed, active state: unsprung, inactive=false, starts testing again.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Fires `onreset` callback if assigned.
 
-### `Mine:StartTesting()`
-* **Description:** Begins periodic scanning for targets using `MineTest`. Schedules a periodic task that calls `MineTest` repeatedly.
+### `Explode(target)`
+* **Description:** Triggers the explosion effect immediately, recording the target and invoking `onexplode`.
+* **Parameters:** `target` (entity) – the entity that triggered the mine.
+* **Returns:** Nothing.
+* **Error states:** Stops further testing and sets `issprung = true`.
+
+### `Deactivate()`
+* **Description:** Disarms the mine: stops testing, marks as inactive, prevents arming until reactivated.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Fires `ondeactivate` callback if assigned.
 
-### `Mine:StopTesting()`
-* **Description:** Cancels the periodic scanning task, halting target detection.
+### `StartTesting()`
+* **Description:** Begins periodic scanning for targets within `radius`.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Cancels existing `testtask` before starting a new one.
 
-### `Mine:OnEntitySleep()`
-* **Description:** Called when the entity goes to sleep (e.g., in sleep mode). Cancels the current test task and schedules a new one with a fixed 10-second interval.
+### `StopTesting()`
+* **Description:** Immediately cancels the current periodic test task.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `Mine:OnEntityWake()`
-* **Description:** Called when the entity wakes up. Cancels the sleep-mode test task and resumes normal testing using `StartTesting()`.
+### `Spring()`
+* **Description:** Marks the mine as sprung and stops further testing.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Fires `onsetsprung` callback if assigned.
 
-### `Mine:Deactivate()`
-* **Description:** Deactivates the mine (e.g., when picked up). Stops testing, sets `inactive = true`, and clears `issprung`.
+### `OnSave()`
+* **Description:** Returns serialization data for saving.
 * **Parameters:** None.
+* **Returns:** table or nil – `{sprung = true}`, `{inactive = true}`, or `nil` (if active and not sprung).
 
-### `Mine:Spring()`
-* **Description:** Marks the mine as sprung without detonating it (e.g., if triggered manually). Stops testing, sets `issprung = true`.
+### `OnLoad(data)`
+* **Description:** Restores state from `data` produced by `OnSave()`.
+* **Parameters:** `data` (table) – state data.
+* **Returns:** Nothing.
+* **Error states:** Calls `Spring()`, `Deactivate()`, or `Reset()` based on `data`.
+
+### `OnEntitySleep()`
+* **Description:** Pauses testing during entity sleep and resumes after a fixed 10-second delay.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `Mine:Explode(target)`
-* **Description:** Handles the explosion sequence when a target is found. Sets target, springs the mine, fires the `onexplode` callback, and updates stats.
-* **Parameters:**
-  - `target` (`Entity?`): The entity that triggered the mine.
-
-### `Mine:GetTarget()`
-* **Description:** Returns the most recently detected target.
+### `OnEntityWake()`
+* **Description:** Restores normal periodic testing on entity wake.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `Mine:OnSave()`
-* **Description:** Returns serializable state data (e.g., `sprung` or `inactive` flags) for saving.
-* **Parameters:** None.
+## Events & listeners
+- **Listens to:**  
+  `onputininventory` – deactivates the mine when picked up.  
+  `onpickup` – deactivates the mine when placed in inventory.  
+  `teleported` – deactivates the mine upon teleportation.  
+  `issprung` – updates `minesprung` and `mineactive` tags.  
+  `inactive` – updates `mineactive` tag if not already sprung.
 
-### `Mine:OnLoad(data)`
-* **Description:** Restores the mine’s state based on saved data. Calls `Spring()`, `Deactivate()`, or `Reset()` as appropriate.
-* **Parameters:**
-  - `data` (`table?`): The saved state; may contain `{ sprung = true }` or `{ inactive = true }`.
-
-## Events & Listeners
-- Listens for `"onputininventory"` → triggers `DoDeactivate`
-- Listens for `"onpickup"` → triggers `DoDeactivate`
-- Listens for `"teleported"` → triggers `DoDeactivate`
+- **Pushes:**  
+  `trap_sprung_<prefab>` – used for stats tracking (e.g., `trap_sprung_wilson`).

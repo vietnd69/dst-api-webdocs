@@ -1,116 +1,146 @@
 ---
 id: timer
 title: Timer
-description: Manages named, configurable timers with start, pause, resume, stop, and persistence support for entities in the Entity Component System.
+description: Manages named timers attached to an entity, supporting start, stop, pause, resume, and save/load operations.
+tags: [timer, save, network]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: c6626c89
+system_scope: entity
 ---
 
 # Timer
 
-## Overview
-The Timer component provides an entity with the ability to register, run, pause, resume, and persist named timers. Each timer counts down from a specified duration and triggers a `timerdone` event when it expires. It supports saving and loading state for persistence across sessions, and handles timer cleanup when removed from an entity.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Uses:** `inst:DoTaskInTime()` — deferred task scheduling via the game’s task system.
-- **Uses:** `GetTime()` — wall-clock time for computing elapsed and remaining time.
-- **Uses:** `inst:PushEvent()` — to notify listeners when a timer completes.
-- **Uses:** `inst.components.timer:OnSave()` / `OnLoad()` — for serialization and deserialization.
-- **No tags** are added or removed.
+## Overview
+The `Timer` component provides a flexible system for scheduling and managing multiple named timers on an entity. Each timer can be started with a specific duration, paused and resumed independently, and queried for remaining or elapsed time. It supports serialization via `OnSave()`/`OnLoad()` for persistence across game sessions and can transfer timer states to a new entity via `TransferComponent()`. This component is typically used for effects with timed durations, cooldowns, or scheduled events.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("timer")
+
+inst.components.timer:StartTimer("fire_resist", 15)       -- 15-second timer
+inst.components.timer:StartTimer("freeze", 5, true)       -- Start paused
+inst.components.timer:ResumeTimer("freeze")
+inst:ListenForEvent("timerdone", function(data)
+    if data.name == "fire_resist" then
+        print("Fire resistance ended!")
+    end
+end)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *(none)* | Reference to the host entity; set on construction. |
-| `timers` | `table` | `{}` | Internal map of timer names to timer state objects. Each entry contains `timer`, `timeleft`, `end_time`, `initial_time`, and `paused`. |
+| `timers` | table | `{}` | Internal registry mapping timer names to timer state data (read-only externally). |
 
-No other public properties are initialized or exposed beyond what appears in the internal timer structure.
-
-## Main Functions
-
+## Main functions
 ### `StartTimer(name, time, paused, initialtime_override)`
-* **Description:** Creates a new timer with the given name and duration (in seconds). If `paused` is true, the timer is paused immediately after creation. Optionally overrides the initial time for accurate elapsed-time tracking.
-* **Parameters:**
-  - `name` (string): Unique identifier for the timer.
-  - `time` (number): Duration in seconds before the timer completes.
-  - `paused` (boolean, optional): If `true`, starts the timer in paused state.
-  - `initialtime_override` (number, optional): Overrides the stored `initial_time` (defaults to `time`).
+*   **Description:** Creates and starts a new timer with the given name and duration. If `paused` is `true`, the timer is paused immediately after starting. `initialtime_override` allows preserving the original duration for elapsed calculations.
+*   **Parameters:**  
+    `name` (string) – Unique identifier for the timer.  
+    `time` (number) – Duration of the timer in seconds.  
+    `paused` (boolean, optional) – Whether to start the timer in a paused state. Default: `false`.  
+    `initialtime_override` (number, optional) – Overrides the initial time stored for elapsed calculations. Default: `time`.
+*   **Returns:** Nothing.
+*   **Error states:** If a timer with the same `name` already exists, prints a warning and returns without modification.
 
 ### `StopTimer(name)`
-* **Description:** Cancels and removes the specified timer. Has no effect if the timer does not exist.
-* **Parameters:**
-  - `name` (string): Name of the timer to stop.
+*   **Description:** Immediately cancels and removes the named timer.
+*   **Parameters:**  
+    `name` (string) – Name of the timer to stop.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if the timer does not exist.
 
 ### `PauseTimer(name)`
-* **Description:** Pauses the timer, canceling its scheduled task and preserving remaining time. Has no effect if the timer doesn’t exist or is already paused.
-* **Parameters:**
-  - `name` (string): Name of the timer to pause.
+*   **Description:** Pauses the named timer, canceling its scheduled callback and preserving its remaining time.
+*   **Parameters:**  
+    `name` (string) – Name of the timer to pause.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if the timer does not exist or is already paused.
 
 ### `ResumeTimer(name)`
-* **Description:** Resumes a previously paused timer using its saved remaining time. Returns `true` on success.
-* **Parameters:**
-  - `name` (string): Name of the paused timer to resume.
+*   **Description:** Resumes a paused timer by rescheduling the callback based on the current remaining time.
+*   **Parameters:**  
+    `name` (string) – Name of the timer to resume.
+*   **Returns:** `true` on success; no return if the timer does not exist or is not paused.
+*   **Error states:** No effect if the timer is not paused.
 
 ### `GetTimeLeft(name)`
-* **Description:** Returns the current remaining time (in seconds) of the timer. For active (non-paused) timers, recalculates remaining time based on current clock time. Returns `nil` if the timer does not exist.
-* **Parameters:**
-  - `name` (string): Name of the timer.
+*   **Description:** Returns the remaining time (in seconds) for the named timer. For non-paused timers, recalculates remaining time based on current game time.
+*   **Parameters:**  
+    `name` (string) – Name of the timer.
+*   **Returns:** `number` (remaining seconds) or `nil` if the timer does not exist.
 
 ### `SetTimeLeft(name, time)`
-* **Description:** Sets the remaining time of the timer. Automatically pauses and resumes active timers to apply the new duration precisely.
-* **Parameters:**
-  - `name` (string): Name of the timer.
-  - `time` (number): New remaining time in seconds (clamped to non-negative).
+*   **Description:** Directly sets the remaining time for the named timer. If the timer is running, it is paused first, updated, then resumed.
+*   **Parameters:**  
+    `name` (string) – Name of the timer.  
+    `time` (number) – New remaining time in seconds (clamped to `>= 0`).
+*   **Returns:** Nothing.
+*   **Error states:** No effect if the timer does not exist.
 
 ### `GetTimeElapsed(name)`
-* **Description:** Returns how much time has elapsed since the timer started. Returns `nil` if the timer does not exist.
-* **Parameters:**
-  - `name` (string): Name of the timer.
-
-### `TimerExists(name)`
-* **Description:** Checks whether a timer with the given name is currently registered.
-* **Parameters:**
-  - `name` (string): Timer name to check.
-* **Returns:** `boolean` — `true` if the timer exists, `false` otherwise.
+*   **Description:** Returns how much time has elapsed since the timer started.
+*   **Parameters:**  
+    `name` (string) – Name of the timer.
+*   **Returns:** `number` (elapsed seconds) or `nil` if the timer does not exist.
 
 ### `IsPaused(name)`
-* **Description:** Checks if the timer is currently paused.
-* **Parameters:**
-  - `name` (string): Timer name.
-* **Returns:** `boolean` — `true` if paused and timer exists.
+*   **Description:** Checks whether the named timer is currently paused.
+*   **Parameters:**  
+    `name` (string) – Name of the timer.
+*   **Returns:** `true` if paused, `false` otherwise (or `nil` if timer does not exist).
+
+### `TimerExists(name)`
+*   **Description:** Checks whether a timer with the given name exists.
+*   **Parameters:**  
+    `name` (string) – Name of the timer.
+*   **Returns:** `true` if the timer exists, `false` otherwise.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted string listing all active timers and their current state (time left, paused status). Used for debugging and diagnostics.
-* **Returns:** `string` — Multi-line string with timer details.
+*   **Description:** Returns a formatted string listing all active timers and their states for debugging.
+*   **Parameters:** None.
+*   **Returns:** `string` – Multi-line debug output.
 
 ### `OnSave()`
-* **Description:** Serializes the current state of all timers for saving to disk.
-* **Returns:** `table?` — A table with `{ timers = { [name] = { timeleft, paused, initial_time } } }` or `nil` if no timers exist.
+*   **Description:** Serializes active timers into a data table for saving.
+*   **Parameters:** None.
+*   **Returns:** `{ timers = { [name] = { timeleft, paused, initial_time }, ... } }` or `nil` if no timers exist.
 
 ### `OnLoad(data)`
-* **Description:** Restores timer state from saved data. Existing timers with the same name are stopped first.
-* **Parameters:**
-  - `data` (table): Saved timer data from `OnSave()`.
+*   **Description:** Restores timers from saved data. existing timers with the same name are stopped before restoring.
+*   **Parameters:**  
+    `data` (table) – Saved timer data as returned by `OnSave()`.
+*   **Returns:** Nothing.
 
 ### `LongUpdate(dt)`
-* **Description:** Internal method used by the game’s world update loop to decrement active timers in steps (e.g., when running in real-time or lag-scaled modes).
-* **Parameters:**
-  - `dt` (number): Delta time (in seconds) to subtract from each timer.
+*   **Description:** Updates all timers by decrementing their remaining time by `dt`. Used in contexts where precise per-frame timer management is needed (e.g., save/restore precision).
+*   **Parameters:**  
+    `dt` (number) – Time delta in seconds.
+*   **Returns:** Nothing.
 
 ### `TransferComponent(newinst)`
-* **Description:** Moves all timers from this component to another entity’s Timer component (e.g., when an entity is respawned or teleported).
-* **Parameters:**
-  - `newinst` (Entity): Target entity with a `timer` component.
+*   **Description:** Transfers all active timers to the `timer` component of another entity.
+*   **Parameters:**  
+    `newinst` (entity) – Target entity instance.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens to:** None.
-- **Triggers:**
-  - `timerdone` — fires when a timer expires; payload is `{ name = name }`.
+## Events & listeners
+- **Listens to:** None identified  
+- **Pushes:** `timerdone` – Fired when a timer completes; data payload is `{ name = "timer_name" }`.
 
----
+### OnRemoveFromEntity
+- **Description:** Automatically called when the component is removed from its entity. Cancels all active timers and clears the internal registry.
+- **Parameters:** None  
+- **Returns:** Nothing

@@ -1,45 +1,56 @@
 ---
 id: moonsparkchargeable
 title: Moonsparkchargeable
-description: Grants an entity the ability to transfer stored spark charge into a fueled component when triggered.
+description: Increases the fuel level of an entity's Fueled component when triggered, based on a configured charge amount.
+tags: [fuel, event, world]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: ae6c53e2
+system_scope: world
 ---
 
 # Moonsparkchargeable
 
-## Overview
-This component enables an entity to act as a portable source of spark charge, which can be transferred to another entity's `fueled` component via the `DoSpark` function. It tracks a `fueled_percent` value representing the amount of charge available and ensures the entity is tagged appropriately for gameplay logic.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependency:** Assumes the target of `DoSpark` has a `fueled` component (`self.inst.components.fueled` is checked before use).
-- **Tags Added/Removed:**  
-  - Adds the `"moonsparkchargeable"` tag upon construction.  
-  - Removes the `"moonsparkchargeable"` tag when removed from the entity.
+## Overview
+`MoonSparkChargeable` is a component used on entities that act as temporary fuel sources (e.g., moon sparkles spawned during moonstorms). When activated, it boosts the fuel level of a target entity that has a `fueled` component, using a fixed `fueled_percent` value defined during initialization. It automatically tags the entity with `"moonsparkchargeable"` for identification and removes it when the component is removed.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("fueled")
+inst:AddComponent("moonsparkchargeable")
+-- Configure the charge amount (e.g., +25% fuel capacity)
+inst.components.moonsparkchargeable:SetFueledPercent(0.25)
+-- Later, apply the charge to another entity:
+inst.components.moonsparkchargeable:DoSpark(some_actor)
+```
+
+## Dependencies & tags
+**Components used:** `fueled`
+**Tags:** Adds and removes `"moonsparkchargeable"`.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `fueled_percent` | `number` | `TUNING.MOONSTORM_SPARKCHARGE_DEFAULT` | The proportion of charge (0.0–1.0) that this entity contributes when sparking. |
+| `fueled_percent` | number | `TUNING.MOONSTORM_SPARKCHARGE_DEFAULT` | The fractional amount of fuel (0 to 1) to add to the target's fuel level when `DoSpark` is called. |
 
-## Main Functions
-
+## Main functions
 ### `SetFueledPercent(amount)`
-* **Description:** Updates the stored spark charge level (`fueled_percent`) to the specified value.
-* **Parameters:**  
-  - `amount` (`number`): The new charge percentage (typically between 0 and 1, though no explicit clamping is applied within this function).
+* **Description:** Sets the amount of fuel (as a fraction between 0 and 1) that will be added to a target's `fueled` component during the next `DoSpark` call.
+* **Parameters:** `amount` (number) — The fuel fraction to apply.
+* **Returns:** Nothing.
 
 ### `DoSpark(doer)`
-* **Description:** Attempts to transfer this component’s stored charge to the `fueled` component of the **target entity** (the entity this component is attached to). The charge is added (as a relative increment) to the target’s current fuel level, clamped to [0, 1]. No transfer occurs if `fueled_percent` is zero or the target lacks a `fueled` component.
-* **Parameters:**  
-  - `doer` (`Entity`): The entity triggering the spark event (not directly used in logic, but included for context in event callbacks).  
+* **Description:** Adds the configured `fueled_percent` to the current fuel percentage of the entity's `fueled` component, if it exists. The result is clamped to `[0, 1]`.
+* **Parameters:** `doer` (entity) — The entity triggering the spark charge (passed as context but not used directly in logic).
+* **Returns:** Nothing.
+* **Error states:** Has no effect if `fueled_percent` is `0` or if the entity lacks a `fueled` component.
 
-## Events & Listeners
-None identified.
+## Events & listeners
+Not applicable.

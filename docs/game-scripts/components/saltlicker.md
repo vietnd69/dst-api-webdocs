@@ -1,78 +1,90 @@
 ---
 id: saltlicker
 title: Saltlicker
-description: Manages the state and behavior of salt-lick interactions, including detection, buff application, and resource consumption.
+description: Manages the salt-licking behavior for entities, including detecting nearby saltlicks, applying timed salted states, and consuming uses from the saltlick.
+tags: [interaction, state, environment, networking]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 9ff74d83
+system_scope: environment
 ---
 
 # Saltlicker
 
-## Overview
-The `saltlicker` component enables an entity (typically a player) to gain temporary buffs by consuming salt from saltlicks in the environment. It periodically checks for nearby saltlicks, applies a timed "salted" state upon successful detection and consumption, handles pauses/resumes during limbo or sleep states, and tracks saltlick usage (e.g., decrementing finite uses). It also manages persistence across save/load cycles and provides debugging output.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Required Component:** `timer`
-- **Tags Added:** `"saltlicker"`
-- **Tags Checked (during search):** `SALTLICK_MUST_TAGS = { "saltlick" }`, `SALTLICK_CANT_TAGS = { "INLIMBO", "fire", "burnt" }`
+## Overview
+`SaltLicker` enables an entity to detect and consume saltlicks in the world. When a valid saltlick is found, it applies a timed "salted" state and decrements the saltlick's finite uses. The component handles seeking, pausing/resuming based on state changes (e.g., sleep, freeze, limbo), and persistent save/load data. It is typically added to entities that can benefit from saltlicks (e.g., Wilson, Walani), and integrates tightly with `timer`, `sleeper`, `freezable`, and `finiteuses`.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("timer")
+inst:AddComponent("saltlicker")
+inst.components.saltlicker:SetUp(1)  -- consumes 1 use per saltlick activation
+-- Optional: custom salted duration
+inst.components.saltlicker.saltedduration = 60
+```
+
+## Dependencies & tags
+**Components used:** `timer` (required), `sleeper` (optional), `freezable` (optional), `finiteuses` (optional, only when saltlick is consumed).
+**Tags:** Adds `saltlicker` to the entity on construction; checks for `saltlick` tag in nearby entities.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `salted` | `boolean` | `false` | Whether the entity is currently under the effect of a saltlick. |
-| `saltedduration` | `number` | `TUNING.SALTLICK_DURATION` | Total duration (in seconds) of the salted buff. |
-| `uses_per_lick` | `number?` | `nil` | Number of uses consumed from the saltlick per successful lick. May be `nil` when inactive. |
-| `_task` | `PeriodicTask?` | `nil` | Reference to the periodic task used for searching for saltlicks. |
-| `saltlick` | `Entity?` | `nil` | Reference to the currently active saltlick entity, if any. |
+| `salted` | boolean | `false` | Whether the entity is currently in a salted state. |
+| `saltedduration` | number | `TUNING.SALTLICK_DURATION` | Duration (in seconds) of the salted state per saltlick. |
+| `uses_per_lick` | number? | `nil` | Number of uses consumed from the saltlick upon completion of each salted period. `nil` means inactive. |
+| `saltlick` | GameObject? | `nil` | Reference to the current saltlick entity being used, if any. |
+| `_task` | Task? | `nil` | Periodic task used to search for saltlicks. |
 
-## Main Functions
+## Main functions
+### `SetUp(uses_per_lick)`
+* **Description:** Activates the saltlicker with the given per-lick consumption rate. Registers event listeners and begins attempting to find a saltlick.
+* **Parameters:** `uses_per_lick` (number? or `nil`) — number of uses to consume from a saltlick each time the salted timer completes. Set to `nil` to deactivate.
+* **Returns:** Nothing.
+* **Error states:** If the parent entity lacks a `timer` component, throws an assertion error during construction.
 
-### `SaltLicker:SetUp(uses_per_lick)`
-* **Description:** Initializes or re-initializes the component for active use. Registers event listeners for state changes (e.g., death, freeze, sleep) and starts seeking a saltlick if possible.
-* **Parameters:**
-  * `uses_per_lick` (`number?`) – The number of uses deducted from the saltlick per successful lick. If `nil`, deactivates the component.
-
-### `SaltLicker:Stop()`
-* **Description:** Cleans up and disables the component: removes all event listeners, cancels ongoing tasks, stops the salt timer, marks the entity as unsalted, and clears `uses_per_lick`.
+### `Stop()`
+* **Description:** Deactivates the saltlicker, cancels all periodic tasks, removes all event listeners, stops the salt timer, and clears the salted state.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `SaltLicker:SetSalted(salted)`
-* **Description:** Updates and broadcasts the "salted" state. Triggers the `"saltchange"` event with a payload `{ salted = salted }` only if the state changes.
-* **Parameters:**
-  * `salted` (`boolean`) – New salted state.
+### `SetSalted(salted)`
+* **Description:** Updates the salted state and fires the `saltchange` event if the value changes.
+* **Parameters:** `salted` (boolean) — new salted state.
+* **Returns:** Nothing.
 
-### `SaltLicker:OnRemoveFromEntity()`
-* **Description:** Ensures clean removal from the entity by calling `Stop()` and removing the `"saltlicker"` tag.
-
-### `SaltLicker:OnSave()`
-* **Description:** Returns save data for persistence: `{ salted = true }` if currently salted, otherwise `nil`.
+### `OnRemoveFromEntity()`
+* **Description:** Called when the component is removed from its entity. Deactivates the component and removes the `saltlicker` tag.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `SaltLicker:LoadPostPass()`
-* **Description:** Restores post-load state based on timer persistence. If the salt timer still exists (indicating a salted state), stops seeking and sets `salted = true`.
+### `OnSave()`
+* **Description:** Serializes component state for saving. Returns non-`nil` only if currently salted.
 * **Parameters:** None.
+* **Returns:** `{ salted = true }` if `salted == true`; `nil` otherwise.
 
-### `SaltLicker:GetDebugString()`
-* **Description:** Returns a formatted debug string containing current salted status, timer remaining, seeking state (with time to next check), duration, and uses per lick.
+### `LoadPostPass()`
+* **Description:** Restores salted state from saved data by checking if the `salt` timer exists. Stops seeking if active.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens for:**
-  - `"timerdone"` → `_ontimerdone`
-  - `"enterlimbo"` → `OnPause`
-  - `"exitlimbo"` → `TryUnpause`
-  - `"gotosleep"` → `OnPause`
-  - `"onwakeup"` → `TryUnpause`
-  - `"freeze"` → `OnPause`
-  - `"unfreeze"` → `TryUnpause`
-  - `"death"` → `OnDeath`
-  - `"saltlick_placed"` → `_onsaltlickplaced`
-- **Triggers:**
-  - `"saltchange"` (via `SetSalted`) — payload: `{ salted = boolean }`
+### `GetDebugString()`
+* **Description:** Returns a human-readable debug string showing current salted timer, seeking state, duration, and uses per lick.
+* **Parameters:** None.
+* **Returns:** string — formatted debug output.
+
+## Events & listeners
+- **Listens to:** `saltlick_placed` — fires when a saltlick is placed nearby, triggers immediate salt acquisition.
+- **Listens to:** `timerdone` — fires when the salted timer ends; triggers use consumption and reevaluation of state.
+- **Listens to:** `enterlimbo`, `gotosleep`, `freeze` — pausing events; stops salt timer and seeking.
+- **Listens to:** `exitlimbo`, `onwakeup`, `unfreeze` — unpausing events; resumes seeking or checks for saltlick.
+- **Listens to:** `death` — stops the saltlicker upon entity death.
+
+- **Pushes:** `saltchange` — fired whenever `salted` state changes. Payload: `{ salted = boolean }`.

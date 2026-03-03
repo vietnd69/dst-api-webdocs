@@ -4,7 +4,6 @@ title: Loc
 description: Provides locale and language management functionality for localization, including language selection, string file loading, and text scaling.
 tags: [language, localization, ui, network]
 sidebar_position: 1
-
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: language
 system_scope: ui
 source_hash: aa7d6dd9
 ---
-
 # Loc
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -146,4 +144,3 @@ No public properties are stored or exposed as variables; all state is encapsulat
 
 ## Events & listeners
 This module has no events or listeners — it is stateful but not event-driven.
----

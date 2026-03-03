@@ -1,145 +1,165 @@
 ---
 id: health_replica
 title: Health Replica
-description: This component synchronizes and manages health-related state for player entities across server and client, especially for remote or classified instances.
+description: Manages network-synchronized health state for player entities, mirroring properties from the master-side Health component for client-side UI and logic.
+tags: [network, player, health, replication]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: components
 source_hash: 4d450d0c
+system_scope: network
 ---
 
 # Health Replica
 
-## Overview
-The `Health` component serves as a network-aware health management system for player entities. It ensures health state (current/max health, penalty, fire damage status, lunar burn flags, etc.) is synchronized between the master simulation (server) and clients by delegating authoritative state to a `player_classified` component when present. On the master, it uses the local `player_classified`; on clients, it mirrors the same data via the classified replica, enabling consistent behavior across networked copies.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Adds Tags:** `isdead`, `cannotheal`, `cannotmurder`
-- **Listens For:** `"onremove"` event on `player_classified` to clean up `classified` reference
-- **Component Usage Pattern:** Relies on the presence of a `player_classified` component (not added by this script itself)
+## Overview
+`health_replica` is a client-side component that replicates health-related properties from the server (via `player_classified`) to keep client logic and UI synchronized. It provides a consistent interface for querying health state (e.g., `GetCurrent`, `GetPercent`, `IsHurt`) regardless of whether the local instance has direct access to the full `health` component—ideal for UI threads or early initialization states. It does not perform combat logic itself but acts as a read/write proxy to the `player_classified` table over the network.
+
+## Usage example
+```lua
+local inst = TheSim:GetPlayerEntity()
+if inst and inst.components.health_replica then
+    local hp = inst.components.health_replica
+    print("Current HP:", hp:GetCurrent())
+    print("Max HP (with penalty):", hp:MaxWithPenalty())
+    print("Health %:", hp:GetPercent() * 100)
+    print("Is dead?", hp:IsDead())
+end
+```
+
+## Dependencies & tags
+**Components used:** None directly (relies on `player_classified` and optionally `health` on master).  
+**Tags:** Adds/Removes `isdead` and `cannotheal`, `cannotmurder` via `SetIsDead`, `SetCanHeal`, `SetCanMurder`.  
+**Related components:** `health` (primary counterpart on master sim).
 
 ## Properties
-No public properties are initialized directly in `_ctor`. The component stores internal state via instance variables, primarily:
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (none) | Reference to the entity this component is attached to |
-| `classified` | `Component` or `nil` | `nil` | Reference to `player_classified` component (set via `AttachClassified`) |
-| `ondetachclassified` | `function` or `nil` | `nil` | Callback function used to detach from `classified` on removal |
+| `classified` | `player_classified` table (or `nil`) | `nil` | Reference to the network-synchronized classified data on non-master clients. |
+| `ondetachclassified` | function | `nil` | Internal callback to handle detachment from `classified` on entity removal. |
 
-## Main Functions
-
-### `AttachClassified(classified)`
-* **Description:** Attaches to a `player_classified` component, stores a reference, and sets up a listener to auto-detach if the classified component is removed.
-* **Parameters:**
-  * `classified` (`Component`): The `player_classified` component instance to link.
-
-### `DetachClassified()`
-* **Description:** Clears the `classified` reference and removes the associated cleanup listener callback.
-
+## Main functions
 ### `SetCurrent(current)`
-* **Description:** Sets the current health value in the `classified` component.
-* **Parameters:**
-  * `current` (`number`): The new current health value.
+* **Description:** Sets the current health value on the `classified` data, which is synced to clients.
+* **Parameters:** `current` (number) - the new current health value.
+* **Returns:** Nothing.
+* **Error states:** No-op if `classified` is `nil`.
 
 ### `SetMax(max)`
-* **Description:** Sets the maximum health value in the `classified` component.
-* **Parameters:**
-  * `max` (`number`): The new maximum health value.
+* **Description:** Sets the max health value on the `classified` data for replication.
+* **Parameters:** `max` (number) - the new max health value.
+* **Returns:** Nothing.
+* **Error states:** No-op if `classified` is `nil`.
 
 ### `SetPenalty(penalty)`
-* **Description:** Sets the health penalty (a multiplier reducing max health) on the `classified` component. Penalties are stored internally as 1/200ths (scaled to integer).
-* **Parameters:**
-  * `penalty` (`number`): A value between `0` and `1` inclusive, indicating the penalty fraction.
+* **Description:** Sets the health penalty (reduction to effective max health) as an integer scaled by 200 (e.g., `0.15` → `30`), used by `classified.healthpenalty`.
+* **Parameters:** `penalty` (number) - a value between `0` and `1` (inclusive).
+* **Returns:** Nothing.
+* **Error states:** Raises an assertion error if `penalty` is outside `[0, 1]`. No-op if `classified` is `nil`.
 
 ### `Max()`
-* **Description:** Returns the effective maximum health, preferring the local `health` component if present, otherwise falling back to `classified`, and finally defaulting to `100`.
+* **Description:** Returns the max health, preferring the live `health` component if present (e.g., on master sim), otherwise reading from `classified.maxhealth`.
 * **Parameters:** None.
+* **Returns:** number - the max health value (default `100` if neither source is available).
 
 ### `MaxWithPenalty()`
-* **Description:** Returns the maximum health *after* applying the penalty multiplier.
+* **Description:** Returns the max health adjusted for current penalty, using the same priority order as `Max`.
 * **Parameters:** None.
+* **Returns:** number - effective max health after penalty.
 
 ### `GetPercent()`
-* **Description:** Returns the health percentage (`current / max`) using local or classified data.
+* **Description:** Returns health as a decimal fraction (`0.0` to `1.0`) of max health, using live or replicated values.
 * **Parameters:** None.
+* **Returns:** number - health percentage.
 
 ### `GetCurrent()`
 * **Description:** Returns the current health value.
 * **Parameters:** None.
+* **Returns:** number - current health.
 
 ### `GetPenaltyPercent()`
-* **Description:** Returns the currently applied health penalty as a decimal (e.g., `0.1` for 10%).
+* **Description:** Returns the health penalty as a fraction (`0.0` to `1.0`).
 * **Parameters:** None.
+* **Returns:** number - penalty percentage.
 
 ### `IsHurt()`
-* **Description:** Returns `true` if current health is below effective max (accounting for penalty).
+* **Description:** Returns `true` if current health is less than max health *with penalty*.
 * **Parameters:** None.
+* **Returns:** boolean.
 
 ### `SetIsDead(isdead)`
-* **Description:** Adds/removes the `isdead` tag on the entity based on state.
-* **Parameters:**
-  * `isdead` (`boolean`): Whether the entity is dead.
+* **Description:** Adds or removes the `isdead` tag based on the `isdead` flag.
+* **Parameters:** `isdead` (boolean) - whether the entity is dead.
+* **Returns:** Nothing.
 
 ### `IsDead()`
-* **Description:** Returns `true` if the `isdead` tag is present.
+* **Description:** Returns `true` if the entity has the `isdead` tag.
 * **Parameters:** None.
+* **Returns:** boolean.
 
 ### `SetIsTakingFireDamage(istakingfiredamage)`
-* **Description:** Updates the fire damage flag on the `classified` component.
-* **Parameters:**
-  * `istakingfiredamage` (`boolean`): Whether the entity is currently taking fire damage.
+* **Description:** Updates the `istakingfiredamage` field in `classified`, used for fire-related UI effects.
+* **Parameters:** `istakingfiredamage` (boolean).
+* **Returns:** Nothing.
+* **Error states:** No-op if `classified` is `nil`.
 
 ### `IsTakingFireDamage()`
-* **Description:** Returns whether the entity is taking fire damage (checked locally or from `classified`).
+* **Description:** Returns whether the entity is currently taking fire damage (from any source).
 * **Parameters:** None.
+* **Returns:** boolean.
 
 ### `SetIsTakingFireDamageLow(istakingfiredamagelow)`
-* **Description:** Updates the low-intensity fire damage flag on the `classified` component.
-* **Parameters:**
-  * `istakingfiredamagelow` (`boolean`): Whether fire damage is low-intensity (e.g., smoldering).
+* **Description:** Updates the `istakingfiredamagelow` field in `classified`, indicating low-intensity fire damage.
+* **Parameters:** `istakingfiredamagelow` (boolean).
+* **Returns:** Nothing.
+* **Error states:** No-op if `classified` is `nil`.
 
 ### `IsTakingFireDamageLow()`
-* **Description:** Returns `true` if taking low-intensity fire damage.
+* **Description:** Returns whether the entity is taking low-intensity fire damage.
 * **Parameters:** None.
+* **Returns:** boolean.
 
 ### `IsTakingFireDamageFull()`
-* **Description:** Returns `true` if taking full-intensity fire damage (i.e., `IsTakingFireDamage` but *not* `IsTakingFireDamageLow`).
+* **Description:** Returns `true` if taking full-intensity fire damage (fire active *and not* low intensity).
 * **Parameters:** None.
+* **Returns:** boolean.
 
 ### `SetLunarBurnFlags(flags)`
-* **Description:** Sets the lunar burn state flags in the `classified` component.
-* **Parameters:**
-  * `flags` (`number`): Bitmask flags representing lunar burn status.
+* **Description:** Sets the lunar burn flags bitmask in `classified`, used for lunar eclipse effects.
+* **Parameters:** `flags` (number) - bitmask of lunar burn states.
+* **Returns:** Nothing.
+* **Error states:** No-op if `classified` is `nil`.
 
 ### `GetLunarBurnFlags()`
-* **Description:** Returns lunar burn flags (from `health` component if local, else `classified`).
+* **Description:** Returns the current lunar burn flags, using `health` component if available, otherwise from `classified`.
 * **Parameters:** None.
+* **Returns:** number - bitmask of flags (default `0`).
 
 ### `SetCanHeal(canheal)`
-* **Description:** Adds/removes the `cannotheal` tag based on whether healing is permitted.
-* **Parameters:**
-  * `canheal` (`boolean`): Whether the entity can heal.
+* **Description:** Controls whether the entity can heal naturally or via healing items.
+* **Parameters:** `canheal` (boolean).
+* **Returns:** Nothing.
 
 ### `CanHeal()`
-* **Description:** Returns `true` if healing is allowed (i.e., `cannotheal` tag is absent).
+* **Description:** Returns `true` if the entity is not flagged with `cannotheal`.
 * **Parameters:** None.
+* **Returns:** boolean.
 
 ### `SetCanMurder(canmurder)`
-* **Description:** Adds/removes the `cannotmurder` tag based on murder permission.
-* **Parameters:**
-  * `canmurder` (`boolean`): Whether the entity can be murdered.
+* **Description:** Controls whether the entity can perform murder-related actions (e.g., kill other players).
+* **Parameters:** `canmurder` (boolean).
+* **Returns:** Nothing.
 
 ### `CanMurder()`
-* **Description:** Returns `true` if murder is permitted (i.e., `cannotmurder` tag is absent).
+* **Description:** Returns `true` if the entity is not flagged with `cannotmurder`.
 * **Parameters:** None.
+* **Returns:** boolean.
 
-## Events & Listeners
-- **Listens For:**
-  - `"onremove"` event on `classified` → triggers `DetatchClassified` cleanup
-- **Tags Used:**
-  - `isdead`, `cannotheal`, `cannotmurder` (added/removed via `SetIsDead`, `SetCanHeal`, `SetCanMurder`)
+## Events & listeners
+- **Listens to:** `onremove` on the `classified` entity — triggers internal cleanup via `DetachClassified()` when the classified object is removed.
+- **Pushes:** No events directly. Events are typically emitted by the associated `health` component on master sim; this replica reflects state changes.

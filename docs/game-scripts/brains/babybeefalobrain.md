@@ -1,39 +1,51 @@
 ---
 id: babybeefalobrain
 title: Babybeefalobrain
-description: Defines the behavior tree for a baby beefalo entity, governing its movement and decision-making logic including fleeing, following its leader, and wandering within its herd.
+description: Controls the AI decision-making behavior of baby beefalos using a behavior tree to prioritize panic, fleeing, following, and wandering actions.
+tags: [ai, brain, locomotion, beast]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 85c37c93
+system_scope: brain
 ---
 
 # Babybeefalobrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-`BabyBeefaloBrain` is a brain component that implements the decision-making logic for baby beefalo entities. It constructs a priority-based behavior tree (`BT`) with ordered behavior nodes: `PanicTrigger`, `ElectricFencePanicTrigger`, `RunAway`, `Follow`, and `Wander`. The brain prioritizes escaping threats (such as electric fences or characters) over following the herd leader and wandering when no immediate danger exists. It relies on the `follower`, `knownlocations`, and `rider` components to determine valid targets and terrain constraints.
+`BabyBeefaloBrain` is an AI brain component for baby beefalo entities. It implements behavior prioritization via a behavior tree (`BT`), delegating to common DST behaviors such as `Panic`, `RunAway`, `Follow`, and `Wander`. It integrates with the `follower`, `rider`, and `knownlocations` components to determine appropriate responses to environmental and social stimuli, such as leaders, mounted characters, and herd locations.
 
-## Dependencies & Tags
-- **Components used:**
-  - `follower` — used via `self.inst.components.follower:GetLeader()`
-  - `knownlocations` — used via `self.inst.components.knownlocations:GetLocation("herd")`
-  - `rider` — used via `other.components.rider:GetMount()`
-- **Tags:** None added, removed, or directly checked by this brain itself. The behavior functions (`RunAway`, `Follow`, `Wander`) utilize tags internally (e.g., `tags={"character"}` in `RunAway`), but this component does not manipulate tags on `self.inst`.
+This brain does not define custom logic beyond configuring the behavior tree root node — all behavior logic is encapsulated in external behavior classes (e.g., `RunAway`, `Follow`) and trigger helpers from `BrainCommon`.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("babybeefalobrain")
+-- The brain is automatically initialized when the entity is spawned
+-- and will begin selecting behaviors via its behavior tree.
+```
+
+## Dependencies & tags
+**Components used:**  
+`follower`, `rider`, `knownlocations`  
+**Tags:**  
+Checks `beefalo` (on mount candidate), `character` (on target for `RunAway`).  
+No tags are added or removed by this brain itself.
 
 ## Properties
-No explicit properties are defined as public variables in the constructor. All configuration is provided as local constants at module scope.
+No public properties
 
-## Main Functions
-### `BabyBeefaloBrain:OnStart()`
-* **Description:** Initializes and attaches the behavior tree (`self.bt`) for the baby beefalo. This method is called when the brain is first activated and begins processing behavior nodes in priority order.
+## Main functions
+### `OnStart()`
+* **Description:** Initializes and assigns the behavior tree root node. Called automatically when the brain component starts (e.g., on entity spawn or brain activation). Constructs a priority-based `PriorityNode` that evaluates behaviors in the order: panic triggers → fleeing → following → wandering.
 * **Parameters:** None.
-* **Returns:** None.
+* **Returns:** Nothing.
+* **Error states:** Fails silently if any required component (`follower`, `rider`, `knownlocations`) is missing — leading to incomplete or non-functional behavior (e.g., `nil` leader, unreachable herd location).
 
-## Events & Listeners
-This component does not register or emit any events directly. It relies entirely on the behavior system (`behaviours/wander`, `behaviours/panic`, `behaviours/follow`, `behaviours/runaway`) to handle internal event interactions (e.g., triggering panic or movement completion).
+## Events & listeners
+This brain does not register event listeners or push custom events. It relies entirely on the underlying `BT` (behavior tree) infrastructure and external behavior classes for reactive updates.

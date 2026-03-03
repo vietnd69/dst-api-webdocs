@@ -1,76 +1,86 @@
 ---
 id: dustmothbrain
 title: Dustmothbrain
-description: Controls the behavior tree of the DustMoth entity, coordinating threat avoidance, food consumption, den repair, dusting actions, and wandering via state-dependent prioritized node logic.
+description: Controls the AI decision-making behavior of the DustMoth entity, handling panic responses, home seeking, food consumption, dustable object interaction, and navigation.
+tags: [ai, locomotion, combat, inventory]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 53717b90
+system_scope: brain
 ---
 
 # Dustmothbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The `DustMothBrain` component implements the decision-making logic for the DustMoth entity using a behavior tree. It coordinates responses to threats (e.g., fleeing from entities with the `scarytoprey` tag), eating `dustmothfood`, repairing the home den via `RepairDenAction`, dusting nearby `dustable` objects, and idle wandering. The behavior tree is constructed in `OnStart()` using prioritized `PriorityNode` conditions and custom `DoAction` nodes backed by helper functions. This brain leverages common utilities from `BrainCommon`, inventory access, known locations, and workable states to adapt behavior dynamically.
+`DustMothBrain` is an AI brain component that implements behavior tree logic for the DustMoth entity. It manages threat avoidance, home maintenance (including den repair), food consumption, interaction with dustable objects, and passive wandering when no higher-priority tasks exist. The brain integrates with the `homeseeker`, `inventory`, `knownlocations`, and `workable` components to make autonomous decisions based on game state and entity relationships.
 
-## Dependencies & Tags
-- **Components used:**
-  - `homeseeker` — accessed for `home` location (`inst.components.homeseeker.home`) and validity checks.
-  - `inventory` — accessed via `GetItemInSlot(1)` to check currently held item.
-  - `knownlocations` — accessed via `GetLocation("home")` to retrieve the home location for wandering.
-  - `workable` — checked via `inst.components.homeseeker.home.components.workable.workable` to determine if the den needs repair.
-- **Tags:**
-  - `"INLIMBO"` — excluded from `NOTAGS`, and used to filter out invalid entities during entity searches.
-  - `"player"` and `"NOCLICK"` — excluded via `HUNTERPARAMS_NOPLAYER`.
-  - `"scarytoprey"` — included in threat detection (`HUNTERPARAMS_NOPLAYER` and `RunAway`).
-  - `"dustmothfood"` — included for food search in `EatFoodAction`.
-  - `"dustable"` — included for dusting targets in `DustOffAction`.
-- **External scripts:**
-  - `behaviours/runaway`, `behaviours/doaction`, `behaviours/wander`
-  - `brains/braincommon`
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddBrain("dustmothbrain")
+-- The brain is initialized automatically upon entity creation; no further setup required.
+-- It responds to events like PanicTrigger, inventory changes, and position updates.
+```
+
+## Dependencies & tags
+**Components used:** `homeseeker`, `inventory`, `knownlocations`, `workable`  
+**Tags:** Checks `scarytoprey`, `INLIMBO`, `player`, `NOCLICK`, `dustmothfood`, `dustable`, `outofreach`; adds none internally.
 
 ## Properties
-No explicit public properties are initialized in the constructor beyond standard `Brain` inheritance. Internal state is managed via instance variables attached to `self.inst` during runtime.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst._charged` | boolean | `false` | Indicates whether the DustMoth is fully charged (affects action eligibility). |
+| `inst._find_dustables` | boolean | `true` | Controls whether DustOffAction is active. |
+| `inst._last_played_search_anim_time` | number | `0` | Tracks the last time the search animation was played (seconds since game start). |
+| `inst._time_spent_stuck` | number | `0` | Accumulates time spent with a buffered action pending. |
+| `inst._force_unstuck_wander` | boolean | `false` | Flag that triggers temporary wandering to break out of stuck states. |
+| `inst.bt` | BT | `nil` | The behavior tree instance (set during `OnStart`). |
+| `inst._force_unstuck_wander` | boolean | `nil` | Temporarily set to true during unstuck maneuver; cleared after timeout. |
 
-## Main Functions
+## Main functions
 ### `DustMothBrain:OnStart()`
-* **Description:** Initializes and assigns the behavior tree root node. Constructs a prioritized sequence of conditions and actions that define DustMoth behavior, including panic responses, stuck detection/unstuck logic, repair, eating, dusting, and wandering.
-* **Parameters:** None.
-* **Returns:** `nil`.
+*   **Description:** Initializes the behavior tree root with prioritized nodes for panic, wandering, repair, eating, dusting, and navigation.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** None identified; expects all required components (`homeseeker`, `inventory`, `knownlocations`) to be present.
 
 ### `AttemptPlaySearchAnim(inst, target)`
-* **Description:** Conditionally triggers the `"dustmothsearch"` event and rotates the entity toward `target` to visually indicate search activity. Respects a cooldown (`TUNING.DUSTMOTH.SEARCH_ANIM_COOLDOWN`) and a random chance (`SEARCH_ANIM_CHANCE`).
-* **Parameters:**
-  - `inst` (Entity): The entity instance owning this brain.
-  - `target` (Entity or `nil`): The target entity to face; may be `nil`.
-* **Returns:** `nil`.
+*   **Description:** Conditionally triggers the "dustmothsearch" event to play the search animation, based on cooldown and random chance. Also orients the entity toward the target.
+*   **Parameters:** 
+    * `inst` (Entity) - The DustMoth instance.
+    * `target` (Entity or `nil`) - The target to face when playing the animation.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if cooldown has not elapsed or random chance fails; safely handles invalid/`nil` targets.
 
 ### `RepairDenAction(inst)`
-* **Description:** Attempts to generate a buffered `REPAIR` action if the DustMoth is not busy (`busy` state tag), is fully charged (`_charged` is `true`), has a valid home den, and the den is not currently workable (indicating it needs repair).
-* **Parameters:**
-  - `inst` (Entity): The entity instance.
-* **Returns:** `BufferedAction` (if conditions met and action valid), otherwise `nil`.
+*   **Description:** Attempts to generate a buffered repair action toward the DustMoth's den if the den is broken and the entity is not currently busy or charged.
+*   **Parameters:** 
+    * `inst` (Entity) - The DustMoth instance.
+*   **Returns:** `BufferedAction` or `nil`.
+*   **Error states:** Returns `nil` if the entity is busy, uncharged, lacks a valid den, or the den is already intact.
 
 ### `EatFoodAction(inst)`
-* **Description:** Attempts to generate a buffered `EAT` action. First checks if the inventory slot 1 contains `dustmothfood`; if not, searches within `EAT_FOOD_DIST` for valid food items (alive ≥ 1 second and on valid ground). Triggers a search animation before consuming.
-* **Parameters:**
-  - `inst` (Entity): The entity instance.
-* **Returns:** `BufferedAction` (if food found), otherwise `nil`.
+*   **Description:** Attempts to find and consume food (items with the `dustmothfood` tag) within range. Plays the search animation and attempts to generate an `EAT` buffered action.
+*   **Parameters:** 
+    * `inst` (Entity) - The DustMoth instance.
+*   **Returns:** `BufferedAction` or `nil`.
+*   **Error states:** Returns `nil` if the entity is busy, charged, or no valid food is found. Skips search animation if item already in inventory slot 1.
 
 ### `DustOffAction(inst)`
-* **Description:** Attempts to generate a buffered `PET` action (used as a "dust off" proxy) on the nearest `dustable` entity within `DUSTOFF_DIST`, provided the entity is not busy and `_find_dustables` is `true`. Includes a custom distance calculation to allow close proximity interaction.
-* **Parameters:**
-  - `inst` (Entity): The entity instance.
-* **Returns:** `BufferedAction` (if a valid `dustable` is found), otherwise `nil`.
+*   **Description:** Attempts to find and "dust" (interact with) dustable objects within range using a `PET` buffered action. Plays the search animation before attempting.
+*   **Parameters:** 
+    * `inst` (Entity) - The DustMoth instance.
+*   **Returns:** `BufferedAction` or `nil`.
+*   **Error states:** Returns `nil` if the entity is busy or `_find_dustables` is `false`. Fails if no valid dustable target found.
 
-## Events & Listeners
-- **Pushes:**
-  - `"dustmothsearch"` — fired by `AttemptPlaySearchAnim` to trigger visual feedback when searching for food or dustables.
-- **Listens to:**
-  - None explicitly defined in this file (relies on parent `Brain` class or stategraph events implicitly).
+## Events & listeners
+- **Listens to:** None — this brain does not register event listeners directly; behavior is driven by the behavior tree and internal state checks.
+- **Pushes:** 
+  - `dustmothsearch` - Fired when the search animation is triggered.
+  - Internal behavior tree events (via `BufferedAction`) for `REPAIR`, `EAT`, and `PET` actions.

@@ -1,50 +1,59 @@
 ---
 id: worldsettings
 title: Worldsettings
-description: Manages global world settings by storing and updating named key-value pairs accessible across the game.
+description: Stores and manages world-level configuration settings that can be modified at runtime.
+tags: [world, config, network]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 52d4c86a
+system_scope: world
 ---
 
 # Worldsettings
 
-## Overview
-The `worldsettings` component provides a simple key-value store for global world settings in the Entity Component System. It allows setting and retrieving configuration values (e.g., difficulty modes, world generation flags) that persist across the game session and can be updated dynamically via network events.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component dependency:** None (this component does not require or verify other components on `inst`).
-- **Tags:** None added or removed.
-- **Event listener:** Registers a global listener for the `"ms_setworldsetting"` event (handled by `OnSetWorldSetting`).
+## Overview
+`WorldSettings` is a component responsible for storing and managing world-level configuration settings as key-value pairs. It is typically attached to the world entity and responds to network events (`ms_setworldsetting`) to update settings during gameplay. This component provides a simple interface to get and set arbitrary world settings, which are persisted and accessible throughout the world instance.
+
+## Usage example
+```lua
+-- Assuming 'world' is the world entity
+world:AddComponent("worldsettings")
+
+-- Set a custom world setting
+world.components.worldsettings:SetSetting("storm_frequency", 0.75)
+
+-- Retrieve the setting later
+local stormFreq = world.components.worldsettings:GetSetting("storm_frequency")
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified  
 
 ## Properties
-The constructor initializes one private property:
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `settings` | `table` | `{}` | Internal dictionary storing world setting keys (strings) mapped to values of any type. |
+| `settings` | table | `{}` | Internal dictionary storing key-value pairs of world settings. |
 
-> Note: No public instance properties are exposed directly; access is provided solely through `GetSetting` and `SetSetting`.
-
-## Main Functions
-
+## Main functions
 ### `GetSetting(setting)`
-* **Description:** Retrieves the current value of a world setting by its name.
-* **Parameters:**
-  * `setting` (**string**): The key/name of the setting to look up.
+* **Description:** Retrieves the value of a world setting by its key.
+* **Parameters:** `setting` (string) - the key identifying the setting.
+* **Returns:** The stored value for the given setting key, or `nil` if the key does not exist.
 
 ### `SetSetting(setting, value)`
-* **Description:** Sets or updates a world setting to the specified value.
-* **Parameters:**
-  * `setting` (**string**): The key/name of the setting to update.
-  * `value` (**any**): The value to assign; can be any Lua type (e.g., `string`, `number`, `boolean`, `table`).
+* **Description:** Sets a world setting to a new value.
+* **Parameters:**  
+  * `setting` (string) - the key identifying the setting.  
+  * `value` (any) - the value to assign to the setting.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens for `"ms_setworldsetting"`:** A multiplayer-safe event (indicated by the `"ms_"` prefix) that carries a `data` table containing `data.setting` and `data.value`. When received, it calls `SetSetting` on the local `worldsettings` component instance if present.
-
-> This event listener ensures that setting updates initiated on the master client are propagated and applied consistently on all connected clients and the server.
+## Events & listeners
+- **Listens to:** `ms_setworldsetting` - triggers when a network message requests a world setting update; calls `SetSetting` with the message data (`data.setting`, `data.value`).  
+- **Pushes:** None identified.

@@ -3,8 +3,7 @@ id: startlocations
 title: Startlocations
 description: Manages world start location configurations for the sandbox menu, supporting both built-in and mod-defined start locations.
 tags: [world, sandbox, menu, modding]
-sidebar_position: 1
-
+sidebar_position: 100
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: f083765e
 ---
-
 # Startlocations
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -104,4 +102,3 @@ This module does not define properties on a component instance (as it is not a c
 ## Events & listeners
 This module does not listen to or dispatch game events. UI refresh (`RefreshWorldTabs`) is performed directly on the frontend screens, not via event system.
 
----

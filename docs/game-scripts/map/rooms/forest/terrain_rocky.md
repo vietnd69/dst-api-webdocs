@@ -4,7 +4,6 @@ title: Terrain Rocky
 description: Defines forest-level room templates with rocky terrain characteristics for procedural world generation.
 tags: [world, generation, terrain, room]
 sidebar_position: 1
-
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: 5387d700
 ---
-
 # Terrain Rocky
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -52,4 +50,3 @@ This file does not define any functions or methods. It is a declarative configur
 ## Events & listeners
 No events or listeners are involved. This file contributes only static room definitions used by the world generation system at initialization time.
 
----

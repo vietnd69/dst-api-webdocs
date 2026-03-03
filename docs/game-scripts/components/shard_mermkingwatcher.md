@@ -1,131 +1,132 @@
 ---
 id: shard_mermkingwatcher
 title: Shard Mermkingwatcher
-description: Tracks Merm King presence and equipped buffs (trident, crown, pauldron) across shards and synchronizes state between master and shard instances.
+description: Tracks and synchronizes the presence of merm king artifacts (king, trident, crown, pauldron) across shards in multiplayer.
+tags: [network, multiplayer, boss, synchronization]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: components
 source_hash: 04e63a02
+system_scope: network
 ---
-
 # Shard Mermkingwatcher
 
-## Overview
-This component monitors and synchronizes the existence of a Merm King and the presence of associated buffs (trident, crown, pauldron) across all connected shards in a DST world. It runs exclusively on the master instance and maintains authoritative state via `SourceModifierList` and network variables (`net_bool`) to ensure consistent cross-shard behavior.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- `TheWorld.ismastersim` (asserted; component only exists on the master simulation instance)
-- Uses `SourceModifierList` for managing additive boolean modifiers
-- Relies on `net_bool` to synchronize state across shards
-- Events it listens to or pushes include: `onmermkingcreated`, `onmermkingdestroyed`, `onmermkingtridentadded`, `onmermkingtridentremoved`, `onmermkingcrownadded`, `onmermkingcrownremoved`, `onmermkingpauldronadded`, `onmermkingpauldronremoved`, `master_shardmermkingexists`, `master_shardmermkingtrident`, `master_shardmermkingcrown`, `master_shardmermkingpauldron`, and various `_dirty` events
+## Overview
+`shard_mermkingwatcher` is a network-aware component that tracks the existence and presence of merm king artifacts in multiplayer environments. It ensures state consistency across shards by managing net-serialized booleans and syncing local changes with master shard events. It is only valid on the master simulation and runs on the master shard only; client shards receive state updates via network events.
+
+The component relies on `SourceModifierList` to track multiple potential sources (e.g., shards) contributing to artifact presence and uses `net_bool` to replicate state across the network. It emits world-level events (e.g., `onmermkingcreated_anywhere`) and listens to shard-specific events (`master_shardmermking*`) for cross-shard synchronization.
+
+## Usage example
+```lua
+-- Typically added automatically to TheWorld on master shard initialization.
+-- Not intended for manual instantiation by mods.
+
+-- This component is automatically attached to TheWorld in the master shard:
+TheWorld:AddComponent("shard_mermkingwatcher")
+```
+
+## Dependencies & tags
+**Components used:** None (does not access other components via `inst.components.X` directly in this file).  
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The owning entity (typically `TheWorld`), set during construction |
-| `mermkings` | `SourceModifierList` | `SourceModifierList(inst, false, SourceModifierList.boolean)` | Tracks sources contributing Merm King presence |
-| `hasmermking` | `net_bool` | `net_bool(inst.GUID, "mermkingwatcher.hasmermking", "hasmermkingdirty")` | Networked boolean indicating whether a Merm King exists anywhere |
-| `tridents` | `SourceModifierList` | `SourceModifierList(inst, false, SourceModifierList.boolean)` | Tracks sources contributing Merm King trident buff |
-| `hastrident` | `net_bool` | `net_bool(inst.GUID, "mermkingwatcher.hastrident", "hastridentdirty")` | Networked boolean for trident presence |
-| `crowns` | `SourceModifierList` | `SourceModifierList(inst, false, SourceModifierList.boolean)` | Tracks sources contributing Merm King crown buff |
-| `hascrown` | `net_bool` | `net_bool(inst.GUID, "mermkingwatcher.hascrown", "hascrowndirty")` | Networked boolean for crown presence |
-| `pauldrons` | `SourceModifierList` | `SourceModifierList(inst, false, SourceModifierList.boolean)` | Tracks sources contributing Merm King pauldron buff |
-| `haspauldron` | `net_bool` | `net_bool(inst.GUID, "mermkingwatcher.haspauldron", "haspauldrondirty")` | Networked boolean for pauldron presence |
+| `mermkings` | `SourceModifierList` | — | Tracks sources reporting merm king presence (boolean flag). |
+| `hasmermking` | `net_bool` | `false` | Network-replicated boolean indicating if any shard reports a merm king. |
+| `tridents` | `SourceModifierList` | — | Tracks sources reporting trident pickup. |
+| `hastrident` | `net_bool` | `false` | Network-replicated boolean for trident presence. |
+| `crowns` | `SourceModifierList` | — | Tracks sources reporting crown pickup. |
+| `hascrown` | `net_bool` | `false` | Network-replicated boolean for crown presence. |
+| `pauldrons` | `SourceModifierList` | — | Tracks sources reporting pauldron pickup. |
+| `haspauldron` | `net_bool` | `false` | Network-replicated boolean for pauldron presence. |
 
-## Main Functions
+## Main functions
 ### `AddMermKingSource(source)`
-* **Description:** Adds a shard ID as a source of Merm King presence; updates the networked variable and triggers a world event if this was the first source.
-* **Parameters:** `source` — A unique identifier (e.g., shard ID string) representing the shard or source adding the Merm King.
+*   **Description:** Registers a source (typically a shard ID) as reporting merm king presence. Updates net variable and emits global events if transition from absent to present.
+*   **Parameters:** `source` (string or number) — identifier for the shard or system adding the source.
+*   **Returns:** Nothing.
 
 ### `RemoveMermKingSource(source)`
-* **Description:** Removes a source from the Merm King tracker; resets the networked variable to false if no sources remain and triggers a destruction event accordingly.
-* **Parameters:** `source` — The shard ID or source to remove.
+*   **Description:** Removes a previously registered source. If no sources remain, updates net variable and emits the "destroyed" global event.
+*   **Parameters:** `source` (string or number) — identifier for the source to remove.
+*   **Returns:** Nothing.
 
 ### `HasMermKing()`
-* **Description:** Returns the current existence state of a Merm King across shards.
-* **Parameters:** None.
-
-### `OnMermKingCreated()`
-* **Description:** Syncs Merm King presence to connected shards via `Shard_SyncMermKingExists(true)`.
-* **Parameters:** None.
-
-### `OnMermKingDestroyed()`
-* **Description:** Syncs Merm King removal to connected shards via `Shard_SyncMermKingExists(false)`.
-* **Parameters:** None.
+*   **Description:** Returns whether any source currently reports merm king presence.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if at least one source reports presence, otherwise `false`.
 
 ### `AddTridentSource(source)`
-* **Description:** Registers a source that provides the Merm King trident buff; triggers an event if the trident was not previously held.
-* **Parameters:** `source` — Shard or system identifier adding the trident.
+*   **Description:** Registers a source reporting trident pickup. Updates net variable and emits `onmermkingtridentadded_anywhere` on first addition.
+*   **Parameters:** `source` (string or number).
+*   **Returns:** Nothing.
 
 ### `RemoveTridentSource(source)`
-* **Description:** Removes a trident source; triggers an event if no sources remain.
-* **Parameters:** `source` — Shard or system identifier removing the trident.
+*   **Description:** Removes a trident source. Emits `onmermkingtridentremoved_anywhere` if no sources remain.
+*   **Parameters:** `source` (string or number).
+*   **Returns:** Nothing.
 
 ### `HasTrident()`
-* **Description:** Returns whether the Merm King currently holds the trident buff.
-* **Parameters:** None.
-
-### `OnTridentAdded()` / `OnTridentRemoved()`
-* **Description:** Syncs trident state changes to shards via `Shard_SyncMermKingTrident()`.
-* **Parameters:** None.
+*   **Description:** Returns whether any source reports trident pickup.
+*   **Parameters:** None.
+*   **Returns:** `boolean`.
 
 ### `AddCrownSource(source)`
-* **Description:** Registers a source that provides the Merm King crown buff; triggers an event if the crown was not previously equipped.
-* **Parameters:** `source` — Shard or system identifier adding the crown.
+*   **Description:** Registers a source reporting crown pickup. Emits `onmermkingcrownadded_anywhere` on first addition.
+*   **Parameters:** `source` (string or number).
+*   **Returns:** Nothing.
 
 ### `RemoveCrownSource(source)`
-* **Description:** Removes a crown source; triggers an event if no sources remain.
-* **Parameters:** `source` — Shard or system identifier removing the crown.
+*   **Description:** Removes a crown source. Emits `onmermkingcrownremoved_anywhere` if no sources remain.
+*   **Parameters:** `source` (string or number).
+*   **Returns:** Nothing.
 
 ### `HasCrown()`
-* **Description:** Returns whether the Merm King currently wears the crown.
-* **Parameters:** None.
-
-### `OnCrownAdded()` / `OnCrownRemoved()`
-* **Description:** Syncs crown state changes to shards via `Shard_SyncMermKingCrown()`.
-* **Parameters:** None.
+*   **Description:** Returns whether any source reports crown pickup.
+*   **Parameters:** None.
+*   **Returns:** `boolean`.
 
 ### `AddPauldronSource(source)`
-* **Description:** Registers a source that provides the Merm King pauldron buff; triggers an event if the pauldron was not previously equipped.
-* **Parameters:** `source` — Shard or system identifier adding the pauldron.
+*   **Description:** Registers a source reporting pauldron pickup. Emits `onmermkingpauldronadded_anywhere` on first addition.
+*   **Parameters:** `source` (string or number).
+*   **Returns:** Nothing.
 
 ### `RemovePauldronSource(source)`
-* **Description:** Removes a pauldron source; triggers an event if no sources remain.
-* **Parameters:** `source` — Shard or system identifier removing the pauldron.
+*   **Description:** Removes a pauldron source. Emits `onmermkingpauldronremoved_anywhere` if no sources remain.
+*   **Parameters:** `source` (string or number).
+*   **Returns:** Nothing.
 
 ### `HasPauldron()`
-* **Description:** Returns whether the Merm King currently wears the pauldron.
-* **Parameters:** None.
-
-### `OnPauldronAdded()` / `OnPauldronRemoved()`
-* **Description:** Syncs pauldron state changes to shards via `Shard_SyncMermKingPauldron()`.
-* **Parameters:** None.
+*   **Description:** Returns whether any source reports pauldron pickup.
+*   **Parameters:** None.
+*   **Returns:** `boolean`.
 
 ### `ResyncNetVars()`
-* **Description:** Re-synchronizes all networked variables after late shard connections; clears and re-sets each `net_bool` to ensure consistency.
-* **Parameters:** None.
+*   **Description:** (Master shard only) Forces re-broadcast of all net variables to connected shards, used when a shard joins late. Resets each net var locally before re-setting to restore sync.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted debug string indicating master shard status and current Merm King presence.
-* **Parameters:** None.
+*   **Description:** Returns a debug-formatted summary string.
+*   **Parameters:** None.
+*   **Returns:** `string` — format: `"Mastershard: 1/0, HasMermKing: 1/0"`.
 
-## Events & Listeners
-- Listens for `"onmermkingcreated"` → calls `OnMermKingCreated()`
-- Listens for `"onmermkingdestroyed"` → calls `OnMermKingDestroyed()`
-- Listens for `"onmermkingtridentadded"` → calls `OnTridentAdded()`
-- Listens for `"onmermkingtridentremoved"` → calls `OnTridentRemoved()`
-- Listens for `"onmermkingcrownadded"` → calls `OnCrownAdded()`
-- Listens for `"onmermkingcrownremoved"` → calls `OnCrownRemoved()`
-- Listens for `"onmermkingpauldronadded"` → calls `OnPauldronAdded()`
-- Listens for `"onmermkingpauldronremoved"` → calls `OnPauldronRemoved()`
-- Listens for `"master_shardmermkingexists"` (master shard only) → calls `OnMermKingExists`
-- Listens for `"master_shardmermkingtrident"` (master shard only) → calls `OnMermKingTridentChanged`
-- Listens for `"master_shardmermkingcrown"` (master shard only) → calls `OnMermKingCrownChanged`
-- Listens for `"master_shardmermkingpauldron"` (master shard only) → calls `OnMermKingPauldronsChanged`
-- Listens for `"hasmermkingdirty"`, `"hastridentdirty"`, `"hascrowndirty"`, `"haspauldrondirty"` (shard only) → respective dirty handlers
+## Events & listeners
+- **Listens to:**  
+  - `onmermkingcreated`, `onmermkingdestroyed` — triggers shard sync via `Shard_SyncMermKingExists`.  
+  - `onmermkingtridentadded`, `onmermkingtridentremoved` — triggers `Shard_SyncMermKingTrident`.  
+  - `onmermkingcrownadded`, `onmermkingcrownremoved` — triggers `Shard_SyncMermKingCrown`.  
+  - `onmermkingpauldronadded`, `onmermkingpauldronremoved` — triggers `Shard_SyncMermKingPauldron`.  
+  - On master shard: `master_shardmermkingexists`, `master_shardmermkingtrident`, `master_shardmermkingcrown`, `master_shardmermkingpauldron`.  
+  - On shards: `hasmermkingdirty`, `hastridentdirty`, `hascrowndirty`, `haspauldrondirty` — triggers local event emission based on new net state.
 
-Note: The `"onmermkingcreated_anywhere"`, `"onmermkingdestroyed_anywhere"`, and similar buff events are pushed *by this component* to the world to signal global state changes.
+- **Pushes:**  
+  - `onmermkingcreated_anywhere`, `onmermkingdestroyed_anywhere`  
+  - `onmermkingtridentadded_anywhere`, `onmermkingtridentremoved_anywhere`  
+  - `onmermkingcrownadded_anywhere`, `onmermkingcrownremoved_anywhere`  
+  - `onmermkingpauldronadded_anywhere`, `onmermkingpauldronremoved_anywhere`  

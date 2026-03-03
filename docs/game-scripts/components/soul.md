@@ -1,31 +1,44 @@
 ---
 id: soul
 title: Soul
-description: Adds the "soul" tag to an entity to indicate it is a soul entity in the game's Entity Component System.
+description: Assigns the 'soul' tag to an entity, primarily used for identification and gameplay logic.
+tags: [tagging, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: b98a5720
+system_scope: entity
 ---
 
 # Soul
 
-## Overview
-This component serves as a marker to classify an entity as a "soul" within the game's Entity Component System. Its sole responsibility is to attach the `"soul"` tag to the entity instance upon initialization.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Adds Tag:** `"soul"`  
-- **Dependencies:** None explicitly declared or required beyond the base `inst` entity.
+## Overview
+The `Soul` component is a simple tagging component that adds the `"soul"` tag to the entity it is attached to. It does not provide any additional state, timers, or functionality beyond tag assignment. This component is typically added during prefab initialization to consistently mark entities that qualify as "souls" (e.g., Abigail, ghost characters, or spirit-type entities) for use in conditional logic elsewhere in the codebase.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("soul")
+-- Later in code:
+if inst:HasTag("soul") then
+    -- Special soul-handling logic
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `"soul"` to the entity.
 
 ## Properties
-No public instance properties are initialized in this component.
+No public properties
 
-## Main Functions
-No functional methods beyond the constructor (`_ctor`) are defined in this component.
+## Main functions
+No public functions — the component's only behavior occurs in the constructor.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified

@@ -1,147 +1,147 @@
 ---
 id: oceantrawler
 title: Oceantrawler
-description: This component manages the fishing mechanics of the ocean trawler, including lowering/raising, fish capture simulation during sleep or active periods, overflow handling, and animation synchronization based on catch state.
+description: Manages the catching, storage, and release of ocean fish in a trawler net, including timing-based collection while sleeping, overflow handling, and animation synchronization.
+tags: [fishing, inventory, ocean, animation, network]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 718cf1c7
+system_scope: inventory
 ---
 
 # Oceantrawler
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `OceanTrawler` component handles the gameplay logic for the ocean trawler entity, including lowering the net into the water, simulating fish capture (both while awake and while the player is sleeping), managing overflow catches beyond container capacity, and synchronizing visual state (e.g., net animations and minimap icon) accordingly. It integrates with the entity’s container, physics, state graph, and map systems.
+`Oceantrawler` governs the behavior of ocean trawlers in DST, handling fish capture logic (both active and while sleeping), container interaction, overflow management, and visual state synchronization via `AnimState` overrides. It extends the `container` component by adding time-based capture simulation, bait-based catch chance modifiers, and dynamic net animation states (`net_empty`, `net_medium`, `net_full`, `net_untied`). The component integrates closely with `container`, `health`, `edible`, `schoolspawner`, and `homeseeker` components, and supports save/load via `OnSave`/`OnLoad`.
 
-## Dependencies & Tags
-**Added Tags:**
-- `trawler_lowered` (when net is lowered)
-- `trawler_fish_escaped` (when fish escaped due to overflow)
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("container")
+inst:AddComponent("oceantrawler")
 
-**Removed Tags:**
-- `trawler_lowered` (on raise or reset)
-- `trawler_fish_escaped` (on fix or reset)
+-- Lower the trawler to begin catching fish
+inst.components.oceantrawler:Lower()
 
-**Component Dependencies:**
-- `container`: Required for item storage; used in nearly all logic.
-- `timer`: Added via `inst:AddComponent("timer")`.
-- `health`, `transform`, `physics`, `animstate`, `minimap`, `sg`, `components.schoolspawner` (TheWorld): Used conditionally or in simulation logic.
+-- Check if fish are caught (active mode)
+inst.components.oceantrawler:SimulateCatchFish()
+
+-- Raise the trawler to open and collect
+inst.components.oceantrawler:Raise()
+```
+
+## Dependencies & tags
+**Components used:** `container`, `timer`, `health`, `edible`, `schoolspawner`, `homeseeker`, `minimap`, `sg` (stategraph), `transform`, `physics`, `animstate`, `miniMapEntity`  
+**Tags:** Adds `trawler_lowered`, `trawler_fish_escaped`; checks for `oceantrawler`, `oceanfish`, `oceanshoalspawner`
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the owning entity. |
-| `lowered` | `boolean` | `false` | Whether the trawler net is currently lowered. |
-| `range` | `number` | `2.5` | Radius around the trawler used to detect nearby ocean fish while active. |
-| `nearbytrawlerrange` | `number` | `16` | Radius to search for other trawlers that affect catch rates while sleeping. |
-| `nearbyshoalrange` | `number` | `16` | Radius to search for ocean fish shoal spawners when a fish is caught. |
-| `checkperiod` | `number` | `0.75` | Interval (in seconds) between catch simulation checks while active. |
-| `catchfishchance` | `number` | `0.125` | Base per-check probability of catching a fish while awake. |
-| `sleepcheckperiod` | `number` | `TUNING.SEG_TIME` | Time interval (in seconds) representing a sleep segment used for catch rate calculation. |
-| `sleepcatchfishchance` | `number` | `0.0625` | Base per-check probability of catching a fish per sleep segment. |
-| `baitcatchfishmodifier` | `number` | `2` | Multiplier applied to catch chance when appropriate bait is present. |
-| `task` | `Task` | `nil` | Periodic task for active-state fish checking. |
-| `startsleeptime` | `number` | `0` | Timestamp marking when the entity began sleeping. |
-| `elapsedsleeptime` | `number` | `0` | Accumulated time spent sleeping, used to calculate catch attempts. |
-| `overflowfish` | `table` | `{}` | List of overflow fish indices (prefab names + `"_inv"`) queued to spawn when the net is raised. |
-| `overflowescapepercent` | `number` | `0.2` | Base probability per overflow fish to trigger a full escape event. |
-| `fishescaped` | `boolean` | `false` | Whether a full escape event has occurred. |
+| `inst` | `Entity` | — | The entity instance that owns this component. |
+| `lowered` | boolean | `false` | Whether the trawler is currently lowered into the water. |
+| `range` | number | `2.5` | Radius around the trawler used when actively scanning for fish. |
+| `nearbytrawlerrange` | number | `16` | Max distance to other trawlers that modifies catch chance while sleeping. |
+| `nearbyshoalrange` | number | `16` | Range used to detect ocean shoal spawners for hooking events. |
+| `checkperiod` | number | `0.75` | How often (seconds) the component checks for fish while awake. |
+| `catchfishchance` | number | `0.125` | Base chance per check to catch a fish while awake. |
+| `sleepcheckperiod` | number | `TUNING.SEG_TIME` | Time interval (in seconds) per sleep segment to simulate catching. |
+| `sleepcatchfishchance` | number | `0.0625` | Base per-segment chance to catch a fish while sleeping. |
+| `baitcatchfishmodifier` | number | `2` | Multiplier applied to catch chance when valid bait is present. |
+| `overflowescapepercent` | number | `0.2` | Per-overflow fish chance to trigger escape event. |
+| `task` | `PeriodicTask` | `nil` | Active timer task used during active fishing. |
+| `startsleeptime` | number | `0` | Timestamp when the entity last fell asleep. |
+| `elapsedsleeptime` | number | `0` | Accumulated sleep time used for simulation. |
+| `overflowfish` | table | `{}` | List of prefabs for fish caught beyond container capacity. |
+| `fishescaped` | boolean | `false` | Whether fish have escaped (affects animation and malbatross spawning). |
 
-## Main Functions
-
+## Main functions
 ### `Reset()`
-* **Description:** Resets the trawler state to initial values, cancels update tasks, clears overflow/fish escape state, and removes the `trawler_fish_escaped` tag.
+* **Description:** Resets the trawler to its initial state, clearing timers, overflow fish, and escape flags; stops updates.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Returns a serializable data table containing critical state (lowered status, sleep time, overflow fish, escape status) for persistence.
+* **Description:** Returns state data for serialization (used in save files).
 * **Parameters:** None.
+* **Returns:** `table` with keys: `lowered`, `elapsedsleeptime`, `overflowfish`, `fishescaped`.
 
 ### `OnLoad(data)`
-* **Description:** Restores trawler state from saved data. Sets minimap icon based on lowered state and re-applies tags if needed.
-* **Parameters:**  
-  `data`: Table containing `lowered`, `elapsedsleeptime`, `overflowfish`, and `fishescaped`.
+* **Description:** Restores state from saved data; updates minimap icon and tag based on `lowered` and `fishescaped`.
+* **Parameters:** `data` (table) — saved component state.
+* **Returns:** Nothing.
 
 ### `HasCaughtItem()`
-* **Description:** Returns whether the container holds at least one fish.
-* **Parameters:** None.  
-* **Returns:** `boolean`.
+* **Description:** Indicates whether the container currently holds at least one fish.
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if container is non-empty, otherwise `false`.
 
 ### `HasFishEscaped()`
-* **Description:** Returns whether the fish escape state is currently active.
-* **Parameters:** None.  
-* **Returns:** `boolean`.
+* **Description:** Returns whether the trawler has experienced a fish-escape event (e.g., overload).
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if fish escaped, otherwise `false`.
 
 ### `IsLowered()`
-* **Description:** Returns whether the trawler net is lowered.
-* **Parameters:** None.  
-* **Returns:** `boolean`.
+* **Description:** Returns current lowered state.
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if lowered, otherwise `false`.
 
 ### `Lower()`
-* **Description:** Lowers the net, updates state graph, minimap icon, container openness, and starts periodic fish-checking tasks.
+* **Description:** Lowers the trawler into the water, blocks container opening, starts fish-check timer, and updates minimap icon.
 * **Parameters:** None.
-
-### `GetOceanTrawlerSpawnChanceModifier(spawnpoint)`
-* **Description:** Returns a spawn chance modifier for sea creatures (e.g., Malbatross) near the trawler—specifically, increases spawn chance if trawler is lowered and full.
-* **Parameters:**  
-  `spawnpoint`: Point in world coordinates (not used directly, but used by caller).
-
-### `GetBait(eater)`
-* **Description:** Searches container for an edible item matching the diet of a given fish prefab and returns it if found.
-* **Parameters:**  
-  `eater`: Prefab name of the fish expecting bait.
-
-### `ReleaseOverflowFish()`
-* **Description:** Spawns and launches all overflow fish out of the net when raising.
-* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `Raise()`
-* **Description:** Raises the net, restores container openness, clears overflow fish, updates animations, and resets minimap icon.
+* **Description:** Raises the trawler, unlocks the container for access, triggers overflow fish release, and refreshes net animation.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `Fix()`
-* **Description:** Clears the fish escape state and removes the `trawler_fish_escaped` tag.
+* **Description:** Clears the `trawler_fish_escaped` tag and internal `fishescaped` flag; updates net animation.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `StopUpdating()`
-* **Description:** Cancels and nullifies the active fish-checking task.
+### `ReleaseOverflowFish()`
+* **Description:** Spawns escaped overflow fish outside the trawler using a radial launch motion.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `StartUpdate()`
-* **Description:** Begins a periodic task (using `DoPeriodicTask`) to check for fish while lowered and not escaped.
-* **Parameters:** None.
+### `GetBait(eater)`
+* **Description:** Searches the container for a suitable bait item for the given fish prefab (based on diet).
+* **Parameters:** `eater` (string) — fish prefab name.
+* **Returns:** `Entity` or `nil` — bait item if found, else `nil`.
 
-### `ReleaseOverflowFish()` (Private helper referenced in public flow)
-* **Description:** See public function above.
+### `StartUpdate()` / `StopUpdating()`
+* **Description:** Starts/stops the active-fishing periodic check loop (`OnUpdate`).
+* **Parameters:** None (both).
+* **Returns:** Nothing.
 
 ### `SimulateCatchFish()`
-* **Description:** Simulates fish capture over accumulated sleep time, accounting for ocean coverage, nearby trawlers, and bait. Triggers shoal events and overflow logic.
+* **Description:** Simulates fish catching over elapsed sleep time, applying percent ocean, nearby trawler, and bait modifiers. Triggers shoal hook events and overflow handling.
 * **Parameters:** None.
-
-### `OnEntitySleep()`
-* **Description:** Records the start of sleep time for later catch simulation.
-* **Parameters:** None.
-
-### `OnEntityWake()`
-* **Description:** Resets the periodic task, simulates catch attempts for elapsed sleep time, and restarts active checking.
-* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-* **Description:** Called periodically during active (non-sleep) periods to attempt catching nearby ocean fish based on range and chance modifiers.
-* **Parameters:**  
-  `dt`: Time delta for the check (used for consistency but not directly applied here).
+* **Description:** Main active-fishing loop. Checks for nearby trappable ocean fish, and with probability modifies by bait, adds caught fish.
+* **Parameters:** `dt` (number) — time delta since last update (unused directly; period is fixed by `checkperiod`).
+* **Returns:** Nothing.
 
-## Events & Listeners
+### `OnEntitySleep()` / `OnEntityWake()`
+* **Description:** Pauses/resumes the active update timer and triggers a simulation of catching during sleep when waking.
+* **Parameters:** None (both).
+* **Returns:** Nothing.
 
-- **Listens to:**
-  - `"itemlose"` → Triggers `UpdateFishNetAnim`
-  - `"itemget"` → Triggers `UpdateFishNetAnim`
+### `GetOceanTrawlerSpawnChanceModifier(spawnpoint)`
+* **Description:** Returns a multiplier for nearby sea-creature spawn chance; `TUNING.OCEAN_TRAWLER_SPAWN_FISH_MODIFIER` if lowered and full, otherwise `1`.
+* **Parameters:** `spawnpoint` (position table) — unused in current implementation.
+* **Returns:** `number` — spawn chance modifier.
 
-- **Triggers/Pushes:**
-  - `"ms_shoalfishhooked"` — when a fish from a shoal is caught.
-  - `"ms_registerfishshoal"` / `"ms_unregisterfishshoal"` — *commented out* in current code (disabled).
+## Events & listeners
+- **Listens to:** `itemlose`, `itemget` — triggers `UpdateFishNetAnim` to refresh net animation.
+- **Pushes:** `ms_shoalfishhooked` (via `TheWorld:PushEvent`) — notifies listeners (e.g., malbatross tracking) when a shoal fish is caught.  
+*(Note: `ms_registerfishshoal` and `ms_unregisterfishshoal` events are commented out.)*

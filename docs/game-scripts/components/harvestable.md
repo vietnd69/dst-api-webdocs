@@ -1,125 +1,164 @@
 ---
 id: harvestable
 title: Harvestable
-description: Manages the growth, harvesting state, and interactability of an entity that can be harvested for produce over time.
+description: Manages plant-like entities that grow over time and can be harvested to yield items, handling growth progress, pausing, and item dropping.
+tags: [growth, harvesting, production, environment]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 316960f3
+system_scope: environment
 ---
 
 # Harvestable
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Harvestable` component controls the lifecycle of an entity that produces resources through a timed growth process. It handles growth scheduling, produce accumulation up to a maximum, and the logic for harvesting produce by players or other actors. It dynamically manages the `"harvestable"` tag on its entity based on current produce and enabled state.
+The `Harvestable` component enables entities (typically plants or crops) to grow incrementally over time and be harvested for reward items. It tracks growth progress, manages timers, and coordinates item generation upon harvest. The component automatically maintains the `harvestable` tag on its host entity based on production state (`produce > 0` and `enabled`). It works closely with the `inventory` component to distribute harvested items to harvesters and uses `inventoryitem:InheritWorldWetnessAtTarget` to propagate world wetness to dropped items.
 
-## Dependencies & Tags
-**Dependencies:**
-- `health` (not directly required by this component, but harvestable entities often use it)
-- `inventory` (on the harvester for item distribution)
-- `inventoryitem` (on dropped loot for wetness inheritance)
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("harvestable")
 
-**Tags:**
-- Adds `"harvestable"` when `enabled == true` and `produce > 0`
-- Removes `"harvestable"` otherwise (including on removal from entity)
+inst.components.harvestable:SetUp(
+    "cactusflower", -- product prefab name
+    3,              -- max produce count
+    120,            -- grow time in seconds
+    function(inst, picker, amount) print("Harvested " .. amount .. " items") end,
+    function(inst, current) print("Grew to " .. current) end
+)
+```
+
+## Dependencies & tags
+**Components used:** `inventory`, `inventoryitem` (via `InheritWorldWetnessAtTarget` and `GiveItem`)
+**Tags:** Adds `harvestable` when `enabled` and `produce > 0`; removes it otherwise.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `produce` | `number` | `0` | Current amount of produce (0 to `maxproduce`). |
-| `maxproduce` | `number` | `1` | Maximum produce count before growth stops. |
-| `growtime` | `number` (seconds) | `nil` | Duration (in seconds) between growth steps. |
-| `product` | `string` (prefab name) | `nil` | Prefab name of item produced per growth step. |
-| `enabled` | `boolean` | `true` | If `false`, growth is paused and entity is not harvestable. |
-| `task` | `Task` | `nil` | Internal scheduled task for growth progression. |
-| `targettime` | `number` (Unix time) | `nil` | Wall-clock time when next growth step is scheduled. |
-| `pausetime` | `number` (seconds) | `nil` | Remaining grow time when growth was paused. |
-| `ongrowfn` | `function?` | `nil` | Callback invoked on each growth step. |
-| `onharvestfn` | `function?` | `nil` | Callback invoked upon harvesting. |
-| `can_harvest_fn` | `function?` | `nil` | Custom check function to override harvest eligibility. |
-| `domagicgrowthfn` | `function?` | `nil` | Custom magic growth function (e.g., for instant growth). |
+| `produce` | number | `0` | Current number of items ready to harvest. |
+| `maxproduce` | number | `1` | Maximum number of items this entity can produce. |
+| `growtime` | number or `nil` | `nil` | Time in seconds required to produce one item. |
+| `product` | string or `nil` | `nil` | Prefab name of the item to drop on harvest. |
+| `enabled` | boolean | `true` | Whether growth is active. |
+| `targettime` | number or `nil` | `nil` | Internal timestamp for scheduled growth tick. |
+| `pausetime` | number or `nil` | `nil` | Remaining grow time when growth was paused. |
+| `can_harvest_fn` | function or `nil` | `nil` | Optional custom predicate function to validate harvest eligibility. |
+| `domagicgrowthfn` | function or `nil` | `nil` | Optional function for instant-growth via magic effects. |
+| `ongrowfn` | function or `nil` | `nil` | Callback invoked when production increments. |
+| `onharvestfn` | function or `nil` | `nil` | Callback invoked after harvest completes. |
 
-## Main Functions
+## Main functions
+### `SetUp(product, max, time, onharvest, ongrow)`
+*   **Description:** Configures core harvest behavior: what item is produced, how many times, how long each step takes, and optional callbacks.
+*   **Parameters:**
+    *   `product` (string) – Name of the item prefab to produce on harvest.
+    *   `max` (number) – Maximum number of items to produce before full growth (default `1`).
+    *   `time` (number) – Duration in seconds for each growth step.
+    *   `onharvest` (function) – Optional callback `(inst, picker, amount)` triggered after items are dropped.
+    *   `ongrow` (function) – Optional callback `(inst, current_produce)` triggered when production increments.
+*   **Returns:** Nothing.
+*   **Error states:** None; invalid values result in no growth (e.g., `nil` or `0` grow time).
 
-### `Harvestable:SetUp(product, max, time, onharvest, ongrow)`
-* **Description:** Initializes the harvestable with all core settings in one call. Sets product prefab, max produce, grow time, and both callback functions.
-* **Parameters:**
-  - `product`: `string` — Prefab name of the item spawned per produce unit.
-  - `max`: `number` (optional, default `1`) — Max number of produce units.
-  - `time`: `number` — Grow time per unit (seconds).
-  - `onharvest`: `function?` — Callback `(inst, picker, produce)` triggered on harvest.
-  - `ongrow`: `function?` — Callback `(inst, current_produce)` triggered after each growth step.
+### `SetProduct(product, max)`
+*   **Description:** Sets the product prefab and maximum production count; resets current produce to `0`.
+*   **Parameters:**
+    *   `product` (string) – Prefab name of harvestable item.
+    *   `max` (number or `nil`) – Maximum produce count (defaults to `1`).
+*   **Returns:** Nothing.
 
-### `Harvestable:SetProduct(product, max)`
-* **Description:** Sets the product prefab and maximum produce amount, and resets current produce to `0`.
-* **Parameters:**
-  - `product`: `string` — Prefab name.
-  - `max`: `number` (optional) — Max produce. Defaults to `1`.
+### `SetGrowTime(time)`
+*   **Description:** Sets the duration (in seconds) required to produce one unit.
+*   **Parameters:** `time` (number or `nil`) – Time per growth step.
+*   **Returns:** Nothing.
 
-### `Harvestable:SetGrowTime(time)`
-* **Description:** Sets the duration (seconds) required for one growth step.
-* **Parameters:**
-  - `time`: `number` — Grow time per unit.
+### `CanBeHarvested()`
+*   **Description:** Determines whether the entity is currently harvestable.
+*   **Parameters:** None.
+*   **Returns:** `boolean` – `true` if `enabled` and `produce > 0`.
+*   **Error states:** None.
 
-### `Harvestable:CanBeHarvested()`
-* **Description:** Returns `true` if the entity can currently be harvested (i.e., `enabled == true` and `produce > 0`).
-* **Returns:** `boolean`
+### `Harvest(picker)`
+*   **Description:** Attempts to harvest the product. Drops `produce` copies of the `product` prefab to the harvester or world, resets produce count, and restarts growth.
+*   **Parameters:** `picker` (entity or `nil`) – The entity performing the harvest.
+*   **Returns:** `boolean` – `true` if harvest succeeded; otherwise `false`.
+*   **Error states:**
+    *   Returns `false` if `CanBeHarvested()` fails or `can_harvest_fn` (if set) returns `false`.
+    *   Drops items to `picker` if possible; otherwise drops to world at entity position.
 
-### `Harvestable:Harvest(picker)`
-* **Description:** Harvests all current produce, spawns the configured product prefabs, distributes them to the harvester (if inventory exists), and resets produce to `0`. Then restarts the growth cycle. Respects `can_harvest_fn` if defined.
-* **Parameters:**
-  - `picker`: `Entity?` — The entity performing the harvest. May be `nil` (e.g., natural decay or other system).
-* **Returns:**
-  - `true` if successfully harvested.
-  - `false, fail_reason` if `can_harvest_fn` rejected the harvest.
+### `StartGrowing([time])`
+*   **Description:** Schedules the next growth tick using `DoTaskInTime`, resuming from a pause or starting fresh.
+*   **Parameters:** `time` (number or `nil`) – Optional override of grow time; uses `pausetime`, `growtime`, or `time` in that order.
+*   **Returns:** Nothing.
+*   **Error states:** None; does nothing if `time` is `nil`.
 
-### `Harvestable:StartGrowing(time)`
-* **Description:** Begins or resumes the growth cycle. If `time` is provided, uses it; otherwise uses `pausetime` (if set) or `growtime`. Cancels any pending task and schedules the next `Grow()` call.
-* **Parameters:**
-  - `time`: `number?` (seconds) — Optional override grow time.
+### `PauseGrowing()`
+*   **Description:** Cancels the pending growth task and stores remaining time in `pausetime`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `Harvestable:PauseGrowing()`
-* **Description:** Pauses growth by cancelling the scheduled task and storing remaining time in `pausetime`. Does *not* reset `produce`.
-* **Parameters:** None.
+### `StopGrowing()`
+*   **Description:** Cancels the pending growth task and discards timing data (no resume).
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `Harvestable:StopGrowing()`
-* **Description:** Stops growth by cancelling the scheduled task and clearing `targettime` and `pausetime`.
-* **Parameters:** None.
+### `Disable()`
+*   **Description:** Pauses growth and sets `enabled` to `false`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `Harvestable:Grow()`
-* **Description:** Attempts to increase `produce` by 1. Calls `ongrowfn` if defined. Schedules the next growth step if not at `maxproduce`.
-* **Returns:** `true` if produce increased; `false` if already at max.
+### `Enable()`
+*   **Description:** Resumes growth (restarts from current progress) and sets `enabled` to `true`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `Harvestable:Enable()` / `Harvestable:Disable()`
-* **Description:** Enables/disables harvesting and resumes/pauses growth respectively. `Enable()` calls `StartGrowing()`, `Disable()` calls `PauseGrowing()`.
-* **Parameters:** None.
+### `SetCanHarvestFn(fn)`
+*   **Description:** Assigns a custom predicate function called before harvesting.
+*   **Parameters:** `fn` (function) – Signature `(inst, picker)` returning `can_harvest: boolean, fail_reason: string?`.
+*   **Returns:** Nothing.
 
-### `Harvestable:SetDoMagicGrowthFn(fn)` & `Harvestable:DoMagicGrowth(doer)`
-* **Description:** Allows defining and executing custom instant-growth logic (e.g., fertilizer use). `DoMagicGrowth` invokes the stored function.
-* **Parameters:**
-  - `fn`: `function?` — Signature: `(inst, doer)`.
-  - `doer`: `Entity` — The entity triggering magic growth.
+### `SetDoMagicGrowthFn(fn)`
+*   **Description:** Assigns a function for instant-growth (e.g., via magic).
+*   **Parameters:** `fn` (function) – Signature `(inst, doer)`.
+*   **Returns:** Nothing.
 
-### `Harvestable:IsMagicGrowable()`
-* **Description:** Returns `true` if `domagicgrowthfn` is set.
-* **Returns:** `boolean`
+### `IsMagicGrowable()`
+*   **Description:** Checks if a magic-growth function is assigned.
+*   **Parameters:** None.
+*   **Returns:** `boolean` – `true` if `domagicgrowthfn` is set.
+*   **Error states:** None.
 
-### `Harvestable:OnSave()` / `Harvestable:OnLoad(data)`
-* **Description:** Serialize/deserialize growth state (remaining time, produce, pause info) for network save/load.
-* **Parameters:**
-  - `data`: `table` — Data from `OnSave()` for loading.
+### `DoMagicGrowth(doer)`
+*   **Description:** Invokes the magic-growth function, if assigned.
+*   **Parameters:** `doer` (entity) – The entity triggering magic growth.
+*   **Returns:** Nothing.
 
-### `Harvestable:GetDebugString()`
-* **Description:** Returns a human-readable debug string (e.g., `"2 apple grown (5.2)"`).
-* **Returns:** `string`
+### `OnSave()`
+*   **Description:** Serializes growth state for saving (time remaining, produce count, pause state).
+*   **Parameters:** None.
+*   **Returns:** `table` – `{ time = remaining_seconds?, pausetime = number?, produce = number }`.
 
-## Events & Listeners
-- Listens to `"produce"` property changes → invokes `onproduce()` to update `"harvestable"` tag.
-- Listens to `"enabled"` property changes → invokes `onenabled()` to update `"harvestable"` tag.
-- On component removal (`OnRemoveFromEntity`) → removes `"harvestable"` tag.
-- Triggers `"harvestsomething"` event on harvester (via `PushEvent`) upon successful harvest.
+### `OnLoad(data)`
+*   **Description:** Restores growth state from saved data.
+*   **Parameters:** `data` (table) – Data returned by `OnSave`.
+*   **Returns:** Nothing.
+
+### `Grow()`
+*   **Description:** Increments production count, triggers `ongrowfn`, and schedules next growth step if not maxed.
+*   **Parameters:** None.
+*   **Returns:** `boolean` – `true` if growth occurred; `false` if at max production.
+
+### `GetDebugString()`
+*   **Description:** Returns a human-readable status string for debugging.
+*   **Parameters:** None.
+*   **Returns:** `string` – e.g., `"2 cactusflower grown (15)"` or `"1 cactusflower grown (paused: 30)"`.
+
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** None.
+- **Tag changes:** Adds/removes `"harvestable"` tag in response to `produce`/`enabled` state via `onproduce` and `onenabled` callbacks.

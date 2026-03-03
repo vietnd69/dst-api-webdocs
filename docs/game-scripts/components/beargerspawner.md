@@ -1,93 +1,103 @@
 ---
 id: beargerspawner
 title: Beargerspawner
-description: Manages the seasonal spawning logic for the Bearger giant, including timers, player targeting, and warning events.
+description: Manages spawning and timers for Bearger events in DST, tracking players, seasonal logic, and countdown warnings.
+tags: [boss, spawning, world, timer, event]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 772a7fa3
+system_scope: world
 ---
 
 # Beargerspawner
 
-## Overview
-The Beargerspawner component is a master-simulation-only manager responsible for controlling the appearance of the Bearger giant. It handles the entire lifecycle of Bearger spawning during the Autumn season, including determining the number of Beargers to spawn based on chances, managing a countdown timer, selecting an eligible player to spawn near, and issuing warnings (sounds and character speech) as the spawn time approaches. It also tracks active Beargers and persists its state across game sessions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Beargerspawner` is a server-only (`ismastersim`) component responsible for orchestrating Bearger (Hound-like boss) spawns during autumn. It tracks active players, manages countdown timers via `worldsettingstimer`, determines spawn eligibility based on seasonal state and previous kills, and coordinates warning sounds and announcements before spawning. The component does not spawn Beargers directly but calls `ReleaseHassler` to instantiate them via `SpawnPrefab("bearger")`.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("beargerspawner")
+inst.components.beargerspawner:OnPostInit()
+inst.components.beargerspawner:SummonMonster(player)
+```
+
+## Dependencies & tags
+**Components used:** `worldsettingstimer`, `talker` (via `player.components.talker`)
+**Tags:** Checks `nohasslers` via `areaaware`; spawns prefabs with tag `bearger_blocker`.
 
 ## Properties
-| Property | Type   | Default Value | Description                                   |
-|----------|--------|---------------|-----------------------------------------------|
-| `inst`   | Entity | `inst`        | A reference to the entity instance this component is attached to. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | `nil` | The entity instance this component is attached to (typically a world-level entity). |
 
-## Main Functions
-### `SetSecondBeargerChance(chance)`
-* **Description:** Deprecated function. Intended to set the spawn chance for a second Bearger.
-* **Parameters:**
-    * `chance` (number): The desired spawn chance.
+*Note: All other state variables are private (`_warnduration`, `_numToSpawn`, `_targetplayer`, etc.) and not exposed as public properties.*
 
-### `SetFirstBeargerChance(chance)`
-* **Description:** Deprecated function. Intended to set the spawn chance for the first Bearger.
-* **Parameters:**
-    * `chance` (number): The desired spawn chance.
-
+## Main functions
 ### `OnPostInit()`
-* **Description:** Initializes the component after the world has loaded. It calculates the base spawn delay from tuning values and sets up the world timer used to trigger Bearger spawns. If the component was loaded from a save with a pre-existing timer, it resumes that timer.
+* **Description:** Initializes the spawner after prefabs load. Sets up the initial spawn timer if bearger chances are non-zero.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `DoWarningSpeech(_targetplayer)`
-* **Description:** Triggers the character-specific warning speech ("That sounded big!") for the target player and any other players within a large radius. The speech is delivered after a short, random delay.
-* **Parameters:**
-    * `_targetplayer` (Player): The player entity chosen as the center of the warning event.
+### `DoWarningSpeech(targetplayer)`
+* **Description:** Triggers speech (warning) for the given player and nearby players.
+* **Parameters:** `targetplayer` (`Entity`) - the player selected as the target for the upcoming Bearger spawn.
+* **Returns:** Nothing.
 
-### `DoWarningSound(_targetplayer)`
-* **Description:** Spawns a `beargerwarning_lvl` prefab at the target player's location. The level of the warning (1-4) depends on the time remaining until the spawn, creating an escalating sense of dread.
-* **Parameters:**
-    * `_targetplayer` (Player): The player entity chosen as the center of the warning event.
+### `DoWarningSound(targetplayer)`
+* **Description:** Spawns a `beargerwarning_lvlX` sound prefab at the target player's location based on remaining time before spawn.
+* **Parameters:** `targetplayer` (`Entity`) - the player whose location determines where the warning sound plays.
+* **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-* **Description:** The main update loop for the component. It checks the spawn timer and manages the warning state. When the timer drops below the warning duration threshold, it selects a target player and begins issuing periodic sound and speech warnings until the timer expires and the Bearger spawns.
-* **Parameters:**
-    * `dt` (number): The time elapsed since the last update.
+* **Description:** Called every frame while the component is active. Manages warning phase transitions, sound intervals, and timer updates. Advances countdown, picks players, and triggers speech/sounds.
+* **Parameters:** `dt` (`number`) - time elapsed since last update.
+* **Returns:** Nothing.
 
 ### `LongUpdate(dt)`
-* **Description:** A less frequently called update function that simply calls `OnUpdate(dt)`.
-* **Parameters:**
-    * `dt` (number): The time elapsed since the last long update.
-
-### `OnSave()`
-* **Description:** Gathers the component's state into a data table for saving. This includes the warning status, number of Beargers to spawn, last kill day, number already spawned, and references to any currently active Beargers.
-* **Parameters:** None.
-
-### `OnLoad(data)`
-* **Description:** Populates the component's state from a saved data table.
-* **Parameters:**
-    * `data` (table): The saved data table generated by `OnSave`.
-
-### `LoadPostPass(newents, savedata)`
-* **Description:** Called after all entities have been loaded. It resolves saved GUIDs for active Beargers into entity references and resumes the spawn timer if conditions are still valid.
-* **Parameters:**
-    * `newents` (table): A map of saved GUIDs to newly loaded entity instances.
-    * `savedata` (table): The original saved data for this component.
-
-### `GetDebugString()`
-* **Description:** Returns a formatted string containing the current status of the spawner, such as time until spawn, warning state, and the number of active Beargers. Used for debugging.
-* **Parameters:** None.
+* **Description:** Alias for `OnUpdate`; same behavior. Used for tick-based updates in longer intervals.
+* **Parameters:** `dt` (`number`) - time elapsed since last update.
+* **Returns:** Nothing.
 
 ### `SummonMonster(player)`
-* **Description:** A debug function that forces a Bearger to spawn soon. It sets the spawn timer to 10 seconds and activates the component's update loop.
-* **Parameters:**
-    * `player` (Player): The player to target for the spawn.
+* **Description:** Manually triggers immediate countdown for a Bearger spawn (e.g., for debugging or custom events).
+* **Parameters:** `player` (`Entity`) - ignored by current implementation; used only to signal intent.
+* **Returns:** Nothing.
 
-## Events & Listeners
-This component listens for the following world events:
-*   **`ms_playerjoined`**: When a player joins the server, they are added to the list of potential targets for a Bearger spawn.
-*   **`ms_playerleft`**: When a player leaves, they are removed from the potential target list. If they were the current target, a new one is picked.
-*   **`seasontick`**: On each new day, this is used to check if it's Autumn and time to roll the chances for Bearger spawns for the season.
-*   **`beargerremoved`**: When a Bearger entity is removed from the world for any reason, it is removed from the internal list of active Beargers.
-*   **`beargerkilled`**: When a Bearger is killed, it is removed from the active list, the spawn timer is stopped, and the current day is recorded as the last kill day to enforce a cooldown period.
+### `GetDebugString()`
+* **Description:** Returns a formatted debug string describing the current spawn state, timer, warning status, and spawn counts.
+* **Parameters:** None.
+* **Returns:** `string` - descriptive status string (e.g., `"WARNING Bearger is coming in 45.20 (next warning in 12.50), target number: 3, current number: 1"`).
+
+### `OnSave()`
+* **Description:**serializes internal state for world save.
+* **Parameters:** None.
+* **Returns:** `data` (table), `ents` (array of GUIDs) — `data` contains `warning`, `numToSpawn`, `lastKillDay`, `numSpawned`, `activehasslers`; `ents` contains GUIDs of active hasslers for save/load.
+
+### `OnLoad(data)`
+* **Description:** Restores internal state from saved `data`.
+* **Parameters:** `data` (table) — saved state object.
+* **Returns:** Nothing.
+
+### `LoadPostPass(newents, savedata)`
+* **Description:** After entities are loaded, re-links `activehasslers` references from GUIDs to real entities and resumes spawner activity if conditions still permit.
+* **Parameters:** `newents` (table of GUID→entity), `savedata` (table with `activehasslers` array of GUIDs).
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:**
+  - `ms_playerjoined` → triggers `OnPlayerJoined`
+  - `ms_playerleft` → triggers `OnPlayerLeft`
+  - `seasontick` → triggers `OnSeasonTick`
+  - `beargerremoved` → triggers `OnHasslerRemoved`
+  - `beargerkilled` → triggers `OnHasslerKilled`
+  - Timer callback: `TUNING.SPAWN_BEARGER` → triggers `OnBeargerTimerDone`
+- **Pushes:** None.
+
+*(End of documentation)*

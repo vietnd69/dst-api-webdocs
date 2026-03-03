@@ -1,86 +1,87 @@
 ---
 id: wisecracker
 title: Wisecracker
-description: A speech and reaction component that triggers character-specific dialogue in response to gameplay events, status changes, and interactions.
+description: Manages contextual voice lines and announcements for entities based on game events, states, and interactions.
+tags: [ai, dialogue, audio]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 9181b19a
+system_scope: entity
 ---
 
 # Wisecracker
 
-## Overview
-The `Wisecracker` component manages in-game dialogue and commentary for an entity—primarily used for characters like Wortox—by listening to gameplay events and responding with appropriate localized speech lines via the `talker` component. It handles contextual reactions to eating, environmental changes (e.g., entering light/dark), combat encounters, item usage, and specialized mechanics (e.g., soul management for Wortox, Woby commands for dogrider characters). It also supports conditional, rate-limited, or delayed announcements to avoid repetition or overlap.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires `inst.components.talker` to be present for speech output.
-- Conditionally relies on:
-  - `foodmemory`, `eater`, `edible`, `perishable`, `foodaffinity` (for eating-related logic).
-  - `LightWatcher` (for light/dark transition detection).
-  - `inventory` (for inventory full check).
-  - `sittable`, `burnable` (for chair-on-fire detection).
-- Adds no new tags.
-- Uses `"soulstealer"` and `"dogrider"` tags to gate specialized event listeners.
+## Overview
+`Wisecracker` is a component responsible for triggering context-aware dialogue (voice lines or text announcements) for an entity in response to specific gameplay events, state changes, or interactions. It operates by listening to a wide range of events—such as eating, entering darkness, gaining food buffs, or encountering world hazards—and calling `inst.components.talker:Say()` with the appropriate localization key. This component is commonly added to player characters (e.g., Wortox) and some special NPCs to enrich the game’s narrative feedback.
+
+It integrates with several core systems: `talker` for speech output, `edible` and `perishable` for food-related commentary, `eater` for stomach immunity checks, `foodaffinity` and `foodmemory` for food preferences and repetition tracking, `sittable`, `burnable`, `inventory`, and others. It is not a gameplay-affecting component, but a purely decorative/feedback layer.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddTag("player")
+inst:AddComponent("wisecracker")
+-- Default behavior activates upon events like eating, entering darkness, etc.
+-- Custom event handling can be extended by adding more listeners as needed.
+```
+
+## Dependencies & tags
+**Components used:** `talker`, `edible`, `perishable`, `eater`, `foodaffinity`, `foodmemory`, `inventory`, `burnable`, `sittable`, `copier` (indirectly via Quagmire integration), `health`, `revivablecorpse`, `sleeper`, `LightWatcher`, `inventory`.
+
+**Tags checked:** `player`, `playerghost`, `masterchef`, `soulstealer`, `dogrider`, `monstermeat`, `fresh`, `stale`, `spoiled`, `preparedfood`, `masterfood`, `degraded_with_spoilage`.
+
+**Tags added:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity this component belongs to. |
-| `time_in_lightstate` | number | `0` | *Deprecated; not used in current logic.* |
-| `inlight` | boolean | `true` | Tracks whether the entity is currently in light; used to detect transitions. |
-| `foodbuffname` | string or `nil` | `nil` | Stores the name of the highest-priority active food buff announcement. |
-| `foodbuffpriority` | number or `nil` | `nil` | Stores the priority of the current food buff announcement. |
-| `fishbuffname` | string or `nil` | `nil` | Stores the name of the highest-priority active fish buff announcement. |
-| `fishbuffpriority` | number or `nil` | `nil` | Stores the priority of the current fish buff announcement. |
+| `inst` | entity reference | `nil` | Reference to the entity instance that owns this component. |
+| `time_in_lightstate` | number | `0` | Tracks cumulative time spent in light (unused in current code). |
+| `inlight` | boolean | `true` | Tracks whether the entity is currently in light (updated in `OnUpdate`). |
+| `foodbuffname` | string or `nil` | `nil` | Name of the currently active food buff to announce (set via `foodbuffattached` event). |
+| `foodbuffpriority` | number or `nil` | `nil` | Priority level of the active food buff (higher values override lower ones). |
+| `_repeltime` | number or `nil` | `nil` | Internal timer to debounce repeller announcements. |
 
-> Note: No explicit `fishbuffname`/`fishbuffpriority` fields are initialized in `_ctor`, but they are populated by the `fishbuff` event listeners and used in `OnUpdate`.
+Note: The following are used internally but not as instance properties:
+- `fishbuffname` / `fishbuffpriority`
+- `last_*_time` / `*_task` variables are captured via closure in event listeners.
 
-## Main Functions
+## Main functions
+
 ### `OnUpdate(dt)`
-* **Description:** Called periodically by `StartUpdatingComponent`. Handles dynamic state-based speech (e.g., announcements when entering light/dark), and triggers food/fish buff announcements when the buff data arrives via events.
-* **Parameters:**
-  - `dt` (number): Time elapsed since last update.
+*   **Description:** Per-frame update function that checks for transitions into or out of light/darkness and announces them. Also announces active food/fish buffs if they exist and the talker is idle.
+*   **Parameters:** `dt` (number) — delta time in seconds.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if `inst.components.talker` is missing or `inst:HasTag("playerghost")` is true (blocks dark/light entry announcements). Skips announcements if `is_talker_busy` (i.e., a previous announcement just occurred in this frame).
 
-## Events & Listeners
-- `oneat`: Triggers commentary on eating (e.g., spoiled, painful, same food repeated, masterchef reactions).
-- `itemranout`: Announces running out of a specific item (via `announce` string in `data`).
-- `accomplishment` / `accomplishment_done`: Announces achievements and completion of milestones.
-- `attacked`: Specific line when attacked by a boomerang.
-- `snared`: Announces being caught in a snare.
-- `repelled`: Announces repelling an enemy (rate-limited: 5-second cooldown).
-- `insufficientfertilizer`: Announces failing to fertilize due to low quality.
-- `heargrue` / `attackedbygrue` / `resistedgrue`: Announces Charlie-related events (with specific lines).
-- `thorns`, `burnt`: Announces damage from thorns or fire.
-- `hungerdelta`: Announces entering "Hungry" state.
-- `ghostdelta`: Announces entering "Ghost Draining" state.
-- `startfreezing`, `startoverheating`: Announces cold/hot extremes.
-- `inventoryfull`: Announces when inventory is full.
-- `coveredinbees`: Announces bee swarm.
-- `wormholespit`: Different line depending on whether the teleport failed due to same-spot issue.
-- `townportalteleport`: Announces using the Town Portal.
-- `huntlosttrail`, `huntbeastnearby`, `huntstartfork`, `huntsuccessfulfork`, `huntwrongfork`, `huntavoidfork`: Hunt mechanic commentary.
-- `lightningdamageavoided`: Announces avoiding lightning damage.
-- `mountwounded`: Announces mount with low health.
-- `pickdiseasing`, `digdiseasing`: Warning when digging/picking diseasing items.
-- `onpresink`, `onprefallinvoid`, `on_standing_on_new_leak`: Announces boat damage/events.
-- `encumberedwalking`, `hungrybuild`: Commentary while over-encumbered or while building while hungry.
-- `tooltooweak`, `weapontooweak`: Announces failed use due to insufficient tool/weapon quality.
-- `soulempty`, `soultoofew`, `soultoomany`, `souloverloadwarning`, `souloverloadavoided`: Wortox-specific soul management events (with variants based on `wortox_inclination`: `"nice"`, `"naughty"`).
-- `wortox_panflute_playing_active`, `wortox_panflute_playing_used`: Panflute buff events.
-- `wortox_reviver_failteleport`: Fail to teleport when reviving.
-- `on_halloweenmoonpotion_failed`: Failing the Moon Potion.
-- `foodbuffattached`, `foodbuffdetached`: Triggers announcement of food buff gain/loss; priority-based selection.
-- `fishbuffattached`, `fishbuffdetached`: Triggers announcement of fish buff gain/loss; priority-based selection.
-- `sittableonfire`: Delayed announcement when sitting on a burning chair (0.5s delay).
-- `exit_gelblob`: Delayed announcement (1.6s) when exiting a gel blob.
-- `bit_by_shadowthrall_stealth`: Delayed and rate-limited (10s global + 2–3s random) announcement.
-- `yoth_oncooldown`, `yoth_oncooldown_cancel`: Rate-limited, delayed announcement for Yoth cooldown.
-- `treatwoby`, `praisewoby`, `tellwobysit`, etc. (`"dogrider"` tag required): Woby command/response lines with range, cooldown, and global repetition handling.
-- `vault_teleporter_does_nothing`: Vault teleporter failure.
-- `see_lightsout_shadowhand`: Rate-limited (15s) announcement when encountering Lights Out shadow hand.
-- `quagmire`-specific events: Conditionally added if server mode is `"quagmire"`.
+## Events & listeners
+- **Listens to:**
+    - `oneat` — announces when food is eaten (same old, raw, cooked, spoiled, stale, etc.), with specialization for masterchefs.
+    - `itemranout`, `accomplishment`, `accomplishment_done` — announces item exhaustion or task milestones.
+    - `attacked` — announces boomerang hits.
+    - `snared`, `repelled`, `insufficientfertilizer`, `heargrue`, `attackedbygrue`, `resistedgrue` — announces environmental/hazard interactions.
+    - `thorns`, `burnt` — announces self-harm or environmental damage.
+    - `hungerdelta`, `ghostdelta` — announces when hunger/sanity drops below thresholds.
+    - `startfreezing`, `startoverheating` — announces extreme temperature exposure.
+    - `inventoryfull` — announces full inventory (only if `inventory:IsFull()`).
+    - `coveredinbees`, `wormholespit`, `townportalteleport`, `huntlosttrail`, `huntbeastnearby`, `huntstartfork`, `huntsuccessfulfork`, `huntwrongfork`, `huntavoidfork`, `lightningdamageavoided`, `mountwounded`, `pickdiseasing`, `onpresink`, `onprefallinvoid`, `on_standing_on_new_leak`, `digdiseasing`, `encumberedwalking`, `hungrybuild`, `tooltooweak`, `weapontooweak` — miscellaneous environmental/situation alerts.
+    - `soulempty`, `soultoofew`, `soultoomany`, `souloverloadwarning`, `souloverloadavoided`, `wortox_panflute_playing_active`, `wortox_panflute_playing_used`, `wortox_reviver_failteleport`, `on_halloweenmoonpotion_failed` — Wortox-specific soul mechanics.
+    - `foodbuffattached`, `foodbuffdetached` — stores/updates food buff announcement.
+    - `sittableonfire` — announces if sitting on a burning chair (with delay).
+    - `otterboaterosion_begin` — announces boat erosion cause (shallow/deep water or den broken).
+    - `fishbuffattached`, `fishbuffdetached` — stores/updates fish buff announcement.
+    - `exit_gelblob` — announces after delay exiting a gel blob.
+    - `bit_by_shadowthrall_stealth`, `yoth_oncooldown`, `yoth_oncooldown_cancel` — monster-specific alerts with cooldowns.
+    - `treatwoby`, `praisewoby`, `tellwobysit`, etc. — Woby (dog rider) command prompts.
+    - `vault_teleporter_does_nothing`, `see_lightsout_shadowhand` — adventure/mystery alerts.
+    - Quagmire-specific events (added via `AddQuagmireEventListeners`).
+
+- **Pushes:** None identified. The component only triggers talker events; it does not fire custom events.
+
+Note: All announcements use `GetString(inst, "KEY")`, where `KEY` is a localization string key defined in language files. Delayed announcements (e.g., gel blob, shadowthrall stealth) are implemented using `inst:DoTaskInTime()`. Debouncing and coalescing (e.g., for `yoth_oncooldown` and `repelled`) uses time-based globals in closures.

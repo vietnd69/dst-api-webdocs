@@ -1,41 +1,59 @@
 ---
 id: bottler
 title: Bottler
-description: Manages the action of 'bottling' an entity by executing a configurable callback function on a valid target.
+description: Provides a mechanism to bottle certain entities, invoking a customizable callback when the action succeeds.
+tags: [entity, interaction, utility]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: fef73250
+system_scope: entity
 ---
 
 # Bottler
 
-## Overview
-The `Bottler` component provides a generic framework for items that can "bottle" other entities. Its primary responsibility is to hold a custom callback function that defines the specific logic for the bottling action. When its `Bottle` method is called, it verifies the target has the `canbebottled` tag and then executes this callback, making it a flexible system for defining various bottling behaviors.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Bottler` is a lightweight component that enables an entity to perform a "bottle" action on a compatible target entity. It does not implement the actual bottling logic directly but delegates it to a callback function configured via `SetOnBottleFn`. The component checks if the target entity is valid and carries the `canbebottled` tag before invoking the callback. This pattern allows flexible, mod-defined behavior for bottling mechanics (e.g., capturing critters in jars).
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("bottler")
+inst.components.bottler:SetOnBottleFn(function(bottler_inst, target, doer)
+    -- Custom bottling logic here (e.g., remove target, add item)
+    target:Remove()
+    doer.components.container:GetInventory():PushItem(spawnprefab("bottled_target"))
+    return true
+end)
+```
+
+## Dependencies & tags
+**Components used:** None identified.  
+**Tags:** Checks for `canbebottled` on target entities.
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `onbottlefn` | function or `nil` | `nil` | Callback invoked when `Bottle` is called and conditions are met. Signature: `fn(bottler_inst, target, doer)` returning `true` on success. |
 
-| Property     | Type     | Default Value | Description                                                                        |
-|--------------|----------|---------------|------------------------------------------------------------------------------------|
-| `inst`       | `Entity` | `inst`        | A reference to the entity instance to which this component is attached.            |
-| `onbottlefn` | `function` | `nil`         | The callback function to execute when a valid target is bottled.                   |
-
-## Main Functions
-
+## Main functions
 ### `SetOnBottleFn(fn)`
-* **Description:** Sets or replaces the callback function that is executed when the `Bottle` method is called. This function defines the specific outcome of the bottling action.
-* **Parameters:**
-    * `fn` (function): The function to be called. It will receive the bottler's entity instance, the target entity, and the action's doer as arguments.
+*   **Description:** Sets the callback function to be invoked when bottling is attempted and conditions are satisfied.
+*   **Parameters:** `fn` (function or `nil`) — The callback to execute on successful bottling. Expected to take three arguments: the bottler entity instance, the target entity instance, and the entity performing the action (`doer`). Should return `true` to indicate success.
+*   **Returns:** Nothing.
 
 ### `Bottle(target, doer)`
-* **Description:** Attempts to perform the bottling action on a given target. If an `onbottlefn` has been set and the target is valid and has the `canbebottled` tag, the function is executed.
-* **Parameters:**
-    * `target` (Entity): The entity to be bottled.
-    * `doer` (Entity): The entity performing the bottling action.
+*   **Description:** Attempts to bottle the given `target` entity using the current `doer`. Validates that `target` exists, is valid, and has the `canbebottled` tag, and that `onbottlefn` is set. If all conditions pass, invokes the callback and returns its result.
+*   **Parameters:**
+    *   `target` (Entity or `nil`) — The entity to bottle. Must be valid and have the `canbebottled` tag.
+    *   `doer` (Entity or `nil`) — The entity performing the bottling action (e.g., a player).
+*   **Returns:** `true` if the callback was invoked and returned `true`; otherwise `false`.
+*   **Error states:** Returns `false` if `onbottlefn` is not set, `target` is `nil`/invalid, or `target:HasTag("canbebottled")` is `false`.
+
+## Events & listeners
+None identified.

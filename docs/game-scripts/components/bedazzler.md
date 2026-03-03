@@ -1,51 +1,66 @@
 ---
 id: bedazzler
 title: Bedazzler
-description: Manages the logic for an item to apply the 'bedazzled' effect to a target entity, including condition checks and resource consumption.
+description: Determines whether a target entity can be bedazzled and performs the bedazzlement action, consuming uses if applicable.
+tags: [environment, interaction, state_change]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 97a889e5
+system_scope: environment
 ---
 
 # Bedazzler
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The Bedazzler component is attached to items that can apply a "bedazzle" effect to other entities. It is responsible for checking if a target is in a valid state to be bedazzled and for executing the bedazzling action, which in turn activates the `bedazzlement` component on the target and consumes uses from the item.
+`Bedazzler` is a utility component that encapsulates the logic for applying the bedazzlement status effect to eligible entities. It validates target conditions (e.g., not burning, not frozen, not already bedazzled) before triggering `bedazzlement:Start()`. This component is typically attached to items used to bedazzle entities (e.g., the Bedazzle Staff), and optionally consumes uses from a `finiteuses` component.
 
-## Dependencies & Tags
-**Dependencies:**
-*   `finiteuses` (on self): Used to consume charges when the `Bedazzle` action is performed.
-*   `bedazzlement` (on target): This component is activated on the target entity.
-*   `burnable` (on target): Checked to see if the target is currently burning.
-*   `freezable` (on target): Checked to see if the target is currently frozen.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("bedazzler")
+inst:AddComponent("finiteuses")
+inst.components.bedazzler:SetUseAmount(1)
 
-**Tags:**
-*   This component checks for the tags `burnt` and `bedazzled` on the target entity but does not add or remove any tags itself.
+local target = some_spider_den_entity
+if inst.components.bedazzler:CanBedazzle(target) == true then
+    inst.components.bedazzler:Bedazzle(target)
+end
+```
+
+## Dependencies & tags
+**Components used:** `burnable`, `freezable`, `bedazzlement`, `finiteuses`.  
+**Tags:** Checks `burnt`, `bedazzled`.
 
 ## Properties
-| Property     | Type   | Default Value            | Description                                                                                          |
-|--------------|--------|--------------------------|------------------------------------------------------------------------------------------------------|
-| `inst`       | Entity | The entity instance      | A reference to the entity this component is attached to.                                             |
-| `use_amount` | number | `1` (in `Bedazzle` call) | The number of uses to consume from the `finiteuses` component. Set via `SetUseAmount`. Defaults to 1 if not set. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `use_amount` | number | `1` | Number of uses to consume from `finiteuses` when bedazzling. Set via `SetUseAmount()`. |
 
-## Main Functions
+## Main functions
 ### `SetUseAmount(use_amount)`
-* **Description:** Sets the number of uses that the item will consume from its `finiteuses` component each time it successfully bedazzles a target.
-* **Parameters:**
-    * `use_amount` (number): The number of uses to consume per action.
+* **Description:** Configures how many uses to deduct from the `finiteuses` component during bedazzlement. Defaults to `1` if `use_amount` is not set and the bedazzler is used.
+* **Parameters:** `use_amount` (number) - number of uses to consume per bedazzle action.
+* **Returns:** Nothing.
 
 ### `CanBedazzle(target)`
-* **Description:** Checks if a target entity is in a valid state to be bedazzled. It returns `false` and a reason string if the target is burning, burnt, frozen, or already bedazzled.
-* **Parameters:**
-    * `target` (Entity): The entity to check for bedazzling eligibility.
-* **Returns:** `(boolean, string)`: Returns `true` if the target can be bedazzled, or `false` and a reason key (e.g., "BURNING", "FROZEN") if it cannot.
+* **Description:** Checks whether the specified target entity can be bedazzled, based on its current state and tags.
+* **Parameters:** `target` (Entity) - the entity to evaluate.
+* **Returns:** 
+  - `true` if the target is eligible.
+  - `false, "REASON"` (string) if ineligible, where `REASON` is one of: `"BURNING"`, `"BURNT"`, `"FROZEN"`, `"ALREADY_BEDAZZLED"`.
+* **Error states:** Returns early with `false` if any condition prevents bedazzlement.
 
 ### `Bedazzle(target)`
-* **Description:** Applies the bedazzle effect to a target. This function calls the `Start` method on the target's `bedazzlement` component and consumes a specified number of uses from its own `finiteuses` component.
-* **Parameters:**
-    * `target` (Entity): The entity to apply the bedazzle effect to.
+* **Description:** Applies the bedazzlement effect to the target entity and, if present, consumes uses from the bedazzler’s `finiteuses` component.
+* **Parameters:** `target` (Entity) - the entity to bedazzle.
+* **Returns:** Nothing.
+* **Error states:** Does nothing if `target.components.bedazzlement` is missing. Consumption of uses occurs only if the bedazzler entity itself has a `finiteuses` component.
+
+## Events & listeners
+None identified.

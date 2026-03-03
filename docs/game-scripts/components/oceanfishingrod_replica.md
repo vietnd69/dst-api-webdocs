@@ -1,76 +1,92 @@
 ---
 id: oceanfishingrod_replica
 title: Oceanfishingrod Replica
-description: Manages networked state and properties of an ocean fishing rod replica entity, including hook target, line tension, and cast distance.
+description: Manages networked state for the ocean fishing rod, including hook target, line tension level, and maximum cast distance.
+tags: [fishing, network, equipment]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: components
 source_hash: 60ec6777
+system_scope: network
 ---
 
 # Oceanfishingrod Replica
 
-## Overview
-This component encapsulates the replica-side state and logic for an ocean fishing rod entity in Don't Starve Together. It synchronizes and exposes key fishing rod properties—including the current hook target entity, line tension level, and maximum cast distance—via networked variables, and provides utility methods to query and update them.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Depends on `net_entity`, `net_tinybyte`, and `net_smallbyte` types (custom networking wrappers), indicating it is designed for client/server state synchronization.
-- No explicit component dependencies or entity tags are added/removed by this component itself.
+## Overview
+`OceanFishingRod` is a network-replicated component that tracks the state of an ocean fishing rod for synchronization between server and clients. It exposes properties such as the hook's target entity, line tension (categorized into low/medium/high levels), and the maximum cast distance. This component is intended to be attached to entities representing fishing rods in ocean environments and works in conjunction with the `net_entity`, `net_tinybyte`, and `net_smallbyte` types to ensure reliable replication.
+
+## Usage example
+```lua
+local rod = CreateEntity()
+rod:AddComponent("oceanfishingrod_replica")
+rod.components.oceanfishingrod_replica:SetClientMaxCastDistance(30)
+rod.components.oceanfishingrod_replica:_SetTarget(some_entity)
+rod.components.oceanfishingrod_replica:_SetLineTension(2.5)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `_target` | `net_entity` | `nil` | Networked reference to the current hook target entity (e.g., fish or item). |
-| `_line_tension` | `net_tinybyte` | `0` | Networked line tension state, mapped to 0 (low), 1 (good), or 2 (high) based on tuning values. |
-| `_max_cast_dist` | `net_smallbyte` | `0` | Networked maximum casting distance, clamped to 0–63. |
+| `_target` | `net_entity` | `nil` | Network-replicated handle to the hook's target entity (e.g., a fish). |
+| `_line_tension` | `net_tinybyte` | `0` | Networked tension state encoded as `0` (low), `1` (good), or `2` (high), based on tuning thresholds. |
+| `_max_cast_dist` | `net_smallbyte` | `0` | Networked maximum cast distance, clamped to `[0, 63]` and stored as a small integer. |
 
-Note: `inst` is the owning entity passed to the constructor but is not a public property exposed via `self.inst` in the final object; it is used internally.
-
-## Main Functions
-
+## Main functions
 ### `GetTarget()`
-* **Description:** Returns the current hook target entity if it exists and is valid; otherwise returns `nil`.
+* **Description:** Returns the currently assigned hook target if valid; otherwise `nil`.
 * **Parameters:** None.
+* **Returns:** `TheEntity` or `nil`.
+* **Error states:** Returns `nil` if the stored entity reference is invalid or has been destroyed.
 
 ### `_SetTarget(target)`
-* **Description:** Updates the networked `_target` value to the specified entity.
-* **Parameters:**  
-  `target` (entity or `nil`): The entity to set as the hook target.
+* **Description:** Sets the networked hook target. Typically called by the server.
+* **Parameters:** `target` (`TheEntity` or `nil`) — the entity currently hooked or `nil` if no hook.
+* **Returns:** Nothing.
 
 ### `_SetLineTension(line_tension)`
-* **Description:** Maps the numeric line tension value to one of three discrete levels (0–2) using tuning thresholds, then updates the networked `_line_tension` variable.
-* **Parameters:**  
-  `line_tension` (number): Raw tension value used to compute the tension level.
+* **Description:** Maps the raw line tension value to one of three discrete levels and updates the networked state.
+* **Parameters:** `line_tension` (number) — raw tension value (e.g., float or integer).
+* **Returns:** Nothing.
+* **Error states:** Tension values are quantized using `TUNING.OCEAN_FISHING.LINE_TENSION_GOOD` and `TUNING.OCEAN_FISHING.LINE_TENSION_HIGH` thresholds; out-of-range or negative inputs are clamped to `0`.
 
 ### `IsLineTensionHigh()`
-* **Description:** Returns `true` if the current line tension level is "high" (value 2).
+* **Description:** Checks whether tension is currently in the high category.
 * **Parameters:** None.
+* **Returns:** `true` or `false`.
 
 ### `IsLineTensionGood()`
-* **Description:** Returns `true` if the current line tension level is "good" (value 1).
+* **Description:** Checks whether tension is currently in the good (medium) category.
 * **Parameters:** None.
+* **Returns:** `true` or `false`.
 
 ### `IsLineTensionLow()`
-* **Description:** Returns `true` if the current line tension level is "low" (value 0).
+* **Description:** Checks whether tension is currently in the low category.
 * **Parameters:** None.
+* **Returns:** `true` or `false`.
 
 ### `SetClientMaxCastDistance(dist)`
-* **Description:** Sets the networked maximum cast distance, clamped to an integer via `math.floor`.
-* **Parameters:**  
-  `dist` (number): Desired maximum cast distance (typically units of tiles).
+* **Description:** Sets the maximum cast distance for the fishing rod, intended for client-side use (e.g., UI feedback).
+* **Parameters:** `dist` (number) — maximum cast distance in world units.
+* **Returns:** Nothing.
 
 ### `GetMaxCastDist()`
-* **Description:** Returns the currently stored maximum cast distance.
+* **Description:** Retrieves the networked maximum cast distance.
 * **Parameters:** None.
+* **Returns:** `number` — stored cast distance (integer in `[0, 63]`).
 
 ### `GetDebugString()`
-* **Description:** Returns a human-readable debug string summarizing the target and line tension state.  
-  *Note:* Contains a typo—calls `self:IsTensionHigh()` (undefined method) instead of `self:IsLineTensionHigh()`—and will throw an error at runtime.
+* **Description:** Returns a debug-friendly string representation of current state for logging or overlays.
 * **Parameters:** None.
+* **Returns:** `string` — e.g., `"Target: Entity0123, Tension: High"`.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified

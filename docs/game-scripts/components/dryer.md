@@ -1,160 +1,130 @@
 ---
 id: dryer
 title: Dryer
-description: This component manages the process of drying items on an entity, handling timing, state transitions, and environmental interactions like rain.
+description: Manages the drying process of ingredients into preserved food products, handling timers, rain exposure, and state transitions.
+tags: [crafting, inventory, preservation, weather, food]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 280954f0
+system_scope: entity
 ---
 
 # Dryer
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Dryer` component enables an entity (like a Drying Rack) to process and dry specific items over time. It manages the item's drying progress, handles spoilage, and reacts to environmental conditions such as rain, pausing the drying process if the entity is exposed. It tracks the ingredient, the eventual product, and allows for custom callbacks at different stages of the drying process.
+`Dryer` manages the transformation of a "dryable" ingredient into a preserved product (e.g., jerky from meat), simulating drying time and environmental sensitivity to rain. It interacts with `dryable`, `perishable`, `edible`, `inventory`, `inventoryitem`, and `rainimmunity` components to control drying progression, spoilage upon interruption, and item inheritance of moisture. The component is typically attached to entities like the Drying Rack or dehydrator devices that serve as drying stations.
 
-## Dependencies & Tags
-**Dependencies:**
-*   The entity itself may optionally have a `rainimmunity` component to determine if it's affected by rain.
-*   Items placed on the dryer must have a `dryable` component.
-*   Items placed on the dryer may optionally have `perishable` and `edible` components, which the `Dryer` component interacts with for spoilage and food type tracking.
-*   Relies on `TheWorld.state.israining` for environmental rain checks.
-*   Utilizes global `SpawnPrefab` and `LaunchAt` functions.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("dryer")
 
-**Tags:**
-*   Adds: `"dried"`, `"drying"`, `"candry"`
-*   Removes: `"dried"`, `"drying"`, `"candry"`
+-- Attach to an entity that holds dryable ingredients (e.g., a rack)
+local dryable_item = GetDryableIngredient() -- Assume this returns an entity with dryable component
+inst.components.dryer:SetStartDryingFn(function(entity) print("Drying started!") end)
+inst.components.dryer:SetDoneDryingFn(function(entity, product) print("Drying finished!") end)
+inst.components.dryer:StartDrying(dryable_item)
+```
+
+## Dependencies & tags
+**Components used:** `dryable`, `perishable`, `edible`, `inventory`, `inventoryitem`, `rainimmunity`  
+**Tags:** Adds/Removes `dried`, `drying`, `candry` based on state.
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :------- | :--- | :------------ | :---------- |
-| `inst` | `Entity` | - | A reference to the entity this component is attached to. |
-| `ingredient` | `string` / `nil` | `nil` | The prefab name of the item currently being dried. |
-| `product` | `string` / `nil` | `nil` | The prefab name of the item after it has been dried. |
-| `buildfile` | `string` / `nil` | `nil` | The build file associated with the ingredient's visual representation. |
-| `dried_buildfile` | `string` / `nil` | `nil` | The build file associated with the dried product's visual representation. |
-| `foodtype` | `FOODTYPE` / `nil` | `nil` | The `FOODTYPE` of the product, typically inherited from the ingredient. |
-| `remainingtime` | `number` / `nil` | `nil` | The remaining duration for the current drying or spoilage task. |
-| `tasktotime` | `number` / `nil` | `nil` | The absolute game time when the current drying or spoilage task is expected to complete. |
-| `task` | `TimedTask` / `nil` | `nil` | The `TimedTask` object currently managing the drying or spoilage timer. |
-| `onstartdrying` | `function` / `nil` | `nil` | A callback function invoked when an item begins the drying process. |
-| `ondonedrying` | `function` / `nil` | `nil` | A callback function invoked when an item finishes drying. |
-| `onharvest` | `function` / `nil` | `nil` | A callback function invoked when an item is harvested or removed from the dryer. |
-| `protectedfromrain` | `boolean` / `nil` | `nil` | A flag indicating if the dryer is internally considered protected from rain, overriding `IsExposedToRain`. |
-| `watchingrain` | `boolean` / `nil` | `nil` | Internal flag indicating whether the component is currently listening for `israining` world state changes. |
-| `ingredientperish` | `number` / `nil` | `nil` | The percentage of perishability remaining on the ingredient when it was placed. |
+|----------|------|---------------|-------------|
+| `ingredient` | string or nil | `nil` | Prefab name of the current drying ingredient. |
+| `product` | string or nil | `nil` | Prefab name of the resulting dried product. |
+| `buildfile` | string or nil | `nil` | Networked build filename of the ingredient. |
+| `dried_buildfile` | string or nil | `nil` | Networked build filename of the product. |
+| `foodtype` | `FOODTYPE` enum or nil | `nil` | Food type of the product, inherited from the ingredient. |
+| `remainingtime` | number or nil | `nil` | Time remaining for current phase (drying or spoilage). |
+| `tasktotime` | number or nil | `nil` | Absolute world time when the current phase ends. |
+| `task` | Task or nil | `nil` | Task handle for timer events. |
+| `onstartdrying` | function or nil | `nil` | Callback invoked when drying starts. |
+| `ondonedrying` | function or nil | `nil` | Callback invoked when drying completes. |
+| `onharvest` | function or nil | `nil` | Callback invoked when item is harvested. |
+| `protectedfromrain` | boolean or nil | `nil` | If `true`, disables rain sensitivity. |
+| `watchingrain` | boolean or nil | `nil` | Whether the component listens to rain state. |
+| `ingredientperish` | number | `100` (default override) | Perish percentage of ingredient at start. |
 
-## Main Functions
-### `ondried(self)`
-*   **Description:** This local function is bound to the `ingredient` and `product` properties. It's automatically called when either `ingredient` or `product` is set, updating the entity's tags (`"dried"`, `"drying"`, `"candry"`) to reflect its current state.
-*   **Parameters:**
-    *   `self`: A reference to the `Dryer` component instance.
-
-### `OnRemoveFromEntity()`
-*   **Description:** Performs cleanup operations when the `Dryer` component is removed from its entity. This includes cancelling any active drying tasks and removing all drying-related tags from the entity.
-*   **Parameters:** None.
-
-### `SetStartDryingFn(fn)`
-*   **Description:** Sets a custom callback function to be executed when an item starts drying.
-*   **Parameters:**
-    *   `fn`: The function to call, which will receive `(inst, ingredient_prefab_name, buildfile_name)` as arguments.
-
-### `SetDoneDryingFn(fn)`
-*   **Description:** Sets a custom callback function to be executed when an item finishes drying.
-*   **Parameters:**
-    *   `fn`: The function to call, which will receive `(inst, product_prefab_name, dried_buildfile_name)` as arguments.
-
-### `SetOnHarvestFn(fn)`
-*   **Description:** Sets a custom callback function to be executed when an item is harvested or otherwise removed from the dryer.
-*   **Parameters:**
-    *   `fn`: The function to call, which will receive `(inst)` as an argument.
-
+## Main functions
 ### `CanDry(dryable)`
-*   **Description:** Checks if the dryer is currently empty and if the provided `dryable` entity is a valid item to be dried (i.e., has a `dryable` component).
-*   **Parameters:**
-    *   `dryable`: The entity to check for suitability for drying.
-*   **Returns:** `true` if the item can be dried, `false` otherwise.
-
-### `IsDrying()`
-*   **Description:** Indicates whether an item is currently in the process of drying on the entity.
-*   **Parameters:** None.
-*   **Returns:** `true` if an `ingredient` is present (drying), `false` otherwise.
-
-### `IsDone()`
-*   **Description:** Indicates whether an item has completed the drying process and is ready for harvest.
-*   **Parameters:** None.
-*   **Returns:** `true` if a `product` is present and no `ingredient` is pending, `false` otherwise.
-
-### `GetTimeToDry()`
-*   **Description:** Returns the remaining time until the current drying process is complete. If not drying, returns 0.
-*   **Parameters:** None.
-*   **Returns:** The remaining drying time in seconds.
-
-### `GetTimeToSpoil()`
-*   **Description:** Returns the remaining time until the dried item spoils. If not dried, returns 0.
-*   **Parameters:** None.
-*   **Returns:** The remaining spoilage time in seconds.
-
-### `IsPaused()`
-*   **Description:** Checks if the current drying or spoilage timer is paused.
-*   **Parameters:** None.
-*   **Returns:** `true` if `remainingtime` has a value (indicating a paused state), `false` otherwise.
+* **Description:** Checks whether this dryer can accept a dryable item for processing. Requires no active product and a valid dryable component.
+* **Parameters:** `dryable` (Entity or nil) – Entity to be dried.
+* **Returns:** `true` if drying can begin, otherwise `false`.
 
 ### `StartDrying(dryable)`
-*   **Description:** Initiates the drying process for the specified `dryable` item. It consumes the `dryable` item, sets up the drying timer, and starts watching for rain if not protected.
-*   **Parameters:**
-    *   `dryable`: The entity with a `dryable` component to be processed.
-*   **Returns:** `true` if drying successfully started, `false` otherwise.
+* **Description:** Begins the drying process for a valid dryable item. Removes the ingredient from the world, initializes state, and starts the drying timer. Handles rain exposure.
+* **Parameters:** `dryable` (Entity) – Entity with a `dryable` component to process.
+* **Returns:** `true` if drying started successfully, otherwise `false`.
+* **Error states:** Returns `false` and clears state if ingredient/product/remaining time is `nil` after read.
 
 ### `StopDrying(reason)`
-*   **Description:** Halts the current drying or spoilage process. Depending on the `reason` and current state, it might spawn the product, or spoil the item.
-*   **Parameters:**
-    *   `reason`: A string indicating why the drying process is stopping (e.g., `"fire"`).
-
-### `Pause()`
-*   **Description:** Pauses the current drying or spoilage timer, storing the remaining time and canceling the active task.
-*   **Parameters:** None.
-
-### `Resume()`
-*   **Description:** Resumes a paused drying or spoilage timer, creating a new `TimedTask` with the stored `remainingtime`.
-*   **Parameters:** None.
-
-### `DropItem()`
-*   **Description:** Removes the item from the dryer and spawns it in the world at the dryer's position. It attempts to preserve perishability relative to its current state.
-*   **Parameters:** None.
-*   **Returns:** `true` if an item was dropped, `false` otherwise.
+* **Description:** Interrupts drying and spawns a result based on `reason`. If `"fire"`, spawns the product. Otherwise, either finalizes drying (if `ingredient` still present) or triggers spoilage.
+* **Parameters:** `reason` (string) – One of `"fire"` or other (e.g., `"manual"`).
+* **Returns:** Nothing.
 
 ### `Harvest(harvester)`
-*   **Description:** Transfers the completed dried item to the inventory of the specified `harvester`.
-*   **Parameters:**
-    *   `harvester`: The entity attempting to harvest the item, expected to have an `inventory` component.
-*   **Returns:** `true` if the item was successfully harvested, `false` otherwise.
+* **Description:** Transfers the dried product into the harvester’s inventory and finalizes the drying cycle.
+* **Parameters:** `harvester` (Entity or nil) – Entity with `inventory` component to receive item.
+* **Returns:** `true` if harvest succeeded, otherwise `false`.
+* **Error states:** Returns `false` if not `IsDone()`, or harvester is `nil` / lacks inventory.
 
-### `LongUpdate(dt)`
-*   **Description:** Handles periodic updates for the drying/spoilage process, primarily used for offline progress or when a long update is explicitly triggered. It accounts for elapsed time `dt` and manages pausing/resuming based on rain exposure.
-*   **Parameters:**
-    *   `dt`: The delta time (time elapsed since the last update) in seconds.
+### `DropItem()`
+* **Description:** Spawns a loose item (ingredient or product, depending on state) into the world at the dryer’s position, preserving partial progress (perish percentage).
+* **Parameters:** None.
+* **Returns:** `true`.
 
-### `OnSave()`
-*   **Description:** Serializes the component's current state (ingredient, product, remaining time, etc.) for saving game progress.
-*   **Parameters:** None.
-*   **Returns:** A table containing the relevant state data if a product is present, otherwise `nil`.
+### `Pause()`
+* **Description:** Pauses the current phase (drying or spoilage) by canceling active tasks and saving remaining time as `remainingtime`.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `OnLoad(data)`
-*   **Description:** Deserializes and restores the component's state from saved game data. It re-establishes the drying/spoilage process based on the loaded information.
-*   **Parameters:**
-    *   `data`: The table containing the saved component state.
+### `Resume()`
+* **Description:** Restarts a paused phase by rescheduling a task to complete in `remainingtime` seconds.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `GetTimeToDry()`
+* **Description:** Returns time remaining until drying completes (only meaningful while drying).
+* **Parameters:** None.
+* **Returns:** number – Time in seconds; `0` if not drying.
+
+### `GetTimeToSpoil()`
+* **Description:** Returns time remaining until spoilage (only meaningful when dried/paused).
+* **Parameters:** None.
+* **Returns:** number – Time in seconds; `0` if no spoilage pending.
 
 ### `GetDebugString()`
-*   **Description:** Provides a human-readable string representing the dryer's current status, including whether it's drying, dried, or empty, its product, food type, and remaining times.
-*   **Parameters:** None.
-*   **Returns:** A formatted debug string.
+* **Description:** Returns a human-readable debug string describing current state and timing.
+* **Parameters:** None.
+* **Returns:** string – e.g., `"DRYING beef_jerky generic PAUSED drytime: 10.50 spoiltime: 0.00"`.
 
-## Events & Listeners
-*   `inst:ListenForEvent("gainrainimmunity", OnRainImmunity)`: Listens for the entity gaining immunity to rain, which causes the dryer to resume if paused.
-*   `inst:ListenForEvent("loserainimmunity", OnRainVulnerable)`: Listens for the entity losing rain immunity, which may cause the dryer to pause if exposed to rain.
-*   `self:WatchWorldState("israining", OnIsRaining)`: Listens for changes in `TheWorld.state.israining`, pausing or resuming the dryer based on rain exposure.
+### `OnSave()`
+* **Description:** Returns a serializable table of persistent state for saving. Only includes data if drying or product exists.
+* **Parameters:** None.
+* **Returns:** table or `nil`.
+
+### `OnLoad(data)`
+* **Description:** Restores state from save data, resumes timer, and invokes appropriate callbacks.
+* **Parameters:** `data` (table) – Save data payload.
+* **Returns:** Nothing.
+
+### `LongUpdate(dt)`
+* **Description:** Called during world updates; handles long-duration timers when paused (e.g., server-side updates). Not used for precise client timing.
+* **Parameters:** `dt` (number) – Delta time in seconds.
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:**  
+  - `"israining"` (world state) – triggers `Pause`/`Resume` based on rain state.  
+  - `"gainrainimmunity"` – resumes drying if rain immunity is gained.  
+  - `"loserainimmunity"` – pauses if vulnerable to rain *and* it is raining.
+- **Pushes:** None directly (callbacks like `onstartdrying`, `ondonedrying`, `onharvest` are invoked inline, not as events).

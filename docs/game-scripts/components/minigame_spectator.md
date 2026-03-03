@@ -1,57 +1,68 @@
 ---
 id: minigame_spectator
 title: Minigame Spectator
-description: Attaches to an entity to watch a minigame and automatically removes itself when the minigame ends.
+description: Attaches an entity as a passive spectator to a minigame, automatically removing itself when the minigame ends or is deactivated.
+tags: [minigame, spectator, state]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: components
 source_hash: b0d4298d
+system_scope: entity
 ---
 
 # Minigame Spectator
 
-## Overview
-This component enables an entity (typically a spectator, such as a non-player or observer) to register interest in a specific minigame. It manages cleanup logic by removing itself from the entity when the watched minigame ends or is deactivated, and prevents the entity from attacking players while the minigame is active.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires `inst.components.combat` (if present) to drop combat targets.
-- No tags are added or removed.
-- Listens to events on the watched minigame object: `"onremove"` and `"ms_minigamedeactivated"`.
+## Overview
+`MinigameSpectator` is an entity component that allows an entity to observe a minigame passively. When attached, it subscribes to the minigame's lifecycle events (`onremove` and `ms_minigamedeactivated`) and automatically unloads itself upon minigame termination. Additionally, if the entity is in combat and targeting a player, it drops the current target when watching begins—presumably to prevent aggression during minigame participation.
+
+This component does not manage gameplay logic itself; it solely handles the entity’s *spectator state* relative to a minigame instance.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("minigame_spectator")
+inst.components.minigame_spectator:SetWatchingMinigame(some_minigame_prefab)
+-- Once the minigame ends or is removed, the component cleans itself up
+```
+
+## Dependencies & tags
+**Components used:** `combat` (for dropping targets during `SetWatchingMinigame`)
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *(passed in constructor)* | Reference to the entity the component is attached to. |
-| `minigame` | `Entity?` | `nil` | Reference to the minigame entity currently being watched; `nil` if none. |
-| `onminigameover` | `function` | *(lambda defined in `_ctor`)* | Callback function that removes the component from `inst` when invoked. |
+| `minigame` | `Entity` or `nil` | `nil` | Reference to the minigame entity being watched; set via `SetWatchingMinigame`. |
 
-## Main Functions
+## Main functions
+### `SetWatchingMinigame(minigame)`
+* **Description:** Begins observation of the specified minigame. Registers listeners to clean up the component when the minigame ends. Also drops any combat target if the entity was attacking a player.
+* **Parameters:** `minigame` (`Entity`) — the minigame entity to watch.
+* **Returns:** Nothing.
+* **Error states:** No-op if `minigame` is `nil` or already assigned.
 
-### `MinigameSpectator:OnRemoveFromEntity()`
-* **Description:** Cleans up event listeners attached to the minigame before the component is fully removed from the entity.
+### `GetMinigame()`
+* **Description:** Returns the currently watched minigame instance.
 * **Parameters:** None.
+* **Returns:** `Entity` or `nil` — the minigame reference, or `nil` if none is set.
 
-### `MinigameSpectator:SetWatchingMinigame(minigame)`
-* **Description:** Sets the given `minigame` as the active minigame to watch. Registers event listeners for minigame termination and drops the entity's combat target if it is a player.
-* **Parameters:**
-  - `minigame` *(Entity)*: The minigame entity to watch. Must be valid and not already set (the method is idempotent only if `minigame` is `nil`).
-
-### `MinigameSpectator:GetMinigame()`
-* **Description:** Returns the currently watched minigame entity, or `nil` if none.
+### `GetDebugString()`
+* **Description:** Provides a debug-friendly string representation of the component’s state.
 * **Parameters:** None.
+* **Returns:** `string` — formatted as `"Is Watching: <minigame>"` (uses `tostring(minigame)`).
 
-### `MinigameSpectator:GetDebugString()`
-* **Description:** Returns a human-readable debug string indicating whether a minigame is being watched.
+### `OnRemoveFromEntity()`
+* **Description:** Cleanup callback invoked when the component is removed from its entity. Unsubscribes from minigame events to avoid dangling callbacks.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- Listens for:
-  - `"onremove"` on the minigame entity → triggers `onminigameover`.
-  - `"ms_minigamedeactivated"` on the minigame entity → triggers `onminigameover`.
-- Triggers:
-  - None (does not push events).
+## Events & listeners
+- **Listens to:**  
+  - `onremove` (from minigame) — triggers automatic component removal.  
+  - `ms_minigamedeactivated` (from minigame) — triggers automatic component removal.  
+- **Pushes:** None.

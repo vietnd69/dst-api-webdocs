@@ -1,81 +1,97 @@
 ---
 id: walkableplatformmanager
 title: Walkableplatformmanager
-description: Manages registration, lookup, and updates for walkable platforms in the world, including UID assignment and per-frame entity tracking on platforms.
+description: Manages the registration, lookup, and update of walkable platforms in the world.
+tags: [world, entity, locomotion, physics]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 740ac78b
+system_scope: world
 ---
 
 # Walkableplatformmanager
 
-## Overview
-This component acts as a centralized registry and manager for all walkable platforms in the game world. It handles UID generation and assignment to platforms (ensuring uniqueness and persistence across sessions), tracks platforms in use, and performs per-frame updates (on the master simulation only) to determine which entities are standing on each platform and synchronize player-platform relationships. It also supports serialization of its state for save/load.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components used:**
-  - Requires entities to have a `walkableplatform` component to be registered.
-  - On the master sim, iterates over all players (`AllPlayers`) and expects them to have a `walkableplatformplayer` component for platform detection.
-- **Tags:** No tags are added or removed by this component itself.
+## Overview
+`WalkablePlatformManager` tracks and coordinates all walkable platforms in the world. It assigns unique identifiers to platforms, maintains registries for fast lookup, and orchestrates platform updates (entity tracking and player platform membership) during `PostUpdate`. It works closely with `walkableplatform` and `walkableplatformplayer` components to ensure correct player/platform synchronization in both server and client contexts.
+
+## Usage example
+```lua
+-- Typically added automatically to TheWorld via worldgen or level setup
+-- Manual usage is not required for modding; this is managed internally.
+
+-- Example of accessing platform UID resolution (rare, advanced use)
+local platform = inst.components.walkableplatformmanager:GetPlatformWithUID(some_uid)
+if platform then
+    -- platform is a valid entity with walkableplatform component
+end
+```
+
+## Dependencies & tags
+**Components used:** `walkableplatform`, `walkableplatformplayer`, `health`, `boatdrifter`, `boatphysics`, `physics`
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity the component is attached to (typically the world). |
-| `lastuid` | `number` | `-1` | The last assigned unique identifier; incremented sequentially when new platforms are registered. |
-| `walkable_platforms` | `table` | `{}` | A set (keys-only table) tracking all currently registered walkable platforms. |
-| `walkable_platform_uids` | `table` | `{}` | A map from `uid` (number) → platform entity, enabling fast UID-to-platform lookup. |
+| `lastuid` | number | `-1` | The highest assigned UID; incremented on each new platform registration. |
+| `walkable_platforms` | table | `{}` | Set of registered platform entities. |
+| `walkable_platform_uids` | table | `{}` | Map from `uid → platform` for fast lookup. |
 
-## Main Functions
-
+## Main functions
 ### `GetNewUID()`
-* **Description:** Generates and returns a new unique identifier for a walkable platform, incrementing `lastuid` atomically.
-* **Parameters:** None.
-
-### `UnregisterPlatform(platform)`
-* **Description:** Removes a platform from the UID lookup table (`walkable_platform_uids`) if its UID matches. Issues a warning if the UID is missing or mismatched, but does *not* remove it from `walkable_platforms`.
-* **Parameters:**
-  - `platform` (`Entity`): The walkable platform entity to unregister.
+*   **Description:** Generates and returns a new unique identifier for a walkable platform. UIDs are monotonically increasing integers; reuse is explicitly avoided to support persistent world saves.
+*   **Parameters:** None.
+*   **Returns:** `number` — A new unique ID.
+*   **Error states:** None; guaranteed to return a new integer each call.
 
 ### `RegisterPlatform(platform)`
-* **Description:** Ensures the platform has a valid UID (assigning one if missing), registers it in the UID map, and issues a warning if the UID is already in use. Also handles legacy data where `lastuid` may be stale by advancing it if needed.
-* **Parameters:**
-  - `platform` (`Entity`): The walkable platform entity to register.
+*   **Description:** Registers a platform entity with the manager. Assigns a new UID if the platform lacks one. Handles legacy UIDs by bumping `lastuid` to prevent collisions.
+*   **Parameters:** `platform` (Entity) — The entity with the `walkableplatform` component to register.
+*   **Returns:** Nothing.
+*   **Error states:** Prints a warning if a platform is registered with a duplicate UID.
+
+### `UnregisterPlatform(platform)`
+*   **Description:** Removes a platform from internal registries. Validates that the UID and platform match expected values.
+*   **Parameters:** `platform` (Entity) — The entity to unregister.
+*   **Returns:** Nothing.
+*   **Error states:** Prints warnings if the platform has no UID, or if the stored UID does not map to the provided platform.
 
 ### `GetPlatformWithUID(uid)`
-* **Description:** Returns the platform entity associated with a given UID, or `nil` if not found.
-* **Parameters:**
-  - `uid` (`number`): The unique identifier to look up.
+*   **Description:** Looks up a registered platform by its UID.
+*   **Parameters:** `uid` (number) — The UID to look up.
+*   **Returns:** `Entity?` — The platform entity, or `nil` if no such UID is registered.
 
 ### `AddPlatform(platform)`
-* **Description:** Adds a platform to the tracking set (`walkable_platforms`), marking it as an active platform that should be updated each frame.
-* **Parameters:**
-  - `platform` (`Entity`): The walkable platform entity to add.
+*   **Description:** Adds a platform to the manager’s active set. Platforms in this set are updated each `PostUpdate`.
+*   **Parameters:** `platform` (Entity) — The platform entity to add.
+*   **Returns:** Nothing.
 
 ### `RemovePlatform(platform)`
-* **Description:** Removes a platform from the tracking set (`walkable_platforms`), stopping its per-frame updates. Note: this does *not* unregister it from the UID map—`UnregisterPlatform` should be used for that.
-* **Parameters:**
-  - `platform` (`Entity`): The walkable platform entity to remove.
+*   **Description:** Removes a platform from the active set. Does not affect its UID registration.
+*   **Parameters:** `platform` (Entity) — The platform entity to remove.
+*   **Returns:** Nothing.
 
 ### `PostUpdate(dt)`
-* **Description:** Main per-frame logic. On the master simulation, it updates all registered platforms by calling their `SetEntitiesOnPlatform(dt)` and `CommitPlayersOnPlatform()` methods, and checks each player for platform transitions via `TestForPlatform()`. On clients, only updates the local player (if available) for testing (for future prediction support). Includes a deliberate error in the removal clause: `self.walkableplatform[k] = nil` should be `self.walkable_platforms[k] = nil`.
-* **Parameters:**
-  - `dt` (`number`): Delta time since the last frame.
+*   **Description:** Updates all active platforms and players’ platform membership. On the server (`ismastersim`), calls `SetEntitiesOnPlatform` on each platform, tests player/platform membership, then commits player lists. On clients, only `ThePlayer` membership is updated (no full iteration).
+*   **Parameters:** `dt` (number) — Time since last update.
+*   **Returns:** Nothing.
+*   **Error states:** If a platform entity is no longer valid, it is silently removed from `walkable_platforms` (note: typo in source — `self.walkableplatform[k]` should be `self.walkable_platforms[k]`, but this is not documented as an API boundary).
 
 ### `OnSave()`
-* **Description:** Returns a serializable table containing the current `lastuid` value for world save persistence.
-* **Parameters:** None.
-* **Returns:** `{ lastuid = number }`
+*   **Description:** Saves state for world persistence. Only the `lastuid` is saved to ensure UID uniqueness persists across sessions.
+*   **Parameters:** None.
+*   **Returns:** `{ lastuid = number }` — Table containing the current `lastuid`.
 
 ### `OnLoad(data)`
-* **Description:** Restores the `lastuid` from saved data. Does not restore platform lists; those must be re-registered on load.
-* **Parameters:**
-  - `data` (`table`): The saved data table, expected to optionally contain a `lastuid` key.
+*   **Description:** Restores state from a previous save. Updates `lastuid` if present.
+*   **Parameters:** `data` (table) — Data returned by `OnSave()`, typically `{ lastuid = number }`.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-None identified.
+## Events & listeners
+None. This component does not register event listeners or fire events itself.

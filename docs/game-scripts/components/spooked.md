@@ -1,70 +1,84 @@
 ---
 id: spooked
 title: Spooked
-description: This component tracks a player's "spooked" level and triggers visual/attack events when they chop certain trees during specific seasonal conditions.
+description: Manages seasonal spook level accumulation and triggers spook events (e.g., tree-specific FX) when spook level exceeds a threshold.
+tags: [season, environment, fx]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: a8c2fa3d
+system_scope: environment
 ---
 
 # Spooked
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Spooked` component manages a player's accumulated "spooked" state, which increases upon chopping specific trees (e.g., evergreen, deciduous, twiggy, marsh, mushroom types). When the spooked level exceeds a configurable threshold and the player lacks certain protections (e.g., bravery buffs or wereform), it may trigger a spook event—rendering a tree-themed FX and dispatching a `"spooked"` event that initiates an attack. The spooked level decays over time based on in-game time elapsed.
+`Spooked` tracks a numerical spook level on an entity (typically the player), which increases over time and in response to specific environmental interactions (e.g., chopping certain trees). When the level surpasses a configurable threshold (`spookedthreshold`), it can trigger special effects (`battreefx` or custom FX prefabs) via `Spook` and `TryCustomSpook`. It integrates with `age`, `growable`, and `workable` components to make spook decisions context-aware (e.g., only triggering for fully grown or workable trees). The component also accounts for special immunity states (e.g., Halloween potion buffs, wereplayers) and spook level decay over time.
 
-## Dependencies & Tags
-**Component Dependencies:**
-- `inst.components.age` (optional, used to calculate spook age factor)
-- `source.components.growable` (optional, to determine growth stage)
-- `source.components.workable` (optional, to verify chopping completion)
+## Usage example
+```lua
+local inst = ThePlayer
+inst:AddComponent("spooked")
 
-**Tags:**
-- None directly added/removed by this component. However, it responds to tags on the *inst* (e.g., `"wereplayer"`, `"woodcutter"`) and the *source*.
+-- Trigger spook from a workable tree
+inst.components.spooked:Spook(source_tree)
+
+-- Manually increase spook level with custom FX
+inst.components.spooked:TryCustomSpook(source, "custom_spook_fx", 0.8)
+```
+
+## Dependencies & tags
+**Components used:** `age`, `growable`, `workable`  
+**Tags:** Checks `wereplayer`, `woodcutter`; checks debuff `halloweenpotion_bravery_buff`. No tags added or removed by this component.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity (typically a player) the component is attached to. |
-| `spookedlevel` | `number` | `0` | Current accumulated spooked level, ranging from 0 to `maxspookedlevel`. |
-| `spookedthreshold` | `number` | `70` | Minimum `spookedlevel` required before spook attempts are considered. |
-| `maxspookedlevel` | `number` | `100` | Upper bound of the spooked level. |
-| `maxspookdelta` | `number` | `3.5` | Max increase per `Spook()` call (before decay adjustment). |
-| `maxspookage` | `number` | `TUNING.SEASON_LENGTH_HARSH_DEFAULT * TUNING.TOTAL_DAY_TIME` | Max age (in seconds) considered for spooking effect decay. |
-| `lastspooktime` | `number` | `GetTime()` at instantiation | Timestamp of the last spook-related event, used for decay calculation. |
+| `spookedlevel` | number | `0` | Current accumulated spook level; increases on events, decays over time. |
+| `spookedthreshold` | number | `70` | Minimum `spookedlevel` required to consider triggering a spook event. |
+| `maxspookedlevel` | number | `100` | Upper bound on `spookedlevel`. |
+| `maxspookdelta` | number | `3.5` | Maximum incremental increase in `spookedlevel` per spook event (from standard `Spook`). |
+| `maxspookage` | number | `TUNING.SEASON_LENGTH_HARSH_DEFAULT * TUNING.TOTAL_DAY_TIME` | Normalized age reference used to scale spook accumulation over time. |
+| `lastspooktime` | number | `GetTime()` at creation | Last timestamp when `spookedlevel` was updated. |
 
-## Main Functions
-
+## Main functions
 ### `ShouldSpook()`
-* **Description:** Determines whether a spook event should be attempted based on current spooked level, player buffs, and luck. Returns `true` if the player is likely to be spooked.
+* **Description:** Determines whether a spook event should proceed based on current `spookedlevel`, immunity status, and luck. Returns `true` only if spook level exceeds the threshold and luck roll passes.
 * **Parameters:** None.
-
-### `CalcSpookedLevelDecay(t)`
-* **Description:** Calculates the current spooked level after decay since `lastspooktime`. Uses a quadratic decay model over elapsed time.
-* **Parameters:**
-  - `t` (*number*, optional): Current time. Defaults to `GetTime()`.
+* **Returns:** `boolean` — `true` if a spook effect should trigger, `false` otherwise.
+* **Error states:** Returns `false` if `spookedlevel <= spookedthreshold`, if entity has debuff `halloweenpotion_bravery_buff`, or if entity has tag `wereplayer`.
 
 ### `Spook(source)`
-* **Description:** Increases the spooked level based on the `source` tree, checks if a spook event should trigger, and—on success—spawns a tree-type-specific FX and schedules a `"spooked"` event. Resets `spookedlevel` to 0 after triggering.
-* **Parameters:**
-  - `source` (*Entity*): The tree entity being chopped. Must be one of the supported prefabs; its `growable.stage` and `workable` components determine FX selection and logic.
+* **Description:** Increases `spookedlevel` using the provided source entity (e.g., a tree), applies age scaling, and optionally spawns spook FX and fires `spooked` event if `ShouldSpook()` passes. Resets `spookedlevel` to `0` on success. Only triggers FX for sources with valid prefabs and final growth/work stage.
+* **Parameters:** `source` (Entity) — the object triggering the spook event (e.g., a tree).
+* **Returns:** Nothing.
+* **Error states:** No FX or event occurs if `source` is not a finished chopping event (i.e., stage ≠ `4` or not workable/choppable), or if `ShouldSpook()` fails.
 
 ### `TryCustomSpook(source, fxprefab, mult)`
-* **Description:** A more flexible variant of `Spook()` that allows specifying a custom FX prefab and spook multiplier. Does *not* check chopping state (i.e., does *not* restrict to "old" growth stages).
-* **Parameters:**
-  - `source` (*Entity*): The source entity triggering the spook.
-  - `fxprefab` (*string*): Name of the FX prefab to spawn.
-  - `mult` (*number*, optional): Multiplier for spook level increase (defaults to `1`, fully maxing the spooked level if not reduced by age decay).
+* **Description:** Similar to `Spook`, but allows specifying a custom FX prefab and scaling multiplier (`mult`). Spook level is calculated with full `maxspookedlevel` scaling, often resulting in max spook unless `mult < 1`.
+* **Parameters:**  
+  * `source` (Entity) — the source entity triggering the spook.  
+  * `fxprefab` (string) — prefab name for the FX entity to spawn.  
+  * `mult` (number, optional) — multiplier for spook level increment; defaults to `1`.
+* **Returns:** `Entity` — the spawned FX entity (e.g., `battreefx`), or `nil` if no spook was triggered.
+* **Error states:** Returns `nil` if `ShouldSpook()` returns `false`.
 
 ### `GetDebugString()`
-* **Description:** Returns a debug-ready string representation of the current (decayed) spooked level.
+* **Description:** Returns a human-readable debug string representing the current decayed `spookedlevel`.
 * **Parameters:** None.
+* **Returns:** `string` — formatted as `"spookedlevel = X.XX"` where `X.XX` is the current decayed value.
 
-## Events & Listeners
-- **Listens to:** None (component does not register any event listeners itself).
-- **Emits:**
-  - `"spooked"` via `inst:PushEvent("spooked", { source = source })`—triggered by the `DoSpooked` callback after a delay.
+### `CalcSpookedLevelDecay(t)`
+* **Description:** Calculates how much spook level has decayed since `lastspooktime` up to time `t`. Used internally to prevent spook level from persisting indefinitely.
+* **Parameters:** `t` (number, optional) — current time; defaults to `GetTime()`.
+* **Returns:** `number` — non-negative decayed spook level.
+* **Error states:** Always returns `0` or positive number.
+
+## Events & listeners
+- **Listens to:** None directly. Uses `ThePlayer:DoTaskInTime(...)` delays to fire events asynchronously.
+- **Pushes:** `spooked` — fired with `{ source = source }` data after a delay (8 or 10 frames for `woodcutter` or default), via the `DoSpooked` helper function.

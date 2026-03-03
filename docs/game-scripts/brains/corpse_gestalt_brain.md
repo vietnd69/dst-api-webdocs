@@ -1,60 +1,52 @@
 ---
 id: corpse_gestalt_brain
 title: Corpse Gestalt Brain
-description: Controls the behavior of a floating corpse entity that moves toward and eventually infests a tracked corpse target.
+description: Controls movement and behavior of a corpse-infesting entity in relation to its tracked corpse target and nearby players.
+tags: [ai, brain, movement, boss, corpse]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: entity
 source_hash: 0146e001
+system_scope: brain
 ---
 
 # Corpse Gestalt Brain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
+`CorpseGestaltBrain` is a behavior tree–driven brain component that governs the movement logic of a gestalt-style entity that spawns from and periodically infests a corpse. It tracks a specific corpse entity using `EntityTracker`, adjusts its position based on distance (attaching, approaching, or orbiting), and automatically removes itself if it leaves all players’ view distance. This brain integrates with the entity’s state graph to transition into the `"infest_corpse"` state when in close proximity.
 
-This brain controls a small, floating entity (typically a "corpse gestalt") that tracks a single corpse target via the `entitytracker` component. Its primary responsibility is to manage movement and infestation logic: when the entity gets close enough to its target, it moves to the target's position and transitions to an `infest_corpse` state; otherwise, it navigates around the target or drifts freely while remaining within player view distance. If it moves too far from all players, it removes itself from the world.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("entitytracker")
+inst:AddBrain("corpse_gestalt_brain")
+inst.components.entitytracker:AddEntity("corpse", corpse_entity)
+```
 
-## Dependencies & Tags
-
-- **Components used:**
-  - `entitytracker`: accessed via `inst.components.entitytracker:GetEntity(CORPSE_TRACK_NAME)` to retrieve the tracked corpse.
-- **Tags:**
-  - `"idle"`: checked via `inst.sg:HasStateTag("idle")` to determine if movement is allowed.
-  - `"infesting"`: checked via `inst.sg:HasStateTag("infesting")` to avoid conflicting free movement logic.
+## Dependencies & tags
+**Components used:** `entitytracker` — used via `inst.components.entitytracker:GetEntity(CORPSE_TRACK_NAME)`
+**Tags:** None identified.
 
 ## Properties
+No public properties.
 
-No public instance properties are explicitly initialized in the constructor. The class inherits from `Brain` and solely manages behavior tree construction and action logic.
-
-## Main Functions
-
-### `CalcNewPosition(inst, radius, angle)`
-* **Description:** Computes a new position in world space offset from the entity's current position using polar coordinates with a randomized angular deviation (within ±0.45π radians). Used to generate positions for movement while avoiding direct line-of-sight clustering.
-* **Parameters:**
-  - `inst`: The entity instance performing the calculation.
-  - `radius`: Numeric scalar specifying radial distance from the entity.
-  - `angle`: Numeric scalar (in radians) representing the base direction.
-* **Returns:** `Vector3` — the new target position in world space.
-
+## Main functions
 ### `MoveToPointAction(inst)`
-* **Description:** Core action function that determines movement behavior. It retrieves the tracked corpse using `entitytracker`, then decides whether to attach (if very close), follow (if moderately close), orbit (if farther away), or drift randomly (if no target is valid or outside close range). It also handles entity removal if no players are nearby.
-* **Parameters:**
-  - `inst`: The entity instance on which movement logic operates.
-* **Returns:** `Action` — a buffered `WALKTO` action toward the computed `pos`, or `nil` if no movement is needed or entity was removed.
+*   **Description:** Calculates and returns a movement action (`BufferedAction`) for the entity toward its tracked corpse or a random location when out of player view. It handles three distance zones: close enough to attach to the corpse (`<= ATTACH_DIST_SQ`), within approach range (`<= CLOSE_DIST_SQ`), or far away (orbiting around the corpse with random angular offset). Also handles cleanup if the entity is too far from all players (`> SCREEN_DIST_SQ`).
+*   **Parameters:** `inst` (entity instance) — the entity using this brain.
+*   **Returns:** A `BufferedAction` targeting `ACTIONS.WALKTO` if movement is needed and the entity is still valid; `nil` otherwise (e.g., attached or invalid).
+*   **Error states:** Returns `nil` if no target is found, the entity becomes invalid, or the entity is already infesting.
 
 ### `CorpseGestaltBrain:OnStart()`
-* **Description:** Initializes the behavior tree for the entity. Sets up a single top-level `WhileNode` that continuously triggers `MoveToPointAction` as long as the stategraph has the `"idle"` tag.
-* **Parameters:** None.
-* **Returns:** None — assigns `self.bt` to a newly constructed `BT` instance.
+*   **Description:** Initializes the behavior tree with a root `PriorityNode`. The root contains a `WhileNode` that continuously evaluates whether the state graph is idle (`HasStateTag("idle")`). If so, it executes `MoveToPointAction` to determine movement.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** None — sets up the brain’s behavior tree once.
 
-## Events & Listeners
-
-None — this brain component does not register or push any events directly.
-
----
+## Events & listeners
+None.

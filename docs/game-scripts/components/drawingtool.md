@@ -1,64 +1,85 @@
 ---
 id: drawingtool
 title: Drawingtool
-description: This component enables an entity to identify an item's visual data and apply it to a target entity for display.
+description: Facilitates the selection and application of drawable assets from nearby entities during a drawing action.
+tags: [inventory, drawing, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 73948193
+system_scope: entity
 ---
 
 # Drawingtool
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `DrawingTool` component provides functionality for an entity to "draw" or display the image of another item (the "source") onto a target entity. It handles the logic for finding a suitable source item, extracting its visual information (image, atlas, background image), and then instructing the target entity's `drawable` component to display this information. This component is typically used for items like signs or frames that display other items.
+`DrawingTool` enables an entity (typically a tool or character) to locate a nearby drawable entity and retrieve its visual representation (image, atlas, background image, etc.) for rendering. It works in conjunction with the `inventoryitem` and `drawable` components to support dynamic visual customization. The component handles the logic of identifying a valid target within range and extracting the necessary asset identifiers for the draw operation.
 
-## Dependencies & Tags
-This component relies on other components being present on the target or source entities:
-*   **Target Entity:** Requires the `drawable` component to actually display the image.
-*   **Source Entity:**
-    *   Requires the `inventoryitem` component to retrieve `imagename` and `atlasname`.
-    *   May have `drawimageoverride` and `drawatlasoverride` functions/values to customize its displayed image.
-    *   May have `inv_image_bg` table for background image details.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("drawingtool")
+inst:AddComponent("inventoryitem")
 
-The global helper function `FindEntityToDraw` which is used by this component, filters entities based on the following tags:
-*   **Must include:** `_inventoryitem`
-*   **Cannot include:** `INLIMBO`, `notdrawable`
+inst.components.drawingtool:SetOnDrawFn(function(downer, target, image, src, atlas, bgimage, bgatlas)
+    print("Drawing", image, "on", target)
+end)
+
+-- When performing the draw action:
+local image, target, atlas, bgimage, bgatlas = inst.components.drawingtool:GetImageToDraw(targetEntity, inst)
+if image then
+    inst.components.drawingtool:Draw(targetEntity, image, src, atlas, bgimage, bgatlas)
+end
+```
+
+## Dependencies & tags
+**Components used:** `inventoryitem`, `drawable`  
+**Tags:**  
+- `TODRAW_MUST_TAGS = {"_inventoryitem"}` — Entities must have this tag to be considered.  
+- `TODRAW_CANT_TAGS = {"INLIMBO", "notdrawable"}` — Entities with these tags are excluded.
 
 ## Properties
-| Property     | Type       | Default Value | Description                                                    |
-| :----------- | :--------- | :------------ | :------------------------------------------------------------- |
-| `self.inst`  | `Entity`   | `inst`        | The entity instance this component is attached to.             |
-| `ondrawfn`   | `function` | `nil`         | An optional callback function to be invoked when drawing occurs. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `ondrawfn` | function (optional) | `nil` | Callback fired when a successful draw operation completes. Signature: `fn(downer, target, image, src, atlas, bgimage, bgatlas)`. |
 
-## Main Functions
+## Main functions
 ### `SetOnDrawFn(fn)`
-*   **Description:** Sets a callback function that will be executed after the drawing operation is completed by the target entity.
-*   **Parameters:**
-    *   `fn`: (`function`) The function to call, which will receive `(tool_inst, target, image, src, atlas, bgimage, bgatlas)` as arguments.
+* **Description:** Sets a custom callback function to be invoked after a successful `Draw` call.
+* **Parameters:**  
+  `fn` (function or `nil`) — Function to be called with parameters `(downer, target, image, src, atlas, bgimage, bgatlas)`. Set to `nil` to clear.
+* **Returns:** Nothing.
 
 ### `GetImageToDraw(target, doer)`
-*   **Description:** Identifies a suitable entity to draw based on a given target and retrieves its visual assets (image, atlas, background image). This function leverages the global `FindEntityToDraw` to find a source entity.
-*   **Parameters:**
-    *   `target`: (`Entity`) The primary target entity, often the one being interacted with.
-    *   `doer`: (`Entity`) The entity performing the action (e.g., the player).
-*   **Returns:** `image`, `src_entity`, `atlas`, `bgimage`, `bgatlas`.
-    *   `image`: (`string`) The name of the image to draw (e.g., "inventory/imagename.tex").
-    *   `src_entity`: (`Entity`) The actual entity from which the image data was sourced.
-    *   `atlas`: (`string`) The atlas path for `image`.
-    *   `bgimage`: (`string`) The name of a background image to draw (if any).
-    *   `bgatlas`: (`string`) The atlas path for `bgimage`.
+* **Description:** Searches for a drawable entity near `target` and extracts its visual asset identifiers. Must be called before `Draw`.
+* **Parameters:**  
+  `target` (Entity or `nil`) — The original target entity (e.g., the user of the tool or the main interaction point).  
+  `doer` (Entity) — The entity performing the action (used for context-sensitive overrides).  
+* **Returns:**  
+  - `image` (string or `nil`) — Image name to draw.  
+  - `ent` (Entity or `nil`) — The selected drawable entity (target of drawing).  
+  - `atlas` (string or `nil`) — Atlas name for the image.  
+  - `bgimage` (string or `nil`) — Optional background image name.  
+  - `bgatlas` (string or `nil`) — Optional background atlas name.  
+* **Error states:** Returns `nil` if no suitable entity is found, or if `target` is `nil`.
 
 ### `Draw(target, image, src, atlas, bgimage, bgatlas)`
-*   **Description:** Instructs the `drawable` component of the `target` entity to display the provided image information. If an `ondrawfn` is set, it is invoked after the `drawable` component handles the drawing.
-*   **Parameters:**
-    *   `target`: (`Entity`) The entity whose `drawable` component will perform the drawing.
-    *   `image`: (`string`) The image filename (e.g., "item.tex").
-    *   `src`: (`Entity`) The source entity from which the image was obtained.
-    *   `atlas`: (`string`, optional) The atlas path for the image.
-    *   `bgimage`: (`string`, optional) The background image filename.
-    *   `bgatlas`: (`string`, optional) The atlas path for the background image.
+* **Description:** Applies the provided visual assets to the `target` entity using its `drawable` component. Triggers the `ondrawfn` callback if set.
+* **Parameters:**  
+  `target` (Entity or `nil`) — Entity to receive the drawn assets.  
+  `image` (string or `nil`) — Image name.  
+  `src` (string or `nil`) — Source context (not used internally, passed to `OnDrawn`).  
+  `atlas` (string or `nil`) — Atlas name for the image.  
+  `bgimage` (string or `nil`) — Background image name.  
+  `bgatlas` (string or `nil`) — Background atlas name.  
+* **Returns:** Nothing.
+* **Error states:** No-op if `target` is `nil` or lacks the `drawable` component.
+
+## Events & listeners
+- **Listens to:** None (uses `inst:ListenForEvent` internally in other components).
+- **Pushes:** None (draw operation is synchronous and event-driven via callbacks).

@@ -1,81 +1,85 @@
 ---
 id: wanderingtraderspawner
 title: Wanderingtraderspawner
-description: Manages the spawning, tracking, and lifecycle of a single Wandering Trader instance in response to world initialization and spawn point availability.
+description: Manages the spawning, tracking, and removal of the Wandering Trader entity in the game world.
+tags: [spawn, trader, world]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 02b302cc
+system_scope: world
 ---
 
 # Wanderingtraderspawner
 
-## Overview
-This component is responsible for spawning and managing a single Wandering Trader instance in the game world. It registers and maintains lists of spawn points (separating master Sim and non-master Sim points), handles spawner logic on world initialization, tracks the spawned trader, and supports save/load persistence. It only runs on the master simulation.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies:** Requires `Transform` component on `self.inst` (used implicitly via `spawnpoint.Transform` and `self.inst`).
-- **Tags Used/Added:** No explicit tags are added or removed by this component.
+## Overview
+`Wanderingtraderspawner` is a server-only component responsible for spawning and managing a single instance of the `wanderingtrader` prefab. It maintains two lists of spawn points (`spawnpoints` and `spawnpoints_masters`) and attempts to spawn the trader once during world initialization if the tuning flag `TUNING.WANDERINGTRADER_ENABLED` is true. It tracks the spawned trader to automatically reset its reference when the trader is removed, and supports save/load serialization.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("wanderingtraderspawner")
+-- Spawn points are typically registered elsewhere via "ms_registerspawnpoint" event
+-- The trader is spawned automatically after world init if enabled
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `spawnpoints` | `table` | `{}` | List of non-master spawn point entities (e.g., from client or non-Sim-side registrations). |
-| `spawnpoints_masters` | `table` | `{}` | List of master Sim spawn point entities (used for authoritative spawning). |
-| `wanderingtrader` | `Entity?` | `nil` | Reference to the currently spawned Wandering Trader prefab instance. |
-| `OnRemove_wanderingtrader` | `function` | — | Event handler that clears `self.wanderingtrader` when the trader is removed. |
+| `spawnpoints` | array | `{}` | Local (non-master) spawn point references for the current client session. |
+| `spawnpoints_masters` | array | `{}` | Master (world-level) spawn point references used only on the server. |
+| `wanderingtrader` | entity or nil | `nil` | Reference to the currently active wandering trader entity. |
 
-*Note:* The constructor (`_ctor`) is implemented as an anonymous function in the return statement. No public properties are declared before initialization.
-
-## Main Functions
-
-### `TrackWanderingTrader(wanderingtrader)`
-* **Description:** Stores a reference to the given Wandering Trader entity and attaches an `"onremove"` event listener to clear the reference when the trader is removed.
-* **Parameters:**
-  * `wanderingtrader` (`Entity`): The Wandering Trader entity instance to track.
-
+## Main functions
 ### `SpawnWanderingTrader()`
-* **Description:** Instantiates and returns a new `wanderingtrader` prefab. Calls `TrackWanderingTrader` internally to manage lifecycle.
+* **Description:** Spawns a new `wanderingtrader` prefab instance and begins tracking it. Does not move it — position must be set externally after spawning.
 * **Parameters:** None.
-* **Returns:** `Entity` — The newly spawned Wandering Trader.
+* **Returns:** The newly spawned `wanderingtrader` entity (type: `Entity`).
+* **Error states:** Returns `nil` on failure only if `SpawnPrefab("wanderingtrader")` fails.
 
 ### `TryToSpawnWanderingTrader()`
-* **Description:** Attempts to spawn a Wandering Trader if one is not already active and spawn points exist. Selects a random spawn point from either `spawnpoints_masters` (priority) or `spawnpoints`, positions the new trader there, and spawns it.
+* **Description:** Attempts to spawn a `wanderingtrader` only if none is currently active *and* at least one spawn point is available. Uses shuffled spawn points (first from `spawnpoints`, then from `spawnpoints_masters`) to select a location. Calls `SpawnWanderingTrader()` internally and sets the trader's position.
 * **Parameters:** None.
-* **Returns:** `boolean` — `false` if spawning is skipped (either trader exists or no spawn points), otherwise implicitly returns `nil` after spawning.
+* **Returns:** `false` if a trader already exists or no spawn points are registered; nothing (`nil`) otherwise.
+* **Error states:** No effect if `self.wanderingtrader` is already set or both spawn point arrays are empty.
 
 ### `RemoveWanderingTrader()`
-* **Description:** Safely removes the currently tracked Wandering Trader if it exists.
+* **Description:** Immediately removes the tracked `wanderingtrader` entity, if any.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No effect if `self.wanderingtrader` is `nil`.
+
+### `TrackWanderingTrader(wanderingtrader)`
+* **Description:** Registers the given entity as the current wandering trader and listens for its `"onremove"` event to clear the reference automatically.
+* **Parameters:** `wanderingtrader` (Entity) — the trader entity to track.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Prepares save data for persistence. Records the GUID of the current Wandering Trader and includes it in the entities list.
+* **Description:** serializes the component state for world save.
 * **Parameters:** None.
-* **Returns:** `table, table` — Save data table (with `wanderingtrader` key), and list of tracked GUIDs.
+* **Returns:**  
+  - `data` (table): contains `wanderingtrader.GUID` if a trader is active.  
+  - `ents` (array): list of GUIDs referencing entities to be saved (currently only the trader’s GUID if present).
+* **Error states:** Returns empty `data` and `ents` if no trader is tracked.
 
 ### `LoadPostPass(newents, savedata)`
-* **Description:** Restores the Wandering Trader reference after loading by resolving the saved GUID against `newents`. Calls `TrackWanderingTrader` to reattach event listeners.
-* **Parameters:**
-  * `newents` (`table`): Mapping of GUIDs to entity data as loaded from save.
-  * `savedata` (`table`): Saved data from `OnSave`.
+* **Description:** Restores the `wanderingtrader` reference from saved GUID after the world is loaded and entities are resolved.
+* **Parameters:**  
+  - `newents` (table): mapping of GUIDs to loaded entity objects.  
+  - `savedata` (table): contains `savedata.wanderingtrader` with a GUID if a trader was tracked at save time.
+* **Returns:** Nothing.
 
-### `OnRegisterSpawnPoint(inst, spawnpoint)`
-* **Description:** Registers a spawn point entity, distinguishing between master and non-master spawns. Adds it to the appropriate array and attaches an `"onremove"` listener to auto-unregister.
-* **Parameters:**
-  * `inst` (`Entity`): The entity sending the registration (unused).
-  * `spawnpoint` (`Entity`): The spawn point entity being registered.
-
-### `UnregisterSpawnPoint(spawnpoint)` / `UnregisterSpawnPoint_Master(spawnpoint)`
-* **Description:** Helper functions to remove a spawn point from the non-master or master list, respectively. Called automatically when the spawn point emits `"onremove"`.
-
-## Events & Listeners
-- **Listens for:**
-  - `"ms_registerspawnpoint"` on `self.inst` → triggers `OnRegisterSpawnPoint`.
-  - `"onremove"` on tracked `wanderingtrader` → triggers `OnRemove_wanderingtrader`.
-  - `"onremove"` on each registered `spawnpoint` → triggers corresponding `UnregisterSpawnPoint` or `UnregisterSpawnPoint_Master` handler.
-- **Emits (via `inst:DoTaskInTime`):**
-  - Immediately post-construction, schedules `OnWorldPostInit` to run once on `0` tick delay, which attempts spawning or removal based on `TUNING.WANDERINGTRADER_ENABLED`.
+## Events & listeners
+- **Listens to:**  
+  - `"ms_registerspawnpoint"` — triggers `OnRegisterSpawnPoint` to add spawn points to `spawnpoints` or `spawnpoints_masters`.  
+  - `"onremove"` (on tracked `wanderingtrader`) — triggers `OnRemove_wanderingtrader` to clear `self.wanderingtrader`.
+- **Pushes:** None.

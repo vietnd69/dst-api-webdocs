@@ -1,71 +1,84 @@
 ---
 id: moonstormwatcher
 title: Moonstormwatcher
-description: Monitors moonstorms and adjusts the entity's movement speed based on storm intensity, visibility state, and mount status.
+description: Manages moonstorm-related speed penalties for entities based on storm intensity and vision state.
+tags: [moonstorm, locomotion, weather]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: environment
+category_type: components
 source_hash: 6cb5c8a6
+system_scope: locomotion
 ---
 
 # Moonstormwatcher
 
-## Overview
-This component listens for global moonstorm events and dynamically modifies the entity's walking speed during moonstorms. It integrates with the `stormwatcher`, `playervision`, `rider`, and `locomotor` components to apply or remove speed penalties depending on the current moonstorm level, visibility modifiers (e.g., goggles or ghost vision), and whether the entity is mounted.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies**: `stormwatcher`, `playervision`, `rider`, `locomotor`
-- **Events Listened To**: `ms_stormchanged` (on `TheWorld`), `gogglevision`, `ghostvision`, `mounted`, `dismounted` (on the owner entity)
+## Overview
+`Moonstormwatcher` applies and removes locomotion speed penalties to an entity during a moonstorm event. It dynamically adjusts speed based on the current moonstorm intensity (`moonstormlevel`), the configured speed multiplier (`moonstormspeedmult`), and entity state factors such as goggle or ghost vision, and whether the entity is mounted. The component integrates with `stormwatcher`, `playervision`, `rider`, and `locomotor` to determine whether to apply or remove the speed modifier.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("moonstormwatcher")
+inst.components.moonstormwatcher:SetMoonstormSpeedMultiplier(0.6)
+```
+
+## Dependencies & tags
+**Components used:** `locomotor`, `moonstorms`, `playervision`, `rider`, `stormwatcher`  
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `enabled` | `boolean` | `false` | Whether a moonstorm is currently active and speed modification is applied. |
-| `moonstormlevel` | `number` | `0` | *Not used* — retained for compatibility; actual level is computed on demand via `GetMoonStormLevel()`. |
-| `moonstormspeedmult` | `number` | `TUNING.MOONSTORM_SPEED_MOD` | Speed multiplier applied during moonstorms (clamped to `[0, 1]`). |
-| `delay` | `any` | `nil` | Reserved for future use — unused in current implementation. |
+| `enabled` | boolean | `false` | Whether the moonstorm penalty is currently active. |
+| `moonstormlevel` | number | `0` | Current storm level for the moonstorm (not used internally; kept for reference). |
+| `moonstormspeedmult` | number | `TUNING.MOONSTORM_SPEED_MOD` | Speed multiplier applied during moonstorms when the penalty is active. Clamped to `[0, 1]`. |
+| `delay` | any | `nil` | Reserved field (unused in current implementation). |
 
-## Main Functions
-
+## Main functions
 ### `ToggleMoonstorms(data)`
-* **Description:** Enables or disables moonstorm speed adjustments based on incoming storm-change data. If enabled, registers event listeners to update speed in response to vision or mount changes.
-* **Parameters:**  
-  `data` (table): Must contain `stormtype` (e.g., `STORM_TYPES.MOONSTORM`) and `setting` (boolean indicating whether the storm is active).
+*   **Description:** Enables or disables the moonstorm speed penalty based on the `data.setting` value and `data.stormtype`. Typically called in response to the `ms_stormchanged` event.
+*   **Parameters:**
+    *   `data` (table) - Contains `stormtype` (expected to be `STORM_TYPES.MOONSTORM`) and `setting` (boolean indicating activation).
+*   **Returns:** Nothing.
+*   **Error states:** No effect if `data.stormtype` is not `MOONSTORM`; no-op if `enabled` state already matches the requested setting.
 
 ### `SetMoonstormSpeedMultiplier(mult)`
-* **Description:** Updates the global speed multiplier used during moonstorms. Dynamically registers/removes listeners and applies the new multiplier if the storm is active.
-* **Parameters:**  
-  `mult` (number): New speed multiplier, clamped to `[0, 1]`.
+*   **Description:** Sets the speed multiplier applied during moonstorms and updates listeners and locomotor state accordingly.
+*   **Parameters:**
+    *   `mult` (number) - Speed multiplier to apply. Will be clamped to `[0, 1]`.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if the new multiplier is equal to the current `moonstormspeedmult`.
 
 ### `UpdateMoonstormLevel()`
-* **Description:** Recalculates and broadcasts the current moonstorm level, then updates the entity's speed accordingly.
-* **Parameters:** None.
+*   **Description:** Queries the current moonstorm intensity, updates internal state, and pushes a `moonstormlevel` event to notify listeners.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `UpdateMoonstormWalkSpeed()`
-* **Description:** Triggers a recalculation of the entity’s moonstorm-based speed using the current storm level and visibility/mount state.
-* **Parameters:** None.
+*   **Description:** Triggers recalculation of the speed multiplier applied to locomotion. This function delegates to `UpdateMoonstormWalkSpeed_Internal`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `UpdateMoonstormWalkSpeed_Internal(level)`
-* **Description:** Applies or removes the speed multiplier via the `locomotor` component, based on storm level, moonstorm multiplier, and vision/mount conditions (no penalty if level < `TUNING.SANDSTORM_FULL_LEVEL` or if goggle/ghost vision is active or entity is mounted).
-* **Parameters:**  
-  `level` (number? | nil): Current moonstorm level; if `nil`, no action is taken.
+*   **Description:** Applies or removes the external speed multiplier via `locomotor` based on storm level and entity state.
+*   **Parameters:**
+    *   `level` (number or nil) - Current moonstorm level. If `nil`, no penalty is applied.
+*   **Returns:** Nothing.
+*   **Error states:** If `level >= TUNING.SANDSTORM_FULL_LEVEL` AND the entity lacks goggle/ghost vision and is not mounted, the speed penalty (`moonstormspeedmult`) is applied. Otherwise, it is removed.
 
 ### `GetMoonStormLevel()`
-* **Description:** Retrieves the current moonstorm level from the `stormwatcher` component.
-* **Parameters:** None.  
-* **Returns:** `number?` — The current moonstorm level, or `nil` if `stormwatcher` is missing.
+*   **Description:** Retrieves the current moonstorm level from `stormwatcher`.
+*   **Parameters:** None.
+*   **Returns:** `number` or `nil` — returns `0` or higher if the entity has a `stormwatcher` component, otherwise `nil`.
 
-## Events & Listeners
-- **Listens for (on `TheWorld`)**:
-  - `"ms_stormchanged"` → calls `ToggleMoonstorms(data)`
-- **Listens for (on `self.inst`)**:
-  - `"gogglevision"` → updates walk speed
-  - `"ghostvision"` → updates walk speed
-  - `"mounted"` → updates walk speed
-  - `"dismounted"` → updates walk speed
-- **Emits (on `self.inst`)**:
-  - `"moonstormlevel"` → `{ level = level }` — pushed after level update in `UpdateMoonstormLevel()`
+## Events & listeners
+- **Listens to:**  
+  - `ms_stormchanged` (on `TheWorld`) — triggers `ToggleMoonstorms`.
+  - `gogglevision`, `ghostvision`, `mounted`, `dismounted` (on owner entity) — triggers speed update via `UpdateMoonstormWalkSpeed`.
+- **Pushes:**  
+  - `moonstormlevel` — fired when `UpdateMoonstormLevel` is called, with payload `{ level = <number> }`.

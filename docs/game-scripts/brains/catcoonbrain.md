@@ -1,114 +1,52 @@
 ---
 id: catcoonbrain
 title: Catcoonbrain
-description: Controls the behavior tree and decision-making logic for the Catcoon entity, including following, playing with toys, returning home, and reacting to environmental threats.
+description: Implements the decision-making AI for the Catcoon entity, coordinating movement, play, loyalty, and home-returning behaviors.
+tags: [ai, entity, locomotion, inventory]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 244fc721
+system_scope: brain
 ---
 
 # Catcoonbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The `CatcoonBrain` component implements the AI decision-making system for the Catcoon entity using a Behavior Tree (`BT`). It prioritizes actions based on game state, inventory status, environmental conditions (e.g., rain), and the presence of a leader. Key responsibilities include following a leader, playing with toys or food, returning home (especially during rain or when the inventory is full), initiating hairball attacks on friends, avoiding players, fleeing from threats, and wandering when idle. The brain integrates closely with components like `follower`, `homeseeker`, `inventory`, and `burnable`, and defines custom action handlers (e.g., `PlayAction`, `HairballAction`) that use `BufferedAction` to queue interaction-based behaviors.
+`CatcoonBrain` defines the behavior tree for the Catcoon entity, determining how it interacts with its environment, follows a leader, plays with toys, deposits items, and returns home. It integrates with components like `follower`, `homeseeker`, `inventory`, and `burnable` to make context-aware decisions. The brain prioritizes urgent actions (panic, hairball) before routine behaviors (wandering, playing), and adapts based on loyalty, inventory state, and weather conditions.
 
-## Dependencies & Tags
-- **Components used:**
-  - `burnable`: Checks `IsBurning()` on home or target.
-  - `follower`: Retrieves leader via `GetLeader()` and loyalty percentage via `GetLoyaltyPercent()`.
-  - `homeseeker`: Retrieves home position via `GetHomePos()` and checks validity (`home:IsValid()`).
-  - `inventory`: Checks fullness via `IsFull()`.
-- **Tags:**
-  - `NO_TAGS`: Excludes targets with tags `FX`, `NOCLICK`, `DECOR`, `INLIMBO`, `stump`, `burnt`, `notarget`, `flight`, `fire`, `irreplaceable`.
-  - `PLAY_TAGS`: Includes targets with tags `cattoy`, `cattoyairborne`, `catfood`.
-  - Internally, `cattoy`, `cattoyairborne`, and `catfood` tags are temporarily removed during play interactions and restored after 30 seconds.
+## Usage example
+```lua
+-- The CatcoonBrain component is automatically added to the Catcoon prefab during instantiation.
+-- Example of checking brain state and behavior triggers from another script:
+if some_catcoon:HasTag("catcoon") and some_catcoon.brain ~= nil then
+    local has_leader = some_catcoon.components.follower and some_catcoon.components.follower:GetLeader() ~= nil
+    local inventory_full = some_catcoon.components.inventory and some_catcoon.components.inventory:IsFull()
+end
+```
+
+## Dependencies & tags
+**Components used:** `burnable`, `follower`, `homeseeker`, `inventory`  
+**Tags:** Checks `busy` state tags on stategraph; uses `NO_TAGS` and `PLAY_TAGS` sets during entity search.
 
 ## Properties
-No public properties are initialized directly in the constructor. Instance properties are set dynamically at runtime or via game tuning. The following properties are referenced during behavior execution:
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst.raining` | `boolean` | `nil` (initially unset) | Controls whether the Catcoon attempts to return home. |
-| `inst.hairball_friend_interval` | `number` | `nil` (set dynamically) | Cooldown interval for hairball actions when a leader is present. |
-| `inst.hairball_neutral_interval` | `number` | `nil` (set dynamically) | Cooldown interval for hairball actions when no leader is present. |
-| `inst.last_play_air_time` | `number` | `nil` | Timestamp of the last airborne toy interaction. |
-| `inst.last_hairball_time` | `number` | `nil` | Timestamp of the last hairball action. |
+| `bt` | `BT` | `nil` (set in `OnStart`) | The behavior tree instance for the Catcoon. |
+| `raining` | boolean | `false` (set via `ScheduleRaining`) | Indicates whether it is currently raining (triggers home-return). |
 
-## Main Functions
-All key functions are referenced internally by the Behavior Tree via action handlers or node conditions.
-
-### `CatcoonBrain:OnStart()`
-* **Description:** Initializes the Behavior Tree (`BT`) for the Catcoon. Constructs a `PriorityNode` root tree with ordered action checks, enabling the Catcoon to evaluate and execute high-priority behaviors (e.g., panic, hairball, chasing) before lower-priority ones (e.g., wandering). Sets `self.bt` to the constructed tree.
+## Main functions
+### `OnStart()`
+* **Description:** Initializes and assigns the Catcoon's behavior tree root node. This method is called automatically when the brain starts running.
 * **Parameters:** None.
-* **Returns:** None.
+* **Returns:** Nothing.
+* **Error states:** None identified. Behavior tree construction depends on Tuning values; invalid Tuning may cause unexpected behavior.
 
-### `PlayAction(inst)`
-* **Description:** Finds a valid play target (toy, airborne toy, or food) within range, checks airborne toy timing constraints, and returns a `BufferedAction` to initiate `CATPLAYAIR` or `CATPLAYGROUND`. Temporarily removes the play tag and schedules its restoration after 30 seconds. Returns `nil` if no valid target exists or if the Catcoon is busy.
-* **Parameters:**
-  - `inst` (`Entity`): The Catcoon entity instance.
-* **Returns:** `BufferedAction` or `nil`.
-
-### `HasValidHome(inst)`
-* **Description:** Checks if the Catcoon has a valid, non-burning home. Returns `true` only if the home exists, is valid, is not marked `burnt`, and is not currently burning.
-* **Parameters:**
-  - `inst` (`Entity`): The Catcoon entity instance.
-* **Returns:** `boolean`.
-
-### `GetLeader(inst)`
-* **Description:** Retrieves the Catcoon's current leader from the `follower` component. Helper wrapper for `follower:GetLeader()`.
-* **Parameters:**
-  - `inst` (`Entity`): The Catcoon entity instance.
-* **Returns:** `Entity?` — The leader entity, or `nil` if no leader exists.
-
-### `GetNoLeaderHomePos(inst)`
-* **Description:** Returns the home position only if the Catcoon has no leader *and* a valid home exists. Otherwise, returns `nil`.
-* **Parameters:**
-  - `inst` (`Entity`): The Catcoon entity instance.
-* **Returns:** `Vector3?` — The home position, or `nil`.
-
-### `GoHomeAction(inst)`
-* **Description:** Returns a `BufferedAction` to `GOHOME` if a valid, non-burning home exists. Otherwise, schedules a "raining" event to prompt future home-return behavior.
-* **Parameters:**
-  - `inst` (`Entity`): The Catcoon entity instance.
-* **Returns:** `BufferedAction?` — Action to go home, or `nil`.
-
-### `ShouldHairball(inst)`
-* **Description:** Determines whether the Catcoon is ready to perform a hairball action based on elapsed time and leader presence. Resets the hairball interval dynamically using `TUNING` values.
-* **Parameters:**
-  - `inst` (`Entity`): The Catcoon entity instance.
-* **Returns:** `boolean`.
-
-### `HairballAction(inst)`
-* **Description:** Returns a `BufferedAction` to perform `HAIRBALL` on the leader if present, or on `nil` (self-targeted) if no leader exists.
-* **Parameters:**
-  - `inst` (`Entity`): The Catcoon entity instance.
-* **Returns:** `BufferedAction?`.
-
-### `WhineAction(inst)`
-* **Description:** Returns a `BufferedAction` to `CATPLAYGROUND` on the leader *only* if the Catcoon has a leader and loyalty is critically low (`< 3%`).
-* **Parameters:**
-  - `inst` (`Entity`): The Catcoon entity instance.
-* **Returns:** `BufferedAction?`.
-
-### `GetFaceTargetFn(inst)`
-* **Description:** Returns the leader entity as the target for `FaceEntity` behavior.
-* **Parameters:**
-  - `inst` (`Entity`): The Catcoon entity instance.
-* **Returns:** `Entity?`.
-
-### `KeepFaceTargetFn(inst, target)`
-* **Description:** Verifies if the current target for facing matches the leader.
-* **Parameters:**
-  - `inst` (`Entity`): The Catcoon entity instance.
-  - `target` (`Entity?`): The candidate target entity.
-* **Returns:** `boolean`.
-
-## Events & Listeners
-This component does not directly register or push events. Event-driven logic is implemented internally via the `BehaviorTree` node structure (e.g., `IfNode`, `WhileNode`) and custom action handlers (e.g., `DoAction`). Event scheduling (e.g., tag restoration) uses `DoTaskInTime`.
+## Events & listeners
+* **Listens to:** None explicitly registered (relies on stategraph state tags like `"busy"`, `"landing"`, `"landed"` and external event-driven scheduling like `inst:ScheduleRaining()` for updates).
+* **Pushes:** None identified (does not fire custom events).

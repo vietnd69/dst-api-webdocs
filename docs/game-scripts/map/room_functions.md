@@ -3,7 +3,7 @@ id: room_functions
 title: Room Functions
 description: Provides generator functions and helpers for procedural room and terrain placement in world generation.
 tags: [world, generation, terrain, room]
-sidebar_position: 1
+sidebar_position: 100
 
 last_updated: 2026-02-27
 build_version: 714014

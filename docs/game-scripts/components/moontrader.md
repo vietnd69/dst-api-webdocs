@@ -1,52 +1,68 @@
 ---
 id: moontrader
 title: Moontrader
-description: A component that enables an entity to accept and process offerings from players, optionally validating offers and triggering custom logic upon acceptance.
+description: Manages acceptance and processing of offerings for moon-based trading interactions, typically used by entities like Moon Moths or Moon Altars.
+tags: [trading, moon, inventory, interaction]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 8156d3a7
+system_scope: entity
 ---
 
 # Moontrader
 
-## Overview
-The `Moontrader` component allows an entity (typically a structure or NPC) to accept offerings—physical items provided by players. It supports custom validation logic via a callback function (`canaccept`) and custom post-acceptance behavior via another callback (`onaccept`). When an offering is accepted, the item is consumed (removed from the game world) and the appropriate callbacks are invoked. The component also automatically adds the `"moontrader"` tag to the owning entity.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Dependencies:** None (does not require other components to function).
-- **Tags added:** `"moontrader"` (added to the entity via `inst:AddTag("moontrader")` in the constructor).
+## Overview
+`MoonTrader` handles the logic for accepting or rejecting offerings made by other entities (typically players) to a moon trader entity (e.g., Moon Moth). It provides customizable validation (`canaccept`) and reward (`onaccept`) callbacks, manages item transfer/Consumption (including stack splitting), and ensures clean removal of the offered item upon successful acceptance. It is typically attached to trader or altar prefabs and integrates with `inventoryitem`, `stackable`, and gameplay state components.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("moontrader")
+
+inst.components.moontrader:SetCanAcceptFn(function(trader, item, giver)
+    return item.prefab == "moonrock" and giver:HasTag("player"), "Must be a player holding a Moon Rock"
+end)
+
+inst.components.moontrader:SetOnAcceptFn(function(trader, giver, item)
+    giver.components.inventory:GiveItem("moonlight_crystal")
+    giver.components.sanity:DoDelta(20)
+end)
+```
+
+## Dependencies & tags
+**Components used:** `inventoryitem`, `stackable`  
+**Tags:** Adds `moontrader` to the owning instance.
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `canaccept` | function\|nil | `nil` | Optional callback `(trader, item, giver) -> (success: boolean, reason: string?)` to validate offerings. |
+| `onaccept` | function\|nil | `nil` | Optional callback `(trader, giver, item) -> nil` to execute side effects after accepting an item. |
 
-| Property    | Type     | Default Value | Description |
-|-------------|----------|---------------|-------------|
-| `inst`      | `Entity` | *(inherited)* | Reference to the entity the component is attached to. |
-| `canaccept` | `function?` | `nil` | Optional callback function `fn(inst, item, giver)` that returns `success (bool), reason (string?)`. If `nil`, no validation is performed. |
-| `onaccept`  | `function?` | `nil` | Optional callback function `fn(inst, giver, item)` invoked after a successful offering acceptance. |
-
-## Main Functions
-
+## Main functions
 ### `SetCanAcceptFn(fn)`
-* **Description:** Sets the validation callback function used to determine whether an offering should be accepted. If not set, all offerings are implicitly accepted (barring item handling errors).
-* **Parameters:**
-  - `fn` (*function*): A function with signature `fn(inst, item, giver) -> success (bool), reason? (string)`. Must return `true` and optionally a rejection reason.
+*   **Description:** Sets the validation function used to determine whether an offering is accepted. Called during `AcceptOffering`.
+*   **Parameters:** `fn` (function\|nil) — A callback taking `(trader, item, giver)` and returning `(success: boolean, reason?: string)`.
+*   **Returns:** Nothing.
 
 ### `SetOnAcceptFn(fn)`
-* **Description:** Sets the post-acceptance callback function executed after a successful offering. Typically used for reward logic, feedback, or state changes.
-* **Parameters:**
-  - `fn` (*function*): A function with signature `fn(inst, giver, item)`, where `item` is the offering (possibly dereferenced from a stack).
+*   **Description:** Sets the side-effect handler function, invoked after successful validation and item removal. Typically used to grant rewards.
+*   **Parameters:** `fn` (function\|nil) — A callback taking `(trader, giver, item)`.
+*   **Returns:** Nothing.
 
 ### `AcceptOffering(giver, item)`
-* **Description:** Processes an incoming offering. Validates via `canaccept`, retrieves/dereferences stackable items, invokes `onaccept` on success, and removes the item from the game.
-* **Parameters:**
-  - `giver` (*Entity*): The player/entity providing the item.
-  - `item` (*Entity*): The offering item entity.
-* **Returns:** `true` on success; `false, reason` if validation failed.
+*   **Description:** Processes an offering attempt. Validates via `canaccept`, splits or removes the item from the giver, invokes `onaccept` if provided, and deletes the item.
+*   **Parameters:**
+    *   `giver` (Entity) — The entity attempting to give the item.
+    *   `item` (Entity) — The item being offered.
+*   **Returns:** `true` on success; `false, reason` on rejection.
+*   **Error states:** Returns `false, reason` if `canaccept` returns a falsy result. Item is removed only on success; otherwise the offering remains unchanged.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified.

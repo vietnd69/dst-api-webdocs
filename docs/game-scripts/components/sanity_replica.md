@@ -1,145 +1,178 @@
 ---
 id: sanity_replica
 title: Sanity Replica
-description: This component synchronizes sanity state and related properties across networked clients in Don't Starve Together.
+description: Network-replicated component that synchronizes sanity state, mode, and related properties between server and client for player entities.
+tags: [network, player, sanity]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: components
 source_hash: c8a8ac98
+system_scope: network
 ---
-
 # Sanity Replica
 
-## Overview
-The `sanity_replica` component acts as a network-aware proxy for a player entity’s sanity state. It holds synchronized boolean flags (`_issane`, `_isinsanitymode`) and interacts with the `player_classified` component to reflect current, max, penalty, rate scale, and ghost drain behavior for sanity across the server and clients. It does not compute sanity directly but replicates changes and exposes read/write interfaces to keep local and remote states consistent.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- `net_bool`: Used to declare networked boolean fields.
-- Relies on the presence of `inst.player_classified` component (typically `PlayerClassified`) for networked sanity values.
-- Adds no permanent tags; listens for `"onremove"` events from the `player_classified` instance during attachment.
+## Overview
+`sanity_replica` is a client-side component that mirrors the server-side `sanity` component for network synchronization. It manages propagated sanity values (e.g., current/max sanity, penalty, mode) for player entities and exposes helper methods for querying and updating these values on both server and client. It coordinates with `player_classified` to transmit networked state and pushes events like `gosane`, `goinsane`, `goenlightened`, and `sanitymodechanged` when transitions occur.
+
+## Usage example
+```lua
+local inst = TheInput:GetPlayerEntity()
+if inst ~= nil and inst.replica.sanity ~= nil then
+    local current = inst.replica.sanity:GetCurrent()
+    local max = inst.replica.sanity:Max()
+    local percent = inst.replica.sanity:GetPercent()
+    inst.replica.sanity:SetSanityMode(SANITY_MODE_INSANITY)
+end
+```
+
+## Dependencies & tags
+**Components used:** `player_classified`
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed in) | The entity the component is attached to. |
-| `_oldissane` | `boolean` | `true` | Tracks previous `_issane` state to detect transitions. |
-| `_oldisinsanitymode` | `boolean` | `true` | Tracks previous `_isinsanitymode` state to detect transitions. |
-| `_issane` | `net_bool` | `nil` | Networked boolean indicating whether the player is currently "sane". |
-| `_isinsanitymode` | `net_bool` | `nil` | Networked boolean indicating whether the player is in SANITY_MODE_INSANITY (`true`) or SANITY_MODE_LUNACY (`false`). |
-| `classified` | `Component?` | `nil` | Reference to the `player_classified` component; may be `nil` on non-mastersim until attached. |
-| `ondetachclassified` | `function?` | `nil` | Callback handler for `"onremove"` event on the classified component. |
+| `_issane` | `net_bool` | `true` | Networked boolean representing whether the player is currently sane. |
+| `_isinsanitymode` | `net_bool` | `true` | Networked boolean indicating current sanity mode: `true` for SANITY_MODE_INSANITY, `false` for SANITY_MODE_LUNACY. |
+| `_oldissane` | boolean | `true` | Internal cache of previous `_issane` state for detecting transitions. |
+| `_oldisinsanitymode` | boolean | `true` | Internal cache of previous `_isinsanitymode` state for detecting transitions. |
+| `classified` | `player_classified` component or `nil` | `nil` | Reference to `player_classified` for sending/receiving networked sanity data. |
 
-## Main Functions
-
+## Main functions
 ### `AttachClassified(classified)`
-* **Description:** Associates the component with a `player_classified` instance, sets up event listeners for sanity state changes, and triggers initial updates.
-* **Parameters:** `classified` — The `PlayerClassified` component instance to attach.
+*   **Description:** Attaches to a `player_classified` component, subscribes to relevant network dirty events, and performs initial event triggers to synchronize local state.
+*   **Parameters:** `classified` (`player_classified`) — The `player_classified` component to attach to.
+*   **Returns:** Nothing.
 
 ### `DetachClassified()`
-* **Description:** Removes the reference to `player_classified`, and unregisters the `"issanedirty"` and `"isinsanitymodedirty"` event listeners.
+*   **Description:** Detaches from the attached `player_classified`, removing event callbacks and clearing the reference.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `SetCurrent(current)`
-* **Description:** Updates the networked current sanity value in `player_classified`.
-* **Parameters:** `current` — New current sanity value (must be compatible with the target `net_float` field).
+*   **Description:** Sets the current sanity value on the `player_classified`, syncing it to the server.
+*   **Parameters:** `current` (number) — The new current sanity value.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `classified` is `nil`.
 
 ### `SetMax(max)`
-* **Description:** Updates the networked max sanity value in `player_classified`.
-* **Parameters:** `max` — New max sanity value.
+*   **Description:** Sets the maximum sanity value on the `player_classified`, syncing it to the server.
+*   **Parameters:** `max` (number) — The new maximum sanity value.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `classified` is `nil`.
 
 ### `SetPenalty(penalty)`
-* **Description:** Sets the sanity penalty as a fractional value (0–1), converting to an internal 0–200 scale for network sync.
-* **Parameters:** `penalty` — A number between 0 and 1 inclusive. Throws an assertion if out of range.
+*   **Description:** Sets the sanity penalty (0–1) on the `player_classified`, clamped and scaled to an integer (×200) for network efficiency.
+*   **Parameters:** `penalty` (number) — Sanity penalty fraction, must be between `0` and `1` inclusive.
+*   **Returns:** Nothing.
+*   **Error states:** Asserts if `penalty` is outside `[0, 1]`; no-op if `classified` is `nil`.
 
 ### `Max()`
-* **Description:** Returns the current max sanity, preferring the server-side `sanity` component if available; otherwise falls back to the networked value or defaults to `100`.
-* **Return Value:** `number` — The maximum sanity value.
+*   **Description:** Returns the current maximum sanity value, preferring the local `sanity` component on the server, then the networked `player_classified` value, otherwise defaulting to `100`.
+*   **Parameters:** None.
+*   **Returns:** `number` — The current maximum sanity.
 
 ### `MaxWithPenalty()`
-* **Description:** Returns the effective max sanity after applying the current penalty multiplier.
-* **Return Value:** `number` — The max sanity adjusted for penalties.
+*   **Description:** Returns the effective maximum sanity after applying penalty, computed using local or networked values as appropriate.
+*   **Parameters:** None.
+*   **Returns:** `number` — The effective maximum sanity.
 
 ### `GetPercent()`
-* **Description:** Returns current sanity as a fraction of max sanity. Uses the server-side `sanity` component on the server; otherwise falls back to networked values on clients.
-* **Return Value:** `number` — A value in [0, 1].
+*   **Description:** Returns the current sanity as a fraction (`0`–`1`). Uses server `sanity:GetPercent()` on the server, otherwise uses networked values.
+*   **Parameters:** None.
+*   **Returns:** `number` — Current sanity percentage.
 
 ### `GetPercentNetworked()`
-* **Description:** Returns current sanity as a fraction of max sanity *strictly from networked values*, regardless of simulation role.
-* **Return Value:** `number` — A value in [0, 1] (defaults to `1` if no classified component exists).
+*   **Description:** Returns sanity percentage using only networked values, regardless of simulation role.
+*   **Parameters:** None.
+*   **Returns:** `number` — Current sanity percentage computed from `currentsanity / maxsanity`.
 
 ### `GetCurrent()`
-* **Description:** Returns current sanity from the server-side component if present; otherwise returns the networked value.
-* **Return Value:** `number` — Current sanity value.
+*   **Description:** Returns the current sanity value, preferring the local `sanity` component, then networked values.
+*   **Parameters:** None.
+*   **Returns:** `number` — Current sanity.
 
 ### `GetPercentWithPenalty()`
-* **Description:** Returns current sanity as a fraction of *penalty-adjusted* max sanity.
-* **Return Value:** `number` — A value in [0, 1] (defaults to `1` if no classified component exists).
+*   **Description:** Returns the current sanity percentage relative to the *penalized* maximum.
+*   **Parameters:** None.
+*   **Returns:** `number` — Percent relative to penalized max.
 
 ### `GetPenaltyPercent()`
-* **Description:** Returns the active sanity penalty as a fractional value (0–1).
-* **Return Value:** `number` — Penalty value in [0, 1] (defaults to `0` if no classified component exists).
+*   **Description:** Returns the current sanity penalty fraction (e.g., `0.25` for 25% penalty), using local or networked values.
+*   **Parameters:** None.
+*   **Returns:** `number` — Penalty as a fraction.
 
 ### `SetRateScale(ratescale)`
-* **Description:** Updates the networked sanity drain/gain rate scale.
-* **Parameters:** `ratescale` — A numeric rate multiplier (e.g., `RATE_SCALE.SPEEDY`, `RATE_SCALE.SLOW`).
+*   **Description:** Sets the sanity regeneration/drain rate scale on the `player_classified`.
+*   **Parameters:** `ratescale` (number) — Rate multiplier (e.g., `RATE_SCALE.NEUTRAL`).
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `classified` is `nil`.
 
 ### `GetRateScale()`
-* **Description:** Returns the current rate scale from the server-side component if available; otherwise returns the networked value.
-* **Return Value:** `number` — Rate scale constant.
+*   **Description:** Returns the current sanity rate scale, using local or networked values.
+*   **Parameters:** None.
+*   **Returns:** `number` — Rate scale value.
 
 ### `SetSanityMode(mode)`
-* **Description:** Sets the sanity mode to either `SANITY_MODE_INSANITY` or `SANITY_MODE_LUNACY` by toggling the `_isinsanitymode` net_bool.
-* **Parameters:** `mode` — One of the SANITY_MODE_* constants.
+*   **Description:** Sets the sanity mode (`SANITY_MODE_INSANITY` or `SANITY_MODE_LUNACY`) on the networked boolean.
+*   **Parameters:** `mode` (string) — Expected values: `"insanity"` or `"lunacy"` constants.
+*   **Returns:** Nothing.
 
 ### `SetIsSane(sane)`
-* **Description:** Updates the `_issane` net_bool to reflect whether the player is currently sane.
-* **Parameters:** `sane` — Boolean.
+*   **Description:** Sets whether the player is currently sane (`true`) or insane (`false`).
+*   **Parameters:** `sane` (boolean) — The desired sane state.
+*   **Returns:** Nothing.
 
 ### `IsSane()`
-* **Description:** Returns true if the player is in a sane state.
-* **Return Value:** `boolean`
+*   **Description:** Returns `true` if the player is considered sane.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — Whether the player is sane.
 
 ### `IsInsane()`
-* **Description:** Returns true if the player is in sanity mode *and* not sane (i.e., in active insanity).
-* **Return Value:** `boolean`
+*   **Description:** Returns `true` if the player is in Insanity mode *and* is not sane.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — Whether the player is insane.
 
 ### `IsEnlightened()`
-* **Description:** Returns true if the player is in lunacy mode *and* not sane.
-* **Return Value:** `boolean`
+*   **Description:** Returns `true` if the player is in Lunacy mode *and* is not sane (i.e., enlightened).
+*   **Parameters:** None.
+*   **Returns:** `boolean` — Whether the player is enlightened.
 
 ### `IsCrazy()`
-* **Description:** Deprecated alias for `IsInsane()`.
-* **Return Value:** `boolean`
+*   **Description:** Deprecated alias for `IsInsane()`.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — Whether the player is insane.
 
 ### `GetSanityMode()`
-* **Description:** Returns the current sanity mode constant (`SANITY_MODE_INSANITY` or `SANITY_MODE_LUNACY`).
-* **Return Value:** `number` — Constant representing the mode.
+*   **Description:** Returns the current sanity mode as a string constant.
+*   **Parameters:** None.
+*   **Returns:** `string` — Either `SANITY_MODE_INSANITY` or `SANITY_MODE_LUNACY`.
 
 ### `IsInsanityMode()`
-* **Description:** Returns true if the player is in INSANITY mode.
-* **Return Value:** `boolean`
+*   **Description:** Returns `true` if the current mode is Insanity.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — Whether the mode is Insanity.
 
 ### `IsLunacyMode()`
-* **Description:** Returns true if the player is in LUNACY mode.
-* **Return Value:** `boolean`
+*   **Description:** Returns `true` if the current mode is Lunacy.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — Whether the mode is Lunacy.
 
 ### `SetGhostDrainMult(ghostdrainmult)`
-* **Description:** Sets whether ghost sanity drain is active based on the multiplier.
-* **Parameters:** `ghostdrainmult` — Number; if > 0, ghost drain is enabled.
+*   **Description:** Sets the ghost drain flag on the `player_classified`.
+*   **Parameters:** `ghostdrainmult` (number) — If `> 0`, ghost drain is enabled.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `classified` is `nil`.
 
 ### `IsGhostDrain()`
-* **Description:** Returns whether ghost sanity drain is active.
-* **Return Value:** `boolean`
+*   **Description:** Returns whether ghost drain is currently active.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — Whether ghost drain is active.
 
-## Events & Listeners
-- Listens for:
-  - `"issanedirty"` — Triggers transition events (`gosane`, `goinsane`, `goenlightened`) and updates `_oldissane`.
-  - `"isinsanitymodedirty"` — Triggers `sanitymodechanged`, additional transitions, and `"sanitydirty"` on `player_classified` if attached.
-  - `"onremove"` — On the attached `player_classified` instance; triggers detachment.
-- Pushes:
-  - `"gosane"`, `"goinsane"`, `"goenlightened"` — On sanity mode/sane state transitions.
-  - `"sanitymodechanged"` — With event data `{mode = bool}` when the sanity mode flips.
-  - `"sanitydirty"` — On the `player_classified` component to force client-side updates.
+## Events & listeners
+- **Listens to:** `issanedirty`, `isinsanitymodedirty`, `onremove` — Used internally to trigger event callbacks during state transitions and detachment.
+- **Pushes:** `gosane`, `goinsane`, `goenlightened`, `sanitymodechanged`, `sanitydirty` — Fired on state transitions or when attached classified is updated.

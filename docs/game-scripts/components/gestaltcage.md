@@ -1,62 +1,75 @@
 ---
 id: gestaltcage
 title: Gestaltcage
-description: Manages targeting and capturing of Gestalt-type creatures by holding them temporarily and converting them into a filled gestalt cage upon successful capture.
+description: Manages targeting and capturing of Gestalt creatures using a cage item.
+tags: [combat, capture, gestalt]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: ad598264
+system_scope: entity
 ---
 
 # Gestaltcage
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component enables an entity (typically a gestalt cage item) to target valid Gestalt creatures, and when the `Capture` function is invoked, it exchanges the current entity for a level-specific gestalt_cage_filled prefab containing the captured creature. It coordinates with the target's `gestaltcapturable` component to manage the capture lifecycle.
+`GestaltCage` is a component that enables an entity (typically a cage item) to target and capture Gestalt-level characters. It handles interaction logic with the `gestaltcapturable` component, captures the target upon validation, and spawns a filled cage prefab at the grabber's location. The component is designed for use on items equipped by players or other actors in the world and integrates with inventory systems and targeted entity behavior.
 
-## Dependencies & Tags
-- **Component Dependencies:**
-  - `inst.components.gestaltcapturable` (on the target entity) — required for capture validity and state tracking
-  - `inst.components.inventoryitem` (on the cage entity itself) — optionally used to determine grand owner position for placement
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("gestaltcage")
 
-- **Tags:** None explicitly added or removed by this component.
+-- Example targeting
+local target = GetEntityFrom somewhere()
+inst.components.gestaltcage:OnTarget(target)
+
+-- Example capture attempt
+local success, reason = inst.components.gestaltcage:Capture(target, doer)
+```
+
+## Dependencies & tags
+**Components used:** `gestaltcapturable`, `inventoryitem`
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (assigned in constructor) | Reference to the entity this component is attached to (typically a gestalt cage). |
-| `target` | `Entity?` | `nil` | Current entity being targeted for capture. Null or invalid targets are ignored. |
+| `target` | `ECSEntity?` | `nil` | The entity currently being targeted by this cage, if any. |
 
-> Note: `inst` is assigned via the constructor parameter, while `target` is initialized to `nil`.
-
-## Main Functions
-
+## Main functions
 ### `Capture(target, doer)`
-* **Description:** Attempts to capture the specified `target` using the `doer` (usually the player performing the action). Validates targeting, proximity, and capturability, then replaces the current gestalt cage entity with a filled gestalt cage prefab based on the target's Gestalt level.  
-* **Parameters:**
-  * `target` (`Entity`): The Gestalt creature to capture. Must be valid and have a functional `gestaltcapturable` component.
-  * `doer` (`Entity`): The entity initiating the capture (typically the player). Must be within 1 tile of the target.
-
-* **Returns:**  
-  * `true` (on success)  
-  * `false, "MISSED"` (on failure) — failure reasons include invalid target, out-of-range doer, or un-capturable target.
+*   **Description:** Attempts to capture the specified `target` using this cage. Validates the target's state and proximity, triggers capture callbacks, removes the cage from the world, and spawns a level-appropriate filled cage prefab.
+*   **Parameters:** 
+    *   `target` (`ECSEntity`) — The entity to capture; must be valid and have a functional `gestaltcapturable` component.
+    *   `doer` (`ECSEntity`) — The entity performing the capture; must be within 1 unit of the target.
+*   **Returns:** 
+    *   `true` on success.
+    *   `false, "MISSED"` on failure (invalid target, out of range, or disabled capturable component).
 
 ### `OnTarget(target)`
-* **Description:** Sets a new target for capture if it is valid and implements the `gestaltcapturable` component. Automatically clears any previous target via `OnUntarget` before assigning the new one.  
-* **Parameters:**
-  * `target` (`Entity`): The entity to mark as the current target.
+*   **Description:** Begins targeting the given entity, if valid and not already targeting it. Registers this cage as a targeter with the target’s `gestaltcapturable` component.
+*   **Parameters:** `target` (`ECSEntity`) — The entity to begin targeting.
+*   **Returns:** Nothing.
 
 ### `OnUntarget(target)`
-* **Description:** Clears the current target (if specified) or all targets (if called with no argument), and notifies the target’s `gestaltcapturable` component that it is no longer being targeted.  
-* **Parameters:**
-  * `target` (`Entity?`, optional): If provided, only clears if this matches the currently stored target. If `nil`, clears regardless of value.
+*   **Description:** Stops targeting the currently targeted entity. If a specific `target` is provided and it does not match the stored target, no action is taken unless `target` is `nil`, in which case any active target is released.
+*   **Parameters:** `target` (`ECSEntity?`) — Optional specific entity to untarget. If `nil`, untargets the currently stored target.
+*   **Returns:** Nothing.
 
 ### `OnRemoveFromEntity()`
-* **Description:** Automatically called when the component is removed from its entity. Ensures any lingering target is properly released by invoking `OnUntarget()`.
+*   **Description:** Automatically called when this component is removed from its entity. Ensures any active target is released to prevent stale references.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-None. This component does not register event listeners or push events directly. It communicates via direct method calls (e.g., `target.components.gestaltcapturable:OnTargeted(...)`).
+## Events & listeners
+- **Listens to:** None directly.
+- **Pushes:** The component itself does not fire events. However, during `Capture` or `OnTarget`/`OnUntarget`, it delegates to the target’s `gestaltcapturable` component, which may push:
+    * `gestaltcaptured` (via `doer:PushEvent("gestaltcaptured", self.inst)`)
+    * `gestaltcapturable_targeted`
+    * `gestaltcapturable_untargeted`

@@ -1,97 +1,102 @@
 ---
 id: caves_retrofit_land
 title: Caves Retrofit Land
-description: Adds and configures pre-designed retrofitted biomes (e.g., Archives and Fumarole) into existing cave world maps during world generation.
-tags: [retrofit, world-generation, biome, caves, topology]
-sidebar_position: 1
+description: Provides utility functions to retroactively inject specific biome layouts and maze structures into generated cave maps during world loading for the Return of Them and From Beyond updates.
+tags: [world, map, biome, retrofit, worldgen]
+sidebar_position: 100
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: map
-system_scope: world
 source_hash: d7a90749
+system_scope: world
 ---
 
 # Caves Retrofit Land
 
-This module provides top-level utility functions for injecting fixed-layout retrofitted content—specifically the *Archives* (Return of Them) and *Fumarole* (From Beyond) biomes—into an already-generated cave world. It operates at the map generation layer, manipulating `savedata` and the `world_map` to insert prefabs, register topology nodes, and update tile-node mappings. It does not define a component class; rather, it exports standalone functions used by world-generation pipelines.
+> Based on game build **714014** | Last updated: 2026-03-03
+
+## Overview
+`caves_retrofit_land.lua` is a world generation utility module that contains two retrofit functions—`ReturnOfThemRetrofitting_AcientArchives` and `FromBeyondRetrofitting_Fumarole`. These functions modify an already-generated cave map by inserting predefined biome layouts (e.g., the Ancient Archives and Fumarole biomes) using tile-based object placement and topology graph updates. They are invoked during world initialization for legacy saves that need to support new content.
 
 ## Usage example
-
-These functions are called internally by the world generation system during cave map creation. A typical invocation occurs in a worldgen task or scenario that triggers retrofitting after the base world is generated:
-
+This module is not used directly by prefabs or components. Instead, its functions are called internally during world loading. A typical usage pattern (as seen in the source) is:
 ```lua
-local caves_retrofit_land = require("map/caves_retrofit_land")
+local caves_retrofit_land = require "map/caves_retrofit_land"
+
+-- Called after world generation completes, with savedata and world_map
 caves_retrofit_land.ReturnOfThemRetrofitting_AcientArchives(world_map, savedata)
 caves_retrofit_land.FromBeyondRetrofitting_Fumarole(world_map, savedata)
 ```
 
 ## Dependencies & tags
-**Components used:** None. This file uses only utility modules: `constants`, `mathutil`, `map/terrain`, and `map/object_layout`. It does not interact with entity components.
-
-**Tags:** Tags are added dynamically to topology nodes and include:
-- `"archive_hallway"`, `"archive_hallway_two"` (for Archives mazes)
-- `"archive_keyroom"`, `"archive_start"`, `"archive_end"`
-- `"lunacyarea"`, `"GrottoWarEntrance"`
-- `"fumarolearea"`
-
-No static or persistent tags are applied to entities via this module.
+**Components used:** None.  
+**Tags:** Uses and adds topology node tags such as `"archive_hallway"`, `"archive_hallway_two"`, `"archive_keyroom"`, `"archive_start"`, `"archive_end"`, `"fumarolearea"`, `"lunacyarea"`, `"GrottoWarEntrance"`. These tags are stored in topology node metadata for gameplay rule processing (e.g., Lunacy logic).
 
 ## Properties
-No top-level properties are defined in this module.
+No public properties. This module exports only functions.
 
 ## Main functions
-
-### `ReturnOfThemRetrofitting_AcientArchives(world_map, savedata)`
-* **Description:** Generates and places the *Ancient Archives* retrofit—comprising an interconnected maze, keyroom, start/end rooms, and a Moon Mushroom patch with bridge—into a suitable open area of the cave map. Registers corresponding topology nodes for navigation and gameplay effects (e.g., lunacy).
-* **Parameters:**
-  - `world_map`: `Map` instance used for tile lookups and node id assignment.
-  - `savedata`: Table containing `map.width`, `map.height`, `map.topology`, `ents`, `map.generated`, used to write layout data and new topology entries.
-* **Returns:** `nil`
-* **Error states:** If `FindOpenArea` fails to locate a clear 14×31 tile region, the function logs a failure message and exits early.
-
-### `FromBeyondRetrofitting_Fumarole(world_map, savedata)`
-* **Description:** Places the *Fumarole* retrofit biome (a self-contained chasm zone with associated terrain and density data) into a 30×30 tile area of the cave map, registering a topology node tagged for the `"fumarolearea"` effect.
-* **Parameters:**
-  - `world_map`: `Map` instance for tile operations.
-  - `savedata`: Table containing generation metadata (`map`, `ents`, `generated.densities`) to update.
-* **Returns:** `nil`
-* **Error states:** If no valid 30×30 tile area is found, logs a failure and returns without modifying the map.
-
-## Helper Functions (Internal Use)
-
 ### `FindOpenArea(map, map_width, map_height, tiles_wide, tiles_high)`
-* **Description:** Scans the map grid in 5-tile steps (with 2-tile padding) to find a rectangular region where *all* tiles are impassable (e.g., rock or solid terrain). Used to locate safe insertion zones for large retrofit layouts.
-* **Parameters:**
-  - `map`: `Map` instance.
-  - `map_width`, `map_height`: Integer dimensions of the map grid.
-  - `tiles_wide`, `tiles_high`: Desired size (in grid tiles) of the open area.
-* **Returns:** `found: boolean`, `top: integer`, `left: integer` — If `found` is `true`, the coordinates (`left`, `top`) specify the upper-left corner of a valid region.
+* **Description:** Scans the world map grid to find a rectangular area large enough to fit a given structure (e.g., a maze) without overlapping impassable terrain. It checks grid points in steps of 5 tiles, with a padding offset from world edges.
+* **Parameters:**  
+  `map` (WorldMap) — The generated map object used to query tile passability.  
+  `map_width` (number) — Total width of the map in tiles.  
+  `map_height` (number) — Total height of the map in tiles.  
+  `tiles_wide` (number) — Required width of the candidate area (in tiles).  
+  `tiles_high` (number) — Required height of the candidate area (in tiles).  
+* **Returns:**  
+  `found` (boolean) — `true` if a valid area is found, otherwise `false`.  
+  `top` (number, optional) — Y-coordinate (grid index) of the top edge of the found area.  
+  `left` (number, optional) — X-coordinate (grid index) of the left edge of the found area.  
+* **Error states:** Returns `(false)` if no suitable area is found after full scan.
 
 ### `AddTopologyData(topology, left, top, width, height, room_id, tags)`
-* **Description:** Creates and appends a new node to the `topology.nodes` list, assigning navigation metadata and region tags for the game’s AI pathfinding and world effect systems. Converts tile-space coordinates to world-space (scaled by `TILE_SCALE`) and records node center, polygon, area, and neighbors.
-* **Parameters:**
-  - `topology`: Table containing `nodes` and `ids` arrays.
-  - `left`, `top`: World-space coordinates (already converted, negative-offset for map centering).
-  - `width`, `height`: Node dimensions in world-space units.
-  - `room_id`: String identifier (e.g., `"AncientArchivesRetrofit:0:Archives"`).
-  - `tags`: Array of strings (e.g., `{ "fumarolearea" }`).
-* **Returns:** `index: integer` — The 1-based index of the newly inserted node in `topology.nodes`.
+* **Description:** Creates and appends a new node to the map’s topology graph (used by pathfinding and world logic), representing a defined region such as a biome or maze. It populates node metadata including geometry, neighbours (initially empty), and custom tags.
+* **Parameters:**  
+  `topology` (table) — The `savedata.map.topology` table to modify.  
+  `left` (number) — X-coordinate (world space, scaled) of the top-left corner.  
+  `top` (number) — Y-coordinate (world space, scaled) of the top-left corner.  
+  `width` (number) — Width of the node region (world space).  
+  `height` (number) — Height of the node region (world space).  
+  `room_id` (string) — Unique identifier string for the node (e.g., `"AncientArchivesRetrofit:0:Archives"`).  
+  `tags` (table) — Array of string tags to associate with this node (e.g., `{ "lunacyarea" }`).  
+* **Returns:** `index` (number) — The 1-based index in `topology.nodes` where the new node was inserted.
 
 ### `AddTileNodeIdsForArea(world_map, node_index, left, top, width, height)`
-* **Description:** Assigns the given `node_index` to every tile in the specified rectangular tile region, linking them to the topology node for navigation.
-* **Parameters:**
-  - `world_map`: `Map` instance.
-  - `node_index`: Node identifier (returned by `AddTopologyData`).
-  - `left`, `top`: Tile-space upper-left corner.
-  - `width`, `height`: Region size in tiles.
-* **Returns:** `nil`
+* **Description:** Assigns a topology node ID to every tile within a rectangular region, enabling tile-based map lookups to link positions to topology regions.
+* **Parameters:**  
+  `world_map` (WorldMap) — The map object.  
+  `node_index` (number) — Index of the topology node to assign to all tiles in the area.  
+  `left`, `top`, `width`, `height` (numbers) — Define the rectangular region in tile coordinates (inclusive bounds).  
+* **Returns:** Nothing.
 
 ### `add_fn_fn(prefab, points_x, points_y, current_pos_idx, entitiesOut, width, height, prefab_list, prefab_data, rand_offset)`
-* **Description:** Internal callback used by `obj_layout.Place` and `obj_layout.PlaceAndPopulatePrefabDensities` to record instance positions and metadata (e.g., `x`, `z`, `data`, `id`, `scenario`) into the `ents` table under `savedata.ents`.
-* **Parameters:** Standard layout callback signature; only `entitiesOut`, `width`, and `height` are used from `args`.
-* **Returns:** `nil`
+* **Description:** Internal helper used by `obj_layout.Place` to record placement data for prefabs (e.g., rooms or biome assets). Saves entity position (scaled world space) and optional metadata (`data`, `id`, `scenario`).
+* **Parameters:**  
+  `prefab` (string) — Name of the prefab being placed.  
+  `points_x`, `points_y` (tables) — arrays of tile-space coordinates.  
+  `current_pos_idx` (number) — Index into `points_x`/`points_y` to use.  
+  `entitiesOut` (table) — Output table where entries are keyed by prefab name.  
+  `width`, `height` (numbers) — Used to compute center coordinates.  
+  `prefab_data` (table or nil) — Optional metadata to include in the saved data.  
+  Remaining arguments (`prefab_list`, `rand_offset`, `debug_prefab_list`) are unused in this context.  
+* **Returns:** Nothing. Appends a `save_data` entry to `entitiesOut[prefab]`.
+
+### `ReturnOfThemRetrofitting_AcientArchives(world_map, savedata)`
+* **Description:** Retrofits the “Ancient Archives” biome—comprising a 4×4 maze of hallway segments, a Moon Mushroom patch, and a bridge—into an existing world. It uses `FindOpenArea` to locate space, places rooms via `obj_layout.Place`, and registers corresponding topology nodes.
+* **Parameters:**  
+  `world_map` (WorldMap) — The current world map instance.  
+  `savedata` (table) — Contains `savedata.map.topology`, `savedata.map.width/height`, `savedata.ents`, `savedata.map.generated`.  
+* **Returns:** Nothing. Prints success/failure to console.
+
+### `FromBeyondRetrofitting_Fumarole(world_map, savedata)`
+* **Description:** Retrofits the “Fumarole” biome—a 30×30 tile circle of fumarole terrain—into the world. Similar to `ReturnOfThemRetrofitting_AcientArchives`, it locates space, places the biome asset via `obj_layout.PlaceAndPopulatePrefabDensities`, and adds a topology node marked with `"fumarolearea"`.
+* **Parameters:**  
+  `world_map` (WorldMap) — The current world map instance.  
+  `savedata` (table) — Same structure as above.  
+* **Returns:** Nothing. Prints success/failure to console.
 
 ## Events & listeners
-This module does not define or use any events. It operates synchronously during world generation, outside the ECS event loop.
+None. This is a pure utility module with no event listeners or event firing.

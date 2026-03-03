@@ -1,102 +1,116 @@
 ---
 id: yoth_knightmanager
 title: Yoth Knightmanager
-description: Manages the activation of Knight Shrines and the spawning of Yoth Knights (Horsemen of the Aporkalypse) for Princess-related gameplay in the Year of the Horse event.
+description: Manages knight spawning logic for the Yoth event by tracking shrines, princesses, and cooldown states.
+tags: [event, boss, combat, ai]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: f0f8cf95
+system_scope: world
 ---
 
 # Yoth Knightmanager
 
-## Overview
-This component orchestrates the Knight Shrine–triggered event logic for the Year of the Horse (YOTH) update, specifically managing when and how Yoth Knights are summoned when a Princess wielder is near an active Knight Shrine and free of cooldowns. It operates exclusively on the master simulation and coordinates interactions between shrines, princesses (players holding the Knight Hat), and knight summoning logic.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-* **Component Requirements**: This component expects `inst` to be an entity with a valid `Transform` and `IsPointNearHole`/`FindWalkableOffset` support in the world context. It does *not* add any components to `inst`, but relies on external components such as:
-  * `petleash` (on the hat object passed to `RegisterPrincess`)
-  * `yoth_princesscooldown_buff` (on player entities)
-* **Tags Used**:
-  * `gilded_knight` (used via `TheSim:CountEntities` to check for existing knights)
-* **World Event Listeners**: Listens for `ms_knightshrineactivated`, `ms_knightshrinedeactivated`, `ms_register_yoth_princess`, and `ms_unregister_yoth_princess`.
+## Overview
+`yoth_knightmanager` is a world-scoped component responsible for orchestrating knight summoning during the Yoth event. It tracks active knight shrines, manages princess-to-player relationships, and determines when knights should be spawned based on cooldowns, spatial constraints, and shrine status. This component only exists on the master simulation and interfaces with the `petleash` component to spawn `knight_yoth` entities.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("yoth_knightmanager")
+-- The component automatically registers event listeners and begins tracking shrines/princesses.
+-- Typical usage occurs internally; modders usually interact via events like `ms_register_yoth_princess`.
+```
+
+## Dependencies & tags
+**Components used:** `petleash`
+**Tags:** Adds `gilded_knight` (as a constraint tag, not added to owner entities); checks `yoth_princesscooldown_buff`.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `shrines` | `table` | `{}` | Tracks active Knight Shrines (keys are shrine entities, values are `true`). |
-| `princesses` | `table` | `{}` | Maps player entities to their equipped Knight Hat (from `RegisterPrincess`). |
-| `hats` | `table` | `{}` | Inverted mapping of `princesses`: maps hats to their associated player. |
-| `rescheduletasks` | `table` | `{}` | Stores pending `DoTaskInTime` task handles keyed by player entity, for rescheduling knight spawn checks. |
+| `shrines` | table | `{}` | Tracks active knight shrines (`shrine` instance → `true` map). |
+| `princesses` | table | `{}` | Maps `player` instance → `hat` (pet carrier) instance. |
+| `hats` | table | `{}` | Inverted mapping of `princesses` (`hat` → `player`). |
+| `rescheduletasks` | table | `{}` | Stores pending tasks used to reschedule knight spawn checks per owner. |
 
-## Main Functions
-
+## Main functions
 ### `OnKnightShrineActivated(shrine)`
-* **Description:** Registers an active Knight Shrine in the `shrines` table.
-* **Parameters:**
-  * `shrine`: Entity — the shrine that became active.
+* **Description:** Registers a knight shrine as active.
+* **Parameters:** `shrine` (entity instance) — the shrine entity being activated.
+* **Returns:** Nothing.
 
 ### `OnKnightShrineDeactivated(shrine)`
-* **Description:** Removes a Knight Shrine from the `shrines` table.
-* **Parameters:**
-  * `shrine`: Entity — the shrine that was deactivated.
+* **Description:** Deregisters a knight shrine as inactive.
+* **Parameters:** `shrine` (entity instance) — the shrine entity being deactivated.
+* **Returns:** Nothing.
 
 ### `IsKnightShrineActive()`
-* **Description:** Returns `true` if any Knight Shrine is currently active *and* the YOTH event is running.
+* **Description:** Returns whether any knight shrine is active *and* the Yoth event is currently running.
 * **Parameters:** None.
+* **Returns:** `boolean` — `true` if at least one shrine is active and `SPECIAL_EVENTS.YOTH` is active.
 
 ### `GetActiveKnightShrines()`
-* **Description:** Returns the `shrines` table (a set of active shrine entities).
+* **Description:** Returns the internal table tracking active shrines.
 * **Parameters:** None.
+* **Returns:** `table` — the `shrines` map.
 
 ### `IsOnCooldown(owner)`
-* **Description:** Determines whether the given `owner` (player or non-player entity) is currently on cooldown for summoning knights. For non-players (e.g., dropped hats), it checks the nearest players in range.
-* **Parameters:**
-  * `owner`: Entity — the player or entity associated with the princess/hat.
+* **Description:** Checks if the owner (player or object) is currently on princess-spawn cooldown.
+* **Parameters:** `owner` (entity instance) — the entity whose cooldown state is checked.
+* **Returns:** `boolean` — `true` if the `yoth_princesscooldown_buff` debuff is present.
 
 ### `SpawnKnights(hat, pos)`
-* **Description:** Spawns four Yoth Knights in sequence with slight delays and a warning sound. Uses the `petleash` component on the `hat` to spawn `knight_yoth` pets at computed offsets.
-* **Parameters:**
-  * `hat`: Entity — the Knight Hat item with `petleash` component.
-  * `pos`: Vector3 — world position where the warning sound should play (knights spawn at offset locations).
+* **Description:** Spawns a sequential wave of `knight_yoth` entities at a target position using the pet leash attached to `hat`. Applies warning sound, staggered delays, and reveal animations.
+* **Parameters:** 
+  * `hat` (entity instance) — must have a `petleash` component.
+  * `pos` (vector3) — spawn position (x, y, z).
+* **Returns:** Nothing.
+* **Error states:** Early returns if `petleash` cannot spawn pets (e.g., full capacity or invalid positions). Knights are spawned one at a time with `0.75–1.25` second delays between them.
 
 ### `RescheduleSpawnKnights(owner, timetocheck)`
-* **Description:** Cancels any pending spawn check task for `owner` and schedules a new one (default: 5–6 seconds). Used to defer summoning attempts (e.g., after cooldown expiration).
-* **Parameters:**
-  * `owner`: Entity — the player entity.
-  * `timetocheck`: number (optional) — delay in seconds before retrying.
+* **Description:** Cancels any pending spawn check for `owner` and schedules a new one. Default delay is `5 + random(0,1)` seconds.
+* **Parameters:** 
+  * `owner` (entity instance) — the player whose spawn task is rescheduled.
+  * `timetocheck` (number, optional) — delay in seconds before rechecking.
+* **Returns:** Nothing.
 
 ### `TryToSpawnKnights(owner)`
-* **Description:** Evaluates and executes the conditions required to spawn knights: checks princess registration, cooldown status, absence of existing knights, no platform, and valid spawn position. If conditions met, calls `SpawnKnights`.
-* **Parameters:**
-  * `owner`: Entity — the player associated with the princess.
+* **Description:** Evaluates conditions (cooldown, nearby knights, platform presence, pet count, valid spawn offset) and triggers `SpawnKnights` if all pass. Always reschedules a follow-up check afterward.
+* **Parameters:** `owner` (entity instance) — the player attempting to summon knights.
+* **Returns:** `boolean` — `true` if knights were successfully spawned, `false` otherwise.
 
 ### `RegisterPrincess(owner, hat)`
-* **Description:** Registers a player-hat pair as a princess. If on cooldown initially, emits `yoth_oncooldown` event for feedback. Schedules a spawn check with a small delay (~0.5–0.75s).
-* **Parameters:**
-  * `owner`: Entity — the player wielding the hat.
-  * `hat`: Entity — the Knight Hat item.
+* **Description:** Registers a `hat` as the princess for `owner`. Triggers an immediate cooldown check and schedules a spawn attempt after a short delay.
+* **Parameters:** 
+  * `owner` (entity instance) — the player.
+  * `hat` (entity instance) — the pet carrier (hat) item.
+* **Returns:** Nothing.
 
 ### `UnregisterPrincess(owner, hat)`
-* **Description:** Unregisters a princess. Cancels pending tasks and emits `yoth_oncooldown_cancel` for UI updates.
-* **Parameters:**
-  * `owner`: Entity — the player.
-  * `hat`: Entity — the Knight Hat item.
+* **Description:** Removes the princess registration for `owner`. Cancels pending spawn tasks and notifies listeners via event `yoth_oncooldown_cancel`.
+* **Parameters:** 
+  * `owner` (entity instance) — the player.
+  * `hat` (entity instance) — the pet carrier (hat) item.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Currently returns an empty string; reserved for future debugging output.
+* **Description:** Returns an empty debug string; currently unused.
 * **Parameters:** None.
+* **Returns:** `string` — `""`.
 
-## Events & Listeners
-* Listens for:
-  * `"ms_knightshrineactivated"` → calls `OnKnightShrineActivated_Bridge`
-  * `"ms_knightshrinedeactivated"` → calls `OnKnightShrineDeactivated_Bridge`
-  * `"ms_register_yoth_princess"` → calls `RegisterPrincess_Bridge`
-  * `"ms_unregister_yoth_princess"` → calls `UnregisterPrincess_Bridge`
-* Emits events (via `owner:PushEvent`):
-  * `"yoth_oncooldown"` — when princess registration occurs while already on cooldown.
-  * `"yoth_oncooldown_cancel"` — when unregistering a princess.
+## Events & listeners
+- **Listens to:** 
+  * `ms_knightshrineactivated` (on `TheWorld`) — triggers `OnKnightShrineActivated`.
+  * `ms_knightshrinedeactivated` (on `TheWorld`) — triggers `OnKnightShrineDeactivated`.
+  * `ms_register_yoth_princess` (on `TheWorld`) — triggers `RegisterPrincess`.
+  * `ms_unregister_yoth_princess` (on `TheWorld`) — triggers `UnregisterPrincess`.
+- **Pushes:** 
+  * `yoth_oncooldown` — fired on an owner when registering with an active cooldown and no knights nearby.
+  * `yoth_oncooldown_cancel` — fired on an owner when unregistering a princess.

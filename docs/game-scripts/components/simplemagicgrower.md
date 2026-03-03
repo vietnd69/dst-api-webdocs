@@ -1,47 +1,61 @@
 ---
 id: simplemagicgrower
 title: Simplemagicgrower
-description: A component that recursively triggers magical growth on an entity until it reaches a specified final growth stage, then stops and removes the magicgrowth tag.
+description: Triggers incremental growth stages on an entity using repeated automatic calls to Growable:DoGrowth until a target stage is reached.
+tags: [growth, magic, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: ca6b684b
+system_scope: entity
 ---
 
 # Simplemagicgrower
 
-## Overview
-This component implements a recursive growth mechanism that accelerates the natural growth process of an entity by repeatedly applying growth steps until a target growth stage (`last_stage`) is reached. It is designed to work alongside a `growable` component and temporarily tags the entity with `"magicgrowth"` during active growth.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component dependency:** Requires the `growable` component to be present on the same entity.
-- **Tags added:** `"magicgrowth"` (added when `StartGrowing` is called).
-- **Tags removed:** `"magicgrowth"` (removed after reaching `last_stage`).
+## Overview
+`SimpleMagicGrower` is a helper component that drives incremental magical growth for an entity by repeatedly invoking `Growable:DoGrowth()` until a specified target stage (`last_stage`) is reached. It leverages the `growable` component, performs recursive delayed calls to `Grow()` between stages, and automatically terminates growth when the target is reached—releasing the `magicgrowth` tag and calling `Growable:StartGrowing()` once more to resume normal growth scheduling.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("growable")
+inst:AddComponent("simplemagicgrower")
+
+inst.components.simplemagicgrower:SetLastStage(3)
+inst.components.simplemagicgrower:StartGrowing()
+```
+
+## Dependencies & tags
+**Components used:** `growable`
+**Tags:** Adds `magicgrowth` when growth begins; removes `magicgrowth` when growth completes.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (set in `_ctor`) | Reference to the owning entity. |
-| `last_stage` | `number` | `nil` | The target growth stage at which to stop magical growth. Set via `SetLastStage`. |
+| `last_stage` | number? | `nil` | The stage index (1-based) at which the sequential growth process stops. Must be set before calling `Grow()` or `StartGrowing()`. |
 
-## Main Functions
-
+## Main functions
 ### `SetLastStage(last_stage)`
-* **Description:** Sets the target growth stage (`last_stage`) that defines when growth should cease.
-* **Parameters:**
-  * `last_stage` (`number`): The desired final growth stage value.
+*   **Description:** Sets the target growth stage at which the sequential growth sequence will stop.
+*   **Parameters:** `last_stage` (number) — the stage index (matching `self.stage` from `growable`) to halt sequential growth.
+*   **Returns:** Nothing.
 
 ### `Grow()`
-* **Description:** Performs a single growth step via `growable:DoGrowth()` if growth is possible, then schedules another growth step after a short random delay using a one-time task. If the current stage meets or exceeds `last_stage`, growth stops and the `"magicgrowth"` tag is removed.
-* **Parameters:** None.
+*   **Description:** Performs a single growth step via `Growable:DoGrowth()` and schedules the next step using a random-time delay (`math.random()` seconds) unless `last_stage` is reached.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early with no effect if `growable` component is missing or `last_stage` is `nil`.
 
 ### `StartGrowing()`
-* **Description:** Begins the magical growth process by adding the `"magicgrowth"` tag and invoking `Grow()` for the first time.
-* **Parameters:** None.
+*   **Description:** Initializes the growth sequence by adding the `magicgrowth` tag and calling `Grow()` for the first time.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-None.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** None.

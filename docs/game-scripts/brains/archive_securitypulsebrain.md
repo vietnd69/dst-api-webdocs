@@ -1,82 +1,68 @@
 ---
 id: archive_securitypulsebrain
 title: Archive Securitypulsebrain
-description: Controls the patrol and power-point-following behavior for archive security entities in the DST Archive worldgen system.
+description: Manages AI behavior for an archive security entity that patrols between waypoints and targets power points when depleted.
+tags: [ai, patrol, archive, boss]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 3bfd00dc
+system_scope: brain
 ---
 
 # Archive Securitypulsebrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
+`Archive_SecurityPulseBrain` is a behavior tree–driven brain component that controls a non-player character in the Archipelago/Arcade map context (e.g., the Arcade Boss sequence). It prioritizes two patrol modes: first seeking and moving toward depleted security power points, and secondarily navigating between pre-designated waypoints. The brain uses a `PriorityNode` structure to select behavior based on the `inst.patrol` state. It depends on the `health` component to determine if a power point is low on health.
 
-This brain component implements behavior logic for archive security entities (e.g., security pulse guardians), enabling them to patrol using a sequence of waypoints or seek out damaged power points when `inst.patrol` is enabled. It is a subclass of `Brain` and constructs a behavior tree (`BT`) upon activation. The brain relies on external helper functions (`findwaypoint`, `FindPowerPoint`) to locate movement targets and integrates with the `Health` component to verify power point usability.
+## Dependencies & tags
+**Components used:** `health` (via `GetPercent()`), `Transform`
+**Tags:** `archive_waypoint`, `security_powerpoint` (used for entity filtering), `INLIMBO`, `FX` (excluded during search)
 
-It fits into the larger game architecture as part of the entity behavior system, specifically supporting dynamic patrol routing in the Archive world generation context.
-
-## Dependencies & Tags
-
-- **Components used:**
-  - `Health` (`self.inst.components.health:GetPercent()`) — Used to check if a power point is below its MED_THRESHOLD_DOWN health ratio.
-
-- **Tags:**
-  - `archive_waypoint` — Required tag for waypoint entities used in patrol routing.
-  - `security_powerpoint` — Required tag for power point entities targeted for repair.
-
-- **Excluded tags (ignored entities):**
-  - `INLIMBO`, `FX` — Entities with these tags are filtered out when searching for power points.
-
-## Properties
-
-No public properties are initialized in the constructor. The component primarily uses instance fields (`inst.lastwaypointGUID`, `inst.secondlastwaypointGUID`) and runtime behavior tree logic.
-
-## Main Functions
+## Main functions
+### `OnStart()`
+* **Description:** Initializes the behavior tree root with a priority node. The tree first attempts to follow a depleted power point if `inst.patrol` is `true`; otherwise, it attempts to follow the next waypoint. If neither applies, the entity remains still.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** None. Assumes `self.inst.patrol` and `self.inst.possession_range` are valid at time of call.
 
 ### `findwaypoint(inst)`
-* **Description:** Locates the next waypoint in a patrol sequence for the entity. It first attempts to reuse the last known waypoint by GUID. If unavailable or invalid, it searches for nearby waypoints (within `WAYPOINT_RANGE = 34`) and filters them to avoid backtracking (using `secondlastwaypointGUID`). If multiple candidates remain, it selects one at random.
-* **Parameters:**
-  - `inst` (`Entity`) — The entity instance that owns this brain and is currently patrolling.
-* **Returns:**
-  - `Entity?` — The chosen next waypoint entity, or `nil` if no valid waypoints are found.
+* **Description:** Finds the next valid waypoint in a chain using GUID-based history (`lastwaypointGUID`, `secondlastwaypointGUID`) and spatial filtering. Avoids backtracking and ensures line-of-sight between consecutive waypoints using `testbetweenpoints`.
+* **Parameters:** `inst` (The entity instance) — used to query position, GUIDs, and connection to `Ents`.
+* **Returns:** `TheEntity` (waypoint) or `nil` if no valid next waypoint found.
+* **Error states:** May return `nil` if no waypoints exist in range, or if no valid next target passes the `testbetweenpoints` or history-checking filter.
 
 ### `FindPowerPoint(inst)`
-* **Description:** Finds a nearby power point that is still functional (i.e., health percentage is `>= MED_THRESHOLD_DOWN`). Filters out power points below this threshold.
-* **Parameters:**
-  - `inst` (`Entity`) — The entity instance initiating the search.
-* **Returns:**
-  - `Entity?` — The first valid functional power point within a 20-unit radius, or `nil` if none are found.
+* **Description:** Locates a nearby security power point that is sufficiently depleted (health < `MED_THRESHOLD_DOWN`, defaulting to 100%).
+* **Parameters:** `inst` (The entity instance) — used to query position and distance.
+* **Returns:** `TheEntity` (power point) or `nil` if none are found or all have sufficient health.
+* **Error states:** Skips power points missing the `health` component or whose `GetPercent()` return value is `>= MED_THRESHOLD_DOWN`.
 
-### `testbetweenpoints(pt1, pt2)`
-* **Description:** Checks whether two points are connected by an unobstructed visual line of sight (checks ground and elevation via `TheWorld.Map:IsVisualGroundAtPoint` at the midpoint). Used to avoid waypoint chains that jump over terrain discontinuities.
-* **Parameters:**
-  - `pt1` (`Entity`) — First point entity.
-  - `pt2` (`Entity`) — Second point entity.
-* **Returns:**
-  - `boolean` — `true` if a direct visual path exists between the points, `false` otherwise.
+## Events & listeners
+* **Pushes:** None.  
+* **Listens to:** None. (Behavior tree execution is driven externally by the `BT` scheduler, not event callbacks.)
 
-### `Archive_SecurityPulseBrain:OnStart()`
-* **Description:** Initializes the behavior tree root node when the brain starts. Defines two patrol strategies under a `WhileNode` guard based on `self.inst.patrol`. If `patrol` is true, the entity prioritizes moving toward functional power points before falling back to waypoint-based patrol. If `patrol` is false, the entity remains idle via `StandStill`.
-* **Parameters:** None.
-* **Returns:** None (sets `self.bt`).
+## Properties
+*The brain does not declare public properties in its constructor. Behavior tuning is done via instance fields (e.g., `inst.patrol`, `inst.possession_range`, `inst.lastwaypointGUID`, etc.)*
 
-## Events & Listeners
+## Constants & Helpers
+The following local constants and helpers are defined within the module:
 
-None identified.
+- `MIN_FOLLOW`, `MAX_FOLLOW`, `TARGET_FOLLOW`: Default Follow behavior thresholds for waypoints (`1`, `2`, `1`).
+- `WAYPOINT_RANGE`: Search radius (34 units) for waypoints.
+- `testbetweenpoints(pt1, pt2)`: Returns `true` if a midpoint between `pt1` and `pt2` is walkable ground (checked via `TheWorld.Map:IsVisualGroundAtPoint`).
+- `findwaypoint(inst)` and `FindPowerPoint(inst)` are standalone functions used by the `Follow` behavior nodes.
 
-## Key Constants
-
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `MIN_FOLLOW` | `1` | Minimum distance to maintain from target during waypoint patrol. |
-| `MAX_FOLLOW` | `2` | Maximum distance allowed before stopping pursuit during waypoint patrol. |
-| `TARGET_FOLLOW` | `1` | Target distance used for smooth movement interpolation. |
-| `WAYPOINT_RANGE` | `34` | Search radius for finding nearby waypoints. |
-| `POWERPOINT_RANGE` (implicit) | `20` | Search radius for finding nearby power points. |
+## Usage example
+This brain is intended to be assigned to a prefab via the ECS brain system:
+```lua
+inst:AddBrain("archive_securitypulsebrain")
+-- Later, set patrol state and waypoints
+inst.patrol = true
+inst.possession_range = 15
+inst.lastwaypointGUID = "some_waypoint_guid"

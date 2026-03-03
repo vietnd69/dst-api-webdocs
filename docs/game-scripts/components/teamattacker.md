@@ -1,99 +1,116 @@
 ---
 id: teamattacker
 title: Teamattacker
-description: Manages an entity's behavior as a team member, including joining/leaving teams, responding to team orders (attack, warn, hold), following formation positions, and returning home when too far from the home location.
+description: Manages an entity’s participation in a team-based combat formation, including movement to formation positions and attack orders derived from a team leader.
+tags: [combat, ai, team]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: b7e24da9
+system_scope: entity
 ---
 
 # Teamattacker
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component enables an entity to function as a coordinated team member within the Entity Component System. It handles team membership (including dynamic team type updates), searches for available team leaders, follows formation positions, executes team orders (e.g., `ATTACK`, `WARN`, `HOLD`), and ensures entities return home when outside the leash radius. It integrates with `teamleader`, `combat`, `locomotor`, `health`, and `knownlocations` components to implement coordinated group behavior.
+`TeamAttacker` enables entities to operate as coordinated teammates under a `teamleader`. It handles formation movement, order execution (e.g., `HOLD`, `WARN`, `ATTACK`), and automatic detachment when an entity moves beyond the leash distance. The component integrates with `combat`, `health`, `knownlocations`, `locomotor`, and `teamleader` to execute team tactics during gameplay.
 
-## Dependencies & Tags
-**Components Required:**
-- `teamleader` (on potential leaders — accessed only if present)
-- `combat`
-- `locomotor`
-- `health`
-- `knownlocations`
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("teamattacker")
+inst.components.teamattacker:SetValidMemberFn(function(target) return target:HasTag("monster") end)
+inst.components.teamattacker.searchradius = 60
+inst.components.teamattacker.leashdistance = 80
+-- Automatically joins a nearby team leader during the first OnUpdate tick
+```
 
-**Tags:**
-- Dynamically adds/removes tags of the form `"team_<type>"` (e.g., `"team_monster"`) based on `team_type`.
-- Does *not* manage or require any static tags on itself.
+## Dependencies & tags
+**Components used:** `combat`, `health`, `knownlocations`, `locomotor`, `teamleader`  
+**Tags:** Adds `team_<type>` (e.g., `team_monster`) based on `team_type`; uses `teamleader_<type>` tags when searching for leaders.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (injected) | Reference to the owning entity instance. |
-| `inteam` | `boolean` | `false` | Indicates whether the entity is currently in a team (not directly used in logic, but tracked). |
-| `searchradius` | `number` | `50` | Radius used by `SearchForTeam()` to scan for potential team leaders. |
-| `leashdistance` | `number` | `70` | Distance threshold beyond which `ShouldGoHome()` returns `true`, triggering a call to `LeaveTeam()`. |
-| `team_type` | `string` | `"monster"` | String identifier used to form `"team_<team_type>"` tag and search tags (`"teamleader_<team_type>"`). |
-| `teamsearchtags` | `table` or `nil` | initially `nil`, set in `onteamspec` | List of tags used to search for team leaders. Set to `{"teamleader_<team_type>"}` when a team type is assigned. |
-| `teamleader` | `ComponentTeamleader` or `nil` | `nil` | Reference to the team leader component (not stored in constructor; assumed to be set externally or via `teamleader:NewTeammate()`). |
-| `formationpos` | `Vector3` or `nil` | `nil` | Target position for formation movement (set externally, likely by the leader). |
-| `orders` | `ORDERS.*` or `nil` | `nil` | Current order (e.g., `ORDERS.ATTACK`, `ORDERS.HOLD`). Initialized to `nil`. |
-| `ignoreformation` | `boolean` or `nil` | `nil` | Flag set by `LeaveFormation()` to disable formation movement. |
+| `inteam` | boolean | `false` | Whether the entity is currently in a team. |
+| `teamleader` | Entity instance or `nil` | `nil` | Reference to the owning `teamleader` entity (set internally via `NewTeammate`). |
+| `orders` | number (ORDERS.*) | `nil` | Current combat order (e.g., `ORDERS.HOLD`, `ORDERS.ATTACK`). |
+| `formationpos` | Vector3 or `nil` | `nil` | Desired position in the team formation. |
+| `ignoreformation` | boolean or `nil` | `nil` | If set, disables movement to `formationpos`. |
+| `validmemberfn` | function(inst) → boolean | `nil` | Custom validation function for joining a team. |
+| `searchradius` | number | `50` | Radius used by `SearchForTeam` to find potential team leaders. |
+| `leashdistance` | number | `70` | Max distance from home before the entity leaves the team. |
+| `teamsearchtags` | table or `nil` | `{"teamleader_<type>"}` | Tags used to identify candidate team leaders. |
+| `team_type` | string | `"monster"` | Team type; determines tag naming (`team_<type>` and `teamleader_<type>`). |
 
-## Main Functions
-
+## Main functions
 ### `GetDebugString()`
-* **Description:** Returns a human-readable string for debugging, indicating whether the entity is in a team and its current orders.
-* **Parameters:** None.
+*   **Description:** Returns a human-readable string summarizing team membership and current orders for debugging.
+*   **Parameters:** None.
+*   **Returns:** `string` – e.g., `"In Team true, Current Orders: ATTACK"`.
 
 ### `SearchForTeam()`
-* **Description:** Searches for an available team leader within `searchradius`. If found, requests to join the team via the leader's `NewTeammate()` method. Returns `true` if successfully joined; otherwise `false`.
-* **Parameters:** None.
+*   **Description:** Searches for an available team leader within `searchradius` and attempts to join the first valid one. Requires a `teamleader` component with `IsTeamFull` and `NewTeammate`.
+*   **Parameters:** None.
+*   **Returns:** `boolean` – `true` if successfully added to a team; `false` otherwise.
 
 ### `OnEntitySleep()`
-* **Description:** Pauses component updates and notifies the team leader (if present) that this member has left the team.
-* **Parameters:** None.
+*   **Description:** Called when the entity enters sleep mode (e.g., player logs out). Removes the entity from its team and stops game updates for this component.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `OnEntityWake()`
-* **Description:** Resumes component updates when the entity wakes.
-* **Parameters:** None.
+*   **Description:** Restarts component updates when the entity wakes. Does not automatically rejoin a team.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `ShouldGoHome()`
-* **Description:** Checks whether the entity is outside the `leashdistance` from its registered `"home"` location (retrieved via `knownlocations:GetLocation("home")`). Returns `true` if too far.
-* **Parameters:** None.
+*   **Description:** Checks whether the entity has moved beyond `leashdistance` from its "home" location (retrieved via `knownlocations:GetLocation("home")`).
+*   **Parameters:** None.
+*   **Returns:** `boolean` – `true` if the entity should leave the team due to leash violation.
 
 ### `LeaveTeam()`
-* **Description:** Notifies the team leader (if present) that this entity is leaving the team. Does *not* set `teamleader` to `nil`.
-* **Parameters:** None.
+*   **Description:** Explicitly removes the entity from its team, invoking `teamleader:OnLostTeammate`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `LeaveFormation()`
-* **Description:** Sets `ignoreformation = true`, disabling formation movement in `OnUpdate()`.
-* **Parameters:** None.
+*   **Description:** Sets `ignoreformation = true`, disabling movement to `formationpos`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `JoinFormation()`
-* **Description:** Clears `ignoreformation`, re-enabling formation movement in `OnUpdate()`.
-* **Parameters:** None.
+*   **Description:** Clears `ignoreformation`, re-enabling movement to `formationpos`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `GetOrders()`
-* **Description:** Returns the current `orders` value (e.g., `ORDERS.ATTACK`).
-* **Parameters:** None.
+*   **Description:** Returns the current orders assigned to this team member.
+*   **Parameters:** None.
+*   **Returns:** `number (ORDERS.*) or nil` – e.g., `ORDERS.ATTACK`.
 
 ### `SetValidMemberFn(fn)`
-* **Description:** Assigns a custom predicate function (`validmemberfn`) used to validate team membership. Not directly used in this file but likely referenced by the team leader.
-* **Parameters:**
-  - `fn`: A function to use for validating membership criteria.
+*   **Description:** Sets a custom validation function for team membership eligibility. Typically called during initialization.
+*   **Parameters:** `fn` (function) – A function taking an entity instance and returning `true` if it is a valid teammate.
+*   **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-* **Description:** Primary tick function called every frame while the entity is awake. Handles:
-  - Leaving the team if too far from home (`ShouldGoHome()`).
-  - Executing orders when the entity has a leader and the leader can attack:
-    - If `orders` is `nil`, `WARN`, or `HOLD`: maintain formation, optionally switch to `ATTACK` if taking fire.
-    - If `orders` is `ATTACK`: adopt the leader’s current threat (`teamleader.threat`) as the combat target.
-* **Parameters:**
-  - `dt`: Delta time in seconds.
+*   **Description:** The main update loop. Handles formation movement, order interpretation (`HOLD`, `WARN`, `ATTACK`), and leash checks. Should be called every frame via `StartUpdatingComponent`.
+*   **Parameters:** `dt` (number) – Delta time since last frame.
+*   **Returns:** Nothing.
+*   **Error states:** Does nothing if `teamleader` is `nil` or `CanAttack()` returns `false`. Uses `combat:SuggestTarget` and `locomotor:GoToPoint` internally.
 
-## Events & Listeners
-The component does not register any `inst:ListenForEvent` handlers or push events via `inst:PushEvent`.
+## Events & listeners
+- **Listens to:**  
+  - `"death"` – via `teamleader:NewTeammate` (not directly on `self.inst`), triggers cleanup.  
+  - `"attacked"` – via `teamleader:NewTeammate`, broadcasts distress to team leader.  
+  - `"onattackother"` – via `teamleader:NewTeammate`, resets orders and drops current target.  
+  - `"onremove"` / `"onenterlimbo"` – cleanup hooks set by `teamleader`.  
+- **Pushes:** None directly.
+
+> Note: Most event listeners are registered by `teamleader:NewTeammate` rather than `TeamAttacker` itself.

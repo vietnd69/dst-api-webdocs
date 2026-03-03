@@ -1,64 +1,89 @@
 ---
 id: pollinator
 title: Pollinator
-description: Manages flower collection and spore-based reproduction for entities capable of pollination in DST.
+description: Manages flower collection and planting behavior for entities capable of pollinating and reproducing flora.
+tags: [flora, reproduction, world]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 0b798f36
+system_scope: world
 ---
 
 # Pollinator
 
-## Overview  
-This component enables an entity to collect nearby flowers, store them, and spawn a new flower at its location once sufficient pollination has occurred. It enforces distance- and density-based constraints to regulate flower spawning, ensuring ecological balance in the world.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags  
-- Adds the tag `"pollinator"` to the entity on construction.  
-- Removes the `"pollinator"` tag when the component is removed from the entity.  
-- Relies on external functionality: `TheSim:FindEntities`, `SpawnPrefab`, `GetRandomItem`, and entity properties such as `IsOnValidGround` and `Transform`.
+## Overview
+`Pollinator` enables an entity to collect flowers from the environment, store them internally, and eventually plant new flowers at its current location once a collection threshold is met. It is designed to support in-game flora reproduction mechanics and interacts primarily with entities tagged `flower`. The component also ensures flower placement respects density limits and ground validity.
 
-## Properties  
-| Property      | Type     | Default Value | Description                                                                 |
-|---------------|----------|---------------|-----------------------------------------------------------------------------|
-| `inst`        | `Entity` | `nil`         | Reference to the entity the component is attached to.                       |
-| `flowers`     | `table`  | `{}`          | List of flower prefabs collected by the pollinator.                         |
-| `distance`    | `number` | `5`           | Radius (in world units) used when checking flower density around the entity. |
-| `maxdensity`  | `number` | `4`           | Maximum number of nearby flowers allowed for density checks.                |
-| `collectcount`| `number` | `5`           | Minimum number of collected flowers required to trigger flower spawning.    |
-| `target`      | `Entity?`| `nil`         | Reference to a currently targeted flower; reset to `nil` on pollination.    |
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("pollinator")
+-- After setup, an entity with this component can:
+inst.components.pollinator:Pollinate(flower_entity)
+if inst.components.pollinator:HasCollectedEnough() and inst:IsOnValidGround() then
+    inst.components.pollinator:CreateFlower()
+end
+```
 
-## Main Functions  
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `pollinator` to the entity; checks `flower` on target entities.
+
+## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `flowers` | table | `{}` | List of collected flower entities (prefab references not stored directly). |
+| `distance` | number | `5` | Search radius (in units) used for flower density checks. |
+| `maxdensity` | number | `4` | Maximum number of flowers allowed within `distance` before planting is blocked. |
+| `collectcount` | number | `5` | Minimum number of flowers required before planting is allowed. |
+| `target` | entity or `nil` | `nil` | Current pollination target; cleared on successful pollination. |
+
+## Main functions
+### `OnRemoveFromEntity()`
+* **Description:** Cleans up the component by removing the `pollinator` tag from the entity when the component is removed.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
 ### `Pollinate(flower)`
-* **Description:** Adds a valid flower to the internal `flowers` collection and clears the `target` field.  
-* **Parameters:**  
-  - `flower` (`Entity`): The flower entity to collect. Must pass the `CanPollinate` check.
+* **Description:** Attempts to add a flower to the internal collection. Only succeeds if the flower passes `CanPollinate`.
+* **Parameters:** `flower` (entity) — the flower entity to collect.
+* **Returns:** Nothing.
+* **Error states:** Silently ignores `nil` flowers or flowers already in `flowers`.
 
 ### `CanPollinate(flower)`
-* **Description:** Validates whether a given entity can be collected as a flower.  
-* **Parameters:**  
-  - `flower` (`Entity?`): The entity to validate. Must be non-`nil`, tagged `"flower"`, and not already in `self.flowers`.
+* **Description:** Checks whether a flower is eligible for collection.
+* **Parameters:** `flower` (entity or `nil`) — candidate flower entity.
+* **Returns:** `true` if `flower` is non-`nil`, has tag `flower`, and is not already in `flowers`; otherwise `false`.
 
 ### `HasCollectedEnough()`
-* **Description:** Checks if the number of collected flowers exceeds `collectcount`.  
-* **Returns:** `boolean` — `true` if more than `collectcount` flowers are stored.
+* **Description:** Verifies if enough flowers have been collected to trigger planting.
+* **Parameters:** None.
+* **Returns:** `true` if the number of collected flowers exceeds `collectcount`; otherwise `false`.
 
 ### `CreateFlower()`
-* **Description:** Spawns a new flower at the pollinator’s current position if sufficient flowers have been collected and the entity stands on valid ground. The internal `flowers` list is cleared after spawning.  
-* **Notes:** Uses random selection from the stored flower prefabs; spawns with `planted = true`.
+* **Description:** Spawns a new flower at the pollinator’s position if:
+  - Enough flowers have been collected (`HasCollectedEnough()` returns `true`), and
+  - The entity is on valid ground (`IsOnValidGround()` returns `true`).
+  *Note:* Flowers are copied from a randomly selected previously collected flower.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Does nothing if density check fails or ground is invalid; also resets `flowers` table regardless.
 
 ### `CheckFlowerDensity()`
-* **Description:** Determines whether the pollinator’s surrounding area has fewer than `maxdensity` flowers within `distance` units. Used to prevent excessive local flower density.  
-* **Returns:** `boolean` — `true` if density is acceptable for spawning.  
-* **Implementation Details:** Uses `TheSim:FindEntities` with a fixed set of `FLOWERDENSITY_ONEOF_TAGS` (`{"FX", "NOBLOCK", "INLIMBO", "DECOR"}`).
+* **Description:** Determines whether planting a new flower would exceed the allowed local density.
+* **Parameters:** None.
+* **Returns:** `true` if the number of nearby entities (within `distance`) that lack *all* of the excluded tags (`FX`, `NOBLOCK`, `INLIMBO`, `DECOR`) is less than `maxdensity`; otherwise `false`.
 
 ### `GetDebugString()`
-* **Description:** Returns a human-readable debug string summarizing current pollinator state.  
-* **Returns:** `string` — e.g., `"flowers: 3, cancreate: false"`.
+* **Description:** Returns a debug-ready string summarizing current state.
+* **Parameters:** None.
+* **Returns:** String in format `"flowers: X, cancreate: Y"` where `X` is the count of collected flowers and `Y` is `"true"` or `"false"` based on `HasCollectedEnough()`.
 
-## Events & Listeners  
-None identified.
+## Events & listeners
+None identified

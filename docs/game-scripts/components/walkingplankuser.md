@@ -1,46 +1,58 @@
 ---
 id: walkingplankuser
 title: Walkingplankuser
-description: Manages a player's or entity's interaction with and state while mounted on a walking plank.
+description: Manages a player's or entity's current mounting state on a walking plank.
+tags: [locomotion, mounting, utility]
 sidebar_position: 1
-
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 4d0c2835
+system_scope: locomotion
 ---
-
 # Walkingplankuser
 
-## Overview
-This component tracks whether an entity is currently mounted on a walking plank, maintains a reference to that plank, and handles cleanup (including event unsubscription) when the entity dismounts or the plank is removed.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-This component does not directly add or remove tags from the entity. It relies on the presence of a `walkingplank` component on the plank entity (used internally via `self.current_plank.components.walkingplank:StopMounting()`), but does not enforce or declare this dependency programmatically. No explicit `AddComponent` calls or tag manipulations are present.
+## Overview
+`WalkingPlankUser` tracks and manages an entity's current mounting state on a walking plank. It holds a reference to the currently mounted plank, sets up an event listener to clear that reference when the plank is removed, and provides a method to safely dismount by calling `StopMounting()` on the plank.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("walkingplankuser")
+
+-- Mount a walking plank
+inst.components.walkingplankuser:SetCurrentPlank(plank_entity)
+
+-- Later, dismount safely
+inst.components.walkingplankuser:Dismount()
+```
+
+## Dependencies & tags
+**Components used:** `walkingplank` (via `plank.components.walkingplank:StopMounting()`)
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (assigned in `_ctor`) | Reference to the owning entity instance. |
-| `current_plank` | `Entity?` | `nil` | Reference to the walking plank the entity is currently mounted on. May be `nil`. |
-| `_plank_remove_event` | `EventCallback?` | `nil` | Stored event listener callback used to detect when the current plank is removed from the world. |
+| `current_plank` | `Entity` or `nil` | `nil` | Reference to the walking plank entity currently mounted. |
+| `_plank_remove_event` | `EventListener` or `nil` | `nil` | Internal listener for the `"onremove"` event on the current plank. |
 
-> Note: `current_plank` and `_plank_remove_event` are initialized to `nil` implicitly (not explicitly in `_ctor`), as the constructor body contains only comments.
-
-## Main Functions
-
+## Main functions
 ### `SetCurrentPlank(plank)`
-* **Description:** Assigns a new walking plank as the current one. Cancels any existing removal listener on the previous plank and, if a new plank is provided, registers a new `"onremove"` listener to automatically clear `current_plank` if the plank is removed from the world.  
-* **Parameters:**  
-  * `plank` (`Entity?`) — The walking plank entity to mount on. If `nil`, clears `current_plank` and removes any pending listener.
+* **Description:** Sets the entity's current mounted plank and establishes a one-time listener to clear the reference if the plank is removed.
+* **Parameters:** `plank` (`Entity` or `nil`) — the plank entity to mount, or `nil` to dismount.
+* **Returns:** Nothing.
+* **Error states:** If a previous plank was set, its `"onremove"` listener is cancelled before installing the new one.
 
 ### `Dismount()`
-* **Description:** Handles dismounting the current walking plank. Informs the plank’s `walkingplank` component that mounting has stopped, then clears `current_plank`, and cancels the removal event listener.  
+* **Description:** Safely dismounts by signaling the plank to stop mounting and cleaning up internal state.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** If no plank is mounted (`current_plank == nil`), the function returns early after cleaning up the event listener.
 
-## Events & Listeners
-- Listens for `"onremove"` event on the current plank (via `inst:ListenForEvent("onremove", ...)`), triggering `self.current_plank = nil` when the plank is removed from the world.  
-- Cancels the above event listener (via `:Cancel()`) upon dismount or when assigning a new plank.
+## Events & listeners
+- **Listens to:** `onremove` (on the current plank) — triggers when the plank is removed from the world, automatically clearing `current_plank`.
+- **Pushes:** None.

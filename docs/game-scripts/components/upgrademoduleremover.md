@@ -1,30 +1,41 @@
 ---
-id: upgrademoduleRemover
-title: UpgradeModuleRemover
-description: A trivial placeholder component that creates a named component instance for future use but performs no logic or behavior.
+id: upgrademoduleremover
+title: Upgrademoduleremover
+description: A placeholder component with no functional logic; provides no operations or event handling.
+tags: []
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-04
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: b6491c66
+system_scope: entity
 ---
 
 # Upgrademoduleremover
 
-## Overview
-This component is a minimal stub that instantiates a named component on an entity but contains no logic—no initialization, no event handling, and no functional behavior beyond storing a reference to the entity it is attached to. It likely exists as a placeholder for potential future implementation or for compatibility with legacy code expecting its presence.
+> Based on game build **714014** | Last updated: 2026-03-04
 
-## Dependencies & Tags
-None identified.
+## Overview
+`UpgradeModuleRemover` is a minimal, non-functional component. It initializes with an instance (`self.inst`) but contains no methods, properties, event listeners, or behavior logic. It serves no operational purpose in the current codebase and appears to be a stub or placeholder.
+
+## Usage example
+```lua
+-- This component has no functional use and should not be added to entities.
+local inst = CreateEntity()
+-- inst:AddComponent("upgrademoduleremover") -- Not recommended
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-No public properties were clearly identified from the source. The constructor accepts only `inst`, which is stored internally but not exposed as a public property.
+No public properties
 
-## Main Functions
-No functional methods are implemented beyond the constructor. The component provides no callable public functions.
+## Main functions
+No public methods
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified

@@ -1,57 +1,59 @@
 ---
 id: frogbrain
 title: Frogbrain
-description: The brain component for frog entities, implementing behavior logic including panic responses, home returning, wandering, and combat targeting.
+description: Controls the decision-making logic for frog entities, managing behaviors such as wandering, sleeping, chasing targets, and returning home during night or winter.
+tags: [ai, locomotion, behavior]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: f5d60b0b
+system_scope: brain
 ---
 
 # Frogbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The `FrogBrain` component implements the AI decision-making logic for frog entities in Don't Starve Together. It uses a Behavior Tree (BT) to prioritize actions such as fleeing from danger (`PanicTrigger`, `ElectricFencePanicTrigger`), returning home during night or winter, wandering during the day, and engaging in combat with nearby targets. It relies on the `homeseeker` and `knownlocations` components to navigate and locate the frog's home position.
+`Frogbrain` is a behavior tree–driven AI component for frog entities. It defines how frogs react to environmental conditions (day/night, seasons), interact with targets, and navigate toward their home location. It inherits from `Brain` and uses the `behaviour` system (e.g., `Wander`, `ChaseAndAttack`, `StandStill`) through a priority-based behavior tree root node. The brain integrates with `homeseeker` and `knownlocations` components to locate and return to the frog’s home.
 
-## Dependencies & Tags
-- **Components used:**
-  - `homeseeker`: Reads `inst.components.homeseeker.home` to determine where the frog should return.
-  - `knownlocations`: Reads `inst.components.knownlocations:GetLocation("home")` to retrieve the known home location.
-- **Tags:** None identified.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("homeseeker")
+inst:AddComponent("knownlocations")
+-- Add home location and register frog brain
+inst:AddBrain("frob")
+inst.components.homeseeker.home = inst.components.knownlocations:GetLocation("home")
+```
+
+## Dependencies & tags
+**Components used:** `homeseeker`, `knownlocations`  
+**Tags:** None identified.
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `self.inst` | `Entity` | — | The entity instance this brain component is attached to. |
-| `self.bt` | `BT` | `nil` | The behavior tree instance constructed during `OnStart()`. Initialized only when the brain is started. |
+No public properties.
 
-## Main Functions
+## Main functions
+The component exposes no public methods beyond its constructor and `OnStart()` call made by the `Brain` base class.
+
 ### `GoHomeAction(inst)`
-* **Description:** Constructs a buffered action to guide the frog back to its home location if one exists and is valid. Used by the `DoAction` behavior node when the frog needs to return home.
-* **Parameters:**  
-  - `inst` (`Entity`): The frog entity requesting a home action.
-* **Returns:**  
-  - `BufferedAction` if home exists and is valid, otherwise `nil`.
+*   **Description:** Factory function that constructs a `BufferedAction` to move the frog to its home location, provided the home exists and is valid.
+*   **Parameters:** `inst` (Entity) – The frog entity instance.
+*   **Returns:** A `BufferedAction` if valid home exists; otherwise `nil`.
 
 ### `ShouldGoHome(inst)`
-* **Description:** Determines whether the frog should attempt to return home. The condition is true when it is currently night (`TheWorld.state.isnight`) or winter (`TheWorld.state.iswinter`). Note: The condition checks for `not TheWorld.state.isday` to cover both night and winter.
-* **Parameters:**  
-  - `inst` (`Entity`): The frog entity.
-* **Returns:**  
-  - `boolean`: `true` if it is night or winter; `false` otherwise.
+*   **Description:** Predicate function determining whether the frog should attempt to return home. Returns true during night or winter.
+*   **Parameters:** `inst` (Entity) – The frog entity instance.
+*   **Returns:** `boolean` – `true` if `not TheWorld.state.isday or TheWorld.state.iswinter`, else `false`.
 
 ### `FrogBrain:OnStart()`
-* **Description:** Initializes the behavior tree root node and assigns it to `self.bt`. This method is called automatically when the brain becomes active. The behavior tree evaluates nodes in priority order, selecting the first applicable behavior.
-* **Parameters:**  
-  - None.
-* **Returns:**  
-  - None.
+*   **Description:** Initializes the behavior tree root node with a priority-ordered sequence of behaviors: panic triggers, chasing, going home, wandering (while awake), and idle standing.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-The `FrogBrain` component does not directly register or fire any events via `inst:ListenForEvent` or `inst:PushEvent`. Event-driven logic is handled indirectly through the behavior nodes (e.g., `ChaseAndAttack`, `Wander`) which may respond to state changes internally.
+## Events & listeners
+None. This brain does not directly register or fire events; it relies on underlying behavior tree nodes for reactive triggers.

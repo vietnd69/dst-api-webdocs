@@ -1,52 +1,69 @@
 ---
 id: colouraddersync
 title: Colouraddersync
-description: This component synchronizes and applies additive color changes to an entity's animation state across the network.
+description: Synchronizes colour addition data from the server to clients and triggers visual updates and callbacks when the colour changes.
+tags: [network, visual, sync]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: components
 source_hash: c7b59e93
+system_scope: network
 ---
 
 # Colouraddersync
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Colouraddersync` component is responsible for managing and synchronizing an entity's additive color values across a network. It uses a `net_uint` to store the combined RGBA color on the server, which is then replicated to clients. On the client side, it translates this network value back into individual RGBA channels and applies the color to the entity's `AnimState`, also providing a callback mechanism for other components to react to color changes.
+`Colouraddersync` is a network-aware component that ensures the client receives and applies colour addition data (RGBA) intended for additive rendering. It is designed to work in tandem with a corresponding `colouradder` component on the master simulation. The component creates a networked uint value (bound to the entity's GUID) and listens for the `colourdirty` event on non-master instances to trigger visual and callback updates.
 
-## Dependencies & Tags
-This component implicitly relies on the owning entity having an `AnimState` component for applying visual color changes. It does not explicitly add other components or tags.
+## Usage example
+```lua
+-- Assuming 'inst' is an entity with AnimState and a master-side 'colouradder' component
+inst:AddComponent("colouraddersync")
+inst.components.colouraddersync:SetColourChangedFn(function(entity, r, g, b, a)
+    print("New colour:", r, g, b, a)
+end)
 
-None identified.
+-- Later, on the master, a colouradder component calls:
+-- inst.components.colouradder:SetColour(r, g, b, a)
+-- This will propagate to all clients via this sync component.
+```
+
+## Dependencies & tags
+**Components used:** None directly accessed; intended to pair with a `colouradder` component on the master.
+**Tags:** None added, removed, or checked.
 
 ## Properties
-| Property          | Type        | Default Value | Description                                                                         |
-| :---------------- | :---------- | :------------ | :---------------------------------------------------------------------------------- |
-| `inst`            | `Entity`    | `inst`        | A reference to the owning entity this component is attached to.                     |
-| `colour`          | `net_uint`  | `0`           | A network unsigned integer used to synchronize the combined RGBA color value.       |
-| `colourchangedfn` | `function?` | `nil`         | An optional callback function to be executed when the component's color value changes (either locally or via network sync). |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `colour` | net_uint | (networked uint32) | Networked representation of RGBA, encoded as `(r<<24)\|(g<<16)\|(b<<8)\|a`. |
+| `colourchangedfn` | function or nil | `nil` | Optional callback invoked on colour change, with signature `fn(inst, r, g, b, a)`. |
 
-## Main Functions
+## Main functions
 ### `SetColourChangedFn(fn)`
-*   **Description:** Sets a callback function that will be invoked whenever the entity's additive color is updated, either through network synchronization or direct calls to `SyncColour`. It also immediately triggers the callback with the current color.
-*   **Parameters:**
-    *   `fn`: (`function`) The callback function to be set. It should accept five arguments: `(inst, r, g, b, a)`, where `inst` is the owning entity and `r, g, b, a` are the normalized (0-1) additive color components.
+* **Description:** Sets the callback function to be invoked whenever the colour changes. Immediately triggers one callback if `fn` is non-nil.
+* **Parameters:** `fn` (function or nil) — callback expecting `(inst, r, g, b, a)`, where each component is a float in `[0, 1]`.
+* **Returns:** Nothing.
 
 ### `ForceRefresh()`
-*   **Description:** Forces an immediate refresh of the current color state. This will trigger the `colourchangedfn` callback if one is set, using the component's currently stored color value. This can be useful to re-apply color or trigger effects without actually changing the color value.
-*   **Parameters:** None.
+* **Description:** Manually triggers the colour callback with the current colour value, bypassing event firing. Useful for ensuring state consistency.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SyncColour(r, g, b, a)`
-*   **Description:** Sets the additive color for the entity and synchronizes it across the network. This function combines the individual RGBA components into a single `net_uint` for efficient network transfer. It also directly applies the color to the entity's `AnimState` and invokes the `colourchangedfn` callback if present.
-*   **Parameters:**
-    *   `r`: (`number`) The red component of the additive color, normalized (0-1).
-    *   `g`: (`number`) The green component of the additive color, normalized (0-1).
-    *   `b`: (`number`) The blue component of the additive color, normalized (0-1).
-    *   `a`: (`number`) The alpha (opacity) component of the additive color, normalized (0-1).
+* **Description:** Encodes and sends the RGBA values over the network, updates `AnimState:AddAddColour`, and invokes the colour-change callback (if present). Typically called from the master-side `colouradder` component.
+* **Parameters:**  
+  * `r` (number) — red component, expected in `[0, 1]`  
+  * `g` (number) — green component, expected in `[0, 1]`  
+  * `b` (number) — blue component, expected in `[0, 1]`  
+  * `a` (number) — alpha (opacity) component, expected in `[0, 1]`  
+* **Returns:** Nothing.
+* **Error states:** No-op on non-master if called directly (as this method is intended for master use only). The colour is clamped and rounded via `math.floor(... + .5)` before encoding.
 
-## Events & Listeners
-*   **Listens For:**
-    *   `colourdirty`: On client machines, this component listens for the `colourdirty` event, which is triggered when the `self.colour` `net_uint` variable changes its value from the server. Upon receiving this event, the `OnColourDirty` function is called, which decodes the network color and triggers the `colourchangedfn` callback.
+## Events & listeners
+- **Listens to:** `colourdirty` — triggers `OnColourDirty` on non-master instances to propagate updates.
+- **Pushes:** None (only receives and acts on events).

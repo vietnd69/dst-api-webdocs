@@ -1,47 +1,45 @@
 ---
 id: alterguardian_phase4_lunarriftbrain
 title: Alterguardian Phase4 Lunarriftbrain
-description: Controls the behavior tree for the Alterguardian boss during Phase 4 of the Lunar Rift encounter, enabling ranged attacks, chasing, and wandering within a designated arena.
+description: Controls the combat and movement behavior of the Alterguardian during its Phase 4 Lunar Rift transition, prioritizing ranged attacks while chasing andwandering within the arena.
+tags: [ai, combat, boss, locomotion, brain]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: faf55a8b
+system_scope: brain
 ---
 
 # Alterguardian Phase4 Lunarriftbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-This component implements the behavior tree for the Alterguardian boss during Phase 4 of the Lunar Rift encounter. It defines how the entity pursues and attacks targets while also roaming within a specific arena area (`WagPunkArena`). The behavior prioritizes combat over wandering, and integrates with the `Combat` component to handle ranged attacks and target engagement. It inherits from `Brain` and constructs its behavior tree inside the `OnStart()` method using custom nodes and shared behavior utilities.
+`AlterGuardian_Phase4_LunarRiftBrain` is a behavior tree (`Brain`) component that governs the Alterguardian boss during its Phase 4 Lunar Rift phase. It implements a concurrent behavior strategy: the entity simultaneously attempts ranged attacks when a target is available and cooldown-free, chases and engages in melee combat when possible, and wanders within the WagPunk arena to maintain positional variety. This brain is specifically designed for the Lunar Rift arena environment and assumes the boss is not jumping or dead.
 
-## Dependencies & Tags
-- **Components used:**
-  - `Combat` (`self.inst.components.combat`): Used to check for targets, cooldown status, and trigger attacks. Sets `ignorehitrange = true` during attack attempts.
-  - `Wander` (from `behaviours/wander.lua`): Used to define roaming behavior within a home area.
-- **Tags:** None explicitly added or removed by this component.
-- **Behaviors used:**
-  - `ChaseAndAttack`: Shared behavior for pursuing and attacking targets.
-  - `Wander`: Enables the entity to wander near its arena center when no target is present or during combat cooldowns.
+## Usage example
+```lua
+-- Typically assigned during prefab construction of the Alterguardian Phase 4 entity
+inst:AddBrain("alterguardian_phase4_lunarriftbrain")
+-- The brain starts automatically when the entity's StateGraph transitions to a state that calls BrainStart()
+```
+
+## Dependencies & tags
+**Components used:** `combat`
+**Tags:** None directly added or removed by this brain.
 
 ## Properties
-No public properties are initialized directly in the constructor. The only state set is `self.bt`, which stores the constructed `BT` (BehaviorTree) instance in `OnStart()`.
+No public properties.
 
-## Main Functions
-### `Alterguardian_Phase4_LunarRiftBrain:OnStart()`
-* **Description:** Constructs and assigns the primary behavior tree for the entity. It defines a priority-based root node that runs indefinitely unless the entity enters a jumping or dead state. The behavior tree prioritizes combat (ranged attacks with chase/attack fallback) over wandering in a defined arena area.
-* **Parameters:** None.
-* **Returns:** None.
+## Main functions
+### `OnStart()`
+*   **Description:** Initializes and assigns the behavior tree root node for the Alterguardian. This function sets up a priority-based behavior tree that runs continuously while the entity is not in a jumping or dead state.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Requires `self.inst.components.combat` to exist and be functional.
 
-### `GetHome(inst)`
-* **Description:** A helper function that computes the home position for wandering. It checks if the entity is inside the `WagPunkArena`, and if so, returns the arena's center coordinates as a `Vector3` (with Y=0). If outside the arena, it returns `nil`.
-* **Parameters:**
-  - `inst`: The entity instance.
-* **Returns:** `Vector3 | nil` — the arena center or `nil` if the entity is outside the arena.
-
-## Events & Listeners
-This component does not define or register any event listeners. It operates entirely through the BehaviorTree framework and immediate component calls (e.g., `Combat` methods).
+## Events & listeners
+None identified.

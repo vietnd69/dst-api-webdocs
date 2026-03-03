@@ -1,131 +1,118 @@
 ---
 id: molebatbrain
 title: Molebatbrain
-description: Brain component that controls the behavioral logic for molebat characters, managing state transitions for navigation, nesting, eating, combat, and sleep.
+description: Controls the AI behavior of the Molebat, managing movement, nest building, sleeping, and combat logic through a behavior tree.
+tags: [ai, combat, nest]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 7c611842
+system_scope: brain
 ---
 
 # Molebatbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-`MolebatBrain` is a brain component that implements the decision-making logic for molebat entities. It uses a behavior tree (`BT`) with prioritized conditional nodes to govern state transitions between combat (chasing, dodging, summoning), nest building, nest cleanup, going home, sleeping, foraging/eating, face tracking, and wandering. It integrates with core systems such as combat, entity tracking, eater, and known locations to make context-aware decisions about behavior sequencing.
+`MolebatBrain` implements the decision-making system for the Molebat entity in DST. It uses a behavior tree (`BT`) composed of priority-ordered nodes to handle core behaviors: fleeing from threats, attacking when possible, cleaning up its burrow nest, building a new burrow if missing, sleeping at home, returning to its burrow location, foraging for food, and face-locking onto nearby players. It integrates with the `combat`, `entitytracker`, `knownlocations`, and `eater` components to make context-aware decisions.
 
-## Dependencies & Tags
-- **Components used:**  
-  `combat`, `eater`, `entitytracker`, `knownlocations`  
-- **Tags:**  
-  `"molebathill"` (used for finding existing molehills),  
-  `"DECOR"`, `"FX"`, `"NOCLICK"`, `"INLIMBO"`, `"outofreach"`, `"notarget"` (excluded in entity filtering),  
-  `"busy"` (state tag checked via `inst.sg:HasStateTag("busy")`).  
-- No tags are added or removed by this component itself.
+## Usage example
+This brain is automatically attached by the game to Molebat prefabs. Modders should not manually instantiate it. To modify its behavior, override or subclass `MolebatBrain` and assign it to the prefab's `brain` property during prefabs initialization.
+
+```lua
+-- Example mod integration pattern (not part of core codebase)
+local MolebatBrain = require("brains/molebatbrain")
+local CustomMolebatBrain = Class(MolebatBrain, function(self, inst)
+    MolebatBrain._ctor(self, inst)
+end)
+
+-- Override or extend behavior as needed
+function CustomMolebatBrain:OnStart()
+    -- Custom logic here
+    MolebatBrain.OnStart(self)
+end
+
+-- Assign to prefab
+prefab.brain = CustomMolebatBrain
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `eater`, `entitytracker`, `knownlocations`  
+**Tags:** Checks and uses `"molebathill"` (via `FindEntity`), `"FX"`, `"NOCLICK"`, `"DECOR"`, `"INLIMBO"`, `"notarget"`, `"outofreach"` as filters.
 
 ## Properties
-The constructor initializes no custom properties; the component inherits from `Brain` and dynamically manages state via the behavior tree and event listeners (see "Events & Listeners").
+No public properties are initialized in the constructor. The brain relies on properties attached to `self.inst` such as `_nest_needs_cleaning`, `_quaking`, and functions like `WantsToNap`.
 
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `self.inst` | `Entity` | *from Brain._ctor* | Reference to the entity instance this brain controls. |
-| `self.bt` | `BT` | *assigned in `OnStart`* | Behavior tree root node, created and set during brain initialization. |
-
-## Main Functions
-
-### `MoleBatBrain:OnStart()`
-* **Description:** Initializes and assigns the behavior tree root for the molebat. Called automatically when the brain component starts (typically during entity spawn or after a stategraph reset). Constructs a priority-weighted behavior tree with conditional nodes handling panic, summoning, combat, nest management, navigation, and idle behaviors.
-* **Parameters:** None.
-* **Returns:** None. Sets `self.bt`.
-
-## Internal Helper Functions
-The following functions are defined locally and used as callbacks within the behavior tree. They are not exported methods but are critical to the brain's operation.
+## Main functions
+### `OnStart()`
+*   **Description:** Initializes and assigns the behavior tree root node to `self.bt`. The behavior tree evaluates priority-ordered nodes every tick to select the next action based on current state conditions.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** None expected; relies on correctly initialized `self.inst` and its components.
 
 ### `CleanUpNest(inst)`
-* **Description:** Computes and returns an action to break the molebat's burrow (molehill) when the nest is flagged for cleaning. Used when `inst._nest_needs_cleaning` is true.
-* **Parameters:**  
-  `inst` (`Entity`) — The molebat instance.  
-* **Returns:**  
-  `BufferedAction` — An action to perform `ACTIONS.BREAK` on the burrow entity, or `nil` if cleanup is no longer needed.
+*   **Description:** Helper function used by the "Nest Needs Cleaning Up" node. Attempts to generate a `BREAK` action against the tracked burrow entity.
+*   **Parameters:** `inst` (entity) — the Molebat instance.
+*   **Returns:** `BufferedAction` if a burrow exists and cleaning is needed; otherwise `nil`. May return `nil` silently if the burrow was removed externally.
+*   **Error states:** Returns `nil` immediately if `inst.components.entitytracker:GetEntity("burrow")` yields `nil`.
 
 ### `ShouldBuildHome(inst)`
-* **Description:** Determines whether the molebat should build a new molehill home. Returns `true` only if not busy, not already near an existing molehill, and not currently napping (if `WantsToNap` exists).
-* **Parameters:**  
-  `inst` (`Entity`) — The molebat instance.  
-* **Returns:**  
-  `boolean` — `true` if the molebat should build a home, otherwise `false`.
+*   **Description:** Determines whether the Molebat should attempt to construct a new burrow.
+*   **Parameters:** `inst` (entity) — the Molebat instance.
+*   **Returns:** `true` if a burrow does not exist, the Molebat is not busy, and it does not want to nap; otherwise `false`.
+*   **Error states:** Tracks found burrows via `entitytracker:TrackEntity("burrow", nearby_home)` before returning `false`.
 
 ### `CreateBurrow(inst)`
-* **Description:** Returns a buffered action to create a new molehill at a nearby walkable offset from the molebat’s current position. Uses `ACTIONS.MAKEMOLEHILL` and random offset search.
-* **Parameters:**  
-  `inst` (`Entity`) — The molebat instance.  
-* **Returns:**  
-  `BufferedAction` — An action to perform `ACTIONS.MAKEMOLEHILL` at a computed position, or `nil` if no valid offset is found.
+*   **Description:** Generates a `MAKEMOLEHILL` action at a valid nearby position.
+*   **Parameters:** `inst` (entity) — the Molebat instance.
+*   **Returns:** `BufferedAction` with target position offset by a walkable random location; or `nil` if no offset was found (note: current code *always* returns a `BufferedAction` even if `offset == nil`, but `nil` is passed to `BufferedAction`).
+*   **Error states:** `offset` may be `nil`, which results in the action being created at the original position (likely invalid).
 
 ### `ShouldGoSleepAtHome(inst)`
-* **Description:** Checks if the molebat is ready to sleep at its burrow. Requires that the molebat is not busy, wants to nap (if `WantsToNap` is defined), and has a registered burrow entity.
-* **Parameters:**  
-  `inst` (`Entity`) — The molebat instance.  
-* **Returns:**  
-  `boolean` — `true` if the molebat should go to sleep at home.
+*   **Description:** Checks if the Molebat should move to and sleep at its burrow.
+*   **Parameters:** `inst` (entity) — the Molebat instance.
+*   **Returns:** `true` if not busy, `WantsToNap()` returns `true`, and a burrow exists; otherwise `false`.
 
 ### `GoSleepAtHomeAction(inst)`
-* **Description:** Returns a buffered action to travel to the registered burrow for napping.
-* **Parameters:**  
-  `inst` (`Entity`) — The molebat instance.  
-* **Returns:**  
-  `BufferedAction` — An action to perform `ACTIONS.TRAVEL` to the burrow position.
+*   **Description:** Returns a `TRAVEL` action toward the burrow.
+*   **Parameters:** `inst` (entity) — the Molebat instance.
+*   **Returns:** `BufferedAction` with `ACTIONS.TRAVEL` targeting the burrow position, or `nil`.
 
 ### `ShouldGoHome(inst)`
-* **Description:** Checks if the molebat is sufficiently far from the registered "home" location and should return. Uses squared distance comparison against `GO_HOME_DSQ = 900`.
-* **Parameters:**  
-  `inst` (`Entity`) — The molebat instance.  
-* **Returns:**  
-  `boolean` — `true` if the molebat is outside the home zone and not in combat.
+*   **Description:** Determines if the Molebat is too far from its recorded home location to remain there.
+*   **Parameters:** `inst` (entity) — the Molebat instance.
+*   **Returns:** `true` if home location exists and squared distance to home exceeds `GO_HOME_DSQ` (`900`, i.e., 30 units); otherwise `false`.
 
 ### `GoHomeAction(inst)`
-* **Description:** Returns a buffered action to walk to the registered "home" location, provided the molebat has no active combat target.
-* **Parameters:**  
-  `inst` (`Entity`) — The molebat instance.  
-* **Returns:**  
-  `BufferedAction` — An action to perform `ACTIONS.WALKTO` toward the home location, or `nil`.
+*   **Description:** Generates a `WALKTO` action toward the home location, but only if no active combat target is present.
+*   **Parameters:** `inst` (entity) — the Molebat instance.
+*   **Returns:** `BufferedAction` or `nil` (if there is a combat target or no home location).
 
 ### `EatFoodAction(inst)`
-* **Description:** Searches for edible food items near the molebat (within `SEE_FOOD_DIST = 25`) and returns an action to eat the first valid candidate. Items must be alive ≥ 8 seconds, on passable terrain, edible, and within `GO_HOME_DSQ` of home.
-* **Parameters:**  
-  `inst` (`Entity`) — The molebat instance.  
-* **Returns:**  
-  `BufferedAction` — An action to perform `ACTIONS.EAT` on the target, or `nil`.
+*   **Description:** Locates and selects a nearby edible item for consumption, provided it is not too far from home and has existed for at least 8 seconds.
+*   **Parameters:** `inst` (entity) — the Molebat instance.
+*   **Returns:** `BufferedAction` with `ACTIONS.EAT` targeting the found food, or `nil` if nothing suitable is found or the Molebat is busy.
+*   **Error states:** `FindEntity` may return `nil` if no item matches criteria (`CanEat`, age, passability, distance, tags, and edible tags).
 
 ### `GetFaceTargetFn(inst)`
-* **Description:** Returns the nearest player within `START_FACE_DIST = 6` that does not have the `"notarget"` tag.
-* **Parameters:**  
-  `inst` (`Entity`) — The molebat instance.  
-* **Returns:**  
-  `Entity` — The nearest eligible player, or `nil`.
+*   **Description:** Returns the nearest nearby player for the Molebat to face, within `START_FACE_DIST` (`6` units), excluding players tagged `"notarget"`.
+*   **Parameters:** `inst` (entity) — the Molebat instance.
+*   **Returns:** `player` entity or `nil`.
 
 ### `KeepFaceTargetFn(inst, target)`
-* **Description:** Determines whether the molebat should keep facing the current face target (i.e., player). Returns `true` if the target does not have `"notarget"` and is within `KEEP_FACE_DIST = 8`.
-* **Parameters:**  
-  `inst` (`Entity`) — The molebat instance.  
-  `target` (`Entity`) — The current face target.  
-* **Returns:**  
-  `boolean` — `true` if the face target should be maintained.
+*   **Description:** Returns `true` if the target is still within `KEEP_FACE_DIST` (`8` units) and not tagged `"notarget"`.
+*   **Parameters:** `inst` (entity), `target` (entity).
+*   **Returns:** `true` or `false`.
 
 ### `GetRunAwayTarget(inst)`
-* **Description:** Returns the current combat target for the `RunAway` behavior.
-* **Parameters:**  
-  `inst` (`Entity`) — The molebat instance.  
-* **Returns:**  
-  `Entity` — The combat target stored in `inst.components.combat.target`.
+*   **Description:** Returns the current combat target as the source to flee from.
+*   **Parameters:** `inst` (entity) — the Molebat instance.
+*   **Returns:** `inst.components.combat.target` (entity or `nil`).
 
-## Events & Listeners
-- **Listens to:**  
-  None directly in this file. Entity removal listening for `"burrow"` is handled inside `CleanUpNest` via `EntityTracker`, which internally registers `inst:ListenForEvent("onremove", onremove, burrow)`.  
-- **Pushes:**  
-  `"summon"` — fired during the `"Summon Allies"` behavior tree branch when the molebat is in combat cooldown but eligible to summon allies (`ShouldSummonAllies()` returns `true`).
+## Events & listeners
+- **Listens to:** `summon` — pushed when the "Summon Allies" condition is met; no listener is defined here (handled elsewhere).
+- **Pushes:** `summon` — fired by the "Summon Allies" action node when triggered.

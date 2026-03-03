@@ -4,7 +4,6 @@ title: Toadstoolarena
 description: Defines decorative and structural room layouts for the Toadstool Arena biome in the game's cave world generation system.
 tags: [world, generation, map, room]
 sidebar_position: 1
-
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: f8a6ea1e
 ---
-
 # Toadstoolarena
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -68,4 +66,3 @@ No standalone functions are defined — this file exclusively uses `AddRoom` fro
 ## Events & listeners
 Not applicable — this is a world generation configuration file with no runtime entity or event logic.
 
----

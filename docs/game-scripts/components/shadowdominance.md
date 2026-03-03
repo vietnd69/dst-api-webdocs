@@ -1,48 +1,50 @@
 ---
 id: shadowdominance
 title: Shadowdominance
-description: Manages the 'shadowdominance' tag on an entity when equipped, ensuring the tag is added upon equip and removed when unequipped or the entity no longer holds any shadowdominance items.
+description: Manages the "shadowdominance" tag on an entity based on equip state and presence of other shadow-dominant items.
+tags: [inventory, tags, equipment]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 3dddb4d3
+system_scope: inventory
 ---
 
 # Shadowdominance
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component enforces the presence or absence of the `shadowdominance` tag on an entity based on its equipped items. It integrates with the `equippable` and `inventoryitem` components to dynamically add the tag when the item is equipped (and the owner lacks a shadow submissiveness override) and remove it when unequipped or removed—while also checking for other equipped shadowdominance items before removal.
+`Shadowdominance` is a component that enforces a single "shadowdominance" tag on an entity, ensuring the tag is present only when exactly one item with this component is equipped. It is designed to work in conjunction with the `shadowsubmissive` component. When an item with this component is equipped, it adds the tag to the owner, provided the owner does not already have an active `_shadowdsubmissive_task`. When unequipped or removed, it removes the tag unless another shadowdominance item remains equipped.
 
-## Dependencies & Tags
-**Depends on components:**
-- `equippable`
-- `inventoryitem`
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("shadowdominance")
+-- Typically added to equipment prefabs (e.g., clothing or accessories)
+-- Tag logic automatically activates when equipped via equipped/unequipped events
+```
 
-**Tag management:**
-- Adds `shadowdominance` tag on initialization (via constructor).
-- Adds/removes `shadowdominance` tag from the *owner* entity during equip/unequip/remove lifecycle events.
-
-**Interacts with:**
-- Owner's `_shadowdsubmissive_task` (internal reference to shadow submissiveness state).
-- Owner's `inventory.equipslots` to detect other shadowdominance-equipped items.
+## Dependencies & tags
+**Components used:** `equippable` (`IsEquipped`), `inventory` (`equipslots`), `inventoryitem` (`IsHeld`, `owner`)
+**Tags:** Adds `shadowdominance` to the owner entity during equip and removes it during unequip/remove, under defined conditions.
 
 ## Properties
-No public instance properties are defined. The only stored reference is `self.inst`, which holds the entity instance the component is attached to.
+No public properties.
 
-## Main Functions
+## Main functions
+### `OnRemoveFromEntity()`
+* **Description:** Cleans up event listeners and ensures the `shadowdominance` tag is removed from the owner when the component is removed from its entity.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Calls `_OnUnequipped` internally to correctly handle tag removal in all edge cases.
 
-### `ShadowDominance:OnRemoveFromEntity()`
-* **Description:** Cleans up the component when removed from its entity. Ensures the `shadowdominance` tag is removed from `inst`, all event listeners are deregistered, and a final cleanup step is performed to check and potentially remove the tag from the owner if still equipped at removal time.
-* **Parameters:** None (instance method).
-
-## Events & Listeners
-- **Listens for:**
-  - `"equipped"` → triggers `OnEquipped`
-  - `"unequipped"` → triggers `OnUnequipped`
-  - `"onremove"` → triggers `OnRemove`
-- **Pushes/Triggers events:**
-  - None (does not push events itself).
+## Events & listeners
+- **Listens to:**  
+  - `equipped` — triggers tag addition to the owner.  
+  - `unequipped` — triggers tag removal logic (unless another shadowdominance item is equipped).  
+  - `onremove` — triggers tag removal logic if the item was still equipped at removal time.  
+- **Pushes:** None.

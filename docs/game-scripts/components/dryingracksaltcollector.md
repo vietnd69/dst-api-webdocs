@@ -1,68 +1,94 @@
 ---
 id: dryingracksaltcollector
 title: Dryingracksaltcollector
-description: This component manages and tracks salt quantities and their specific slots on an entity, particularly for objects like drying racks.
+description: Tracks salt slots in a drying rack and manages salt count changes with optional callback notification.
+tags: [world, crafting, inventory]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 6a23ea9a
+system_scope: world
 ---
 
 # Dryingracksaltcollector
 
-## Overview
-This component is responsible for collecting, tracking, and managing the presence of salt in specific "slots" on an associated entity, such as a drying rack. It maintains a count of the total salt pieces and provides an interface for adding, removing, querying, saving, and loading this salt data. It can also notify an external function when the salt count changes.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified. This script does not explicitly rely on other components via `AddComponent` calls or manage specific entity tags.
+## Overview
+`DryingRackSaltCollector` is a lightweight component that manages the collection and tracking of salt slots in drying racks. It maintains a set of active salt slots, tracks the total number of salts, and supports an optional callback (`onsaltchangedfn`) that fires whenever the salt count changes. This component is typically attached to drying rack prefabs to handle gameplay logic related to salt-based drying operations.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("dryingracksaltcollector")
+
+-- Set a callback to respond to salt changes
+inst.components.dryingracksaltcollector:SetOnSaltChangedFn(function(inst, numsalts)
+    print("Current salt count:", numsalts)
+end)
+
+-- Add and remove salts
+inst.components.dryingracksaltcollector:AddSalt("slot_1")
+inst.components.dryingracksaltcollector:RemoveSalt("slot_1")
+
+-- Check salt status
+if inst.components.dryingracksaltcollector:HasSalt("slot_1") then
+    print("Salt found in slot_1")
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-| Property          | Type                      | Default Value | Description                                                              |
-| :---------------- | :------------------------ | :------------ | :----------------------------------------------------------------------- |
-| `inst`            | `table`                   | `nil`         | A reference to the entity that this component is attached to.            |
-| `slots`           | `table`                   | `{}`          | A table used as a set, where keys are slot identifiers and values are `true` if salt is present in that slot. |
-| `numsalts`        | `number`                  | `0`           | The current total count of salt pieces managed by this collector.        |
-| `onsaltchangedfn` | `function` or `nil`       | `nil`         | An optional callback function to be executed when `numsalts` changes. This function receives `(inst, numsalts)` as arguments. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `slots` | table | `{}` | A dictionary mapping slot identifiers to `true` indicating presence of salt. |
+| `numsalts` | number | `0` | Total count of salt slots currently occupied. |
+| `onsaltchangedfn` | function or `nil` | `nil` | Optional callback invoked when salt count changes; signature: `fn(inst, numsalts)`. |
 
-## Main Functions
+## Main functions
 ### `SetOnSaltChangedFn(fn)`
-*   **Description:** Assigns a callback function that will be invoked whenever the number of salts managed by this component changes (i.e., when `AddSalt` or `RemoveSalt` is successfully called).
-*   **Parameters:**
-    *   `fn` (`function`): The function to be called. It will receive two arguments: `self.inst` (the entity) and `self.numsalts` (the current count of salts).
+* **Description:** Sets or clears the callback function executed when salt count changes.
+* **Parameters:** `fn` (function or `nil`) — the callback to invoke on salt changes, or `nil` to remove.
+* **Returns:** Nothing.
 
 ### `AddSalt(slot)`
-*   **Description:** Attempts to add salt to a specified slot. If the slot is not already occupied by salt, it marks the slot as having salt, increments the total salt count, and triggers the `onsaltchangedfn` if set.
-*   **Parameters:**
-    *   `slot` (`any`): A unique identifier (e.g., a number or string) representing the slot where salt is to be added.
-*   **Returns:** `boolean` - `true` if salt was successfully added to a previously empty slot, `false` otherwise (if the slot already had salt).
+* **Description:** Attempts to register a salt in the given slot. Returns `true` only if the slot was newly added.
+* **Parameters:** `slot` (any hashable type, typically string or number) — the identifier for the salt slot.
+* **Returns:** `true` if the salt was added (slot was previously empty); `false` if already occupied.
+* **Error states:** No effect if slot is already occupied.
 
 ### `RemoveSalt(slot)`
-*   **Description:** Attempts to remove salt from a specified slot. If the slot is currently occupied by salt, it clears the slot, decrements the total salt count, and triggers the `onsaltchangedfn` if set.
-*   **Parameters:**
-    *   `slot` (`any`): A unique identifier (e.g., a number or string) representing the slot from which salt is to be removed.
-*   **Returns:** `boolean` - `true` if salt was successfully removed from an occupied slot, `false` otherwise (if the slot was already empty).
+* **Description:** Attempts to remove a salt from the given slot. Returns `true` only if the slot was successfully cleared.
+* **Parameters:** `slot` (any hashable type, typically string or number) — the identifier for the salt slot.
+* **Returns:** `true` if the salt was removed (slot existed); `false` if no salt was present.
+* **Error states:** No effect if slot was not occupied.
 
 ### `HasSalt(slot)`
-*   **Description:** Checks for the presence of salt. If a `slot` is provided, it checks if that specific slot contains salt. If no `slot` is provided, it checks if there is any salt at all in the collector (`numsalts > 0`).
-*   **Parameters:**
-    *   `slot` (`any`, optional): The specific slot identifier to check. If omitted, the function checks if any salt exists.
-*   **Returns:** `boolean` - `true` if salt is found in the specified slot (or anywhere if `slot` is `nil`), `false` otherwise.
+* **Description:** Checks if a specific slot contains salt, or if *any* salt is present (if `slot` is `nil`).
+* **Parameters:** `slot` (any, optional) — if provided, checks the specific slot; if `nil`, checks whether any salt exists.
+* **Returns:** `true` if the specified slot has salt, or if `slot` is `nil` and `numsalts > 0`; otherwise `false`.
 
 ### `GetNumSalts()`
-*   **Description:** Retrieves the current total number of salts being managed by this component.
-*   **Parameters:** None.
-*   **Returns:** `number` - The current value of `self.numsalts`.
+* **Description:** Returns the total number of occupied salt slots.
+* **Parameters:** None.
+* **Returns:** `number` — current count of salt slots.
 
 ### `OnSave()`
-*   **Description:** Serializes the component's current state to be saved with the game world. It collects all occupied slot identifiers if `numsalts` is greater than zero.
-*   **Parameters:** None.
-*   **Returns:** `table` or `nil` - A table with a `slots` key containing an array of occupied slot identifiers if `numsalts > 0`; otherwise, `nil`.
+* **Description:** Serializes current salt state for saving to disk. Returns `nil` if no salts are present.
+* **Parameters:** None.
+* **Returns:** `{ slots = array_of_slot_identifiers }` if `numsalts > 0`; otherwise `nil`.
 
 ### `OnLoad(data)`
-*   **Description:** Deserializes the component's state from saved game data. It populates the `slots` and `numsalts` based on the provided data, and triggers the `onsaltchangedfn` if set.
-*   **Parameters:**
-    *   `data` (`table`): The table containing the saved component data, expected to have a `slots` array if salt was saved.
+* **Description:** Loads salt state from saved data. Resets internal slot tracking and `numsalts` before populating from `data.slots`.
+* **Parameters:** `data` (table or `nil`) — expected to contain `{ slots = array }` if non-`nil`.
+* **Returns:** Nothing.
+* **Error states:** Safely ignores missing or malformed `data`; only processes valid slot identifiers.
+
+## Events & listeners
+None identified

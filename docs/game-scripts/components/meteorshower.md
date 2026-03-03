@@ -1,73 +1,102 @@
 ---
 id: meteorshower
 title: Meteorshower
-description: Manages the periodic spawning, duration, and scheduling of meteor showers centered on a world spawner entity.
+description: Manages timed meteor shower events on a map spawner entity, including level selection, spawning logic, cooldown handling, and save/load state persistence.
+tags: [environment, world, event]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 1da1758d
+system_scope: world
 ---
 
 # Meteorshower
 
-## Overview
-This component governs the behavior of meteor shower events in the game world. It handles three distinct states — `SHOWERING`, `COOLDOWN`, and `STOPPED` — by scheduling periodic tasks, tracking remaining meteor quotas (medium/large), calculating spawn locations with radius-based ease-in logic, and persisting state across game sessions. The component is typically attached to a world-level spawner prefab (e.g., a meteor crater or celestial source) and dynamically responds to player proximity and game time to coordinate realistic, clustered meteor impacts.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- `TheWorld.Map`: Used for tile passability checks via `IsPassableAtPoint`.
-- `TheWorld.components.worldmeteorshower`: Queried to obtain `rockmoonshell` spawn odds via `GetRockMoonShellWaveOdds()`.
-- No explicit component additions or tag modifications observed in this file.
+## Overview
+`MeteorShower` controls a map-local meteor spawner entity (typically `rockmoon`, `moonspawner`, or similar). It handles cyclic behavior: starting a shower phase (spawning meteors over time), then entering a cooldown phase before repeating. The component supports multiple intensity levels, randomizes parameters (duration, rate, meteor counts), manages offscreen spawn rate reduction, and persists state across saves. It interacts with `worldmeteorshower` for global rock-moon-shell odds and uses `easing.outSine` to distribute spawn points.
+
+## Usage example
+```lua
+local spawner = SpawnPrefab("rockmoon")
+spawner:AddComponent("meteorshower")
+spawner.components.meteorshower:StartShower(1)  -- start level 1 shower manually
+```
+
+## Dependencies & tags
+**Components used:** `worldmeteorshower` (only to query odds via `GetRockMoonShellWaveOdds()`)
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed to constructor) | The entity instance this component is attached to (the spawner). |
-| `level` | `integer` | Randomly selected from 1–3 | The current meteor shower intensity level, determining spawn parameters from `SHOWER_LEVELS`. |
-| `dt` | `number` | `nil` | Time interval between meteor spawns (seconds); `nil` when not showering. |
-| `spawn_mod` | `number` | `nil` | Modulator applied to spawn cost and chance during off-screen operation (decreases over time). |
-| `medium_remaining` | `integer` | `nil` | Count of remaining medium meteor allowances for the current shower. |
-| `large_remaining` | `integer` | `nil` | Count of remaining large meteor allowances for the current shower. |
-| `retries_remaining` | `integer` | `nil` | Number of delayed cooldown retries left before forcing a shower start. |
-| `task` | `Task` | `nil` | The active periodic task (either `OnUpdate` or `OnCooldown`). |
-| `tasktotime` | `number` | `nil` | Game time at which the current task (shower or cooldown) ends. |
-| `should_have_rock_moon_shell` | `boolean` | `nil` | Whether this shower wave should spawn a single `shadowmeteor` with `rockmoonshell` size (one-time flag). |
+| `inst` | Entity reference | `nil` | The entity this component is attached to. Set in constructor. |
+| `dt` | number or nil | `nil` | Time interval (in seconds) between meteor spawns during a shower. `nil` when not showering. |
+| `spawn_mod` | number or nil | `nil` | Spawning modifier applied when offscreen to reduce spawn rate. |
+| `medium_remaining` | number or nil | `nil` | Number of medium meteors allowed this shower. |
+| `large_remaining` | number or nil | `nil` | Number of large meteors allowed this shower. |
+| `retries_remaining` | number or nil | `nil` | Number of retries left before forcing cooldown exit. |
+| `task` | periodic task or nil | `nil` | Periodic task driving the shower/cooldown loop. |
+| `tasktotime` | number or nil | `nil` | World time when the current task should terminate. |
+| `level` | number | `1–3` | Selected meteor shower level (1-based index of `SHOWER_LEVELS`). |
+| `should_have_rock_moon_shell` | boolean or nil | `nil` | Whether this shower wave should produce one rock-moon-shell meteor. Set during shower start. |
 
-## Main Functions
+## Main functions
+### `IsShowering()`
+* **Description:** Checks if the meteor shower is currently active (spawning meteors).
+* **Parameters:** None.
+* **Returns:** `true` if `self.dt` is non-`nil`, otherwise `false`.
+
+### `IsCoolingDown()`
+* **Description:** Checks if the component is currently in the cooldown phase (waiting before next shower).
+* **Parameters:** None.
+* **Returns:** `true` if a task exists and `self.dt` is `nil`; otherwise `false`.
 
 ### `SpawnMeteor(mod)`
-* **Description:** Spawns a `shadowmeteor` prefab at a validated position near the spawner, using fan-based offset search and random radial distribution with easing. Applies size (small/medium/large) based on rarity, remaining quotas, and spawn location periphery. If `should_have_rock_moon_shell` is set, it assigns `rockmoonshell` size once.
-* **Parameters:**  
-  `mod` (`number` or `nil`): Optional spawn cost modifier. If `nil`, defaults to `1`. Used when spawning off-screen (e.g., to reduce spawn rate/frequency).
+* **Description:** Spawns a single meteor at a randomized position near the spawner, applying size constraints and rock-moon-shell logic. Respects remaining medium/large quotas and offscreen modifier `mod`.
+* **Parameters:** `mod` (number or `nil`) – spawn rate modifier. Defaults to `1` if `nil`.
+* **Returns:** The spawned `shadowmeteor` prefab instance, or `nil` if no valid spawn point found.
+* **Error states:** Returns `nil` if `FindValidPositionByFan` fails to locate a passable point.
 
 ### `StartShower(level)`
-* **Description:** Initiates a meteor shower for the given or randomized level. Validates duration and rate parameters, sets quotas for medium/large meteors, and starts a periodic `OnUpdate` task. May assign `rockmoonshell` to the first meteor in the wave based on world-tier odds.
-* **Parameters:**  
-  `level` (`integer` or `nil`): The shower level to use; if `nil`, a random level is selected.
+* **Description:** Begins a meteor shower for the given `level` (or a random level if `nil`). Calculates randomized parameters (duration, rate, meteor quotas) from `SHOWER_LEVELS`, then starts a periodic task to call `OnUpdate`.
+* **Parameters:** `level` (number or `nil`) – shower intensity level (`1`, `2`, or `3`). If omitted, a random level is chosen.
+* **Returns:** Nothing.
+* **Error states:** No shower starts if computed duration or rate is `<= 0`.
 
 ### `StopShower()`
-* **Description:** Immediately halts any active shower or cooldown tasks, resets all runtime state (`dt`, `task`, quotas, etc.), and clears `should_have_rock_moon_shell`. Idempotent — safe to call multiple times.
+* **Description:** Immediately terminates the current shower (if active) or cooldown, canceling the periodic task and resetting state fields.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `StartCooldown()`
-* **Description:** Begins a cooldown period after a shower. Schedules a periodic `OnCooldown` task that periodically rechecks player proximity and retry counters before restarting a shower. Allows up to `NUM_RETRIES` delays to give players a chance to witness the next shower.
+* **Description:** Enters the cooldown phase, scheduling a retry-based periodic task (`OnCooldown`) that re-evaluates whether to start the next shower based on player proximity or retry exhaustion.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No task starts if randomized cooldown duration is `<= 0`.
 
 ### `OnSave()`
-* **Description:** Returns a serializable table capturing current state for world persistence. Includes level, normalized remaining time, spawn interval, quotas, and retry counters. (Note: The function currently returns `nil` implicitly due to a stray `return` statement before the table.)
+* **Description:** Returns a serializable state table for persistence, including remaining time, interval, quotas, and version info.
 * **Parameters:** None.
+* **Returns:** A table with keys: `level`, `remainingtime`, `interval`, `mediumleft`, `largeleft`, `retriesleft`, `version`.
+* **Error states:** Returns `nil` early (due to an explicit `return` statement before the table).
 
 ### `OnLoad(data)`
-* **Description:** Restores component state from saved data, supporting version 2 saves and legacy (pre-version) formats. Re-instantiates appropriate periodic tasks (`OnUpdate` for showering, `OnCooldown` for cooling) and re-applies quotas and timing.
-* **Parameters:**  
-  `data` (`table` or `nil`): The saved state table, typically from `OnSave()`.
+* **Description:** Restores component state from a previously saved table. Supports version 2 format and legacy retrofits. Rebuilds tasks based on saved values.
+* **Parameters:** `data` (table or `nil`) – saved state data.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a human-readable debug string describing the current state (`SHOWERING`, `COOLDOWN`, or `STOPPED`) and relevant values (e.g., time remaining, quotas, retry count).
+* **Description:** Returns a human-readable debug string describing current phase, remaining time, interval, quotas, and retry count.
 * **Parameters:** None.
+* **Returns:** A string like `"Level 2 SHOWERING: 10.50, interval: 0.33 (mod: 1.0), stock: (3 large, 5 medium, unlimited small)"` or similar.
 
-## Events & Listeners
-- **Listens to:** None (does not use `inst:ListenForEvent`).
-- **Triggers:** None explicitly; events are internal task-driven callbacks (`OnUpdate`, `OnCooldown`).
+## Events & listeners
+- **Listens to:** None explicitly registered.
+- **Pushes:** None explicitly fired.
+
+> **Note:** The function `OnSave` currently contains a `return` statement before the table construction block, meaning it always returns `nil`. This may be a bug or intentional placeholder; no state is persisted as written.

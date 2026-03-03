@@ -1,82 +1,80 @@
 ---
 id: specialeventsetup
 title: Specialeventsetup
-description: Initializes and manages the lifecycle of special in-game events like Halloween and Year of the Catcoon, handling setup and teardown logic on the master simulation.
+description: Manages the lifecycle and setup logic for special in-game events such as Halloween and Year of the Catcoon.
+tags: [event, world, setup]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: dbfb82a4
+system_scope: world
 ---
-
 # Specialeventsetup
 
-## Overview
-This component is responsible for detecting transitions between special events (e.g., from one event to another or to no event) at world startup or save/load time, and invoking appropriate event-specific setup or shutdown functions. It operates exclusively on the master simulation and coordinates the spawning and positioning of event-related entities such as Halloween trinkets, kitcoons (for Year of the Catcoon), and their hiding spots.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires `TheWorld.ismastersim` — throws an assertion error if instantiated on the client.
-- No explicit component additions (e.g., `AddComponent`) or tags are applied to the instance (`inst`).
-- Interacts with the global constants `WORLD_SPECIAL_EVENT`, `WORLD_EXTRA_EVENTS`, and `SPECIAL_EVENTS`.
-- Calls `TheWorld:PushEvent()` with custom events: `"ms_setupspecialevent"`, `"ms_shutdownspecialevent"`, and `"ms_collectallkitcoons"` for mod extensibility.
+## Overview
+`Specialeventsetup` is a world-level component responsible for initializing and tearing down special in-game events based on the current world configuration. It detects transitions between active and previous events, triggers appropriate setup/shutdown callbacks, and handles biome-specific event initialization logic (e.g., spawning Halloween trinkets or Year of the Catcoon kitcoons). It is only instantiated on the master simulation server and relies on the `TheWorld` global for world state and event configuration.
+
+## Usage example
+```lua
+-- Typically attached automatically by the game during world initialization.
+-- Manual usage is not recommended, but if needed:
+local inst = TheWorld
+inst:AddComponent("specialeventsetup")
+-- Event setup/shutdown is handled automatically on save/load and world change.
+```
+
+## Dependencies & tags
+**Components used:** `hideandseekhider`, `playerspawner`  
+**Tags:** No tags are added or removed directly by this component.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (constructor argument) | Reference to the entity the component is attached to (typically the world root). |
-| `halloween_bat_grave_spawn_chance` | `number` | `0` | Accumulating spawn chance for bats emerging from dug graves during Halloween; persists across sessions. |
-| `prev_event` | `SPECIAL_EVENTS` enum | `SPECIAL_EVENTS.NONE` | Tracks the last active special event (loaded from save or defaults to `NONE`). |
-| `prev_extra_events` | `table` | `{}` | List of previously active extra events, used to detect changes across sessions. |
-| `halloweentrinkets` | `any` | `nil` | Deprecated field retained for backward compatibility with older save data; used only during migration to `prev_event`. |
+| `inst` | `Entity` | `nil` | The entity instance (always `TheWorld`) this component is attached to. |
+| `halloween_bat_grave_spawn_chance` | number | `0` | Accumulating chance for bats spawning from graves during Halloween; persisted across sessions. |
+| `prev_event` | `SPECIAL_EVENTS` enum | `SPECIAL_EVENTS.NONE` | The previous special event active in the world. Used to detect transitions. |
+| `prev_extra_events` | table | `{}` | List of previously active extra events (e.g., seasonal variants). |
 
-## Main Functions
+## Main functions
+### `SetupNewSpecialEvent(event)`
+*   **Description:** Initializes the specified special event (e.g., `HALLOWED_NIGHTS`, `YOT_CATCOON`) if it is not already active. Runs biome-specific logic for spawning event assets (e.g., trinkets or kitcoons).
+*   **Parameters:** `event` (SPECIAL_EVENTS enum) – The event to set up.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early without action if `event` is `nil`.
 
-### `:_SetupHallowedNights()`
-* **Description:** Spawns Halloween trinkets and ornaments throughout the world if the current event is Halloween (or if legacy trinket data indicates previous Halloween activity). Also checks for existing trinkets to avoid overspawning if world retained old trinkets. Skips spawning if ≥16 trinkets are already present.
-* **Parameters:** None.
+### `ShutdownPrevSpecialEvent(event)`
+*   **Description:** Shuts down cleanup logic for a previously active special event. Currently only stubbed for Halloween (cleanup of leftover trinkets is pending), but supports modded events via a global event.
+*   **Parameters:** `event` (SPECIAL_EVENTS enum) – The event to shut down.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early without action if `event` is `nil`.
 
-### `:_yotcatcoon_HideKitcoon(kitcoon_data, emergency_hidingspot_prefabs)`
-* **Description:** Attempts to find a valid hiding spot for a given kitcoon entity by searching biomes for existing suitable spots, then fallback prefabs, then generating emergency hiding spots in a tiered manner (biome → player spawn fallback). Places the kitcoon in the chosen spot using the `hideandseekhider` component.
-* **Parameters:**
-  * `kitcoon_data` (table): Contains `kitcoon`, `biome_name`, `fallback_prefab`, and tag filters (`hiding_spot_all_tags`, `hiding_spot_notags`, `hiding_spot_some_tags`) and optional filter function `hiding_spot_fn`.
-  * `emergency_hidingspot_prefabs` (table): List of prefabs used for emergency fallback hiding spots (e.g., `{"rocks", "twigs", "cutgrass", "log"}`).
+### `OnPostInit()`
+*   **Description:** Called after the component and world are initialized. Compares `prev_event`/`prev_extra_events` against current world events (`WORLD_SPECIAL_EVENT`, `WORLD_EXTRA_EVENTS`), then triggers setup or shutdown as needed. Also calls `SpecialEventSetup()` on `prefabs/oceanfishdef`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `:_SetupYearOfTheCatcoon()`
-* **Description:** Initializes the Year of the Catcoon event by spawning all configured kitcoon prefabs and assigning each a hiding spot using `_yotcatcoon_HideKitcoon`. It first collects existing kitcoons via `"ms_collectallkitcoons"` event, avoids re-spawning them, then spawns missing ones. Also prepares biome-specific hiding spot configurations.
-* **Parameters:** None.
+### `OnSave()`
+*   **Description:** Serializes the component’s state for world save. Includes current event identifiers and Halloween bat spawn chance.
+*   **Parameters:** None.
+*   **Returns:** `table` containing keys `halloween_bats`, `current_event`, `current_extra_events`.
 
-### `:SetupNewSpecialEvent(event)`
-* **Description:** Invokes the appropriate setup function for a newly activated special event (e.g., `HALLOWED_NIGHTS`, `YOT_CATCOON`) and triggers a moddable `"ms_setupspecialevent"` event for external customization.
-* **Parameters:**
-  * `event` (`SPECIAL_EVENTS` enum or `nil`): The event to initialize. Returns early if `nil`.
+### `OnLoad(data)`
+*   **Description:** Restores the component’s state from a world save. Handles legacy `halloweentrinkets` field for backwards compatibility and updates `prev_event`, `prev_extra_events`, and `halloween_bat_grave_spawn_chance`.
+*   **Parameters:** `data` (table or `nil`) – The saved data dictionary.
+*   **Returns:** Nothing.
 
-### `:ShutdownPrevSpecialEvent(event)`
-* **Description:** Handles cleanup logic when a special event ends (e.g., future cleanup of leftover Halloween trinkets). Triggers moddable `"ms_shutdownspecialevent"` event.
-* **Parameters:**
-  * `event` (`SPECIAL_EVENTS` enum or `nil`): The event to shut down. Returns early if `nil`.
+## Events & listeners
+- **Listens to:** None directly (all event listening is handled via `TheWorld:PushEvent` calls).
+- **Pushes:**  
+  - `"ms_setupspecialevent"` – Fired with the event enum when setup begins (intended for modder hooks).  
+  - `"ms_shutdownspecialevent"` – Fired with the event enum when shutdown begins (intended for modder hooks).  
+  - `"ms_collectallkitcoons"` – Fired during `YOT_CATCOON` setup to collect existing kitcoons before cleanup/respawn.
 
-### `:OnPostInit()`
-* **Description:** Compares the previous event state (from save or defaults) with the current world event state. Determines which events have started or ended, and calls `SetupNewSpecialEvent` or `ShutdownPrevSpecialEvent` accordingly. Also calls `SpecialEventSetup()` from oceanfishdef.lua.
-* **Parameters:** None.
+### External event integration
+- Calls `inst.components.hideandseekhider:GoHide(hiding_spot, timeout_time, isloading)` from `hideandseekhider.lua` during kitcoon hiding logic.
+- Calls `TheWorld.components.playerspawner:GetAnySpawnPoint()` as a fallback position when hiding spot placement fails.
 
-### `:OnSave()`
-* **Description:** Returns a table containing essential state to persist across saves: bat spawn chance, current event, and extra events list.
-* **Parameters:** None.
-
-### `:OnLoad(data)`
-* **Description:** Restores state from saved data, including deprecated `halloweentrinkets`, `halloween_bat_grave_spawn_chance`, `prev_event`, and `prev_extra_events`.
-* **Parameters:**
-  * `data` (table or `nil`): Save data loaded from disk. If `nil`, no state restoration occurs.
-
-## Events & Listeners
-
-- **Listens for (via external calls in `OnPostInit`):**
-  - `"ms_collectallkitcoons"` — triggers a `"ms_collectallkitcoons"` event on `TheWorld` to gather existing kitcoons before setup.
-
-- **Triggers (via `TheWorld:PushEvent`):**
-  - `"ms_setupspecialevent"` — fired in `SetupNewSpecialEvent` after event-specific setup.
-  - `"ms_shutdownspecialevent"` — fired in `ShutdownPrevSpecialEvent` after event-specific cleanup.
-  - `"ms_collectallkitcoons"` — fired in `:SetupYearOfTheCatcoon` to collect existing kitcoons.

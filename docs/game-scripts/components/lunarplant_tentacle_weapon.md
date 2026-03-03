@@ -1,58 +1,70 @@
 ---
 id: lunarplant_tentacle_weapon
 title: Lunarplant Tentacle Weapon
-description: This component attaches to a weapon and spawns Lunarplant Tentacles as secondary attacks under specific skill and luck conditions.
+description: Spawns lunar tentacles as secondary attacks when equipped and used in combat, conditional on skill tree activation.
+tags: [combat, equipment, boss]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: combat
+category_type: components
 source_hash: 617a3306
+system_scope: combat
 ---
 
 # Lunarplant Tentacle Weapon
 
-## Overview
-This component extends a weapon entity to trigger the spawning of Lunarplant Tentacles when the weapon is used to attack. It requires the owner to have a specific skill (`wormwood_allegiance_lunar_plant_gear_2`) activated and succeeds based on a configured spawn chance. Tentacles are spawned at random nearby walkable positions (avoiding holes) and are given the attacked target as their target.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on: `health`, `combat`, `skilltreeupdater`, `component.owner` (on `owner` entity), `component.combat` (on spawned tentacle)
-- Events listened to: `equipped`, `unequipped`, `onattackother`, `onremove`
-- No tags are added or removed by this component.
+## Overview
+`LunarPlant_Tentacle_Weapon` is a passive weapon component that triggers the spawning of lunar tentacles upon the owner's successful attacks. It listens for `equipped`/`unequipped` events to attach/detach event callbacks to its owner, and responds to `onattackother` to attempt tentacle spawns. A conditional function (`should_do_tentacles_fn`) controls whether tentacle spawns occur — by default, it checks for the `"wormwood_allegiance_lunar_plant_gear_2"` skill activation via the `skilltreeupdater` component.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("inventoryitem")
+inst:AddComponent("combatweapon")
+inst:AddComponent("lunarplant_tentacle_weapon")
+inst.components.lunarplant_tentacle_weapon.spawn_chance = 0.25
+inst.components.lunarplant_tentacle_weapon.tentacle_prefab = "lunarplanttentacle"
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `skilltreeupdater` (via `owner.components.skilltreeupdater` in condition)  
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `spawn_chance` | `number` | `0.2` | Probability (0–1) that a tentacle spawns per successful attack condition check. |
-| `tentacle_prefab` | `string` | `"lunarplanttentacle"` | Prefab name used to spawn the tentacle. |
-| `should_do_tentacles_fn` | `function` | `DefaultLunarPlantTentacleCondition` | Callback function determining whether tentacles should be spawned for a given attack. |
-| `owner` | `Entity or nil` | `nil` | The player/entity currently wielding the weapon. Set/cleared via `equipped`/`unequipped` events. |
-| `_on_attack` | `function` | (internal) | Callback wrapper used to route attack events to `OnAttack`. |
-| `_erase_owner` | `function` | (internal) | Callback used to clear the `owner` reference when the owner entity is removed. |
-| `_equipped_callback` | `function` | (internal) | Handler for `equipped` events, invokes `SetOwner(data.owner)`. |
-| `_unequipped_callback` | `function` | (internal) | Handler for `unequipped` events, invokes `SetOwner(nil)`. |
+| `spawn_chance` | number | `0.2` | Probability (0.0–1.0) that a tentacle spawns per qualifying attack. |
+| `tentacle_prefab` | string | `"lunarplanttentacle"` | Prefab name to spawn for tentacles. |
+| `should_do_tentacles_fn` | function | `DefaultLunarPlantTentacleCondition` | Callback `(weapon, owner, attack_data) -> boolean` determining if tentacles should spawn. |
+| `owner` | EntityInstance or `nil` | `nil` | Entity currently equipped with this weapon; set automatically via `equipped`/`unequipped` events. |
 
-## Main Functions
-
-### `OnRemoveFromEntity()`
-* **Description:** Cleans up event listeners and references when this component is removed from an entity. Removes all registered callbacks and clears the owner reference.
-* **Parameters:** None.
-
+## Main functions
 ### `SetOwner(owner)`
-* **Description:** Assigns the weapon’s current owner and registers or unregisters event listeners on the owner to track attacks and entity removal.
-* **Parameters:**
-  - `owner` (`Entity or nil`): The entity that equipped or unequipped the weapon.
+*   **Description:** Assigns the weapon's owner and registers/deregisters event listeners for `onattackother` and `onremove` on the owner.
+*   **Parameters:** `owner` (EntityInstance or `nil`) — the entity wielding the weapon.
+*   **Returns:** Nothing.
+*   **Error states:** No direct error states; safely handles `nil` owner.
 
 ### `OnAttack(owner, attack_data)`
-* **Description:** Handles weapon attack events. Checks if the attack originated from this weapon, if the owner meets the skill requirement, and whether luck roll succeeds; if so, spawns a Lunarplant Tentacle near the target.
-* **Parameters:**
-  - `owner` (`Entity`): The entity performing the attack.
-  - `attack_data` (`table or nil`): Attack metadata including `weapon` and `target`. Function exits early if `nil` or the weapon does not match.
+*   **Description:** Attempts to spawn a lunar tentacle near the target of an attack, provided attack conditions are met and the luck roll succeeds.
+*   **Parameters:**  
+    `owner` (EntityInstance) — the entity performing the attack.  
+    `attack_data` (table) — attack event payload, must include `weapon` (entity) and `target` (entity).
+*   **Returns:** Nothing.
+*   **Error states:**  
+    - Returns early if `attack_data` is `nil` or `attack_data.weapon ~= self.inst`.  
+    - Returns early if `should_do_tentacles_fn` returns `false`.  
+    - Tentacle spawn may silently fail if `FindWalkableOffset` or `SpawnPrefab` returns `nil`.
 
-## Events & Listeners
-- Listens to `equipped` → triggers `_equipped_callback`
-- Listens to `unequipped` → triggers `_unequipped_callback`
-- Listens to `onattackother` on owner → triggers `_on_attack`
-- Listens to `onremove` on owner → triggers `_erase_owner`
+## Events & listeners
+- **Listens to (on `self.inst`):**  
+  - `equipped` — triggers `_equipped_callback`, which calls `SetOwner(data.owner)`.  
+  - `unequipped` — triggers `_unequipped_callback`, which calls `SetOwner(nil)`.  
+- **Listens to (on `owner`):**  
+  - `onattackother` — triggers `_on_attack`, which calls `OnAttack`.  
+  - `onremove` — triggers `_erase_owner`, which sets `self.owner = nil`.  
+- **Pushes:** None.

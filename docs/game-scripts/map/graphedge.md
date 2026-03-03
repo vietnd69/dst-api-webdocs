@@ -3,7 +3,7 @@ id: graphedge
 title: Graphedge
 description: Represents a bidirectional connection between two graph nodes in the world map, managing rendering, locking, and data persistence for map navigation structures.
 tags: [map, graph, navigation, rendering, persistence]
-sidebar_position: 1
+sidebar_position: 100
 
 last_updated: 2026-02-27
 build_version: 714014

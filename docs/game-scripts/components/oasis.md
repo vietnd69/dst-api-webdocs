@@ -1,47 +1,67 @@
 ---
 id: oasis
 title: Oasis
-description: This component provides proximity-based detection and scoring logic for determining how close an entity is to the center of an oasis region in the game world.
+description: Checks entity proximity to a circular oasis area and calculates proximity levels relative to its boundary.
+tags: [world, environment, proximity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 541db6d8
+system_scope: environment
 ---
 
 # Oasis
 
-## Overview
-The `Oasis` component is attached to an entity (typically a special marker or location in the world) to define a circular region representing an oasis. It enables proximity checks to determine whether another entity is within the oasis and calculates a normalized proximity level (0.0–1.0) based on distance from the boundary.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Oasis` is a lightweight component that defines a circular area (the "oasis") centered on its owner entity. It provides utility methods to determine whether another entity is inside the oasis radius and to compute a smooth proximity level (from `0` to `1`) based on distance to the boundary. This is typically used for environmental effects or gameplay mechanics that trigger gradually as an entity approaches or enters the oasis zone.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddTag("oasis")
+inst:AddComponent("oasis")
+-- Optionally customize radius
+inst.components.oasis.radius = 5
+
+local player = TheEntityFactory("waxwell")
+if inst.components.oasis:IsEntityInOasis(player) then
+    print("Player is inside the oasis")
+end
+
+local proximity = inst.components.oasis:GetProximityLevel(player, 2)
+-- proximity is 1 inside, 0 outside, and linearly interpolated in between
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Checks for `oasis` tag on `self.inst` (implied via usage), but does not modify tags directly.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (none) | Reference to the entity the component is attached to (the oasis center). Set in constructor. |
-| `radius` | `number` | `1` | Radius of the oasis region (in units), used for proximity calculations. |
+| `radius` | number | `1` | Radius of the circular oasis area. Entities within this distance are considered inside. |
 
-## Main Functions
-
+## Main functions
 ### `IsEntityInOasis(ent)`
-* **Description:** Checks whether the given entity `ent` is inside the oasis region (i.e., within or at the defined radius from the center entity).
-* **Parameters:**  
-  `ent` (`Entity`) — The entity to test.
+*   **Description:** Determines whether the given entity is fully inside the oasis circle (i.e., distance ≤ `radius`).
+*   **Parameters:** `ent` (Entity) - The entity to test.
+*   **Returns:** `true` if the entity is inside or exactly on the boundary; otherwise `false`.
 
 ### `GetProximityLevel(ent, range)`
-* **Description:** Returns a normalized proximity level (a float in [0, 1]) indicating how close `ent` is to being *fully inside* the oasis.  
-  - Returns `1` if the entity is fully within the oasis boundary (`distance ≤ radius`).  
-  - Returns `0` if the entity is at or beyond `radius + range` from the center.  
-  - Returns an interpolated value in between based on distance.  
-  The "range" parameter defines the transition zone width beyond the oasis radius.
-* **Parameters:**  
-  `ent` (`Entity`) — The entity to evaluate.  
-  `range` (`number`) — The distance *outside* the oasis radius over which proximity transitions smoothly from 1 to 0.
+*   **Description:** Computes a normalized proximity value (`0` to `1`) indicating how close the entity is to the oasis boundary.  
+    * `1`: at or within the oasis (`distance ≤ radius`)  
+    * `0`: at or beyond `radius + range`  
+    * Between: linear interpolation based on distance.
+*   **Parameters:**  
+    * `ent` (Entity) - The entity to measure proximity for.  
+    * `range` (number) - The transition zone width beyond the oasis boundary over which proximity declines from `1` to `0`.
+*   **Returns:** `number` between `0` and `1`, clamped to that range.
+*   **Error states:** Returns `0` if `range ≤ 0` (since the transition zone becomes undefined).
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified

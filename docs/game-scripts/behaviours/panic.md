@@ -1,41 +1,53 @@
 ---
 id: panic
 title: Panic
-description: Causes an entity to randomly change movement direction at short intervals, simulating erratic panic behavior.
+description: Causes an entity to move in a random direction repeatedly with brief pauses, simulating a panic-flee behavior.
+tags: [ai, locomotion, behaviour]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: behaviour
-system_scope: entity
+category_type: behaviours
 source_hash: f52d2d23
+system_scope: locomotion
 ---
 
 # Panic
 
-## Overview
-The `Panic` component is a behaviour node used in the AI behaviour tree system to simulate panicked movement. When active, it repeatedly selects a new random movement direction and instructs the entity's locomotor to run in that direction for a short duration (between 0.25s and 0.5s). This creates a jittery, unpredictable escape pattern characteristic of fleeing or startled creatures. It relies on the `locomotor` component to execute directional movement via `RunInDirection`.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components used:** `locomotor`
-- **Tags:** None identified.
+## Overview
+`Panic` is a behaviour node that implements a simple flee-or-scare reaction: the entity moves in a randomly chosen direction, pauses briefly, then picks a new direction and repeats. It extends `BehaviourNode` and integrates into the DST behaviour tree system, primarily for use by passive or non-combat creatures during high-stress events (e.g., lightning strikes, predator encounters). It directly consumes the `locomotor` component to drive motion.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("locomotor")
+inst:AddComponent("behaviourtree")
+inst.components.behaviourtree:PushNode("panic")
+```
+
+## Dependencies & tags
+**Components used:** `locomotor`
+**Tags:** None identified.
 
 ## Properties
-| Property   | Type   | Default Value | Description                                                                 |
-|------------|--------|---------------|-----------------------------------------------------------------------------|
-| `waittime` | number | `0`           | Timestamp indicating when the next direction change should occur.           |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `waittime` | number | `0` | Timestamp when the current movement phase ends and a new direction will be selected. |
 
-## Main Functions
-### `Panic:Visit()`
-* **Description:** Executes the panic logic. On the first visit (`status == READY`), it picks a new random direction and transitions to `RUNNING`. On subsequent visits, it checks if the current `waittime` has elapsed; if so, it picks a new direction, otherwise it sleeps until `waittime`.
+## Main functions
+### `Visit()`
+* **Description:** The core behaviour node callback executed each tick. On first visit (`status == READY`), it immediately selects a new direction and enters `RUNNING` state. On subsequent ticks, it waits until `waittime` has passed before selecting a new direction, and then pauses via `Sleep`.
 * **Parameters:** None.
 * **Returns:** Nothing.
 
-### `Panic:PickNewDirection()`
-* **Description:** Sets a new random movement direction (0–360 degrees) for the entity's locomotor and schedules the next direction change 0.25–0.5 seconds in the future.
+### `PickNewDirection()`
+* **Description:** Sets a new random movement direction (0–360 degrees) and schedules the next direction change ~0.25–0.5 seconds in the future.
 * **Parameters:** None.
 * **Returns:** Nothing.
 
-## Events & Listeners
-None.
+## Events & listeners
+- **Pushes:** None.  
+  (Note: The `locomotor:RunInDirection` call internally fires a `locomote` event on the entity, but `Panic` itself does not fire custom events.)

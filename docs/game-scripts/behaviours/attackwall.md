@@ -1,48 +1,58 @@
 ---
 id: attackwall
 title: Attackwall
-description: A behaviour node that instructs an entity to attack the nearest wall-like target within a narrow frontal cone.
+description: An AI behavior node that rotates the entity toward nearby walls within a narrow angular cone and attempts to attack the nearest valid target.
+tags: [ai, combat, wall]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: behaviour
-system_scope: combat
+category_type: behaviours
 source_hash: 97074dc3
+system_scope: ai
 ---
 
 # Attackwall
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-`AttackWall` is a `BehaviourNode` implementation that enables an entity to locate and attack the nearest valid wall target. It operates as part of the entity's behaviour tree, evaluating potential targets in front of the entity within a narrow angular range (±30 degrees) and a short radius (1.5 units plus the entity's physics radius). If a valid wall target is found, the entity halts movement and attempts to attack it via the `combat` component. This node is typically used for enemies or AI entities that must destroy environmental obstacles such as walls, barricades, or structures.
+`Attackwall` is a behavior node used in the DST AI system to enable entities (typically structures like beefalo or bosses) to detect, rotate toward, and attack wall-type entities within a 60° forward-facing cone (±30° from current facing). It relies on the `combat`, `locomotor`, and `health` components to perform target acquisition, stopping movement, and attack execution. This node integrates into behavior trees as a leaf or decision point, commonly used by non-player characters that need to defend fixed positions or structures.
 
-Key relationships:
-- Uses `combat:CanTarget()` and `combat:TryAttack()` to validate and execute attacks.
-- Uses `locomotor:Stop()` to halt movement during the attack sequence.
-- Relies on `health:IsDead()` to verify if the target remains viable.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("combat")
+inst:AddComponent("locomotor")
+inst:AddComponent("health")
 
-## Dependencies & Tags
-- **Components used:**  
-  - `combat` (for `CanTarget`, `TryAttack`)  
-  - `health` (for `IsDead`)  
-  - `locomotor` (for `Stop`)  
-  - `Transform` (for rotation and world position queries)
-- **Tags:**  
-  - Internally defined constant `ATTACKWALL_MUST_TAGS = { "wall" }` — only entities tagged `"wall"` are considered valid targets.
+-- Add an AI brain with a behavior tree containing AttackWall
+inst:AddComponent("brain")
+inst:AddBehavior("attackwall", "behaviours/attackwall.lua")
+inst.brain:PushBackBehavior("attackwall")
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `locomotor`, `health`
+**Tags:** Checks for `wall` tag on potential targets (`ATTACKWALL_MUST_TAGS`); uses `softstop` state tag logic via `locomotor:Stop`.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `target` | `Entity?` | `nil` | Reference to the currently targeted wall entity. Updated during `Visit()` calls. May become `nil` if target is invalid or destroyed. |
-| `done` | `boolean` | `false` | Internal flag set during status change to `RUNNING`; likely intended for extension or debugging (unused in current implementation). |
-| `status` | `string` (inherited) | `READY` | State of the behaviour node (`READY`, `RUNNING`, `SUCCESS`, `FAILED`). Managed by `Visit()` and parent behaviour tree. |
+| `target` | Entity or nil | `nil` | Currently selected wall entity to attack; set in `Visit()` when a valid target is found. |
+| `status` | number | `READY` | Internal behavior status (`READY`, `RUNNING`, `SUCCESS`, `FAILED`). Inherited from `BehaviourNode`. |
+| `done` | boolean | `false` | Used internally to control behavior progress; initialized to `false` at start of `RUNNING` phase. |
 
-## Main Functions
-### `AttackWall:Visit()`
-* **Description:** Executes the core logic of the node. If `status` is `READY`, scans for a valid wall target in front of the entity using angular and tag filters. If found, transitions to `RUNNING`, stops movement, and initializes the attack sequence. While `RUNNING`, attempts to attack the target; succeeds on successful attack, fails if the target is missing or dead.
+## Main functions
+### `Visit()`
+* **Description:** Executes the behavior logic once per tick when the node is active in the behavior tree. First, searches for a wall target within a 1.5 radius and ±30° cone in front of the entity. If found, stops movement and transitions to `RUNNING`. In `RUNNING`, performs combat attacks using `combat:TryAttack` and ends with `SUCCESS` (if attack initiated) or `FAILED` (if target invalid or attack fails).Sleeps for 1 second after each attack attempt.
 * **Parameters:** None.
-* **Returns:** `void` (modifies `self.status` and internal state; does not return a value).
+* **Returns:** Nothing (behavior status is stored internally in `self.status`).
+* **Error states:** May set `status` to `FAILED` if no target is found (`READY` → `FAILED`), or if target becomes invalid or dead (`RUNNING` → `FAILED`). The behavior fails silently if `combat:TryAttack` returns `false` (e.g., on cooldown or out of range).
 
-## Events & Listeners
-None identified. This component does not register or dispatch any events.
+## Events & listeners
+- **Listens to:** None (uses event-driven component calls like `inst:PushEvent("doattack")` internally via `combat:TryAttack`).
+- **Pushes:** None directly, but triggers events indirectly via components:  
+  - `locomotor:Stop()` → pushes `"locomote"` event.  
+  - `combat:TryAttack()` → pushes `"doattack"` event if attack proceeds.

@@ -1,36 +1,44 @@
 ---
 id: worlddeciduoustreeupdater
 title: Worlddeciduoustreeupdater
-description: A deprecated placeholder component with no functional logic, retained only for backward compatibility with legacy mods.
+description: A deprecated placeholder component with no functional behavior.
+tags: [deprecated, placeholder]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
-change_status: stable
-category_type: component
-system_scope: world
+change_status: deprecated
+category_type: components
 source_hash: 752086f2
+system_scope: world
 ---
 
 # Worlddeciduoustreeupdater
 
-## Overview
-This component serves as a deprecated stub with no active behavior. It is retained in the codebase solely to prevent runtime errors in external mods that may reference it by name. It initializes an empty `update` function and holds no meaningful state or functionality.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`WorldDeciduousTreeUpdater` is a deprecated component with no active functionality. It exists only as a placeholder in case it is referenced by external mods. Its constructor initializes a no-op `update` function and stores the entity instance, but provides no further behavior, properties, or event handling.
+
+## Usage example
+```lua
+-- This component should not be used in new code.
+-- It is deprecated and has no functional effect.
+local inst = CreateEntity()
+inst:AddComponent("worlddeciduoustreeupdater")
+-- The following line does nothing:
+inst.components.worlddeciduoustreeupdater.update()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed to constructor) | Reference to the entity the component is attached to. |
-| `update` | `function` | `function() end` | A no-op function placeholder; does nothing when called. |
+No public properties
 
-## Main Functions
-### `_ctor(inst)`
-* **Description:** Initializes the component instance by storing the entity reference and assigning a no-op `update` function.
-* **Parameters:**
-  * `inst` (`Entity`): The entity being assigned to `self.inst`.
+## Main functions
+Not applicable.
 
-## Events & Listeners
-None.
+## Events & listeners
+Not applicable.

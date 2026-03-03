@@ -1,42 +1,54 @@
 ---
 id: staffsanity
 title: Staffsanity
-description: Applies a multiplier to sanity deltas triggered by a staff item's casting action.
+description: Modifies the rate of sanity change when used as a staff-like item to cast abilities.
+tags: [sanity, item, magic]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: a302ea3b
+system_scope: entity
 ---
 
 # Staffsanity
 
-## Overview
-The `Staffsanity` component enables an entity (typically a staff item) to modify sanity changes performed through its `DoCastingDelta` method by applying a configurable multiplier. It acts as a helper wrapper that delegates sanity adjustments to the target entity’s `sanity` component, scaling the amount based on the multiplier set via `SetMultiplier`.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependency:** Requires the host entity (`inst`) to have a `sanity` component for `DoCastingDelta` to function meaningfully.
-- **No tags** are added or removed by this component.
+## Overview
+`Staffsanity` is a lightweight component that amplifies or dampens the sanity impact of casting actions performed by an entity using a staff-like item. It acts as a modifier layer over the `sanity` component, scaling the delta applied via `DoCastingDelta`. It does not manage sanity itself but delegates the actual sanity change to `components.sanity:DoDelta` after applying a configurable multiplier.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("staffsanity")
+inst.components.staffsanity:SetMultiplier(2.0)  -- Doubles sanity impact of casting
+-- Later, during a casting action:
+inst.components.staffsanity:DoCastingDelta(-5)  -- Applies -10 sanity (5 * 2.0)
+```
+
+## Dependencies & tags
+**Components used:** `sanity` (via `inst.components.sanity`)
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (assigned in constructor) | Reference to the entity this component is attached to; used to access other components. |
-| `multiplier` | `number` | `nil` (default to `1` in `DoCastingDelta`) | Optional scaling factor applied to sanity delta amounts during casting. |
+| `multiplier` | number? | `nil` | Scalar applied to sanity delta. When `nil`, defaults to `1`. |
 
-## Main Functions
+## Main functions
 ### `SetMultiplier(mult)`
-* **Description:** Sets the multiplier used to scale sanity deltas in `DoCastingDelta`.
-* **Parameters:**  
-  - `mult` (`number`): The scaling factor. If `nil` or omitted, `DoCastingDelta` defaults to multiplying by `1`.
+*   **Description:** Sets the multiplier used to scale sanity changes in `DoCastingDelta`.
+*   **Parameters:** `mult` (number) - multiplier factor. Pass `nil` or omit to disable scaling (uses `1`).
+*   **Returns:** Nothing.
 
 ### `DoCastingDelta(amount)`
-* **Description:** Applies a sanity delta to the host entity, scaled by the configured `multiplier`. Only executes if the host entity has a `sanity` component.
-* **Parameters:**  
-  - `amount` (`number`): The base sanity change (positive for gain, negative for loss), before scaling.
+*   **Description:** Applies a sanity delta scaled by `multiplier`, delegating to `sanity:DoDelta`. Typically called during ability casting to reflect staff-specific sanity costs or benefits.
+*   **Parameters:** `amount` (number) - base sanity delta before scaling.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early with no effect if the parent entity lacks a `sanity` component.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified.

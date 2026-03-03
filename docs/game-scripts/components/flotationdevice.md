@@ -1,37 +1,55 @@
 ---
 id: flotationdevice
 title: Flotationdevice
-description: Provides a configurable mechanism to prevent drowning damage and trigger custom behavior when drowning damage would otherwise occur.
+description: Prevents drowning damage and optionally executes custom logic when drowning is prevented.
+tags: [water, damage, drowning]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: bcc01db1
+system_scope: entity
 ---
 
-# FlotationDevice
+# Flotationdevice
+
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-This component acts as a configurable guard against drowning damage for an entity. It exposes a toggleable flag (`enabled`) and supports a callback (`onpreventdrowningdamagefn`) that is invoked whenever the game would apply drowning damage—allowing mods to implement custom logic (e.g., visual effects, state changes) at that moment.
+`FlotationDevice` is a simple component that manages drowning damage prevention for an entity. It is designed to be attached to entities that should resist drowning—typically vehicles or devices used on water (e.g., boats). When drowning is prevented (triggered externally, e.g., by the `drown` system), it optionally invokes a custom callback function (`onpreventdrowningdamagefn`) if one has been assigned. The component itself does not directly interact with other components but provides a hook for integrating custom behavior upon drowning prevention.
 
-## Dependencies & Tags
-None identified.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("flotationdevice")
+inst.components.flotationdevice.onpreventdrowningdamagefn = function(inst)
+    print("Drowning prevented for", inst:GetDebugName())
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `enabled` | `boolean` | `true` | Controls whether the component actively prevents drowning damage. When `false`, drowning damage proceeds normally. |
-| `onpreventdrowningdamagefn` | `function?` | `nil` | Optional callback function that executes when drowning damage is prevented. Receives the entity instance (`self.inst`) as its only argument. |
+| `enabled` | boolean | `true` | Controls whether the flotation device is active; if `false`, no drowning prevention occurs. |
+| `onpreventdrowningdamagefn` | function or `nil` | `nil` | Optional callback function invoked when drowning damage is prevented. |
 
-## Main Functions
-
+## Main functions
 ### `IsEnabled()`
-* **Description:** Returns the current active state of the component.
+* **Description:** Returns whether the flotation device is currently enabled.
 * **Parameters:** None.
+* **Returns:** `boolean` — `true` if enabled, otherwise `false`.
 
 ### `OnPreventDrowningDamage()`
-* **Description:** Invoked by the game engine when drowning damage would be applied. If the component is enabled and a callback is assigned, it triggers the callback.
+* **Description:** Executes the custom callback (`onpreventdrowningdamagefn`) if one is set. This function is intended to be called by external systems (e.g., a drowning handler) when drowning damage is successfully prevented.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Noop if `onpreventdrowningdamagefn` is `nil`.
+
+## Events & listeners
+None identified

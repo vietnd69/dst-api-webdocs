@@ -1,115 +1,85 @@
 ---
 id: wagdrone_rollingbrain
 title: Wagdrone Rollingbrain
-description: Manages AI behavior and movement for the rolling variant of the Wagdrone, handling target validation, destination calculation, recoil mechanics, and speed adjustment via locomotor integration.
-tags: [ai, movement, boss, combat, physics]
+description: Controls the targeting and movement logic for the Wagdrone in rolling mode, managing locomotion, recoil correction, and work target selection within a deploy radius.
+tags: [ai, locomotion, boss]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: entity
 source_hash: 5fd7562f
+system_scope: brain
 ---
 
 # Wagdrone Rollingbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-
-This brain component controls the AI logic for the rolling variant of the Wagdrone entity. It manages target acquisition, movement destination calculation, and dynamic speed modification during recoil events using the `locomotor` component. The brain prioritizes selecting valid workable entities (e.g., CHOP_workable, MINE_workable) or other compatible wagdrones within a specified radius, and integrates with the `leash` and `standstill` behavior framework to coordinate movement and state transitions.
-
-The component interacts with several core systems:
-- `health.lua`: To verify targets are alive via `IsDead()`.
-- `knowndynamiclocations.lua`: To locate the deploy point for radius-based targeting.
-- `locomotor.lua`: To apply and remove external speed multipliers during recoil.
-- `playercontroller.lua`: To detect remote player interactions (e.g., pickup attempts).
-- `workable.lua`: To verify if targets are currently workable and match required actions.
+`WagdroneRollingBrain` is a brain component that governs the behavior of the Wagdrone when in rolling mode. It manages target acquisition, destination computation, and locomotion adjustments—particularly handling recoil-induced angular deflection during rotation. The brain integrates with the `Locomotor` component to apply temporary speed modifiers during recoil recovery, and leverages `Workable` and `Health` components to validate nearby work targets and flying drones. It uses a behavior tree (`BT`) with custom state guards and decorators to respond to player pickup attempts and leash constraints.
 
 ## Usage example
-
-The brain is typically attached to an entity during its initialization in a prefab definition. Here is a minimal example:
-
 ```lua
+local inst = CreateEntity()
 inst:AddComponent("brain")
-inst.components.brain:SetBrainClass(require("brains/wagdrone_rollingbrain"))
+inst.components.brain:SetBrainClass("wagdrone_rollingbrain")
+inst:AddComponent("locomotor")
+inst:AddComponent("health")
+inst:AddComponent("knowndynamiclocations")
+inst.components.knowndynamiclocations:AddDynamicLocation("deploypoint", Vector3(0, 0, 0), true)
+inst.components.brain:Start()
 ```
 
-Once attached, the brain automatically starts when the entity enters its corresponding stategraph. No further manual calls are required under normal circumstances.
-
 ## Dependencies & tags
-
-**Components used:**
-- `health` (via `IsDead()`)
-- `knowndynamiclocations` (via `GetDynamicLocation("deploypoint")`)
-- `locomotor` (via `SetExternalSpeedMultiplier`, `RemoveExternalSpeedMultiplier`)
-- `playercontroller` (via `GetRemoteInteraction()`)
-- `workable` (via `CanBeWorked()`, `GetWorkAction()`)
-
-**Tags checked/used:**
-- Target validation uses tag filters: `"wagdrone_rolling"`, `"INLIMBO"`, `"NOCLICK"`, `"CHOP_workable"`, `"MINE_workable"`, `"usesdepleted"`, `"waxedplant"`, `"event_trigger"`, `"HAMMER_workable"`.
-- Internal tag groupings: `DRONE_TAGS = { "wagdrone_rolling" }`, `DRONE_NO_TAGS = { "INLIMBO", "NOCLICK", "HAMMER_workable", "usesdepleted" }`, `WORK_TAGS = { "CHOP_workable", "MINE_workable" }`, `WORK_NO_TAGS = { "INLIMBO", "NOCLICK", "waxedplant", "event_trigger" }`.
+**Components used:** `health`, `knowndynamiclocations`, `locomotor`, `playercontroller`, `workable`  
+**Tags:** Listens to events; no persistent tags added/removed.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `target` | `EntityScript?` | `nil` | Currently selected movement/interaction target. May be an entity or a position vector. |
-| `dest` | `Vector3` | `Vector3()` | Calculated destination position for the entity to move toward. |
-| `recoildest` | `Vector3` | `Vector3()` | Adjusted destination used during the recoil phase of spinning. |
-| `recoilangleoffset` | `number?` | `nil` | Angle (in radians) to offset movement direction during recoil. |
-| `recoiltime` | `number?` | `nil` | Timestamp (via `GetTime()`) when the current recoil event started. |
-| `recoilspeedmult` | `number` | `1` | Cached speed multiplier applied during the deceleration phase of recoil. |
-| `recoilacceltime` | `number?` | `nil` | Timestamp marking when the acceleration phase after recoil began. |
+| `target` | EntityScript or nil | `nil` | The current work target entity (a valid workable or drone). |
+| `dest` | Vector3 | `Vector3()` | The computed destination position for the drone. |
+| `recoildest` | Vector3 | `Vector3()` | The adjusted destination during recoil recovery. |
+| `recoilangleoffset` | number or nil | `nil` | Angle offset (radians) between intended heading and actual heading during recoil. |
+| `recoiltime` | number or nil | `nil` | Timestamp when recoil began (used for decay calculations). |
+| `recoilspeedmult` | number | `1` | Current speed multiplier applied during recoil deceleration. |
+| `recoilacceltime` | number or nil | `nil` | Timestamp when recoil acceleration phase began. |
 
 ## Main functions
-
 ### `UpdateTargetDest()`
-* **Description:** Determines and sets the movement destination (`self.dest` or `self.recoildest`) based on the current target and recoil state. Validates targets, recalculates destinations dynamically, and applies speed multipliers via the `locomotor` during recoil phases.
-* **Parameters:** None.
-* **Returns:** `Vector3?` — The target destination (either `self.dest` or `self.recoildest`) if valid; `nil` if no target or target invalid.
-* **Error states:** Returns `nil` if:
-  - `GetDeployPoint()` returns `nil` and no fallback target is found.
-  - Target validation (`ValidateExistingTarget`) fails (e.g., dead, limbo, wrong platform).
-  - Target is outside allowed range and `ignorerange` is not set.
-
-### `AccelAfterRecoil()`
-* **Description:** Applies a quadratic acceleration easing curve to smoothly restore movement speed after the deceleration phase of a recoil event. Removes the external speed multiplier once full speed is restored.
-* **Parameters:** None.
-* **Returns:** `nil`.
-* **Error states:** No known failure conditions. Only active when `self.recoilacceltime` is non-`nil`.
+*   **Description:** Recomputes the drone's destination and target based on deploy point, work radius, and nearby valid entities. Handles recoil timing to adjust the destination vector during angular correction.
+*   **Parameters:** None.
+*   **Returns:** `Vector3` or `nil` — the updated destination (`self.dest` or `self.recoildest` if recoil is active).
+*   **Error states:** Returns `nil` if no valid target or destination can be computed; calls `ResetTargets()` on failure.
 
 ### `SetRecoilAngle(recoilangle)`
-* **Description:** Initiates or updates a recoil event by computing an angular offset between the current movement direction and a new `recoilangle`. Triggers recalculation of `recoildest`, sets the recoil start timestamp, and clears any previous speed multiplier.
-* **Parameters:**
-  - `recoilangle` (`number`): Target angle (in radians) to which the entity is recoiling. Must be reduced via `ReduceAngleRad` externally if needed; this function calls `ReduceAngleRad` internally to compute offset.
-* **Returns:** `nil`.
-* **Error states:** No effect if `self.target` is `nil` or if current destination direction vector is zero.
+*   **Description:** Initiates recoil correction mode by computing the angular offset between the intended heading and `recoilangle`, and applying a deceleration multiplier via the `Locomotor`.
+*   **Parameters:** `recoilangle` (number) — the measured recoil angle in degrees (converted internally to radians).
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `self.target` is `nil` or destination vector is zero.
+
+### `AccelAfterRecoil()`
+*   **Description:** Applies a smooth acceleration curve during the recoil recovery phase, using `easing.inQuad`, then removes the recoil speed multiplier when complete.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `ResetTargets()`
-* **Description:** Clears all tracked targets and resets recoil-related state, including stopping any active speed multiplier.
-* **Parameters:** None.
-* **Returns:** `nil`.
+*   **Description:** Clears the current target and recoil state, and removes any active recoil speed multiplier.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `OnStart()`
-* **Description:** Initializes the behavior tree with a root node that checks for persistence and state guards, then handles pickup interrupts via `StandStill`, leash-based movement via `Leash`, and fallback idle behavior.
-* **Parameters:** None.
-* **Returns:** `nil`.
-* **Details:** Registers a listener for the `"spinning_recoil"` event, which calls `SetRecoilAngle`.
+*   **Description:** Initializes the behavior tree root with guards for `persists`, `off` state tag, and player pickup attempts. Registers a listener for the `"spinning_recoil"` event to invoke `SetRecoilAngle`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `OnStop()`
-* **Description:** Cleans up the brain state: unregisters `"spinning_recoil"` listener, clears `target`, resets recoil time/acceleration fields, and removes the recoil speed multiplier.
-* **Parameters:** None.
-* **Returns:** `nil`.
+*   **Description:** Cleans up resources: unregisters the recoil event listener, clears target/recoil state, and removes the recoil speed multiplier.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ## Events & listeners
-
-- **Listens to:**
-  - `"spinning_recoil"`: Fires on the entity (`self.inst`) when the wagdrone enters a recoil state; invokes `SetRecoilAngle` with the provided angle data.
-
-- **Pushes:**
-  - None. This component does not directly push any events.
-
----
+- **Listens to:** `"spinning_recoil"` — fired when the drone experiences angular deflection, triggering recoil correction.
+- **Pushes:** None.

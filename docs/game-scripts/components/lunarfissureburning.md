@@ -1,50 +1,61 @@
 ---
 id: lunarfissureburning
 title: Lunarfissureburning
-description: Applies periodic lunar burn damage to an entity and its mount when standing over a lunar fissure, while managing visual effects and grogginess.
+description: Applies periodic lunar burn damage to an entity and its mount while the entity stands over a fissure, managing visual FX and health state updates.
+tags: [environment, combat, boss, fx]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: environment
+category_type: components
 source_hash: 2b76df55
+system_scope: environment
 ---
 
 # Lunarfissureburning
 
-## Overview
-This component detects when an entity is positioned over a lunar fissure and applies periodic damage (both to the entity itself and its mount, if applicable). It manages the entity’s visibility via visual effects (FX), controls grogginess, and ensures proper registration/unregistration of the lunar burn source with the health component.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components used:** `health`, `rider`, `colouradder`, `grogginess`, `Transform`, `combat`
-- **Tags checked:** `notarget`, `epic`, `largecreature`
-- **Tags added/removed:** None directly added; relies on existing component behavior.
-- **External dependencies:** `WagBossUtil` (for fissure detection, coordinate conversion, and damage calculation), `TUNING.ALTERGUARDIAN_LUNAR_FISSURE_LUNAR_BURN_DPS`
+## Overview
+`LunarFissureBurning` is a component attached to entities (typically bosses like Alter Guardian in Phase 4) to simulate the lunar burn effect when standing over a fissure. It periodically inflicts damage to both the entity and its mount (if any), registers the burn with the `health` component, manages visual FX via `colouradder` and a particle FX prefab, and tracks state transitions (active burn → cooldown → removal). It integrates closely with `health`, `rider`, `grogginess`, `combat`, and `colouradder` components, and uses utility functions from `WagBossUtil`.
+
+## Usage example
+```lua
+-- Typically added automatically during boss Phase 4 logic:
+local inst = CreateEntity()
+inst:AddComponent("lunarfissureburning")
+-- The component begins updating automatically in its constructor.
+-- It will apply damage while the entity is over a fissure and stop after 1 second in limbo or off-fissure.
+```
+
+## Dependencies & tags
+**Components used:** `health`, `rider`, `grogginess`, `combat`, `colouradder`, `transform`
+**Tags:** Does not add or remove tags directly.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *injected* | Reference to the owning entity. |
-| `cleartime` | `number` or `nil` | `0` | Tracks time elapsed while out of fissure; used for delayed component removal. |
-| `fx` | `Prefabs/Entity` or `nil` | `nil` | Reference to the visual effect prefab (`alterguardian_lunar_fissure_burn_fx`). |
+| `cleartime` | number or nil | `0` | Accumulates delta time while off-fissure; if it exceeds `1`, the component removes itself. When `nil`, the entity is actively burning. |
+| `fx` |PrefabInstance or nil| `nil` | Reference to the `alterguardian_lunar_fissure_burn_fx` prefab instance, if spawned. |
 
-## Main Functions
+## Main functions
+### `OnRemoveFromEntity()`
+*   **Description:** Cleanup function called when the component is removed from its entity. Unregisters the lunar burn source from `health` (if active) and destroys the FX prefab.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `:OnRemoveFromEntity()`
-* **Description:** Cleans up the component when removed from the entity. Unregisters lunar burn damage source (if registered), and removes the visual effect (FX) if it exists.
-* **Parameters:** None.
+### `SetFxEnabled(enable)`
+*   **Description:** Toggles the visual FX (show/hide) and adjusts the FX size based on the entity’s (or its mount’s) physical radius and tags. Also manages colour addition/removal through `colouradder`.
+*   **Parameters:** `enable` (boolean) – whether to enable (true) or disable (false) the FX.
+*   **Returns:** Nothing.
 
-### `:SetFxEnabled(enable)`
-* **Description:** Enables or disables the visual effect (FX) overlay based on the `enable` flag. When enabled, it spawns, shows, resizes, and colors the FX; when disabled, it hides and cleans up associated FX effects. Also manages the `colouradder` component for colour overlay.
-* **Parameters:**
-  * `enable` (`boolean`): If `true`, shows FX and applies colour; if `false`, hides FX and removes colour.
+### `OnUpdate(dt)`
+*   **Description:** Called every frame. Determines if the entity is currently over a fissure using `WagBossUtil`. If over a fissure, it applies damage every tick and pulses damage at a reduced interval (`lastlunarburnpulsetick`). Also maximizes grogginess. If not over a fissure, it enters a 1-second cooldown (via `cleartime`), then removes itself if no longer relevant.
+*   **Parameters:** `dt` (number) – delta time since last frame.
+*   **Returns:** Nothing.
+*   **Error states:** Skips damage if the entity is in limbo, has the `notarget` tag, has state tags like `"flight"`/`"invisible"`/`"noattack"`, is dead, or its `combat` component reports it cannot be attacked.
 
-### `:OnUpdate(dt)`
-* **Description:** Main update loop. Checks if the entity is over a lunar fissure using tile coordinates. If yes, applies periodic lunar burn damage (to entity and mount), maximizes grogginess (if component exists), and enables FX. If not over a fissure, starts or advances `cleartime`, unregisters burn source, and disables FX. After 1 second out of fissure, removes the component.
-* **Parameters:**
-  * `dt` (`number`): Delta time since last update.
-
-## Events & Listeners
-None. The component uses a polling-based update loop (`StartUpdatingComponent` + `OnUpdate`) rather than event-driven logic. No `ListenForEvent` or `PushEvent` calls are present.
+## Events & listeners
+- **Listens to:** None directly (uses `inst:StartUpdatingComponent(self)` to schedule `OnUpdate`).
+- **Pushes:** None directly; damage-related events (`healthdelta`, `startlunarburn`, `stoplunarburn`) are pushed via the `health` component when `DoDelta`, `RegisterLunarBurnSource`, and `UnregisterLunarBurnSource` are called.

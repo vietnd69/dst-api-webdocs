@@ -1,98 +1,154 @@
 ---
 id: bathingpool
 title: Bathingpool
-description: Manages entities entering, leaving, and occupying a defined circular area, such as a pond or oasis lake.
+description: Manages entities entering and occupying a bathing pool, tracking occupants, enforcing space limits, and calculating valid entry positions.
+tags: [entity, pool, space, occupancy]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 24f67166
+system_scope: entity
 ---
 
 # Bathingpool
 
-## Overview
-The `Bathingpool` component transforms an entity into an area that other entities can occupy. It manages a list of "occupants," enforces a maximum capacity, and provides logic for entities to find a valid spot to enter and to leave the area. This is commonly used for features like the Oasis lake where creatures can cool off.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`BathingPool` is a component that manages a pool entity’s occupancy system. It tracks which entities are currently inside the pool, respects a configurable maximum occupant limit, and handles entry/exit logic including spatial availability checks and position calculation. It interacts with the entity’s stategraph via state memory (`occupying_bathingpool`) to verify occupancy status.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("bathingpool")
+inst.components.bathingpool:SetRadius(2.5)
+inst.components.bathingpool:SetMaxOccupants(3)
+
+inst.components.bathingpool:SetOnStartBeingOccupiedBy(function(pool, ent)
+    print(ent.Name .. " entered the pool")
+end)
+
+inst.components.bathingpool:SetOnStopBeingOccupiedBy(function(pool, ent)
+    print(ent.Name .. " left the pool")
+end)
+
+-- Attempt to enter the pool
+if inst.components.bathingpool:EnterPool(player) then
+    -- successfully entered and added as occupant
+else
+    -- pool full or collision prevented entry
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Checks `ent.sg.statemem.occupying_bathingpool == self.inst` for occupancy verification; no direct tag usage.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
-|---|---|---|---|
-| `maxoccupants` | number | `nil` | The maximum number of entities allowed in the pool at one time. If `nil`, there is no limit. |
-| `radius` | number | `nil` | The radius of the pool's occupiable area. If `nil`, the entity's physics radius is used. |
-| `occupants` | table | `{}` | An array-like table containing the entity instances currently inside the pool. |
-| `onstartbeingoccupiedby` | function | `nil` | An optional callback function that fires when an entity successfully starts occupying the pool. It receives `(inst, occupant)`. |
-| `onstopbeingoccupiedby` | function | `nil` | An optional callback function that fires when an entity stops occupying the pool. It receives `(inst, occupant)`. |
+|----------|------|---------------|-------------|
+| `maxoccupants` | number or `nil` | `nil` | Maximum number of entities allowed in the pool simultaneously. |
+| `radius` | number or `nil` | `nil` | Radius of the pool; defaults to `inst:GetPhysicsRadius(0)` if not set. |
+| `occupants` | table (array) | `{}` | List of entities currently occupying the pool. |
+| `onoccupantremoved` | function | (internal) | Callback used when an occupant is removed. |
+| `onoccupantnewstate` | function | (internal) | Callback used to verify occupant remains valid in their current state. |
+| `onstartbeingoccupiedby` | function or `nil` | `nil` | Optional callback when an entity starts occupying the pool. |
+| `onstopbeingoccupiedby` | function or `nil` | `nil` | Optional callback when an entity stops occupying the pool. |
 
-## Main Functions
-
+## Main functions
 ### `OnRemoveFromEntity()`
-* **Description:** A cleanup function called when the component is removed from its entity. It iterates through all current occupants, forces them to leave the pool by pushing a `ms_leavebathingpool` event, and removes all associated event listeners.
-* **Parameters:** None.
+*   **Description:** Cleans up when the component is removed from its entity. Removes all current occupants, cancels event callbacks, and fires `ms_leavebathingpool` events.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `SetRadius(r)`
-* **Description:** Sets the radius of the pool.
-* **Parameters:**
-    * `r` (number): The new radius for the pool area.
+*   **Description:** Sets the radius used for occupancy checks and entry calculations.
+*   **Parameters:** `r` (number) - the radius value to assign.
+*   **Returns:** Nothing.
 
 ### `GetRadius()`
-* **Description:** Returns the currently configured radius of the pool. If no radius has been explicitly set, it defaults to the entity's physics radius.
-* **Parameters:** None.
+*   **Description:** Returns the active radius: either the explicitly set radius or the entity’s physics radius if none was set.
+*   **Parameters:** None.
+*   **Returns:** number — the effective radius for calculations.
 
 ### `SetMaxOccupants(max)`
-* **Description:** Sets the maximum number of entities allowed in the pool. If the new maximum is less than the current number of occupants, any excess occupants will be immediately removed.
-* **Parameters:**
-    * `max` (number): The new maximum occupant capacity.
+*   **Description:** Sets the maximum number of occupants allowed. If reducing the limit, excess occupants are removed.
+*   **Parameters:** `max` (number or `nil`) — if `nil`, no occupancy limit is enforced.
+*   **Returns:** Nothing.
 
 ### `SetOnStartBeingOccupiedBy(fn)`
-* **Description:** Assigns a callback function to be executed when an entity enters the pool.
-* **Parameters:**
-    * `fn` (function): The callback function to execute. It will be called with the pool's instance and the entering entity as arguments: `fn(inst, occupant)`.
+*   **Description:** Registers a callback invoked when an entity begins occupying the pool.
+*   **Parameters:** `fn` (function) — signature: `function(pool, entity)`.
+*   **Returns:** Nothing.
 
 ### `SetOnStopBeingOccupiedBy(fn)`
-* **Description:** Assigns a callback function to be executed when an entity leaves the pool.
-* **Parameters:**
-    * `fn` (function): The callback function to execute. It will be called with the pool's instance and the leaving entity as arguments: `fn(inst, occupant)`.
+*   **Description:** Registers a callback invoked when an entity stops occupying the pool.
+*   **Parameters:** `fn` (function) — signature: `function(pool, entity)`.
+*   **Returns:** Nothing.
 
 ### `IsOccupant(ent)`
-* **Description:** Checks if a given entity is currently in the pool's list of occupants.
-* **Parameters:**
-    * `ent` (Entity): The entity to check.
+*   **Description:** Checks if a given entity is currently in the occupants list.
+*   **Parameters:** `ent` (Entity) — the entity to check.
+*   **Returns:** boolean — `true` if `ent` is an occupant, otherwise `false`.
+
+### `AddOccupant(ent)`
+*   **Description:** Adds an entity to the occupants list and registers event listeners for its `onremove` and `newstate` events.
+*   **Parameters:** `ent` (Entity) — the entity to add.
+*   **Returns:** Nothing.
+
+### `RemoveOccupant(ent)`
+*   **Description:** Removes an entity from the occupants list and cleans up its event listeners. Compacts the occupants array.
+*   **Parameters:** `ent` (Entity) — the entity to remove.
+*   **Returns:** Nothing.
 
 ### `ForEachOccupant(fn, ...)`
-* **Description:** Executes a given function for each occupant currently in the pool. The iteration stops if the function `fn` returns a truthy value.
-* **Parameters:**
-    * `fn` (function): The function to call for each occupant. It receives the pool's instance, the occupant entity, and any additional arguments passed to `ForEachOccupant`.
-    * `...` (any): Additional arguments to pass to the callback function `fn`.
+*   **Description:** Iterates over occupants in reverse order and invokes a callback on each. Stops early if the callback returns `true`.
+*   **Parameters:**  
+  `fn` (function) — signature: `function(pool, entity, ...)`  
+  `...` (any) — additional arguments passed to `fn`.
+*   **Returns:** Nothing — but may return early if `fn` returns `true`.
 
 ### `CheckOccupant(ent)`
-* **Description:** Verifies that an entity is still a valid occupant. It does this by checking the entity's stategraph memory (`sg.statemem.occupying_bathingpool`) to ensure it is still in a state associated with occupying this specific pool instance.
-* **Parameters:**
-    * `ent` (Entity): The occupant entity to validate.
+*   **Description:** Verifies that the entity is still legally occupying the pool by checking state memory (`ent.sg.statemem.occupying_bathingpool == self.inst`).
+*   **Parameters:** `ent` (Entity) — the entity to verify.
+*   **Returns:** boolean — `true` if the entity’s state confirms occupancy.
+
+### `CheckAvailableSpot(x, z, r)`
+*   **Description:** Checks if a circular area centered at `(x, 0, z)` with radius `r` overlaps with any current occupant’s area.
+*   **Parameters:**  
+  `x` (number) — world X coordinate  
+  `z` (number) — world Z coordinate  
+  `r` (number) — radius of the candidate spot
+*   **Returns:**  
+  `true` — if no overlap found  
+  `false, blocker` — if overlap found; `blocker` is the overlapping entity.
 
 ### `EnterPool(ent)`
-* **Description:** The primary function for an entity to attempt to enter the pool. It checks for available capacity, calculates an unoccupied position within the pool's radius, and then pushes the `ms_enterbathingpool` event to the entity to initiate movement. If successful, the entity is added to the occupants list.
-* **Parameters:**
-    * `ent` (Entity): The entity attempting to enter the pool.
-* **Returns:** `true` if the entity was successfully added, or `false` and a reason string (e.g., "NOSPACE") on failure.
+*   **Description:** Attempts to add an entity to the pool. Handles fullness checks, spatial collision avoidance, and calculates an exact entry position (`destx`, `destz`) near the pool center.
+*   **Parameters:** `ent` (Entity) — the entity attempting to enter.
+*   **Returns:**  
+  `true` — if successfully entered and added  
+  `false, "NOSPACE"` — if pool is full or no valid position available.
 
 ### `LeavePool(ent)`
-* **Description:** The primary function for an entity to leave the pool. It verifies the entity is a valid occupant and then pushes the `ms_leavebathingpool` event to it.
-* **Parameters:**
-    * `ent` (Entity): The entity attempting to leave the pool.
-* **Returns:** `true` if the leave event was successfully pushed, `false` otherwise.
+*   **Description:** Removes an entity from the pool if it is a valid occupant.
+*   **Parameters:** `ent` (Entity) — the entity attempting to leave.
+*   **Returns:**  
+  `false` — if `ent` was not an occupant or was in an invalid state  
+  `true` — if successfully removed (only if stategraph confirms exit).
 
-## Events & Listeners
+### `GetDebugString()`
+*   **Description:** Returns a compact string summarizing current occupancy status for debugging.
+*   **Parameters:** None.
+*   **Returns:** string — e.g., `"2/3 occupants"` or `"5 occupants"`.
 
-This component pushes events to other entities and listens for events on its occupants.
-
-*   **Pushes Event `ms_enterbathingpool`:** Pushed to an entity to instruct it to move to a specific destination within the pool. The event data includes the pool's instance (`target`) and the destination coordinates (`dest`).
-*   **Pushes Event `ms_leavebathingpool`:** Pushed to an occupant to instruct it to exit the pool state.
-*   **Listens For Event `onremove` (on occupant):** When an occupant entity is removed from the game, this listener triggers `RemoveOccupant` to clean it up from the pool's list.
-*   **Listens For Event `newstate` (on occupant):** When an occupant entity changes its stategraph state, this listener calls `CheckOccupant` to ensure it is still legitimately occupying the pool. If not, the entity is removed.
+## Events & listeners
+- **Listens to:**  
+  `onremove` (on each occupant entity) — triggers `onoccupantremoved`  
+  `newstate` (on each occupant entity) — triggers `onoccupantnewstate`  
+- **Pushes:**  
+  `ms_enterbathingpool` — immediately on successful entry with payload `{ target = pool_entity, dest = Vector3(...) }`  
+  `ms_leavebathingpool` — immediately on exit, with payload `pool_entity`

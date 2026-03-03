@@ -1,88 +1,120 @@
 ---
 id: werebeast
 title: Werebeast
-description: Manages transformation into and out of werebeast form based on lunar cycles, time limits, and optional trigger-based thresholds.
+description: Manages werebeast transformation logic, including moon phase triggers, manual transformation, and automatic reversion timers.
+tags: [combat, transformation, moon, state, save]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 462b66c7
+system_scope: entity
 ---
 
 # Werebeast
 
-## Overview
-This component controls the werebeast transformation mechanic for an entity. It handles transitions between human and werebeast forms based on the full moon cycle, with support for configurable transformation duration, automatic reversion after time expires, and optional trigger-based activation. It also persists state across saves/loads and integrates with limbo states to prevent invalid transformations.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies**: Uses `DoTaskInTime`, `GetTaskRemaining`, `Cancel` (from `task` system).
-- **World State Watched**: `"isfullmoon"` (listens for full moon state changes).
-- **Events Listened To**: `"exitlimbo"`, `"enterlimbo"`.
-- **Events Pushed**: `"transformwere"`, `"transformnormal"`.
-- **No tags are added/removed by this component**.
-- **No other components are required** for core operation (though functional behavior may depend on presence of stategraph or animation tags on the host entity).
+## Overview
+`WereBeast` is a core component that governs the transformation and reversion behavior of werebeast characters (e.g.,伍迪/Woodie). It tracks time spent in werebeast form, responds to full moon phases, supports manual triggering (via combat or other mechanics), and handles automatic reversion after a configurable duration. It integrates with the save/load system and task scheduling to maintain consistent state across sessions and world re-loads.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("werebeast")
+
+-- Set callbacks for transformation events
+inst.components.werebeast:SetOnWereFn(function(entity) print("Changed to werebeast!") end)
+inst.components.werebeast:SetOnNormalFn(function(entity) print("Reverted to human!") end)
+
+-- Manually trigger a transformation for 60 seconds
+inst.components.werebeast:SetWere(60)
+
+-- Alternatively, set up trigger-based transformation
+inst.components.werebeast:SetTriggerLimit(5)
+inst.components.werebeast:TriggerDelta(2) -- increment trigger counter
+inst.components.werebeast:TriggerDelta(4) -- exceeds limit → transforms
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None added, removed, or checked directly by this component (relies on external systems to apply/remove player tags like `werebeast`).
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `onsetwerefn` | `function` | `nil` | Optional callback invoked when transformation *to* werebeast occurs. |
-| `onsetnormalfn` | `function` | `nil` | Optional callback invoked when transformation *back* to normal occurs. |
-| `weretime` | `number` | `TUNING.SEG_TIME * 4` | Default duration (in seconds) the entity remains in werebeast form before auto-reverting. |
-| `triggerlimit` | `number or nil` | `nil` | Threshold that must be reached (via `TriggerDelta`) to force immediate transformation. `nil` disables trigger-based transformation. |
-| `triggeramount` | `number or nil` | `0` (if triggerlimit set) / `nil` | Accumulated trigger value. Resets to 0 on transformation or `ResetTriggers()`. |
-| `_task` | `Task or nil` | `nil` | Internal task handle for scheduled transformations (e.g., due to moon phase change). Cancelled on limbo entry. |
-| `_reverttask` | `Task or nil` | `nil` | Internal task handle scheduled to revert transformation. |
-| `inst` | `Entity` | (passed to constructor) | The entity instance this component belongs to. |
+| `onsetwerefn` | function or nil | `nil` | Callback invoked when transforming into werebeast form. |
+| `onsetnormalfn` | function or nil | `nil` | Callback invoked when reverting to normal (human) form. |
+| `weretime` | number | `TUNING.SEG_TIME * 4` | Default duration (in seconds) before automatic reversion after transformation. |
+| `triggerlimit` | number or nil | `nil` | Threshold of accumulated trigger points required to force transformation; `nil` disables trigger-based transformation. |
+| `triggeramount` | number or nil | `nil` or `0` | Current accumulated trigger points. Set to `0` if `triggerlimit` is non-`nil`; otherwise `nil`. |
+| `_task` | task or nil | `nil` | Pending scheduled task (e.g., delayed transform on moon phase change). |
+| `_reverttask` | task or nil | `nil` | Pending scheduled reversion task. Non-`nil` indicates current werebeast state. |
 
-## Main Functions
+## Main functions
 ### `SetOnWereFn(fn)`
-* **Description:** Sets the optional callback function executed when the entity successfully transforms into werebeast form.
-* **Parameters:** `fn` – A function accepting one argument (the entity instance).
+*   **Description:** Sets the callback function to run when transformation to werebeast occurs.
+*   **Parameters:** `fn` (function) - a function accepting a single `inst` argument.
+*   **Returns:** Nothing.
 
 ### `SetOnNormalFn(fn)`
-* **Description:** Sets the optional callback function executed when the entity successfully reverts to normal form.
-* **Parameters:** `fn` – A function accepting one argument (the entity instance).
+*   **Description:** Sets the callback function to run when reverting to normal occurs.
+*   **Parameters:** `fn` (function) - a function accepting a single `inst` argument.
+*   **Returns:** Nothing.
 
 ### `SetTriggerLimit(limit)`
-* **Description:** Configures a trigger threshold. When `TriggerDelta` accumulates to reach or exceed `limit`, the entity is forced into werebeast form. Passing `nil` disables this feature.
-* **Parameters:** `limit` – A number or `nil`.
+*   **Description:** Configures a trigger threshold. Once accumulated `triggeramount` meets or exceeds `limit`, automatic transformation occurs. Call `ResetTriggers()` to reset current amount.
+*   **Parameters:** `limit` (number or nil) - threshold amount; `nil` disables trigger-based transformation.
+*   **Returns:** Nothing.
+*   **Error states:** Calling this clears `triggeramount` to `0` (if `limit` is non-`nil`) or `nil`.
 
 ### `TriggerDelta(amount)`
-* **Description:** Adds to the cumulative `triggeramount`. If `triggerlimit` is set and the sum reaches or exceeds the limit, triggers immediate transformation.
-* **Parameters:** `amount` – A number (can be negative to reduce accumulated trigger value).
+*   **Description:** Increments the accumulated trigger amount by `amount`. If `triggerlimit` is set and the new amount reaches or exceeds the limit, initiates transformation.
+*   **Parameters:** `amount` (number) - the value to add to `triggeramount`.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if `triggerlimit` is `nil`.
 
-### `ResetTriggers()`
-* **Description:** Resets `triggeramount` to `0` if `triggerlimit` is set; otherwise sets it to `nil`. Called automatically on transformation.
-
-### `SetWere([time])`
-* **Description:** Forces immediate transformation to werebeast form. Starts a reversion timer using the provided `time` or `self.weretime` if not specified. Executes `onsetwerefn` and pushes `"transformwere"` event.
-* **Parameters:** `time` (optional) – Duration in seconds before automatic reversion. Defaults to `self.weretime`.
+### `SetWere(time)`
+*   **Description:** Immediately transforms the entity to werebeast form and schedules reversion after `time` seconds. Defaults to `weretime` if `time` is omitted.
+*   **Parameters:** `time` (number or nil) - duration in seconds before reversion.
+*   **Returns:** Nothing.
+*   **Error states:** Cancels existing `_task` and `_reverttask`; pushes `"transformwere"` event.
 
 ### `SetNormal()`
-* **Description:** Forces immediate reversion to normal form. Cancels any pending reversion timer. Executes `onsetnormalfn` and pushes `"transformnormal"` event.
+*   **Description:** Immediately reverts the entity to normal (human) form and cancels any pending reversion task.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Cancels `_task` and `_reverttask`; pushes `"transformnormal"` event.
 
 ### `IsInWereState()`
-* **Description:** Returns whether the entity is currently in werebeast form (determined by presence of `_reverttask`).
-* **Returns:** `boolean` – `true` if transformed, `false` otherwise.
+*   **Description:** Returns whether the entity is currently in werebeast form.
+*   **Parameters:** None.
+*   **Returns:** `true` if `_reverttask` is non-`nil`; otherwise `false`.
 
 ### `OnSave()`
-* **Description:** Serializes remaining werebeast time for persistence. Returns `nil` if not transformed or time is `0`; otherwise returns a table `{ time = remaining_seconds }`.
-* **Returns:** `{ time: number }` or `nil`.
+*   **Description:** Returns serialization data for the current transformation state.
+*   **Parameters:** None.
+*   **Returns:** `{ time = number }` if transforming or currently in werebeast state (time remaining in seconds); otherwise `nil`.
 
 ### `OnLoad(data)`
-* **Description:** Restores werebeast state from saved data. If `data.time` exists, immediately triggers transformation for that duration.
-* **Parameters:** `data` – A table potentially containing `{ time = number }`.
+*   **Description:** Restores transformation state from serialized data. If `data.time` is present, immediately sets werebeast form with remaining time.
+*   **Parameters:** `data` (table or nil) - serialized state from `OnSave()`.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if `data` is `nil` or `data.time` is missing/invalid.
 
 ### `GetDebugString()`
-* **Description:** Returns a human-readable debug string summarizing trigger status and remaining werebeast time.
-* **Returns:** `string` – e.g., `"triggers: 5.00/10.00, were time: 12.50"` or `"no triggers, were time: 10.00"`.
+*   **Description:** Returns a human-readable debug string summarizing the current transformation state.
+*   **Parameters:** None.
+*   **Returns:** `string` - e.g., `"triggers: 3.00/5.00, were time: 42.17"` or `"no triggers, were time: 15.00"`.
 
-## Events & Listeners
-- **Listens to `"isfullmoon"`**: Triggers `OnIsFullmoon` to react to moon phase changes.
-- **Listens to `"exitlimbo"`**: Triggers `OnExitLimbo` to reschedule transformations after exiting limbo.
-- **Listens to `"enterlimbo"`**: Triggers `OnEnterLimbo` to cancel pending tasks while in limbo.
-- **Pushes `"transformwere"`**: Fired when entering werebeast form via `SetWere`.
-- **Pushes `"transformnormal"`**: Fired when reverting to normal via `SetNormal` or `OnRevert`.
+## Events & listeners
+- **Listens to:**  
+  - `exitlimbo` — Re-schedules transformation check (e.g., after respawning or exiting limbo).  
+  - `enterlimbo` — Cancels pending tasks while in limbo (prevents state inconsistency).  
+  - `isfullmoon` (via `WatchWorldState`) — Triggers `OnIsFullmoon` on moon phase changes.
+
+- **Pushes:**  
+  - `"transformwere"` — Fired when transformation to werebeast completes.  
+  - `"transformnormal"` — Fired when reversion to normal completes.

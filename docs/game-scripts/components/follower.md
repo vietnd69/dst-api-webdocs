@@ -1,163 +1,176 @@
 ---
 id: follower
 title: Follower
-description: Manages entity following behavior, including loyalty expiration, leader binding, and teleportation mechanics when distanced from the leader.
+description: Manages an entity's relationship to a leader, including loyalty mechanics, teleportation on separation, and handling player reconnection or respawning.
+tags: [ai, leader, loyalty, networking]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 18586916
+system_scope: entity
 ---
 
 # Follower
 
-## Overview
-This component enables an entity to follow a designated leader (typically a player or item owner), tracking loyalty over time and optionally teleporting to stay near the leader. It handles leader assignment, event callbacks for leader removal, loyalty time management, leashing behavior during sleep cycles, and serialization for save/load.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components used:**  
-  `health`, `combat`, `locomotor`, `hitchable`, `inventoryitem`, `leader`, `followermemory` (conditional usage, not guaranteed)
-- **Events listened to:**  
-  `"attacked"`, `"onremove"`, `"entitysleep"`, `"entitywake"`, `"ms_playerjoined"`, `"ms_newplayerspawned"`
-- **Tags involved (via `HasTag` checks):**  
-  `"player"`, `"pocketdimension_container"`
-- **Tags added:**  
-  None directly. Interacts with existing leader/follower relations via `leader:AddFollower` / `leader:RemoveFollower`.
+## Overview
+`Follower` coordinates how an entity follows and remains loyal to a designated leader, supporting dynamic behaviors such as teleportation when too far away, loyalty time decay, and robust handling of player disconnections and respawns. It integrates tightly with `combat` (to drop allies when leader changes), `locomotor` (to determine safe teleport destinations), `hitchable` (to respect hitching constraints), and `leader`/`followermemory` to manage entity relationships.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("follower")
+
+-- Set a leader (e.g., a player or other entity)
+inst.components.follower:SetLeader(player)
+
+-- Add 30 seconds of loyalty time
+inst.components.follower:AddLoyaltyTime(30)
+
+-- Temporarily prevent teleportation and loyalty decay
+inst.components.follower:DisableLeashing()
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `locomotor`, `hitchable`, `leader`, `followermemory`, `inventoryitem`
+**Tags:** Checks `player`, `pocketdimension_container`, `debuffed`, `hiding`; no tags are added.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity this component is attached to. |
-| `leader` | `Entity?` | `nil` | The current leader (e.g., a player or item owner). |
-| `itemowner` | `Entity?` | `nil` | The owner of an inventory item this entity is attached to (if any). |
-| `targettime` | `number?` | `nil` | Absolute simulation time at which the entity stops following. |
-| `maxfollowtime` | `number?` | `nil` | Maximum follow time duration (used for loyalty percentage calculations). |
-| `canaccepttarget` | `boolean` | `true` | Controls whether the entity can accept a new target or follow assignment (currently unused in logic). |
-| `noleashing` | `boolean?` | `nil` | Flag to disable leashing behavior (teleportation and event callbacks). |
-| `keepleaderonattacked` | `boolean?` | `nil` | If true, prevents the entity from dropping the leader when attacked *by* that leader. |
-| `hasitemsource` | `boolean?` | `nil` | Internal flag indicating if the leader is an inventory item source. |
-| `porttask` | `Task?` | `nil` | Deferred task used to retry teleportation if no valid landing spot is found immediately. |
-| `task` | `Task?` | `nil` | Task scheduled to trigger `StopFollowing` when loyalty time expires. |
-| `cached_player_leader_userid` | `number?` | `nil` | User ID of the cached player leader for persistence across respawns. |
-| `cached_player_leader_timeleft` | `number?` | `nil` | Absolute simulation time when a cached leader association should be cleared. |
-| `cached_player_leader_task` | `Task?` | `nil` | Task to clear a cached player leader after expiry. |
-| `_onleaderwake` | `function?` | `nil` | Callback registered on leader wake to trigger teleportation attempts. |
-| `cached_player_join_fn` | `function` | — | Bound reference to `OnPlayerJoined` used as event listener. |
-| `cached_new_player_spawned_fn` | `function` | — | Bound reference to `OnNewPlayerSpawned` used as event listener. |
-| `OnLeaderRemoved` | `function` | — | Callback registered to remove the leader if the leader entity is removed. |
+| `leader` | `inst` or `nil` | `nil` | The current leader entity. May be `nil`. |
+| `itemowner` | `inst` or `nil` | `nil` | The owner if this follower was derived from an inventory item. |
+| `targettime` | number or `nil` | `nil` | World time at which loyalty expires. |
+| `maxfollowtime` | number or `nil` | `nil` | Maximum possible follow/loyalty duration. |
+| `canaccepttarget` | boolean | `true` | If `false`, prevents acquiring new combat targets while following. |
+| `noleashing` | boolean | `nil` | If set, disables leashing and teleportation logic. |
+| `keepleaderonattacked` | boolean | `nil` | If set, prevents losing leader on attack. |
+| `neverexpire` | boolean | `nil` | If set, loyalty time cannot expire. |
+| `hasitemsource` | boolean | `nil` | Internal flag used during leader changes when attached to an inventory item. |
 
-## Main Functions
+## Main functions
+### `SetLeader(new_leader)`
+*   **Description:** Assigns a new leader, handling cleanup of the old leader’s data and updating network replicas. Automatically starts or stops leashing depending on leader type and leader settings.
+*   **Parameters:** `new_leader` (`inst` or `nil`) — the entity to follow, or `nil` to stop following.
+*   **Returns:** Nothing.
+*   **Error states:** No explicit error cases; silently ignores calls that do not change the leader.
 
-### `Follower:GetLeader()`
-* **Description:** Returns the effective leader: if `itemowner` is set, returns it; otherwise, returns `leader`.  
-* **Parameters:** None.  
-* **Returns:** `Entity?` — the current leader or `nil`.
+### `GetLeader()`
+*   **Description:** Returns the effective leader: `itemowner` if present, otherwise `leader`. This prioritizes inventory-item-derived leadership.
+*   **Parameters:** None.
+*   **Returns:** `inst` or `nil` — the current leader or `nil`.
 
-### `Follower:SetLeader(new_leader)`
-* **Description:** Assigns a new leader. Handles cleanup of old leader relationships, updates `itemowner`, registers/unregisters callbacks (e.g., `"onremove"`), starts/stops leashing, and triggers `"leaderchanged"` event.  
-* **Parameters:**  
-  - `new_leader` (`Entity?`) — The new leader entity to follow, or `nil` to stop following.
+### `AddLoyaltyTime(time)`
+*   **Description:** Extends loyalty duration by `time` seconds, subject to loyalty effectiveness multipliers from the leader. Enforces decay via internal timer.
+*   **Parameters:** `time` (number) — seconds to add to loyalty. May be adjusted by leader settings.
+*   **Returns:** Nothing.
+*   **Error states:** If `neverexpire` is set, the function returns immediately with no effect.
 
-### `Follower:StartLeashing()`
-* **Description:** Enables leashing behavior, including registering sleep/wake callbacks and triggering an initial teleportation attempt via `OnEntitySleep`. No-op if `noleashing` is set.  
-* **Parameters:** None.
+### `StopFollowing()`
+*   **Description:** Ends loyalty, fires `loseloyalty`, and clears the leader. Respects `neverexpire`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early without effect if `neverexpire` is set or `inst` is invalid.
 
-### `Follower:StopLeashing()`
-* **Description:** Disables leashing by canceling tasks and removing sleep/wake event callbacks. Pushes `"stopleashing"` event (unless `noleashing`).  
-* **Parameters:** None.
+### `StartLeashing()`
+*   **Description:** Enables teleportation behavior when separated from the leader. Registers listeners for leader sleep/wake events.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Silently returns if `noleashing` is set.
 
-### `Follower:DisableLeashing()`
-* **Description:** Permanently disables leashing (`noleashing = true`) and stops any active leashing.  
-* **Parameters:** None.
+### `StopLeashing()`
+*   **Description:** Disables teleportation and cancels pending teleportation tasks. Unsubscribes from leader sleep/wake events.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Silently returns if `noleashing` is set (does not fire `stopleashing` event in that case).
 
-### `Follower:EnableLeashing()`
-* **Description:** Re-enables leashing if previously disabled (`noleashing = nil`) and the leader qualifies (player or inventory item). Triggers immediate teleportation if asleep.  
-* **Parameters:** None.
+### `DisableLeashing()`
+*   **Description:** Permanently disables leashing until re-enabled. Cancels any pending teleportation.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** None.
 
-### `Follower:AddLoyaltyTime(time)`
-* **Description:** Extends the follow duration by `time` seconds (adjusted by leader loyalty multiplier if present). Updates `targettime`, schedules a `StopFollowing` task, and fires `"gainloyalty"` event.  
-* **Parameters:**  
-  - `time` (`number`) — Amount of time to add (in seconds).
+### `EnableLeashing()`
+*   **Description:** Re-enables leashing if it was previously disabled. Attempts immediate teleportation if asleep and near a leader.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if leashing is already enabled.
 
-### `Follower:CancelLoyaltyTask()`
-* **Description:** Clears the loyalty expiration task and resets `targettime` to `nil`.  
-* **Parameters:** None.
+### `GetLoyaltyPercent()`
+*   **Description:** Returns the remaining loyalty as a fraction of `maxfollowtime`. Used for UI or AI decisions.
+*   **Parameters:** None.
+*   **Returns:** number — `0` if `targettime` or `maxfollowtime` is `nil`, otherwise `(targettime - now) / maxfollowtime`.
 
-### `Follower:StopFollowing()`
-* **Description:** Ends following behavior by clearing loyalty time, pushing `"loseloyalty"` event, and setting `leader` to `nil`. No-op if `neverexpire` is set.  
-* **Parameters:** None.
+### `CachePlayerLeader(userid, timeleft)`
+*   **Description:** Caches a player leader reference across disconnects, preserving loyalty time if the player re-joins within range. Required for persistent pet ownership.
+*   **Parameters:**
+    *   `userid` (string or `nil`) — user ID of the player leader.
+    *   `timeleft` (number or `nil`) — seconds of loyalty remaining.
+*   **Returns:** Nothing.
 
-### `Follower:IsNearLeader(dist)`
-* **Description:** Checks if the entity is within `dist` units of its leader.  
-* **Parameters:**  
-  - `dist` (`number`) — Distance threshold.  
-* **Returns:** `boolean` — `true` if leader exists and within range.
+### `ClearCachedPlayerLeader()`
+*   **Description:** Clears all cached player leader data and events. Called internally on leader change or on save/load.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `Follower:GetLoyaltyPercent()`
-* **Description:** Computes the fraction of loyalty remaining: `(targettime - now) / maxfollowtime`. Returns `0` if loyalty is not tracked.  
-* **Parameters:** None.  
-* **Returns:** `number` — Loyalty percentage (0.0 to 1.0).
+### `OnItemSourceNewOwner(owner)`
+*   **Description:** Sets `itemowner` and registers this follower with the new owner’s `leader` component if applicable.
+*   **Parameters:** `owner` (`inst`) — the new owner of the item this follower came from.
+*   **Returns:** Nothing.
 
-### `Follower:CachePlayerLeader(userid, timeleft)`
-* **Description:** Caches a player leader by `userid` to allow refollowing after respawn or reconnect, if the entity is within distance and time hasn’t expired. Registers listeners for `"ms_playerjoined"` and `"ms_newplayerspawned"`.  
-* **Parameters:**  
-  - `userid` (`number?`) — The user ID of the leader player (defaults to current leader’s ID if omitted).  
-  - `timeleft` (`number?`) — Duration (in seconds) before the cached association expires.
+### `OnItemSourceRemoved(owner)`
+*   **Description:** Clears `itemowner` and unregisters this follower from the old owner’s `leader` component.
+*   **Parameters:** `owner` (`inst`) — the former owner.
+*   **Returns:** Nothing.
 
-### `Follower:ClearCachedPlayerLeader()`
-* **Description:** Clears all cached player leader data and unregisters associated listeners.  
-* **Parameters:** None.
+### `IsLeaderSame(guy)`
+*   **Description:** Checks whether this follower and another follower (`guy`) share the same effective leader.
+*   **Parameters:** `guy` (`inst`) — the other entity to compare.
+*   **Returns:** boolean — `true` if both have the same leader, `false` otherwise.
 
-### `Follower:OnSave()`
-* **Description:** Serializes loyalty and cached player leader state into a table for persistence. Returns `nil` if no data to save.  
-* **Parameters:** None.  
-* **Returns:** `table?` — Save data containing `time`, `cached_player_leader_userid`, and `cached_player_leader_timeleft` fields.
+### `KeepLeaderOnAttacked()`
+*   **Description:** Disables the default behavior that loses the leader on being attacked by them (e.g., to support pets defending owners).
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `Follower:OnLoad(data)`
-* **Description:** Restores loyalty and cached player leader state from save data.  
-* **Parameters:**  
-  - `data` (`table`) — The save data from `OnSave()`.
+### `LoseLeaderOnAttacked()`
+*   **Description:** Restores the default behavior of dropping leader when attacked by them.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `Follower:OnItemSourceNewOwner(owner)`
-* **Description:** Updates `itemowner` when an inventory item owner changes and registers with the leader component if applicable.  
-* **Parameters:**  
-  - `owner` (`Entity`) — The new owner.
+### `OnSave()`
+*   **Description:** Serializes loyalty and player leader cache state for persistence. Only includes data if non-empty.
+*   **Parameters:** None.
+*   **Returns:** `table` or `nil` — a compact table with `time` and/or `cached_player_leader_userid`/`timeleft` fields.
 
-### `Follower:OnItemSourceRemoved(owner)`
-* **Description:** Clears `itemowner` and unregisters from the former leader’s followers list.  
-* **Parameters:**  
-  - `owner` (`Entity`) — The former owner.
+### `OnLoad(data)`
+*   **Description:** Restores state from `OnSave()`. Adds loyalty time and re-registers player reconnection listeners if cached data is present.
+*   **Parameters:** `data` (`table`) — deserialized save data.
+*   **Returns:** Nothing.
 
-### `Follower:KeepLeaderOnAttacked()`
-* **Description:** Disables the `"attacked"` handler that drops the leader upon being attacked *by* that leader. Allows retaining the leader in this scenario.  
-* **Parameters:** None.
+### `LongUpdate(dt)`
+*   **Description:** Advances loyalty and cached player leader timers during long simulation steps (e.g., pause/resume). Adjusts timers and reschedules tasks.
+*   **Parameters:** `dt` (number) — delta time to subtract from timers.
+*   **Returns:** Nothing.
 
-### `Follower:LoseLeaderOnAttacked()`
-* **Description:** Re-enables the `"attacked"` handler to drop the leader if attacked by that leader.  
-* **Parameters:** None.
+### `GetDebugString()`
+*   **Description:** Returns a human-readable string summarizing follower state for debugging.
+*   **Parameters:** None.
+*   **Returns:** string — e.g., `"Following pigman Stop in 5.00s, 66.00%"`.
 
-### `Follower:LongUpdate(dt)`
-* **Description:** Adjusts loyalty and cached player leader timers during world updates (dt seconds elapsed). Maintains correct timing without re-scheduling tasks.  
-* **Parameters:**  
-  - `dt` (`number`) — Delta time since last update.
-
-### `Follower:GetDebugString()`
-* **Description:** Generates a human-readable debug string showing leader, item owner, loyalty time left, and loyalty percentage.  
-* **Parameters:** None.  
-* **Returns:** `string` — Debug information.
-
-## Events & Listeners
-- **Listens for `"attacked"`** → Triggers `onattacked` callback, which removes leader if attacker equals leader.
-- **Listens for `"onremove"` (on leader)** → Triggers `OnLeaderRemoved`, which calls `SetLeader(nil)`.
-- **Listens for `"entitysleep"`** → Triggers `OnEntitySleep` to attempt teleportation.
-- **Listens for `"entitywake"` (on leader)** → Triggers `OnEntitySleep` via `_onleaderwake` to attempt teleportation.
-- **Listens for `"ms_playerjoined"` (on world)** → Triggers `OnPlayerJoined` to refollow cached player.
-- **Listens for `"ms_newplayerspawned"` (on world)** → Triggers `OnNewPlayerSpawned` to clear stale cached leader.
-- **Pushes `"startleashing"`** → When leashing is enabled.
-- **Pushes `"stopleashing"`** → When leashing is disabled (if `noleashing` not set).
-- **Pushes `"gainloyalty"`** → When loyalty time is added.
-- **Pushes `"loseloyalty"`** → When loyalty is lost (on `StopFollowing`).
-- **Pushes `"leaderchanged"`** → When the leader changes (includes `{ new, old }` payload).
+## Events & listeners
+- **Listens to:**
+    *   `attacked` — fired on `inst`; triggers `onattacked` handler to drop leader if attacked by leader.
+    *   `entitysleep` / `entitywake` — fired on leader; triggers teleportation attempts when leader wakes.
+    *   `onremove` — fired on leader; triggers leader cleanup if leader is removed.
+    *   `ms_playerjoined` / `ms_newplayerspawned` — fired on `TheWorld`; handles player reconnection logic for cached leaders.
+- **Pushes:**
+    *   `leaderchanged` — fired when `leader` changes; includes `{new = new_leader, old = prev_leader}`.
+    *   `gainloyalty` — fired when loyalty time is added; includes `{leader = self.leader}`.
+    *   `loseloyalty` — fired when loyalty expires or is lost; includes `{leader = self.leader}`.
+    *   `startleashing` — fired when leashing is started.
+    *   `stopleashing` — fired when leashing is stopped (unless `noleashing` is set).

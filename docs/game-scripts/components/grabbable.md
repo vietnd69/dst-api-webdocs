@@ -1,46 +1,61 @@
 ---
 id: grabbable
 title: Grabbable
-description: A deprecated component that adds the "grabbable" tag to an entity and optionally allows custom grab permission logic via a callback function.
+description: Marks an entity as grabbable by players and provides a callback for custom grab conditions; however, this component is deprecated in favor of using the inventoryitem component's grabbableoverridetag.
+tags: [deprecated, inventory, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: inventory
+category_type: components
 source_hash: 24a74a28
+system_scope: inventory
 ---
 
 # Grabbable
 
-## Overview
-This deprecated component grants an entity the `grabbable` tag and optionally supports a custom function (`cangrabfn`) to determine whether a specific actor (`doer`) can grab the entity. As noted in the code, its functionality has been superseded by the `inventoryitem.grabbableoverridetag` mechanism.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds the `"grabbable"` tag to the entity on construction.
-- Removes the `"grabbable"` tag when the component is removed from the entity (in `OnRemoveFromEntity`).
-- Depends on the `inst` entity object supporting `AddTag`, `RemoveTag`, and event system capabilities.
+## Overview
+The `grabbable` component marks an entity as eligible to be picked up by players (i.e., added to inventory) by automatically adding the `grabbable` tag to its entity. It supports optional custom logic via a callback function (`SetCanGrabFn`) that determines whether a specific actor can grab the item. This component is marked as deprecated by the developers, and modders are advised to use `inventoryitem.grabbableoverridetag` instead for grab condition control.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("grabbable")
+-- Optional: set custom grab condition
+inst.components.grabbable:SetCanGrabFn(function(inst, doer)
+    return doer:HasTag("player") and doer.inventory ~= nil
+end)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `grabbable` on construction; removes `grabbable` on removal from entity.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *(passed to constructor)* | The entity to which this component is attached. |
-| `cangrabfn` | `function?` | `nil` | Optional callback function `(inst, doer) → boolean` that overrides default grab permission logic. If set, it determines whether `doer` can grab `inst`; otherwise, `CanGrab` returns `false`. |
+| `inst` | `Entity` | (set via constructor) | Reference to the entity this component belongs to. |
+| `cangrabfn` | function or `nil` | `nil` | Optional callback function `(inst, doer) -> boolean` that determines if `doer` can grab this item. |
 
-## Main Functions
+## Main functions
+### `OnRemoveFromEntity()`
+*   **Description:** Removes the `grabbable` tag from the entity when this component is removed.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `SetCanGrabFn(fn)`
-* **Description:** Assigns a custom function to control whether the entity can be grabbed by a given actor.
-* **Parameters:**
-  - `fn` *(function or nil)*: A callback accepting two arguments (`inst`, `doer`) and returning a boolean.
+*   **Description:** Sets a custom callback function used by `CanGrab` to determine whether an entity can be grabbed.
+*   **Parameters:** `fn` (function or `nil`) — function with signature `(inst, doer) -> boolean`, or `nil` to disable custom logic.
+*   **Returns:** Nothing.
 
 ### `CanGrab(doer)`
-* **Description:** Checks whether the entity can be grabbed by the specified actor (`doer`).
-* **Parameters:**
-  - `doer` *(Entity)*: The entity attempting to grab this item.
-* **Returns:** `true` if a custom `cangrabfn` is set and returns `true`; otherwise `false`.
+*   **Description:** Checks whether the given actor (`doer`) is allowed to grab this entity.
+*   **Parameters:** `doer` (Entity) — the entity attempting to grab this item.
+*   **Returns:** `boolean` — `true` if grab is allowed, `false` otherwise.
+*   **Error states:** Returns `false` if no custom callback is set (`cangrabfn` is `nil`).
 
-## Events & Listeners
-None. This component does not register or dispatch any events.
+## Events & listeners
+None identified.

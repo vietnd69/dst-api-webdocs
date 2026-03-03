@@ -3,7 +3,7 @@ id: maze_layouts
 title: Maze Layouts
 description: Factory module that pre-generates and caches static maze room layouts for the Archive and Ruins biomes with configurable area content and rotation variants.
 tags: [map, worldgen, static_layout, biome]
-sidebar_position: 1
+sidebar_position: 100
 
 last_updated: 2026-02-27
 build_version: 714014

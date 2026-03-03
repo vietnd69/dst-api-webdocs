@@ -1,65 +1,86 @@
 ---
 id: cyclable
 title: Cyclable
-description: This component allows an entity to cycle through a series of discrete steps or states, often used for visual changes or functional modes.
+description: Manages cyclic step-based states for entities, such as toggling between multiple modes or phases.
+tags: [state, inventory, ui]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: fc19b833
+system_scope: entity
 ---
 
 # Cyclable
 
-## Overview
-The `Cyclable` component provides functionality for an entity to manage a sequence of steps or states. It allows for setting the total number of steps, advancing or regressing through them, and executing a callback function when the current step changes. It also manages the "cancycle" tag on the entity to indicate whether it is currently cyclable.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-**Tags Added/Removed:**
-*   `cancycle`: Added to the entity when `self.cancycle` is `true`, removed when `self.cancycle` is `false`.
+## Overview
+`Cyclable` enables entities to cycle through a fixed number of discrete steps (e.g., 1 to `num_steps`), typically representing alternating modes, phases, or configurations (such as clothing variants for a Beefalo or equipment states). It supports both manual cycling (e.g., via user input) and programmatic step control, and integrates with the game’s save/load system via `OnSave`/`OnLoad`. It also maintains a `"cancycle"` tag on the entity based on its `cancycle` state.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("cyclable")
+inst.components.cyclable:SetNumSteps(4)
+inst.components.cyclable:SetOnCycleFn(function(inst, step, doer)
+    -- update visual state or behavior based on step
+    print("Cycled to step", step)
+end)
+inst.components.cyclable:Cycle(inst)  -- cycles forward
+inst.components.cyclable:SetStep(2, inst)  -- sets step explicitly
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Manages the `"cancycle"` tag on the owning entity — adds it when `cancycle` becomes `true`, removes it when `false`.
 
 ## Properties
-| Property    | Type       | Default Value | Description                                                                                                                                                                    |
-| :---------- | :--------- | :------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `inst`      | `Entity`   | -             | A reference to the entity this component is attached to.                                                                                                                       |
-| `cancycle`  | `boolean`  | `true`        | Determines if the entity is currently capable of being cycled. Setting this property automatically adds or removes the "cancycle" tag from the entity.                         |
-| `step`      | `number`   | `1`           | The current active step in the cycle. This value is clamped between 1 and `num_steps` to ensure it always represents a valid step.                                             |
-| `num_steps` | `number`   | `3`           | The total number of steps or states available in the cycle. When this property is set, the current `step` is automatically re-clamped to fit within the new valid range.       |
-| `oncyclefn` | `function` | `nil`         | An optional callback function that is executed whenever the cycle's `step` changes. It receives `self.inst`, the `new_step` value, and the `doer` as arguments.               |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `cancycle` | boolean | `true` | Controls whether cycling is allowed; determines presence of `"cancycle"` tag. |
+| `step` | number | `1` | Current step in the cycle (1-indexed, clamped between `1` and `num_steps`). |
+| `num_steps` | number | `3` | Total number of steps in the cycle. Must be ≥ 1. |
 
-## Main Functions
+## Main functions
 ### `SetNumSteps(num)`
-*   **Description:** Sets the total number of steps for the cycle. The component automatically clamps the current `step` to remain within the new valid range (1 to `num`).
-*   **Parameters:**
-    *   `num` (`number`): The new total number of steps for the cycle.
+* **Description:** Updates the total number of steps in the cycle. Automatically clamps the current `step` to stay within bounds.
+* **Parameters:** `num` (number) — new total number of steps (should be ≥ 1).
+* **Returns:** Nothing.
 
 ### `SetOnCycleFn(fn)`
-*   **Description:** Assigns a callback function to be invoked whenever the current cycle step changes.
-*   **Parameters:**
-    *   `fn` (`function`): The function to be called. It should accept `(inst, new_step, doer)` as its arguments.
+* **Description:** Sets a callback function invoked after each step change (via `SetStep` or `Cycle`). The callback is optional and allows external logic (e.g., visual updates).
+* **Parameters:** `fn` (function or `nil`) — callback with signature `(inst, step, doer)`, where `inst` is the entity, `step` is the new step index, and `doer` is the entity that triggered the change (e.g., player).
+* **Returns:** Nothing.
 
 ### `SetStep(step, doer, ignore_callback)`
-*   **Description:** Directly sets the current step of the cycle. The provided `step` value is clamped between 1 and `num_steps`. If an `oncyclefn` is defined and `ignore_callback` is not `true`, the callback is triggered.
-*   **Parameters:**
-    *   `step` (`number`): The desired step number to set.
-    *   `doer` (`Entity`, optional): The entity responsible for initiating the step change. This is passed to `oncyclefn`.
-    *   `ignore_callback` (`boolean`, optional): If `true`, the `oncyclefn` will not be invoked. Defaults to `false`.
+* **Description:** Sets the current step to a specific value, clamped between `1` and `num_steps`. Triggers the callback unless explicitly ignored.
+* **Parameters:**
+  * `step` (number) — desired step (non-zero integer).
+  * `doer` (entity or `nil`) — entity performing the action; passed to the callback.
+  * `ignore_callback` (boolean) — if `true`, skips callback execution.
+* **Returns:** Nothing.
 
 ### `Cycle(doer, negative)`
-*   **Description:** Advances the cycle to the next step. If `negative` is `true`, it cycles backward. The cycle wraps around (e.g., from `num_steps` to 1, or from 1 to `num_steps`). If an `oncyclefn` is defined, it is triggered.
-*   **Parameters:**
-    *   `doer` (`Entity`, optional): The entity that initiated the cycle. This is passed to `oncyclefn`.
-    *   `negative` (`boolean`, optional): If `true`, the cycle decrements the step. If `false` or `nil`, it increments the step.
+* **Description:** Advances or retreats the step counter in a circular manner. If `negative` is `true`, decrements; otherwise increments.
+* **Parameters:**
+  * `doer` (entity or `nil`) — entity triggering the cycle; passed to the callback.
+  * `negative` (boolean) — direction: `true` for decrement (wrap to `num_steps`), `false` for increment (wrap to `1`).
+* **Returns:** Nothing.
 
 ### `OnSave()`
-*   **Description:** Serializes the component's current state, specifically the `step`, for game saving.
-*   **Parameters:** None
-*   **Returns:** A `table` containing the `step` property.
+* **Description:** Serializes the component’s state for saving to disk.
+* **Parameters:** None.
+* **Returns:** `{ step = number }` — table containing the current step value.
 
 ### `OnLoad(data)`
-*   **Description:** Deserializes and restores the component's state from saved game data. If `data.step` is present, it will update the component's `step` property.
-*   **Parameters:**
-    *   `data` (`table`): The table containing saved component data.
+* **Description:** Restores the component’s state from saved data. Clamps and ensures consistency.
+* **Parameters:** `data` (table or `nil`) — data returned by `OnSave`.
+* **Returns:** Nothing.
+* **Error states:** If `data.step` is missing or invalid, falls back to the current `self.step` and re-applies clamping.
+
+## Events & listeners
+* **Listens to:** None.
+* **Pushes:** None.

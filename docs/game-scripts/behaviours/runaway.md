@@ -1,70 +1,81 @@
 ---
 id: runaway
 title: Runaway
-description: A behaviour node that steers an entity away from nearby hostile entities by computing and executing evasive movement paths.
+description: Causes an entity to flee from a detected hunter or threat by calculating a safe escape direction and moving away, optionally returning home if near a safe location.
+tags: [ai, locomotion, evasion]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: behaviour
-system_scope: entity
+category_type: behaviours
 source_hash: 4f3945ca
+system_scope: locomotion
 ---
 
 # Runaway
 
-## Overview
-The `RunAway` component is a behaviour node (inheriting from `BehaviourNode`) responsible for initiating evasive movement when a threatening entity (the "hunter") is detected within a configurable range. It determines the optimal escape angle—accounting for terrain constraints, overhangs, and water/walkable surface boundaries—and issues locomotor commands to run or walk in the resulting direction. Optionally, it can divert the entity toward its home location if fleeing is triggered and the home is safe. This component integrates closely with the `Locomotor`, `HomeSeeker`, `Burnable`, `Equippable`, `InventoryItem`, and `Follower` components to ensure intelligent and context-aware avoidance behavior.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components used:** `behaviours/behaviournode.lua` (base class), `components/locomotor.lua`, `components/homeseeker.lua`, `components/burnable.lua`, `components/equippable.lua`, `components/inventoryitem.lua`, `components/follower.lua`
-- **Tags:** Checks tags on hunter entities: `NOCLICK`, custom `huntertags`, `hunternotags`, and `hunteroneoftags` (see constructor parameters). Does not modify tags on the owner entity.
-- **External utilities:** Uses `FindEntity`, `FindWalkableOffset`, `FindSwimmableOffset`, `FindNearbyOcean`, `FindNearbyLand`, `VecUtil_Slerp`, `distSq`, `TheSim:FindEntities`, `GetTime`, `GetAngleToPoint`, `DEGREES` (constant), `Vector3`, `TheWorld.Map:IsAboveGroundAtPoint`
+## Overview
+`RunAway` is a behaviour node used in the DST AI system to implement evasion logic. When active, it detects a nearby threat (`hunter`) based on configurable criteria (tags, distance, visibility), computes a safe run direction (including obstacle avoidance and overhang correction), and commands the entity to walk or run away. If `runshomewhenchased` is enabled and the entity has a valid non-burning home, it will attempt to return home instead of running blindly.
+
+This component extends `BehaviourNode` and integrates with `locomotor`, `homeseeker`, `burnable`, `equippable`, `inventoryitem`, and `follower` components to make intelligent movement and condition checks.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("behaviourtree")
+inst:AddComponent("locomotor")
+inst:AddComponent("homeseeker")
+
+inst.components.behaviourtree:AddNode("runaway", {
+    type = "runaway",
+    hunterparams = { tags = {"monster"}, fn = function(ent, me) return ent ~= me end },
+    see_dist = 10,
+    safe_dist = 12,
+    runhome = true,
+    walk_instead = false
+})
+```
+
+## Dependencies & tags
+**Components used:** `locomotor`, `homeseeker`, `burnable`, `equippable`, `inventoryitem`, `follower`
+
+**Tags:** Checks tags (`hunterparams.tags`, `hunterparams.notags`, `hunterparams.oneoftags`) on potential hunters; adds no tags itself.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `safe_dist` | `number` | `nil` (required) | Distance squared threshold; if hunter moves beyond this range, the behaviour succeeds and movement stops. |
-| `see_dist` | `number` | `nil` (required) | Detection radius within which hunters are searched for. |
-| `huntertags` | `table` | `{ "NOCLICK" }` or `nil` | Tags a potential hunter *must* have (if `hunterparams` is a string). If `hunterparams` is a table, extracted from it. |
-| `hunternotags` | `table` | `{ "NOCLICK" }` or `nil` | Tags a potential hunter *must not* have (if `hunterparams` is a string). If `hunterparams` is a table, extracted from it. |
-| `hunteroneoftags` | `table` or `nil` | `nil` | If present, a hunter must have at least one of these tags. |
-| `gethunterfn` | `function` or `nil` | `nil` | Optional function `(inst) → entity?` to determine the hunter explicitly (used whenhunter is not tag-based). |
-| `hunterfn` | `function` or `nil` | `nil` | Optional filter function `(hunter, entity) → boolean` used to validate candidate hunters. |
-| `hunterseeequipped` | `boolean` or `nil` | `nil` | If true, include equipped items owned by other players as potential hunters. |
-| `runshomewhenchased` | `boolean` | `nil` (false if omitted) | Whether the entity should attempt to run to its home (`homeseeker:GoHome`) when fleeing starts. |
-| `fix_overhang` | `boolean` | `nil` (false if omitted) | If true, and entity is on an ocean "overhang" (border between land and water in caves), try to recompute a safe point on land or ocean. |
-| `walk_instead` | `boolean` | `nil` (false if omitted) | If true, issue `WalkInDirection` instead of `RunInDirection`. |
-| `safe_point_fn` | `function` or `nil` | `nil` | Optional function `(inst) → Vector3?` that returns a safe point for steering; used to avoid returning toward a zone of danger (e.g., back into lava or ocean). |
-| `hunter` | `Entity` or `nil` | `nil` | Current identified hunter (set during `Visit`). |
-| `avoid_time` / `avoid_angle` | `number?`, `number?` | `nil` | Used internally to smooth path deflections across frames. |
+| `safe_dist` | number | — | Distance squared threshold at which fleeing succeeds (distance check uses `distsq > safe_dist^2`). |
+| `see_dist` | number | — | Maximum distance at which a hunter is detected. |
+| `huntertags` | table or nil | `{ hunterparams }` if string | Tags a potential hunter *must* have (if string used, converted to single-item table). |
+| `hunternotags` | table | `{ "NOCLICK" }` | Tags a potential hunter *must not* have. |
+| `hunteroneoftags` | table or nil | — | Optional: hunter must have *at least one* of these tags. |
+| `hunterseeequipped` | boolean or nil | — | If true, hunter must be visible or equipped and owned by another leader (not same as fleeing entity's leader). |
+| `runshomewhenchased` | boolean | — | Whether to go home (`GoHome`) instead of fleeing when home is safe. |
+| `fix_overhang` | boolean | — | If true and entity is on an ocean overhang, attempts to redirect back to land/water. |
+| `walk_instead` | boolean | — | If true, walks (`WalkInDirection`) instead of runs (`RunInDirection`). |
+| `safe_point_fn` | function or nil | — | Optional callback returning a point (`Vector3`) to use as a secondary target for direction calculation (e.g., to avoid walls). |
+| `gethunterfn` | function or nil | — | Optional custom function to retrieve/update the hunter reference. |
+| `hunterfn` | function or nil | — | Optional filter function to validate a potential hunter (`fn(hunter, self)` returns `true`/`false`). |
 
-## Main Functions
+## Main functions
+### `Visit()`
+*   **Description:** Main execution method of the behaviour node. First checks for a valid hunter within `see_dist` (using `gethunterfn`, `hunterseeequipped`, or `FindEntity`). If a hunter is found and passes `shouldrunfn` (if provided), it sets status to `RUNNING`. While `RUNNING`, it moves the entity away from the hunter; if `runshomewhenchased` is enabled and the home is safe, it runs home instead. When the entity is outside `safe_dist`, status changes to `SUCCESS` and movement stops.
+*   **Parameters:** None (overrides `BehaviourNode.Visit`).
+*   **Returns:** Nothing.
+*   **Error states:** Sets status to `FAILED` if hunter is lost, `safe_point_fn` fails to find a valid angle, or `homeseeker:GoHome` has no home.
 
-### `RunAway:Visit()`
-* **Description:** Core behaviour node execution method. Determines if a hunter exists within range, calculates evasive movement (or calls `GoHome` if configured), and updates status (`READY`, `RUNNING`, `SUCCESS`, or `FAILED`). Called automatically by the parent `BehaviourTree` on a schedule (every `.25` seconds while `RUNNING`).  
-* **Parameters:** None. Uses instance and stored parameters (e.g., `see_dist`, `safe_dist`).  
-* **Returns:** `nil`. Status is updated internally via `self.status`.
+### `GetRunAngle(pt, hp, sp)`
+*   **Description:** Calculates the optimal run angle away from the hunter (`hp`) relative to the entity's position (`pt`), optionally using a secondary safe point (`sp`) for obstacle-aware pathing. Applies wall avoidance and water/land overhang correction (`fix_overhang`) if needed.
+*   **Parameters:**  
+    - `pt` (`Vector3`) — Entity position.  
+    - `hp` (`Vector3`) — Hunter position.  
+    - `sp` (`Vector3` or nil) — Optional safe point to influence direction.  
+*   **Returns:** `number` — Angle in degrees (0–360) to run toward, or fallback to `hp + 180` if no safe direction found.
+*   **Error states:** May return raw angle with no deflection if all obstacle-avoidance attempts fail.
 
-### `RunAway:GetRunAngle(pt, hp, sp)`
-* **Description:** Computes the optimal escape angle from the entity’s current position (`pt`) toward the hunter (`hp`), optionally adjusting to steer around obstacles or toward a safe point (`sp`). Handles terrain-specific pathfinding (`walkable` vs `swimmable` offsets) and deflection smoothing (via `avoid_angle`). Falls back to `angle + 180°` if no offset is found.  
-* **Parameters:**  
-  - `pt`: `Vector3` — Position of the fleeing entity.  
-  - `hp`: `Vector3` — Position of the hunter.  
-  - `sp`: `Vector3?` — Optional safe point (e.g., center of a safe zone) to bias movement away from.  
-* **Returns:** `number?` — Angle in degrees (0–360), or `nil` if no valid direction could be computed.
-
-### `RunAway:__tostring()`
-* **Description:** Returns a debugging string summarizing the current state (e.g., `"RUNAWAY 6.000000 from: [some_entity]"`).  
-* **Parameters:** None.  
-* **Returns:** `string`.
-
-### `ShouldGoHome(inst)`
-* **Description:** Internal helper to verify whether the entity’s home should be used for fleeing (i.e., home exists, is valid, and is not burning or burnt).  
-* **Parameters:**  
-  - `inst`: `Entity` — The fleeing entity.  
-* **Returns:** `boolean`.
-
-## Events & Listeners
-None. This component does not register or dispatch custom events. It responds to the behaviour tree’s `Visit()` scheduling, and uses `Sleep(.25)` to pace actions.
+## Events & listeners
+- **Listens to:** None (behaviour tree control flow is event-driven via `Sleep` and status updates, not `ListenForEvent`).
+- **Pushes:** No events; relies on behaviour tree `SUCCESS`, `RUNNING`, `FAILED` status transitions.

@@ -1,56 +1,75 @@
 ---
 id: hudindicatablemanager
 title: Hudindicatablemanager
-description: Tracks and manages HUD-indicatable items on the client by registering/unregistering them via GUID.
+description: Manages a collection of HUD-indicatable items on the client side for display purposes.
+tags: [hud, client, ui, network]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: ui
+category_type: components
 source_hash: 53228663
+system_scope: ui
 ---
 
 # Hudindicatablemanager
 
-## Overview
-Manages a collection of items that can be displayed on the HUD (e.g., quest markers or trackable objects) exclusively on the client side. It maintains a registry keyed by item GUID and provides register/unregister methods to control which items appear visually in the HUD.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-* `TheNet:IsDedicated()` is used to assert that this component is **client-only**—it is never attached on dedicated servers.
-* No external component dependencies are declared or inferred.
+## Overview
+`Hudindicatablemanager` is a client-only component that tracks items which are eligible to be displayed on the HUD (e.g., via indicator icons or markers). It maintains a registry of such items keyed by their GUID and is intended for use only in multiplayer clients (excluded on dedicated servers, as enforced by an assertion). The component does not perform networking or logic itself but serves as a local store for HUD-relevant entities.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("hudindicatablemanager")
+
+-- Register an item (e.g., a quest target or collectible)
+inst.components.hudindicatablemanager:RegisterItem(item)
+
+-- Unregister when no longer needed
+inst.components.hudindicatablemanager:UnRegisterItem(item)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity instance this component is attached to (typically the player). |
-| `items` | `table` (GUID → item) | `{}` | Dictionary mapping item GUIDs to their entity references; represents currently tracked HUD-indicatable items. |
+| `inst` | entity | `nil` | Reference to the entity instance the component is attached to. |
+| `items` | table | `{}` | Dictionary mapping item GUIDs to item entities; holds tracked items. |
 
-## Main Functions
-
+## Main functions
 ### `RegisterItem(item)`
-* **Description:** Registers an item for HUD indication if not already present. Prevents duplicate registration by checking the item's GUID.
-* **Parameters:**
-  * `item` (`Entity`): The item entity to register. Must have a `GUID` property.
+*   **Description:** Registers an item in the manager's internal list, provided it is not already present. Used to add an entity to the HUD-indicatable set.
+*   **Parameters:** `item` (entity) — the entity to register; must have a `GUID` field.
+*   **Returns:** Nothing.
+*   **Error states:** Does nothing if the item's GUID already exists in `self.items`.
 
 ### `UnRegisterItem(item)`
-* **Description:** Removes an item from the HUD indication registry if it exists. Gracefully handles nil input.
-* **Parameters:**
-  * `item` (`Entity` or `nil`): The item entity to unregister. If nil, no action is taken.
+*   **Description:** Removes an item from the internal list if it exists. Used to prevent further HUD display of the item.
+*   **Parameters:** `item` (entity or `nil`) — the entity to unregister; may be `nil`, in which case no action is taken.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if `item` is `nil` or its GUID is not registered.
 
 ### `OnSave()`
-* **Description:** Prepares data for saving. Currently returns an empty table—no persistent state is stored server-side or across sessions.
-* **Parameters:** None.
+*   **Description:** Save callback; currently returns an empty table and performs no persistent storage.
+*   **Parameters:** None.
+*   **Returns:** `{}` — an empty data table (for compatibility with save/load systems).
+*   **Error states:** None.
 
 ### `OnLoad(data)`
-* **Description:** Loads saved data. Currently a no-op—no data is processed or applied.
-* **Parameters:**
-  * `data` (`table` or `nil`): Ignored by the implementation.
+*   **Description:** Load callback; currently ignores any loaded data and takes no action.
+*   **Parameters:** `data` (table or `nil`) — the saved data to load; unused.
+*   **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Intended for debug output; always returns `nil` due to the `if true then return nil` guard.
-* **Parameters:** None.
+*   **Description:** Debug helper; always returns `nil` due to an unconditional early return.
+*   **Parameters:** None.
+*   **Returns:** `nil`.
 
-## Events & Listeners
-None identified.
+## Events & listeners
+None identified

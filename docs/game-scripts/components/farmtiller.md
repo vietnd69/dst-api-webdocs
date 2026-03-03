@@ -1,37 +1,54 @@
 ---
 id: farmtiller
 title: Farmtiller
-description: This component allows an entity to till eligible soil tiles, converting raw ground into tilled farm soil.
+description: Provides functionality to till soil at a given point in the world.
+tags: [farming, soil, utility]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: a9f30aa2
+system_scope: world
 ---
 
 # Farmtiller
 
-## Overview
-The `FarmTiller` component enables an entity to transform untilled soil tiles into tilled farm soil by collapsing the current ground tile and spawning a `farm_soil` asset at the target location. It implements the core logic for soil tilling actions in the game’s farming system.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-* **Components:** None identified  
-* **Tags:** None added or removed by this component
+## Overview
+`FarmTiller` is a utility component that enables tilling of soil at a specified world position. It is typically attached to entities (e.g., tools like the hoe) that interact with terrain to prepare farmland. The component delegates terrain validation and modification to the `World.Map` system.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("farmtiller")
+
+local point = Vector3(10, 0, -5)
+local success = inst.components.farmtiller:Till(point, player)
+if success then
+    -- soil was tilled successfully
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-No public instance properties are explicitly initialized in the constructor or elsewhere; only `self.inst` is set to the owning entity reference.
+No public properties
 
-## Main Functions
+## Main functions
 ### `Till(pt, doer)`
-* **Description:** Attempts to till the soil tile at the given world point. If successful, collapses the current soil tile, spawns a `farm_soil` prefab at that location, and optionally fires a `"tilling"` event on the `doer` entity.
-* **Parameters:**
-  * `pt`: A `Vector3`-like point (x, y=0, z) specifying the location to till.
-  * `doer`: The entity performing the tilling (e.g., a player or mob); may be `nil`. If non-`nil`, triggers the `"tilling"` event on this entity.
+* **Description:** Attempts to till the soil at the specified world point. Validates the location using the world map, collapses the existing soil, spawns a `farm_soil` prefab, and optionally notifies the actor.
+* **Parameters:**  
+  `pt` (`Vector3`) — World position (x, y, z) where tilling should occur.  
+  `doer` (`Entity` or `nil`) — The entity performing the tilling action; if provided, receives a `"tilling"` event.
+* **Returns:** `true` if tilling succeeded, `false` otherwise.
+* **Error states:** Returns `false` if `TheWorld.Map:CanTillSoilAtPoint()` returns `false` for the given coordinates.
 
-## Events & Listeners
-* Listens for no events (does not register any `inst:ListenForEvent` calls).
-* Triggers events:
-  * If `doer` is non-`nil`: pushes `"tilling"` event on `doer`.
+## Events & listeners
+- **Listens to:** None identified  
+- **Pushes:**  
+  - `"tilling"` — Sent to `doer` only if `doer` is non-`nil`.

@@ -1,54 +1,54 @@
 ---
 id: shard_clock
 title: Shard Clock
-description: Syncs and manages shared clock and moon phase state between the master shard and other shards over the network.
+description: Manages synchronization of clock-related state (phases, cycles, moon data) across the network for the master shard and game clients.
+tags: [network, world, clock]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: components
 source_hash: 15656cfa
+system_scope: network
 ---
 
 # Shard Clock
 
-## Overview
-The `shard_clock` component is a lightweight synchronization helper used exclusively on the master shard or non-master shards to propagate and maintain consistent clock, cycle, phase, and moon phase state across the network. It relies on DST's `net_*` network variable types to ensure reliable and efficient state replication. This component does not store or compute time directly—it reflects the authoritative clock state managed by the `clock` component on the master shard.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- `TheWorld.ismastersim` must be true (component asserts this and will not be instantiated on clients).
-- No explicit component dependencies (does not add/remove entity tags or components).
-- Relies on external event `"master_clockupdate"` (from master shard) or `"clockdirty"` (from non-master shards) to trigger sync logic.
+## Overview
+`Shard_Clock` is a network-coordination component that ensures clock state (e.g., current phase, moon phase, cycles, time-in-phase) is correctly synchronized between the master shard and client instances. It is strictly instantiated on the master simulation (`TheWorld.ismastersim`) and is never present on client-side instances.
+
+The component establishes network variables (via `net_*` helpers) that mirror data from the master shard's clock. On the master shard, it listens for `master_clockupdate` events to update its state, while on non-master shards it triggers `clockdirty` to push updated data back.
+
+This component acts as a dedicated conduit for clock metadata, separating it from the main clock logic (handled elsewhere, e.g., `clock.lua`) to enable efficient replication.
+
+## Usage example
+This component is automatically added and managed by the engine during world initialization. It is not meant for manual instantiation by mods.
+
+```lua
+-- Internal engine usage only — modders should not interact directly
+-- See `clock.lua` and `worldgen` systems for public-facing clock APIs
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds no tags  
+**Network variables:** Uses 9 network variables (`_segs[1..3]`, `_cycles`, `_phase`, `_moonphase`, `_mooniswaxing`, `_totaltimeinphase`, `_remainingtimeinphase`), all synced under the `"clockdirty"` channel.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `self.inst` | `Entity` | `inst` (passed to constructor) | Reference to the owning entity (typically the world root). |
-| `_segs` | `table of net_smallbyte` | `net_smallbyte` array (size 3) | Network variables for clock segment values (cycle phases). |
-| `_cycles` | `net_ushortint` | `net_ushortint` | Network variable tracking number of completed cycles. |
-| `_phase` | `net_tinybyte` | `net_tinybyte` | Network variable for current day/night phase index (0–2). |
-| `_moonphase` | `net_tinybyte` | `net_tinybyte` | Network variable for current moon phase (0–7). |
-| `_mooniswaxing` | `net_bool` | `net_bool` | Network variable indicating if the moon is waxing or waning. |
-| `_totaltimeinphase` | `net_float` | `net_float` | Network variable for total duration of current phase. |
-| `_remainingtimeinphase` | `net_float` | `net_float` | Network variable for remaining time in current phase. |
+| `inst` | `Entity` | `inst` | Reference to the owning entity (typically `TheWorld`). |
 
-## Main Functions
-### `OnClockUpdate(src, data)`
-* **Description:** On the master shard, this handler receives full clock state updates (`master_clockupdate`) and updates all local network variables. It ensures data consistency and triggers `clockdirty` notifications where needed.
-* **Parameters:**
-  * `src`: The event sender (typically `TheWorld`).
-  * `data`: Table containing `segs` (array), `cycles`, `phase`, `moonphase`, `mooniswaxing`, `totaltimeinphase`, and `remainingtimeinphase`.
+## Main functions
+This component does not expose any public methods beyond internal event callbacks. All functionality is handled via event listeners and network variable setters.
 
-### `OnClockDirty()`
-* **Description:** On non-master shards, this handler is triggered when local clock state changes (`clockdirty`). It compiles current local values into a snapshot and broadcasts them to the master shard via the `"secondary_clockupdate"` event.
-* **Parameters:** None.
+## Events & listeners
+- **Listens to:**  
+  - `master_clockupdate` (only on master shard): Updates internal network variables from received `data` (e.g., phases, moon data, cycle counts).  
+  - `clockdirty` (only on non-master shards): Triggers retransmission of current state via `secondary_clockupdate`.
 
-## Events & Listeners
-- **Listens for:**
-  - `"master_clockupdate"` — from `TheWorld` on the master shard to receive authoritative clock updates.
-  - `"clockdirty"` — from `TheWorld` on non-master shards to detect local clock changes requiring sync.
-
-- **Triggers:**
-  - `"secondary_clockupdate"` — on `TheWorld` (from non-master shards) to send updated clock state to the master shard.
+- **Pushes:**  
+  - `secondary_clockupdate`: Broadcasts full clock state (segments, cycles, phase, moon info, time-in-phase) to the master shard for validation and propagation.

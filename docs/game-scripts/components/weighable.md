@@ -1,92 +1,115 @@
 ---
 id: weighable
 title: Weighable
-description: Adds weight-based properties and ownership tracking to an entity, enabling dynamic tagging and percentage-based weight calculations.
+description: Manages weight-related data and tags for entities that can be weighed (e.g., trophies, items used in weighing mechanics), including owner information and weight percentage calculation.
+tags: [weight, inventory, data, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 7f86a988
+system_scope: entity
 ---
 
 # Weighable
 
-## Overview
-The `Weighable` component provides entities with weight-related data (e.g., weight value, normalized percentage, and owner information) and automatically manages entity tags (`weighable_<type>`) when the weight `type` changes. It supports persistence via `OnSave`/`OnLoad`, initialization of weight bounds, and ownership attribution—particularly useful for items like trophies or loot that need to track origin and physical properties.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Tags added/removed:** Dynamically manages `weighable_<type>` tags based on the `type` property (e.g., `weighable_medium`).
-- **No internal component dependencies** are declared or inferred from the code. It relies solely on core entity APIs (`inst:AddTag`, `inst:RemoveTag`, `inst:PushEvent` is not used).
-- Uses the utility functions `Remap` and `math.clamp`, which are assumed to be globally available in the game environment.
+## Overview
+`Weighable` is an entity component that tracks weight data, calculates a normalized weight percentage (`0` to `1`) based on configurable min/max weight bounds, and manages associated tags and ownership metadata (e.g., for trophies or captured items). It integrates with the tag system to dynamically update entity tags based on weight *type* (e.g., `"weighable_light"`, `"weighable_heavy"`), and supports persistence via `OnSave`/`OnLoad` methods. Typically used on prefabs representing weighable items or trophies in gameplay mechanics such as merm fishing or weighing stations.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("weighable")
+
+-- Initialize weight range and set initial weight
+inst.components.weighable:Initialize(10, 100)
+inst.components.weighable:SetWeight(45)
+
+-- Assign ownership (e.g., to a player)
+inst.components.weighable:SetPlayerAsOwner(some_player)
+
+-- Retrieve normalized weight and type tag
+local pct = inst.components.weighable:GetWeightPercent()
+-- "weighable_medium" tag may be present depending on type assignment
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `"weighable_"..type` when `type` is set (via the `type` setter); removes the same tag on removal or type change.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `type` | `string?` | `nil` | Optional category/tag for the entity (e.g., `"small"`, `"large"`). Triggers tag updates when changed. |
-| `weight` | `number?` | `nil` | Raw weight value (e.g., in grams or arbitrary units). Store precision truncated to two decimal places when set via `SetWeight`. |
-| `weight_percent` | `number?` | `nil` | Normalized weight as a float between `0.0` and `1.0`, derived from `min_weight`, `max_weight`, and `weight`. Defaults to `0.5` if min/max are missing. |
-| `owner_userid` | `string?` | `nil` | User ID of the owner (set via `SetPlayerAsOwner`). |
-| `owner_name` | `string?` | `nil` | Player name of the owner (set via `SetPlayerAsOwner`). |
-| `prefab_override_owner` | `string?` | `nil` | Optional override for owner info; currently unused in core logic but reserved (e.g., for mobs that "catch" a trophy). |
-| `min_weight` | `number?` | `nil` | Minimum weight for normalization; initialized via `Initialize`. Required for `weight_percent` calculation. |
-| `max_weight` | `number?` | `nil` | Maximum weight for normalization; initialized via `Initialize`. Required for `weight_percent` calculation. |
+| `type` | string \| nil | `nil` | Weight classification used to derive tags (e.g., `"light"`, `"medium"`, `"heavy"`). |
+| `weight` | number \| nil | `nil` | Raw weight value (e.g., in grams or abstract units). |
+| `weight_percent` | number \| nil | `nil` | Normalized weight (`0.0`–`1.0`) based on `min_weight`/`max_weight`. |
+| `owner_userid` | string \| nil | `nil` | User ID of the player who owns this item (e.g., trophy owner). |
+| `owner_name` | string \| nil | `nil` | Player name associated with `owner_userid`. |
+| `prefab_override_owner` | string \| nil | `nil` | Optional override for the owner label (e.g., `"merm"` for a merm-caught item). |
+| `min_weight` | number \| nil | `nil` | Minimum weight for normalization calculation. |
+| `max_weight` | number \| nil | `nil` | Maximum weight for normalization calculation. |
 
-## Main Functions
-
+## Main functions
 ### `Initialize(min_weight, max_weight)`
-* **Description:** Sets the weight range used to compute the normalized `weight_percent`. Must be called before `weight_percent` should be calculated meaningfully.
-* **Parameters:**
-  * `min_weight` (`number`): The lower bound of the weight range.
-  * `max_weight` (`number`): The upper bound of the weight range.
+* **Description:** Sets the minimum and maximum weight bounds used to compute `weight_percent`.
+* **Parameters:**  
+  `min_weight` (number) — lower bound for weight scaling; must be `< max_weight` for meaningful normalization.  
+  `max_weight` (number) — upper bound for weight scaling.
+* **Returns:** Nothing.
 
 ### `SetWeight(weight)`
-* **Description:** Sets the raw `weight` value, rounding it to two decimal places.
-* **Parameters:**
-  * `weight` (`number`): The new weight value.
-
-### `SetPlayerAsOwner(owner)`
-* **Description:** Assigns ownership of the entity to a specific player, storing both user ID and name. Clears any `prefab_override_owner` value.
-* **Parameters:**
-  * `owner` (`GamePlayer?`): A player object with `userid` and `name` properties, or `nil` to clear ownership.
+* **Description:** Sets the raw `weight` value and triggers recalculation of `weight_percent`.
+* **Parameters:**  
+  `weight` (number) — raw weight to assign (rounded to two decimal places).
+* **Returns:** Nothing.
 
 ### `GetWeight()`
-* **Description:** Returns the current raw `weight` value.
+* **Description:** Returns the currently stored raw weight.
 * **Parameters:** None.
+* **Returns:** `number` \| `nil` — the stored `weight` value.
 
 ### `GetWeightPercent()`
-* **Description:** Returns the normalized weight (`0.0` to `1.0`). If `min_weight`/`max_weight` are not set, returns `0.5` (the default).
+* **Description:** Returns the normalized weight percentage based on `min_weight`, `max_weight`, and `weight`.
 * **Parameters:** None.
+* **Returns:** `number` \| `nil` — a value between `0` and `1`; defaults to `0.5` if min/max are `nil`.
 
-### `OnSave()`
-* **Description:** Serializes the component’s persistent state (weight, owner, override owner) for save/load.
-* **Parameters:** None.  
-* **Returns:** `table`: A table containing `weight`, `owner_userid`, `owner_name`, and `prefab_override_owner`.
-
-### `OnLoad(data)`
-* **Description:** Restores the component’s state from serialized data.
-* **Parameters:**
-  * `data` (`table?`): Data previously returned by `OnSave`.
-
-### `OnRemoveFromEntity()`
-* **Description:** Cleans up the `weighable_<type>` tag when the component is removed from the entity.
-* **Parameters:** None.
+### `SetPlayerAsOwner(owner)`
+* **Description:** Records ownership by a player (or clears it if `nil` is passed). Resets any `prefab_override_owner`.
+* **Parameters:**  
+  `owner` (table \| nil) — an entity or table with `userid` and `name` fields; pass `nil` to clear ownership.
+* **Returns:** Nothing.
 
 ### `CopyWeighable(src_weighable)`
-* **Description:** Copies weight, owner, and override data from another `Weighable` component instance by invoking its `OnSave` and loading via `OnLoad`.
-* **Parameters:**
-  * `src_weighable` (`Weighable?`): Source `Weighable` instance to copy from.
+* **Description:** Copies weight-related data from another `Weighable` component (by invoking `OnSave` on `src_weighable` and `OnLoad` on this one).
+* **Parameters:**  
+  `src_weighable` (Weighable \| nil) — the source component to copy from.
+* **Returns:** Nothing.
+
+### `OnSave()`
+* **Description:** Serializes key internal fields for persistence.
+* **Parameters:** None.
+* **Returns:** `table` — a table containing: `weight`, `owner_userid`, `owner_name`, and `prefab_override_owner`.
+
+### `OnLoad(data)`
+* **Description:** Restores state from persisted data (typically via save/load).
+* **Parameters:**  
+  `data` (table \| nil) — a serialized data table produced by `OnSave`.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted debug string including weight, percentage, owner ID, and override owner.
-* **Parameters:** None.  
-* **Returns:** `string`: Human-readable debug output.
+* **Description:** Returns a formatted string suitable for debugging output (e.g., in logs or UI debug panels).
+* **Parameters:** None.
+* **Returns:** `string` — e.g., `"weight 45.00000 (45.00%), owner_userid 12345, override owner: nil"`.
 
-## Events & Listeners
-- Listens to property changes on `type` and `weight` via reactive setters registered in the metatable:
-  - `type` → triggers `ontype(self, type, old_type)`
-  - `weight` → triggers `onweight(self)`
-- These are not traditional events but property change hooks. No explicit `ListenForEvent` or `PushEvent` calls are present.
+### `OnRemoveFromEntity()`
+* **Description:** Removes the `"weighable_"..type` tag when the component is removed from an entity.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:** `type` and `weight` setters — invokes the corresponding `ontype` and `onweight` callback functions when `type` or `weight` is updated via the metatable.  
+- **Pushes:** None identified.

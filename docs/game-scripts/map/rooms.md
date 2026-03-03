@@ -3,8 +3,7 @@ id: rooms
 title: Rooms
 description: Manages the registration and retrieval of world room definitions for procedural map generation in Don't Starve Together.
 tags: [map, procedural-generation, world-creation]
-sidebar_position: 1
-
+sidebar_position: 100
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: 43c3f513
 ---
-
 # Rooms
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -99,4 +97,3 @@ No persistent properties are stored in this module’s top-level scope beyond th
 
 No events are listened to or pushed by this module.
 
----

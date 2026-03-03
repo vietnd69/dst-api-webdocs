@@ -1,30 +1,41 @@
 ---
 id: vasedecoration
 title: Vasedecoration
-description: A minimal placeholder component for vase decoration entities with no functional logic or properties.
+description: A placeholder component with no functional implementation.
+tags: [placeholder, Decoration]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 50fe9538
+system_scope: entity
 ---
 
 # Vasedecoration
 
-## Overview
-This is a stub component class for vase-related decoration entities. It provides no functional behavior, properties, or event handling—it exists solely as a placeholder within the Entity Component System.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`VaseDecoration` is an empty component class defined solely to satisfy component registration requirements. It provides no functionality, properties, or event handling. It serves as a structural stub, likely intended for future implementation or used in a non-functional capacity during development or testing.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("vasedecoration")
+-- No methods or properties are available on this component.
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-No public properties were clearly identified from the source. The constructor (`_ctor`) is present but empty and does not initialize any instance variables.
+No public properties
 
-## Main Functions
-No functional methods are defined beyond the constructor.
+## Main functions
+No public methods
 
-## Events & Listeners
-No events or listeners are present in this component.
+## Events & listeners
+Not applicable

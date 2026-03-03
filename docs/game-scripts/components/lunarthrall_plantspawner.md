@@ -1,120 +1,138 @@
 ---
 id: lunarthrall_plantspawner
 title: Lunarthrall Plantspawner
-description: This world-level component orchestrates the spawning of Lunarthrall plant-based gestalts during lunar rift events, managing wave timing, plant target selection, and rift lifecycle integration.
+description: Manages the spawning and wave-based infestation of Lunarthrall plants by spawning Gestalt entities and infesting target plants during lunar rift events.
+tags: [boss, event, world, spawn, lunar]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 2f5324bf
+system_scope: world
 ---
 
 # Lunarthrall Plantspawner
 
-## Overview
-This is a `TheWorld`-level world component responsible for managing the lunar rift-triggered infestation cycle of lunar plants into Lunarthrall gestalt minions. It coordinates with rift spawners, plant herds, and game time to schedule and execute spawning waves, handle onscreen/offscreen target selection, and clean up when the rift ends or waves are depleted.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on the following world components: `riftspawner`, `timer`.
-- Listens to events:
-  - `ms_lunarrift_maxsize`
-  - `plantherdspawned`
-  - `ms_lunarportal_removed`
-  - `lunarthrallplant_infested`
-  - `timerdone`
-  - `ms_gestalt_possession`
-- Tags involved (via `PLANT_MUST`, `PLANTS_MUST`, `HUSK_MUST`): `"lunarthrall_plant"`, `"plant"`, `"lunarplant_target"`, `"epiccorpse"`, `"lunarthrall_plant"` (again for husks).
-- No direct component additions to its own entity (`self.inst` is `TheWorld`).
+## Overview
+`Lunarthrall_plantspawner` is a world-level component responsible for orchestrating lunar thrall infestations during a lunar rift event. It responds to rift progression, manages plant herds and wild plant patches, and spawns `lunarthrall_plant_gestalt` entities to infest target plants. It coordinates timing, spawns, and wave release using tasks and timers, and integrates with the `herd`, `riftspawner`, `timer`, and `witherable` components.
+
+## Usage example
+```lua
+-- The component is added automatically to TheWorld at runtime.
+-- Manual interaction typically occurs during modded events:
+TheWorld.components.lunarthrall_plantspawner:RemoveWave()
+local herd = TheWorld.components.lunarthrall_plantspawner:FindHerd()
+```
+
+## Dependencies & tags
+**Components used:** `herd`, `herdmember`, `riftspawner`, `timer`, `witherable`
+**Tags:** Adds `knownlocations` and `herdmember` components to plant entities; checks `epiccorpse`, `lunarthrall_plant`, and `wargcorpse` tags.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The world entity instance (`TheWorld`). |
-| `waves_to_release` | `number?` | `nil` | Remaining wave count (set when rift reaches max size). |
-| `plantherds` | `table` | `{}` | List of registered plant herds (`Plantherd` instances) used for infestation target selection. |
-| `spawntasks` | `table` | `{}` | Tracks active spawner tasks (for cancellation on cleanup). |
-| `targetedplants` | `table` | `{}` | Map of plant GUIDs currently selected for infestation (used to prevent overlap/duplication). |
-| `currentrift` | `Entity?` | `nil` | Reference to the active `lunarrift_portal` rift entity, if any. |
+| `waves_to_release` | number? | `nil` | Remaining number of waves to spawn. |
+| `plantherds` | table | `{}` | List of registered `plantherd` entities. |
+| `spawntasks` | table | `{}` | Map of active spawn tasks (`task -> true`). |
+| `targetedplants` | table | `{}` | Map of plant GUIDs scheduled for infestation (`guid -> true`). |
+| `currentrift` | Entity? | `nil` | Reference to the active `lunarrift_portal` entity. |
+| `_spawntask` | Task? | `nil` | Internal task scheduling wave release (`setTimeForPoralRelease`). |
+| `_nextspawn` | Task? | `nil` | Internal task triggering next `SpawnThralls`. |
 
-## Main Functions
+## Main functions
+### `MoveGestaltToPlant(thrall)`
+* **Description:** Moves a spawned `lunarthrall_plant_gestalt` entity to a position just outside player view range, then toward its target plant. Reuses `PLAYER_CAMERA_SEE_DISTANCE_SQ` to compute an offscreen offset.
+* **Parameters:** `thrall` (Entity) – the gestalt prefab instance.
+* **Returns:** Nothing.
+* **Error states:** Removes `thrall` if its `plant_target` is invalid or nil.
 
 ### `SpawnGestalt(target, rift)`
-* **Description:** Spawns a `lunarthrall_plant_gestalt` prefab. If `rift` is provided and valid, spawns it at the rift’s position and plays a sound; otherwise spawns it offscreen (using a spiral search) and moves it toward the target.
-* **Parameters:**
-  - `target` (`Entity`): The plant entity that the gestalt will infest.
-  - `rift` (`Entity?`): Optional rift from which to spawn.
+* **Description:** Spawns a `lunarthrall_plant_gestalt` either from a rift portal or offscreen (depending on rift presence and player visibility), and assigns the target plant.
+* **Parameters:**  
+  - `target` (Entity) – the plant to infest.  
+  - `rift` (Entity?) – the `lunarrift_portal` to spawn from (optional).
+* **Returns:** Nothing.
+* **Error states:** Slight positional jitter logic to avoid spawning directly on players.
 
 ### `SpawnPlant(target)`
-* **Description:** Infests a target plant with a `lunarthrall_plant` (husk) directly (offscreen infestation). Calls `infest()` and `playSpawnAnimation()` on the new plant.
-* **Parameters:**
-  - `target` (`Entity`): The plant to infest.
+* **Description:** Spawns a `lunarthrall_plant` and immediately infests and animates it.
+* **Parameters:** `target` (Entity) – the plant to infest.
+* **Returns:** Nothing.
 
 ### `InvadeTarget(target)`
-* **Description:** Decides whether to spawn a gestalt (if target is onscreen) or directly infest the plant (if offscreen).
-* **Parameters:**
-  - `target` (`Entity`): The plant to infest.
-
-### `FindHerd()`
-* **Description:** Selects a suitable plant herd for infestation. Filters herds based on available uninfested, non-withered members that are far enough from existing husks (`EXISTING_PLANT_SPACE = 30`). Returns a random herd from the top 5 candidates ranked by valid member count.
-* **Returns:** `Entity?` — A plant herd entity, or `nil` if no viable herd found.
+* **Description:** Infests a target plant—either directly via `SpawnGestalt` (if visible) or offscreen via `SpawnPlant` (if not visible).
+* **Parameters:** `target` (Entity) – the plant to infest.
+* **Returns:** Nothing.
+* **Error states:** Early exit if `target` is nil or invalid.
 
 ### `FindWildPatch()`
-* **Description:** Scans the world for wild plants (with tags `"plant"` and `"lunarplant_target"`) not yet infested. Searches 10 random points within a 40-unit radius on land and picks the location with the most plants within 20 units. Returns the list of plants at that best location.
-* **Returns:** `table?` — Array of plant entities, or `nil` if none found.
+* **Description:** Searches up to 10 random land points for a cluster of valid plants (`plant`, `lunarplant_target`) within 20 units, avoiding already-infested plants. Returns the largest found cluster.
+* **Parameters:** None.
+* **Returns:** table? – array of plant entities, or `nil`.
+* **Error states:** Returns `nil` if no suitable patch is found in 10 tries.
+
+### `FindHerd()`
+* **Description:** Selects a plant herd with the highest count of infestable plants. Excludes withered or already-infested plants and clusters containing existing thrall husks (`lunarthrall_plant`) within `EXISTING_PLANT_SPACE`.
+* **Parameters:** None.
+* **Returns:** Entity? – selected `plantherd` entity, or `nil`.
+* **Error states:** Returns `nil` if no eligible herds exist.
 
 ### `FindPlant()`
-* **Description:** Returns a random infestable plant from all registered herds, checking via `caninfest()`.
-* **Returns:** `Entity?` — An infestable plant entity, or `nil`.
-
-### `MoveGestaltToPlant(thrall)`
-* **Description:** Offsets the given `lunarthrall_plant_gestalt` to an offscreen position using a spiral outward search, then assigns it to track `plant_target`.
-* **Parameters:**
-  - `thrall` (`Entity`): The gestalt entity to position.
+* **Description:** Randomly selects a single infestable plant from all registered plant herds.
+* **Parameters:** None.
+* **Returns:** Entity? – plant entity, or `nil`.
+* **Error states:** Excludes plants with `lunarthrall_plant` attribute.
 
 ### `RemoveWave()`
-* **Description:** Decrements the remaining wave count. If the count reaches zero, cancels all pending tasks, and starts a 10-second timer to finish/remove the rift.
-* **No parameters.**
+* **Description:** Decrements `waves_to_release` and cancels pending tasks if all waves are spent. Triggers `endrift` timer to destroy the rift.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No-op if `waves_to_release` is `nil` or `<= 0`.
 
 ### `setHerdsOnPlantable(plantable)`
-* **Description:** Adds `knownlocations` and `herdmember` components to a plantable entity, and assigns it to a `domesticplantherd`. Used to register plants for potential herd infestation.
-* **Parameters:**
-  - `plantable` (`Entity`): The plant entity to prepare for herd membership.
-
-### `OnSave()`
-* **Description:** Serializes core state for savegames (rift GUID, wave count, task remainders). Returns `{state, refs}` format expected by DST save system.
-* **Returns:** `{state: table, refs: table}`
-
-### `OnLoad(data)`
-* **Description:** Loads the `waves_to_release` value from saved data.
-* **Parameters:**
-  - `data` (`table?`): Saved state data.
-
-### `LoadPostPass(newents, data)`
-* **Description:** Resolves entity references (e.g., rift) and restores pending tasks (spawntask, nextspawn) after loading.
-* **Parameters:**
-  - `newents` (`table`): Map of GUID → entity for newly loaded ents.
-  - `data` (`table?`): Saved task data.
+* **Description:** Ensures a new plant entity has `knownlocations` and `herdmember` components, and registers it for herd-based infestations.
+* **Parameters:** `plantable` (Entity) – a newly spawned plant entity.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted debug string showing remaining waves and timing info.
-* **Returns:** `string`
+* **Description:** Returns a human-readable debug string summarizing current state.
+* **Parameters:** None.
+* **Returns:** string – formatted like `"Waves remaining: 2 | Next Wave: 5.3 | Spawn Wave in: 10.1"`.
+
+### `OnSave()`
+* **Description:** Captures serializable state for save games.
+* **Parameters:** None.
+* **Returns:**  
+  - `data` (table) – holds `waves_to_release`, `spawntask`, `nextspawn`, and `currentrift` GUID/times.  
+  - `refs` (table) – array of entity GUIDs for persistence (e.g., rift).
+
+### `OnLoad(data)`
+* **Description:** Restores `waves_to_release` from saved data.
+* **Parameters:** `data` (table) – data returned from `OnSave`.
+* **Returns:** Nothing.
+
+### `LoadPostPass(newents, data)`
+* **Description:** Reconnects rift entity and reschedules delayed tasks after load.
+* **Parameters:**  
+  - `newents` (table) – map of GUID → `{entity}` from save.  
+  - `data` (table) – loaded `data` from `OnSave`.
+* **Returns:** Nothing.
 
 ### `LongUpdate(dt)`
-* **Description:** Keeps task timers updated during long frame gaps (e.g., save/load or lag), by rescheduling them with reduced remaining time.
-* **Parameters:**
-  - `dt` (`number`): Delta time since last update.
+* **Description:** Adjusts task timers each frame to maintain accuracy during lag or pause transitions.
+* **Parameters:** `dt` (number) – delta time since last frame.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- Listens for:
-  - `ms_lunarrift_maxsize` → `OnLunarRiftReachedMaxSize`
-  - `plantherdspawned` → `OnPlantHerdSpawned`
-  - `ms_lunarportal_removed` → `OnLunarPortalRemoved`
-  - `lunarthrallplant_infested` → `OnPlantInfested`
-  - `timerdone` → `OnTimerDone`
-  - `ms_gestalt_possession` → `OnGestaltPossession`
-- Emits:
-  - `"finish_rift"` event on the rift entity (via `PushEvent`) when its lifecycle ends (after 10 seconds from wave completion).
+## Events & listeners
+- **Listens to:**  
+  - `ms_lunarrift_maxsize` – triggers `OnLunarRiftReachedMaxSize`. Starts wave release when rift reaches full size.  
+  - `plantherdspawned` – registers new plant herd for infestation.  
+  - `ms_lunarportal_removed` – cancels pending tasks and clears rift state.  
+  - `lunarthrallplant_infested` – removes infested plant from `targetedplants`.  
+  - `timerdone` – handles `endrift` timer to destroy rift.  
+  - `ms_gestalt_possession` – triggers `RemoveWave` if an epic or warg corpse is possessed.
+- **Pushes:** None (does not fire custom events itself).

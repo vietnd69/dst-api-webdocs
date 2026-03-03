@@ -1,82 +1,110 @@
 ---
 id: boatdrifter
 title: Boatdrifter
-description: Manages the physics and movement states of a boat, distinguishing between active movement and passive drifting.
+description: Manages the physics and movement state of a boat entity, including drift detection, physics activation/deactivation, and wake test lifecycle.
+tags: [boat, movement, physics, state]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: 21e4680f
+system_scope: locomotion
 ---
 
 # Boatdrifter
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `boatdrifter` component is responsible for managing a boat's movement state, specifically tracking whether it is actively moving or passively drifting. It controls the boat's physics simulation, putting it to sleep to save performance when it is stationary and waking it up when it needs to move. This component also interfaces with the `PhysicsWaker` to handle interactions with waves.
+`BoatDrifter` tracks and controls the movement state of a boat entity—specifically whether it is moving, drifting, or asleep—and manages the associated physics and wake test behavior. It responds to state changes (start/stop moving, drift, sleep/wake) to coordinate physics engine interaction and waking systems. This component is typically attached to boat prefabs to ensure proper interaction with physics and environmental systems like water wakes.
 
-## Dependencies & Tags
-**Dependencies:**
-- `PhysicsWaker`: This component relies on `inst.PhysicsWaker` to manage wake tests, which determine if the boat should be woken up by environmental factors like waves.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("boatdrifter")
+inst:ListenForEvent("startmoving", function() inst.components.boatdrifter:OnStartMoving() end)
+inst:ListenForEvent("stopdrifting", function() inst.components.boatdrifter:OnStopDrifting() end)
+```
 
-**Tags:**
-- None identified.
+## Dependencies & tags
+**Components used:** `PhysicsWaker`
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
-| :--- | :--- | :--- | :--- |
-| `is_moving` | boolean | `false` | Tracks if the boat is currently considered to be in motion. |
-| `is_drifting` | boolean | `false` | Tracks if the boat is specifically in a drifting state (moving without active propulsion). |
-| `stop_boat_physics_task` | task | `nil` | Holds the task handle for the delayed call to stop the boat's physics simulation. |
+|----------|------|---------------|-------------|
+| `is_moving` | boolean | `false` | Whether the boat is currently in motion. |
+| `is_drifting` | boolean | `false` | Whether the boat is currently drifting (a specific type of movement). |
+| `stop_boat_physics_task` | Task or `nil` | `nil` | Delayed task scheduled to stop boat physics after inactivity. |
 
-## Main Functions
+## Main functions
 ### `IsMoving()`
-* **Description:** Returns `true` if the boat is currently considered to be moving, either through propulsion or drifting.
+* **Description:** Returns whether the boat is currently moving.
 * **Parameters:** None.
+* **Returns:** `true` if `is_moving` is `true`, otherwise `false`.
 
 ### `IsDrifting()`
-* **Description:** Returns `true` only if the boat is both moving and in a drifting state.
+* **Description:** Returns whether the boat is currently drifting. A boat is drifting if it is moving *and* `is_drifting` is `true`.
 * **Parameters:** None.
+* **Returns:** `true` if both `is_moving` and `is_drifting` are `true`, otherwise `false`.
 
 ### `StartBoatPhysics()`
-* **Description:** Activates the boat's physics simulation. If a task to stop the physics was pending, it is cancelled.
+* **Description:** Ensures boat physics are active. If a delayed stop task exists, it is cancelled; otherwise, `inst:StartBoatPhysics()` is invoked directly.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `StopBoatPhysics()`
-* **Description:** Schedules a task to stop the boat's physics simulation after a short delay (`BOAT_PHYSICS_SLEEP_DELAY`). This prevents the physics from being rapidly toggled on and off.
+* **Description:** Schedules a delayed call to `inst:StopBoatPhysics()` after `BOAT_PHYSICS_SLEEP_DELAY` (1 second), unless a scheduled task already exists.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Does nothing if a stop task is already scheduled.
 
 ### `StartWakeTests()`
-* **Description:** Tells the associated `PhysicsWaker` component to begin testing for conditions (like waves) that should wake the boat's physics simulation.
+* **Description:** Enables wake test detection on the boat's physics system via `PhysicsWaker:StartWakeTests()`.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `StopWakeTests()`
-* **Description:** Tells the associated `PhysicsWaker` component to stop its wake tests.
+* **Description:** Disables wake test detection on the boat's physics system via `PhysicsWaker:StopWakeTests()`.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnStartDrifting()`
-* **Description:** Sets the boat's state to drifting. If the boat is already moving, it will start wake tests.
+* **Description:** Marks the boat as drifting. If the boat is already moving, wake tests are started.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnStopDrifting()`
-* **Description:** Sets the boat's state to not drifting and stops all wake tests.
+* **Description:** Marks the boat as no longer drifting and stops wake tests.
 * **Parameters:** None.
-
-### `OnStartMoving()`
-* **Description:** Sets the boat's state to moving and starts the boat's physics simulation. If the boat is also drifting, it will start wake tests.
-* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnStopMoving()`
-* **Description:** Sets the boat's state to not moving, stops wake tests, and stops the boat's physics simulation if the entity is asleep.
+* **Description:** Marks the boat as stopped moving. If the entity is asleep, boat physics are stopped. Wake tests are always stopped.
 * **Parameters:** None.
+* **Returns:** Nothing.
+
+### `OnStartMoving()`
+* **Description:** Marks the boat as moving and starts boat physics. If drifting, wake tests are also started.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnEntitySleep()`
-* **Description:** A handler called when the entity enters a sleep state. It stops the boat's physics if the boat is not moving.
+* **Description:** If the entity is not moving, scheduled or active boat physics are stopped.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnEntityWake()`
-* **Description:** A handler called when the entity wakes up. It ensures the boat's physics are active.
+* **Description:** Ensures boat physics are active when the entity wakes.
 * **Parameters:** None.
+* **Returns:** Nothing.
+
+## Events & listeners
+None identified.
+
+## Additional notes
+- The component expects the owned entity to expose methods `StartBoatPhysics()`, `StopBoatPhysics()`, `IsAsleep()`, and a `PhysicsWaker` component.
+- `OnRemoveEntity()` cancels pending tasks and ensures cleanup; `OnRemoveFromEntity` is an alias for `OnRemoveEntity`.
+- `BOAT_PHYSICS_SLEEP_DELAY` is a constant (`1`) used to defer physics shutdown, allowing brief pauses before full sleep.

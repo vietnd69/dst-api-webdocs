@@ -1,90 +1,92 @@
 ---
 id: pumpkinhatcarvable
 title: Pumpkinhatcarvable
-description: This component manages the carving process for a pumpkin hat entity, handling tool validation, player interaction states, and face data updates in Don't Starve Together.
+description: Manages the carving interaction and face customization logic for pumpkin-based wearable items, including validation, state transitions, and tool requirements.
+tags: [crafting, interaction, inventory, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 80f447c3
+system_scope: crafting
 ---
 
 # Pumpkinhatcarvable
 
-## Overview
-This component enables interactive carving of pumpkin-based hats in Don't Starve Together. It orchestrates the carving workflow—including tool validation, player state management, and face data validation—when a player interacts with the pumpkin entity. It supports only the master simulation (server) and integrates with the entity's inventory, burnable, equippable, and floater components to enforce interaction constraints.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on components:
-  - `inventory` (on the *doer/player* to check tools)
-  - `inventoryitem` (on the pumpkin entity to control pick-up behavior)
-  - `burnable` (to prevent carving while burning)
-  - `equippable` (to block carving when equipped)
-  - `floater` (to block carving when floating)
-  - `sg` (StateGraph on the player to trigger animation state)
-- Tags: None directly added or removed.
-- Uses constants:
-  - `PARTS = { "reye", "leye", "mouth" }`
-  - `VARS_PER_TOOL = 9`
-  - `POPUPS.PUMPKINHATCARVING`
+## Overview
+`PumpkinHatCarvable` handles the carving workflow for pumpkin headwear (e.g., pumpkin helmet), enabling players to customize facial features via a popup interface. It coordinates with the `inventory`, `burnable`, `equippable`, and `floater` components to enforce constraints (e.g., burning, equipped, floating) and ensure valid face data is applied only when proper tools are available. The component orchestrates carving start/end states, range checks, and event-driven cleanup.
+
+## Usage example
+```lua
+local inst = Prefab("pumpkin_helmet")
+inst:AddComponent("pumpkinhatcarvable")
+
+inst.components.pumpkinhatcarvable.onchangefacedatafn = function(inst, facedata)
+    -- Apply custom face variation logic here
+end
+
+local player = The Player()
+if inst.components.pumpkinhatcarvable:CanBeginCarving(player) then
+    inst.components.pumpkinhatcarvable:BeginCarving(player)
+end
+```
+
+## Dependencies & tags
+**Components used:** `burnable`, `equippable`, `floater`, `inventory`, `inventoryitem`  
+**Tags:** Checks `burnable:burning`, `equippable:isequipped`, `floater:showing_effect`; modifies `inventoryitem.canbepickedup`.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | Entity reference | `nil` | Reference to the entity this component is attached to. |
-| `ismastersim` | boolean | `TheWorld.ismastersim` | Whether the current instance is master simulation (server). |
-| `collectfacedatafn` | function | `nil` | Optional callback to populate current face data before editing. |
-| `carver` | Entity (player) | `nil` | The player currently carving the pumpkin. `nil` when idle. |
-| `range` | number | `3` | Maximum distance (tiles) the carver may be from the pumpkin to continue carving. |
-| `onchangefacedatafn` | function | `nil` | Callback invoked when face data is successfully validated and changed. |
-| `onopenfn` | function | `nil` | Callback invoked when carving begins. |
-| `onclosefn` | function | `nil` | Callback invoked when carving ends. |
-| `PARTS` | table (constant) | `{ "reye", "leye", "mouth" }` | List of facial feature parts available for carving. |
-| `PART_IDS` | table (constant) | `table.invert(PARTS)` | Inverted map from part name → index. |
-| `VARS_PER_TOOL` | number (constant) | `9` | Number of visual variations per tool/part. |
+| `inst` | `Entity` | *assigned in constructor* | The entity (pumpkin hat) this component is attached to. |
+| `ismastersim` | boolean | `TheWorld.ismastersim` | Indicates if this instance is the master simulation. |
+| `carver` | `Entity?` | `nil` | The entity currently carving the pumpkin. |
+| `range` | number | `3` | Max distance (in tiles) the carver must remain within to continue carving. |
+| `collectfacedatafn` | `function?` | `nil` | Callback to populate `facedata` table from the pumpkin. |
+| `onchangefacedatafn` | `function?` | `nil` | Callback fired when a valid face data change is confirmed. |
+| `onopenfn` | `function?` | `nil` | Callback fired when carving begins. |
+| `onclosefn` | `function?` | `nil` | Callback fired when carving ends. |
+| `onclosepumpkin` | `function` | internal | Event handler for popup close or pumpkin removal during carving. |
 
-*Note:* Public fields are only initialized in the constructor (`_ctor`), which is implemented inline as `Class(function(self, inst) ... end)`.
-
-## Main Functions
-
+## Main functions
 ### `CanBeginCarving(doer)`
-* **Description:** Checks whether the given player (`doer`) is allowed to start carving the pumpkin. Enforces constraints such as tool availability (implied by other logic), burning state, equip state, and prior carving activity.
-* **Parameters:**
-  - `doer` (Entity): The player attempting to carve.
+* **Description:** Checks whether the given entity (`doer`) is allowed to start carving this pumpkin.  
+* **Parameters:** `doer` (`Entity`) – The player or entity attempting to carve.  
+* **Returns:**  
+  * `true` – If carving can start.  
+  * `false, "BURNING"` – If the pumpkin is on fire.  
+  * `false, "INUSE"` – If another carver is already using it.  
+  * `false` – If the pumpkin is equipped or floating.  
+* **Error states:** Does not initiate carving; only validates conditions.
 
 ### `BeginCarving(doer)`
-* **Description:** Starts the carving interaction. Sets the `carver`, blocks pickup of the pumpkin, opens the carving UI popup, enters the `"pumpkincarving"` state on the player, registers event listeners, and begins periodic updates to monitor proximity.
-* **Parameters:**
-  - `doer` (Entity): The player initiating the carving.
+* **Description:** Starts the carving interaction for the pumpkin, opening a UI popup and disabling pickup.  
+* **Parameters:** `doer` (`Entity`) – The entity performing the carve.  
+* **Returns:** `true` if carving successfully started; `false` if already in progress.  
+* **Error states:** Returns `false` immediately if not in master simulation.
 
 ### `EndCarving(doer)`
-* **Description:** Ends the carving interaction for the specified player, if they are the current carver. Resets state: unblocks pickup, removes listeners, stops updates, and triggers the `"ms_endpumpkincarving"` event on the player.
-* **Parameters:**
-  - `doer` (Entity): The player ending their carving session.
+* **Description:** Terminates the carving interaction, re-enables pickup, removes event listeners, and fires cleanup callbacks.  
+* **Parameters:** `doer` (`Entity`) – The carver ending the interaction (must match `self.carver`).  
+* **Returns:** Nothing.  
+* **Error states:** Silently returns if `doer` does not match the current carver or not in master simulation.
 
 ### `GetFaceData()`
-* **Description:** Retrieves the current face configuration by invoking the optional `collectfacedatafn` callback if present. Used to compare or validate face data during saving.
-* **Returns:** `table` – A map of `{ part_name = variation_id }` for each part, or an empty table.
+* **Description:** Retrieves the current face configuration by invoking the `collectfacedatafn` callback.  
+* **Parameters:** None.  
+* **Returns:** `table` – A dictionary mapping `"reye"`, `"leye"`, `"mouth"` to numeric variation IDs (e.g., `{ reye = 2, leye = 1, mouth = 0 }`).  
+* **Error states:** Returns an empty table if `collectfacedatafn` is not set.
 
-### `OnUpdate(dt)`
-* **Description:** Monitors the carver's proximity and line-of-sight to the pumpkin during carving. Automatically ends carving if the carver moves too far or cannot see the pumpkin.
-* **Parameters:**
-  - `dt` (number): Time elapsed since last frame (unused in logic).
-
-### `OnRemoveFromEntity()`
-* **Description:** Cleans up listeners and ends any active carving session when the component is removed from its entity. Also aliased as `OnRemoveEntity`.
-
-## Events & Listeners
-- **Listens for events:**
-  - `"onputininventory"` → triggers `interruptcarving`
-  - `"floater_startfloating"` → triggers `interruptcarving`
-  - `"onremove"` (on `inst`) → triggers `self.onclosepumpkin`
-  - `"ms_closepopup"` (on `inst`) → triggers `self.onclosepopup`
-
-- **Triggers events:**
-  - `"ms_endpumpkincarving"` → pushed immediately to the player (`doer`) when carving ends.
-
-*Note:* The component does *not* push events on face changes; this is delegated to `onchangefacedatafn` callbacks.
+## Events & listeners
+- **Listens to:**  
+  - `"onputininventory"` – Triggers `interruptcarving` if the pumpkin is placed in inventory.  
+  - `"floater_startfloating"` – Triggers `interruptcarving` if the pumpkin starts floating.  
+  - `"onremove"` – Triggers `onclosepumpkin` (on pumpkin removal during carving).  
+  - `"ms_closepopup"` – Triggers `onclosepopup` (on popup close in master sim).  
+- **Pushes:**  
+  - `"ms_endpumpkincarving"` – Sent to the carver when carving ends (master sim only).  
+  - `"onremove"` – indirectly triggers `onclosepumpkin` callback during carving.

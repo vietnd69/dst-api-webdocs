@@ -1,53 +1,68 @@
 ---
 id: farmplanttendable
 title: Farmplanttendable
-description: Controls whether a farm plant entity can be tended to, toggling the "tendable_farmplant" tag and managing tendability state.
+description: Controls whether a farm plant entity can be tended to, managing the `tendable_farmplant` tag and tend completion logic.
+tags: [farm, plant, interaction]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: 4e81483c
+system_scope: entity
 ---
 
 # Farmplanttendable
 
-## Overview
-This component determines if a farm plant entity is currently tendable. It manages the `tendable` state and dynamically adds or removes the `"tendable_farmplant"` tag from the entity based on that state. It also supports tend operations via the `TendTo` method, which can mark the plant as no longer tendable upon successful tend.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds/removes tag: `"tendable_farmplant"`
-- No other components required or added.
-- Uses optional function reference `ontendtofn` (not initialized here—expected to be set externally, e.g., by the farm plant entity or its parent logic).
+## Overview
+`FarmplantTendable` manages the tendable state of a farm plant entity in DST. It ensures the `tendable_farmplant` tag is correctly added or removed based on whether the plant can still be tended, and handles the execution of tend actions via the `TendTo` method. When the plant is tended successfully, the component marks it as no longer tendable and triggers state changes accordingly.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("farmplanttendable")
+inst.components.farmplanttendable:SetTendable(true)
+inst.components.farmplanttendable.ontendtofn = function(ent, doer)
+    -- Custom tend logic here (e.g., check doer, apply effects)
+    return true
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `tendable_farmplant` when `tendable` is `true`, removes it otherwise.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `tendable` | `boolean` | `true` | Whether the plant is currently tendable. State is persisted via `OnSave`/`OnLoad`. |
+| `tendable` | boolean | `true` | Whether the plant can be tended. Set via constructor or `SetTendable`. |
+| `ontendtofn` | function\|nil | `nil` | Callback invoked when `TendTo` is called; should return `true` on success. Not initialized by the component. |
 
-## Main Functions
-
+## Main functions
 ### `SetTendable(tendable)`
-* **Description:** Sets the `tendable` state and updates the `"tendable_farmplant"` tag accordingly.
-* **Parameters:**  
-  `tendable` (`boolean`) – The desired tendability state.
+* **Description:** Updates whether the plant is tendable and syncs the `tendable_farmplant` tag accordingly.
+* **Parameters:** `tendable` (boolean) — the new tendable state.
+* **Returns:** Nothing.
 
 ### `TendTo(doer)`
-* **Description:** Attempts to tend to the plant. If `tendable` is `true` *and* the optional `ontendtofn` callback returns `true`, sets `tendable` to `false` and returns `true`. Otherwise, returns `nil`.
-* **Parameters:**  
-  `doer` (`Entity`) – The entity performing the tend action (e.g., the player).
+* **Description:** Attempts to tend the plant. If `tendable` is `true`, `ontendtofn` is present, and the callback returns `true`, marks the plant as no longer tendable and returns success.
+* **Parameters:** `doer` (GObject) — the entity performing the tend action.
+* **Returns:** `true` if the tend action succeeded, `false` or `nil` otherwise.
+* **Error states:** Returns `false`/`nil` if `tendable` is `false`, `ontendtofn` is `nil`, or the callback returns `false`/`nil`.
 
 ### `OnSave()`
-* **Description:** Returns a serializable table containing the current `tendable` state for save/load persistence.
-* **Returns:** `table` – `{ tendable = self.tendable }`.
+* **Description:** Returns the component's serializable state for savegames.
+* **Parameters:** None.
+* **Returns:** `{ tendable = self.tendable }` — a table containing the current `tendable` state.
 
 ### `OnLoad(data)`
-* **Description:** Restores the `tendable` state from saved data (if provided).
-* **Parameters:**  
-  `data` (`table?`) – Optional saved data table, expected to contain a `tendable` key.
+* **Description:** Restores the component's state from saved data.
+* **Parameters:** `data` (table\|nil) — the saved state, expected to contain a `tendable` key.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- Listens to changes in the `tendable` property via the internal `ontendable` function (used as a setter hook in the class metatable), which triggers tag updates when `tendable` is assigned.
-- Does *not* actively listen for or push events via `inst:ListenForEvent` or `inst:PushEvent`.
+## Events & listeners
+- **Listens to:** None identified  
+- **Pushes:** None identified

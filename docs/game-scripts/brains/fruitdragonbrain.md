@@ -1,36 +1,47 @@
 ---
 id: fruitdragonbrain
 title: Fruitdragonbrain
-description: Controls the behavior tree for the Fruit Dragon entity, determining how it wanders, follows its home object, retreats during challenges, and attacks.
+description: Implements the behavior tree for the Fruit Dragon boss, handling combat, home tracking, wandering, and panic responses.
+tags: [ai, boss, combat]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 94e2e450
+system_scope: brain
 ---
 
 # Fruitdragonbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-`FruitDragonBrain` is a brain component responsible for defining the behavioral logic of the Fruit Dragon entity using a behavior tree. It integrates with several helper behaviors (e.g., `Wander`, `Follow`, `RunAway`, `ChaseAndAttack`) and leverages components like `entitytracker` to locate its home object, `inventoryitem` for grand ownership, and `timer` to detect panic states. The brain prioritizes panic responses (electric fences, challenge loss), then movement relative to its home (chasing, following, or wandering), and finally fallback wandering when no home is present.
+`FruitDragonBrain` defines the behavior tree for the Fruit Dragon boss entity. It orchestrates core AI behaviors including chasing and attacking targets, fleeing when the "LostChallenge" timer is active, homing in on its tracked home entity, and wandering when the home is stationary or no home exists. It relies heavily on the `entitytracker` component to locate the home entity and uses logic to adjust movement and facing behavior based on whether the home is mobile (e.g., carried by a player). This brain is typically attached to a boss prefab to enable dynamic, context-sensitive responses to gameplay events.
 
-## Dependencies & Tags
-- **Components used:** `entitytracker`, `inventoryitem`, `locomotor`, `timer`
-- **Tags:** None identified.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("entitytracker")
+inst:AddComponent("locomotor")
+inst:AddComponent("timer")
+inst:AddBrain("fruitdragonbrain")
+```
+
+## Dependencies & tags
+**Components used:** `entitytracker`, `locomotor`, `timer`, `inventoryitem` (via `GetGrandOwner` on the home entity)
+**Tags:** None identified.
 
 ## Properties
-No public properties are initialized in the constructor. The class extends `Brain` and stores its behavior tree in `self.bt`.
+No public properties.
 
-## Main Functions
-### `FruitDragonBrain:OnStart()`
-* **Description:** Initializes and sets the behavior tree for the Fruit Dragon. The tree is structured to prioritize panic behavior, followed by challenge-specific retreat logic, chase/attack, home-related movement (with special handling for moveable homes), and fallback wander behavior.
+## Main functions
+### `OnStart()`
+* **Description:** Initializes and assigns the behavior tree (`self.bt`) for the Fruit Dragon. The tree begins with high-priority panic and combat nodes, followed by home-following and home-based wandering logic, and finally falls back to generic wandering.
 * **Parameters:** None.
-* **Returns:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-This component does not register or push any events directly. It relies entirely on the behavior tree framework for execution flow and decision-making.
+## Events & listeners
+* **Listens to:** None explicitly registered in this file; event-driven state changes (e.g., `panicing` timer) are evaluated via inline function nodes within the behavior tree (e.g., `WhileNode`).
+* **Pushes:** None explicitly in this file.

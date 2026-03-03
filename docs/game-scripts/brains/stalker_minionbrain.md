@@ -1,79 +1,65 @@
 ---
 id: stalker_minionbrain
 title: Stalker Minionbrain
-description: Controls the behavior and death timing of stalker minions, ensuring they remain leashed to the stalker, idle while near it, and die after a delay following the stalker's death.
-tags: [ai, brain, minion, stalker, combat]
+description: Manages the AI behavior of stalker minions, which remain stationary while their stalker is present but die shortly after the stalker is destroyed.
+tags: [ai, boss, combat]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: brain
-system_scope: brain
+category_type: map
 source_hash: cf0d5fd5
+system_scope: brain
 ---
 
 # Stalker Minionbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The `stalker_minionbrain` component implements a finite state machine using a Behavior Tree (`BT`) to govern stalker minions (small entities summoned by the Stalker boss). Its primary responsibilities include maintaining leash distance relative to the Stalker, idling while near the Stalker, and initiating self-destruction after a randomized delay following the Stalker's death. It depends on the `EntityTracker` component to locate the associated Stalker and the `Health` component to terminate the minion.
+`StalkerMinionBrain` defines the behavior tree logic for stalker minions (typically summoned by a Stalker boss). These minions cease active movement and remain stationary (`StandStill`) while their parent stalker entity is alive and within tracking range. Once the stalker dies, a short delay is triggered, after which the minion begins to wander (`Wander`) before self-terminating by killing itself via the `health` component. The behavior tree prioritizes panic response first, followed by leash enforcement, then idle/stalking conditions, and finally delayed self-destruction.
 
 ## Usage example
-This component is typically added to minion entities during their initialization, usually via a prefab definition or spawner logic. Example (conceptual; actual instantiation occurs in prefabs like `stalker_minion`):
-
 ```lua
-local function fn()
-    local inst = CreateEntity()
-    inst:AddComponent("stalker_minionbrain")
-    -- The brain automatically initializes on `OnStart`, no manual call needed.
-    return inst
-end
+local inst = CreateEntity()
+inst:AddComponent("health")
+inst:AddComponent("entitytracker")
+inst.brain = inst:AddBrain("stalker_minionbrain")
+-- The brain is initialized automatically on add via BrainManager
 ```
 
 ## Dependencies & tags
-**Components used:**  
-- `entitytracker` — accessed via `inst.components.entitytracker:GetEntity("stalker")` to retrieve the Stalker target.  
-- `health` — accessed via `inst.components.health:IsDead()` and `inst.components.health:Kill()` for lifecycle management.
-
+**Components used:** `entitytracker`, `health`
 **Tags:** None identified.
 
 ## Properties
-No public properties are explicitly initialized in the constructor.
+No public properties.
 
 ## Main functions
-
-### `StalkerMinionBrain:OnStart()`
-* **Description:** Initializes the Behavior Tree (`BT`) root node. Defines the logic flow: (1) panic if triggered, (2) enforce leash to Stalker, (3) stand still while Stalker is present, (4) wander during a post-Stalker-death grace period, and (5) kill the minion once the grace period ends. This function is automatically invoked when the entity enters the world.
+### `OnStart()`
+* **Description:** Initializes and sets the behavior tree root node, which orchestrates the minion’s AI logic: panic response, leash tracking, waiting near the stalker, wandering after stalker death, and self-killing.
 * **Parameters:** None.
-* **Returns:** `nil`.
-* **Error states:** None. Assumes `EntityTracker` and `Health` components are present.
+* **Returns:** Nothing.
+* **Error states:** Assumes `entitytracker` and `health` components are attached; no explicit validation is performed.
 
-### `GetTarget(inst)`
-* **Description:** Helper function that retrieves the Stalker entity via the `EntityTracker` using the `"stalker"` key.
-* **Parameters:**  
-  - `inst`: The entity instance whose `EntityTracker` component is queried.
-* **Returns:** `entity inst` or `nil` — the Stalker entity, or `nil` if not tracked.
-* **Error states:** Returns `nil` if the Stalker is not registered in `EntityTracker`.
+### `GetTarget(inst)` *(local)*
+* **Description:** Retrieves the stalker entity tracked by the `entitytracker` component.
+* **Parameters:** `inst` (Entity) — the minion entity instance.
+* **Returns:** The stalker entity if present, otherwise `nil`.
+* **Error states:** Returns `nil` if no entity named `"stalker"` exists in the tracker.
 
-### `GetTargetPos(inst)`
-* **Description:** Helper function that returns the current world position of the Stalker target, if available.
-* **Parameters:**  
-  - `inst`: The entity instance whose `EntityTracker` component is queried.
-* **Returns:** `Vector` or `nil` — the Stalker's position, or `nil` if the target is absent.
+### `GetTargetPos(inst)` *(local)*
+* **Description:** Returns the current world position of the stalker target, or `nil` if no target exists.
+* **Parameters:** `inst` (Entity) — the minion entity instance.
+* **Returns:** `Vector` position or `nil`.
 * **Error states:** Returns `nil` if `GetTarget(inst)` returns `nil`.
 
-### `ShouldDie(self)`
-* **Description:** Determines whether the minion should proceed to die. If no delay has been set (i.e., `self.delay == nil`), it calculates a random delay based on whether the Stalker is already dead (`stalkerdead` flag), adding randomness for unpredictability. Returns `true` only when the current game time exceeds the computed delay.
-* **Parameters:**  
-  - `self`: The brain component instance.
-* **Returns:** `boolean` — `true` if the delay has elapsed and the minion should die; otherwise `false`.
-* **Error states:**  
-  - Sets `self.delay` lazily on first invocation if not present.  
-  - Delay = `stalkerdead ? [1, 3]` or `[3, 5]` (i.e., `dt + math.random() * dt` where `dt` is `1` or `3`).
+### `ShouldDie(self)` *(local)*
+* **Description:** Determines whether the minion should proceed to self-termination based on a randomized delay timer after the stalker’s death.
+* **Parameters:** `self` — the brain instance.
+* **Returns:** `true` if the delay period has elapsed and the minion should kill itself; otherwise `false`.
+* **Error states:** Initializes a random delay (`1` or `3` seconds plus random jitter) only on first call; subsequent calls compare current time against computed `self.delay`.
 
 ## Events & listeners
-None. The component uses behavior tree nodes and direct state queries instead of event-driven logic.
-
----
+None identified.

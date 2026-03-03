@@ -1,142 +1,63 @@
 ---
 id: carnival_hostbrain
 title: Carnival Hostbrain
-description: Manages the AI behavior of the Carnival Host entity, controlling its reactions to minigames and wander patterns during gameplay.
+description: Controls the AI behavior of the Carnival Host, managing its interactions with minigames, crowd behavior, and environment navigation.
+tags: [ai, minigame, navigation, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: brain
-system_scope: brain
+category_type: map
 source_hash: dbe4a681
+system_scope: brain
 ---
 
 # Carnival Hostbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
+`CarnivalHostBrain` is the behavior tree controller for the Carnival Host entity. It orchestrates movement, vocalizations, and attention management based on the presence and state of minigames. It integrates with several components—including `minigame_spectator`, `minigame`, `prototyper`, `knownlocations`, and `talker`—to implement dynamic behavior such as cheering on players, wandering near home, and giving out rewards at game conclusion.
 
-The `carnival_hostbrain` component implements the behavior tree for the Carnival Host entity. It defines how the host reacts to minigame events (e.g., cheering, idle movement, prize tossing), manages wandering between locations, and responds to the presence of minigames via spectating. The brain integrates with components such as `minigame_spectator`, `minigame`, `prototyper`, `knownlocations`, and `talker` to determine dialogue, movement, and interaction timing.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("minigame_spectator")
+inst:AddComponent("prototyper")
+inst:AddComponent("knownlocations")
+inst:AddComponent("talker")
+inst:AddTag("carnival_host")
+inst:AddBrain("carnival_hostbrain")
+```
 
-## Dependencies & Tags
-
-- **Components used:**
-  - `knownlocations` (via `inst.components.knownlocations:GetLocation`)
-  - `minigame` (via `minigame_spectator:GetMinigame().components.minigame`)
-  - `minigame_spectator` (via `inst.components.minigame_spectator:GetMinigame`)
-  - `prototyper` (via `inst.components.prototyper.doers`)
-  - `talker` (via `inst.components.talker:Say`)
-- **Tags:** None identified.
+## Dependencies & tags
+**Components used:** `minigame_spectator`, `minigame`, `prototyper`, `knownlocations`, `talker`, `health`, `sleeper`, `revivablecorpse`, `flight`.  
+**Tags:** Uses internal state tags like `flight`; no explicit tags are added/removed by this brain itself.
 
 ## Properties
+No public properties.
 
-No public properties are initialized directly in the constructor. Behavior is defined via local constants and function references.
-
-| Property        | Type   | Default Value | Description |
-|-----------------|--------|---------------|-------------|
-| `GIVE_PLAZAKIT_DIST` | number | 15 | Distance threshold used for proximity checks (unused in current brain implementation). |
-| `GIVE_PLAZAKIT_GIVE_DIST` | number | 4 | Distance threshold for giving plaza kits (unused in current brain implementation). |
-| `MAX_LEASH_DIST` | number | 20 | Maximum leash range for the host (unused in current brain implementation). |
-| `INNER_LEASH_DIST` | number | 15 | Inner leash boundary (unused in current brain implementation). |
-| `MAX_WANDER_DIST` | number | 15 | Maximum wandering radius from the home location. |
-
-## Main Functions
-
-### `CarnivalHostBrain:OnStart()`
-
-* **Description:** Initializes and assigns the behavior tree for the Carnival Host. Constructs a priority-based tree that prioritizes minigame watching, followed by prototyper facing, plaza announcements, and idle wandering.
+## Main functions
+### `OnStart()`
+* **Description:** Initializes the behavior tree for the Carnival Host entity, configuring its response to minigames and environmental state.
 * **Parameters:** None.
-* **Returns:** None.
+* **Returns:** Nothing.
+* **Error states:** None—assumes required components are present. Behavior may be incomplete if components like `minigame_spectator` or `prototyper` are missing.
 
-### Local Helper Functions
+### Helper functions (internal)
+The following internal functions support behavior logic but are not exposed publicly:
+- `GetFaceTargetFn(inst)` — Returns a target for `FaceEntity` if `prototyper.doers` has entries, else `nil`.
+- `KeepFaceTargetFn(inst, target)` — Determines if the target should remain faced (true if in `prototyper.doers`).
+- `GetHomePos(inst)` — Retrieves the "home" location from `knownlocations`.
+- `GetWanderLines(inst)` — Returns a random generic announcement line from localization strings.
+- `WatchingMinigame(inst)` — Returns the active minigame if the host is spectating one.
+- `IsWatchingMinigameIntro(inst)` / `IsWatchingMinigameOutro(inst)` — Boolean checks for minigame state.
+- `WatchingMinigame_MinDist(inst)`, `WatchingMinigame_TargetDist(inst)`, `WatchingMinigame_MaxDist(inst)` — Retrieve minigame-specific watch distances.
+- `DoTossReward(inst)` — Spawns and launches a carnival prize ticket toward the active minigame.
+- `OnEndOfGame(inst)` — Handles post-game cheering and reward distribution.
+- `GetWatchingMinigameLines(inst)` — Returns line keys for cheering or boredom based on minigame excitement.
+- `GetMinigameOutroGameLines(inst)` — Returns line keys for minigame end states.
 
-#### `GetFaceTargetFn(inst)`
-* **Description:** Returns the first active doer from the `prototyper` component if available; otherwise returns `nil`.
-* **Parameters:**
-  - `inst` (Entity): The Carnival Host entity instance.
-* **Returns:** Entity or `nil`.
-
-#### `KeepFaceTargetFn(inst, target)`
-* **Description:** Determines whether the entity should continue facing a given target by checking if the target exists in the `prototyper.doers` map.
-* **Parameters:**
-  - `inst` (Entity): The Carnival Host entity instance.
-  - `target` (Entity): The candidate target entity.
-* **Returns:** Boolean (`true` if target exists in `doers`; `false` otherwise).
-
-#### `GetHomePos(inst)`
-* **Description:** Retrieves the stored "home" location from `knownlocations` component.
-* **Parameters:**
-  - `inst` (Entity): The Carnival Host entity instance.
-* **Returns:** Vector (positional coordinates) or `nil`.
-
-#### `GetWanderLines(inst)`
-* **Description:** Returns a randomly selected generic announcement line for wandering events.
-* **Parameters:**
-  - `inst` (Entity): The Carnival Host entity instance.
-* **Returns:** String (localized line key).
-
-#### `WatchingMinigame(inst)`
-* **Description:** Returns the current minigame instance if the host is spectating one.
-* **Parameters:**
-  - `inst` (Entity): The Carnival Host entity instance.
-* **Returns:** `Minigame` component instance or `nil`.
-
-#### `IsWatchingMinigameIntro(inst)`
-* **Description:** Checks if the currently watched minigame is in its intro phase.
-* **Parameters:**
-  - `inst` (Entity): The Carnival Host entity instance.
-* **Returns:** Boolean.
-
-#### `WatchingMinigame_MinDist(inst)`
-* **Description:** Returns the minigame's minimum spectating distance threshold.
-* **Parameters:**
-  - `inst` (Entity): The Carnival Host entity instance.
-* **Returns:** Number (distance).
-
-#### `WatchingMinigame_TargetDist(inst)`
-* **Description:** Returns the minigame's target spectating distance threshold.
-* **Parameters:**
-  - `inst` (Entity): The Carnival Host entity instance.
-* **Returns:** Number (distance).
-
-#### `WatchingMinigame_MaxDist(inst)`
-* **Description:** Returns the minigame's maximum spectating distance threshold.
-* **Parameters:**
-  - `inst` (Entity): The Carnival Host entity instance.
-* **Returns:** Number (distance).
-
-#### `IsWatchingMinigameOutro(inst)`
-* **Description:** Checks if the currently watched minigame is in its outro phase.
-* **Parameters:**
-  - `inst` (Entity): The Carnival Host entity instance.
-* **Returns:** Boolean.
-
-#### `DoTossReward(inst)`
-* **Description:** Spawns a `carnival_prizeticket` prefab and launches it toward the current minigame.
-* **Parameters:**
-  - `inst` (Entity): The Carnival Host entity instance.
-* **Returns:** None.
-
-#### `OnEndOfGame(inst)`
-* **Description:** Handles post-game actions: speaks a cheering/bored line based on score, and tosses reward tickets (one per 5 points, with slight random offsets).
-* **Parameters:**
-  - `inst` (Entity): The Carnival Host entity instance.
-* **Returns:** None.
-
-#### `GetWatchingMinigameLines(inst)`
-* **Description:** Returns a randomly selected cheering or bored line based on minigame excitement and phase.
-* **Parameters:**
-  - `inst` (Entity): The Carnival Host entity instance.
-* **Returns:** Table of strings (localized line keys) or `nil`.
-
-#### `GetMinigameOutroGameLines(inst)`
-* **Description:** Returns cheering or bored lines specifically for minigame outro based on final score.
-* **Parameters:**
-  - `inst` (Entity): The Carnival Host entity instance.
-* **Returns:** Table of strings (localized line keys).
-
-## Events & Listeners
-
-None. This component does not register or push events directly. It uses behavior tree nodes (`WhileNode`, `PriorityNode`, `ChattyNode`, `FaceEntity`, `Follow`, `Wander`, `RunAway`) for reactive decision-making.
+## Events & listeners
+None identified. This brain does not register or emit events directly.

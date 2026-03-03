@@ -1,193 +1,177 @@
 ---
 id: petleash
 title: Petleash
-description: Manages a collection of summoned pet entities, enforcing spawn limits globally and per-prefab, handling pet lifecycle, and integrating with the leader-follower system.
+description: Manages a set of pet entities associated with an owner, including limits, spawning, attaching, and despawning.
+tags: [pet, inventory, entity]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 64e01e91
+system_scope: entity
 ---
-
 # Petleash
 
-## Overview
-The `PetLeash` component manages summoned pet entities attached to an entity (typically the player), tracking them in a dictionary, enforcing maximum pet counts (both global and per-prefab), and coordinating their spawning, despawning, persistence, and saving/loading. It ensures pets are linked as followers and adjusts count tracking when pets are added or removed. It also supports optional callback functions for spawn, despawn, and removal events.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components relied upon:** `leader` (used via `self.inst.components.leader:AddFollower(pet)` if present).
-- **Tags added/removed:** None directly added, but pets are assigned `persists = false` and may inherit behavior from the system.
-- **Events listened for:** `"onremove"` on individual pets to auto-remove them from internal tracking.
+## Overview
+`PetLeash` is a component that tracks and manages a collection of pet entities owned by an entity (typically a player or mob). It supports both global and per-prefab pet counts with configurable limits, and provides methods to spawn, attach, detach, and despawn pets. It automatically links pets to the owner's `leader` component if present, enabling follower behavior. This component is commonly used for characters or prefabs that can tame or control other creatures.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("petleash")
+inst.components.petleash:SetPetPrefab("pigman")
+inst.components.petleash:SetMaxPets(3)
+inst.components.petleash:SetMaxPetsForPrefab("pigman", 2)
+local pet = inst.components.petleash:SpawnPetAt(0, 0, 0)
+```
+
+## Dependencies & tags
+**Components used:** `leader` (optional; calls `AddFollower` on pets if present)
+**Tags:** Checks `pet.prefab` and `v:HasTag(tag)`; no tags added or removed directly.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity this component is attached to. |
-| `petprefab` | `string?` | `nil` | Default prefab name to spawn when no override is provided. |
-| `pets` | `table<Entity, Entity>` | `{}` | Dictionary mapping pet entities to themselves (used as a set). |
-| `maxpets` | `number` | `1` | Global maximum number of pets allowed. |
-| `numpets` | `number` | `0` | Current count of non-prefab-limited pets. |
-| `maxpetsperprefab` | `table<string, number>?` | `nil` | Optional map of prefab name → max count per prefab. |
-| `numpetsperprefab` | `table<string, number>?` | `nil` | Current count of pets per prefab. |
-| `reservedpetsperprefab` | `table<string, number>?` | `nil` | Count of reserved pet slots per prefab. |
-| `onspawnfn` | `function?` | `nil` | Callback executed after a pet is spawned (`fn(inst, pet)`). |
-| `ondespawnfn` | `function?` | `nil` | Callback executed before a pet is removed (`fn(inst, pet)`). |
-| `onpetremoved` | `function?` | `nil` | Callback executed when a pet is auto-removed (e.g., via `"onremove"` event). |
-| `_onremovepet` | `function` | (internal) | Internal callback bound to `pet`'s `"onremove"` event. |
+| `inst` | `Entity` | `nil` | Reference to the entity that owns this component. |
+| `petprefab` | `string?` | `nil` | Default prefab name for newly spawned pets. |
+| `pets` | `table` | `{}` | Map of pet entities currently attached (`pet -> pet`). |
+| `maxpets` | `number` | `1` | Maximum total number of pets allowed. |
+| `numpets` | `number` | `0` | Current total number of pets. |
+| `maxpetsperprefab` | `table?` | `nil` | Map of prefab name → max count for per-prefab limits. |
+| `numpetsperprefab` | `table?` | `nil` | Map of prefab name → current count for per-prefab limits. |
+| `reservedpetsperprefab` | `table?` | `nil` | Map of prefab name → reserved pet slots (prevents overbooking during load/transition). |
+| `onspawnfn` | `function?` | `nil` | Callback fired when a pet is spawned (`fn(owner, pet)`). |
+| `ondespawnfn` | `function?` | `nil` | Callback fired when a pet is despawned (`fn(owner, pet)`). |
+| `onpetremoved` | `function?` | `nil` | Callback fired when a pet is removed via `onremove` event (`fn(owner, pet)`). |
 
-## Main Functions
+## Main functions
 ### `SetPetPrefab(prefab)`
-* **Description:** Sets the default prefab used for future `SpawnPetAt` calls.
-* **Parameters:**  
-  `prefab` (string): Prefab name of the default pet.
-
-### `SetOnSpawnFn(fn)`
-* **Description:** Sets a custom callback to run on pet spawn instead of default behavior.
-* **Parameters:**  
-  `fn` (function): A function accepting `(inst, pet)`.
-
-### `SetOnDespawnFn(fn)`
-* **Description:** Sets a custom callback to run before a pet is despawned via `DespawnPet`.
-* **Parameters:**  
-  `fn` (function): A function accepting `(inst, pet)`.
-
-### `SetOnRemovedFn(fn)`
-* **Description:** Sets a callback triggered when a pet is automatically removed due to its own `"onremove"` event.
-* **Parameters:**  
-  `fn` (function): A function accepting `(inst, pet)`.
+*   **Description:** Sets the default prefab to use when spawning new pets.
+*   **Parameters:** `prefab` (string) - prefab name to use as default.
+*   **Returns:** Nothing.
 
 ### `SetMaxPets(num)`
-* **Description:** Sets the global maximum pet limit.
-* **Parameters:**  
-  `num` (number): New global pet cap.
+*   **Description:** Sets the maximum total number of pets allowed.
+*   **Parameters:** `num` (number) - new pet limit.
+*   **Returns:** Nothing.
 
 ### `GetMaxPets()`
-* **Description:** Returns the global pet limit.
-* **Parameters:** None.
+*   **Description:** Returns the configured maximum total pet count.
+*   **Parameters:** None.
+*   **Returns:** `number` — the current `maxpets` value.
 
 ### `GetNumPets()`
-* **Description:** Returns the current number of non-prefab-limited pets.
-* **Parameters:** None.
+*   **Description:** Returns the current count of pets (non-prefab-specific).
+*   **Parameters:** None.
+*   **Returns:** `number` — current total pet count.
 
 ### `IsFull()`
-* **Description:** Returns `true` if the global pet limit has been reached.
-* **Parameters:** None.
-
-### `IsPetAPrefabLimitedOne(prefab)`
-* **Description:** Returns `true` if the given prefab is subject to a per-prefab limit.
-* **Parameters:**  
-  `prefab` (string): The prefab name.
+*   **Description:** Checks if the global pet limit has been reached.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if `numpets >= maxpets`, otherwise `false`.
 
 ### `SetMaxPetsForPrefab(prefab, maxpets)`
-* **Description:** Enables per-prefab limiting for the given prefab and sets its limit.
-* **Parameters:**  
-  `prefab` (string): Prefab name.  
-  `maxpets` (number): Max number allowed of this prefab.
+*   **Description:** Configures a per-prefab pet limit.
+*   **Parameters:** `prefab` (string), `maxpets` (number).
+*   **Returns:** Nothing.
 
 ### `GetMaxPetsForPrefab(prefab)`
-* **Description:** Returns the max allowed count for a specific prefab.
-* **Parameters:**  
-  `prefab` (string): Prefab name.
+*   **Description:** Returns the per-prefab limit for a given prefab.
+*   **Parameters:** `prefab` (string).
+*   **Returns:** `number` — `0` if no limit is set.
 
 ### `GetNumPetsForPrefab(prefab)`
-* **Description:** Returns the current count of pets with the given prefab.
-* **Parameters:**  
-  `prefab` (string): Prefab name.
-
-### `GetNumReservedPetsForPrefab(prefab)`
-* **Description:** Returns the number of reserved slots for the given prefab.
-* **Parameters:**  
-  `prefab` (string): Prefab name.
+*   **Description:** Returns the current number of pets for a given prefab.
+*   **Parameters:** `prefab` (string).
+*   **Returns:** `number` — current count for that prefab.
 
 ### `IsFullForPrefab(prefab)`
-* **Description:** Returns `true` if the pet limit (including reserved slots) is reached for the given prefab.
-* **Parameters:**  
-  `prefab` (string): Prefab name.
+*   **Description:** Checks if both the active and reserved pet counts for a prefab have exceeded its limit.
+*   **Parameters:** `prefab` (string).
+*   **Returns:** `boolean` — `true` if `active + reserved >= max`.
 
 ### `ReservePetWithPrefab(prefab)`
-* **Description:** Increases the reserved slot count for the given prefab.
-* **Parameters:**  
-  `prefab` (string): Prefab name.
+*   **Description:** Reserves a slot for a pet of the given prefab (used during loading or speculative spawning).
+*   **Parameters:** `prefab` (string).
+*   **Returns:** Nothing.
 
 ### `UnreservePetWithPrefab(prefab)`
-* **Description:** Decreases the reserved slot count for the given prefab; cleans up the table if count reaches zero.
-* **Parameters:**  
-  `prefab` (string): Prefab name.
+*   **Description:** Releases a reserved slot for a pet of the given prefab.
+*   **Parameters:** `prefab` (string).
+*   **Returns:** Nothing.
 
-### `GetPetsWithPrefab(prefab)`
-* **Description:** Returns an array of all pets of the given prefab type.
-* **Parameters:**  
-  `prefab` (string): Prefab name.
+### `HasPetWithTag(tag)`
+*   **Description:** Checks whether any attached pet has the specified tag.
+*   **Parameters:** `tag` (string).
+*   **Returns:** `boolean` — `true` if at least one pet has the tag.
 
 ### `GetPets()`
-* **Description:** Returns the internal pets dictionary (note: keys are pet entities).
-* **Parameters:** None.
+*   **Description:** Returns the internal pets table.
+*   **Parameters:** None.
+*   **Returns:** `table` — the `pets` map.
 
 ### `IsPet(pet)`
-* **Description:** Checks if the given entity is currently managed as a pet.
-* **Parameters:**  
-  `pet` (Entity): Entity to check.
+*   **Description:** Checks if a given entity is currently attached as a pet.
+*   **Parameters:** `pet` (`Entity`).
+*   **Returns:** `boolean` — `true` if `pet` is in `pets`.
 
 ### `SpawnPetAt(x, y, z, prefaboverride, skin)`
-* **Description:** Spawns a new pet at the specified world coordinates, respecting limits. If `prefaboverride` is provided, it is used; otherwise, `self.petprefab` is used.
-* **Parameters:**  
-  `x`, `y`, `z` (number): World coordinates.  
-  `prefaboverride` (string?): Optional prefab to spawn instead of default.  
-  `skin` (string?): Optional skin override.  
-  *Returns:* `Entity?` — the spawned pet, or `nil` if spawn failed (e.g., limit reached).
+*   **Description:** Spawns a new pet at the given coordinates, applying prefab and skin overrides if provided.
+*   **Parameters:**  
+  - `x`, `y`, `z` (number) — spawn position.  
+  - `prefaboverride` (string?, optional) — overrides `petprefab`.  
+  - `skin` (string?, optional) — skin name to pass to `SpawnPrefab`.
+*   **Returns:** `Entity?` — the spawned pet, or `nil` if limits exceeded or prefab not set.
 
 ### `AttachPet(pet)`
-* **Description:** Attaches an already-existing pet to this component (for external spawning), respecting limits. Does not spawn.
-* **Parameters:**  
-  `pet` (Entity): The pet to attach.  
-  *Returns:* `boolean` — `true` if successfully attached, `false` otherwise.
+*   **Description:** Attaches an externally spawned pet to the leash, respecting all limits.
+*   **Parameters:** `pet` (`Entity`).
+*   **Returns:** `boolean` — `true` if successfully attached, `false` if already attached or limits exceeded.
 
 ### `DetachPet(pet)`
-* **Description:** Manually detaches a pet without removing it, decrementing count tracking.
-* **Parameters:**  
-  `pet` (Entity): The pet to detach.
+*   **Description:** Removes a pet from the leash without destroying it (used for manual control of pet lifecycle).
+*   **Parameters:** `pet` (`Entity`).
+*   **Returns:** Nothing.
 
 ### `DespawnPet(pet)`
-* **Description:** Removes the pet using `ondespawnfn` if present, or `pet:Remove()` otherwise.
-* **Parameters:**  
-  `pet` (Entity): The pet to despawn.
+*   **Description:** Removes and destroys a pet. If `ondespawnfn` is set, it is called instead of `pet:Remove()`.
+*   **Parameters:** `pet` (`Entity`).
+*   **Returns:** Nothing.
 
 ### `DespawnAllPets()`
-* **Description:** Despawns all managed pets.
-* **Parameters:** None.
+*   **Description:** Destroys or despawns all attached pets.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `DespawnAllPetsWithPrefab(prefab)`
-* **Description:** Despawns all pets of the given prefab.
-* **Parameters:**  
-  `prefab` (string): Prefab name to despawn.
+*   **Description:** Destroys or despawns all pets of a specific prefab.
+*   **Parameters:** `prefab` (string).
+*   **Returns:** Nothing.
+
+### `GetPetsWithPrefab(prefab)`
+*   **Description:** Returns a list of pets matching the given prefab.
+*   **Parameters:** `prefab` (string).
+*   **Returns:** `table?` — array of pets (table), or `nil` if none exist.
 
 ### `OnSave()`
-* **Description:** Serializes all pets for saving; sets `temp_save_platform_pos = true` on pets before saving.
-* **Parameters:** None.  
-  *Returns:* `{ pets = array_of_save_records }` or `nil` if no pets.
+*   **Description:** Serializes all pets into a save record.
+*   **Parameters:** None.
+*   **Returns:** `{ pets: table }` — table of save records, or `nil` if no pets.
 
 ### `OnLoad(data)`
-* **Description:** Loads pets from save data; respawns each pet via `SpawnSaveRecord` and links them.
-* **Parameters:**  
-  `data` (table): Saved data containing `"pets"` array.
+*   **Description:** Deserializes pets from save data and attaches them.
+*   **Parameters:** `data` (table?) — must contain `{ pets: table }`.
+*   **Returns:** Nothing.
 
 ### `OnRemoveFromEntity()`
-* **Description:** Cleans up `"onremove"` event listeners on all pets before component removal.
-* **Parameters:** None.
+*   **Description:** Cleans up event listeners on all attached pets when component is removed.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `OnRemoveEntity` (alias: `DespawnAllPets`)
-* **Description:** Class function; calls `DespawnAllPets` when the entity is removed.
+## Events & listeners
+- **Listens to:** `onremove` (on pets) — triggers `self._onremovepet` to decrement counters and fire `onpetremoved` callback.
+- **Pushes:** No events directly; events are handled via callbacks.
 
-### `TransferComponent(newinst)`
-* **Description:** Stub function intended for component migration; currently empty.
-* **Parameters:**  
-  `newinst` (Entity): Target entity.
-
-## Events & Listeners
-- **Listens to `"onremove"` events** on each pet entity to automatically remove it from internal tracking (`self.pets`) and decrement counters.
-- **Calls `self.inst:PushEvent(...)` internally?** No explicit events are pushed by this component based on the code.
-- **Uses `inst:ListenForEvent("onremove", ...)`** internally.
-- **Uses `inst:RemoveEventCallback(...)`** when detaching or cleaning up.

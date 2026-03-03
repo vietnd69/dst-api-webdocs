@@ -1,72 +1,112 @@
 ---
 id: malbatrossspawner
 title: Malbatrossspawner
-description: Manages spawning and tracking of Malbatross entities near fish shoals in response to player proximity, time, and fishing events.
+description: Manages the spawning and tracking of Malbatross entities near fish shoals in the game world.
+tags: [boss, spawner, world, event]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: cc00bb11
+system_scope: world
 ---
 
 # Malbatrossspawner
 
-## Overview
-The `Malbatrossspawner` component orchestrates the spawning logic for the Malbatross entity by monitoring registered fish shoals, player presence, and game timer events. It only runs on the master simulation and ensures that a Malbatross spawns near a fish shoal when criteria (e.g., player proximity, timer expiration, or fishing hook events) are met.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component:** `self.inst` must be a server-side entity (asserted via `TheWorld.ismastersim`).
-- **Listening Events:**
-  - `"ms_registerfishshoal"` – triggered when a new fish shoal is registered.
-  - `"ms_unregisterfishshoal"` – triggered when a fish shoal is removed.
-  - `"ms_shoalfishhooked"` / `"ms_shoalfishhooked_redux"` – triggered when a fish is hooked from a shoal.
-  - `"malbatrosskilled"` / `"malbatrossremoved"` – triggered when a Malbatross is removed from the world.
-- **World Subsystem Used:** `TheWorld.components.worldsettingstimer` for managing spawn timers.
+## Overview
+`Malbatrossspawner` is a master simulation–only component responsible for orchestrating Malbatross appearances in response to fish shoals and player proximity. It tracks fish shoals, monitors timer-based delays, and spawns a Malbatross when conditions (player proximity, successful luck roll, or debug override) are met. It interacts closely with the `worldsettingstimer`, `knownlocations`, and `entitytracker` components to persist state, remember locations, and manage entity references.
+
+This component exists solely on the master simulation (i.e., server or single-player), enforced by an assertion in its constructor.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("malbatrossspawner")
+
+-- Optional: Trigger debug spawn near a specific entity
+inst.components.malbatrossspawner:Summon(some_target_entity)
+
+-- Optional: Force relocation (e.g., after killing current Malbatross)
+inst.components.malbatrossspawner:Relocate(current_malbatross)
+```
+
+## Dependencies & tags
+**Components used:**  
+- `worldsettingstimer` — to schedule and manage spawn timers.  
+- `knownlocations` (on spawned Malbatross) — to remember the Malbatross’s home shoal position.  
+- `entitytracker` (on spawned Malbatross) — to track the target feeding shoal.
+
+**Tags:** None added or checked by this component itself.
 
 ## Properties
-No public instance properties are declared outside `self.inst`. All state is held in closure-scoped private variables initialized during construction.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | — | Reference to the entity instance this component is attached to (required, set in constructor). |
+| `_fishshoals` | `table` | `{}` | Internal map of registered fish shoal entities (`[shoal] = true`). |
+| `_firstspawn` | `boolean` | `true` | Tracks whether this is the first Malbatross spawn attempt. |
+| `_spawnpending` | `boolean` | `false` | Indicates whether a spawn attempt is currently in progress. |
+| `_shuffled_shoals_for_spawning` | `table` | `nil` | List of shuffled shoal keys used during spawning scan loop. |
+| `_activemalbatross` | `Entity?` | `nil` | Reference to the currently active Malbatross entity. |
 
-## Main Functions
-
+## Main functions
 ### `OnUpdate(dt)`
-* **Description:** Periodically scans registered fish shoals for proximity to a player. When a suitable shoal is found, it spawns the Malbatross and stops updating.
-* **Parameters:** `dt` (number) – time since last update (unused directly).
+* **Description:** Periodically checks registered fish shoals for player proximity. If a shoal has a nearby player and no active Malbatross, it triggers a spawn. Runs only while waiting to spawn or during the scanning phase.
+* **Parameters:** `dt` (number) — time delta since last frame (unused internally but required by ECS update loop).
+* **Returns:** Nothing.
+* **Error states:** None explicitly handled; skips inactive or finished timers.
 
 ### `Relocate(target_malbatross)`
-* **Description:** Resets the spawn queue to re-evaluate all shoals, optionally removing a specific Malbatross to prompt a new spawn. Used for debugging or dynamic repositioning.
-* **Parameters:** `target_malbatross` (optional Entity) – if provided, removes the given Malbatross and adjusts the spawn order.
+* **Description:** Resets the spawn timer and shoal list to restart or accelerate spawning. If a `target_malbatross` is provided, it removes that entity and ensures its home shoal is deprioritized in the next spawn selection. Typically used when a Malbatross is killed.
+* **Parameters:**  
+  - `target_malbatross` (`Entity?`) — optional existing Malbatross to remove and deprioritize.  
+* **Returns:** Nothing.
+* **Error states:** No-op if no fish shoals are registered (`next(_fishshoals) == nil`).
 
 ### `Summon(_slow_debug_target_entity)`
-* **Description:** Forces a spawn attempt by initiating the timer and update loop. Optionally prioritizes shoals nearest a given entity (debug aid).
-* **Parameters:** `_slow_debug_target_entity` (optional Entity) – used to sort shoals by proximity for debug spawning.
+* **Description:** Manually initiates a spawn sequence by pre-selecting shoals. If a debug target entity is provided, it prioritizes shoals based on distance to that entity (ascending). Used for testing or debug-force spawns.
+* **Parameters:**  
+  - `_slow_debug_target_entity` (`Entity?`) — optional entity to sort shoals by proximity for debug purposes.  
+* **Returns:** Nothing.
+* **Error states:** No-op if no fish shoals are registered.
 
 ### `OnSave()`
-* **Description:** Serializes internal state (e.g., first spawn flag, timer status, active Malbatross GUID) for world save.
+* **Description:** Prepares serializable data for persistence, including spawn timer state, first-spawn flag, and active Malbatross GUID (if any).
+* **Parameters:** None.
 * **Returns:**  
-  - `data` (table): Contains `_firstspawn`, `_timerfinished`, and optionally `activeguid`.  
-  - `ents` (optional table): List of entity GUIDs referenced (e.g., active Malbatross) for save indexing.
+  - `data` (table) — contains `_firstspawn` (boolean) and `_timerfinished` (boolean), plus `activeguid` (GUID string) if Malbatross exists.  
+  - Optional second return value (`ents`) — table of GUIDs for external save handling (only when Malbatross is active).  
+* **Error states:** Returns `nil` `activeguid` if no active Malbatross.
 
 ### `OnLoad(data)`
-* **Description:** Restores state after loading, resuming or re-triggering the spawn timer as needed.
-* **Parameters:** `data` (table): Saved state.
+* **Description:** Restores internal state from saved data. Handles timer resumption, timer completion callbacks, and first-spawn flag restoration.
+* **Parameters:**  
+  - `data` (table) — saved state from `OnSave()`.  
+* **Returns:** Nothing.
+* **Error states:** Uses min-clamped time if `data._time_until_spawn` exceeds maximum delay.
 
 ### `LoadPostPass(newents, data)`
-* **Description:** Resolves the saved Malbatross entity reference after all entities have been loaded.
+* **Description:** Finalizes post-load object resolution by restoring `_activemalbatross` from saved GUID.
 * **Parameters:**  
-  - `newents` (table): Loaded entity mappings by GUID.  
-  - `data` (table): Saved data.
+  - `newents` (table) — map of GUID → `{ entity = entity }` after loading.  
+  - `data` (table) — original saved data.  
+* **Returns:** Nothing.
+* **Error states:** Does nothing if `data.activeguid` is missing or `newents[data.activeguid]` is invalid.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted debug string describing the current spawn state (timer status, shoal count, etc.).
-* **Returns:** `string` – human-readable status.
+* **Description:** Returns a human-readable debug string describing current spawn state, timer progress, and number of tracked shoals.
+* **Parameters:** None.
+* **Returns:** `string` — formatted debug info (e.g., `"Malbatross is coming in 23.42 || Number of tracked shoals: 5"`).
 
-## Events & Listeners
-- Listens for `"ms_registerfishshoal"` → `OnFishShoalAdded`
-- Listens for `"ms_unregisterfishshoal"` → `OnFishShoalRemoved`
-- Listens for `"ms_shoalfishhooked"` → `OnShoalFishHooked`
-- Listens for `"ms_shoalfishhooked_redux"` → `OnShoalFishHookedRedux`
-- Listens for `"malbatrosskilled"` and `"malbatrossremoved"` → `OnMalbatrossKilledOrRemoved`
-- Internal timer event `"malbatross_timetospawn"` → `OnMalbatrossTimerDone` (via `worldsettingstimer`)
+## Events & listeners
+- **Listens to:**  
+  - `ms_registerfishshoal` — adds a fish shoal and initiates spawns if no active Malbatross.  
+  - `ms_unregisterfishshoal` — removes a fish shoal and regenerates spawn list if needed.  
+  - `ms_shoalfishhooked` — triggers conditional spawn on hooking a fish (via legacy event).  
+  - `ms_shoalfishhooked_redux` — triggers conditional spawn with richer data (player, shoal).  
+  - `malbatrossremoved` — clears active spawn state and restarts timer if needed.  
+  - `malbatrosskilled` — same as `malbatrossremoved`.  
+- **Pushes:** None (does not fire custom events).

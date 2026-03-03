@@ -1,53 +1,75 @@
 ---
 id: itemmimic_revealedbrain
 title: Itemmimic Revealedbrain
-description: Controls the behavior of a revealed ItemMimic entity, implementing a behavior tree that avoids players, seeks mimicable targets, and enters mimicry mode.
+description: Controls the AI behavior of a revealed item mimic entity, making it flee from players while scanning for nearby mimicable entities to imitate.
+tags: [ai, combat, npc]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: fd2bb287
+system_scope: brain
 ---
 
 # Itemmimic Revealedbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-This component defines the brain logic for a revealed `ItemMimic` entity. It inherits from `Brain` and constructs a behavior tree (`self.bt`) that orchestrates AI decision-making. The core responsibilities include avoiding nearby players via the `RunAway` behavior, periodically scanning for valid mimicable entities within range, initiating mimicry via a `NUZZLE` action, and pausing mimicry attempts during or after mimicry. The behavior tree prioritizes escape over mimicry when players are close, then scans for targets during safe periods, and defaults to wandering.
+`ItemMimic_RevealedBrain` defines the behavior tree for a revealed item mimic — a hostile NPC that prioritizes fleeing from nearby players (`RunAway`) while periodically scanning for valid mimicable entities (e.g., items or small creatures meeting specific tag criteria). When a candidate is found, it queues a `NUZZLE` action to mimic the target, blocking further mimicry attempts via a timer. The brain integrates with the `behaviours.runaway` module and uses timers, locomotion, and event-driven logic.
 
-## Dependencies & Tags
-- **Components used:** `inst.components.locomotor`, `inst.components.timer`
-- **Tags:** This component does not directly add or remove tags on `self.inst`; however, it references `itemmimic_data.MUST_TAGS` and `itemmimic_data.CANT_TAGS` to filter candidate entities for mimicry.
-- **External references:** `behaviours/runaway`, `prefabs/itemmimic_data`, and `TheSim:FindEntities`.
+It inherits from `Brain` and constructs its behavior tree in `OnStart()`. The brain is intended for use on entities that have already transitioned from an initial hidden (non-revealed) state.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+-- ... (add required components like combat, locomotor, timer, itemmimic)
+inst:AddBrain("itemmimic_revealedbrain")
+inst.components.brain:Start() -- Triggers OnStart and initializes the behavior tree
+```
+
+## Dependencies & tags
+**Components used:** `locomotor`, `timer`, `itemmimic` (checked on other entities), `playercontroller` (indirect via `LocoMotor`), `inventoryitem` (checked on mimicable candidates).  
+**Tags:**  
+- Checks tags from `itemmimic_data.MUST_TAGS` and `itemmimic_data.CANT_TAGS` (imported from `"prefabs/itemmimic_data"`) to identify valid mimicable entities.  
+- Internal state uses `inst._mimicry_queued`, `inst._try_mimic_task`, and `inst.sg:HasStateTag("jumping")`.
 
 ## Properties
-The constructor initializes no custom properties directly. However, the following internal state variables are used across methods:
+No public properties. Internal state is stored on `inst` as private fields:
+- `inst._mimicry_queued`: boolean — `true` during a queued mimic action.
+- `inst._try_mimic_task`: task handle — the pending task scheduled to initiate mimicry.
+- `inst.sg`: stategraph — used to check state tags like `"jumping"`.
 
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `UPDATE_RATE` | number | `0.5` | Interval (in seconds) at which the behavior tree root node re-evaluates its children. |
-| `AVOID_PLAYER_DIST` | number | `4.0` | Distance threshold (in units) to trigger avoidance behaviors. |
-| `AVOID_PLAYER_STOP` | number | `6.0` | Distance (in units) at which avoidance behaviors cease. |
-| `_mimicry_queued` | boolean | `false` | Indicates whether a mimicry action is pending or in progress. Set during action setup and cleared on success or failure. |
-| `_try_mimic_task` | Task or `nil` | `nil` | A delayed task scheduled to initiate mimicry after a delay; cancelled on valid mimicry trigger or when a mimicry blocker timer is active. |
+## Main functions
+### `OnStart()`
+*   **Description:** Initializes the behavior tree for the brain using a priority node structure. The root node ensures the mimic avoids jumping states, and sub-nodes handle post-spawn panic, player avoidance, mimic scanning, mimic action blocking, and wandering.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Assumes required components (`locomotor`, `timer`) exist on `self.inst`; otherwise, behavior may fail silently or raise errors.
 
-> Note: `inst._mimicry_queued` and `inst._try_mimic_task` are stored on the entity instance, not as explicit properties of the component class.
+### `GetClosestPlayer(inst)` (local function)
+*   **Description:** Finds the nearest player within `AVOID_PLAYER_DIST` (4 units) squared, ignoring certain conditions (`true` in `FindClosestPlayerInRangeSq` indicates strict filtering). Used by `RunAway` and panic behaviors.
+*   **Parameters:** `inst` (entity) — the mimic entity.
+*   **Returns:** Player entity or `nil`.
 
-## Main Functions
-### `ItemMimic_RevealedBrain:OnStart()`
-* **Description:** Initializes the behavior tree by constructing a hierarchical `PriorityNode` and assigning it to `self.bt`. The tree structure enforces priority: (1) avoid players immediately after spawn, (2) flee from players if nearby, (3) scan for mimicable entities, (4) block mimicry attempts during action, and (5) wander otherwise.
-* **Parameters:** None.
-* **Returns:** `nil`.
+### `LookForMimicAction(inst)` (local function)
+*   **Description:** Scans for valid mimicable entities within a 15-unit radius. If one is found and no mimicry is already scheduled or blocked, it schedules `initiate_mimicry` after a 7-second delay and fires the `"eye_up"` event.
+*   **Parameters:** `inst` (entity).
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if `inst._try_mimic_task` is active or `"mimic_blocker"` timer exists; skips entities that already have the `itemmimic` component.
 
-## Events & Listeners
-- **Pushes:**
-  - `"eye_up"`: Fired when a potential mimicable entity is detected and the `initiate_mimicry` delay task is scheduled. Indicates the entity is "looking" for something to mimic.
-  - `"eye_down"`: Fired when a mimicry attempt fails (e.g., no valid target found during the delay or target becomes invalid). Resets the "looking" state.
-  - `"bufferedcastaoe"`: May be pushed via `inst:PushEvent` in `LocoMotor:PushAction` when a buffered `CastsAOE` action succeeds (indirectly relevant; used by mimicry action logic).
-  - `"actionfailed"`: Pushed on the instance when the `NUZZLE` action fails (e.g., out of range); handled externally if listeners exist.
+### `initiate_mimicry(inst, mimicable_entity)` (local function)
+*   **Description:** Initiates the mimicry process for a given entity. Creates and pushes a `NUZZLE` buffered action via the `locomotor`. Sets `_mimicry_queued = true` and schedules cleanup, or fires `"eye_down"` on failure. Starts the `"mimic_blocker"` timer to prevent repeated attempts.
+*   **Parameters:**  
+    - `inst` (entity) — the mimic entity.  
+    - `mimicable_entity` (entity) — the target entity to mimic.  
+*   **Returns:** Nothing.
+*   **Error states:** No action if `mimicable_entity` is invalid, lacks `MUST_TAGS`, or has `CANT_TAGS`.
 
-> Note: This component does not register any listeners via `inst:ListenForEvent`. Event handling is implicit in external state graph transitions (e.g., `"eye_up"` and `"eye_down"` may drive visual states in the state graph).
+## Events & listeners
+- **Listens to:** None (no `inst:ListenForEvent` calls in this file).
+- **Pushes:** `"eye_up"` — when a mimicable is found and a mimicry task is scheduled.  
+- **Pushes:** `"eye_down"` — on failure of the `NUZZLE` action or if mimicry is aborted.  
+- **Listens to internal state events** via `inst.sg:HasStateTag("jumping")` in the behavior tree (stategraph events are external to this brain file but influence behavior).

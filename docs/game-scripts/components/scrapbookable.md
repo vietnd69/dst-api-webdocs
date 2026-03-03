@@ -1,41 +1,58 @@
 ---
 id: scrapbookable
 title: Scrapbookable
-description: Provides an interface for marking an entity as learnable via the Scrapbook UI and executing a custom teaching callback when taught.
+description: Enables an entity to be taught or learned via a callback function when interacted with in the scrapbook system.
+tags: [crafting, ui, learning]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: f9a86b33
+system_scope: ui
 ---
 
 # Scrapbookable
 
-## Overview
-The `Scrapbookable` component enables an entity to be "taught" (i.e., added to a player's Scrapbook) by storing and invoking a custom teaching callback. It is typically used for vanilla or modded recipes, creatures, or items that can be discovered and documented in the in-game Scrapbook.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Scrapbookable` is a lightweight component that allows an entity to be "taught" — a concept used in the scrapbook UI system to track learned recipes or knowledge entries. When an entity has this component, it can register a callback that executes upon teaching, typically used to unlock content in the scrapbook. It does not manage state persistence or UI rendering itself, but acts as a trigger point for external systems (e.g., the scrapbook screen) to invoke knowledge acquisition logic.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("scrapbookable")
+
+inst.components.scrapbookable:SetOnTeachFn(function(entity, doer)
+    print(entity.prefab .. " was taught by " .. (doer and doer.prefab or "unknown"))
+    -- Unlock recipe or update progress here
+end)
+
+-- Later, when player attempts to learn this entity:
+inst.components.scrapbookable:Teach(player)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed to constructor) | Reference to the entity this component is attached to. |
-| `onteach` | `function?` | `nil` | Optional callback function executed when `:Teach()` is called; signature: `fn(inst, doer)`. |
+No public properties
 
-## Main Functions
+## Main functions
 ### `SetOnTeachFn(fn)`
-* **Description:** Sets the callback function to be invoked when the entity is taught via the Scrapbook.
-* **Parameters:**  
-  `fn` (`function?`) — The callback to register. Called with two arguments: the entity (`inst`) and the entity performing the teach action (`doer`).
+*   **Description:** Registers the callback function to be executed when the `Teach` method is called. This function is typically used to unlock content (e.g., a recipe in the scrapbook).
+*   **Parameters:** `fn` (function) — a callback with signature `function(inst, doer)`, where `inst` is the entity with the `Scrapbookable` component and `doer` is the entity performing the teaching (e.g., the player).
+*   **Returns:** Nothing.
+*   **Error states:** Accepts `nil` as valid input; clearing any previously set function.
 
 ### `Teach(doer)`
-* **Description:** Executes the registered teaching callback (if defined) and returns `true`. This method is called when a player successfully teaches the entity in the Scrapbook UI.
-* **Parameters:**  
-  `doer` (`GoreObject?` or `Entity`) — The entity performing the teach action (typically a player).
+*   **Description:** Executes the registered `onteach` callback (if one exists) and signals that this entity has been taught. Returns `true` to indicate success.
+*   **Parameters:** `doer` (Entity or `nil`) — the entity causing the teaching action (e.g., the player).
+*   **Returns:** `true` — always returned regardless of whether a callback was defined.
+*   **Error states:** Does not fail; if no callback is set, it silently returns `true` after no-op.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified

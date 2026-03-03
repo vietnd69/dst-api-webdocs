@@ -3,7 +3,7 @@ id: ocean_gen_config
 title: Ocean Gen Config
 description: Contains configuration parameters for procedural ocean tile generation, including depth thresholds, noise settings, and elevation mapping for ocean terrain blending.
 tags: [world, generation, ocean, terrain, noise]
-sidebar_position: 1
+sidebar_position: 100
 
 last_updated: 2026-02-27
 build_version: 714014

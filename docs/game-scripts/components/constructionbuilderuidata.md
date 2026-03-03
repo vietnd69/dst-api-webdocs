@@ -1,60 +1,91 @@
 ---
 id: constructionbuilderuidata
 title: Constructionbuilderuidata
-description: This component manages UI-related data for construction, specifically tracking the current container and target construction entity for a player.
+description: Provides UI-facing accessor methods for construction-related data, specifically the container and target entities of a construction builder, and helper functions to query construction plan ingredients.
+tags: [ui, construction, replication]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: ui
+category_type: components
 source_hash: a9b6f24f
+system_scope: ui
 ---
 
 # Constructionbuilderuidata
 
-## Overview
-The `ConstructionBuilderUIData` component serves as a lightweight data store, primarily for UI purposes related to construction. It holds network-synced references to a player's current construction container (e.g., a crafting station or inventory) and the active construction target (e.g., a ghost entity representing a construction site). It provides methods to set and retrieve these entities, and utility functions to query ingredient requirements from the target construction plan. This component is designed to provide necessary construction data to the client UI without requiring a full `constructionbuilder_replica` component on every entity.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified. This component does not explicitly rely on other components via `AddComponent` calls within its own script, nor does it add or remove specific tags from the entity it's attached to.
+## Overview
+`ConstructionBuilderUIData` is a lightweight component designed solely to expose UI-relevant data about a construction builder—most notably the current container and target entities—via network-safe accessors. It avoids the need to attach `constructionbuilder_replica` directly to the entity by using `net_entity` proxies. It also provides helper methods to look up ingredients for a given construction site and locate slots for specific ingredients.
+
+This component is typically attached to a `constructionbuilder` entity and serves as a data bridge between the server-side logic and client UI.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("constructionbuilderuidata")
+
+-- Set and get container entity
+local container = GetSomeContainerEntity()
+inst.components.constructionbuilderuidata:SetContainer(container)
+
+-- Set and get target entity (the construction site)
+local target = GetSomeConstructionSiteEntity()
+inst.components.constructionbuilderuidata:SetTarget(target)
+
+-- Retrieve construction site replica or ingredient info
+local site = inst.components.constructionbuilderuidata:GetConstructionSite()
+local slot_index = inst.components.constructionbuilderuidata:GetSlotForIngredient("twigs")
+local ingredient_type = inst.components.constructionbuilderuidata:GetIngredientForSlot(slot_index)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified  
 
 ## Properties
-| Property          | Type        | Default Value | Description                                                                                                                                                                             |
-| :---------------- | :---------- | :------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `_containerinst`  | `net_entity`| `nil`         | A network-synchronized reference to the entity currently acting as the container for construction ingredients (e.g., a crafting station or the player's inventory itself).                 |
-| `_targetinst`     | `net_entity`| `nil`         | A network-synchronized reference to the entity that is the current construction target (e.g., a ghost entity representing a construction site or a partially built structure). |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `_containerinst` | `net_entity` | `nil` | Network-safe proxy to the current container entity. |
+| `_targetinst` | `net_entity` | `nil` | Network-safe proxy to the current target (construction site) entity. |
 
-## Main Functions
+## Main functions
 ### `SetContainer(containerinst)`
-*   **Description:** Sets the entity that currently functions as the source or container for construction ingredients. This reference is synchronized across the network.
-*   **Parameters:**
-    *   `containerinst`: (`Entity`) The entity to be set as the container.
+* **Description:** Sets the container entity to be used for this construction builder. Typically called when the player selects or opens a container.
+* **Parameters:** `containerinst` (Entity or `nil`) — The entity representing the container (e.g., a chest or crock pot). `nil` clears the container.
+* **Returns:** Nothing.
 
 ### `GetContainer()`
-*   **Description:** Retrieves the entity currently set as the container for construction ingredients.
-*   **Parameters:** None.
+* **Description:** Returns the currently set container entity.
+* **Parameters:** None.
+* **Returns:** `Entity` or `nil` — the container entity, if set.
 
 ### `SetTarget(targetinst)`
-*   **Description:** Sets the entity that is currently the target for construction. This reference is synchronized across the network.
-*   **Parameters:**
-    *   `targetinst`: (`Entity`) The entity to be set as the construction target.
+* **Description:** Sets the target construction site entity (the site being built or upgraded). Typically called when a player targets a construction site.
+* **Parameters:** `targetinst` (Entity or `nil`) — The construction site entity. `nil` clears the target.
+* **Returns:** Nothing.
 
 ### `GetTarget()`
-*   **Description:** Retrieves the entity currently set as the construction target.
-*   **Parameters:** None.
+* **Description:** Returns the currently set target construction site entity.
+* **Parameters:** None.
+* **Returns:** `Entity` or `nil` — the target entity, if set.
 
 ### `GetConstructionSite()`
-*   **Description:** Returns the `constructionsite` replica component of the current target entity, if a target is set and it possesses that component. This allows querying the actual construction progress or state.
-*   **Parameters:** None.
+* **Description:** Returns the `constructionsite` replica of the target entity, if a target is set.
+* **Parameters:** None.
+* **Returns:** `ConstructionSiteReplica` or `nil` — the network replica for the construction site, or `nil` if no target is set or the target lacks a `constructionsite` component.
 
 ### `GetIngredientForSlot(slot)`
-*   **Description:** Determines the `type` (prefab name) of the ingredient required for a specific `slot` in the current target entity's construction plan. This relies on the global `CONSTRUCTION_PLANS` table.
-*   **Parameters:**
-    *   `slot`: (`number`) The numerical index of the ingredient slot (e.g., 1 for the first ingredient).
+* **Description:** Returns the ingredient type (prefab name) required for a given slot index in the current target's construction plan.
+* **Parameters:** `slot` (number) — The 1-based index of the slot in the construction plan array.
+* **Returns:** `string` or `nil` — the prefab name of the required ingredient (e.g., `"twigs"`), or `nil` if no target is set or the slot index is out of range.
 
 ### `GetSlotForIngredient(prefab)`
-*   **Description:** Finds the numerical slot index for a given ingredient `prefab` within the current target entity's construction plan. This relies on the global `CONSTRUCTION_PLANS` table.
-*   **Parameters:**
-    *   `prefab`: (`string`) The prefab name of the ingredient to look for.
+* **Description:** Returns the 1-based slot index where a given ingredient (prefab name) is required for the current target's construction plan.
+* **Parameters:** `prefab` (string) — The prefab name of the ingredient to locate (e.g., `"rocks"`).
+* **Returns:** `number` or `nil` — the slot index, or `nil` if not found or no target is set.
+
+## Events & listeners
+None identified

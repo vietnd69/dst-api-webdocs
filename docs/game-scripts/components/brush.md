@@ -1,30 +1,41 @@
 ---
 id: brush
 title: Brush
-description: Acts as a marker component to identify entities that can be used as a brush.
+description: A placeholder component with no implemented functionality, likely reserved for future use or placeholder objects.
+tags: [placeholder]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 38f697f8
+system_scope: entity
 ---
 
 # Brush
 
-## Overview
-The Brush component is a simple marker component. It contains no unique logic or functionality. Its sole purpose is to be attached to an entity to identify it as a "brush", allowing other game systems to check for its presence (e.g., via `inst.components.brush`).
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Brush` is a minimal, non-functional component that currently only stores a reference to its owning entity (`self.inst`). It serves no active gameplay logic and appears to be a stub or placeholder. Its presence in the codebase suggests it may be reserved for future expansion or used as a marker in entity definitions where a component is required syntactically but no behavior is needed.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("brush")
+-- No functional methods are available on this component.
+```
+
+## Dependencies & tags
+**Components used:** None identified.  
+**Tags:** None identified.
 
 ## Properties
+No public properties.
 
-| Property | Type           | Default Value                              | Description                                            |
-|----------|----------------|--------------------------------------------|--------------------------------------------------------|
-| `inst`   | EntityInstance | The entity instance it is attached to.     | A reference to the entity instance this component is attached to. |
+## Main functions
+No public functions.
 
-## Main Functions
-This component does not define any public functions.
+## Events & listeners
+None identified.

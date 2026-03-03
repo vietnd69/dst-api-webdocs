@@ -1,173 +1,184 @@
 ---
 id: teamleader
 title: Teamleader
-description: Manages the coordination and behavior of a group of cooperative attackers (a "team") around a central leader entity, including team membership, formation, ordering, and threat tracking.
+description: Manages team coordination and formation for monster-type entities, including threat tracking, team membership, and dynamic ordering of team members.
+tags: [combat, ai, coordination]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 81e311f9
+system_scope: ai
 ---
-
 # Teamleader
 
-## Overview
-The `Teamleader` component enables an entity to serve as the central coordinator for a group of `teamattacker`-enabled entities. It handles team recruitment, disbanding, formation positioning (rotational and dynamic), order assignment (HOLD, WARN, ATTACK), and decay management (e.g., inactivity timeout). It tracks a threat target, organizes team members into geometric formations, and ensures group cohesion during combat or pursuit.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Requirements**: Relies on the `teamattacker` component being present on teammates; uses `combat`, `health`, `burnable`, and `transform` components indirectly via entity checks.
-- **Tags Applied/Removed**:
-  - Adds `teamleader_<team_type>` when a team is set (e.g., `teamleader_monster`).
-  - Removes `teamleader_<oldteam_type>` when the team type changes.
-- **No explicit `inst:AddComponent()` calls** — the component expects the owning entity to be valid and updatable.
+## Overview
+`Teamleader` orchestrates AI behavior for coordinated groups of monster entities (e.g., beefalo, bees, or custom monsters). It manages team membership, formation positioning, threat tracking, and tactical ordering (e.g., `HOLD`, `WARN`, `ATTACK`). When a team leader entity is added to an entity, it takes responsibility for organizing nearby teammates into a synchronized group that follows coordinated attack strategies.
+
+Key interactions include integration with the `teamattacker` component (to control member behavior), `combat` (for dropping targets), `health` (to detect deaths), and `burnable` (to track status effects like burning).
+
+## Usage example
+```lua
+local leader = CreateEntity()
+leader:AddComponent("teamleader")
+leader.components.teamleader:SetUp(target_entity, first_member)
+leader.components.teamleader:SetNewThreat(some_entity)
+```
+
+## Dependencies & tags
+**Components used:** `burnable`, `combat`, `health`, `teamattacker`, `transform`
+**Tags:** Adds/Removes `teamleader_<team_type>` dynamically (e.g., `teamleader_monster`); checks `team_<team_type>`, `frozen`, and `teamleader_<team_type>` (to exclude leaders from count).
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `team_type` | `string` | `"monster"` | The category string used to identify compatible teammates (also defines tag suffixes). |
-| `min_team_size` | `number` | `3` | Minimum number of team members required to enable attacking. |
-| `max_team_size` | `number` | `6` | Maximum number of team members allowed before overflow removal is triggered. |
-| `team` | `table` | `{}` | Set-like table mapping `Entity` → `Entity` for current team members. |
-| `threat` | `Entity?` | `nil` | The current target entity the team is attacking or pursuing. |
-| `searchradius` | `number` | `50` | Radius around the leader used to discover new team members. |
-| `theta` | `number` | `0` | Current angular position used for formation rotation. |
-| `thetaincrement` | `number` | `1` | Angular speed factor for rotation direction/speed. |
-| `radius` | `number` | `5` | Base radius for the formation circle. |
-| `reverse` | `boolean` | `false` | If `true`, formation rotation direction is inverted. |
-| `timebetweenattacks` | `number` | `3` | Remaining time (in seconds) before the next attack cycle can begin. |
-| `attackinterval` | `number` | `3` | Fixed interval (in seconds) between attack cycles. |
-| `lifetime` | `number` | `0` | Accumulated update time (used for sorting team priority). |
-| `maxchasetime` | `number` | `30` | Time (in seconds) after which the team disbands if no threat is engaged. |
-| `chasetime` | `number` | `0` | Accumulated time tracking how long the team has waited for a threat. |
-| `attack_grp_size` | `number|function?` | `nil` | Specifies how many members should issue the `WARN` order per cycle; may be a static number or a function returning one. |
-| `chk_state` | `boolean` | `true` | Controls whether state-checking logic (e.g., `AllInState`) considers special states like burning or frozen. |
-| `teamleadersearchtags` | `table?` | `nil` | Tags used to find other team leaders during `OrganizeTeams` (set by `onteamtype`). |
-| `teamsearchtags` | `table?` | `nil` | Tags used to find potential teammates during distress calls (set by `onteamtype`). |
+| `team_type` | string | `"monster"` | Category of team members (used for tag matching and team search). |
+| `min_team_size` | number | `3` | Minimum members required before the team can begin attacking. |
+| `max_team_size` | number | `6` | Maximum number of team members allowed. |
+| `team` | table | `{}` | Dictionary of active team member entities. |
+| `threat` | entity or `nil` | `nil` | Current target of the team's aggression. |
+| `searchradius` | number | `50` | Radius around the leader to scan for potential teammates. |
+| `theta` | number | `0` | Current angular position for circular formation positioning. |
+| `thetaincrement` | number | `1` | Angular velocity for spinning the formation. |
+| `radius` | number | `5` | Base radius of the formation circle. |
+| `reverse` | boolean | `false` | Whether to reverse rotation direction. |
+| `timebetweenattacks` | number | `3` | Countdown timer for triggering next attack wave. |
+| `attackinterval` | number | `3` | Duration between attacks in seconds. |
+| `maxchasetime` | number | `30` | Max time (in seconds) without threat before disbanding the team. |
+| `chasetime` | number | `0` | Current time spent chasing the threat without new members. |
+| `attack_grp_size` | number or function or `nil` | `nil` | Controls how many members attack per wave; can be static or dynamic. |
+| `chk_state` | boolean | `true` | Whether to consider `frozen`/`burning` states when validating team state. |
 
-## Main Functions
+## Main functions
+### `SetUp(target, first_member)`
+* **Description:** Initializes the team with a target and first member. Sets `team_type` and adds the first member.
+* **Parameters:**
+  * `target` (entity) — initial threat or target for the team.
+  * `first_member` (entity) — first team member to join.
+* **Returns:** Nothing.
 
 ### `GetTeamSize()`
-* **Description:** Returns the count of valid, non-leader teammates currently in the team.
+* **Description:** Counts current valid team members (excludes other team leaders).
 * **Parameters:** None.
-
-### `SetUp(target, first_member)`
-* **Description:** Initializes the leader with a threat target and recruits a first member, inheriting `team_type` from the member's `teamattacker` component.
-* **Parameters:**
-  - `target` (`Entity?`): The initial threat to assign.
-  - `first_member` (`Entity`): The first teammate, used to determine `team_type`.
+* **Returns:** `number` — number of team members.
 
 ### `OrganizeTeams()`
-* **Description:** Scans nearby entities with matching team leader tags that share the same threat, sorts them by `lifetime` (most senior first), and promotes the leader with the highest `lifetime` to take charge. Then rebalances `radius`, `thetaincrement`, `reverse`, and `max_team_size` across all teams.
+* **Description:** Finds other leaders in the search radius and reassigns `radius`, `reverse`, `thetaincrement`, and `max_team_size` based on team age (older leaders take precedence and tighter formations).
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `IsTeamFull()`
-* **Description:** Returns `true` if the current team size meets or exceeds `max_team_size`.
+* **Description:** Checks if the team has reached maximum size.
 * **Parameters:** None.
+* **Returns:** `boolean` — `true` if team is full.
 
 ### `ValidMember(member)`
-* **Description:** Validates whether an entity qualifies to join the team (not dead, not in limbo, has combat, belongs to correct team tag, not already in another team, etc.).
-* **Parameters:**
-  - `member` (`Entity`): The entity to validate.
+* **Description:** Validates whether an entity can join the team.
+* **Parameters:** `member` (entity) — entity to validate.
+* **Returns:** `boolean` — `true` if valid, otherwise `false`.
 
 ### `DisbandTeam()`
-* **Description:** Removes all team members by calling `OnLostTeammate`, sets `threat` to `nil`, and destroys the `teamleader` component on this instance.
+* **Description:** Clears all team members, cleans up events and tags, removes the leader component from the entity, and ends threat tracking.
 * **Parameters:** None.
-
-### `TeamSizeControl()`
-* **Description:** If the team exceeds `max_team_size`, iteratively removes excess members starting from the earliest added.
-* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `NewTeammate(member)`
-* **Description:** Adds a valid member to the team, binds callbacks for death, attack, and removal events, and configures the member’s `teamattacker` state.
-* **Parameters:**
-  - `member` (`Entity`): The entity to recruit.
+* **Description:** Adds a valid entity to the team, registers death/attack event callbacks, and updates component state.
+* **Parameters:** `member` (entity) — entity to add.
+* **Returns:** Nothing.
 
 ### `BroadcastDistress(member)`
-* **Description:** Scans for teammates within `searchradius` using `teamsearchtags` and recruits those that are valid and not already in the team. Used to form a team after distress events (e.g., one member is attacked).
-* **Parameters:**
-  - `member` (`Entity?`): The member that triggered the distress call (defaults to leader itself).
+* **Description:** Scans for nearby teammates of the same type and attempts to recruit them if they are valid.
+* **Parameters:** `member` (entity, optional) — entity that sent the distress; defaults to self.
+* **Returns:** Nothing.
 
 ### `OnLostTeammate(member)`
-* **Description:** Cleans up a departing or dead team member: removes callbacks, resets `teamattacker` state, and drops combat targets.
-* **Parameters:**
-  - `member` (`Entity`): The departing member.
+* **Description:** Removes a member from the team, cleans up listeners, clears `teamattacker` state, and drops their combat target.
+* **Parameters:** `member` (entity) — entity to remove.
+* **Returns:** Nothing.
 
 ### `CanAttack()`
-* **Description:** Returns `true` if the team has at least `min_team_size` members.
+* **Description:** Checks if the team is large enough to begin attacking.
 * **Parameters:** None.
+* **Returns:** `boolean` — `true` if `GetTeamSize() >= min_team_size`.
 
 ### `CenterLeader()`
-* **Description:** Repositions the leader to the average position of all current teammates.
+* **Description:** Moves the leader to the average position of all team members.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `GetFormationPositions()`
-* **Description:** Calculates circular positions around the threat for each team member based on current `radius`, `theta`, and `reverse`, assigning the result to `member.components.teamattacker.formationpos`.
+* **Description:** Calculates circular offset positions for each team member based on `theta`, `radius`, and threat location; stores them in `member.components.teamattacker.formationpos`.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `GiveOrders(order, num)`
-* **Description:** Assigns a specific order (e.g., `ORDERS.WARN`) to up to `num` randomly selected team members. Clears previous orders first, then fills in defaults to `ORDERS.HOLD` for unassigned members.
-* **Parameters:**
-  - `order` (`string`): The order to assign (`ORDERS.HOLD`, `ORDERS.WARN`, etc.).
-  - `num` (`number`): Maximum number of members to assign the order.
+* **Description:** Assigns `order` (e.g., `ORDERS.WARN`, `ORDERS.ATTACK`) to `num` random team members that don’t already have an order.
+* **Parameters:** 
+  * `order` (ORDERS.* value) — order to assign.
+  * `num` (number) — max number of members to assign.
+* **Returns:** Nothing.
 
 ### `GiveOrdersToAllWithOrder(order, oldorder)`
-* **Description:** Updates the order for all team members currently holding `oldorder` to `order`.
-* **Parameters:**
-  - `order` (`string`): The new order.
-  - `oldorder` (`string`): The current order to replace.
+* **Description:** Updates all members with `oldorder` to `order`.
+* **Parameters:** 
+  * `order` (ORDERS.* value) — new order.
+  * `oldorder` (ORDERS.* value) — current order to match.
+* **Returns:** Nothing.
 
 ### `AllInState(state)`
-* **Description:** Checks whether all team members either match the given `ORDERS.*` state *or* are in special states (like frozen or burning, depending on `chk_state`). Used to synchronize attack timing.
-* **Parameters:**
-  - `state` (`string`): The order state to check against.
+* **Description:** Checks if all team members are in `state`, or in special states like `frozen` or `burning` (if `chk_state` is `true`).
+* **Parameters:** `state` (ORDERS.* value) — expected order state.
+* **Returns:** `boolean` — `true` if all members satisfy the condition.
 
 ### `IsTeamEmpty()`
-* **Description:** Returns `true` if no teammates remain.
+* **Description:** Checks if the team currently has no members.
 * **Parameters:** None.
+* **Returns:** `boolean` — `true` if `team` is empty.
 
 ### `SetNewThreat(threat)`
-* **Description:** Sets a new threat target and registers a callback to disband the team if the threat is removed/deaths.
-* **Parameters:**
-  - `threat` (`Entity?`): The new threat entity.
+* **Description:** Sets the team’s target and registers cleanup if the threat is removed.
+* **Parameters:** `threat` (entity or `nil`) — new threat entity.
+* **Returns:** Nothing.
 
 ### `GetTheta(dt)`
-* **Description:** Calculates updated `theta` based on rotation speed (`thetaincrement`), direction (`reverse`), and elapsed time (`dt`).
-* **Parameters:**
-  - `dt` (`number`): Delta time.
+* **Description:** Returns updated `theta` value considering rotation direction and delta time.
+* **Parameters:** `dt` (number) — time since last update.
+* **Returns:** `number` — new `theta` value.
 
 ### `SetAttackGrpSize(val)`
-* **Description:** Configures how many members initiate the `WARN` order per attack cycle (can be a number or a callback function).
-* **Parameters:**
-  - `val` (`number|function`): Either a static number or a zero-arity function returning a number.
+* **Description:** Sets the number (or dynamic function) for how many members attack per wave.
+* **Parameters:** `val` (number or function) — static count or a function returning a count.
+* **Returns:** Nothing.
 
 ### `NumberToAttack()`
-* **Description:** Returns the number of members to assign `ORDERS.WARN` during the next attack cycle, respecting `attack_grp_size` and falling back to probabilistic logic.
+* **Description:** Returns number of members to attack in the current wave, based on `attack_grp_size`.
 * **Parameters:** None.
+* **Returns:** `number` — number of attackers.
 
 ### `ManageChase(dt)`
-* **Description:** Increments `chasetime` and disbands the team if `maxchasetime` is exceeded (i.e., no engagement).
-* **Parameters:**
-  - `dt` (`number`): Delta time.
+* **Description:** Tracks time chasing a threat; disbands team if `chasetime > maxchasetime`.
+* **Parameters:** `dt` (number) — time since last update.
+* **Returns:** Nothing.
 
 ### `ValidateTeam()`
-* **Description:** Ensures all team members are still valid (e.g., not in limbo, not removed), removing invalid entries.
+* **Description:** Removes invalid (e.g., deleted) members from the team.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-* **Description:** Main update loop executed every frame. Manages chase timeout, leader position centering, lifetime accumulation, team organization, size control, threat-based formation rotation, and attack scheduling (`HOLD` → `WARN` → `ATTACK`).
-* **Parameters:**
-  - `dt` (`number`): Delta time.
+* **Description:** Main per-frame update logic — manages chase time, centers leader, organizes teams, updates formation, and schedules attacks when threat is present and team is ready.
+* **Parameters:** `dt` (number) — time since last update.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens for:**
-  - `"death"` — on teammates, triggers disband via `OnLostTeammate`.
-  - `"attacked"` — on teammates, triggers `BroadcastDistress`.
-  - `"onattackother"` — on teammates, triggers order reset to `HOLD`.
-  - `"onremove"` — on teammates or the threat, triggers disband.
-  - `"onenterlimbo"` — on teammates, triggers disband.
-  - `"onremove"` — on the current threat, disbands the team when the threat is removed.
-- **Triggers (via `inst:PushEvent`):** None observed in this script.
+## Events & listeners
+- **Listens to:**
+  - `"death"` — fires `member.deathfn` to remove member.
+  - `"attacked"` — fires `member.attackedfn` to broadcast team distress.
+  - `"onattackother"` — fires `member.attackedotherfn` to stop attack and switch to `HOLD`.
+  - `"onremove"` — fires `member.deathfn` or threat-removed handler to disband team.
+  - `"onenterlimbo"` — fires `member.deathfn` to remove member.
+- **Pushes:** None (does not fire custom events).

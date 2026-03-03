@@ -1,65 +1,93 @@
 ---
 id: spellbookcooldowns
 title: Spellbookcooldowns
-description: Manages active spellbook spell cooldowns for an entity, tracking and updating cooldown states via dedicated spellbookcooldown prefabs.
+description: Manages spell cooldowns for spellbook-equipped entities by tracking active cooldown instances and providing query and manipulation methods.
+tags: [spellbook, cooldown, inventory, magic]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 3a1290ed
+system_scope: entity
 ---
 
 # Spellbookcooldowns
 
-## Overview
-This component tracks and manages spellbook spell cooldowns for an entity. It maintains a table of active `spellbookcooldown` prefabs, registers them when a spell enters cooldown, and removes them when the cooldown ends. It provides methods to query cooldown status (`IsInCooldown`, `GetSpellCooldownPercent`), start new cooldowns (`RestartSpellCooldown`), and cancel them (`StopSpellCooldown`). All state-modifying operations are restricted to the master simulation in multiplayer.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies**: Relies on `spellbookcooldown` prefab (created via `SpawnPrefab("spellbookcooldown")`).
-- **Tags**: None explicitly added or removed by this component.
-- **Events Listened**: Listens for `"onremove"` events from registered cooldown prefabs to automatically clean up internal state.
+## Overview
+`SpellbookCooldowns` is a client-server aware component that manages active spell cooldowns for an entity, such as a player using a spellbook. It maintains a dictionary of active cooldown instances keyed by spell name hash, and provides utility functions to check cooldown status, register new cooldowns, restart or stop cooldowns, and generate debug output. Cooldown instances are small prefabs (`spellbookcooldown`) parented to the entity and synced over the network via the `Network` interface.
+
+## Usage example
+```lua
+local inst = ThePlayer
+inst:AddComponent("spellbookcooldowns")
+
+-- Start a 5-second cooldown for "fireball"
+inst.components.spellbookcooldowns:RestartSpellCooldown("fireball", 5)
+
+-- Check if a spell is on cooldown
+if inst.components.spellbookcooldowns:IsInCooldown("fireball") then
+    print("Fireball is cooling down!")
+end
+
+-- Stop and clear the cooldown early
+inst.components.spellbookcooldowns:StopSpellCooldown("fireball")
+```
+
+## Dependencies & tags
+**Components used:** None identified.  
+**Tags:** Adds `spellbookcooldowns` tag via `inst:AddComponent("spellbookcooldowns")` (implicit).
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed to constructor) | The entity instance this component belongs to. |
-| `ismastersim` | `boolean` | `TheWorld.ismastersim` | Indicates whether this instance is running in master simulation (i.e., server or single-player). |
-| `cooldowns` | `table` | `{}` | Dictionary mapping spell hash keys to active `spellbookcooldown` prefab instances. Keys are integer hashes derived from spell names via `GetHash()`. |
+| `inst` | `Entity` | `nil` (passed in) | The entity instance this component belongs to. |
+| `ismastersim` | boolean | `false` or `true` | Whether this component instance is running on the master simulation (server). |
+| `cooldowns` | table | `{}` | Dictionary mapping spell name hashes to active `spellbookcooldown` instances. |
+| `_onremovecd` | function | internal | Private callback invoked when a cooldown entity is removed. |
 
-## Main Functions
+## Main functions
 ### `IsInCooldown(spellname)`
-* **Description:** Checks whether the specified spell is currently on cooldown.
-* **Parameters:**  
-  `spellname` (`string` or `number`): Either a string spell name (e.g., `"fireball"`) or its precomputed hash integer. String names are automatically hashed.
+*   **Description:** Checks whether the specified spell is currently on cooldown.
+*   **Parameters:** `spellname` (string or number) — spell identifier; if a string, it is hashed internally.
+*   **Returns:** `true` if the spell has an active cooldown, otherwise `false`.
+*   **Error states:** None.
 
 ### `GetSpellCooldownPercent(spellname)`
-* **Description:** Returns the current progress of the cooldown as a decimal between `0` and `1`, where `1` means fully elapsed. Returns `nil` if the spell is not on cooldown.
-* **Parameters:**  
-  `spellname` (`string` or `number`): Spell name or hash (see `IsInCooldown`).
+*   **Description:** Returns the remaining cooldown progress (as a percentage from `0.0` to `1.0`) for the specified spell.
+*   **Parameters:** `spellname` (string or number) — spell identifier.
+*   **Returns:** `number` (percent) or `nil` if no active cooldown exists.
+*   **Error states:** Returns `nil` if the spell has no active cooldown.
 
 ### `RegisterSpellbookCooldown(cd)`
-* **Description:** Registers a new `spellbookcooldown` prefab instance for a spell, adding it to the internal `cooldowns` table and setting up an `"onremove"` event listener to automatically deregister it later. Includes duplicate and invalid name checks with debug logging.
-* **Parameters:**  
-  `cd` (`Component/Instance`): A `spellbookcooldown` prefab instance that is starting its cooldown.
+*   **Description:** Registers a new `spellbookcooldown` prefab instance as the active cooldown for its associated spell. Listens for the `onremove` event on the cooldown to clean up the internal registry.
+*   **Parameters:** `cd` (Spawned `spellbookcooldown` prefab instance).
+*   **Returns:** Nothing.
+*   **Error states:** Prints warnings if the cooldown has an invalid spellname (`0`) or if a duplicate cooldown for the same spell is registered.
 
 ### `RestartSpellCooldown(spellname, duration)`
-* **Description:** Starts or restarts the cooldown for a spell. If the cooldown already exists, it is restarted with the new duration; otherwise, a new `spellbookcooldown` prefab is spawned and initialized. Only executes on the master simulation.
-* **Parameters:**  
-  `spellname` (`string` or `number`): Spell identifier (name or hash).  
-  `duration` (`number`): Cooldown duration in seconds.
+*   **Description:** (Server-only) Restarts or creates a new cooldown for the specified spell. If a cooldown already exists, it restarts it; otherwise, it spawns a new `spellbookcooldown` prefab.
+*   **Parameters:**  
+    * `spellname` (string) — name of the spell.  
+    * `duration` (number) — duration in seconds.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `ismastersim` is `false`. Prints warning for invalid or duplicate spellnames.
 
 ### `StopSpellCooldown(spellname)`
-* **Description:** Immediately ends the cooldown for a spell by destroying its associated `spellbookcooldown` prefab. Only executes on the master simulation.
-* **Parameters:**  
-  `spellname` (`string` or `number`): Spell identifier (name or hash).
+*   **Description:** (Server-only) Immediately removes and destroys the active cooldown for the specified spell.
+*   **Parameters:** `spellname` (string or number) — spell identifier.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `ismastersim` is `false` or if no cooldown exists.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted string listing all active cooldowns, including hash, optional debug spell name, elapsed percentage, and total duration. Used for diagnostics.
-* **Parameters:** None.
+*   **Description:** Returns a multi-line string containing debugging information for all active cooldowns, including spell hash, optional debug name, percentage remaining, and total duration.
+*   **Parameters:** None.
+*   **Returns:** `string` — formatted debug output (e.g., `"[123456](fireball): 45.23% (5s)"`).
+*   **Error states:** None.
 
-## Events & Listeners
-- Listens to `"onremove"` event from each registered `spellbookcooldown` prefab (via `inst:ListenForEvent("onremove", self._onremovecd, cd)`). When triggered, `_onremovecd` removes the corresponding entry from `self.cooldowns`.
-- Does **not** push events itself.
+## Events & listeners
+- **Listens to:** `onremove` — attached to each registered cooldown entity; removes the cooldown from the internal registry when the cooldown prefab is destroyed.
+- **Pushes:** None.

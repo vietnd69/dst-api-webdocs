@@ -1,108 +1,118 @@
 ---
 id: dockmanager
 title: Dockmanager
-description: Manages the creation, destruction, health, and structural integrity of dock tiles within the world.
+description: Manages the creation, destruction, health tracking, and structural integrity of monkey docks on Monkey Island maps.
+tags: [map, structure, destroy, health, integrity]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 162e7a2d
+system_scope: world
 ---
 
 # Dockmanager
 
-## Overview
-This component is responsible for managing the lifecycle and state of dock tiles throughout the game world. It handles the creation of new dock tiles, their structural integrity and health, and their eventual destruction. A key feature is its ability to identify "root" dock tiles (those adjacent to solid land) and determine if disconnected dock segments should break apart and decay into the ocean. It also manages visual damage indicators and handles the consequences of dock destruction for entities on them.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-This component implicitly relies on `TheWorld` and its `Map` and `undertile` components. It does not add or remove any specific tags from the entity it is attached to.
+## Overview
+`DockManager` maintains the lifecycle of monkey docks in Monkey Island zones. It manages tile placement, health tracking, structural connectivity (via root detection using BFS), and safe destruction with debris and entity disposal logic. It operates exclusively on the master simulation and coordinates with the map, undertile, and inventory components to handle entity reactions during dock failures.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("dockmanager")
+
+-- Create a dock tile at world coordinates
+inst.components.dockmanager:CreateDockAtPoint(x, y, z, WORLD_TILES.MONKEY_DOCK)
+
+-- Damage a dock tile (triggers destruction when health reaches 0)
+inst.components.dockmanager:DamageDockAtPoint(x, y, z, 50)
+
+-- Force structural integrity test on a dock tile
+inst.components.dockmanager:ResolveDockSafetyAtPoint(x, y, z)
+```
+
+## Dependencies & tags
+**Components used:** `undertile`, `inventoryitem`, `drownable`, `amphibiouscreature` (via `components.X` checks and calls).  
+**Tags:** Uses and respects `IGNORE_DOCK_DROWNING_ONREMOVE_TAGS` (`ignorewalkableplatforms`, `ignorewalkableplatformdrowning`, `activeprojectile`, `flying`, `FX`, `DECOR`, `INLIMBO`) to control entity behavior during destruction.
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :------- | :--- | :------------ | :---------- |
-| `inst` | `Entity` | `self` | The entity instance this component is attached to. |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | `nil` | Reference to the entity instance the component is attached to. |
+| `_is_root_grid` | `DataGrid` | `nil` | Stores boolean flags indicating whether each tile is a dock root (connected to land). Initialized on map resize. |
+| `_marked_for_delete_grid` | `DataGrid` | `nil` | Stores boolean flags indicating docks queued for delayed destruction. |
+| `_dock_health_grid` | `DataGrid` | `nil` | Stores current health values for dock tiles. |
+| `_dock_damage_prefabs_grid` | `DataGrid` | `nil` | Stores references to `dock_damage` prefabs used for visual health feedback. |
+| `WIDTH`, `HEIGHT` | `number` | `nil` | Dimensions of the map, set after `"worldmapsetsize"` event. |
 
-## Main Functions
+## Main functions
 ### `CreateDockAtPoint(x, y, z, dock_tile_type)`
-*   **Description:** Creates a dock tile at the specified world coordinates. It converts the world coordinates to tile coordinates and then calls `CreateDockAtTile`.
-*   **Parameters:**
-    *   `x`: (number) The X-coordinate in the world.
-    *   `y`: (number) The Y-coordinate in the world (usually 0).
-    *   `z`: (number) The Z-coordinate in the world.
-    *   `dock_tile_type`: (number) The `WORLD_TILES` ID for the dock tile to be created.
-
-### `CreateDockAtTile(tile_x, tile_y, dock_tile_type)`
-*   **Description:** Creates a dock tile at the specified tile coordinates. It sets the map tile, handles the `undertile` component if present, and generates necessary dock data (root status, health) for the new tile.
-*   **Parameters:**
-    *   `tile_x`: (number) The X-coordinate of the tile on the map grid.
-    *   `tile_y`: (number) The Y-coordinate of the tile on the map grid.
-    *   `dock_tile_type`: (number) The `WORLD_TILES` ID for the dock tile to be created.
+*   **Description:** Creates a dock tile at the given world coordinates by setting the map tile and initializing dock metadata.
+*   **Parameters:**  
+    `x`, `y`, `z` (number) — World coordinates where the dock is placed.  
+    `dock_tile_type` (number) — The `WORLD_TILES` constant representing the dock tile type (e.g., `WORLD_TILES.MONKEY_DOCK`).
+*   **Returns:** `true` on success.
+*   **Error states:** None documented.
 
 ### `DestroyDockAtPoint(x, y, z, dont_toss_loot)`
-*   **Description:** Immediately destroys a dock tile at the specified world coordinates, converting it back to its underlying tile (usually ocean). It removes damage prefabs, clears dock data, triggers visual/audio effects, and causes entities on the dock to sink or move to shore. It also initiates a check for adjacent docks that might become disconnected and need to be destroyed.
-*   **Parameters:**
-    *   `x`: (number) The X-coordinate in the world.
-    *   `y`: (number) The Y-coordinate in the world (usually 0).
-    *   `z`: (number) The Z-coordinate in the world.
-    *   `dont_toss_loot`: (boolean, optional) If true, no debris or loot will be spawned when the dock is destroyed.
+*   **Description:** Immediately destroys a dock tile at the specified point, handles entity drowning/displacement, and initiates structural integrity checks on adjacent docks. Spawns visual FX and debris if `dont_toss_loot` is false.
+*   **Parameters:**  
+    `x`, `y`, `z` (number) — World coordinates of the dock to destroy.  
+    `dont_toss_loot` (boolean, optional) — When `true`, suppresses FX and debris.
+*   **Returns:** `true` if a dock tile existed and was destroyed; `false` otherwise.
+*   **Error states:** Returns `false` if the tile at coordinates is not a `MONKEY_DOCK`.
 
 ### `QueueDestroyForDockAtPoint(x, y, z, dont_toss_loot)`
-*   **Description:** Initiates a timed destruction sequence for a dock tile at the specified world coordinates. It marks the tile for deletion, spawns a cracking visual effect, and schedules the actual destruction via `destroy_dock_at_point` after a delay. It also pushes "abandon_ship" and "onpresink" events to entities currently on the dock.
-*   **Parameters:**
-    *   `x`: (number) The X-coordinate in the world.
-    *   `y`: (number) The Y-coordinate in the world (usually 0).
-    *   `z`: (number) The Z-coordinate in the world.
-    *   `dont_toss_loot`: (boolean, optional) Passed to `DestroyDockAtPoint` when the delayed destruction occurs.
+*   **Description:** Schedules a dock tile for destruction after a short random delay, simulating progressive decay. Spawns crackle FX and sends `"abandon_ship"`/`"onpresink"` events to entities on the tile.
+*   **Parameters:**  
+    `x`, `y`, `z` (number) — World coordinates of the dock to destroy.  
+    `dont_toss_loot` (boolean, optional) — Suppresses FX and debris.
+*   **Returns:** Nothing.
 
 ### `ResolveDockSafetyAtPoint(x, y, z)`
-*   **Description:** Checks if the dock tile at the given world coordinates is structurally sound or if it has become disconnected from a "root" (land-adjacent) dock segment and needs to be destroyed. This function can trigger the destruction of the dock if it's unsafe.
-*   **Parameters:**
-    *   `x`: (number) The X-coordinate in the world.
-    *   `y`: (number) The Y-coordinate in the world (usually 0).
-    *   `z`: (number) The Z-coordinate in the world.
-
-### `DamageDockAtPoint(x, y, z, damage)`
-*   **Description:** Applies damage to the dock tile at the specified world coordinates. If the dock's health drops to 0 or below, it queues the dock for destruction. It also updates or spawns a visual damage prefab.
-*   **Parameters:**
-    *   `x`: (number) The X-coordinate in the world.
-    *   `y`: (number) The Y-coordinate in the world (usually 0).
-    *   `z`: (number) The Z-coordinate in the world.
-    *   `damage`: (number) The amount of damage to apply.
+*   **Description:** Triggers an immediate structural integrity test for the dock at the given coordinates. Destroys disconnected docks via `_TestForBreaking`.
+*   **Parameters:**  
+    `x`, `y`, `z` (number) — World coordinates to test.
+*   **Returns:** `true` if any dock tiles were destroyed as a result; `false` otherwise.
 
 ### `DamageDockAtTile(tx, ty, damage)`
-*   **Description:** Applies damage to the dock tile at the specified tile coordinates. If the dock's health drops to 0 or below, it queues the dock for destruction. It also updates or spawns a visual damage prefab.
-*   **Parameters:**
-    *   `tx`: (number) The X-coordinate of the tile on the map grid.
-    *   `ty`: (number) The Y-coordinate of the tile on the map grid.
-    *   `damage`: (number) The amount of damage to apply.
+*   **Description:** Reduces the health of a dock tile by the specified damage amount. Triggers destruction queue if health reaches zero.
+*   **Parameters:**  
+    `tx`, `ty` (number) — Tile coordinates (grid space) of the dock.  
+    `damage` (number) — Amount of damage to apply.
+*   **Returns:** The updated health value (`number`) on success; `nil` if no dock data exists or tile was already broken.
 
 ### `GetCoordsFromIndex(index)`
-*   **Description:** Converts a 1D grid index back into 2D tile coordinates (X, Z).
-*   **Parameters:**
-    *   `index`: (number) The 1D index within the data grid.
+*   **Description:** Converts a linear grid index back to tile coordinates (x, z).
+*   **Parameters:** `index` (number) — Linear index in the data grid.
+*   **Returns:** `x` (number), `z` (number) — Tile coordinates.
 
 ### `SpawnDamagePrefab(tile_index, health)`
-*   **Description:** Spawns or updates a visual "dock_damage" prefab at the given tile index based on the current health of the dock. If health is full, any existing damage prefab is removed.
-*   **Parameters:**
-    *   `tile_index`: (number) The 1D index of the tile within the data grid.
-    *   `health`: (number) The current health value of the dock tile.
+*   **Description:** Manages the `dock_damage` visual prefab per tile based on remaining health. Spawns or removes the prefab as health changes.
+*   **Parameters:**  
+    `tile_index` (number) — Linear index in the health grid.  
+    `health` (number) — Current health value for the tile.
+*   **Returns:** Nothing.
 
+## Save/Load functions
 ### `OnSave()`
-*   **Description:** Gathers and serializes the current state of the dock data grids (`_is_root_grid`, `_marked_for_delete_grid`, `_dock_health_grid`) for saving.
-*   **Parameters:** None.
+*   **Description:** Serializes dock metadata grids (`_is_root_grid`, `_marked_for_delete_grid`, `_dock_health_grid`) into compressed save data.
+*   **Returns:** String — Zip-encoded and base64-encoded save data.
 
 ### `OnLoad(data)`
-*   **Description:** Deserializes and restores the state of the dock data grids from saved data. If a dock was marked for deletion during save, its destruction process is re-queued. Existing damage prefabs are also re-spawned based on loaded health.
-*   **Parameters:**
-    *   `data`: (table) The table containing the saved component data.
+*   **Description:** Loads and restores dock metadata grids from save data, and resumes pending destruction tasks for tiles marked for deletion.
+*   **Parameters:**  
+    `data` (string) — Zip-encoded and base64-encoded save data from `OnSave`.
+*   **Returns:** Nothing.
+*   **Error states:** Gracefully returns early if data is invalid (`nil` after decoding).
 
-## Events & Listeners
-*   **Listens For:**
-    *   `worldmapsetsize` (from `_world`): Triggers `initialize_grids` to set up or resize the internal data grids when the world map dimensions change.
-*   **Pushes/Triggers:**
-    *   `onsink` (on relevant entities during `DestroyDockAtPoint`): Indicates an entity is sinking, potentially with a boat and a target shore point.
-    *   `abandon_ship` (on relevant entities during `QueueDestroyForDockAtPoint`): Notifies entities on a dock that it is about to be destroyed.
-    *   `onpresink` (on entities with the "player" tag during `QueueDestroyForDockAtPoint`): A specific notification for players before a dock sinks.
+## Events & listeners
+- **Listens to:**  
+  `"worldmapsetsize"` — Initializes the dock metadata grids (`_is_root_grid`, `_marked_for_delete_grid`, `_dock_health_grid`, `_dock_damage_prefabs_grid`) when the map size changes.
+
+- **Pushes:**  
+  No direct event pushes are performed by `DockManager`. Entity events like `"onsink"`, `"abandon_ship"`, `"onpresink"`, `"on_landed"`, `"on_no_longer_landed"` are pushed to affected entities via their components, not via `DockManager` directly.

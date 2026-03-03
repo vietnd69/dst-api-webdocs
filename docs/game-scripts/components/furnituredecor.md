@@ -1,63 +1,83 @@
 ---
 id: furnituredecor
 title: Furnituredecor
-description: A component that tracks whether an entity is placed on a furniture object and manages associated visual and behavioral state, including a "furnituredecor" tag.
+description: Manages the visual and logical state of furniture decorations, such as being enabled and whether it's placed on furniture.
+tags: [furniture, visual, state]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: c8b15c7b
+system_scope: entity
 ---
 
 # Furnituredecor
 
-## Overview
-The `FurnitureDecor` component tracks whether an entity is placed on a furniture item, manages the `"furnituredecor"` tag for optimized rendering or behavior, and supports optional callback hooks when the entity is placed or removed from furniture.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds/Removes Tag: `"furnituredecor"` via `AddOrRemoveTag` (controlled by `enabled` state)
-- Does *not* add the tag by default in `_ctor` (the tag addition is commented out), relying instead on runtime toggling via the `enabled` setter.
-- No other components are directly added or required.
+## Overview
+`FurnitureDecor` manages whether an entity is visually and logically treated as a furniture decoration. It controls the presence of the `furnituredecor` tag based on its `enabled` state, and tracks whether the item is placed on top of furniture. The component provides hooks for custom logic via `onputonfurniture` and `ontakeofffurniture` callbacks.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("furnituredecor")
+
+-- Optional: Set custom callbacks
+inst.components.furnituredecor.onputonfurniture = function(inst, furniture)
+    print("Item placed on furniture: " .. furniture.prefab)
+end
+
+inst.components.furnituredecor.ontakeofffurniture = function(inst, furniture)
+    print("Item removed from furniture: " .. furniture.prefab)
+end
+
+-- Place on furniture
+inst.components.furnituredecor:PutOnFurniture(some_furniture)
+inst.components.furnituredecor:SetEnabled(false)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds or removes `furnituredecor` tag based on `enabled` state.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *(injected)* | The entity instance this component is attached to. |
-| `enabled` | `boolean` | `true` | Controls whether the `"furnituredecor"` tag is present on the entity. |
-| `on_furniture` | `boolean?` | `nil` | Tracks whether the entity is currently placed on a furniture object (`true` when on furniture, `nil` otherwise). |
-| `decor_animation` | `string` | `"idle"` | A hint for animation state (currently unused in this codebase snippet). |
+| `enabled` | boolean | `true` | Controls whether the `furnituredecor` tag is present. |
+| `on_furniture` | boolean or nil | `nil` | `true` when the item is placed on furniture; `nil` otherwise. |
+| `decor_animation` | string | `"idle"` | Animation state name used for furniture decorations. |
+| `onputonfurniture` | function (optional) | `nil` | Callback invoked when the item is placed on furniture. Signature: `fn(inst, furniture)` |
+| `ontakeofffurniture` | function (optional) | `nil` | Callback invoked when the item is removed from furniture. Signature: `fn(inst, furniture)` |
 
-## Main Functions
-### `onenabled(self, enabled)`
-* **Description:** Internal setter function invoked when the `enabled` property is assigned. It adds or removes the `"furnituredecor"` tag based on the new value.
-* **Parameters:**  
-  - `enabled` (`boolean`): The new enabled state.
-
+## Main functions
 ### `SetEnabled(enabled)`
-* **Description:** Sets the `enabled` state and ensures `onenabled` is triggered (via property assignment, as defined in the class metatable).
-* **Parameters:**  
-  - `enabled` (`boolean`): Whether the `"furnituredecor"` tag should be active.
+* **Description:** Updates the enabled state and adds or removes the `furnituredecor` tag accordingly.
+* **Parameters:** `enabled` (boolean) – whether the item should be considered a furniture decoration.
+* **Returns:** Nothing.
+* **Error states:** No side effects if `enabled` is unchanged.
 
 ### `IsOnFurniture()`
-* **Description:** Returns whether the entity is currently placed on a furniture item.
+* **Description:** Returns whether the item is currently placed on a furniture entity.
 * **Parameters:** None.
+* **Returns:** `true` if `on_furniture == true`, otherwise `false`.
 
 ### `PutOnFurniture(furniture)`
-* **Description:** Marks the entity as being placed on furniture and invokes the optional `onputonfurniture` callback, if set.
-* **Parameters:**  
-  - `furniture` (`Entity?`): The furniture object the entity is placed on (passed to the callback, if any).
+* **Description:** Marks the item as being placed on furniture and invokes the `onputonfurniture` callback if defined.
+* **Parameters:** `furniture` (Entity instance) – the furniture entity the item is placed on.
+* **Returns:** Nothing.
 
 ### `TakeOffFurniture(furniture)`
-* **Description:** Clears the "on furniture" state and invokes the optional `ontakeofffurniture` callback, if set.
-* **Parameters:**  
-  - `furniture` (`Entity?`): The furniture object the entity was removed from (passed to the callback, if any).
+* **Description:** Marks the item as no longer placed on furniture and invokes the `ontakeofffurniture` callback if defined.
+* **Parameters:** `furniture` (Entity instance) – the furniture entity the item is removed from.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- Listens for no events itself.
-- Does not push events directly.
-- Supports optional callback properties:
-  - `self.onputonfurniture` — callable on `PutOnFurniture`
-  - `self.ontakeofffurniture` — callable on `TakeOffFurniture`
+### `OnRemoveFromEntity()`
+* **Description:** Ensures the `furnituredecor` tag is removed when the component is removed from an entity.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+## Events & listeners
+Not applicable.

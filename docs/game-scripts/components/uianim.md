@@ -1,106 +1,129 @@
 ---
 id: uianim
 title: Uianim
-description: Provides animated transitions for UI-related entity properties—including position, scale, tint, and rotation—using linear interpolation with easing.
+description: Manages animation timelines for UI widgets, including tint, scale, position, and rotation transitions.
+tags: [ui, animation, entity]
 sidebar_position: 1
-
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: ui
+category_type: components
 source_hash: d11ee69e
+system_scope: ui
 ---
-
 # Uianim
 
-## Overview
-The `Uianim` component manages smooth, time-based animations for UI-focused entities in Don't Starve Together. It enables coordinated transitions of position (via `MoveTo`), scale (`ScaleTo`), tint (`TintTo`), and rotation (`RotateTo`), using cubic easing and a wall-updating loop for frame-accurate control. Animations can be interrupted or canceled, and callbacks can be executed upon completion.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Requirements:**
-  - `self.inst.UITransform`: Must support `SetPosition(x, y, z)`, `GetScale()`, `SetScale(x, y, z)`, and `SetRotation(rot)`.
-  - `self.inst.widget`: Must support `SetTint(r, g, b, a)`.
-- **Tags/Class Integration:**
-  - Registers itself with the entity via `inst:StartWallUpdatingComponent(self)` to participate in the wall update loop (a dedicated UI animation update system).
-  - No tags are added or removed.
+## Overview
+`UIAnim` is a component responsible for animating UI-related properties of an entity—specifically tint, scale, position, and rotation—using time-based transitions. It leverages the `UITransform` and `widget` subcomponents of an entity and integrates with DST's wall-updating system via `StartWallUpdatingComponent`. Animations use cubic easing (`easing.outCubic`) for smooth interpolation.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("uianim")
+-- Tint from white to red over 1 second
+inst.components.uianim:TintTo({r=1,g=1,b=1,a=1}, {r=1,g=0,b=0,a=1}, 1.0)
+-- Scale from 1x to 1.5x over 0.5 seconds
+inst.components.uianim:ScaleTo(1, 1.5, 0.5)
+-- Move from (0,0,0) to (10,5,0) over 2 seconds
+inst.components.uianim:MoveTo({x=0,y=0,z=0}, {x=10,y=5,z=0}, 2.0)
+-- Rotate from 0° to 360° over 3 seconds (infinite loop)
+inst.components.uianim:RotateTo(0, 360, 3.0, nil, true)
+```
+
+## Dependencies & tags
+**Components used:** `UITransform` (for position, scale, rotation), `widget` (for tint)
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
-|---------|------|---------------|-------------|
-| `inst` | `Entity` | (parameter) | The entity to which this component is attached. |
-| `update_while_paused` | `boolean` | `true` | Controls whether animations continue during server pauses (e.g., in pause menus). |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | — | Reference to the owning entity. |
+| `update_while_paused` | boolean | `true` | Whether animations continue updating when the game is paused. |
 
-**Note:** Animation-specific state (e.g., `tint_t`, `scale_dest`, `pos_whendone`) is stored as instance properties during active animations but are not part of the constructor’s public API.
-
-## Main Functions
-
+## Main functions
 ### `UpdateWhilePaused(update_while_paused)`
-* **Description:** Sets whether the animation loop should continue running while the game is paused.
-* **Parameters:**
-  - `update_while_paused` (`boolean`): If `true`, animations proceed during pauses; otherwise, they pause.
-
-### `FinishCurrentTint()`
-* **Description:** Immediately completes the current tint animation by applying the destination tint value and invoking the `whendone` callback if present.
-* **Parameters:** None.
-
-### `CancelTintTo(run_complete_fn)`
-* **Description:** Aborts the current tint animation, optionally invoking the completion callback before clearing state.
-* **Parameters:**
-  - `run_complete_fn` (`boolean?`): If `true` and a callback is queued, it runs before cancellation.
+* **Description:** Configures whether the component continues updating during game pause.
+* **Parameters:** `update_while_paused` (boolean) — if `true`, animation updates during pause; otherwise, updates are suspended.
+* **Returns:** Nothing.
 
 ### `TintTo(start, dest, duration, whendone)`
-* **Description:** Starts a tint animation from `start` to `dest` over `duration` seconds, using `outCubic` easing. Invokes `whendone` upon completion.
-* **Parameters:**
-  - `start` (`table`): `{ r, g, b, a }` – initial tint values (0–1).
-  - `dest` (`table`): `{ r, g, b, a }` – target tint values.
-  - `duration` (`number`): Animation duration in seconds.
-  - `whendone` (`function?`): Optional callback invoked when the animation finishes.
+* **Description:** Begins a tint transition from `start` to `dest` over `duration` seconds. Requires `widget.SetTint` to exist on `inst`.
+* **Parameters:**  
+  - `start` (table) — `{r, g, b, a}` initial tint values (0–1).  
+  - `dest` (table) — `{r, g, b, a}` target tint values (0–1).  
+  - `duration` (number) — animation duration in seconds.  
+  - `whendone` (function, optional) — callback invoked upon completion.
+* **Returns:** Nothing.
+* **Error states:** Returns early without starting animation if `inst.widget.SetTint` is not available.
 
-### `FinishCurrentScale()`
-* **Description:** Immediately completes the current scale animation, applying the destination scale value and invoking `whendone`.
+### `FinishCurrentTint()`
+* **Description:** Immediately snaps the tint to the destination value, cancels the ongoing tint animation, and invokes the `whendone` callback.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Returns early if `inst` is invalid.
 
-### `CancelScaleTo(run_complete_fn)`
-* **Description:** Aborts the current scale animation, optionally running its completion callback.
-* **Parameters:**
-  - `run_complete_fn` (`boolean?`): If `true` and a callback is queued, it runs before cancellation.
+### `CancelTintTo(run_complete_fn)`
+* **Description:** Immediately cancels the current tint animation. Optionally runs the completion callback.
+* **Parameters:** `run_complete_fn` (boolean or nil) — if truthy and a `whendone` callback exists, it is invoked before cancellation.
+* **Returns:** Nothing.
 
 ### `ScaleTo(start, dest, duration, whendone)`
-* **Description:** Starts a uniform scale animation over time. If a previous scale animation is running, it finishes that first.
-* **Parameters:**
-  - `start` (`number`): Initial scale factor.
-  - `dest` (`number`): Target scale factor.
-  - `duration` (`number`): Duration in seconds.
-  - `whendone` (`function?`): Optional completion callback.
+* **Description:** Begins a scale transition from `start` to `dest` over `duration` seconds.
+* **Parameters:**  
+  - `start` (number) — initial scale factor.  
+  - `dest` (number) — target scale factor.  
+  - `duration` (number) — animation duration in seconds.  
+  - `whendone` (function, optional) — callback invoked upon completion.
+* **Returns:** Nothing.
+* **Error states:** Finishes and cancels any previous scale animation before starting a new one.
+
+### `FinishCurrentScale()`
+* **Description:** Snaps the scale to `dest`, cancels the scale animation, and invokes `whendone`.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Returns early if `inst` is invalid.
+
+### `CancelScaleTo(run_complete_fn)`
+* **Description:** Cancels the current scale animation. Optionally runs the completion callback.
+* **Parameters:** `run_complete_fn` (boolean or nil) — if truthy and a `scale_whendone` callback exists, it is invoked before cancellation.
+* **Returns:** Nothing.
 
 ### `MoveTo(start, dest, duration, whendone)`
-* **Description:** Animates the entity’s 3D position from `start` to `dest` using cubic easing.
-* **Parameters:**
-  - `start` (`table`): `{ x, y, z }` – starting position.
-  - `dest` (`table`): `{ x, y, z }` – ending position.
-  - `duration` (`number`): Duration in seconds.
-  - `whendone` (`function?`): Optional completion callback.
-
-### `RotateTo(start, dest, duration, whendone, infinite)`
-* **Description:** Animates the entity’s rotation from `start` to `dest`. If `infinite` is `true`, animates indefinitely at a constant rotation speed (`dest` is treated as angular velocity).
-* **Parameters:**
-  - `start` (`number`): Initial rotation angle (degrees).
-  - `dest` (`number`): Target rotation angle (or angular velocity if `infinite`).
-  - `duration` (`number`): Duration in seconds (ignored if `infinite`).
-  - `whendone` (`function?`): Optional completion callback.
-  - `infinite` (`boolean?`): If `true`, rotates indefinitely.
+* **Description:** Begins a position transition from `start` to `dest` over `duration` seconds.
+* **Parameters:**  
+  - `start` (table) — `{x, y, z}` initial position.  
+  - `dest` (table) — `{x, y, z}` target position.  
+  - `duration` (number) — animation duration in seconds.  
+  - `whendone` (function, optional) — callback invoked upon completion.
+* **Returns:** Nothing.
 
 ### `CancelMoveTo(run_complete_fn)`
+* **Description:** Cancels the current position animation. Optionally runs the completion callback.
+* **Parameters:** `run_complete_fn` (boolean or nil) — if truthy and a `pos_whendone` callback exists, it is invoked before cancellation.
+* **Returns:** Nothing.
+
+### `RotateTo(start, dest, duration, whendone, infinite)`
+* **Description:** Begins a rotation transition from `start` to `dest` over `duration` seconds. If `infinite` is `true`, treats `dest` as a per-frame delta rotation applied repeatedly.
+* **Parameters:**  
+  - `start` (number) — initial rotation in degrees.  
+  - `dest` (number) — target rotation (or delta if `infinite`).  
+  - `duration` (number) — animation duration in seconds.  
+  - `whendone` (function, optional) — callback invoked upon completion.  
+  - `infinite` (boolean, optional) — if `true`, applies continuous rotation.
+* **Returns:** Nothing.
+
 ### `CancelRotateTo(run_complete_fn)`
-* **Description:** Abort the current move or rotation animation, optionally invoking the completion callback.
-* **Parameters:**
-  - `run_complete_fn` (`boolean?`): Whether to run the `whendone` callback before canceling.
+* **Description:** Cancels the current rotation animation. Optionally runs the completion callback.
+* **Parameters:** `run_complete_fn` (boolean or nil) — if truthy and a `rot_whendone` callback exists, it is invoked before cancellation.
+* **Returns:** Nothing.
 
 ### `OnWallUpdate(dt)`
-* **Description:** Core update loop for animations. Called by the wall update system each frame. Handles interpolation, completion logic, and cleanup. Respects pause state if `update_while_paused` is `false`.
-* **Parameters:**
-  - `dt` (`number`): Time elapsed since the last frame.
+* **Description:** Internal update method called every frame while the component is active. Processes animation steps for tint, scale, position, and rotation.
+* **Parameters:** `dt` (number) — time elapsed since the last frame.
+* **Returns:** Nothing.
 
-## Events & Listeners
-This component does not listen for or dispatch events via `inst:ListenForEvent` or `inst:PushEvent`. It operates entirely through direct method calls and callback execution.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** None. Callbacks are invoked directly as functions (`whendone()`), not via `PushEvent`.

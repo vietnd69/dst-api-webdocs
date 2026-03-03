@@ -1,70 +1,113 @@
 ---
 id: wagpunk_floor_helper
 title: Wagpunk Floor Helper
-description: Manages the logic and network state for an arena and its protective barrier, including point-in-arena detection and marker-based activation.
+description: Manages the active arena and barrier state for Wagpunk boss encounters, including spatial containment logic and networked synchronization.
+tags: [boss, arena, barrier, network]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 99e40e96
+system_scope: world
 ---
 
 # Wagpunk Floor Helper
 
-## Overview
-This component provides Arena and Barrier logic for the Wagpunk floor, enabling runtime detection of whether entities or points lie within a defined arena area (and optionally within the barrier band) and managing the arena's activation state via a marker entity.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Uses `net_bool` and `net_float` for networked state synchronization.
-- Relies on `TheWorld.Map` and `TILE_SCALE` constants.
-- No explicit component dependencies or entity tags are added or removed.
-- None identified.
+## Overview
+`wagpunk_floor_helper` is a component that tracks and broadcasts the active state, origin coordinates, and barrier status of a predefined arena used in Wagpunk boss fights. It defines spatial containment logic for the arena using a composite three-rectangle model and synchronizes relevant data across the network via `net_bool` and `net_float` members. It does not manage visual effects or game physics directly but provides the spatial and state infrastructure for other systems (e.g., AI or damage logic) to reference.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("wagpunk_floor_helper")
+
+-- Initialize the arena at a specific location.
+local marker = CreateEntity()
+marker.Transform:SetPosition(10, 0, 15)
+inst.components.wagpunk_floor_helper:TryToSetMarker(marker)
+
+-- Check if a point is inside the arena.
+local x, y, z = 11, 0, 14
+if inst.components.wagpunk_floor_helper:IsPointInArena(x, y, z) then
+    print("Inside arena")
+end
+
+-- Check barrier status.
+if inst.components.wagpunk_floor_helper:IsBarrierUp() then
+    print("Barrier is active")
+end
+```
+
+## Dependencies & tags
+**Components used:** None  
+**Tags:** None
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `entity` | `nil` (constructor parameter) | The entity the component is attached to. |
 | `barrier_active` | `net_bool` | `false` | Networked flag indicating whether the barrier is currently raised. |
 | `arena_active` | `net_bool` | `false` | Networked flag indicating whether the arena is active. |
-| `arena_origin_x` | `net_float` | `0.0` | X-coordinate of the arena center in world space. |
-| `arena_origin_z` | `net_float` | `0.0` | Z-coordinate of the arena center in world space. |
-| `marker` | `entity?` | `nil` | Internal reference to the marker entity used to define the arena origin; set during `TryToSetMarker`. |
+| `arena_origin_x` | `net_float` | `0` | Networked X coordinate of the arena center. |
+| `arena_origin_z` | `net_float` | `0` | Networked Z coordinate of the arena center. |
+| `marker` | `Entity | nil` | `nil` | Reference to the marker entity used to define the arena origin (server-only). |
 
-## Main Functions
-
-### `IsXZWithThicknessInArena_Calculation(x, z, thickness)`
-* **Description:** Helper function that checks if the point `(x, z)` lies within the arena *with a given thickness*, effectively modeling a region that accounts for physical thickness (e.g., wall width). Uses a composite shape composed of three overlapping rectangles (wide horizontal, tall vertical, and square center).
-* **Parameters:**
-  * `x`, `z`: Float coordinates in world space.
-  * `thickness`: Float; extends the arena boundary outward by this amount. Positive thickness includes area *inside* the arena; negative thickness excludes area *inside* the arena (used for barrier band logic).
-
+## Main functions
 ### `IsPointInArena(x, y, z)`
-* **Description:** Checks if a point lies strictly *inside* the arena (ignoring thickness). Returns `false` if arena is not active.
-* **Parameters:**
-  * `x`, `y`, `z`: Float coordinates; only `x` and `z` are used.
+* **Description:** Determines whether the given world position lies within the current arena, using a fixed-size spatial model. Ignores Y coordinate for containment logic.
+* **Parameters:**  
+  `x` (number) — World X coordinate  
+  `y` (number) — World Y coordinate (not used in calculation)  
+  `z` (number) — World Z coordinate  
+* **Returns:** `true` if the point is inside the arena, otherwise `false`. Returns `false` if `arena_active` is `false`.
+* **Error states:** None.
 
 ### `IsXZWithThicknessInArena(x, z, thickness)`
-* **Description:** Checks if a point `(x, z)` lies within the arena *with the given thickness*, but *excludes* points that would fall inside the arena even with negative thickness—effectively computing a "band" region (e.g., the barrier zone). Returns `false` if arena is not active.
-* **Parameters:**
-  * `x`, `z`: Float coordinates.
-  * `thickness`: Float; thickness to apply for inclusion. Must be positive to define an outer band.
+* **Description:** Determines whether the given XZ point lies within the arena boundary with a specified thickness offset. Useful for checking proximity to the arena edge (e.g., for barrier collision).
+* **Parameters:**  
+  `x` (number) — World X coordinate  
+  `z` (number) — World Z coordinate  
+  `thickness` (number) — Thickness offset; positive means inside, negative means outside.  
+* **Returns:** `true` if the point is within the arena with the given thickness, and *not* within the arena with negative thickness (i.e., strictly within the band of `thickness`). Returns `false` if `arena_active` is `false`.
+* **Error states:** None.
+
+### `IsXZWithThicknessInArena_Calculation(x, z, thickness)`
+* **Description:** Internal helper that checks if a point lies within the arena *model* using three overlapping rectangles: horizontal wide, vertical tall, and central square. Used by `IsPointInArena` and `IsXZWithThicknessInArena`.
+* **Parameters:**  
+  `x` (number) — World X coordinate  
+  `z` (number) — World Z coordinate  
+  `thickness` (number) — Thickness offset added to rectangle half-sizes.  
+* **Returns:** `true` if the point lies within the expanded model, otherwise `false`.
+* **Error states:** None.
 
 ### `GetArenaOrigin()`
-* **Description:** Returns the `(x, z)` center of the arena if active; otherwise returns `(nil, nil)`.
-* **Parameters:** None.
+* **Description:** Returns the world XZ coordinates of the arena center if active.
+* **Parameters:** None.  
+* **Returns:**  
+  `x` (number) — Arena origin X  
+  `z` (number) — Arena origin Z  
+  Returns `nil, nil` if `arena_active` is `false`.
+* **Error states:** None.
 
 ### `IsBarrierUp()`
-* **Description:** Returns the current barrier activation state (`true` if the barrier is active).
-* **Parameters:** None.
+* **Description:** Returns the current barrier state.
+* **Parameters:** None.  
+* **Returns:** `true` if the barrier is active, otherwise `false`.
+* **Error states:** None.
 
 ### `TryToSetMarker(inst)`
-* **Description:** Activates the arena using the provided entity (`inst`) as a marker. If a marker already exists, the new marker is removed immediately. Otherwise, the marker’s world position becomes the arena origin, arena activation is enabled, and an `onremove` listener is attached to reset arena state if the marker is destroyed.
-* **Parameters:**
-  * `inst`: `entity` — the marker entity to adopt as arena origin.
+* **Description:** (Server only) Sets or replaces the marker entity used to define the arena origin. Also listens for marker removal to reset arena state.
+* **Parameters:**  
+  `inst` (Entity) — Marker entity to use as arena center.  
+* **Returns:** Nothing.  
+* **Error states:** If a marker is already set, the existing marker is removed and replaced.
 
-## Events & Listeners
-- Listens to `"onremove"` event on the `marker` entity (set in `TryToSetMarker`), triggering `OnRemove_Marker`.
-- `OnRemove_Marker(ent, data)` resets arena state: `arena_active`, `arena_origin_x`, and `arena_origin_z` are disabled/set to zero, and `self.marker` is cleared.
+### `IsXZWithThicknessInArena_Calculation`
+* **Note:** This is not exposed as a standalone function; it is an internal private method used for containment calculations.
+
+## Events & listeners
+- **Listens to:** `onremove` (on the marker entity) — Triggers `OnRemove_Marker`, which resets arena state (`arena_active`, `arena_origin_x`, `arena_origin_z`) and clears the `marker` reference.
+- **Pushes:** None.

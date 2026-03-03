@@ -1,118 +1,124 @@
 ---
 id: guardian
 title: Guardian
-description: Manages summoned guardians by tracking summon progress, spawning/dismissing guardian entities, and handling their lifecycle events.
+description: Manages the lifecycle of a summoned guardian entity, tracking summon progress, spawning and dismissing the guardian, and handling its death.
+tags: [summoning, combat, ai, boss]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: d45ce680
+system_scope: entity
 ---
 
 # Guardian
 
-## Overview
-The `Guardian` component manages the lifecycle of summoned guardian entities. It tracks summon progress via a counter (`summons`) against a configurable threshold, automatically spawns a guardian when the threshold is reached, and dismisses or destroys the guardian when summon progress drops to zero. It listens to guardian-specific events (death, removal) and provides hooks for custom behavior on summon, death, and dismissal.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependency:** Relies on `inst` having the `transform` and `event` subsystem capabilities (standard for entities in DST).
-- **Events Listens For (on guardian):**
-  - `"death"` → triggers `OnGuardianDeath`
-  - `"onremove"` → triggers `SetGuardian(nil)`
-- **Events Pushed (on owner entity):**
-  - `"summonsdelta"` → emitted when `summons` changes, with `{ old = <int>, new = <int> }`
-- **Tags:** No tags are added or removed.
+## Overview
+`Guardian` is an entity component that manages the summoning, tracking, and dismissal of a designated guardian prefab (e.g., mossling, moose). It tracks summon progress via a `summons` counter that can be incremented or decremented (e.g., via `DoDelta`, `Call`, `Decay`). When summon progress reaches a threshold, the guardian prefab is spawned; when progress drops to zero, the guardian is dismissed. The component maintains event listeners for the guardian's `death` and `onremove` events and handles save/load synchronization.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("guardian")
+
+inst.components.guardian.prefab = "moose"
+inst.components.guardian.threshold = 20
+inst.components.guardian.onsummonfn = function(summoner, guardian) print("Guardian summoned!") end
+inst.components.guardian.onguardiandeathfn = function(summoner, guardian, cause) print("Guardian died") end
+
+inst.components.guardian:Call() -- increases summon count
+```
+
+## Dependencies & tags
+**Components used:** None identified.  
+**Tags:** Checks `guardian` entity existence via `self.guardian ~= nil`; does not modify entity tags.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The owner entity instance (set in constructor). |
-| `prefab` | `string?` | `nil` | Prefab name of the guardian to summon; must be set externally. |
+| `inst` | `Entity` | `nil` (assigned in constructor) | The entity instance the component is attached to. |
+| `prefab` | `string?` | `nil` | Name of the prefab to summon as guardian. Required for `SummonGuardian`. |
 | `guardian` | `Entity?` | `nil` | Reference to the currently active guardian entity. |
-| `onsummonfn` | `function?` | `nil` | Callback invoked when a new guardian is successfully summoned (`fn(inst, guardian)`). |
-| `onguardiandeathfn` | `function?` | `nil` | Callback invoked when the guardian dies (`fn(inst, guardian, cause)`). |
-| `ondismissfn` | `function?` | `nil` | Callback invoked before guardian is dismissed (if present); otherwise, guardian is removed directly. |
-| `threshold` | `number` | `20` | Summon count required to trigger guardian summoning. |
-| `summons` | `number` | `0` | Current summon progress (clamped between `0` and `threshold`). |
-| `decaytime` | `number` | `20` | Seconds between summon decay ticks. |
-| `decaytask` | `Task?` | `nil` | Active decay task; cancels and nullifies on entity removal or decay update. |
+| `onsummonfn` | `function?` | `nil` | Callback invoked when a new guardian is summoned: `fn(summoner, guardian)`. |
+| `onguardiandeathfn` | `function?` | `nil` | Callback invoked when the guardian dies: `fn(summoner, guardian, cause?)`. |
+| `threshold` | `number` | `20` | Minimum `summons` value required to spawn the guardian. |
+| `summons` | `number` | `0` | Current summon progress count. Clamped between `0` and `threshold`. |
+| `decaytime` | `number` | `20` | Seconds before the summon count automatically decrements by 1 (via `Decay`). |
+| `decaytask` | `Task?` | `nil` | Ongoing decay task handle, `nil` if no decay is scheduled. |
+| `_onguardiandeath` | `function` | (internal) | Event handler bound to `self:OnGuardianDeath(data)`. |
+| `_onguardianremove` | `function` | (internal) | Event handler bound to `self:SetGuardian(nil)`. |
 
-## Main Functions
-### `OnRemoveFromEntity()`
-* **Description:** Cleans up state when component is removed from its owner entity. Cancels the decay task and disassociates the guardian.
-* **Parameters:** None.
-
+## Main functions
 ### `SetGuardian(guardian)`
-* **Description:** Sets or updates the active guardian entity. Adds/removes event listeners on the guardian for `"death"` and `"onremove"` events.
-* **Parameters:**
-  - `guardian` (`Entity?`): The new guardian entity, or `nil` to clear.
+* **Description:** Updates the currently tracked guardian entity. Registers or removes event listeners for `death` and `onremove` events on the previous and new guardian.
+* **Parameters:** `guardian` (`Entity?`) — the new guardian entity or `nil` to dismiss tracking.
+* **Returns:** Nothing.
 
 ### `DoDelta(d)`
-* **Description:** Adjusts the `summons` counter by `d`, clamps the value, pushes `"summonsdelta"`, starts decay, and conditionally summons/dismisses the guardian based on threshold bounds.
-* **Parameters:**
-  - `d` (`number`): Amount to change `summons` (positive to add, negative to reduce).
+* **Description:** Adjusts the summon count by `d`, clamps it between `0` and `threshold`, fires a `"summonsdelta"` event, manages decay scheduling, and automatically summons or dismisses the guardian if thresholds are crossed.
+* **Parameters:** `d` (`number`) — delta to apply (e.g., `+1`, `-1`). Default is `1`.
+* **Returns:** Nothing.
 
 ### `SummonGuardian(override)`
-* **Description:** Spawns or assigns a guardian entity if none exists and summon threshold is met. First checks for existing guardians of `self.prefab` in range; if not found, spawns a new one at owner's position.
-* **Parameters:**
-  - `override` (`Entity?`, optional): Force-set this entity as the guardian, bypassing search/spawn logic.
+* **Description:** Spawns or links a guardian entity if `summons >= threshold` and `guardian` is `nil`. First checks for existing guardians in range (`radius = 30`), then attempts `SpawnPrefab`. Applies position and triggers `onsummonfn`.
+* **Parameters:** `override` (`Entity?`, optional) — if provided, uses this entity as the guardian directly.
+* **Returns:** Nothing.
+* **Error states:** Returns early and prints an error if `self.prefab` is `nil`.
 
 ### `DismissGuardian()`
-* **Description:** Removes the current guardian. If `ondismissfn` is defined, calls it first and then clears the guardian reference; otherwise, removes the guardian entity directly.
+* **Description:** Removes the guardian entity. If `ondismissfn` is defined, calls it before removing; otherwise, removes the entity directly.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Returns early with no effect if `self.guardian` is `nil`.
 
 ### `OnGuardianDeath(data)`
-* **Description:** Handles guardian death events. Invokes `onguardiandeathfn` (if set) with cause and clears the guardian reference.
-* **Parameters:**
-  - `data` (`table?`): Death event data, optionally containing `data.cause`.
-
-### `OnSave()`
-* **Description:** Serializes component state. Returns `summons` count and the guardian's GUID for persistence.
-* **Returns:** `data, refs` — `data` contains `summons` and `guardian` (GUID); `refs` contains guardian GUIDs.
-
-### `OnLoad(data)`
-* **Description:** Restores `summons` count and restarts decay from saved data.
-* **Parameters:**
-  - `data` (`table?`): Saved data containing `summons`.
-
-### `LoadPostPass(ents, data)`
-* **Description:** Reconnects the guardian entity after loading using its saved GUID from `data`.
-* **Parameters:**
-  - `ents` (`table`): Loaded entity lookup by GUID.
-  - `data` (`table?`): Saved data with `guardian` GUID.
+* **Description:** Handles guardian death. Invokes `onguardiandeathfn`, if set, then clears the guardian reference.
+* **Parameters:** `data` (`table?`) — death event data, containing optional `cause`.
+* **Returns:** Nothing.
 
 ### `Call(d)`
-* **Description:** Shorthand for increasing summons (defaults to `+1`).
-* **Parameters:**
-  - `d` (`number`, optional): Amount to add; defaults to `1`.
+* **Description:** Convenience wrapper for `DoDelta` to increase summon count (default `d = 1`).
+* **Parameters:** `d` (`number?`) — delta to apply. Defaults to `1`.
+* **Returns:** Nothing.
 
 ### `Decay(d)`
-* **Description:** Shorthand for decreasing summons (defaults to `-1`).
-* **Parameters:**
-  - `d` (`number`, optional): Amount to subtract; defaults to `-1`.
+* **Description:** Convenience wrapper for `DoDelta` to decrease summon count (default `d = -1`).
+* **Parameters:** `d` (`number?`) — delta to apply. Defaults to `-1`.
+* **Returns:** Nothing.
 
 ### `StartDecay()`
-* **Description:** Schedules or reschedules a decay task (if `summons > 0`) to reduce summon count after `decaytime` seconds.
+* **Description:** Cancels any existing decay task and, if `summons > 0`, schedules a decay task to trigger after `decaytime`.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `HasGuardian()`
-* **Description:** Returns whether a guardian is currently assigned.
-* **Returns:** `boolean`
+* **Description:** Returns whether a guardian entity is currently active and tracked.
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if `self.guardian ~= nil`.
 
-### `SummonsAtMax()`
-* **Description:** Checks if summon count has reached or exceeded `threshold`.
-* **Returns:** `boolean`
+### `OnSave()`
+* **Description:** Serializes component state for network and save file persistence.
+* **Parameters:** None.
+* **Returns:** `data` (`table`), `refs` (`table` of GUID strings) — `data.summons` and optional `data.guardian` GUID.
 
-### `SummonsAtMin()`
-* **Description:** Checks if summon count is at or below zero.
-* **Returns:** `boolean`
+### `OnLoad(data)`
+* **Description:** Restores `summons` count after loading. Restarts decay if needed.
+* **Parameters:** `data` (`table?`) — saved state, with optional `summons`.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens on `inst` for:**
-  - `"death"` on `guardian` → calls `_onguardiandeath` → `OnGuardianDeath(data)`
-  - `"onremove"` on `guardian` → calls `_onguardianremove` → `SetGuardian(nil)`
-- **Pushes events on `inst`:**
-  - `"summonsdelta"` → when `summons` changes (payload: `{ old = <int>, new = <int> }`)
+### `LoadPostPass(ents, data)`
+* **Description:** Called after initial load to restore the guardian entity reference using the saved guardian GUID.
+* **Parameters:** `ents` (`table` of GUID→Entity), `data` (`table`) — saved data containing optional `guardian` GUID.
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:**
+  - `"death"` on `guardian` entity — triggers `self:OnGuardianDeath(data)`.
+  - `"onremove"` on `guardian` entity — triggers `self:SetGuardian(nil)`.
+  - `"summonsdelta"` on `inst` — fired internally by `DoDelta` with `{ old = number, new = number }`.
+- **Pushes:**
+  - `"summonsdelta"` — fired each time `DoDelta` is called, with `{ old = number, new = number }`.

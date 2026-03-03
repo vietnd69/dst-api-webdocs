@@ -1,46 +1,59 @@
 ---
 id: symbolswapdata
 title: Symbolswapdata
-description: Stores and manages metadata about a symbol-swapped item, including its build ID, original symbol, and skin status.
+description: Stores and manages symbol-swapping configuration data for world symbols (e.g., for map generation or prefabs).
+tags: [map, data, worldgen]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: inventory
+category_type: components
 source_hash: 93902c00
+system_scope: world
 ---
 
 # Symbolswapdata
 
-## Overview
-This component stores persistent metadata for items that have undergone symbol swapping (e.g., recipe substitutions via the "Symbol Swap" mechanic). It records the original build ID, the assigned symbol, and whether the item is skinned—enabling accurate replication and validation during network sync or item reconstruction.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified
+## Overview
+`Symbolswapdata` is a lightweight data-holding component used to associate symbol-swap metadata (such as the source `build`, target `symbol`, and whether the symbol is skinned) with an entity. It does not implement game logic itself but serves as a data container for systems that perform symbol-swapping operations—typically during world generation or prefab instantiation. Entities using this component are usually map tiles, room elements, or procedural generation artifacts.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("symbolswapdata")
+inst.components.symbolswapdata:SetData("forest", "symbol_tree_01", true)
+-- Later, for debugging or logging:
+print(inst.components.symbolswapdata:GetDebugString())
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `build` | string or `nil` | `nil` | The name of the build/room type the symbol originates from (e.g., `"forest"`, `"caves"`). |
+| `symbol` | string or `nil` | `nil` | The target symbol identifier to swap in (e.g., `"symbol_tree_01"`). |
+| `is_skinned` | boolean or `nil` | `nil` | Whether the symbol should be treated as a skinned variant (e.g., for seasonal or event variants). |
 
-| Property   | Type    | Default Value | Description                                                                 |
-|------------|---------|---------------|-----------------------------------------------------------------------------|
-| `inst`     | `Entity`| `nil`         | Reference to the entity the component is attached to (set in constructor). |
-| `build`    | `string`| `nil`         | Unique build identifier of the item before symbol swapping.               |
-| `symbol`   | `string`| `nil`         | Symbol string used in the swap (e.g., `"gears"`, `"rope"`).                |
-| `is_skinned`| `boolean`| `nil`       | Whether the item is currently skinned (i.e., uses a custom texture variant). |
-
-## Main Functions
-
+## Main functions
 ### `SetData(build, symbol, is_skinned)`
-* **Description:** Updates the component's stored metadata with new values.  
+* **Description:** Sets the symbol-swap metadata for the entity. Typically called during initialization before the symbol swap is applied by a higher-level system (e.g., `Room` or `StaticLayout`).
 * **Parameters:**  
-  - `build` (`string`): The build ID associated with the item.  
-  - `symbol` (`string`): The symbol used in the swap operation.  
-  - `is_skinned` (`boolean`): Indicates if the item uses a skin variant.
+  - `build` (string or `nil`) — Identifier for the source build.  
+  - `symbol` (string or `nil`) — Target symbol key to apply.  
+  - `is_skinned` (boolean or `nil`) — Skinned variant flag.
+* **Returns:** Nothing.
+* **Error states:** No validation is performed; accepts `nil` for any argument.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted string for debugging, displaying all stored fields.  
-* **Parameters:** None  
+* **Description:** Returns a human-readable debug string summarizing the stored data.
+* **Parameters:** None.
+* **Returns:** string — Formatted as `"build:<value>, symbol:<value>, is_skinned:<value>"`, with empty strings for `nil` values.
 
-## Events & Listeners
-None
+## Events & listeners
+None identified

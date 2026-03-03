@@ -1,51 +1,69 @@
 ---
 id: nonslipgrituser
-title: NonslipGritUser
-description: Manages non-slip grit consumption by detecting and forwarding delta updates to applicable items in the entity's inventory.
+title: Nonslipgrituser
+description: Manages nonslip grit sources (e.g., items) on an entity and propagates delta updates to them.
+tags: [inventory, item, movement]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: inventory
+category_type: components
 source_hash: 6afda8c5
+system_scope: entity
 ---
 
-# NonslipGritUser
+# Nonslipgrituser
+
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-This component enables an entity (typically the player) to consume non-slip grit items from their inventory by tracking active grit sources and delegating per-frame delta processing to those items.
+`NonslipGritUser` tracks nonslip grit sources attached to an entity—typically items in its inventory—and delegates `DoDelta` calls to active grit sources. It works in conjunction with `NonslipGritSource` to apply or update nonslip effects (e.g., preventing slipping on oil). The component automatically removes itself when no valid grit sources remain attached.
 
-## Dependencies & Tags
-- **Component Dependencies:** Relies on the entity having an `inventory` component to scan for grit sources.
-- **Component Removal:** Automatically removes itself from the entity when no grit sources remain active (see `RemoveSource`).
-- **No tags** are added or removed by this component.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("nonslipgrituser")
+
+-- Add a grit source (e.g., an item with a nonslipgritsource component)
+inst.components.nonslipgrituser:AddSource(grit_item, "grit_item_id")
+
+-- During gameplay (e.g., in a update loop or tick)
+inst.components.nonslipgrituser:DoDelta(dt)
+```
+
+## Dependencies & tags
+**Components used:** `inventory`, `nonslipgritsource`  
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the owning entity, set in constructor. |
-| `_sources` | `SourceModifierList` | `SourceModifierList(inst, false, SourceModifierList.boolean)` | Internal list tracking active grit sources; stores boolean state per source. |
+| `_sources` | `SourceModifierList` | `nil` (assigned in constructor) | Internal list tracking active grit sources. Uses boolean values. |
 
-## Main Functions
-
+## Main functions
 ### `AddSource(src, key)`
-* **Description:** Registers a grit source (typically an item in inventory) as active. The source is stored in `_sources` with a `true` value.
-* **Parameters:**
-  - `src`: The source identifier (usually the item instance).
-  - `key`: A string key uniquely identifying this source (used to differentiate multiple instances or usages).
+*   **Description:** Registers a grit source (e.g., an item) as active. The source must have a `nonslipgritsource` component.
+*   **Parameters:**  
+    `src` (Entity) – the entity providing the grit effect.  
+    `key` (string) – a unique identifier for this source, used for removal and duplication tracking.
+*   **Returns:** Nothing.
+*   **Error states:** If `src.components.nonslipgritsource` is missing, behavior is undefined—`SourceModifierList` will still track it, but `DoDelta` will silently skip it.
 
 ### `RemoveSource(src, key)`
-* **Description:** Unregisters a grit source. If no sources remain active after removal, the component removes itself from the entity.
-* **Parameters:**
-  - `src`: The source identifier to remove.
-  - `key`: The key used when adding the source.
+*   **Description:** Removes a registered grit source. If no sources remain after removal, the `nonslipgrituser` component is automatically stripped from `self.inst`.
+*   **Parameters:**  
+    `src` (Entity) – the grit source entity to remove.  
+    `key` (string) – the identifier used when adding the source.
+*   **Returns:** Nothing.
 
 ### `DoDelta(dt)`
-* **Description:** Called each game tick (via the world’s update loop). Finds the first item in the entity’s inventory that has a `nonslipgritsource` component and invokes its `DoDelta(dt)` method.
-* **Parameters:**
-  - `dt`: Delta time (number), passed directly to the grit source’s `DoDelta`.
+*   **Description:** Scans the entity’s inventory for items with a `nonslipgritsource` component and invokes `DoDelta(dt)` on each. This allows grit sources to apply per-frame nonslip effects (e.g., oil buildup).
+*   **Parameters:**  
+    `dt` (number) – elapsed time since last frame.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early (with no effect) if `self.inst.components.inventory` is missing or if no valid grit sources are found.
 
-## Events & Listeners
-None.
+## Events & listeners
+- **Listens to:** None identified.
+- **Pushes:** None identified.

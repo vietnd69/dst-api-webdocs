@@ -1,91 +1,80 @@
 ---
 id: shadowhandspawner
 title: Shadowhandspawner
-description: Manages the spawning and tracking of Shadow Hands and Wavey Joneses during nighttime, based on player sanity, proximity to fires or boats, and game world state.
+description: Spawns shadow hands for players during nighttime when they meet specific conditions, including sanity thresholds, proximity to fire or repairable boats, and vault room restrictions.
+tags: [boss, night, environmental, multiplayer]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: a89ef302
+system_scope: world
 ---
 
 # Shadowhandspawner
 
-## Overview
-This component coordinates the timed, context-sensitive spawning of shadow-themed entities (`shadowhand` and `waveyjones_marker`) during nighttime. It tracks active players, monitors their sanity levels, proximity to valid fuel-fueled fires, or association with boats undergoing repair, and schedules spawns accordingly using a recurring task system. The component operates exclusively on the master simulation and is destroyed on clients.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies:** Relies on `TheWorld.ismastersim` (worldmaster-only execution), `TheWorld.Map`, `TheSim`, and world components like `vaultroommanager`.
-- **Tags Used:**
-  - Spawned entity tags: `"shadowhand"`, `"waveyjones_marker"`, `"boat_repaired_patch"`, `"fire"`, `"boat"`.
-  - Exclusion tags for fire search: `"_equippable"`.
-  - Fuel-related tags dynamically built from `FUELTYPE` (e.g., `"wood_fueled"`, `"town_fueled"`).
-- **No components are added to `self.inst`**—this is a standalone logic container for the spawner.
+## Overview
+`Shadowhandspawner` is a world-scoped component responsible for spawning `shadowhand` prefabs on behalf of players during nighttime. It operates only on the master simulation (server) and ensures hands spawn under controlled conditions: players must be mature enough (older than `INITIAL_SPAWN_THRESHOLD`), have low sanity (`<= 0.75`), and be near a valid fire or repairable boat (not in the `puzzle2` vault room). It tracks spawned hands via player and entity references, and respects per-fire hand limits (`MAX_HANDS_PER_FIRE`). The component uses the world's day/night cycle to start/stop its scheduling loop for each player.
+
+## Usage example
+```lua
+-- Typically added automatically by the world prefabs (e.g., `dst_world`) on the master server:
+-- inst:AddComponent("shadowhandspawner")
+
+-- No manual interaction is needed during normal gameplay.
+-- Custom wave logic would interact with its public methods:
+-- inst.components.shadowhandspawner:reservewaveyjonestarget(boat)
+-- inst.components.shadowhandspawner:removewaveyjonestarget(boat)
+```
+
+## Dependencies & tags
+**Components used:** `age`, `burnable`, `entitytracker`, `fueled`, `hull`, `mast`, `anchor`, `vaultroom`, `vaultroommanager`  
+**Tags:** Listens to `ms_playerjoined` and `ms_playerleft`; tracks `"boat"`, `"fire"` tags; avoids `"_equippable"`; checks for `"boat_repaired_patch"`, `"mast"`, `"anchor"`, and special fuel tags.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (passed to constructor) | The host entity (typically the world root) on which this component operates. |
-| `_map` | `Map` | `TheWorld.Map` | Internal reference to the game world map for spatial queries and passability checks. |
-| `_players` | `table` | `{}` | Map of player entities → spawn state objects (`{ents = {}}`), keyed by player. |
-| `_fueltags` | `array` | Dynamically built | List of fuel-type tags (e.g., `"wood_fueled"`, `"tallow_fueled"`) used to identify valid fire sources. |
-| `_fires` | `table` | `{}` | Maps fire GUIDs → arrays of `shadowhand` entities currently spawned for that fire. |
-| `_boats` | `table` | `{}` | Maps boat GUIDs → arrays of `waveyjones_marker` entities currently spawned for that boat. |
-| `_boattargets` | `table` | `{}` | Tracks GUIDs of boats reserved for `waveyjones_marker` spawning to prevent duplicates. |
+| `inst` | `Entity` | — | Reference to the entity instance this component owns. |
 
-## Main Functions
+**Private member tables:** `_players`, `_fires`, `_boats`, `_boattargets`, `_fueltags` — internal state not exposed publicly.
 
-### `SpawnHand(player, params)`
-* **Description:** Core logic that attempts to spawn 1–2 `shadowhand` entities near a nearby fire, or one `waveyjones_marker` on a qualifying boat, depending on context (sanity, platform, fire proximity, etc.). If spawning succeeds, updates tracking tables and schedules the next spawn attempt.
-* **Parameters:**
-  - `player` (`Entity`): The player for whom to spawn hands.
-  - `params` (`table`): Contains spawn state: `ents` (array of spawned entities), `task`, `delay`, `time`.
-
-### `Reschedule(player, params, delay, time)`
-* **Description:** Schedules the next `SpawnHand` attempt for a player using `DoTaskInTime`. Recalculates delay with randomness unless explicitly provided.
-* **Parameters:**
-  - `player` (`Entity`): The player whose schedule is being updated.
-  - `params` (`table`): Spawn state table (updated with new `delay`, `time`, and `task`).
-  - `delay` (`number`, optional): Custom delay in seconds; defaults to `TUNING.SEG_TIME * 4 ± variance`.
-  - `time` (`number`, optional): Reference time for delay adjustment; defaults to `GetTime()`.
-
-### `Start(player, params, time)`
-* **Description:** Initiates or resumes scheduling for a player if not already running (e.g., at nightfall or when joining at night). Calls `Reschedule` if no active task exists.
-* **Parameters:**
-  - `player` (`Entity`)
-  - `params` (`table`)
-  - `time` (`number`): Current simulation time for scheduling adjustments.
-
-### `Stop(player, params, time)`
-* **Description:** Cancels the pending spawn task for a player and adjusts remaining delay (e.g., at dawn or player leave). Preserves elapsed delay for resumed scheduling.
-* **Parameters:**
-  - `player` (`Entity`)
-  - `params` (`table`)
-  - `time` (`number`): Current time to compute remaining delay.
-
-### `spawnwaveyjones(inst, boat)`
-* **Description:** Spawns a `waveyjones_marker` prefab at the boat's location and links it to the boat via `entitytracker`. Returns the spawned entity.
-* **Parameters:**
-  - `boat` (`Entity`): The boat entity on which to spawn the marker.
-
-### `testfortinkerthings(boat)`
-* **Description:** Checks if a boat has any "finker" components (`boat_repaired_patch`, `mast`, `anchor`, or special extinguishable fuel) indicating it's repair-eligible for `waveyjones` spawning.
-* **Parameters:**
-  - `boat` (`Entity`)
-
+## Main functions
 ### `GetDebugString()`
-* **Description:** Returns a human-readable count of currently active Shadow Hands across all tracked players (e.g., `"3 shadowhands"`).
+* **Description:** Returns a human-readable string indicating how many shadow hands are currently active across all tracked players.
 * **Parameters:** None.
+* **Returns:** String (e.g., `"3 shadowhands"`, `"1 shadowhand"`, or empty string if none).
 
-## Events & Listeners
-- **Listens for:**
-  - `"ms_playerjoined"` → `OnPlayerJoined`
-  - `"ms_playerleft"` → `OnPlayerLeft`
-  - `"onremove"` (on each tracked entity—players, fires, or boats) → internal cleanup handlers (`StopTracking`, `StopTrackingBoat`)
-- **Triggers:**
-  - None (does not push custom events).
-- **World State Watches:**
-  - `"isnight"` → `OnIsNight` (started when first player joins, stopped when last player leaves).
+### `spawnwaveyjones(boat)`
+* **Description:** Spawns a `waveyjones_marker` prefab at the boat’s position and registers the boat as a tracked target to prevent duplicate wavey jones spawns.
+* **Parameters:** `boat` (Entity) — The boat entity near which to spawn the marker.
+* **Returns:** `waveyjones_marker` prefab instance.
+* **Error states:** Does not validate if boat is valid or exists; caller must ensure.
+
+### `checkwaveyjonestarget(target)`
+* **Description:** Returns whether the given entity is currently reserved as a wavey jones target.
+* **Parameters:** `target` (Entity) — Entity to check.
+* **Returns:** `true` if reserved; `nil` otherwise.
+
+### `reservewaveyjonestarget(target)`
+* **Description:** Marks the target entity as reserved to prevent re-use by another spawner iteration.
+* **Parameters:** `target` (Entity).
+* **Returns:** Nothing.
+
+### `removewaveyjonestarget(target)`
+* **Description:** Clears the reservation for the given entity.
+* **Parameters:** `target` (Entity).
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:**  
+  - `ms_playerjoined` — Adds new player tracking and schedules hand spawning if currently night.  
+  - `ms_playerleft` — Stops scheduling and cleans up tracking for the departing player.  
+  - `isnight` — Global world state watcher; starts/stops all scheduled tasks when day/night transitions.  
+  - `onremove` — For each player, boat, or spawned hand; cleans up internal references.
+
+- **Pushes:**  
+  - None.

@@ -1,81 +1,113 @@
 ---
 id: recipestockpile
 title: Recipestockpile
-description: Manages per-recipe stockpiles with automatic restocking timers and event callbacks in response to crafting and state changes.
+description: Tracks and manages the inventory and restocking behavior of crafted recipes for an entity.
+tags: [crafting, inventory, entity]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: crafting
+category_type: components
 source_hash: a0696960
+system_scope: crafting
 ---
-
 # Recipestockpile
 
-## Overview
-The `RecipeStockpile` component tracks and manages per-recipe inventory stock levels for an entity (typically a workbench or storage structure), including automatic restocking via timers, state-aware callbacks (e.g., when restocked or emptied), and save/load synchronization. It enables gameplay mechanics where recipe production depletes a limited stock that regenerates over time.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependency:** Relies on `inst:DoTaskInTime(...)` and `GetTaskRemaining(...)` — indicating integration with the game's task scheduler (`TheSim` or `GlobalTaskManager`).
-- **Event Listener:** Registers for the `"builditem"` event on its owner entity.
-- **Tags:** Adds no entity tags.
+## Overview
+`RecipeStockpile` manages a per-recipe inventory of stock counts and restocking timers for an entity. It is designed to support systems where crafted recipes have limited availability that replenishes over time. The component listens for `builditem` events to decrement stock on craft, and maintains timers for automatic restocking. It supports save/load serialization and debug reporting. This component is typically attached to entities that craft or store recipes — such as workshops, bosses with special abilities, or characters with limited-use items.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("recipestockpile")
+
+inst.components.recipestockpile:SetupItem({
+    recipe = "flying_machine",
+    max = 3,
+    num = 1,
+    restocktime = 300,
+    onrestockfn = function(inst, recipe, num, max) print("Restocked:", recipe, num, max) end,
+    onemptyfn = function(inst, recipe) print("Out of:", recipe) end,
+}, true)
+
+print("Has stock?", inst.components.recipestockpile:HasAnyStock())
+print("Debug:", inst.components.recipestockpile:GetDebugString())
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `recipestockpile` (via `inst:AddTag("recipestockpile")` in calling code) — not added by this component itself.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `stock` | `table` | `{}` | A dictionary mapping recipe names to stock metadata (see `SetupItem`). Each entry holds `num`, `max`, `restocktime`, `onrestockfn`, `onemptyfn`, and optionally `timer`. |
+| `inst` | `Entity` | `nil` | The entity instance that owns this component. |
+| `stock` | `table` | `{}` | A dictionary mapping `recipe` string to stock data objects containing `num`, `max`, `restocktime`, `timer`, `onrestockfn`, `onemptyfn`. |
 
-## Main Functions
-
+## Main functions
 ### `SetupItem(data, start_restock_timer)`
-* **Description:** Initializes or updates stock configuration for a given recipe. Sets initial quantity (`num`), maximum capacity (`max`), restock interval (`restocktime`), and optional callbacks. If enabled, starts a restock timer if stock is below max.
-* **Parameters:**
-  - `data` (`table`): Table with keys: `recipe` (string), `num` (number, optional), `max` (number), `restocktime` (number, optional), `onrestockfn` (function, optional), `onemptyfn` (function, optional). `num` defaults to `max` if missing.
-  - `start_restock_timer` (`boolean`): Whether to start a restock timer if `num < max` and `restocktime` is defined.
+*   **Description:** Initializes or updates stock for a recipe. If `start_restock_timer` is `true` and the current stock is below max, a restock timer task is scheduled. If the recipe already exists, this function does nothing.
+*   **Parameters:**  
+  `data` (table) — recipe config with keys: `recipe` (string), `max` (number), optional `num` (number, defaults to `max`), `restocktime` (number, seconds), optional `onrestockfn` (function), optional `onemptyfn` (function).  
+  `start_restock_timer` (boolean) — whether to begin restocking if `num < max`.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `self.stock[data.recipe]` is already non-`nil`.
 
 ### `OnItemCrafted(recipe)`
-* **Description:** Decrements stock for the given recipe upon a crafting event. Triggers restock timer if applicable, and fires `onemptyfn` when stock reaches 0.
-* **Parameters:**
-  - `recipe` (`string`): Name of the recipe whose stock is being consumed.
+*   **Description:** Decrements stock for `recipe` by one on successful craft, and schedules the next restock if not at max and no timer is active.
+*   **Parameters:**  
+  `recipe` (string) — name of the recipe that was crafted.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `recipe` has no stock entry or `num <= 0`.
 
 ### `RemoveStock(recipe, allow_restock)`
-* **Description:** Sets the current stock of a specific recipe to 0, cancels any running restock timer, and (if enabled) may restart a restock timer. Fires `onemptyfn` after clearing.
-* **Parameters:**
-  - `recipe` (`string`): Recipe name to clear.
-  - `allow_restock` (`boolean`): If true, restarts restock timer based on `restocktime` (note: appears to contain a typo — uses `time.restocktime` instead of `stock.restocktime` in current code).
+*   **Description:** Immediately sets stock for `recipe` to `0`, cancels its restock timer, and optionally schedules a new restock if `allow_restock` is `true`.
+*   **Parameters:**  
+  `recipe` (string) — recipe to remove stock for.  
+  `allow_restock` (boolean) — whether to start restocking from zero.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `recipe` has no stock entry or `num <= 0`.
 
 ### `RemoveAllStock(allow_restock)`
-* **Description:** Clears stock for *all* recipes, cancels their timers, and optionally restarts restock timers. Fires `onemptyfn` for each recipe.
-* **Parameters:**
-  - `allow_restock` (`boolean`): If true, restarts restock timers for all cleared recipes.
+*   **Description:** Clears all recipes' stock to `0`, cancels all timers, and optionally restarts restocking for all.
+*   **Parameters:**  
+  `allow_restock` (boolean) — whether to schedule restocking for all recipes.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if all stock entries have `num <= 0`.
 
 ### `FullyRestockItem(recipe)`
-* **Description:** Immediately fills the stock of a recipe to its maximum, cancels any active timer, and fires `onrestockfn`.
-* **Parameters:**
-  - `recipe` (`string`): Recipe name to fully restock.
+*   **Description:** Sets the stock of `recipe` to its `max`, cancels any existing restock timer, and invokes `onrestockfn` if present.
+*   **Parameters:**  
+  `recipe` (string) — recipe to fully restock.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `recipe` has no stock entry.
 
 ### `HasAnyStock()`
-* **Description:** Checks if *any* recipe in the stockpile currently has `num > 0`.
-* **Returns:** `boolean` — `true` if at least one recipe has remaining stock; otherwise `false`.
+*   **Description:** Checks whether *any* recipe in the stock has a positive count.
+*   **Parameters:** None.
+*   **Returns:** `true` if at least one recipe has `num > 0`; otherwise `false`.
 
 ### `OnSave()`
-* **Description:** serializes current stock state for saving to disk. Captures `num` and remaining time on the timer (if any).
-* **Returns:** `table` — Map of recipe names to `{ num = number, timer = number? }`.
+*   **Description:** Serializes current stock and active timer remainders into a saveable table.
+*   **Parameters:** None.
+*   **Returns:** (table) — mapping `recipe → { num = number, timer = number? }`.
 
 ### `OnLoad(data)`
-* **Description:** Restores stock state after loading. Uses saved `num` and `timer` values to reinitialize timers.
-* **Parameters:**
-  - `data` (`table`): Deserialized stock data (keyed by recipe name).
+*   **Description:** Loads saved stock and timer state. Restores `num`, and resumes timer if `timer > 0`.
+*   **Parameters:**  
+  `data` (table) — save data from `OnSave()` output.
+*   **Returns:** Nothing.
+*   **Error states:** Only updates entries where `self.stock[k]` already exists — does not recreate missing recipes.
 
 ### `GetDebugString()`
-* **Description:** Generates a human-readable debug string listing each recipe’s current/max stock and remaining restock time (if any).
-* **Returns:** `string` — Multi-line string for in-game debug console.
+*   **Description:** Returns a formatted string for debugging, listing each recipe, current/max stock, and remaining time on its restock timer (if any).
+*   **Parameters:** None.
+*   **Returns:** (string) — multi-line debug output.
 
-## Events & Listeners
-- **Listens to `"builditem"` event** — Triggers `onitemcrafted`, which forwards the recipe name to `OnItemCrafted`.
-- **Cleans up listener** on removal via `OnRemoveFromEntity`.
+## Events & listeners
+- **Listens to:** `builditem` — triggers `OnItemCrafted` with the crafted recipe name.
+- **Pushes:** None identified (callbacks like `onrestockfn`/`onemptyfn` are user-supplied, not pushed events).
 
-## Notes & Known Issues
-- In `RemoveStock` and `RemoveAllStock`, the expression `time.restocktime` is likely a typo; should be `stock.restocktime`. This may cause incorrect or failed restock restarts if `allow_restock` is `true`.
+>  **Note:** The function `RemoveAllStock` contains a bug: `time.restocktime` should be `stock.restocktime` (both occurrences). This will cause a runtime error unless fixed.

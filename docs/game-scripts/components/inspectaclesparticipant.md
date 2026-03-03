@@ -1,155 +1,227 @@
 ---
 id: inspectaclesparticipant
 title: Inspectaclesparticipant
-description: Manages the state, puzzle generation, and gameplay logic for the Inspectacles minigame system on a per-entity basis.
+description: Manages the state and behavior of the Inspectacles minigame system for an entity, including puzzle generation, game setup, reward granting, and client-server synchronization.
+tags: [minigame, puzzle, inventory, synchronization, boss]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 029562b2
+system_scope: entity
 ---
 
 # Inspectaclesparticipant
 
-## Overview
-This component implements the core logic for the Inspectacles minigame system, including puzzle generation, game state management, cooldown handling, box creation, and client-server synchronization. It operates on an entity (typically a player) and coordinates interactions between the minigame logic, inventory events, and world placement.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Events listened on:** `"inspectaclesgamechanged"`, `"ms_closepopup"`, `"itemget"`, `"equip"`, `"itemlose"`, `"unequip"`, `"onremove"`, `"onremove"` (on box entity).
-- **Components used implicitly via `inst`:** `inventory`, `player_classified`, `skilltreeupdater`.
-- **Tags observed:** `"inspectaclesvision"` (on items), `"inspectaclesbox"`, `"inspectaclesbox2"`.
-- **Tags not explicitly added or removed by this component itself.**
+## Overview
+`InspectaclesParticipant` handles the lifecycle of an Inspectacles minigame session for an entity (typically a player). It generates deterministic puzzles using world position and game ID, manages the box and its visual state (shown/hidden), handles cooldowns, grants rewards upon successful completion, and synchronizes game state between client and server via networked component fields. It interacts closely with the `inventory` component to check for vision-aiding items and the `skilltreeupdater` component to determine upgraded box eligibility.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("inspectaclesparticipant")
+inst.components.inspectaclesparticipant:SetCurrentGame(3, 120, -80)
+inst.components.inspectaclesparticipant:CreateNewAndOrShowCurrentGame()
+```
+
+## Dependencies & tags
+**Components used:** `inventory`, `skilltreeupdater`
+**Tags:** Checks `inspectaclesvision` (on items); no tags are added or removed directly.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | Reference to the owner entity. |
-| `ismastersim` | `boolean` | `TheWorld.ismastersim` | Whether this is the master simulation (server). |
-| `GRIDSIZE` | `number` | `3` | Hardcoded grid size used in UI rendering. |
-| `VALIDVALUEMAX` | `number` | `4` | Upper bound (exclusive) for puzzle data values (0–3 inclusive). |
-| `CLIENT_game` | `table` / `nil` | `nil` | Client-side game metadata (from `INSPECTACLES_GAMES_LOOKUP`). |
-| `CLIENT_puzzle` | `number` / `nil` | `nil` | Client-side computed puzzle ID. |
-| `CLIENT_puzzledata` | `table` / `nil` | `nil` | Client-side ring-buffer puzzle data. |
-| `game` | `table` / `nil` | `nil` | Server-side active game object. |
-| `posx`, `posz` | `number` / `nil` | `nil` | Server-side world coordinates of the game location. |
-| `puzzle` | `number` / `nil` | `nil` | Server-side computed puzzle ID. |
-| `puzzledata` | `table` / `nil` | `nil` | Server-side ring-buffer puzzle data. |
-| `box` | `Entity` / `nil` | `nil` | Reference to the spawned inspectacles box prefab. |
-| `hide` | `boolean` / `nil` | `nil` | Whether the current game is hidden (not visible). |
-| `upgraded` | `boolean` / `nil` | `nil` | Whether the inspectacles box is upgraded (via skill). |
-| `shardid` | `number` / `nil` | `nil` | Shard ID where the game was created (for shard-scoped games). |
-| `oninittask` | `Tasks` / `nil` | `nil` | One-shot task triggered on init to initialize the game state. |
-| `cooldowntask` | `Tasks` / `nil` | `nil` | Timer task for the cooldown period after finishing a game. |
+| `inst` | `Entity` | — | Reference to the entity this component is attached to. |
+| `ismastersim` | boolean | — | True if the current instance is the master simulation (server). |
+| `GRIDSIZE` | number | `3` | Constant used in the UI widget layout. |
+| `VALIDVALUEMAX` | number | `4` | Upper bound (exclusive) for puzzle value range `[0, 3]`. |
+| `game` | string? | `nil` | Server-side active game name (e.g., `"FREE_0"`). |
+| `posx`, `posz` | number? | `nil` | Server-side world coordinates of the game location. |
+| `puzzle`, `puzzledata` | — | `nil` | Server-side computed puzzle ID and ring-buffer data. |
+| `CLIENT_game`, `CLIENT_puzzle`, `CLIENT_puzzledata` | — | `nil` | Client-side cached values set via `inspectaclesgamechanged` event. |
+| `hide` | boolean? | `nil` | Server-side flag indicating if the current game box is hidden. |
+| `box` | `Entity`? | `nil` | Reference to the spawned `inspectaclesbox` (or `inspectaclesbox2` if upgraded) entity. |
+| `shardid` | number? | `nil` | Shard ID at the time of game start, used to restrict participation to the correct shard. |
+| `upgraded` | boolean? | `nil` | Server-side flag indicating whether the box should be upgraded. |
+| `cooldowntask` | `Task`? | `nil` | Server-side delayed task tracking the cooldown before next game can start. |
 
-## Main Functions
+## Main functions
+### `OnRemoveFromEntity()`
+*   **Description:** Cleans up event listeners and cancels pending tasks when the component is removed from the entity.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `OnClosePopup(data)`
+*   **Description:** Validates solution submitted via the Inspectacles popup and finishes the game if correct.
+*   **Parameters:**  
+    `data` (table) — Popup close event data; expects `data.popup == POPUPS.INSPECTACLES` and `data.args[1]` as the submitted solution.
+*   **Returns:** Nothing.
+*   **Error states:** Only proceeds if the submitted `solution` equals `0`; otherwise, does nothing.
+
 ### `CalculateGamePuzzle(gameid, posx, posz)`
-* **Description:** Computes a deterministic puzzle ID from game ID and world position using bit manipulation to ensure client and server generate identical puzzles.
-* **Parameters:**  
-  - `gameid`: `number` — Integer ID of the game (from `INSPECTACLES_GAMES`).  
-  - `posx`, `posz`: `number` — World coordinates of the game location.
+*   **Description:** Computes a deterministic puzzle ID using `gameid` and world tile coordinates at `(posx, posz)`; ensures identical puzzle generation on client and server.
+*   **Parameters:**  
+    `gameid` (number) — Numeric ID for the game type.  
+    `posx`, `posz` (numbers) — World coordinates (floats).
+*   **Returns:** number — A 24-bit puzzle ID (`0xFFFFFF` masked).
 
 ### `GetPuzzleData(puzzle)`
-* **Description:** Converts the numeric `puzzle` ID into a 12–18 element ring buffer of small values (0–3) used for minigame input logic.
-* **Parameters:**  
-  - `puzzle`: `number` — Puzzle ID from `CalculateGamePuzzle`.
+*   **Description:** Converts a puzzle ID into a ring-buffer of nibble-sized values (0–3) for use in the minigame UI and logic.
+*   **Parameters:**  
+    `puzzle` (number) — Puzzle ID (typically output of `CalculateGamePuzzle`).
+*   **Returns:** table — Ring-buffer object with `.size`, `.index`, `.GetNext()`, `.Reset()`, and numeric values.
 
 ### `CheckGameSolution(solution)`
-* **Description:** Validates the player-submitted solution; currently only accepts `solution == 0` as valid on server.
-* **Parameters:**  
-  - `solution`: `number` — Player’s submitted answer (0–3 typically).
+*   **Description:** Validates a submitted solution on the server.
+*   **Parameters:**  
+    `solution` (number) — Submitted answer.
+*   **Returns:** boolean — `true` only if `solution == 0` (hardcoded pass condition).
+*   **Error states:** Returns `false` on client; no assert if called client-side.
 
-### `SetCurrentGame(gameid, posx, posz)`
-* **Description:** Sets the active game state on the server (including puzzle and puzzle data), updates network variables, and triggers box creation.
-* **Parameters:**  
-  - `gameid`: `number` / `nil` — Game ID or `nil` to clear the game.  
-  - `posx`, `posz`: `number` — Game position.
-
-### `CreateNewAndOrShowCurrentGame()`
-* **Description:** If no active game exists, spawns a new one at a valid location, sets up the puzzle, creates/shows the box, and handles upgraded-box logic. Returns `true` on success.
-* **Parameters:** None.
-
-### `FindGameLocation(gameid)`
-* **Description:** Finds a walkable, safe (non-hole) location near the entity to spawn the game, prioritizing closer positions.
-* **Parameters:** None.
-
-### `CreateBox()`
-* **Description:** Spawns either `"inspectaclesbox"` or `"inspectaclesbox2"` (if upgraded), positions it, marks it viewable by the owner, and sets up cleanup events.
-* **Parameters:** None.
-
-### `UpdateBox()`
-* **Description:** Ensures the game box exists on the server (calls `CreateBox()` if missing).
-* **Parameters:** None.
-
-### `GrantRewards()`
-* **Description:** Triggers loot pinsata effects on the box (server only).
-* **Parameters:** None.
-
-### `UpdateInspectacles()`
-* **Description:** Updates all equipped items with the `"inspectaclesvision"` tag (e.g., updates their visuals or state).
-* **Parameters:** None.
-
-### `FinishCurrentGame()`
-* **Description:** Finalizes the current game: grants rewards, resets game state, starts cooldown, and updates inspectacles visuals.
-* **Parameters:** None.
-
-### `IsFreeGame(game)`
-* **Description:** Returns `true` if the game is marked as `"NONE"` or starts with `"FREE"` (no minigime required).
-* **Parameters:**  
-  - `game`: `string` — Game name or identifier.
-
-### `HideCurrentGame()` / `ShowCurrentGame()`
-* **Description:** Controls visibility of the current game on the network (server only). `Hide` suppresses network broadcast; `Show` restores it.
-* **Parameters:** None.
-
-### `ApplyCooldown(overridetime)`
-* **Description:** Starts or resets a cooldown timer; prevents new games from starting until elapsed.
-* **Parameters:**  
-  - `overridetime`: `number` / `nil` — Optional custom cooldown duration.
-
-### `IsInCooldown()`
-* **Description:** Returns `true` if the cooldown timer is active.
-* **Parameters:** None.
-
-### `IsUpgradedBox()`
-* **Description:** Returns `true` if the current box (if any) is upgraded via skill.
-* **Parameters:** None.
-
-### `OnCooldownFinished()`
-* **Description:** Handler for cooldown expiration: restarts game if an inspectacles vision item is equipped, and updates visuals.
-* **Parameters:** None.
-
-### `GetCLIENTDetails()` / `GetSERVERDetails()`
-* **Description:** Returns current game, puzzle, and puzzle data for client/server respectively.
-* **Parameters:** None.
-
-### `OnSave()` / `OnLoad(data)`
-* **Description:** Serializes/deserializes game state (including active game, cooldown, and box upgrade status).
-* **Parameters:**  
-  - `data`: `table` / `nil` — Serialized data from `OnSave()`.
+### `OnInspectaclesGameChanged(data)`
+*   **Description:** Updates client-side state when the game changes (e.g., `inspectaclesgamechanged` event).
+*   **Parameters:**  
+    `data` (table) — Contains `gameid`, `posx`, `posz`.
+*   **Returns:** Nothing.
+*   **Error states:** Only processes if `self.inst == ThePlayer`; clears client cache on `gameid == 0`.
 
 ### `OnSignalPulse()`
-* **Description:** Triggers client-side `inspectaclesping` event or server-side `UpdateBox()` call.
-* **Parameters:** None.
+*   **Description:** Triggers client-side game ping or server-side box update.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `IsParticipantClose(range)`
-* **Description:** Checks if the entity is within a given range (in world units) of the game location or box.
-* **Parameters:**  
-  - `range`: `number` — Distance threshold (default `4`).
+*   **Description:** Checks whether the participant entity is within a given range of the game’s active location.
+*   **Parameters:**  
+    `range` (number?, optional) — Distance threshold; defaults to `4`.
+*   **Returns:** boolean — `true` if within range, `false` otherwise.
+
+### `GetCLIENTDetails()` / `GetSERVERDetails()`
+*   **Description:** Returns cached client/server puzzle data.
+*   **Parameters:** None.
+*   **Returns:** (game, puzzle, puzzledata) — Values as defined by `CLIENT_*` or `game`, `puzzle`, `puzzledata`.
+
+### `IsFreeGame(game)`
+*   **Description:** Checks if the game is a no-minigame type (no interaction required).
+*   **Parameters:**  
+    `game` (string?) — Game name (e.g., `"NONE"` or `"FREE_*"`).
+*   **Returns:** boolean — `true` if game type requires no minigame.
+
+### `NetworkCurrentGame()`
+*   **Description:** Syncs current game data to the `player_classified.inspectacles_*` networked fields.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if not master-sim; also no-ops if `player_classified` is missing.
+
+### `SetCurrentGame(gameid, posx, posz)`
+*   **Description:** Initializes or clears the current game session (server-only).
+*   **Parameters:**  
+    `gameid` (number?) — Game ID (`nil` clears the session).  
+    `posx`, `posz` (numbers) — World coordinates of the game location.
+*   **Returns:** Nothing.
+
+### `FindGameLocation(gameid)`
+*   **Description:** Finds a walkable, hole-free location near the participant to place the game box.
+*   **Parameters:**  
+    `gameid` (number) — Game ID (unused internally, but passed for consistency).
+*   **Returns:** number?, number? — `(x, z)` coordinates or `nil, nil` on failure.
+
+### `CreateBox()`
+*   **Description:** Spawns the game box (`inspectaclesbox` or `inspectaclesbox2`) and configures it.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if not master-sim or if `self.box` already exists.
+
+### `CanCreateGameInWorld()`
+*   **Description:** Checks if the world permits Inspectacles minigames.
+*   **Parameters:** None.
+*   **Returns:** boolean — `false` in cave worlds (`"cave"` tag present).
+
+### `CreateNewAndOrShowCurrentGame()`
+*   **Description:** Creates a new game (if none exists) and shows its box; handles cooldowns and upgrades.
+*   **Parameters:** None.
+*   **Returns:** boolean — `true` if a new game was created, `false` otherwise.
+
+### `FinishCurrentGame()`
+*   **Description:** Finalizes the current game session: grants rewards, resets state, and starts cooldown.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `UpdateBox()`
+*   **Description:** Ensures the game box exists on the server; creates it if missing.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `GrantRewards()`
+*   **Description:** Triggers loot pinata on the game box to distribute rewards.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `UpdateInspectacles()`
+*   **Description:** Refreshes the visual state of all items tagged `inspectaclesvision`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `HideCurrentGame()` / `ShowCurrentGame()`
+*   **Description:** Sets or clears the `hide` flag and synchronizes it.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if not master-sim, no active game, or already in requested state.
+
+### `OnCooldownFinished()`
+*   **Description:** Called when the cooldown ends: attempts to start a new game if `inspectaclesvision` item is equipped.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `ApplyCooldown(overridetime)`
+*   **Description:** Starts or resets the cooldown timer.
+*   **Parameters:**  
+    `overridetime` (number?, optional) — Cooldown duration in seconds (defaults to `TUNING.SKILLS.WINONA.INSPECTACLES_COOLDOWNTIME`).
+*   **Returns:** Nothing.
+*   **Error states:** No-op if not master-sim or if a game is already active.
+
+### `IsInCooldown()`
+*   **Description:** Checks whether a cooldown is currently active.
+*   **Parameters:** None.
+*   **Returns:** boolean — `true` if `cooldowntask` is set.
+
+### `IsUpgradedBox()`
+*   **Description:** Reports if the current game’s box is upgraded.
+*   **Parameters:** None.
+*   **Returns:** boolean? — `true`, `false`, or `nil`.
 
 ### `LongUpdate(dt)`
-* **Description:** Synchronizes the cooldown timer task across simulation frames.
-* **Parameters:**  
-  - `dt`: `number` — Delta time.
+*   **Description:** Adjusts the remaining cooldown time (used during save/load or pause handling).
+*   **Parameters:**  
+    `dt` (number) — Delta time to adjust.
+*   **Returns:** Nothing.
+
+### `OnSave()`
+*   **Description:** Returns serializable state for persistence (game data or cooldown state).
+*   **Parameters:** None.
+*   **Returns:** table? — Game or cooldown state; `nil` if none.
+
+### `OnLoad(data)`
+*   **Description:** Restores state from saved data.
+*   **Parameters:**  
+    `data` (table?) — Saved data.
+*   **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a human-readable debug string summarizing current game state.
-* **Parameters:** None.
+*   **Description:** Provides a human-readable debug summary of game state.
+*   **Parameters:** None.
+*   **Returns:** string — Formatted debug string (e.g., `"[HIDDEN] FREE_0 @(120, -80) Puzzle A1B2C3 Shard 1"`).
 
-## Events & Listeners
-- **Listens for `"inspectaclesgamechanged"`** → triggers `OnInspectaclesGameChanged`.
-- **Listens for `"ms_closepopup"` (master sim only)** → triggers `OnClosePopup`.
-- **Listens for `"itemget"`, `"equip"`, `"itemlose"`, `"unequip"` (master sim only)** → triggers `OnEquipChanged`, which may call `UpdateInspectacles()` if an `"inspectaclesvision"` item changed.
-- **Listens for `"onremove"` (on self and box entities)** → cleans up box reference or state.
+## Events & listeners
+- **Listens to:**  
+    `inspectaclesgamechanged` — Updates client-side game state.  
+    `ms_closepopup` (server-only) — Handles popup solution submission.  
+    `itemget`, `equip`, `itemlose`, `unequip` (server-only) — Triggers `UpdateInspectacles()` when `inspectaclesvision` items change.  
+    `onremove` (on `self.box`) — Clears `self.box` reference when the box is removed.
+
+- **Pushes:**  
+    `inspectaclesping` (client-side) — Emitted with `{tx, tz}` when `OnSignalPulse()` is called and `CLIENT_game` is active.

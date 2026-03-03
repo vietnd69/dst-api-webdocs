@@ -1,55 +1,64 @@
 ---
 id: plantresearchable
 title: Plantresearchable
-description: Marks an entity as a researchable plant and provides methods to retrieve, check, and signal plant research progress.
+description: Enables an entity to provide researchable plant information and supports unlocking plant stages for research purposes.
+tags: [research, plant, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: ee7d6cbb
+system_scope: entity
 ---
 
 # Plantresearchable
 
-## Overview
-This component enables an entity (typically a plant) to be recognized as researchable in the game, allowing other systems (e.g., the Blueprint or Science Machine UI) to query its research information and track progression through research stages. It assigns the `"plantresearchable"` tag and supports custom research metadata via a configurable callback.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Tags Added:** `"plantresearchable"`
-- **Dependencies:** None (does not require or initialize other components directly)
+## Overview
+`PlantResearchable` is a component that marks an entity as providing researchable plant data and facilitates the discovery of plant growth stages. It is typically attached to plant prefabs in the game world (e.g., Saplings, Carrot Plants, etc.) and allows entities like the Science Machine or Auto Animator to access and process their research metadata. When an entity with this component is interacted with for research, it notifies the_doer (typically a player or instrument) by pushing a `learnplantstage` event with plant name and stage information.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("plantresearchable")
+inst.components.plantresearchable:SetResearchFn(function(entity)
+    return { plant = "carrot", stage = 1 }
+end)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `plantresearchable`
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `inst` | `Entity` | *(constructor parameter)* | Reference to the entity this component is attached to. |
-| `reasearchinfofn` | `function` | `nil` | Callback function used to retrieve research data (`plant` name and `stage` index) for the entity. |
+No public properties
 
-> **Note:** The property name `reasearchinfofn` appears to be a typo for `researchinfofn`, but is preserved as written in the source.
-
-## Main Functions
-
+## Main functions
 ### `SetResearchFn(fn)`
-* **Description:** Sets the callback function used to retrieve research information (plant name and stage) when `GetResearchInfo()` is called.
-* **Parameters:**
-  * `fn` (*function*) — A function that takes the entity (`inst`) as an argument and returns a table `{ plant = <string>, stage = <number> }`, or `nil` to indicate no researchable data.
+*   **Description:** Assigns a custom function to generate research information about the plant. This function is called later to retrieve plant name and growth stage.
+*   **Parameters:** `fn` (function) - a callback taking `self.inst` (the entity) and returning `{ plant = string, stage = number }` or `nil` if invalid.
+*   **Returns:** Nothing.
 
 ### `GetResearchInfo()`
-* **Description:** Invokes the stored research function (if set) and returns its result.
-* **Parameters:** None.
+*   **Description:** Invokes the research function (if set) and returns the plant metadata.
+*   **Parameters:** None.
+*   **Returns:** `{ plant = string, stage = number }` if successful; `nil` if no function is set or the function returns `nil`.
+*   **Error states:** May return `nil` if `reasearchinfofn` is unassigned or yields `nil`.
 
 ### `IsRandomSeed()`
-* **Description:** Returns `true` if the entity is considered a random seed (i.e., `GetResearchInfo()` returns `nil`), indicating no fixed research identity.
-* **Parameters:** None.
+*   **Description:** Determines whether the plant is a random seed (i.e., its research info cannot be determined).
+*   **Parameters:** None.
+*   **Returns:** `true` if `GetResearchInfo()` returns `nil`; otherwise `false`.
 
 ### `LearnPlant(doer)`
-* **Description:** Triggers the `"learnplantstage"` event on the `doer` (typically a player) with the plant name and current research stage, if research info is available.
-* **Parameters:**
-  * `doer` (*Entity*) — The entity (usually the player) performing the research action. Must support receiving the `"learnplantstage"` event.
+*   **Description:** Notifies the `doer` entity that a plant stage has been learned, by pushing a `learnplantstage` event. Typically called when the plant is examined by a research tool or machine.
+*   **Parameters:** `doer` (Entity) - the entity performing the research; must support `PushEvent`.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `GetResearchInfo()` returns `nil` or `stage` is invalid. Only proceeds if both `plant` and `stage` are truthy.
 
-## Events & Listeners
-- **Listens For:** None.
-- **Emits:**  
-  - `"learnplantstage"` — Pushed on the `doer` entity with payload `{ plant = <string>, stage = <number> }` inside `LearnPlant()`.
+## Events & listeners
+- **Listens to:** None identified  
+- **Pushes:** `learnplantstage` — fired when `LearnPlant()` is called with valid research info; payload is `{ plant = string, stage = number }`.

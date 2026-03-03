@@ -1,47 +1,67 @@
 ---
 id: klaussacklock
 title: Klaussacklock
-description: This component enables an entity to process locking or unlocking actions via a key, by invoking a custom callback function when used.
+description: Manages keyed interaction logic for Klaus sack locks, allowing or denying access based on a callback function and key consumption behavior.
+tags: [lock, key, interaction]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: c6d9a545
+system_scope: entity
 ---
 
 # Klaussacklock
 
-## Overview
-This component serves as a locking mechanism for entities (typically containers or doors), allowing interaction with keys. It stores a callback function (`onusekeyfn`) that defines how a key should be processed when used on the entity. It also automatically adds and removes the `"klaussacklock"` tag on the entity to indicate its purpose.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Tags added:** `"klaussacklock"` (added in constructor, removed on entity removal)
-- **Component dependencies:** Relies on `key.components.stackable` being present if key is stackable and consumed; otherwise calls `key:Remove()` directly.
+## Overview
+`KlausSackLock` enables customizable key-based unlocking logic for entities (specifically designed for Klaus sack locks). It associates a callback function (`onusekeyfn`) with the lock and executes it when `UseKey` is called, handling key validation and optional consumption via the `stackable` component. The component automatically adds and removes the `klaussacklock` tag on the entity to identify its presence.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("klaussacklock")
+
+inst.components.klaussacklock:SetOnUseKey(function(lock_inst, key, doer)
+    if key.prefab == "klauskey" then
+        return true, nil, true -- success, no error message, consume key
+    end
+    return false, "Does not fit", false -- failure, error message, do not consume
+end)
+
+-- Later, attempt to use a key:
+local success, msg = inst.components.klaussacklock:UseKey(some_key, some_actor)
+```
+
+## Dependencies & tags
+**Components used:** `stackable` (read via `key.components.stackable` for key removal)
+**Tags:** Adds `klaussacklock`; removes `klaussacklock` on component removal.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (set via constructor) | Reference to the owning entity instance. |
-| `onusekeyfn` | `function?` | `nil` | Callback function to invoke on key use; signature: `fn(inst, key, doer) -> success: boolean, fail_msg: string?, consumed: boolean`. |
+| `onusekeyfn` | function\|nil | `nil` | Callback function invoked by `UseKey`. Signature: `fn(lock_inst, key, doer) → (success: boolean, fail_msg: string\|nil, consumed: boolean)`. |
+| `inst` | entity | `nil` | Reference to the entity this component is attached to (set in constructor). |
 
-## Main Functions
-
+## Main functions
 ### `SetOnUseKey(onusekeyfn)`
-* **Description:** Assigns the callback function that defines the logic for using a key on this entity.
-* **Parameters:**  
-  `onusekeyfn` (`function`): A function with signature `(entity, key, doer) -> (success: boolean, fail_msg: string?, consumed: boolean)`.
+* **Description:** Sets the callback function that defines unlock logic when a key is used.
+* **Parameters:** `onusekeyfn` (function\|nil) — a function that accepts `lock_inst`, `key`, and `doer` and returns three values: `success` (boolean), optional `fail_msg` (string\|nil), and `consumed` (boolean).
+* **Returns:** Nothing.
 
 ### `UseKey(key, doer)`
-* **Description:** Executes the key-usage logic by invoking `onusekeyfn`. Handles key consumption (removing the key from inventory or destroying it) if the callback signals consumption. Returns success/failure state and optional failure message.
-* **Parameters:**  
-  `key` (`Entity?`): The key entity being used. Must be valid.  
-  `doer` (`Entity`): The entity (typically a player) performing the key use action.  
-  **Returns:**  
-  - `true` if the operation succeeded and key was consumed.  
-  - `false, fail_msg` if the operation failed (e.g., incorrect key, condition not met), where `fail_msg` is a message to display.
+* **Description:** Attempts to unlock the lock using the provided key, invoking the configured `onusekeyfn`. Handles key validation and removal if `consumed` is true.
+* **Parameters:** `key` (entity\|nil) — the key entity to attempt unlocking; `doer` (entity) — the actor attempting the unlock.
+* **Returns:** `true` on success; `false, fail_msg` on failure (with optional message).
+* **Error states:** Returns `false` immediately if `key` is `nil`, `key:IsValid()` is false, or `onusekeyfn` is `nil`.
 
-## Events & Listeners
+## Events & listeners
 None identified.
+
+## Key behavior notes
+- The component **does not** manage keys automatically beyond calling `UseKey`; it relies entirely on the `onusekeyfn` callback for business logic.
+- Key removal is automatic if `onusekeyfn` returns `consumed = true`. For stackable keys, `stackable:Get():Remove()` is used to safely decrement and remove one unit.
+- The `klaussacklock` tag is essential for identification (e.g., via `inst:HasTag("klaussacklock")`) and must not be manually removed by mods.

@@ -1,76 +1,98 @@
 ---
 id: steeringwheeluser
 title: Steeringwheeluser
-description: Manages a player entity's interaction with a steering wheel, including orientation, animation triggers, and boat rudder control.
+description: Manages a character's interaction with a steering wheel to control boat movement, including state transitions and rudder direction updates.
+tags: [boat, locomotion, player]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 5fced0e5
+system_scope: locomotion
 ---
-
 # Steeringwheeluser
 
-## Overview
-This component enables a player entity to operate a steering wheel by linking to a steering wheel entity, orienting the player, managing the `"steeringboat"` tag, and controlling the boat's rudder direction through the boat’s `boatphysics` component. It also handles animation state and cleanup when disengaging or moving away from the steering wheel.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Dependencies:**  
-  - Requires `inst.Physics:Teleport()` to reposition the player to the wheel.
-  - Assumes presence of `inst.sg` (state graph) with `"is_using_steering_wheel"` state tag.
-  - Relies on `self.steering_wheel.components.steeringwheel` (specifically `StartSteering()` and `StopSteering()` methods).
-  - Relies on `self.boat.components.boatphysics` (specifically `GetRudderDirection()` and `SetTargetRudderDirection()` methods).
-- **Tags Added/Removed:**  
-  - Adds `"steeringboat"` tag when actively steering (`inst:AddTag("steeringboat")`).
-  - Removes `"steeringboat"` tag upon disengaging (`inst:RemoveTag("steeringboat")`).
+## Overview
+`Steeringwheeluser` enables a character entity to take control of a boat via a `steeringwheel` component. It coordinates state transitions (entering/exiting steering), synchronizes the character's position with the steering wheel, manages rudder direction updates through the boat's `boatphysics` component, and listens for relevant events such as wheel or boat removal. It is typically attached to player prefabs to facilitate boat steering.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("steeringwheeluser")
+
+-- Later, to begin steering:
+local wheel = GetSomeSteeringWheelEntity()
+inst.components.steeringwheeluser:SetSteeringWheel(wheel)
+
+-- To manually steer toward a point:
+inst.components.steeringwheeluser:Steer(target_x, target_z)
+
+-- To steer in a specific direction:
+inst.components.steeringwheeluser:SteerInDir(dir_x, dir_z)
+
+-- To retrieve the current boat being steered:
+local boat = inst.components.steeringwheeluser:GetBoat()
+```
+
+## Dependencies & tags
+**Components used:**  
+- `boatphysics` — accessed via `self.boat.components.boatphysics` to get/set rudder direction.  
+- `steeringwheel` — accessed via `self.steering_wheel.components.steeringwheel` to start/stop steering.  
+
+**Tags:** Adds `steeringboat` when actively steering; removes it when stopped.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (assigned in constructor) | Reference to the owning player entity. |
-| `should_play_left_turn_anim` | `boolean` | `false` | Indicates whether the left-turn animation should be played (used for visual feedback during rudder input). |
-| `steering_wheel` | `Entity?` | `nil` | Reference to the currently engaged steering wheel entity. |
-| `boat` | `Entity?` | `nil` | Reference to the boat currently under control (retrieved via `GetCurrentPlatform()`). |
-| `wheel_remove_callback` | `function` | anonymous function | Callback triggered when the steering wheel is removed; handles disengagement and cleanup. |
-| `onstopturning` | `function` | anonymous function | Callback triggered when the boat stops turning; emits `"playerstopturning"` event. |
-| `onboatremoved` | `function` | anonymous function | Callback triggered when the boat is removed; clears the `boat` reference. |
+| `inst` | `Entity` | — | The entity instance this component is attached to. |
+| `steering_wheel` | `Entity?` | `nil` | Reference to the currently used steering wheel entity. |
+| `boat` | `Entity?` | `nil` | Reference to the current boat platform (via `GetCurrentPlatform()`). |
+| `should_play_left_turn_anim` | boolean | `false` | Indicates whether the left-turn animation should play based on rudder direction change. |
+| `wheel_remove_callback` | function | — | Callback fired when the steering wheel is removed; handles cleanup. |
+| `onstopturning` | function | — | Callback fired when the boat signals `stopturning` (e.g., rudder centered). |
+| `onboatremoved` | function | — | Callback fired when the boat entity is removed. |
 
-## Main Functions
-
+## Main functions
 ### `SetSteeringWheel(steering_wheel)`
-* **Description:** Assigns or clears the currently active steering wheel. If switching wheels or clearing, it handles cleanup of old connections, tag management, event listeners, and state transitions (e.g., exiting `"stop_steering"` state). If assigning a new wheel, it links the player, updates position via teleport, sets `"steeringboat"` tag, registers listeners, and activates steering on the wheel.
-* **Parameters:**  
-  - `steering_wheel` (`Entity?`): The steering wheel entity to engage, or `nil` to disengage.
+* **Description:** Starts or stops steering a boat using the specified steering wheel. If a different wheel is provided, it cleanly transitions from the previous wheel. Passing `nil` ends steering and resets position/orientation state.  
+* **Parameters:** `steering_wheel` (`Entity?`) — the steering wheel entity to use, or `nil` to stop steering.  
+* **Returns:** Nothing.  
+* **Error states:** No explicit error handling; silently ignores duplicate calls.
 
 ### `Steer(pos_x, pos_z)`
-* **Description:** Computes a normalized direction vector from the boat’s current position toward the given world coordinates and initiates steering in that direction via `SteerInDir`. Returns `false` if no boat is attached.
+* **Description:** Calculates the steering direction from the boat's current position toward the given world coordinates (`pos_x`, `pos_z`) and sets the rudder accordingly.  
 * **Parameters:**  
-  - `pos_x` (`number`): X-coordinate of the target position.  
-  - `pos_z` (`number`): Z-coordinate of the target position.  
-* **Returns:** `boolean` — `true` if steering was initiated, `false` if `self.boat` is `nil`.
+  - `pos_x` (number) — X coordinate of the target position.  
+  - `pos_z` (number) — Z coordinate of the target position.  
+* **Returns:** `boolean` — `true` if a boat is present and steering direction was computed; `false` if `self.boat` is `nil`.  
 
 ### `SteerInDir(dir_x, dir_z)`
-* **Description:** Sets the boat’s target rudder direction to the provided normalized direction vector. Determines whether a left-turn animation should play based on cross-product sign of current vs. target rudder direction, and triggers the `"set_heading"` event if direction change is significant (> tolerance).
+* **Description:** Directly sets the boat's target rudder direction to the normalized input vector. Also determines whether to trigger the left-turn animation based on the cross product of current and target headings.  
 * **Parameters:**  
-  - `dir_x` (`number`): X-component of the target rudder direction (normalized).  
-  - `dir_z` (`number`): Z-component of the target rudder direction (normalized).  
+  - `dir_x` (number) — X component of the desired rudder direction vector.  
+  - `dir_z` (number) — Z component of the desired rudder direction vector.  
+* **Returns:** Nothing.  
+* **Error states:** Returns early (no-op) if `self.boat` is `nil`. Updates `should_play_left_turn_anim` only if the change in heading exceeds a small tolerance (`0.1`).
 
 ### `GetBoat()`
-* **Description:** Returns the entity currently identified as the player’s platform (typically the boat).
-* **Returns:** `Entity?` — The current platform entity.
+* **Description:** Returns the entity currently recognized as the boat platform.  
+* **Parameters:** None.  
+* **Returns:** `Entity?` — the boat entity, or `nil` if none.  
 
 ### `OnUpdate(dt)`
-* **Description:** Periodically called while the component is being updated. Verifies the steering wheel is still valid and that the state graph remains in `"is_using_steering_wheel"`; if not, it aborts. Ensures player position is synchronized with the steering wheel.
-* **Parameters:**  
-  - `dt` (`number`): Delta time since last update (unused in logic but passed by engine).
+* **Description:** Called each frame while the character is updating as a steering user. Synchronizes the character's position with the steering wheel and validates steering state.  
+* **Parameters:** `dt` (number) — delta time since the last frame.  
+* **Returns:** Nothing.  
+* **Error states:** Stops updating and exits steering if `self.steering_wheel` becomes `nil` or the state graph is no longer in a "steering" state.
 
-## Events & Listeners
-- Listens for `"onremove"` on `steering_wheel` → triggers `wheel_remove_callback`.
-- Listens for `"stopturning"` on `boat` → triggers `onstopturning`.
-- Listens for `"onremove"` on `boat` → triggers `onboatremoved`.
-- Pushes `"playerstopturning"` when `onstopturning` is invoked.
-- Pushes `"set_heading"` when a new rudder direction is set and animation should play.
-- Pushes `"stop_steering_boat"` when disengaging from a steering wheel (via `wheel_remove_callback`).
+## Events & listeners
+- **Listens to:**  
+  - `onremove` — on `steering_wheel` and `boat` entities, via `wheel_remove_callback` and `onboatremoved`.  
+  - `stopturning` — on the boat entity, via `onstopturning` (fires `playerstopturning` event).  
+- **Pushes:**  
+  - `stop_steering_boat` — fired when steering ends.  
+  - `playerstopturning` — fired when `stopturning` is received from the boat.  
+  - `set_heading` — fired when rudder direction changes significantly (to trigger animation).

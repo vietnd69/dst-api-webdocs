@@ -1,146 +1,171 @@
 ---
 id: workable
 title: Workable
-description: Provides an entity with the ability to be worked on by players (e.g., chopped, mined, planted), tracking remaining work progress and triggering callbacks upon completion.
+description: Manages the work state and completion logic for interactable entities in the game world.
+tags: [interaction, repair, inventory, combat]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 99bf54ea
+system_scope: entity
 ---
 
 # Workable
 
-## Overview
-The `Workable` component enables entities (e.g., trees, rocks, crops) to be acted upon by players through manual labor or tools. It manages work progress (`workleft`), defines what action is required (e.g., chopping, mining), and handles progress decrement, completion callbacks, and state persistence. It also manages entity tags (e.g., `"chop_workable"`) for UI and logic integration, and integrates with recoil and work multiplier systems.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies**: None directly required (but typically used alongside `repairable`, `inventory`, `tool`, `diseaseable`, or `plant` components in practice).
-- **Tags Added/Removed**:
-  - `"workrepairable"` (added/removed by `onworkable` or `OnRemoveFromEntity` when `repairable` exists and conditions are met).
-  - `<action.id>_workable` (e.g., `"chop_workable"`) — added/removed based on `workleft > 0` and `workable` state; managed dynamically when `workleft`, `maxwork`, `workable`, or `action` changes.
+## Overview
+The `Workable` component defines how an entity responds to being worked on (e.g., chopped, mined, dug) by players or other entities. It tracks work progress (`workleft`), defines whether the entity is currently workable, and integrates with repair, inventory, and tool systems. When `workleft` reaches zero, it triggers finalization callbacks and emits events such as `workfinished`. It also supports state persistence across saves and dynamic behavior via callback functions.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("workable")
+inst.components.workable:SetMaxWork(20)
+inst.components.workable:SetWorkAction(ACTIONS.CHOP)
+inst.components.workable:SetOnFinishCallback(function(inst, worker)
+    inst:Remove()
+end)
+```
+
+## Dependencies & tags
+**Components used:** `repairable`, `inventory`, `tool`, `diseaseable`  
+**Tags:** Adds `workrepairable` and `action.id.."_workable"` (e.g., `"chop_workable"`). Removes them on removal or completion.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `workleft` | `number` | `10` | Remaining work units needed to finish; reduced on each successful work action. |
-| `maxwork` | `number` | `-1` | Maximum work units for the entity. If `<= 0`, `workleft` is not clamped to a cap. When `> 0`, `workleft` is clamped between `1` and `maxwork`. |
-| `action` | `Action` | `ACTIONS.CHOP` | The action type (e.g., chop, mine, dig) the entity responds to. |
-| `workable` | `boolean` | `true` | Whether the entity can currently be worked on. |
-| `savestate` | `boolean` | `false` | Whether the component’s state (`workleft`, `maxwork`) should be saved to disk. |
-| `tough` | `boolean` | `nil` | Optional flag indicating if *tough worker* capability is required (via `SetRequiresToughWork`). Not set by default. |
+| `workleft` | number | `10` | Remaining work units needed to finish; clamped or adjusted per `maxwork`. |
+| `maxwork` | number | `-1` | Maximum work value; `-1` disables clamping. |
+| `action` | `ACTIONS.*` constant | `ACTIONS.CHOP` | Action type used for tag management and events. |
+| `workable` | boolean | `true` | Whether the entity can currently be worked. |
+| `savestate` | boolean | `false` | Whether work state should be saved. |
+| `tough` | boolean | `false` (commented out) | Whether this work requires a tough worker or tool. |
+| `lastworktime` | number | `nil` | Timestamp of last work performed (set in `WorkedBy_Internal`). |
+| `lastworker` | `inst` | `nil` | Entity that last performed work. |
+| `onwork` | function | `nil` | Callback invoked per work tick. |
+| `onfinish` | function | `nil` | Callback invoked on work completion. |
+| `workmultiplierfn` | function | `nil` | Function to modify `numworks` per call. |
+| `shouldrecoilfn` | function | `nil` | Function to handle recoil or tool breakage effects. |
+| `onloadfn` | function | `nil` | Callback invoked after loading from save data. |
 
-*Note:* Other fields like `onwork`, `onfinish`, `workmultiplierfn`, `shouldrecoilfn`, and `onloadfn` are internal callbacks or functions, not serialized state properties.
+## Main functions
+### `WorkedBy(worker, numworks)`
+*   **Description:** Initiates a work action on this entity. Handles tool recoil, applies work amount, and triggers internal processing. Called automatically when a worker interacts.
+*   **Parameters:** `worker` (`inst`) - Entity performing the work; `numworks` (number) - Work units to apply.
+*   **Returns:** Nothing.
+*   **Error states:** Internally calls `WorkedBy_Internal`. No direct error return.
 
-## Main Functions
+### `WorkedBy_Internal(worker, numworks)`
+*   **Description:** Executes the core work logic: reduces `workleft`, emits events, triggers completion callbacks if finished. Not meant for direct external calls.
+*   **Parameters:** `worker` (`inst`) - Entity performing work; `numworks` (number, optional, default `1`) - Work units after multiplier and recoil logic.
+*   **Returns:** Nothing.
+*   **Error states:** Applies clamping logic to `workleft`; if `numworks <= 0` after multiplier, no change occurs.
 
-### `Workable:Destroy(destroyer)`
-* **Description:** Forces completion of remaining work, triggering `WorkedBy` and potentially `onfinish` if `CanBeWorked()` returns true. Used when an entity is destroyed (e.g., by an action that bypasses full work cycles).
-* **Parameters:**
-  - `destroyer`: The `GameObject` performing the destruction.
+### `Destroy(destroyer)`
+*   **Description:** Immediately completes the work (if possible) by calling `WorkedBy` with current `workleft`.
+*   **Parameters:** `destroyer` (`inst`) - Entity performing the destroy action.
+*   **Returns:** Nothing.
 
-### `Workable:WorkedBy(worker, numworks)`
-* **Description:** Handles a work attempt by a worker (typically a player). Applies tool/recoil logic and reduces `workleft`. Calls internal logic (`WorkedBy_Internal`), triggers events (`"worked"`, `"working"`), and fires callbacks.
-* **Parameters:**
-  - `worker`: The `GameObject` performing the work.
-  - `numworks`: Number of work units to apply (may be adjusted by multiplier/recoil logic). Default: `1`.
+### `SetWorkable(able)`
+*   **Description:** Sets whether this entity can be worked. Triggers tag updates.
+*   **Parameters:** `able` (boolean).
+*   **Returns:** Nothing.
 
-### `Workable:WorkedBy_Internal(worker, numworks)`
-* **Description:** Core logic for decrementing work progress (after recoil checks). Handles floating-point precision, updates `lastworktime` and `lastworker`, fires `"worked"`/`"working"` events, and fires `onwork` callback. If `workleft <= 0` afterward, triggers `"workfinished"` and `onfinish` callback.
-* **Parameters:**
-  - `worker`: The `GameObject` performing work.
-  - `numworks`: Work units to deduct (may be fractional).
+### `SetWorkLeft(work)`
+*   **Description:** Sets `workleft` to `work`, ensuring it is at least `1`. Updates `workable` to `true`. Respects `maxwork` if positive.
+*   **Parameters:** `work` (number, optional, default `10`).
+*   **Returns:** Nothing.
 
-### `Workable:SetWorkLeft(work)`
-* **Description:** Sets `workleft` to a clamped value (if `maxwork > 0`) or at least `1`. Also forces `workable = true`.
-* **Parameters:**
-  - `work`: Desired work value. Defaults to `10` if `nil`.
+### `GetWorkLeft()`
+*   **Description:** Returns current `workleft` if `workable`, otherwise `0`.
+*   **Parameters:** None.
+*   **Returns:** number.
 
-### `Workable:CanBeWorked()`
-* **Description:** Returns `true` if `workable` and `workleft > 0`.
-* **Returns:** `boolean`.
+### `CanBeWorked()`
+*   **Description:** Checks if the entity is currently workable and has remaining work.
+*   **Parameters:** None.
+*   **Returns:** boolean (`true` if `workable` and `workleft > 0`).
 
-### `Workable:GetWorkLeft()`
-* **Description:** Returns current `workleft` if `workable`; otherwise returns `0`.
-* **Returns:** `number`.
+### `SetMaxWork(work)`
+*   **Description:** Sets the maximum work value (`maxwork`), clamped to at least `1`.
+*   **Parameters:** `work` (number, optional, default `10`).
+*   **Returns:** Nothing.
 
-### `Workable:SetWorkable(able)`
-* **Description:** Sets the `workable` state flag. Automatically updates `"workrepairable"` and `"<action>_workable"` tags.
-* **Parameters:**
-  - `able`: `true` to make the entity workable; `false` to disable.
+### `SetWorkAction(act)`
+*   **Description:** Sets the work action type (e.g., `ACTIONS.CHOP`, `ACTIONS.MINE`), which determines associated tags and event context.
+*   **Parameters:** `act` (`ACTIONS.*` constant).
+*   **Returns:** Nothing.
 
-### `Workable:SetMaxWork(work)`
-* **Description:** Sets the maximum work value (minimum `1`). Resets `workleft` via `SetWorkLeft` if updated (implicitly clamped).
-* **Parameters:**
-  - `work`: Desired max work value.
+### `GetWorkAction()`
+*   **Description:** Returns the currently assigned action type.
+*   **Parameters:** None.
+*   **Returns:** `ACTIONS.*` constant.
 
-### `Workable:SetWorkAction(act)`
-* **Description:** Updates the `action` field (e.g., `ACTIONS.DIG`) and refreshes associated tags (`"<action.id>_workable"`).
-* **Parameters:**
-  - `act`: The new `Action` object.
+### `SetOnWorkCallback(fn)`
+*   **Description:** Registers a callback executed on every successful work tick.
+*   **Parameters:** `fn` (function) - Signature: `fn(inst, worker, workleft, numworks)`.
+*   **Returns:** Nothing.
 
-### `Workable:GetWorkAction()`
-* **Description:** Returns the current `action`.
-* **Returns:** `Action`.
+### `SetOnFinishCallback(fn)`
+*   **Description:** Registers a callback executed when work completes (`workleft <= 0`).
+*   **Parameters:** `fn` (function) - Signature: `fn(inst, worker)`.
+*   **Returns:** Nothing.
 
-### `Workable:SetOnWorkCallback(fn)`
-* **Description:** Registers a function to be called every time work is performed (i.e., inside `WorkedBy_Internal` before completion).
-* **Parameters:**
-  - `fn`: Function `(inst, worker, workleft, numworks)`.
+### `SetWorkMultiplierFn(fn)`
+*   **Description:** Registers a function to scale the `numworks` value per call (e.g., for efficiency modifiers).
+*   **Parameters:** `fn` (function) - Signature: `fn(inst, worker, numworks)` → number.
+*   **Returns:** Nothing.
 
-### `Workable:SetOnFinishCallback(fn)`
-* **Description:** Registers a function to be called when `workleft` reaches `0`.
-* **Parameters:**
-  - `fn`: Function `(inst, worker)`.
+### `SetShouldRecoilFn(fn)`
+*   **Description:** Registers a function to handle tool/user-specific recoil (e.g., tool durability damage or work loss).
+*   **Parameters:** `fn` (function) - Signature: `fn(inst, worker, tool, numworks)` → `recoil: boolean`, `remaining: number`.
+*   **Returns:** Nothing.
 
-### `Workable:SetRequiresToughWork(tough)`
-* **Description:** Enables/disables the "tough work" requirement. If `true`, only entities with `"toughworker"` tag or tools with `"tough"` capability can work without recoil (zero work applied).
-* **Parameters:**
-  - `tough`: `true` to enforce tough work requirement.
+### `SetRequiresToughWork(tough)`
+*   **Description:** Enables/disables the requirement for a tough worker/tool to work this entity.
+*   **Parameters:** `tough` (boolean).
+*   **Returns:** Nothing.
 
-### `Workable:SetWorkMultiplierFn(fn)`
-* **Description:** Sets a custom multiplier function for work input (e.g., tool efficiency). Takes `(inst, worker, numworks)` and returns a multiplier.
-* **Parameters:**
-  - `fn`: Function returning a numeric multiplier.
+### `SetOnLoadFn(fn)`
+*   **Description:** Registers a callback executed after `OnLoad` completes, allowing custom logic on entity reload.
+*   **Parameters:** `fn` (function) - Signature: `fn(inst, data)`.
+*   **Returns:** Nothing.
 
-### `Workable:SetShouldRecoilFn(fn)`
-* **Description:** Registers a custom recoil function that may reduce or cancel work input.
-* **Parameters:**
-  - `fn`: Function `(inst, worker, tool, numworks)` returning `(recoil: boolean, remainingworks: number)`.
+### `OnSave()`
+*   **Description:** Returns serialization data if `savestate` is `true`.
+*   **Parameters:** None.
+*   **Returns:** table with `{ maxwork, workleft }` or empty table `{}`.
 
-### `Workable:OnSave()`
-* **Description:** Returns a table with `workleft` and `maxwork` if `savestate` is `true`; otherwise `{}`. Used for serialization.
-* **Returns:** `table`.
+### `OnLoad(data)`
+*   **Description:** Restores `workleft` and `maxwork` from saved `data`. Invokes `onloadfn` if present.
+*   **Parameters:** `data` (table) - Must contain `workleft` and `maxwork`.
+*   **Returns:** Nothing.
 
-### `Workable:OnLoad(data)`
-* **Description:** Restores `workleft` and `maxwork` from `data`, then calls `onloadfn` if set.
-* **Parameters:**
-  - `data`: Table with optional `workleft` and `maxwork` keys.
+### `SetWorkMultiplierFn(fn)`
+*   **Description:** Registers a function to scale the `numworks` value per call (e.g., for efficiency modifiers).
+*   **Parameters:** `fn` (function) - Signature: `fn(inst, worker, numworks)` → number.
+*   **Returns:** Nothing.
 
-### `Workable:GetDebugString()`
-* **Description:** Returns a debug-friendly string summary (e.g., `"workleft: 5 maxwork: -1 workable: true"`).
-* **Returns:** `string`.
+### `ShouldRecoil(worker, tool, numworks)`
+*   **Description:** Determines whether the worker/tool should recoil (e.g., tool breakage, work lost). Calls `shouldrecoilfn` if defined, otherwise falls back to `tough` flag logic.
+*   **Parameters:** `worker` (`inst`), `tool` (`inst` or `nil`), `numworks` (number).
+*   **Returns:** `{boolean recoil, number remainingWorks}`.
 
-### `Workable:OnRemoveFromEntity()`
-* **Description:** Cleans up entity tags (`"workrepairable"` and `"<action.id>_workable"`) on component removal.
+### `GetDebugString()`
+*   **Description:** Returns a debug string summarizing work state.
+*   **Parameters:** None.
+*   **Returns:** string - e.g., `"workleft: 5 maxwork: 20 workable: true"`.
 
-### `Workable:ShouldRecoil(worker, tool, numworks)`
-* **Description:** Checks if recoil should occur (e.g., non-tough worker on tough work, or custom logic). Returns `(recoil, remainingworks)`.
-* **Parameters:**
-  - `worker`: The `GameObject` attempting work.
-  - `tool`: Tool in hands (`nil` if none).
-  - `numworks`: Raw work input.
-* **Returns:** `boolean, number` — `recoil` flag and adjusted `remainingworks`.
-
-## Events & Listeners
-- **Events Listen For / Trigger**:
-  - Listens for property changes on `workleft`, `maxwork`, `action`, and `workable` (via `Class` field listeners: `onworkable`, `onaction`), updating tags automatically.
-  - Emits events on work activity:
-    - `"worked"` (on `self.inst`): `{ worker = worker, workleft = self.workleft }`
-    - `"working"` (on `worker`): `{ target = self.inst }`
-    - `"workfinished"` (on `self.inst`): `{ worker = worker }`
-    - `"finishedwork"` (on `worker`): `{ target = self.inst, action = self.action }`
-    - `"plantkilled"` (on `TheWorld`): `{ doer = worker, pos = pos, workaction = self.action }` — only for valid plants.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:**
+  - `worked` - Fired each time work is performed. Payload: `{ worker = worker, workleft = workleft }`.
+  - `workfinished` - Fired when `workleft <= 0`. Payload: `{ worker = worker }`.
+  - `plantkilled` (world-level) - Fired if entity is a healthy plant. Payload: `{ doer = worker, pos = position, workaction = action }`.
+- Worker entities receive:
+  - `working` - Payload: `{ target = self.inst }`.
+  - `finishedwork` - Payload: `{ target = self.inst, action = action }`.

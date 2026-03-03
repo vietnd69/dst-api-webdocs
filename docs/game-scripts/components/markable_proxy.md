@@ -1,49 +1,72 @@
 ---
 id: markable_proxy
 title: Markable Proxy
-description: A proxy component that delegates markable behavior to another entity's markable component and manages the "markable_proxy" tag based on whether marking is allowed.
+description: Provides a proxy interface to an underlying entity's Markable component, forwarding mark operations and managing the "markable_proxy" tag based on markability state.
+tags: [entity, proxy, marking]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: ce2727f4
+system_scope: entity
 ---
 
 # Markable Proxy
 
-## Overview
-The `Markable_proxy` component acts as a wrapper that forwards marking operations (e.g., `Mark`, `SetMarkable`, `HasMarked`) to a referenced entity's `markable` component. It also dynamically applies or removes the `"markable_proxy"` tag on its own entity based on the value of `canbemarked`, ensuring consistent tagging without requiring direct tag management elsewhere.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Referenced Components:** `markable` (expected on the `proxy` entity)
-- **Tags Added/Removed:** Dynamically adds/removes the `"markable_proxy"` tag on `self.inst` depending on `canbemarked`.
+## Overview
+`Markable_proxy` acts as a forwarding wrapper for an entity's `markable` component. It delegates marking operations (`Mark`, `HasMarked`, `SetMarkable`) to the target entity's `markable` component (stored in `self.proxy`). It also ensures the `"markable_proxy"` tag is added or removed from its owner entity (`self.inst`) based on whether the target entity is currently set as markable. This is typically used in scenarios where one entity needs to control or reflect the markability state of another.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("markable_proxy")
+-- Assume target has a markable component
+inst.components.markable_proxy.proxy = target
+inst.components.markable_proxy:SetMarkable(true)
+local success = inst.components.markable_proxy:Mark(doer)
+```
+
+## Dependencies & tags
+**Components used:** `markable` (accessed via `self.proxy.components.markable`)
+**Tags:** Adds `markable_proxy` (via `inst:AddTag("markable_proxy")`) when `canbemarked` is true; removes it otherwise.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `GObject` | *nil* | The entity instance this component is attached to. |
-| `proxy` | `GObject?` | `nil` | Optional target entity whose `markable` component is delegated to. |
-| `canbemarked` | `boolean` | *inferred from `onmarkable`* | Controls whether the `"markable_proxy"` tag is added (`true`) or removed (`false`). Set via the class initializer function. |
+| `inst` | `Entity` | `nil` | The entity that owns this component. |
+| `proxy` | `Entity?` | `nil` | The target entity whose `markable` component is proxied. |
+| `canbemarked` | `boolean` | `nil` | Reflects the markability state of the proxy's `markable` component; triggers tag updates when changed. |
 
-## Main Functions
-
+## Main functions
 ### `Mark(doer)`
-* **Description:** Delegates the `Mark` call to the referenced `proxy` entity's `markable` component, if it exists.
-* **Parameters:**
-  - `doer`: The entity performing the marking action (typically a player or NPC).
+*   **Description:** Attempts to mark the target entity (via its `markable` component). Typically called by logic that wants to apply a mark to the proxied entity.
+*   **Parameters:** `doer` (`Entity`) — the entity performing the marking action.
+*   **Returns:** `true` if the mark was successful on the target, `false` otherwise.
+*   **Error states:** Returns `false` if `proxy` is `nil` or the proxy lacks a `markable` component.
 
 ### `SetMarkable(markable)`
-* **Description:** Updates the internal `canbemarked` state and delegates `SetMarkable` to the `proxy`'s `markable` component. This also triggers the `onmarkable` callback, which updates the `"markable_proxy"` tag.
-* **Parameters:**
-  - `markable`: A boolean indicating whether the proxy entity should now be markable.
+*   **Description:** Configures whether the target entity is currently markable, and synchronizes the proxy owner's tag.
+*   **Parameters:** `markable` (`boolean`) — whether the target entity should be considered markable.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if `proxy` is `nil` or the proxy lacks a `markable` component.
 
 ### `HasMarked(doer)`
-* **Description:** Delegates the `HasMarked` call to the referenced `proxy` entity's `markable` component, if it exists. Returns `nil` if no proxy or `markable` component is available.
-* **Parameters:**
-  - `doer`: The entity to check for a prior marking.
+*   **Description:** Checks whether the given entity has already marked the target entity.
+*   **Parameters:** `doer` (`Entity`) — the entity to check for an existing mark.
+*   **Returns:** `true` if the `doer` has a mark on the target entity, `nil` otherwise (including when proxy is missing).
+*   **Error states:** Returns `nil` if `proxy` is `nil` or the proxy lacks a `markable` component.
 
-## Events & Listeners
-None.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** None.
+
+## Constructor
+### `Class(function(self, inst) ... end)`
+*   **Description:** Initializes the proxy component on an entity.
+*   **Parameters:** `inst` (`Entity`) — the entity to attach this component to.
+*   **Sets:** `self.inst` to the owning entity; `self.proxy` to `nil`; `self.canbemarked` to `nil`.
+*   **Note:** The `canbemarked` property uses the `onmarkable` callback as its setter, automatically managing the `"markable_proxy"` tag.

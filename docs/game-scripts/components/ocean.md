@@ -1,51 +1,66 @@
 ---
 id: ocean
 title: Ocean
-description: Calculates and stores a 2D directional flow for ocean currents using randomized angles and a constant speed value.
+description: Manages ocean surface wave direction and speed for rendering or simulation.
+tags: [ocean, environment, rendering]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 568610d1
+system_scope: environment
 ---
 
 # Ocean
 
-## Overview
-The Ocean component manages a simple 2D directional flow for ocean currents. It initializes with a random direction (aligned to eight cardinal/oriented diagonals offset by 22.5°) and a fixed speed, then provides methods to query the current angle, speed, and resulting directional vector (as a 3D vector with zero Y component).
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified
+## Overview
+`Ocean` is a lightweight component that tracks the current direction and speed of ocean surface waves. It is attached to an entity to provide consistent wave orientation and magnitude data, likely used for visual rendering or environmental effects. The component initializes with a random ocean angle in 45-degree increments offset by 22.5°, and maintains a fixed speed value.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("ocean")
+
+local angle = inst.components.ocean:GetCurrentAngle()
+local speed = inst.components.ocean:GetCurrentSpeed()
+local vec_x, vec_y, vec_z = inst.components.ocean:GetCurrentVec3()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity the component is attached to (assigned in constructor) |
-| `currentAngle` | `number` | `0` | Current flow direction in degrees, initialized to one of eight discrete values: 22.5, 67.5, ..., 337.5 |
-| `currentSpeed` | `number` | `1` | Constant scalar speed of the ocean flow |
+| `currentAngle` | number | `0` | Current wave direction in degrees (initialized to 22.5° + N×45°). |
+| `currentSpeed` | number | `1` | Scalar magnitude of the wave speed (set to 1 by default). |
 
-## Main Functions
-
+## Main functions
 ### `OnUpdate(dt)`
-* **Description:** Placeholder method intended for per-frame updates; currently does nothing.
-* **Parameters:** `dt` — Delta time since last frame (unused).
+*   **Description:** Placeholder method; currently does nothing.
+*   **Parameters:** `dt` (number) — delta time in seconds (unused).
+*   **Returns:** Nothing.
 
 ### `GetCurrentAngle()`
-* **Description:** Returns the current ocean flow direction in degrees.
-* **Parameters:** None
+*   **Description:** Returns the current wave direction in degrees.
+*   **Parameters:** None.
+*   **Returns:** number — wave angle in degrees.
 
 ### `GetCurrentSpeed()`
-* **Description:** Returns the fixed scalar speed of the ocean flow.
-* **Parameters:** None
+*   **Description:** Returns the current wave speed scalar.
+*   **Parameters:** None.
+*   **Returns:** number — wave speed value.
 
 ### `GetCurrentVec3()`
-* **Description:** Computes and returns a 3D directional vector (x, 0, z) representing the ocean flow direction scaled by current speed. Uses standard trigonometric conversion from angle (in degrees) to unit vector components.
-* **Parameters:** None  
-* **Returns:** `(x, 0, z)` — x and z components computed as `speed * cos(angle)` and `speed * sin(angle)`, respectively.
+*   **Description:** Computes and returns a 3D directional vector representing the wave direction in the XZ plane (Y is always zero).
+*   **Parameters:** None.
+*   **Returns:** number — x-component (cosine term), number — y-component (always `0`), number — z-component (sine term).
+*   **Error states:** None identified.
 
-## Events & Listeners
-None
+## Events & listeners
+None identified

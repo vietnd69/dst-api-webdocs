@@ -1,62 +1,77 @@
 ---
 id: undertile
 title: Undertile
-description: Manages a persistent data grid for storing underlying tile types beneath the map surface in the game world.
+description: Manages a data grid representing the tile types directly beneath map tiles, used for layered terrain storage in the world.
+tags: [world, terrain, save, grid]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 6c81f3cc
+system_scope: world
 ---
 
 # Undertile
 
-## Overview
-This component maintains and manipulates an internal `DataGrid` that stores "underneath" tile information—i.e., the tile types beneath the currently visible map layer. It is initialized in response to world map size changes and supports saving/loading its state for persistence across sessions. It is strictly server-side (mastersim-only).
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependency**: None (relies only on internal `DataGrid` and global systems).
-- **Event Listener**: Listens for `"worldmapsetsize"` on `TheWorld` to initialize its internal data grid.
-- **No tags are added or removed** from the entity it is attached to.
+## Overview
+`Undertile` is a server-only component that stores and manages a secondary tile layer—referred to as "underneath tiles"—for each map coordinate. It uses a `DataGrid` structure to hold tile IDs that exist *beneath* the primary surface tiles, enabling layered terrain data (e.g., hidden cave layers or base terrain beneath structures). The component initializes its data grid on world size change and supports saving/loading for persistence.
+
+This component is intended for internal world-generation or terrain override logic and is only active on the master simulation.
+
+## Usage example
+```lua
+-- Attached automatically by the engine; manual usage is rare.
+-- Example of reading and writing underneath tile data:
+local undertile = some_entity.components.undertile
+local tile = undertile:GetTileUnderneath(x, y)
+undertile:SetTileUnderneath(x, y, TILE.DIRT_FLOOR)
+undertile:ClearTileUnderneath(x, y)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-The component does not expose public instance variables beyond `self.inst`. All internal state is held in private variables (`_underneath_tiles`, `_world`, `_map`), which are initialized during construction.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | `nil` (assigned) | The entity instance to which this component is attached. |
 
-No public properties are exposed.
+*Note:* `inst` is the only public member variable; all other state is held in private module-level variables (e.g., `_underneath_tiles`).
 
-## Main Functions
-
+## Main functions
 ### `GetTileUnderneath(x, y)`
-* **Description:** Returns the tile ID stored at the specified world coordinates `(x, y)` in the underlying tile grid.
-* **Parameters:**
-  * `x` (number): The X coordinate in world space.
-  * `y` (number): The Y coordinate in world space.
+* **Description:** Retrieves the tile ID stored at the given `(x, y)` map coordinate in the underlying tile layer.
+* **Parameters:**  
+  `x` (number) — The X map coordinate.  
+  `y` (number) — The Y map coordinate.  
+* **Returns:** `number?` — The stored tile ID, or `nil` if unset.
 
 ### `SetTileUnderneath(x, y, tile)`
-* **Description:** Sets the underlying tile at `(x, y)` to the specified tile ID.
-* **Parameters:**
-  * `x` (number): The X coordinate in world space.
-  * `y` (number): The Y coordinate in world space.
-  * `tile` (any): The tile ID to store. May be `nil` (though `SetTileUnderneath` is intended for non-nil values; use `ClearTileUnderneath` instead for clearing).
+* **Description:** Assigns a tile ID to the specified `(x, y)` coordinate in the underlying tile layer.
+* **Parameters:**  
+  `x` (number) — The X map coordinate.  
+  `y` (number) — The Y map coordinate.  
+  `tile` (number) — The tile ID to store.  
+* **Returns:** Nothing.
 
 ### `ClearTileUnderneath(x, y)`
-* **Description:** Clears (removes) the underlying tile at `(x, y)` by setting its value to `nil`.
-* **Parameters:**
-  * `x` (number): The X coordinate in world space.
-  * `y` (number): The Y coordinate in world space.
+* **Description:** Removes the stored tile at the given `(x, y)` coordinate by setting it to `nil`.
+* **Parameters:**  
+  `x` (number) — The X map coordinate.  
+  `y` (number) — The Y map coordinate.  
+* **Returns:** Nothing.
 
-### `OnSave()`
-* **Description:** Serializes and compresses the current state of the underneath tile grid for saving to disk.
-* **Returns:** A compressed, encoded data string suitable for storage.
+## Events & listeners
+- **Listens to:** `worldmapsetsize` — Triggers initialization of the `_underneath_tiles` data grid when the world map size is finalized.
 
-### `OnLoad(data)`
-* **Description:** Loads and reconstructs the underneath tile grid from saved data. Applies tile ID conversion mappings (e.g., for mod compatibility across versions).
-* **Parameters:**
-  * `data` (string): Compressed and encoded save data returned by `OnSave()`.
+## Save/Load
+- **OnSave()** → `string`  
+  Serializes the underneath tile grid using `DataGrid:Save()`, then compresses and encodes the data. Returns the resulting save string.
 
-## Events & Listeners
-- Listens for `"worldmapsetsize"` event on `TheWorld` to trigger `_underneath_tiles` initialization via `InitializeDataGrid`.
-- Does **not** push or emit any events itself.
+- **OnLoad(data)**  
+  Decodes and decompresses the provided save data, then loads it into `_underneath_tiles`. Applies tile ID conversion using `TheWorld.tile_id_conversion_map` to ensure compatibility across save versions. No return value.

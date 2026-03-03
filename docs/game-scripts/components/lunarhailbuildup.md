@@ -1,151 +1,113 @@
 ---
 id: lunarhailbuildup
 title: Lunarhailbuildup
-description: Manages lunar hail accumulation and decay on an entity, tracks work required to dismantle the buildup, and triggers moonglass rewards upon completion.
+description: Manages the lunar hail buildup mechanic for a structure, tracking accumulation and decay during lunar hail events, and handling work required to remove the buildup.
+tags: [environment, entity, world, weather]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: environment
+category_type: map
 source_hash: 73ebd5f2
+system_scope: environment
 ---
 
 # Lunarhailbuildup
 
-## Overview
-This component tracks and manages lunar hail buildup on an entity, including buildup and decay phases governed by in-game lunar hail events. It handles work required to remove the buildup, reward dropping (moonglass), and state transitions between buildup/decay/workable states. It integrates with the world’s `islunarhailing` state and responds to work-related events.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependency:** None explicitly added (`inst:AddComponent` calls are not present in this file).
-- **Tags Added/Removed:**  
-  - Adds `"LunarBuildup"` tag during `WorkInit()` and `OnRemoveFromEntity()` removes it.
-- **World State Watched:** `"islunarhailing"` (via `WatchWorldState`).
-- **Tuning Dependencies:** Uses `TUNING.LUNARHAIL_BUILDUP_*` constants (e.g., `TOTAL_WORK_AMOUNT_MEDIUM`, `MOONGLASS_AMOUNT_MEDIUM`, `TICK_TIME`, `RATE`, `DECAY_TICK_TIME`, `DECAY_RATE`, `MOONGLASS_REWARDS_CHARGED_CHANCE_MIN`, `MOONGLASS_REWARDS_CHARGED_CHANCE_MAX`, `MOONGLASS_REWARDS_DESTRUCTION_MULT`).
+## Overview
+`Lunarhailbuildup` tracks the accumulation and decay of lunar hail buildup on an entity (typically a building or structure). It responds to the global `islunarhailing` world state, manages periodic buildup ticks during hail events, decay ticks when hail stops, and supports work-based removal of the buildup. When the buildup reaches full capacity and has remaining work, it initializes a workable state (adding the `"LunarBuildup"` tag) to allow players to remove it via the `"worked"` event. It interacts with the `rainimmunity` component to bypass buildup during hail.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("lunarhailbuildup")
+inst.components.lunarhailbuildup:SetTotalWorkAmount(200)
+inst.components.lunarhailbuildup:SetMoonGlassAmount(3)
+inst.components.lunarhailbuildup:DoWorkToRemoveBuildup(50, player)
+```
+
+## Dependencies & tags
+**Components used:** `rainimmunity` (checked conditionally to skip buildup during hail)
+**Tags:** Adds `"LunarBuildup"` when buildup is workable (i.e., `buildupcurrent == buildupmax` and `workleft > 0`), removes it when buildup resets or work finishes.
 
 ## Properties
 | Property | Type | Default Value | Description |
-|---------|------|---------------|-------------|
-| `inst` | `Entity` | (constructor param) | Reference to the parent entity. |
-| `buildupmax` | `number` | `1` | Maximum possible buildup value (used as denominator for percentages). |
-| `buildupcurrent` | `number` | `0` | Current buildup amount, clamped between `0` and `buildupmax`. |
-| `workleft` | `number` | `0` | Amount of work remaining to fully dismantle the buildup. |
-| `totalworkamount` | `number` | `TUNING.LUNARHAIL_BUILDUP_TOTAL_WORK_AMOUNT_MEDIUM` | Total work required to clear buildup from 100%. |
-| `moonglassamount` | `number` | `TUNING.LUNARHAIL_BUILDUP_MOONGLASS_AMOUNT_MEDIUM` | Base count of moonglass items to drop on completion. |
-| `ignorelunarhailticks` | `boolean` | `nil` | If set, skips buildup/decay tick updates from lunar hail events. |
-| `onstartislunarhailingfn` | `function?` | `nil` | Optional callback triggered when lunar hail starts. |
-| `onstopislunarhailingfn` | `function?` | `nil` | Optional callback triggered when lunar hail stops. |
-| `lunarhailtick_task` | `Task?` | `nil` | Periodic task driving buildup/decay ticks. |
+|----------|------|---------------|-------------|
+| `buildupmax` | number | `1` | Maximum buildup level (used as denominator for percentages). |
+| `buildupcurrent` | number | `0` | Current buildup level. |
+| `workleft` | number | `0` | Remaining work required to finish buildup removal (after full buildup is reached). |
+| `totalworkamount` | number | `TUNING.LUNARHAIL_BUILDUP_TOTAL_WORK_AMOUNT_MEDIUM` | Total work amount needed for full removal. |
+| `moonglassamount` | number | `TUNING.LUNARHAIL_BUILDUP_MOONGLASS_AMOUNT_MEDIUM` | Base count of moonglass rewards dropped on removal. |
+| `onstartislunarhailingfn` | function or nil | `nil` | Callback invoked when lunar hail starts. |
+| `onstopislunarhailingfn` | function or nil | `nil` | Callback invoked when lunar hail stops. |
 
-## Main Functions
-
-### `SetOnStartIsLunarHailingFn(fn)`
-* **Description:** Sets a callback function invoked when lunar hail begins and buildup is active.  
-* **Parameters:**  
-  - `fn (function)`: Function to call on lunar hail start; receives `inst` as argument.
-
-### `SetOnStopIsLunarHailingFn(fn)`
-* **Description:** Sets a callback function invoked when lunar hail ends and buildup is active.  
-* **Parameters:**  
-  - `fn (function)`: Function to call on lunar hail stop; receives `inst` as argument.
-
-### `IsBuildupWorkable()`
-* **Description:** Returns whether work has been initiated on the buildup (i.e., `workleft > 0`).  
-* **Returns:** `boolean`.
-
-### `SetTotalWorkAmount(totalworkamount)`
-* **Description:** Updates the total work required for full buildup removal, adjusting `workleft` if necessary.  
-* **Parameters:**  
-  - `totalworkamount (number)`: New total work amount; `workleft` is clamped down if increased.
-
-### `SetMoonGlassAmount(moonglassamount)`
-* **Description:** Updates the base number of moonglass items to drop upon completion.  
-* **Parameters:**  
-  - `moonglassamount (number)`: New base amount.
-
-### `GetBuildupPercent()`
-* **Description:** Returns the current buildup as a percentage (0.0 to 1.0).  
-* **Returns:** `number`.
-
-### `SetBuildupPercent(percent)`
-* **Description:** Adjusts `buildupcurrent` to match the given percentage (0.0–1.0) via delta calculation.  
-* **Parameters:**  
-  - `percent (number)`: Target fraction of `buildupmax`.
-
-### `SetIgnoreLunarHailTicks(ignorelunarhailticks)`
-* **Description:** Enables/disables responsiveness to lunar hail events. May trigger optional callbacks when state changes.  
-* **Parameters:**  
-  - `ignorelunarhailticks (boolean)`.
-
+## Main functions
 ### `DoLunarHailTick(buildingup)`
-* **Description:** Applies one tick of buildup (positive delta) or decay (negative delta), skipping if rain-immune or ticks are ignored.  
-* **Parameters:**  
-  - `buildingup (boolean)`: If true, increases buildup; otherwise, decreases it.
-
-### `StopTickTask()`
-* **Description:** Cancels and nullifies the active periodic tick task (`lunarhailtick_task`).  
-* **Parameters:** None.
-
-### `StartBuildupTask()`
-* **Description:** Starts a periodic task to increment buildup using `TUNING.LUNARHAIL_BUILDUP_TICK_TIME`.  
-* **Parameters:** None.
-
-### `StartDecayTask()`
-* **Description:** Starts a periodic task to decrement buildup using `TUNING.LUNARHAIL_BUILDUP_DECAY_TICK_TIME`.  
-* **Parameters:** None.
-
-### `DoWorkToRemoveBuildup(workcount, doer)`
-* **Description:** Deducts `workcount` from `workleft`; triggers reward dropping, work-finish logic, and event callbacks upon completion.  
-* **Parameters:**  
-  - `workcount (number)`: Amount of work to apply.  
-  - `doer (Entity?)`: Entity performing work; may be `nil`.
-
-### `DoAllRemainingWorkToRemoveBuildup(doer)`
-* **Description:** Completes all remaining work in one call.  
-* **Parameters:**  
-  - `doer (Entity?)`: Entity performing work.
-
-### `DropRewards(mult, doer)`
-* **Description:** Spawns moonglass items at the entity's position, with a chance for charged moonglass based on current buildup percentage.  
-* **Parameters:**  
-  - `mult (number?)`: Multiplier applied to `moonglassamount` (default 1).  
-  - `doer (Entity?)`: Source entity for luck-based upgrades.
-
-### `OnWorkFinished()`
-* **Description:** Clears `workleft`, removes `"LunarBuildup"` tag, cancels work listener, and drops buildup to 0 if complete.  
-* **Parameters:** None.
-
-### `WorkInit()`
-* **Description:** Initializes work on the buildup by setting `workleft = totalworkamount`, adding `"LunarBuildup"` tag, and subscribing to `"worked"` events.  
-* **Parameters:** None.
+* **Description:** Advances buildup by a fixed amount over time. If `buildingup` is `true`, increases buildup during lunar hail; otherwise, decreases buildup (decay) after hail stops. Skips ticks if the entity has `rainimmunity` or `ignorelunarhailticks` is `true`.
+* **Parameters:** `buildingup` (boolean) — `true` to increase buildup, `false` to decrease it.
+* **Returns:** Nothing.
+* **Error states:** No-op if entity has `rainimmunity` or `ignorelunarhailticks` is `true` during buildup phase.
 
 ### `DoBuildupDelta(delta)`
-* **Description:** Adjusts `buildupcurrent` by `delta`, clamped to `[0, buildupmax]`. Triggers state changes:  
-  - If buildup reaches `buildupmax` and `workleft == 0`, initiates work.  
-  - If buildup hits `0` with remaining work, finishes work passively.  
-* **Parameters:**  
-  - `delta (number)`: Change in buildup value.
+* **Description:** Adjusts `buildupcurrent` by `delta`, clamping it to `0`–`buildupmax`. Triggers state transitions and events when crossing thresholds (e.g., reaching full buildup or zero).
+* **Parameters:** `delta` (number) — change in buildup level.
+* **Returns:** Nothing.
+* **Error states:** Calls `StopTickTask()` and does not fire events if `buildupcurrent` does not change after clamping.
 
-### `OnSave()`
-* **Description:** Serializes current `workleft` and `buildupcurrent` (only if non-zero).  
-* **Returns:** `table` or `nil`.
+### `DoWorkToRemoveBuildup(workcount, doer)`
+* **Description:** Reduces `workleft` by `workcount`. If `workleft` reaches `0`, drops moonglass rewards, calls `OnWorkFinished()`, and resets buildup state.
+* **Parameters:** `workcount` (number) — amount of work to apply; `doer` (entity or nil) — the entity performing the work.
+* **Returns:** Nothing.
+* **Error states:** May drop fewer rewards than expected if `workcount` exceeds remaining `workleft`; no partial work refund.
 
-### `OnLoad(data)`
-* **Description:** Restores `workleft` and `buildupcurrent` from save data, reinitializing state as needed.  
-* **Parameters:**  
-  - `data (table?)`: Saved data from `OnSave()`.
+### `SetTotalWorkAmount(totalworkamount)`
+* **Description:** Sets the total work required to remove the buildup and adjusts `workleft` downward if necessary.
+* **Parameters:** `totalworkamount` (number) — new total work amount.
+* **Returns:** Nothing.
+
+### `SetMoonGlassAmount(moonglassamount)`
+* **Description:** Sets the base number of moonglass items to drop on removal.
+* **Parameters:** `moonglassamount` (number) — base reward count.
+* **Returns:** Nothing.
+
+### `GetBuildupPercent()`
+* **Description:** Returns the current buildup as a fraction of `buildupmax`.
+* **Parameters:** None.
+* **Returns:** number — buildup percentage in `[0, 1]`.
+
+### `SetBuildupPercent(percent)`
+* **Description:** Sets buildup level directly to `percent * buildupmax`.
+* **Parameters:** `percent` (number) — target buildup fraction (`0` to `1`).
+* **Returns:** Nothing.
+
+### `IsBuildupWorkable()`
+* **Description:** Returns whether buildup can be worked on (i.e., `workleft > 0`).
+* **Parameters:** None.
+* **Returns:** boolean.
+
+### `StartBuildupTask()` / `StartDecayTask()`
+* **Description:** Initiates a periodic task to advance buildup (hail) or decay (post-hail) respectively. Tasks are canceled by `StopTickTask()`.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `OnWorkFinished()`
+* **Description:** Finalizes buildup removal: clears `workleft`, removes `"LunarBuildup"` tag, and resets buildup to `0` if valid.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `OnSave()` / `OnLoad(data)`
+* **Description:** Serializes/deserializes relevant state (`workleft`, `buildupcurrent`) for save/load support.
+* **Parameters:** `data` (table or nil) — for `OnLoad`, the saved data table.
+* **Returns:** `OnSave` returns a table; `OnLoad` returns nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted debug string for inspection (buildup percent, work left, next tick).  
-* **Returns:** `string`.
+* **Description:** Returns a formatted string for debugging, showing buildup, remaining work, and next tick time.
+* **Parameters:** None.
+* **Returns:** string.
 
-## Events & Listeners
-- **Listens For:**
-  - `"worked"` → `OnWorked_Bridge` (in `WorkInit()`).
-  - `"islunarhailing"` (via `WatchWorldState`) → `OnIsLunarHailing`.
-- **Emits:**
-  - `"lunarhailbuildupdelta"` with `{ oldpercent, newpercent }` on buildup change.
-  - `"lunarhailbuildupworkablestatechanged"` in `WorkInit()` and `OnWorkFinished()`.
-  - `"lunarhailbuildupworked"` with `{ doer }` in `DoWorkToRemoveBuildup()`.
-  - `"workinglunarhailbuildup"` (pushed on doer) in `DoWorkToRemoveBuildup()`.
+## Events & listeners
+- **Listens to:** `islunarhailing` — via `WatchWorldState` to trigger buildup/decay tasks; `"worked"` — to react to external work events.
+- **Pushes:** `lunarhailbuildupdelta` — when buildup changes; `lunarhailbuildupworked` — when work is applied; `lunarhailbuildupworkablestatechanged` — when workability state changes; `lunarhailbuildupworkablestatechanged` — when work finishes; `"workinglunarhailbuildup"` on the `doer` entity if provided.

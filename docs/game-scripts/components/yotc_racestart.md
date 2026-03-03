@@ -1,53 +1,75 @@
 ---
 id: yotc_racestart
 title: Yotc Racestart
-description: Manages race state transitions (start/end) for an entity, triggers custom callbacks, and manages "race_on" and "yotc_racestart" tags.
+description: Manages race state transitions and callback hooks for a yotc race event on an entity.
+tags: [race, state, event]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: 4d20c9fa
+system_scope: world
 ---
 
 # Yotc Racestart
 
-## Overview
-This component enables an entity to participate in a race by managing its race state—specifically, tracking whether the race is active via the `race_on` tag and executing optional callback functions when the race starts or ends. It also ensures the entity is tagged with `yotc_racestart` upon initialization and removes it on cleanup.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Tags Added/Removed:**
-  - Adds `"yotc_racestart"` tag on initialization.
-  - Adds `"race_on"` tag when `StartRace()` is called.
-  - Removes `"race_on"` tag when `EndRace()` is called.
-  - Removes `"yotc_racestart"` tag when the component is removed from the entity (`OnRemoveFromEntity`).
-- **No external component dependencies** are explicitly declared or required.
+## Overview
+`YOTC_RaceStart` is a lightweight component that tracks and controls the lifecycle of a race event for its owner entity. It maintains optional callback functions for race start and end, manages the `race_on` tag, and registers the `yotc_racestart` tag on initialization. It is typically attached to entities that initiate or signal the beginning of a race sequence, such as a race trigger or checkpoint.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("yotc_racestart")
+
+inst.components.yotc_racestart.onstartracefn = function(e)
+    print("Race started for", e:GetDebugName())
+end
+
+inst.components.yotc_racestart.onendracefn = function(e)
+    print("Race ended for", e:GetDebugName())
+end
+
+inst.components.yotc_racestart:StartRace()
+-- ... later ...
+inst.components.yotc_racestart:EndRace()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `yotc_racestart` on init; adds/removes `race_on` during start/end.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (passed to constructor) | Reference to the owning entity instance. |
-| `onstartracefn` | `function?` | `nil` | Optional callback function invoked when `StartRace()` is called; receives `inst` as argument. |
-| `onendracefn` | `function?` | `nil` (implicitly) | Optional callback function invoked when `EndRace()` is called; receives `inst` as argument. |
-| `rats` | `table` | `{}` (empty table) | Unused in current implementation; appears reserved for future use. |
+| `onstartracefn` | function? | `nil` | Optional callback invoked when `StartRace()` is called. Receives `inst` as argument. |
+| `onendracefn` | function? | `nil` | Optional callback invoked when `EndRace()` is called. Receives `inst` as argument. |
+| `rats` | table | `{}` | Reserved field (unused in current implementation). |
 
-> **Note:** `onendracefn` is used in `EndRace()` but is not initialized in the constructor. Its default is effectively `nil`.
-
-## Main Functions
+## Main functions
+### `OnRemoveFromEntity()`
+*   **Description:** Cleanup method called when the component is removed from its entity. Removes the `yotc_racestart` tag.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `StartRace()`
-* **Description:** Triggers the start of a race by invoking the `onstartracefn` callback (if set) and adding the `"race_on"` tag to the entity. This indicates the entity is actively participating in the race.
-* **Parameters:** None.
+*   **Description:** Initiates the race state: invokes the `onstartracefn` callback (if set), and adds the `race_on` tag.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `EndRace()`
-* **Description:** Triggers the end of a race by invoking the `onendracefn` callback (if set) and removing the `"race_on"` tag. This signals the race is concluded for this entity.
-* **Parameters:** None.
+*   **Description:** Terminates the race state: invokes the `onendracefn` callback (if set), and removes the `race_on` tag.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `CanInteract()`
-* **Description:** Returns `true` if the entity is **not** currently in an active race (`race_on` tag is absent). Returns `nil` if `race_on` is present (i.e., race is active), indicating interaction may be disallowed (behavior depends on caller).
-* **Parameters:** None.
+*   **Description:** Returns `true` if the entity is *not* currently in a race (`race_on` tag is absent); otherwise returns `nil`.
+*   **Parameters:** None.
+*   **Returns:** `true` or `nil`.
+*   **Error states:** Returns `nil` when `race_on` tag is present — this indicates the entity cannot be interacted with (e.g., locked during race).
 
-## Events & Listeners
+## Events & listeners
 None.

@@ -1,41 +1,53 @@
 ---
 id: groundcreep
 title: Groundcreep
-description: This component provides serialization support for the GroundCreep object attached to an entity by storing and restoring its state via OnSave/OnLoad.
+description: Enables serialization and deserialization of a ground creep object attached to an entity, primarily for world persistence across sessions.
+tags: [serialization, world, persistence]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: map
 source_hash: b491de89
+system_scope: world
 ---
 
 # Groundcreep
 
-## Overview
-This component implements serialization and deserialization logic for the GroundCreep object associated with an entity. It ensures that the state of the GroundCreep—typically representing persistent environmental creep effects like rot or sludge—is properly saved and restored across sessions. It does *not* define or manage the creep behavior itself, but acts as a conduit between the game’s save/load system and the GroundCreep instance.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependency:** Assumes that `inst.GroundCreep` exists as a valid object with methods `GetAsString()`, `SetFromString(string)`, and `FastForward()`.
-- **Event Listener:** Listens for `"playeractivated"` to trigger fast-forwarding of creep state for newly activated players.
-- **No tags** are added, removed, or checked.
+## Overview
+`Groundcreep` is a minimal component designed to support saving and loading of a ground creep state attached to an entity. It does not manage the ground creep logic itself but delegates serialization responsibilities to an attached `GroundCreep` object on the entity (i.e., `inst.GroundCreep`). This ensures clean separation between game logic and persistence concerns, avoiding ad-hoc serialization code elsewhere in the codebase. It also listens for the `playeractivated` event to trigger fast-forwarding of the creep state when a player loads into the world.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+-- An entity with a pre-initialized inst.GroundCreep object is required
+inst:AddComponent("groundcreep")
+-- On save/load, the component automatically calls inst.GroundCreep:GetAsString() and SetFromString()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Checks `playeractivated` event; relies on `inst.GroundCreep` object being present.
 
 ## Properties
-No public properties are initialized directly in this component’s constructor. The only stored reference is:
-- `self.inst` — the owning entity instance (assigned automatically in the `Class` framework).
+No public properties
 
-## Main Functions
-
+## Main functions
 ### `OnSave()`
-* **Description:** Serializes the GroundCreep state by calling `GetAsString()` on the associated `inst.GroundCreep` object. Only active on the master simulation.
-* **Parameters:** None (method uses `self` and `inst`).
+*   **Description:** Serializes the attached ground creep object by calling its `GetAsString()` method. Only active on the master simulation.
+*   **Parameters:** None.
+*   **Returns:** String — the serialized representation of the ground creep state.
+*   **Error states:** Returns `nil` if `inst.GroundCreep` is missing or `GetAsString()` fails.
 
 ### `OnLoad(data)`
-* **Description:** Deserializes the GroundCreep state by calling `SetFromString(data)` on `inst.GroundCreep`. Only active on the master simulation.
-* **Parameters:**
-  - `data` (`string`): The serialized GroundCreep state string obtained from `OnSave()`.
+*   **Description:** Deserializes the ground creep state by passing `data` to the attached object's `SetFromString()` method. Only active on the master simulation.
+*   **Parameters:** `data` (string) — the serialized ground creep state previously returned by `OnSave()`.
+*   **Returns:** Nothing.
+*   **Error states:** May silently fail or cause runtime errors if `inst.GroundCreep` is missing or `SetFromString()` encounters invalid data.
 
-## Events & Listeners
-- **Listens for `"playeractivated"`:** Triggers `inst.GroundCreep:FastForward()` to ensure creep state is up-to-date when a player becomes active (e.g., upon rejoining or initial spawn).
+## Events & listeners
+- **Listens to:** `playeractivated` — triggers `FastForward()` on the attached ground creep object via `inst.GroundCreep:FastForward()`.
+- **Pushes:** None.

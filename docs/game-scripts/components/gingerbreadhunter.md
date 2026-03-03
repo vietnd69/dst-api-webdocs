@@ -1,83 +1,91 @@
 ---
 id: gingerbreadhunter
 title: Gingerbreadhunter
-description: Manages the spawning, tracking, and progression of gingerbread-themed hunts (gingerbread pigs and houses) triggered periodically based on player activity and day cycles in Don't Starve Together.
+description: Manages the spawning and progression of gingerbread-themed hunts during events, including generating crumb trails and spawning gingerbread pigs or houses.
+tags: [combat, event, spawning]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 079a08eb
+system_scope: world
 ---
 
 # Gingerbreadhunter
 
-## Overview
-This component orchestrates the world-level "Gingerbread Hunt" event logic. It periodically spawns gingerbread pigs near players, generates crumb trails, and ultimately determines whether gingerbread houses or gingerbread wargs are spawned based on the number of completed hunts and luck rolls. It responds to player join/leave events, day cycles, and saves/loads state across sessions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components used:** `health` (via `:Kill()`), `Transform` (for positioning)
-- **Tags added/removed:** None explicitly assigned or stripped by this component.
-- **World events listened to:** `ms_playerjoined`, `ms_playerleft`, `cycles`
-- **Dependencies:** TUNING constants (`TOTAL_DAY_TIME`, `TRACK_ANGLE_DEVIANCE`), `TheWorld`, `AllPlayers`, `shallowcopy`, `FindWalkableOffset`, `IsAnyPlayerInRange`, `TryLuckRoll`, `SpawnPrefab`
+## Overview
+`GingerbreadHunter` is a world-scoped component responsible for orchestrating gingerbread-related event hunts in DST. It tracks active players, schedules hunt initiation based on in-game day cycles, spawns gingerbread pigs as prey, generates crumb trails leading to end targets (gingerbread houses or gingerbread wargs), and handles player availability across sessions. It relies on the `Health` component to terminate spawned entities after a timeout via `health:Kill()`.
+
+## Usage example
+```lua
+inst:AddComponent("gingerbreadhunter")
+-- The component automatically starts listening for players and day cycles.
+-- It schedules hunts automatically after a configured number of days (SPAWN_PERIOD).
+```
+
+## Dependencies & tags
+**Components used:** `health` — used to kill spawned gingerbread pigs and houses via `health:Kill()`.
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `self` parameter | Reference to the owner entity (typically the world or a controller entity). |
-| `hunt_count` | `number` | `0` | Number of completed crumb-trail hunts in the current cycle; resets after reaching `MAX_HUNT_COUNT`. |
-| `crumb_pts` | `table` | `{}` | List of Vector3 positions representing points in the current crumb trail. |
-| `activeplayers` | `table` | `{}` | List of all currently joined players (persistent while they're in the world). |
-| `availableplayers` | `table` | `{}` | Subset of `activeplayers` eligible to be hunted in the current cycle. |
-| `days` | `number` | `0` | Accumulated day count since the last hunt spawn; resets after `SPAWN_PERIOD`. |
-| `newhunttask` | `DoTaskInTime` handle | `nil` | Delayed task used to schedule the next hunt within the current day. |
+| `inst` | `Entity` | `nil` | Reference to the owning entity (typically `TheWorld`). |
+| `hunt_count` | number | `0` | Number of hunt stages completed in the current hunt cycle. |
+| `crumb_pts` | table | `{}` | List of Vector3 points where crumbs or the final target are placed. |
+| `activeplayers` | table | `{}` | List of players currently in the world. |
+| `availableplayers` | table | `{}` | Subset of `activeplayers` eligible to be hunted (removed after being selected). |
+| `days` | number | `0` | Day counter used to schedule hunts. |
+| `newhunttask` | `Task` | `nil` | Scheduled task to start a new hunt. |
 
-## Main Functions
-
+## Main functions
 ### `OnIsDay()`
-* **Description:** Increments the day counter and schedules a new hunt to begin at a random time within the remainder of the current day (if at least `SPAWN_PERIOD` days have passed).
-* **Parameters:** None. Uses `inst` and internal state.
+* **Description:** Increments the day counter; after `SPAWN_PERIOD` days, schedules a new hunt to begin at a random time within the current day cycle.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnPlayerJoined(player)`
-* **Description:** Adds the given player to both `activeplayers` and `availableplayers` lists (if not already present).
-* **Parameters:** `player` — The `Player.prefab` entity instance.
+* **Description:** Adds a player to both `activeplayers` and `availableplayers` lists if not already present.
+* **Parameters:** `player` (Entity) — the joining player instance.
+* **Returns:** Nothing.
 
 ### `OnPlayerLeft(player)`
-* **Description:** Removes the given player from both `activeplayers` and `availableplayers` lists.
-* **Parameters:** `player` — The `Player.prefab` entity instance.
+* **Description:** Removes a player from `activeplayers` and `availableplayers` lists when they leave.
+* **Parameters:** `player` (Entity) — the leaving player instance.
+* **Returns:** Nothing.
 
 ### `StartNewHunt()`
-* **Description:** Initiates a new hunt by selecting an available player, finding a spawn point ~45 units from them, and spawning a `gingerbreadpig` there. If all spawn attempts for all available players fail, the hunt is aborted, and players are re-added to the available pool.
+* **Description:** Selects a random available player as the target, attempts up to `MAX_SPAWN_ATTEMPTS` times to find a valid spawn location at least `PLAYER_CHECK_DISTANCE + 5` away from all players, and spawns a gingerbread pig. If all attempts fail, the hunt is aborted and the player is re-added to `availableplayers` for retry later. If no players remain, resets `availableplayers` to all active players.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `GenerateCrumbPoints(origin_pt, amount)`
-* **Description:** Generates a sequence of `amount` crumb positions radiating outward from `origin_pt`, each up to `CRUMB_DISTANCE` away (using `GetSpawnPoint`). Returns `true` on success; `false` on failure after too many attempts.
-* **Parameters:**  
-  `origin_pt` — `Vector3` position of the crumb trail’s starting point.  
-  `amount` — `number` of crumb points to generate.
+* **Description:** Generates `amount` crumb trail points starting from `origin_pt`, ensuring each point is at least `PLAYER_CHECK_DISTANCE` away from any player. Updates internal `crumb_pts` list and increments `hunt_count`.
+* **Parameters:** `origin_pt` (Vector3) — starting point; `amount` (number) — number of points to generate.
+* **Returns:** `true` on success, `false` if unable to generate all points.
+* **Error states:** Returns `false` if point generation exceeds `MAX_SPAWN_ATTEMPTS` per point.
 
 ### `SpawnCrumbTrail(killtime, player)`
-* **Description:** Spawns the actual crumb trail and, upon reaching the final point, decides whether to spawn gingerbread houses or a gingerbread warg based on `hunt_count`, `MAX_HUNT_COUNT`, and `GINGERWARG_CHANCE`. Also spawns intermediate `crumbs` prefabs.
-* **Parameters:**  
-  `killtime` — `number`, time (in seconds) before a gingerbread pig (if spawned) expires.  
-  `player` — `Player.prefab`, the hunt target, used for luck evaluation.
+* **Description:** Spawns the crumb trail entities (including final target) based on points stored in `crumb_pts`. On the last crumb point: if `hunt_count` exceeds `MAX_HUNT_COUNT`, spawns gingerbread houses or a gingerbread warg; otherwise spawns another gingerbread pig. Also sets `killtask` on gingerbread pigs to kill them after `killtime`.
+* **Parameters:** `killtime` (number) — time in seconds before the final target/pig dies; `player` (Entity) — the hunted player (used for luck check).
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Returns serializable data (`hunt_count`, `days`) and empty entity references (no prefabs saved directly).
+* **Description:** Serializes hunt state (e.g., `hunt_count`, `days`) for savegame persistence.
 * **Parameters:** None.
+* **Returns:** `data` (table) — key-value pairs of persistent state; `ents` (table) — entity references (currently unused, returns `{}`).
 
 ### `Load(data, ents)`
-* **Description:** Restores `hunt_count` and `days` from saved data.
-* **Parameters:**  
-  `data` — `table` with keys `hunt_count` and `days`.  
-  `ents` — Unused (empty in `OnSave`).
+* **Description:** Restores hunt state from saved data (`hunt_count`, `days`) during world load.
+* **Parameters:** `data` (table) — saved state; `ents` (table) — currently unused.
+* **Returns:** Nothing.
 
-### `LoadPostPass(newents, savedata)`
-* **Description:** Stub function, currently does nothing.
-
-## Events & Listeners
-- Listens to `"ms_playerjoined"` → calls `OnPlayerJoined(player)`
-- Listens to `"ms_playerleft"` → calls `OnPlayerLeft(player)`
-- Watches `"cycles"` world state → calls `OnIsDay()` on day transition
+## Events & listeners
+- **Listens to:** `ms_playerjoined` — calls `OnPlayerJoined(player)`.
+- **Listens to:** `ms_playerleft` — calls `OnPlayerLeft(player)`.
+- **Listens to:** `cycles` (world state) — calls `OnIsDay()` on each new day cycle.
+- **Pushes:** None identified.

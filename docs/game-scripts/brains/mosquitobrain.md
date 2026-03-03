@@ -1,97 +1,86 @@
 ---
 id: mosquitobrain
 title: Mosquitobrain
-description: Controls the behavior tree logic for the mosquito entity, coordinating movement, combat, and homing behaviors via a priority-based state machine.
+description: Controls the AI decision-making behavior for the mosquito entity, coordinating movement, combat, and homing logic via behavior trees.
+tags: [ai, brain, combat, locomotion]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 0f5581cf
+system_scope: brain
 ---
 
 # Mosquitobrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The `MosquitoBrain` component defines the behavior tree for the mosquito entity in Don't Starve Together. It orchestrates high-level decision-making using a priority-weighted behavior tree, integrating core behaviors such as fleeing from danger, chasing targets, returning home during daylight or winter, leashing to a home location, following a leader, and wandering when no immediate priorities apply. It relies on external behavior modules (e.g., `ChaseAndAttack`, `RunAway`, `Wander`, `Leash`, `Follow`) and interacts with several components (`combat`, `follower`, `homeseeker`, `knownlocations`) to evaluate conditions and select actions.
+`Mosquitobrain` defines the behavior tree for the mosquito entity. It orchestrates high-priority survival responses (panic, fleeing), social behavior (following a leader), spatial constraints (leashing, wandering), combat engagement (chase and attack), and homing logic (returning home during winter or day). It leverages reusable behavior nodes from `behaviours/` and supports dynamic re-evaluation via `WhileNode` conditions.
 
-## Dependencies & Tags
-- **Components used:**
-  - `combat`: Used to validate targets, check cooldown status (`InCooldown()`), and access `target`.
-  - `follower`: Used to retrieve the mosquito's leader via `GetLeader()`.
-  - `homeseeker`: Used to check for and access the home location.
-  - `knownlocations`: Used to retrieve stored locations (e.g., `"home"`).
-- **Tags:** None identified.
+## Usage example
+```lua
+local inst = CreateEntity()
+-- ... entity setup ...
+inst:AddBrain("mosquitobrain")
+-- The brain automatically initializes its behavior tree in OnStart()
+-- and reacts to in-game conditions via its behavior tree nodes.
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `follower`, `homeseeker`, `knownlocations`
+**Tags:** None identified.
 
 ## Properties
-No public instance properties are defined in the constructor. Behavior configuration is embedded in local constants and functions.
+No public properties.
 
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `self.inst` | `Entity` | (inherited) | The entity instance to which this brain is attached. |
-| `self.bt` | `BT` | `nil` (set in `OnStart`) | The behavior tree instance constructed during startup. |
+## Main functions
+### `GoHomeAction(inst)`
+* **Description:** Creates an action to guide the entity to its home location, if one exists and is valid. Used by the `DoAction` behavior node.
+* **Parameters:** `inst` (Entity) — the entity instance.
+* **Returns:** `BufferedAction` if home is valid; otherwise `nil`.
 
-## Main Functions
+### `GetLeader(inst)`
+* **Description:** Retrieves the entity's current leader via the `follower` component.
+* **Parameters:** `inst` (Entity) — the entity instance.
+* **Returns:** Entity leader, or `nil`.
 
-### `MosquitoBrain:OnStart()`
-* **Description:** Initializes and assigns the behavior tree (`self.bt`) for the mosquito. Constructs a priority-ordered root node that evaluates conditions to select the highest-priority behavior (panic, follow, leash, attack, go home, flee, or wander).
+### `WanderTarget(inst)`
+* **Description:** Determines a target position for wandering: combat target's position (if valid), leader's position (if present and valid), or home location.
+* **Parameters:** `inst` (Entity) — the entity instance.
+* **Returns:** `Vector3` target position, or `nil` if no source is available.
+
+### `ShouldGoHome(inst)`
+* **Description:** Determines if the entity should attempt to return home based on world state.
+* **Parameters:** `inst` (Entity) — the entity instance.
+* **Returns:** `true` if `TheWorld.state.iswinter` is true, or if it is day and `inst.override_stay_out` is false.
+
+### `GetNoLeaderHomePos(inst)`
+* **Description:** Returns the home position only if the entity has no leader.
+* **Parameters:** `inst` (Entity) — the entity instance.
+* **Returns:** `Vector3` home position if no leader; otherwise `nil`.
+
+### `ShouldChaseAndAttack(inst)`
+* **Description:** Checks whether the entity can initiate or resume chasing/attacking (no combat target *or* attack cooldown has elapsed).
+* **Parameters:** `inst` (Entity) — the entity instance.
+* **Returns:** `true` if `combat.target` is `nil` or `combat:InCooldown()` returns `false`.
+
+### `ShouldRunAway(inst)`
+* **Description:** Determines if the entity should flee (combat target exists *and* attack is in cooldown).
+* **Parameters:** `inst` (Entity) — the entity instance.
+* **Returns:** `true` if `combat.target` is non-`nil` *and* `combat:InCooldown()` returns `true`.
+
+### `GetRunawayTarget(inst)`
+* **Description:** Returns the current combat target as the source to flee *from*.
+* **Parameters:** `inst` (Entity) — the entity instance.
+* **Returns:** Entity target to flee from (typically the aggressor).
+
+### `OnStart()`
+* **Description:** Initializes the brain's behavior tree root node with prioritized behavior nodes: panic triggers, following, leashing, chase-and-attack, home returning, fleeing, and wandering.
 * **Parameters:** None.
-* **Returns:** `nil`.
+* **Returns:** Nothing.
 
-### Local Utility Functions
-These helper functions are referenced within the behavior tree and evaluate runtime conditions.
-
-#### `GoHomeAction(inst)`
-* **Description:** Returns a buffered action to go to the mosquito's home location if the home exists and is valid; otherwise returns `nil`.
-* **Parameters:**
-  - `inst`: `Entity` — The mosquito entity.
-* **Returns:** `Action?` — A `BufferedAction` to execute `"go home"`, or `nil`.
-
-#### `GetLeader(inst)`
-* **Description:** Returns the mosquito's leader (if any) by delegating to the `follower` component.
-* **Parameters:**
-  - `inst`: `Entity`.
-* **Returns:** `Entity?` — The leader entity, or `nil`.
-
-#### `WanderTarget(inst)`
-* **Description:** Determines the target position for wandering. Prioritizes the combat target, then the leader, and finally the "home" location.
-* **Parameters:**
-  - `inst`: `Entity`.
-* **Returns:** `Vector3?` — The position to wander toward.
-
-#### `ShouldGoHome(inst)`
-* **Description:** Determines if the mosquito should attempt to go home (i.e., during winter or daytime unless `override_stay_out` is `true`).
-* **Parameters:**
-  - `inst`: `Entity`.
-* **Returns:** `boolean`.
-
-#### `GetNoLeaderHomePos(inst)`
-* **Description:** Returns the "home" location only if the mosquito has no leader; otherwise returns `nil`.
-* **Parameters:**
-  - `inst`: `Entity`.
-* **Returns:** `Vector3?`.
-
-#### `ShouldChaseAndAttack(inst)`
-* **Description:** Evaluates whether the mosquito should engage in combat (no current target or not in attack cooldown).
-* **Parameters:**
-  - `inst`: `Entity`.
-* **Returns:** `boolean`.
-
-#### `ShouldRunAway(inst)`
-* **Description:** Evaluates whether the mosquito should flee (i.e., has a target *and* is in attack cooldown).
-* **Parameters:**
-  - `inst`: `Entity`.
-* **Returns:** `boolean`.
-
-#### `GetRunawayTarget(inst)`
-* **Description:** Returns the current combat target as the source of threat to flee from.
-* **Parameters:**
-  - `inst`: `Entity`.
-* **Returns:** `Entity?`.
-
-## Events & Listeners
-None identified — this brain component does not directly register or emit events. Behavior is driven solely by the behavior tree evaluation cycle.
+## Events & listeners
+None.

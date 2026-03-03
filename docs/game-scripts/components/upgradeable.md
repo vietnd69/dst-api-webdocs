@@ -1,91 +1,107 @@
 ---
 id: upgradeable
 title: Upgradeable
-description: Manages upgrade progression for an entity through configurable stages and upgrade counts.
+description: Tracks and manages upgrade progression for entities, handling stage advancement and upgrade counting logic.
+tags: [crafting, progression, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 3fcf5ff1
+system_scope: entity
 ---
 
 # Upgradeable
 
-## Overview
-This component enables an entity to track and manage hierarchical upgrade progression across multiple stages, incrementally consuming upgradable items to advance toward higher tiers. It integrates with tags for visual/state representation, supports custom upgrade logic via callbacks, and persists state across saves.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds or removes the tag `<upgradetype>_upgradeable` based on `CanUpgrade()` state (e.g., `"furniture_upgradeable"`).
-- Does *not* automatically add any components, but expects the `obj` passed to `:Upgrade()` to have a component named `upgrader` (with numeric property `upgradevalue`), and optionally `stackable`.
+## Overview
+The `Upgradeable` component enables entities to be upgraded through repeated application of items that provide upgrade value. It maintains state about current stage, total upgrades accumulated, and triggers progression when thresholds are met. It works closely with the `upgrader` component (which provides the upgrade value of an item) and the `stackable` component (to consume upgrade items). The component also manages dynamic tagging for upgrade type and stage-based visual or behavioral changes.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("upgradeable")
+inst.components.upgradeable:SetStage(1)
+inst.components.upgradeable:SetNumStages(3)
+inst.components.upgradeable:SetOnUpgradeFn(function(inst, performer, item)
+    -- Apply upgrade logic (e.g., change stats, appearance)
+end)
+```
+
+## Dependencies & tags
+**Components used:** `upgrader`, `stackable`
+**Tags:** Dynamically adds/removes `<upgradetype>_upgradeable` based on upgrade state (e.g., `gear_upgradeable`). Tag is added when `CanUpgrade()` is true.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `upgradetype` | `string` | `UPGRADETYPES.DEFAULT` | Category identifier used to generate dynamic tags and debug output. |
-| `stage` | `number` | `1` | Current upgrade stage (1-indexed). |
-| `numstages` | `number` | `3` | Total number of stages available for upgrade. |
-| `upgradesperstage` | `number` | `5` | Number of upgrade actions required per stage. |
-| `numupgrades` | `number` | `0` | Number of upgrades applied in the current stage. |
-| `onstageadvancefn` | `function?` | `nil` | Optional callback invoked when advancing to the next stage (`fn(inst)`). |
-| `onupgradefn` | `function?` | `nil` | Optional callback invoked after a successful upgrade (`fn(inst, performer, item)`). |
-| `canupgradefn` | `function?` | `nil` | Optional callback that determines if upgrade is allowed (`fn(inst) → bool, reason?`). |
+| `upgradetype` | string | `UPGRADETYPES.DEFAULT` | Identifier for the upgrade type; used to generate tags and match with compatible `upgrader` items. |
+| `stage` | number | `1` | Current upgrade stage (1-indexed). |
+| `numstages` | number | `3` | Total number of upgrade stages available. |
+| `upgradesperstage` | number | `5` | Number of upgrade points required to advance to the next stage. |
+| `numupgrades` | number | `0` | Accumulated upgrade points in the current stage. |
+| `onstageadvancefn` | function or nil | `nil` | Callback executed when advancing stages; receives `inst` as argument. |
+| `onupgradefn` | function or nil | `nil` | Callback executed when an upgrade item is applied; receives `(inst, performer, item)` as arguments. |
+| `canupgradefn` | function or nil | `nil` | Optional predicate; returns `(can_upgrade: boolean, reason?: string)`. |
 
-## Main Functions
-
-### `AdvanceStage()`
-* **Description:** Increments the current stage and resets `numupgrades` to `0`. Optionally invokes the `onstageadvancefn` callback.
-* **Parameters:** None.
-
-### `CanUpgrade()`
-* **Description:** Returns whether the entity can currently accept another upgrade. Checks both internal stage limits and an optional custom `canupgradefn`.
-* **Parameters:** None.  
-* **Returns:** `bool` — `true` if upgrade is allowed; otherwise `false`. May return a secondary `reason` string when `canupgradefn` is set.
-
-### `Upgrade(obj, upgrade_performer)`
-* **Description:** Processes a single upgrade action using the provided `obj` (an item with an `upgrader` component). Consumes the item and advances the stage if upgrade threshold is met.
-* **Parameters:**
-  - `obj`: The entity providing the upgrade; must have an `upgrader` component (with `upgradevalue` property).
-  - `upgrade_performer`: Entity performing the upgrade (passed to `onupgradefn`).
-
+## Main functions
 ### `SetOnUpgradeFn(fn)`
-* **Description:** Assigns a callback to be invoked each time `Upgrade()` is successfully called.
-* **Parameters:**
-  - `fn`: Function of the form `function(inst, performer, item)`.
+* **Description:** Sets the callback function invoked each time an upgrade item is successfully applied.
+* **Parameters:** `fn` (function) - signature: `fn(inst, performer, item)`.
+* **Returns:** Nothing.
 
 ### `SetCanUpgradeFn(fn)`
-* **Description:** Assigns a custom predicate to determine if an upgrade is permitted.
-* **Parameters:**
-  - `fn`: Function of the form `function(inst) → bool, reason?`.
+* **Description:** Sets a custom predicate to determine whether the entity can be upgraded further.
+* **Parameters:** `fn` (function) - signature: `fn(inst) → can_upgrade: boolean, reason?: string`.
+* **Returns:** Nothing.
 
 ### `GetStage()`
-* **Description:** Returns the current upgrade stage number.
+* **Description:** Returns the current upgrade stage.
 * **Parameters:** None.
+* **Returns:** number - current stage (e.g., `1`, `2`, `3`).
 
 ### `SetStage(num)`
-* **Description:** Manually sets the current upgrade stage (e.g., for debugging or scripted events).
-* **Parameters:**
-  - `num`: Integer stage value.
+* **Description:** Explicitly sets the current stage. Does *not* reset `numupgrades`.
+* **Parameters:** `num` (number) - new stage value.
+* **Returns:** Nothing.
+
+### `AdvanceStage()`
+* **Description:** Increments the stage by one and resets `numupgrades` to `0`. Triggers the `onstageadvancefn` callback if present.
+* **Parameters:** None.
+* **Returns:** Result of `onstageadvancefn` if defined; otherwise returns nothing.
+
+### `CanUpgrade()`
+* **Description:** Determines whether the entity is eligible for further upgrades.
+* **Parameters:** None.
+* **Returns:** boolean or `(boolean, string)` — `true` if upgradeable and not at max stage; `false, reason` if blocked by `canupgradefn`, or `false` if at max stage.
+* **Error states:** Returns `false, reason` if `canupgradefn` returns false and provides a reason string.
+
+### `Upgrade(obj, upgrade_performer)`
+* **Description:** Processes the application of an upgrade item (`obj`) to this entity. Consumes the item and advances `numupgrades`. If the threshold `upgradesperstage` is reached, advances to the next stage.
+* **Parameters:**  
+  * `obj` (entity) — the item being used to upgrade; must have an `upgrader` component.  
+  * `upgrade_performer` (entity) — the entity performing the upgrade (e.g., player).
+* **Returns:** `true` — always.
+* **Error states:** Consumes `obj` unconditionally via `stackable:Get(1):Remove()` or `obj:Remove()`, regardless of result.
 
 ### `OnSave()`
-* **Description:** Returns a data table containing the current `stage` and `numupgrades` for serialization.
-* **Parameters:** None.  
-* **Returns:** `table` — `{"numupgrades": number, "stage": number}`.
+* **Description:** Serializes upgrade state for world save.
+* **Parameters:** None.
+* **Returns:** table — `{ numupgrades = number, stage = number }`.
 
 ### `OnLoad(data)`
-* **Description:** Restores `numupgrades` and `stage` from saved data.
-* **Parameters:**
-  - `data`: Table containing saved `stage` and `numupgrades`.
+* **Description:** Restores upgrade state from world save.
+* **Parameters:** `data` (table) — save data from `OnSave()`.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted string with current upgrade state for debug overlays.
-* **Parameters:** None.  
-* **Returns:** `string` — Human-readable debug info (e.g., `"Upgrade type: furniture; Current stage: 2 / 3; Upgrade Count: 3 / 5"`).
+* **Description:** Returns a human-readable debug string for the current upgrade state.
+* **Parameters:** None.
+* **Returns:** string — formatted string like `"Upgrade type: gear; Current stage: 2 / 3; Upgrade Count: 3 / 5"`.
 
-## Events & Listeners
-- Listens for changes to properties `upgradetype`, `stage`, and `numstages` via internal assignment handlers (`onupgradetype`, `onstage`), which automatically update the entity's `<upgradetype>_upgradeable` tag.
-- Does *not* explicitly listen to external events via `ListenForEvent`.
-- Does *not* push custom events (only triggers callbacks).
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** None.

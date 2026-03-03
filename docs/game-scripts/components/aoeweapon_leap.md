@@ -1,62 +1,84 @@
 ---
 id: aoeweapon_leap
 title: Aoeweapon Leap
-description: Implements a leap-style area-of-effect attack that damages and tosses targets around a chosen landing position.
+description: Enables a leap-based area-of-effect weapon attack that hits multiple targets in a radius and optionally tosses physics-enabled entities.
+tags: [combat, aoe, leap, weapon]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 7aba6739
+system_scope: combat
 ---
 
-# aoeweapon_leap
+# Aoeweapon Leap
+
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-This component extends `AOEWeapon_Base` and is designed to handle "leap" type Area of Effect (AoE) attacks for an entity. It defines the radius for both damaging and tossing targets around a specific landing position. It manages the temporary modification of the doer's combat properties (e.g., ignoring hit range, disabling area damage) during the leap sequence, identifies targets within its AoE, applies damage, and can toss specific items within its range.
+`Aoeweapon_Leap` is a specialized component that extends `Aoeweapon_Base` to handle leap-style weapon attacks. During a leap, it temporarily disables line-of-sight and hit range checks for the attacker, performs area-of-effect damage to nearby valid targets, and optionally tosses lightweight physics entities (e.g., items or small creatures) away from the impact point. It is designed for characters or creatures with high-mobility melee attacks (e.g., leap strikes). The component automatically adds the `aoeweapon_leap` tag to the owning entity.
 
-## Dependencies & Tags
-*   **Inherits from:** `components/aoeweapon_base`
-*   **Requires (on doer entity):** `combat` component (e.g., `doer.components.combat`)
-*   **Requires (on component's instance):** `weapon` component (optional, if present, its damage/wear properties are temporarily modified)
-*   **Added Tags:**
-    *   `aoeweapon_leap`: Added to the component's instance.
-*   **Tags used for target filtering (internal to `DoLeap` for tossing):**
-    *   `_inventoryitem` (MUSTTAGS)
-    *   `locomotor`, `INLIMBO` (CANTTAGS)
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("aoeweapon_leap")
+inst:AddComponent("weapon")
+inst:AddComponent("combat")
+
+inst.components.aoeweapon_leap:SetDamage(20)
+inst.components.aoeweapon_leap:SetAOERadius(5)
+
+inst.components.aoeweapon_leap:SetOnPreLeapFn(function(inst, doer, start, target)
+    print("Starting leap from", start, "to", target)
+end)
+
+inst.components.aoeweapon_leap:SetOnLeaptFn(function(inst, doer, start, target)
+    print("Completed leap to", target)
+end)
+
+-- Perform leap attack
+local success = inst.components.aoeweapon_leap:DoLeap(inst, Vector3(0,0,0), Vector3(10,0,10))
+```
+
+## Dependencies & tags
+**Components used:** `aoeweapon_base`, `combat`, `health`, `weapon`  
+**Tags:** Adds `aoeweapon_leap` to the owning entity.
 
 ## Properties
-| Property         | Type       | Default Value | Description                                                                                             |
-| :--------------- | :--------- | :------------ | :------------------------------------------------------------------------------------------------------ |
-| `aoeradius`      | `number`   | `4`           | The primary radius for applying AoE effects (damage and tossing) around the target position.            |
-| `physicspadding` | `number`   | `3`           | Additional padding added to `aoeradius` when searching for entities, accounting for physics radii.      |
-| `onpreleapfn`    | `function` | `nil`         | A callback function executed just before the leap effects (damage/toss) are applied.                    |
-| `onleaptfn`      | `function` | `nil`         | A callback function executed after all leap effects (damage/toss) have been applied.                    |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `aoeradius` | number | `4` | Base radius of the leap hit area (in game units). |
+| `physicspadding` | number | `3` | Extra padding added to `aoeradius` when performing entity queries (used for finding toss targets). |
+| `onpreleapfn` | function | `nil` | Optional callback invoked before the leap effect executes. Signature: `fn(inst, doer, startingpos, targetpos)`. |
+| `onleaptfn` | function | `nil` | Optional callback invoked after the leap effect completes. Signature: `fn(inst, doer, startingpos, targetpos)`. |
 
-## Main Functions
+## Main functions
 ### `SetAOERadius(radius)`
-*   **Description:** Sets the radius for the Area of Effect.
-*   **Parameters:**
-    *   `radius`: (`number`) The new radius value.
+* **Description:** Sets the base radius of the leap attack area.
+* **Parameters:** `radius` (number) — the radius in game units.
+* **Returns:** Nothing.
 
 ### `SetOnPreLeapFn(fn)`
-*   **Description:** Sets a callback function to be executed just before the leap's effects are applied.
-*   **Parameters:**
-    *   `fn`: (`function`) The function to call. It receives `(inst, doer, startingpos, targetpos)` as arguments.
+* **Description:** Registers a function to be called immediately before performing the leap attack.
+* **Parameters:** `fn` (function) — callback with signature `(inst, doer, startingpos, targetpos)`.
+* **Returns:** Nothing.
 
 ### `SetOnLeaptFn(fn)`
-*   **Description:** Sets a callback function to be executed after all of the leap's effects have been applied.
-*   **Parameters:**
-    *   `fn`: (`function`) The function to call. It receives `(inst, doer, startingpos, targetpos)` as arguments.
+* **Description:** Registers a function to be called after the leap attack completes.
+* **Parameters:** `fn` (function) — callback with signature `(inst, doer, startingpos, targetpos)`.
+* **Returns:** Nothing.
 
 ### `DoLeap(doer, startingpos, targetpos)`
-*   **Description:** Initiates the leap attack sequence. This is the core function of the component, handling target identification, damage application, and item tossing at a specified target location.
-*   **Parameters:**
-    *   `doer`: (`entity`) The entity performing the leap. Must have a `combat` component.
-    *   `startingpos`: (`vector3`) The world position from which the `doer` initiates the leap.
-    *   `targetpos`: (`vector3`) The world position where the `doer` lands and the AoE effects are centered.
+* **Description:** Executes the leap attack: disables combat restrictions, deals AoE damage to nearby living non-player targets, tosses eligible items, and restores combat settings.
+* **Parameters:**
+  * `doer` (Entity) — the entity performing the leap (must have `combat` component).
+  * `startingpos` (Vector3) — the origin position of the leap (unused in logic, but passed to callbacks).
+  * `targetpos` (Vector3) — the impact position where AoE/toss checks are centered.
+* **Returns:** `true` if the leap was executed successfully; `false` if preconditions failed.
+* **Error states:** Returns `false` if `startingpos`, `targetpos`, or `doer` is missing, or if `doer` lacks a `combat` component.
 
-## Events & Listeners
-None identified for this specific component. (Note: The base class `AOEWeapon_Base` typically handles pushing `areaattack` events when `OnHit` is called.)
+## Events & listeners
+- **Pushes:** No events are pushed by this component.  
+- **Listens to:** None — no event listeners are registered.

@@ -1,58 +1,47 @@
 ---
 id: lavaebrain
 title: Lavaebrain
-description: Controls the behavior tree of the Lavae entity, managing its movement and combat logic including resetting to a lava pool when no targets are present.
+description: Controls the behavior tree for the Lavae boss, including combat pursuit, wall breaking, and emergency return to a lava pool on reset.
+tags: [ai, boss, combat, locomotion]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: dda0f5de
+system_scope: brain
 ---
 
 # Lavaebrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
+`LavaeBrain` is a behavior tree–driven AI component for the Lavae boss entity. It defines high-level behavioral priorities using nodes from `behaviours/` such as `ChaseAndAttack`, `AttackWall`, and a custom `GoHome` action. It integrates with `BrainCommon.PanicTrigger` for stress responses and contains logic to reset combat and return to a lava pool if no viable target exists.
 
-This component implements the behavior tree for the `Lavae` entity. It determines high-level decision-making logic such as whether the entity should reset and move to a designated lava pool (its "home") when no combat target is active, or engage in standard combat behaviors like chasing, attacking, and evading walls. It inherits from the base `Brain` class and constructs a priority-based behavior tree in `OnStart()` using common behavior modules from the `behaviours` directory and utility functions like `BrainCommon.PanicTrigger`.
+## Usage example
+This brain is automatically attached to the Lavae entity's prefab during world generation. Manual instantiation is not typical for modders.
 
-The key responsibility of `LavaeBrain` is to handle the special "go home" logic: if `inst.reset` is true, the entity exits combat and attempts to move to the nearest lava pool entity within a 50-unit radius. If no such pool is found, it defaults to staying in place.
+```lua
+-- Not intended for direct usage by modders.
+-- The Lavae prefab internally adds this brain via:
+--   inst:AddBrain("brains/lavaebrain")
+```
 
-## Dependencies & Tags
-- **Components used:** None explicitly accessed via `inst.components.X` (no component interactions detected).
-- **Tags:** Uses the `"lava"` tag to locate nearby lava pools via `TheSim:FindEntities`.
+## Dependencies & tags
+**Components used:** None explicitly accessed via `inst.components.X` in this file. Relies on standard game infrastructure (`Transform`, `TheSim`, `ACTIONS`, `BufferedAction`, `BT`, `PriorityNode`, `WhileNode`, `DoAction`, `ChaseAndAttack`, `AttackWall`, `StandStill`, `GetRandomItem`).  
+**Tags:** Checks for tag `"lava"` (used internally in `FindHome`).
 
 ## Properties
-No public instance properties are initialized in the constructor or elsewhere in the provided code.
+No public properties are defined in this brain. All internal logic is encapsulated in methods and behavior tree structures.
 
-## Main Functions
-
-### `LavaeBrain:OnStart()`
-* **Description:** Initializes the entity's behavior tree (`self.bt`) by constructing a root priority node. The tree prioritizes (in order): (1) resetting to lava pool if needed, (2) panic reactions, (3) wall-attacking, (4) chasing and attacking, and (5) standing still.
+## Main functions
+### `OnStart()`
+* **Description:** Initializes and activates the behavior tree root for Lavae. The tree prioritizes resetting combat (returning to lava), then handles panic, wall attacks, chasing/attacking enemies, and finally standing still if idle.
 * **Parameters:** None.
-* **Returns:** None.
+* **Returns:** Nothing.
+* **Error states:** None documented.
 
-### `ShouldResetFight(inst)`
-* **Description:** A predicate function used by the behavior tree to determine if the entity should interrupt combat and attempt to return to a lava pool. Returns `true` if `inst.reset` is truthy.
-* **Parameters:**
-  * `inst` (`entity`): The entity instance being evaluated.
-* **Returns:** `boolean` — `true` if `inst.reset` is true, otherwise `false`.
-
-### `FindHome(inst)`
-* **Description:** Locates the nearest lava pool entity within a 50-unit radius centered on the entity. Used to determine the "home" destination for reset logic.
-* **Parameters:**
-  * `inst` (`entity`): The entity whose position is used as the search center.
-* **Returns:** `entity?` — A randomly selected lava pool entity from those found; `nil` if none exist.
-
-### `GoHome(inst)`
-* **Description:** Creates and returns a buffered action that moves the entity toward its home (as determined by `FindHome`). If no home is found, the action defaults to acting on the entity itself (i.e., no movement).
-* **Parameters:**
-  * `inst` (`entity`): The entity performing the action.
-* **Returns:** `BufferedAction` — An action configured with `ACTIONS.GOHOME`, targeting either the nearest lava pool or the entity itself.
-
-## Events & Listeners
-None. No event listeners are registered, and no events are pushed in this component.
+## Events & listeners
+None identified — `LavaeBrain` does not register or fire events directly. It interacts with the behavior tree system and behaviors, which may internally emit or respond to events.

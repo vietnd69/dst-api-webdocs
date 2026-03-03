@@ -1,78 +1,114 @@
 ---
 id: boatracecrew
 title: Boatracecrew
-description: Manages the crew members, captain, and target of a boat participating in the Cawnival boat race.
+description: Manages a crew of entities assigned to a boat, tracking members, handling their life-cycle events, and supporting network serialization.
+tags: [crew, boat, network, lifecycle]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: a71a2af3
+system_scope: entity
 ---
 
 # Boatracecrew
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component is attached to a boat entity to manage its crew during the Cawnival boat race event. It is responsible for tracking crew members, assigning a captain, setting a navigation target, and handling the addition or removal of members from the crew. It also provides functionality for persistence, allowing the crew's state to be saved and loaded.
+`BoatRaceCrew` is a component that manages a collection of crew members assigned to a boat entity. It handles adding/removing crew members, tracking the captain, listening for events that cause crew departure (e.g., death, removal, teleportation), and periodically updating crew status. It also implements save/load support via `OnSave` and `LoadPostPass`, and interfaces with the `crewmember` component to bind/unbind crew from the boat.
 
-## Dependencies & Tags
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("boatracecrew")
+inst.components.boatracecrew:SetTarget(some_target_entity)
 
-**Dependencies:**
-- Crew member entities must have the `crewmember` component.
+local crewmember = some_crew_prefab
+inst.components.boatracecrew:AddMember(crewmember, true)  -- Add as captain
 
-**Tags:**
-- None identified.
+inst.components.boatracecrew:SetCaptain(new_captain)       -- Replace captain
+inst.components.boatracecrew:RemoveMember(old_captain)     -- Remove a member
+```
+
+## Dependencies & tags
+**Components used:** `crewmember`
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
-|---|---|---|---|
-| `inst` | entity | `self.inst` | The entity instance this component is attached to (the boat). |
-| `members` | table | `{}` | A table where keys are crew member entities and values are `true`. |
-| `captain` | entity | `nil` | The entity designated as the captain of the crew. |
-| `target` | entity | `nil` | The entity the boat is currently navigating towards. |
-| `status` | string | `nil` | A string representing the crew's current status. Periodically set to "assault". |
-| `on_member_added` | function | `nil` | A callback function that triggers when a member is added to the crew. |
-| `on_member_removed` | function | `nil` | A callback function that triggers when a member is removed from the crew. |
-| `on_crew_empty` | function | `nil` | A callback function that triggers when the last member leaves the crew. |
+|----------|------|---------------|-------------|
+| `members` | table (set of Entity) | `{}` | Map of crew member entities currently assigned to this crew. |
+| `captain` | Entity or `nil` | `nil` | The currently designated captain entity. |
+| `target` | Entity or `nil` | `nil` | The current target entity (e.g., a destination or objective). |
+| `status` | string | `"assault"` | Current crew status; currently hardcoded in `OnUpdate`. |
+| `_update_task` | Task or `nil` | periodic task | Scheduled task running every 2.0 seconds. |
+| `on_member_added` | function or `nil` | `nil` | Optional callback `(inst, member)` fired when a member is added. |
+| `on_member_removed` | function or `nil` | `nil` | Optional callback `(inst, member)` fired when a member is removed. |
+| `on_crew_empty` | function or `nil` | `nil` | Optional callback `(inst)` fired when the last member is removed. |
 
-## Main Functions
-
+## Main functions
 ### `SetTarget(target)`
-* **Description:** Sets or clears the crew's target entity. It automatically manages listeners to nullify the target if it is removed from the game.
-* **Parameters:**
-    * `target` (entity): The entity to set as the new target. Can be `nil` to clear the current target.
-
-### `SetCaptain(captain)`
-* **Description:** Assigns a specific entity as the crew's captain. This manages the `onremove` listener for the captain entity.
-* **Parameters:**
-    * `captain` (entity): The entity to set as the captain. Can be `nil` to remove the current captain.
+*   **Description:** Sets or clears the crew’s target entity, and registers or removes an event listener for when the target is removed.
+*   **Parameters:** `target` (Entity or `nil`) — the entity to be targeted.
+*   **Returns:** Nothing.
 
 ### `AddMember(new_member, is_captain)`
-* **Description:** Adds a new entity to the crew. It sets up necessary event listeners on the member, informs the member's `crewmember` component about joining the boat, and optionally designates the member as the captain.
-* **Parameters:**
-    * `new_member` (entity): The entity to add to the crew.
-    * `is_captain` (boolean): If `true`, this new member will also be set as the crew's captain.
+*   **Description:** Adds a new crew member to the boat. Registers death/removal/teleport listeners, binds the member to this boat via `crewmember:SetBoat`, and optionally designates it as captain.
+*   **Parameters:**  
+    `new_member` (Entity) — entity to add to the crew.  
+    `is_captain` (boolean) — if `true`, sets this member as the captain.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if the member is already in `members`.
 
 ### `RemoveMember(member)`
-* **Description:** Removes an entity from the crew. This function cleans up event listeners, notifies the member's `crewmember` component, and triggers the `on_member_removed` callback. If the crew becomes empty, it also triggers the `on_crew_empty` callback.
-* **Parameters:**
-    * `member` (entity): The crew member entity to remove.
+*   **Description:** Removes a crew member, cleans up listeners and bindings, invokes optional callbacks, and triggers `on_crew_empty` if the crew becomes empty.
+*   **Parameters:** `member` (Entity) — entity to remove from the crew.
+*   **Returns:** Nothing.
+*   **Error states:** Early return with no effect if the member is not currently in the crew.
 
-### `OnUpdate()`
-* **Description:** A function called periodically (every 2 seconds) by a task initiated in the constructor. It currently sets the `status` property to "assault".
-* **Parameters:** None.
+### `SetCaptain(captain)`
+*   **Description:** Assigns or clears the crew’s captain, managing an event listener on the captain entity.
+*   **Parameters:** `captain` (Entity or `nil`) — entity to appoint as captain.
+*   **Returns:** Nothing.
 
 ### `GetHeadingNormal()`
-* **Description:** Calculates the normalized direction vector from the boat's current position to its target's position.
-* **Parameters:** None.
-* **Returns:** `(number, number)` - The x and z components of the normalized heading vector, or `nil` if there is no target.
+*   **Description:** Computes the normalized directional vector from the boat to the current target.
+*   **Parameters:** None.
+*   **Returns:** Two numbers (`x`, `z`) if a target exists, otherwise `nil`.
 
-## Events & Listeners
-This component listens for events on other entities to manage the state of the crew.
+### `OnUpdate()`
+*   **Description:** Currently hardcoded to set `self.status` to `"assault"`. Runs periodically via `_update_task`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-*   **`"onremove"`**: Listens on each crew member, the captain, and the target. When triggered, the respective entity is removed from the crew or cleared from its role.
-*   **`"death"`**: Listens on each crew member. A dead member is removed from the crew.
-*   **`"teleported"`**: Listens on each crew member. A teleported member is removed from the crew, as they are no longer on the boat.
+### `OnRemoveFromEntity()`
+*   **Description:** Cleanup method called when the component is removed from its entity. Cancels the periodic update task and unregisters member listeners.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `OnRemoveEntity()`
+*   **Description:** Cleanup method called when the entity itself is removed. Removes all crew members cleanly (invoking callbacks).
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `OnSave()`
+*   **Description:** Serializes the crew’s members by their GUIDs for save/load.
+*   **Parameters:** None.
+*   **Returns:** `data` (table) and `data.members` (table of GUIDs), where `data.members` contains the GUIDs of all crew members.
+
+### `LoadPostPass(newents, data)`
+*   **Description:** Restores crew members after world load using saved GUIDs.
+*   **Parameters:**  
+    `newents` (table) — mapping of GUID to entity data.  
+    `data` (table) — the saved data, specifically expecting `data.members`.
+*   **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:**  
+  - `onremove`, `death`, `teleported` — per crew member (via `AddMemberListeners`), triggering `RemoveMember`.  
+  - `onremove` — on the captain, clearing `self.captain`.  
+  - `onremove` — on the target, clearing `self.target`.
+- **Pushes:** None. (Callbacks `on_member_added`, `on_member_removed`, and `on_crew_empty` are optional external hooks, not game events.)

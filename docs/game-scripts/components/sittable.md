@@ -1,71 +1,77 @@
 ---
 id: sittable
 title: Sittable
-description: Enables an entity to be occupied by a player or creature for sitting, managing occupancy state, tag updates, and event propagation.
+description: Manages entity seating state and occupier tracking for interactive furniture-like objects.
+tags: [interaction, entity, state, furniture, network]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 2caa10ce
+system_scope: entity
 ---
 
 # Sittable
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component allows an entity (e.g., a chair, stool, or bench) to serve as a seat, tracking whether it is occupied and managing associated state such as the `cansit` tag, event notifications (`becomesittable`, `becomeunsittable`), and interaction with fire (e.g.,_notify_ the occupier if the seat catches fire). It integrates with the Entity Component System (ECS) to coordinate sitter entry/exit, cleanup, and visual/gameplay state changes.
+`Sittable` enables an entity to be occupied by a character (typically for sitting), managing occupier lifecycle and tag state (`cansit`). It integrates with the `burnable` component to propagate fire events to occupants when the sittable object ignites. The component tracks whether the entity is currently occupied, who occupies it, and updates tags and events accordingly.
 
-## Dependencies & Tags
-**Dependencies:**
-- Uses `inst.components.burnable` if present (for fire propagation handling).
-- Does not explicitly add or require other components beyond the base `inst`.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("sittable")
+-- Automatically adds "cansit" tag and fires "becomesittable"
+inst.components.sittable:SetOccupier(player)
+assert(inst.components.sittable:IsOccupied())
+inst.components.sittable:EjectOccupier()
+```
 
-**Tags:**
-- Adds the `"cansit"` tag on initialization (unless occupied).
-- Removes the `"cansit"` tag when occupied or when the component is removed.
+## Dependencies & tags
+**Components used:** `burnable` (optional, checked dynamically)  
+**Tags:** Adds `cansit` on initialization; removes `cansit` when occupied; removes `cansit` on removal from entity.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `occupier` | `Entity` or `nil` | `nil` | Reference to the entity currently sitting on this item. Read-write via public property; setting it triggers tag toggling and event broadcasting. |
-| `_onremoveoccupier` | `function` | (internal callback) | Private callback attached to the occupier’s `"onremove"` event to auto-eject if the occupier is destroyed. |
+| `occupier` | `Entity` or `nil` | `nil` | The entity currently occupying the seat (e.g., a player). |
 
-*Note:* No public properties beyond `occupier` are explicitly initialized or exposed. All others (`_onremoveoccupier`, `OnIgnite`) are internal implementation details.
-
-## Main Functions
-
+## Main functions
 ### `SetOccupier(occupier)`
-* **Description:** Sets the occupier entity (or clears it if `nil`), updating state accordingly: toggles the `"cansit"` tag, registers/cleans up event callbacks (e.g., for occupier removal or fire), and emits `becomesittable` or `becomeunsittable` events.
-* **Parameters:**
-  - `occupier` (`Entity` or `nil`): The entity sitting on this item, or `nil` to vacate the seat.
+* **Description:** Sets or clears the occupier of the sittable entity. Updates event callbacks and tags based on occupancy state.
+* **Parameters:** `occupier` (`Entity` or `nil`) — the entity sitting, or `nil` to vacate the seat.
+* **Returns:** Nothing.
+* **Error states:** No-op if the new occupier is identical to the current one.
 
 ### `IsOccupied()`
-* **Description:** Returns `true` if any entity is currently sitting here.
+* **Description:** Checks whether the entity is currently occupied.
 * **Parameters:** None.
+* **Returns:** `true` if an occupier exists, otherwise `false`.
 
 ### `IsOccupiedBy(occupier)`
-* **Description:** Returns `true` if the given entity is the *current* occupier (and not `nil`).
-* **Parameters:**
-  - `occupier` (`Entity`): The specific entity to check for occupancy.
+* **Description:** Checks whether the specific entity is the current occupier.
+* **Parameters:** `occupier` (`Entity`) — the entity to check against the current occupier.
+* **Returns:** `true` if `occupier` matches the current occupier and is non-`nil`, otherwise `false`.
 
 ### `EjectOccupier()`
-* **Description:** Triggers a `"becomeunsittable"` event (e.g., to notify UI or gameplay systems) *without* clearing the `occupier` reference. Typically used for soft ejection logic (e.g., forced dismount), but implementation here is minimal and rarely used in practice. Note: does *not* call `SetOccupier(nil)`.
+* **Description:** Clears the occupier state (without calling `SetOccupier(nil)`) and fires `"becomeunsittable"` if occupied.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Does not update callbacks or clean up occupier references beyond the event push.
 
 ### `OnRemoveFromEntity()`
-* **Description:** Cleanup routine called when the component is removed from the entity. Clears all event listeners, removes `"cansit"` tag, and emits `"becomeunsittable"` if occupied.
+* **Description:** Cleanup method called when the component is removed from its entity. Cleans up event callbacks, removes the `cansit` tag, and fires `"becomeunsittable"`.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-
-- **Listens for events:**
-  - `"onremove"` on the occupier entity (via `self._onremoveoccupier` callback), to auto-eject if the occupier is destroyed.
-  - `"onignite"` on the sitting entity *if* `burnable` component exists, to notify the occupier via `"sittableonfire"`.
-
-- **Triggers events:**
-  - `"becomesittable"` — emitted when the entity gains `"cansit"` (i.e., becomes empty and eligible to sit).
-  - `"becomeunsittable"` — emitted when the entity loses `"cansit"` (i.e., becomes occupied or is being removed).
-  - `"sittableonfire"` — emitted on the occupier when the sitting entity ignites, carrying the sittable entity as payload.
+## Events & listeners
+- **Listens to:**  
+  - `"onremove"` (on occupier) — triggers `SetOccupier(nil)` when the occupier is removed.  
+  - `"onignite"` (on self) — fires only if `burnable` exists; notifies the occupier of fire.  
+- **Pushes:**  
+  - `"becomesittable"` — fires when the entity becomes available to sit (tag `cansit` added or occupier cleared).  
+  - `"becomeunsittable"` — fires when the entity becomes occupied or is being removed (tag `cansit` removed).  
+  - `"sittableonfire"` — pushed to the occupier when the sittable entity ignites.

@@ -1,115 +1,124 @@
 ---
 id: farming_manager
 title: Farming Manager
-description: Manages soil nutrient and moisture systems across the world grid for farming gameplay, including plant growth, fertilization, drought effects, and seasonal weed/fruit fly spawning.
+description: Manages soil moisture, nutrients, and farming-related systems across the world map, including plant growth, weed spawning, and Lord Fruit Fly behavior.
+tags: [farming, soil, environment, map, weather]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 8c7075a2
+system_scope: environment
 ---
 
 # Farming Manager
 
-## Overview
-This component handles the persistent, world-scoped soil system for farming mechanics. It maintains two 2D grids—`nutrientgrid` for soil fertility and `moisturegrid` for soil wetness—updating moisture continuously based on rainfall, temperature, and plant water consumption. Nutrients are updated discretely when plants grow, soil is fertilized, or crops rot. It also manages soil overlay entities, irrigation tags, weed spawning per season, and the Lord Fruit Fly event timer. Only exists on the master simulation.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- `inst:AddComponent("health")` — *not present*  
-- **Entity tags used internally**:  
-  - `"wildfireprotected"` — added to plants when soil moisture > 0 at spawn; removed when soil dries  
-  - `"fruitflyspawner"` — used in Lord Fruit Fly spawning logic  
-  - `"soil"` — temporary tag during weed placement detection  
-- **Dependencies on other components**:  
-  - `TheWorld.components.worldsettingstimer` — for Lord Fruit Fly timer  
-  - `TheWorld.components.undertile` — to store/restore underlying tile type  
-  - `farmsoildrinker` — accessed via plant entity components for moisture consumption rate  
+## Overview
+`Farming_Manager` is a server-only component responsible for simulating and managing soil moisture and nutrient dynamics across the world grid. It supports farming by tracking soil state per tile, calculating moisture depletion and replenishment (via precipitation, temperature, and plant uptake), managing nutrient consumption and restoration during plant growth cycles, and handling weed spawning and Lord Fruit Fly population control. It integrates with `farmsoildrinker`, `undertile`, and `worldsettingstimer` components.
+
+## Usage example
+```lua
+-- The component is added automatically to TheWorld on the master simulation
+-- To manually query soil state on the server:
+local fx, fy = 10, 15
+local n1, n2, n3 = TheWorld.components.farming_manager:GetTileNutrients(fx, fy)
+local is_moist = TheWorld.components.farming_manager:IsSoilMoistAtPoint(fx, fy, 0)
+TheWorld.components.farming_manager:AddTileNutrients(fx, fy, 10, 0, 5)
+```
+
+## Dependencies & tags
+**Components used:** `farmsoildrinker`, `undertile`, `worldsettingstimer`
+**Tags:** Adds/Removes `wildfireprotected` on `farmsoildrinker` instances based on soil moisture state; Checks `fruitflyspawner` and `lordfruitfly` tags for spawner logic.
 
 ## Properties
-No public member variables are exposed as public properties. All state is encapsulated in private module-level variables (`_nutrientgrid`, `_moisturegrid`, `_drinkersgrid`, `_overlaygrid`, `_remaining_weed_spawns`, `_weed_spawning_task`, and timer constants). The only public reference is:
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The owning entity (world root) passed to the constructor |
+| `inst` | `GEntity` | `nil` | Reference to the owning entity (`TheWorld`), assigned in constructor. |
 
-## Main Functions
+## Main functions
+### `GetTileNutrients(x, y)`
+*   **Description:** Returns the current nutrient values (n1, n2, n3) at tile coordinates (x, y). Falls back to default values if no soil overlay exists.
+*   **Parameters:**  
+    `x` (number) - X coordinate in tile units.  
+    `y` (number) - Y coordinate in tile units.  
+*   **Returns:** `n1`, `n2`, `n3` (numbers) — nutrient amounts (0–100 each), or 0,0,0 if tile is not farmland.
 
-### `self:_RefreshSoilMoisture(dt)`
-* **Description:** Updates soil moisture across all farming tiles based on world precipitation, ambient temperature (drying), and aggregate plant water consumption (from registered `farmsoildrinker` components).Clamps results to `[world_wetness, MAX_SOIL_MOISTURE]`. Calls `SetSoilMoisture` for each tile.
-* **Parameters:**  
-  `dt` *(number)* — Elapsed time in seconds since last update.
+### `SetTileNutrients(x, y, n1, n2, n3)`
+*   **Description:** Sets nutrient values at the specified tile and updates the visual overlay if present.
+*   **Parameters:**  
+    `x` (number), `y` (number) — tile coordinates.  
+    `n1`, `n2`, `n3` (numbers) — new nutrient values (clamped to [0,100] in `AddTileNutrients`, but setter accepts raw values).  
+*   **Returns:** Nothing.
 
-### `self:GetTileNutrients(x, y)`
-* **Description:** Returns the current nutrient levels (n1, n2, n3) at tile (x, y). Falls back to tile definition defaults if no soil data exists.
-* **Parameters:**  
-  `x` *(number)* — Tile X coordinate  
-  `y` *(number)* — Tile Y coordinate
+### `AddTileNutrients(x, y, nutrient1, nutrient2, nutrient3)`
+*   **Description:** Adjusts nutrients by adding deltas and clamping results to [0,100].
+*   **Parameters:**  
+    `x`, `y` — tile coordinates.  
+    `nutrient1`, `nutrient2`, `nutrient3` (numbers) — change amounts (negative allowed).  
+*   **Returns:** `true`.
 
-### `self:SetTileNutrients(x, y, n1, n2, n3)`
-* **Description:** Sets nutrient values at tile (x, y) and updates the overlay entity's visual state.
-* **Parameters:**  
-  `x` *(number)* — Tile X coordinate  
-  `y` *(number)* — Tile Y coordinate  
-  `n1`, `n2`, `n3` *(number)* — Nutrient amounts (0–100, clamped by `AddTileNutrients`)
+### `CycleNutrientsAtPoint(x, y, z, consume, restore, test_only)`
+*   **Description:** Simulates plant nutrient consumption and optional restoration (e.g., post-harvest). Handles rounding and distribution of restored nutrients. If `test_only`, only checks depletion without modifying.
+*   **Parameters:**  
+    `x`, `y`, `z` (numbers) — world coordinates.  
+    `consume` (table or `nil`) — 3-element array of nutrient amounts to consume per type.  
+    `restore` (table or `nil`) — 3-element boolean array indicating which nutrients receive restored amount.  
+    `test_only` (boolean) — if `true`, only determines whether depletion occurred.  
+*   **Returns:** `depleted` (boolean) — whether full consumption was possible. Returns `true` early if no soil overlay exists.
 
-### `self:AddTileNutrients(x, y, nutrient1, nutrient2, nutrient3)`
-* **Description:** Adds specified amounts to tile nutrients, clamping each to [0, 100]. Calls `SetTileNutrients` internally.
-* **Parameters:**  
-  `x`, `y` *(number)* — Tile coordinates  
-  `nutrient1`, `nutrient2`, `nutrient3` *(number)* — Delta values to add
+### `GetTileBelowSoil(x, y)`
+*   **Description:** Retrieves the underlying tile beneath farming soil using the `undertile` component.
+*   **Parameters:**  
+    `x`, `y` (numbers) — tile coordinates.  
+*   **Returns:** `tile_type` (string or `nil`) — the tile ID beneath the farming soil.
 
-### `self:CycleNutrientsAtPoint(_x, _y, _z, consume, restore, test_only)`
-* **Description:** Simulates nutrient consumption by a plant (e.g., during growth stage transition), optionally restoring nutrients based on predefined rules (e.g., composting). If `test_only`, only returns whether the tile was depleted (i.e., couldn’t meet full consumption). Returns `true` if soil is now depleted after the operation.
-* **Parameters:**  
-  `_x`, `_y`, `_z` *(number)* — World position used to derive tile coordinates  
-  `consume` *(table|nil)* — Index 1–3 array specifying nutrient amounts to consume  
-  `restore` *(table|nil)* — Index 1–3 boolean map indicating which nutrient types get restored  
-  `test_only` *(boolean)* — If `true`, only checks feasibility without modifying soil
+### `AddTileMoistureAtPoint(x, y, z, moisture_delta)`
+*   **Description:** Directly modifies soil moisture at a point by a delta amount (e.g., for watering).
+*   **Parameters:**  
+    `x`, `y`, `z` (numbers) — world coordinates.  
+    `moisture_delta` (number) — change in moisture (can be negative).  
+*   **Returns:** Nothing. No-op if no soil overlay exists.
 
-### `self:LongUpdate(dt)`
-* **Description:** Main update loop executed on world ticks. Runs `_RefreshSoilMoisture(dt)` and, if active, `_UpdateWeedSpawning()`.
-* **Parameters:**  
-  `dt` *(number)* — Delta time in seconds
+### `IsSoilMoistAtPoint(x, y, z)`
+*   **Description:** Checks if soil moisture at the point is positive (considering global wetness if grid data is absent).
+*   **Parameters:**  
+    `x`, `y`, `z` (numbers) — world coordinates.  
+*   **Returns:** `boolean` — `true` if soil moisture > 0 or world wetness > 0.
 
-### `self:_UpdateWeedSpawning()`
-* **Description:** Drives seasonal weed spawning based on `_remaining_weed_spawns` queue, triggered during season change. Removes and spawns weeds when their scheduled time is reached.
-* **Parameters:** None (uses internal state: `_remaining_weed_spawns`, `_weed_spawning_task`, `inst.state.elapseddaysinseason`)
+### `LongUpdate(dt)`
+*   **Description:** Main simulation loop called each frame (server). Updates soil moisture and weed spawning tasks.
+*   **Parameters:**  
+    `dt` (number) — time elapsed since last frame.  
+*   **Returns:** Nothing.
 
-### `self:GetTileBelowSoil(x, y)`
-* **Description:** Retrieves the tile type underneath a farming soil tile (e.g., grass, dirt, mud).
-* **Parameters:**  
-  `x`, `y` *(number)* — Tile coordinates
+### `GetDebugString()`
+*   **Description:** Returns a formatted string of soil moisture, nutrient values, and Lord Fruit Fly timer state for console display.
+*   **Parameters:** None.  
+*   **Returns:** `string` — debug info string.
 
-### `self:AddSoilMoistureAtPoint(x, y, z, moisture_delta)`
-* **Description:** Manually adjusts soil moisture by `moisture_delta` at a world point. Only affects tiles with valid overlay entities (i.e., active farming tiles).
-* **Parameters:**  
-  `x`, `y`, `z` *(number)* — World coordinates  
-  `moisture_delta` *(number)* — Change in moisture (positive = add, negative = remove)
+### `OnSave()`
+*   **Description:** Serializes the state of nutrient and moisture grids, pending weed spawns, and Lord Fruit Fly timer state.
+*   **Parameters:** None.  
+*   **Returns:** `string` — Base64-encoded, zip-compressed save data.
 
-### `self:IsSoilMoistAtPoint(x, y, z)`
-* **Description:** Returns whether the soil at the given point is considered moist (either local soil moisture > 0 or world wetness > 0).
-* **Parameters:**  
-  `x`, `y`, `z` *(number)* — World coordinates
+### `OnLoad(data)`
+*   **Description:** Deserializes and restores grid state from save data (supports versions 1 and 2).
+*   **Parameters:**  
+    `data` (string) — encoded save data.  
+*   **Returns:** Nothing.
 
-### `self:GetDebugString()`
-* **Description:** Returns a debug string with current tile’s moisture, drinker count, nutrients (n1,n2,n3), and Lord Fruit Fly timer state.
-* **Parameters:** None
+## Events & listeners
+- **Listens to:**  
+  - `onterraform` — updates soil grids when tiles are terraformed.  
+  - `ms_registersoildrinker` — registers a `farmsoildrinker` instance for moisture consumption.  
+  - `ms_unregistersoildrinker` — unregisters a drinker when removed.  
+  - `ms_fruitflyspawneractive` — triggers Lord Fruit Fly spawn logic.  
+  - `ms_lordfruitflykilled` — resets spawn timer after kill.  
+  - `ms_oncroprotted` — advances spawn timer when crops rot.  
+- **Pushes:** None directly; emits events to other components via their public APIs (e.g., `farmsoildrinker:OnSoilMoistureStateChange`).
+- **World state watches:** `season` — triggers seasonal weed spawn setup via `OnSeasonChange`.
 
-## Events & Listeners
-- **Listens to events (via `inst:ListenForEvent` or equivalent):**  
-  - `"worldmapsetsize"` → `InitializeDataGrids()` (initializes grids when map dimensions are known)  
-  - `"onterraform"` → `OnTerraform()` (handles soil tile creation/destruction and overlay spawner updates)  
-  - `"ms_registersoildrinker"` → `OnRegisterSoilDrinker()` (register a plant as a moisture consumer)  
-  - `"ms_unregistersoildrinker"` → `OnRemoveSoilDrinker()` (cleanup when plant is removed)  
-  - `"ms_fruitflyspawneractive"` → `OnFruitFlySpawnerActive()` (triggers Lord Fruit Fly spawning under specific conditions)  
-  - `"ms_lordfruitflykilled"` → restarts fruit fly respawn timer  
-  - `"ms_oncroprotted"` → advances fruit fly spawn timer  
-
-- **Pushes events (via `inst:PushEvent`):**  
-  - `"ms_fruitflytimerfinished"` — pushed when Lord Fruit Fly spawn timer elapses  
-
-- **World state watch:**  
-  - `"season"` → `OnSeasonChange()` — triggers seasonal weed spawning logic

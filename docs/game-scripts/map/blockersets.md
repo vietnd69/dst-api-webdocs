@@ -3,7 +3,7 @@ id: blockersets
 title: Blockersets
 description: Defines named collections of entity prefabs used as environmental blockers across different biomes and difficulty tiers in map generation.
 tags: [map, environment, generation]
-sidebar_position: 1
+sidebar_position: 100
 
 last_updated: 2026-02-27
 build_version: 714014

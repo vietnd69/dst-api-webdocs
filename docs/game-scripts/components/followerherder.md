@@ -1,61 +1,78 @@
 ---
 id: followerherder
 title: Followerherder
-description: A component that toggles follower hostility when used and reduces its own uses, typically attached to items like the Shepherd's Crook.
+description: Manages herd behavior for a leader entity, toggling hostile state of all followers and consuming finite uses when triggered.
+tags: [ai, leader, follower]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 32c166e5
+system_scope: entity
 ---
 
 # Followerherder
 
-## Overview
-The `FollowerHerder` component enables an entity (typically a tool) to herd followers by toggling their hostile state (e.g., turning them from hostile to non-hostile or vice versa). It also consumes uses from the entity's `finiteuses` component (if present) and supports custom logic via configurable callbacks.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires the entity to have a `leader` component with a populated `followers` table (accessed during `Herd()`).
-- May interact with the `finiteuses` component if present on the same entity (to consume uses).
-- Does not add or remove tags.
+## Overview
+`Followerherder` is a component that allows an entity to control the hostility state of followers associated with a given leader. When activated (typically via an action), it inverts the current `hostile` state for all followers and optionally consumes uses from a `finiteuses` component. It supports custom validation (`CanHerd`) and side-effect (`Herd`) callbacks via function hooks.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("followerherder")
+inst.components.followerherder:SetUseAmount(1)
+inst.components.followerherder:SetCanHerdFn(function(self_inst, leader)
+    return leader:HasTag("herdable_leader"), "Leader is not herdable"
+end)
+inst.components.followerherder:SetOnHerdFn(function(self_inst, leader)
+    print("Follower herd triggered for leader:", leader:GetDebugName())
+end)
+```
+
+## Dependencies & tags
+**Components used:** `finiteuses`, `leader`
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (assigned in constructor) | Reference to the entity that owns this component. |
-| `hostile` | `boolean` | `true` | Tracks the current hostile state to apply to followers. |
-| `canherdfn` | `function?` | `nil` | Optional callback function `(self, leader) → (can_herd: boolean, reason?: string)` to determine if herding is allowed. |
-| `onherfn` | `function?` | `nil` | Optional callback function `(self, leader)` executed after successful herding. |
-| `use_amount` | `number?` | `nil` | Number of uses to consume during herding; defaults to `1` if not set. |
+| `hostile` | boolean | `true` | Current hostility state; toggled on herd action. |
+| `canherdfn` | function or nil | `nil` | Optional predicate function `(self, leader) -> can_herd: boolean, reason: string?`. |
+| `onherfn` | function or nil | `nil` | Optional callback function `(self, leader)` invoked after herding. |
+| `use_amount` | number | `1` | Number of uses to consume from `finiteuses` if present. |
 
-## Main Functions
+## Main functions
 ### `SetCanHerdFn(fn)`
-* **Description:** Sets an optional custom function to determine whether the entity can herd a given leader. If this function returns `false`, the `Herd` operation is aborted.
-* **Parameters:**  
-  `fn` (`function`) — A function with signature `(self, leader) → (can_herd: boolean, reason?: string)`.
+*   **Description:** Assigns a custom predicate function used by `CanHerd` to determine if herding is allowed.
+*   **Parameters:** `fn` (function or nil) - Signature: `fn(self, leader) -> can_herd: boolean, reason?: string`.
+*   **Returns:** Nothing.
 
 ### `SetOnHerdFn(fn)`
-* **Description:** Sets an optional callback function executed after a successful herding action (i.e., hostility toggle and use consumption).
-* **Parameters:**  
-  `fn` (`function`) — A function with signature `(self, leader)`.
+*   **Description:** Assigns a callback function executed after a successful `Herd` action.
+*   **Parameters:** `fn` (function or nil) - Signature: `fn(self, leader)`.
+*   **Returns:** Nothing.
 
 ### `SetUseAmount(use_amount)`
-* **Description:** Configures how many uses are consumed when the `Herd` action is performed.
-* **Parameters:**  
-  `use_amount` (`number`) — The number of uses to deduct; defaults to `1` if not set.
+*   **Description:** Sets the number of uses to consume from the `finiteuses` component on `Herd`.
+*   **Parameters:** `use_amount` (number) - Number of uses to consume; defaults to `1` if not set or if `nil`.
+*   **Returns:** Nothing.
 
 ### `CanHerd(leader)`
-* **Description:** Checks whether herding is permitted for a given leader entity. Executes the `canherdfn` callback if set; otherwise, permits herding unconditionally.
-* **Parameters:**  
-  `leader` (`Entity`) — The entity acting as the leader whose followers would be affected.
+*   **Description:** Checks whether the current entity can herd the given `leader`. Runs the optional `canherdfn` predicate first, if present.
+*   **Parameters:** `leader` (Entity) - The entity whose followers would be controlled.
+*   **Returns:** `can_herd: boolean, reason?: string` — `true` if allowed; optionally returns a reason string on failure.
+*   **Error states:** Returns `false, reason` if `canherdfn` is set and returns `false` or a falsy value.
 
 ### `Herd(leader)`
-* **Description:** Executes the herding action: toggles the `hostile` state of all followers of the leader to match the inverse of the current `hostile` value, consumes uses (if `finiteuses` is present), and invokes the `onherfn` callback if set.
-* **Parameters:**  
-  `leader` (`Entity`) — The leader whose followers are being herded.
+*   **Description:** Executes the herd action: toggles `hostile` state for all followers of the `leader`, consumes finite uses (if applicable), and runs the `onherfn` callback if set.
+*   **Parameters:** `leader` (Entity) - The leader whose followers' hostility states are inverted.
+*   **Returns:** Nothing.
+*   **Error states:** If `leader` has no `leader` component or no followers, no followers are toggled, but the component still attempts to consume uses and call `onherfn`. No explicit error is thrown.
 
-## Events & Listeners
-None.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** None.

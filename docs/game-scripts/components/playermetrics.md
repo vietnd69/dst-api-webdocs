@@ -1,43 +1,48 @@
 ---
 id: playermetrics
 title: Playermetrics
-description: Tracks and reports player-specific gameplay events—specifically, when a player unlocks a recipe—by pushing metrics to the analytics system.
+description: Tracks player-related gameplay events and forwards them to the metrics system for analytics.
+tags: [network, analytics, player]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: components
 source_hash: d4acf377
+system_scope: network
 ---
 
 # Playermetrics
 
-## Overview
-The `PlayerMetrics` component is a lightweight network-oriented component attached to player entities that listens for recipe-unlocking events and forwards them to the `Stats` analytics system via the `PushMetricsEvent` function. It ensures that protoyping actions (i.e., recipe unlocks) are logged for telemetry and analytics purposes.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Dependency**: `stats` (custom module, required via `require("stats")`)
-- **Event Listener**: Registers callback for `"unlockrecipe"` event on its entity
-- **No components added or tags applied**
+## Overview
+`PlayerMetrics` is a lightweight component responsible for capturing specific in-game events related to player activity—specifically, when a player unlocks and prototypes a new recipe. It listens for the `unlockrecipe` event and forwards structured data to the `Stats` module via a helper function, ensuring telemetry is properly gathered and reported on the networked server instance.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("playermetrics")
+-- The component automatically listens for "unlockrecipe" events.
+-- No manual calls required; event-driven operation handles metrics reporting.
+```
+
+## Dependencies & tags
+**Components used:** `stats` (via `Stats.PushMetricsEvent`)
+**Tags:** None identified.
 
 ## Properties
-No public properties are initialized in the constructor. The component stores only a reference to its entity (`self.inst`) internally.
+No public properties.
 
-## Main Functions
-### `OnUnlockRecipe(inst, data)`
-* **Description:** Callback invoked when the `"unlockrecipe"` event is fired. If the event data contains a valid recipe, it triggers a metrics event `"character.prototyped"` with the unlocked recipe’s prefab name.
-* **Parameters:**
-  - `inst`: The entity (player) that unlocked the recipe.
-  - `data`: Event payload containing at least `recipe` (string or table with `prefab` field).
-
-### `PlayerMetrics:OnRemoveFromEntity()`
-* **Description:** Cleans up event listener registration when the component is removed from the entity.
+## Main functions
+### `OnRemoveFromEntity()`
+* **Description:** Cleans up the event listener when the component is removed from its entity.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens to**: `"unlockrecipe"` event (via `inst:ListenForEvent("unlockrecipe", OnUnlockRecipe)`)
-- **Triggers**:
-  - `"character.prototyped"` event (via `PushEvent("character.prototyped", inst, { prefab = data.recipe })`)
-  - This event is an internal metrics payload, not an engine-level game event; actual event name used by `Stats.PushMetricsEvent` is implementation detail of the `Stats` module.
+## Events & listeners
+- **Listens to:** `unlockrecipe` — triggered when a player successfully unlocks and prototypes a new recipe.
+- **Pushes:** Delegates event to `Stats.PushMetricsEvent` with ID `"character.prototyped"`, the player entity, and a table containing `{ prefab = data.recipe }`.
+
+The component does not directly fire its own events; it serves as a bridge between game logic and the analytics system.

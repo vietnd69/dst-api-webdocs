@@ -1,181 +1,155 @@
 ---
 id: inventoryitem_replica
 title: Inventoryitem Replica
-description: This component replicates inventory item state and behavior from the server to clients, providing a networked interface for properties like pickup restrictions, deployment settings, weapon stats, and usage progress.
+description: Manages network-replicated properties and synchronization of inventory items between server and client, including pickup restrictions, deploy modes, weapon stats, and usage state serialization.
+tags: [inventory, network, client, server]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: components
 source_hash: ac239c51
+system_scope: network
 ---
 
 # Inventoryitem Replica
 
-## Overview
-The `InventoryItem` replica component serves as the client-side mirror of the server-side `inventoryitem` component. It synchronizes and exposes key inventory-related properties and states over the network—including pick-up restrictions, moisture level, deployment mode, weapon range, equip restrictions, and usage metrics (e.g., durability, perish, recharge)—to ensure consistent client-side rendering and interaction logic. It manages a nested `inventoryitem_classified` object for storing and syncing transient runtime data, such as pickup position or usage percentages.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- `net_bool`, `net_hash`: Internal networking utilities for boolean and hash property replication.
-- `SpawnPrefab("inventoryitem_classified")`: Creates a lightweight classified object for server-side replication of dynamic attributes.
-- `TheWorld.ismastersim`: Used to distinguish server/mastersim logic from client behavior.
-- **Tags**: Does not add or remove tags directly. Relies on existing entity tags (e.g., `"spider"`, `"spiderwhisperer"`, `"complexprojectile"`, `"boatbuilder"`) to inform permission and behavior logic.
+## Overview
+`Inventoryitem_replica` is a network-aware component that mirrors and exposes certain runtime properties of `inventoryitem` to the client. It does not manage game logic directly, but instead synchronizes state (e.g., "is wet", "deploy mode", "attack range") from the server to the client via the `classified` child entity and net_bool/net_hash properties. It is primarily used on the client to query server-held item state when the server-side component (e.g., `deployable`, `weapon`, `equippable`) is not locally attached.
+
+## Usage example
+```lua
+-- On the server, attach and configure the component for an item prefab
+inst:AddComponent("inventoryitem_replica")
+if inst.components.weapon then
+    inst.components.inventoryitem_replica:SetAttackRange(inst.components.weapon.attackrange)
+end
+
+-- On the client, query deployability or weapon stats
+if item.replica.inventoryitem:IsDeployable(player) then
+    -- ...
+end
+local range = item.replica.inventoryitem:AttackRange()
+```
+
+## Dependencies & tags
+**Components used:** `inventoryitem`, `deployable`, `weapon`, `equippable`, `saddler`, `armor`, `finiteuses`, `fueled`, `perishable`, `rechargeable`, `inventoryitemmoisture`, `container`  
+**Tags:** Checks `spider`, `spiderwhisperer`; uses `complexprojectile`, `boatbuilder`
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity the component is attached to. |
-| `_cannotbepickedup` | `net_bool` | `nil` (networked) | Networked flag indicating if the item cannot be picked up (inverted logic: `true` means *cannot* be picked up). |
-| `_iswet` | `net_bool` | `nil` (networked, `"iswetdirty"`) | Networked boolean indicating whether the item is wet. |
-| `_isacidsizzling` | `net_bool` | `nil` (networked, `"isacidsizzlingdirty"`) | Networked boolean indicating whether acid is sizzling on the item. |
-| `_grabbableoverridetag` | `net_hash` | `nil` (networked) | Networked hash tag allowing specific entities to override the grab restriction. |
-| `classified` | `Component` (or `nil`) | `nil` | Optional `inventoryitem_classified` object used for syncing transient data like position, moisture, and usage progress. Created only on the server. |
+| `._cannotbepickedup` | `net_bool` | `false` | Controls whether the item can be picked up by players. |
+| `._iswet` | `net_bool` | `false` | Networked wetness state of the item. |
+| `._isacidsizzling` | `net_bool` | `false` | Networked acid-sizzle state. |
+| `._grabbableoverridetag` | `net_hash` | `0` | Custom tag override allowing specific players to pick up the item. |
+| `classified` | `Prefab` or `nil` | `SpawnPrefab("inventoryitem_classified")` | Client-side serialized state container (server only); holds replicated values like image, attack range, deploy mode. |
 
-## Main Functions
-
+## Main functions
 ### `SetCanBePickedUp(canbepickedup)`
-* **Description:** Sets whether the item can be picked up, by toggling the internal `_cannotbepickedup` flag.  
-* **Parameters:**  
-  - `canbepickedup` (`boolean`): If `true`, the item becomes pick-up-able; if `false`, it becomes unpick-up-able.
+*   **Description:** Sets whether the item can be picked up by players. Internally inverts the value and sets the `_cannotbepickedup` net_bool.
+*   **Parameters:** `canbepickedup` (boolean) — `true` if the item should be pick-uppable.
+*   **Returns:** Nothing.
 
 ### `CanBePickedUp(doer)`
-* **Description:** Determines if the item can be picked up by a given entity (`doer`), accounting for overrides and special conditions (e.g., spiders not being pick-up-able by non-spiderwhisperers).  
-* **Parameters:**  
-  - `doer` (`Entity?`): The entity attempting to pick up the item. May be `nil`.
-
-### `SetCanGoInContainer(cangoincontainer)`
-* **Description:** Updates the `cangoincontainer` flag in the `classified` object, controlling whether the item can be stored in containers.  
-* **Parameters:**  
-  - `cangoincontainer` (`boolean`): Whether the item can go into containers.
-
-### `CanGoInContainer()`
-* **Description:** Returns the `cangoincontainer` flag from the `classified` object.  
-* **Returns:** `boolean` — Whether the item can go into containers.
-
-### `SetCanOnlyGoInPocket(canonlygoinpocket)`
-* **Description:** Sets whether the item can only be stored in pockets (e.g., backpack slots), based on the `canonlygoinpocket` flag in `classified`.  
-* **Parameters:**  
-  - `canonlygoinpocket` (`boolean`).
-
-### `SetCanOnlyGoInPocketOrPocketContainers(canonlygoinpocketorpocketcontainers)`
-* **Description:** Sets whether the item can only be stored in pockets *or* pocket-only containers.  
-* **Parameters:**  
-  - `canonlygoinpocketorpocketcontainers` (`boolean`).
-
-### `CanOnlyGoInPocket()`, `CanOnlyGoInPocketOrPocketContainers()`
-* **Description:** Return the respective restricted-packing flags from `classified`.  
-* **Returns:** `boolean`.
-
-### `SetImage(imagename)`, `GetImage()`
-* **Description:** `SetImage` networkingly sets the item’s inventory image (`.tex` file) via `classified.image`. `GetImage` resolves the effective image, prioritizing client-side overrides, then `classified`, then default.  
-* **Parameters (SetImage):**  
-  - `imagename` (`string?`): Base name without extension.
-
-### `OverrideImage(imagename)` *(Local only)*
-* **Description:** Sets a *non-networked*, client-local image override (e.g., for temporary state changes). Triggers `"imagechange"` event.  
-* **Parameters:**  
-  - `imagename` (`string?`).
-
-### `SetAtlas(atlasname)`, `GetAtlas()`
-* **Description:** `SetAtlas` sets the image atlas for the inventory item; `GetAtlas` resolves the effective atlas, accounting for local overrides.  
-* **Parameters (SetAtlas):**  
-  - `atlasname` (`string?`).
-
-### `SetOwner(owner)`
-* **Description:** Configures network classified targeting based on container open count. Sets `classified`’s `Network` target to enable seamless sync during container open/close cycles.  
-* **Parameters:**  
-  - `owner` (`Entity?`): The container owner entity.
-
-### `IsHeld()`, `IsHeldBy(guy)`, `IsGrandOwner(guy)`
-* **Description:** Determine whether the item is currently held, held by a specific player, or grand-owned (i.e., directly equipped by the player or in their hands after stacking). Behavior forks depending on presence of server-side `inventoryitem` component.  
-* **Parameters:**  
-  - `guy` (`Entity?`): Player entity to check.
-
-### `SetPickupPos(pos)`, `GetPickupPos()`
-* **Description:** Sets/retrieves a sync'd world position (`Vector3` projected to XZ) from which the item will be picked up—useful for physics or animation alignment.  
-* **Parameters (SetPickupPos):**  
-  - `pos` (`Vector3?`): World position (X, Z), or `nil` to clear.
-
-### `SerializeUsage()`, `DeserializeUsage()`
-* **Description:** `SerializeUsage` pushes current usage state (percent used, perish %, recharge %/time) from server-side components to the `classified` object. `DeserializeUsage` pulls this state for client-side updates.  
-* **Parameters:** None.
-
-### `SetChargeTime(t)`
-* **Description:** Updates and broadcasts the recharge time on the `classified` object and triggers `"rechargetimechange"` event.  
-* **Parameters:**  
-  - `t` (`number?`): Time in seconds until full charge.
+*   **Description:** Checks whether the item can be picked up by the specified entity, honoring grabbable override tags and spider-spiderwhisperer restrictions.
+*   **Parameters:** `doer` (entity or `nil`) — The entity attempting to pick up the item.
+*   **Returns:** `true` if the item is pick-uppable; otherwise `false`.
+*   **Error states:** Returns `false` if `doer` is a spider and does not have the `spiderwhisperer` tag.
 
 ### `SetDeployMode(deploymode)`
-* **Description:** Syncs the deployment mode (e.g., `DEPLOYMODE.TURF`, `WATER`, `ANYWHERE`) to `classified`.  
-* **Parameters:**  
-  - `deploymode` (`string`): One of `DEPLOYMODE.*` constants.
+*   **Description:** Sets the deploy mode (e.g., `DEPLOYMODE.DEFAULT`, `DEPLOYMODE.WATER`) for networked display and remote checks.
+*   **Parameters:** `deploymode` (number, from `DEPLOYMODE` enum) — The deployment mode to serialize.
+*   **Returns:** Nothing.
 
 ### `GetDeployMode()`
-* **Description:** Returns the effective deploy mode, preferring the server-side `deployable` component if present.  
-* **Returns:** `string` — Deploy mode constant.
+*   **Description:** Returns the effective deploy mode. Prioritizes the local `deployable` component; falls back to the networked value.
+*   **Parameters:** None.
+*   **Returns:** `number` — One of the `DEPLOYMODE` constants, or `DEPLOYMODE.NONE` if neither is available.
 
 ### `IsDeployable(deployer)`
-* **Description:** Determines if the item can be deployed by a given entity, respecting restrictions and entity states (e.g., rider, floater).  
-* **Parameters:**  
-  - `deployer` (`Entity?`): Entity attempting to deploy.
-
-### `DeploySpacingRadius()`
-* **Description:** Returns the radius (in tiles) for placement spacing rules, resolved from `deployable` or fallback to `classified`.  
-* **Returns:** `number`.
+*   **Description:** Determines if the item can be deployed by the given entity, respecting tag restrictions and mount/floating state.
+*   **Parameters:** `deployer` (entity or `nil`) — The entity attempting deployment.
+*   **Returns:** `true` if deployable; `false` otherwise.
 
 ### `CanDeploy(pt, mouseover, deployer, rot)`
-* **Description:** Validates whether the item can be deployed at a given world point, using deployment mode rules (e.g., water depth, turf, plants). Delegates to `deployable` component if present.  
-* **Parameters:**  
-  - `pt` (`Vector3` or similar): Target placement point.  
-  - `mouseover` (`Entity?`): Entity under cursor (if any).  
-  - `deployer` (`Entity?`): Deploying entity.  
-  - `rot` (`number?`): Rotation angle (radians).  
+*   **Description:** Checks placement validity at a given world point for deployment, forwarding to `deployable` if present or replicating its logic client-side.
+*   **Parameters:**  
+  - `pt` (`Vector3`) — Position to check.  
+  - `mouseover` (entity or `nil`) — Optional interacted entity.  
+  - `deployer` (entity or `nil`) — Deploying entity.  
+  - `rot` (number or `nil`) — Rotation of placement.
+*   **Returns:** `true` if placement is valid at `pt`; `false` otherwise.
 
 ### `SetAttackRange(attackrange)`
-* **Description:** Syncs the weapon’s attack range to `classified.attackrange`.  
-* **Parameters:**  
-  - `attackrange` (`number?`): Attack radius in tiles.
+*   **Description:** Sets the weapon’s attack range for networked clients.
+*   **Parameters:** `attackrange` (number or `nil`) — The range in world units.
+*   **Returns:** Nothing.
 
-### `AttackRange()`, `IsWeapon()`
-* **Description:** Return effective attack range or whether the item functions as a weapon.  
-* **Returns:** `number` (range), `boolean` (weapon flag).
+### `AttackRange()`
+*   **Description:** Returns the effective attack range of the item. Prioritizes `weapon` component; falls back to networked value.
+*   **Parameters:** None.
+*   **Returns:** `number` — Attack range (≥ 0), or `0` if not a weapon.
+
+### `IsWeapon()`
+*   **Description:** Determines if the item behaves as a weapon (i.e., has a `weapon` component or valid attack range).
+*   **Parameters:** None.
+*   **Returns:** `true` if weapon-like; `false` otherwise.
 
 ### `SetWalkSpeedMult(walkspeedmult)`
-* **Description:** Sets the walk speed multiplier (encoded as integer in centi-units, e.g., `1.05` → `105`) into `classified.walkspeedmult`, with strict range and precision checks.  
-* **Parameters:**  
-  - `walkspeedmult` (`number?`): Speed multiplier (0.01 precision, range 0–2.55).
+*   **Description:** Sets the walk speed multiplier (as a scaled integer, range 0–255, max 2 decimal precision). Used by equippable/saddler items to affect movement.
+*   **Parameters:** `walkspeedmult` (number or `nil`) — Speed multiplier (e.g., `0.75`). Must be within `0 ≤ value ≤ 2.55` and precise to ≤ `0.01`.
+*   **Returns:** Nothing.
+*   **Error states:** Asserts if out of range or excessive precision.
 
-### `GetWalkSpeedMult()`, `SetEquipRestrictedTag(restrictedtag)`, `GetEquipRestrictedTag()`
-* **Description:** Get/set the equip speed multiplier and tag restrictions for equipping items. Respects `equippable` component precedence.  
-* **Parameters (SetEquipRestrictedTag):**  
-  - `restrictedtag` (`string?`): Tag required to equip.
+### `GetWalkSpeedMult()`
+*   **Description:** Returns the effective walk speed multiplier. Prioritizes `equippable` component; falls back to networked value.
+*   **Parameters:** None.
+*   **Returns:** `number` — Speed multiplier (e.g., `1.0` for normal speed).
 
-### `SetMoistureLevel(moisture)`, `GetMoisture()`, `GetMoisturePercent()`
-* **Description:** Set or retrieve moisture level (absolute or normalized 0–1). Falls back to `classified` or `inventoryitemmoisture` component.  
-* **Parameters (SetMoistureLevel):**  
-  - `moisture` (`number`): Absolute moisture value.
+### `SetIsWet(iswet)`
+*   **Description:** Sets the item’s wet state and broadcasts `"wetnesschange"` event.
+*   **Parameters:** `iswet` (boolean).
+*   **Returns:** Nothing.
 
-### `SetIsWet(iswet)`, `IsWet()`, `SetIsAcidSizzling(isacidsizzling)`, `IsAcidSizzling()`
-* **Description:** Set/get boolean flags for wetness and acid sizzling state. `SetIsWet`/`SetIsAcidSizzling` emit `"wetnesschange"`/`"acidsizzlingchange"` events only on state change.  
-* **Parameters:**  
-  - `iswet` (`boolean`), `isacidsizzling` (`boolean`).
+### `IsWet()`
+*   **Description:** Returns the current wetness state.
+*   **Parameters:** None.
+*   **Returns:** `true` if wet; `false` otherwise.
 
-### `SetGrabbableOverrideTag(tag)`
-* **Description:** Sets the `grabbableoverridetag`, allowing a specific entity tag to bypass standard grab restrictions.  
-* **Parameters:**  
-  - `tag` (`string?`): Tag name.
+### `SetMoistureLevel(moisture)`
+*   **Description:** Sets the raw moisture value (client-side only; server uses `inventoryitemmoisture`).
+*   **Parameters:** `moisture` (number).
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens to events:**
-  - `"percentusedchange"` → `classified:SerializePercentUsed(data.percent)`
-  - `"perishchange"` → `classified:SerializePerish(data.percent)`
-  - `"forceperishchange"` → `classified:ForcePerishDirty()`
-  - `"rechargechange"` → `classified:SerializeRecharge(data.percent, data.overtime)`
-  - `"onremove"` (on classified entity) → triggers `DetachClassified()`
-- **Triggers events:**
-  - `"imagechange"` (in `OverrideImage`)
-  - `"wetnesschange"` (in `SetIsWet`)
-  - `"acidsizzlingchange"` (in `SetIsAcidSizzling`)
-  - `"rechargetimechange"` (in `SetChargeTime`, with `{ t = t }`)
+### `GetMoisture()`
+*   **Description:** Returns the current moisture level from `inventoryitemmoisture` or networked value.
+*   **Parameters:** None.
+*   **Returns:** `number` — Absolute moisture value.
+
+### `GetMoisturePercent()`
+*   **Description:** Returns moisture as a fraction of `TUNING.MAX_WETNESS`.
+*   **Parameters:** None.
+*   **Returns:** `number` — Moisture percentage (`0.0` to `1.0`).
+
+### `SerializeUsage()`
+*   **Description:** Serializes usage state (percent used, perish, recharge) from local components into the `classified` entity.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Skips components not attached to the item.
+
+## Events & listeners
+- **Listens to:**  
+  - `"percentusedchange"` — Updates `classified`’s percent used.  
+  - `"perishchange"` — Updates `classified`’s perish state.  
+  - `"forceperishchange"` — Forces perish state update.  
+  - `"rechargechange"` — Updates recharge percent and overtime.  
+  - `"onremove"` — Triggers `ondetachclassified` to clean up `classified` entity.  
+- **Pushes:**  
+  - `"wetnesschange"` — Fired when wetness changes.  
+  - `"acidsizzlingchange"` — Fired when acid sizzle state changes.  
+  - `"rechargetimechange"` — Fired when charge time is updated.  
+  - `"imagechange"` — Fired when `OverrideImage` is called.

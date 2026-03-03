@@ -1,79 +1,86 @@
 ---
 id: sheltered
 title: Sheltered
-description: Determines whether the entity (typically a player) is protected from rain and environmental exposure based on nearby sheltering structures or canopy coverage.
+description: Tracks whether an entity is under cover (e.g., from trees or structures) and manages shelter state transitions, including communication and networking.
+tags: [weather, environment, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: environment
+category_type: components
 source_hash: 85fad591
+system_scope: environment
 ---
 
 # Sheltered
 
-## Overview
-This component tracks whether the entity is *sheltered* (i.e., not exposed to rain or excessive heat) by evaluating its surroundings—specifically, checking for nearby entities tagged as `shelter` or, for players, for canopy trees. It manages internal state (`sheltered`, `presheltered`, and `sheltered_level`) and triggers relevant gameplay events and UI updates via replication.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Tags used for detection:**
-  - Must-have: `"shelter"`
-  - Cannot-have (exclusions): `"FX"`, `"NOCLICK"`, `"DECOR"`, `"INLIMBO"`, `"stump"`, `"burnt"`
-- **Component/replica interactions:**
-  - `inst.replica.sheltered` (used to send RPCs: `StartSheltered()`/`StopSheltered()`)
-  - `inst.components.rainimmunity` (checked in announce logic)
-  - `inst.components.talker` (used to announce shelter entry, if conditions met)
-  - `TheWorld.state.israining` (world rain state)
-  - `GetLocalTemperature()` (temperature check for heat-based announcement condition)
-- **Tuning values used:** `TUNING.WATERPROOFNESS_SMALLMED`, `TUNING.OVERHEAT_TEMP`, `TUNING.TOTAL_DAY_TIME`
+## Overview
+The `Sheltered` component monitors whether an entity is located under a sheltered environment (such as under a tree canopy or near a遮蔽结构) and maintains internal state (`presheltered`, `sheltered`) to track transitions. It integrates with the `rainimmunity` and `talker` components to trigger dialogue and weather-related behavior when sheltered status changes. This component is player-specific and updates its state periodically based on spatial entity counting or per-entity canopy tracking.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("sheltered")
+
+-- Manually set sheltered state for testing (typically handled by OnUpdate)
+inst.components.sheltered:SetSheltered(true, 2)
+```
+
+## Dependencies & tags
+**Components used:** `rainimmunity`, `talker`
+**Tags:** Checks for `shelter` (must-have) and `FX`, `NOCLICK`, `DECOR`, `INLIMBO`, `stump`, `burnt` (prohibited) during entity-counting.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `stoptime` | `number?` | `GetTime()` at creation | Stores the time when sheltered detection is paused (e.g., when stopped); `nil` indicates active state. |
-| `presheltered` | `boolean` | `false` | Tracks whether the entity has *entered* shelter but not yet fully registered (i.e., pre-transition). Used for one-time start-up logic. |
-| `sheltered` | `boolean` | `false` | True when the entity is confirmed to be sheltered. |
-| `announcecooldown` | `number` | `0` | Cooldown timer (in seconds) before the entity can speak the shelter announcement again. |
-| `sheltered_level` | `number` | `1` | Shelter quality level: `1` = ground-level shelter (e.g., under a roof); `2` = under canopy trees. |
-| `mounted` | `boolean` | `false` | Whether the entity is riding a mount; disables low-level shelter if true. |
-| `waterproofness` | `number` | `TUNING.WATERPROOFNESS_SMALLMED` | Fixed value indicating inherent waterproofing (not updated during runtime). |
+| `stoptime` | number? | `nil` | Timestamp when component was stopped (used to preserve cooldowns across pauses). |
+| `presheltered` | boolean | `false` | Whether the entity *entered* a sheltered zone in the previous update. |
+| `sheltered` | boolean | `false` | Whether the entity is currently *fully* sheltered. |
+| `announcecooldown` | number | `0` | Timer (in seconds) preventing repeated shelter announcements. |
+| `sheltered_level` | number | `1` | Shelter intensity level: `1` = partial (e.g., small trees), `2` = full (e.g., dense canopy). |
+| `mounted` | boolean | `false` | Whether the entity is riding a mount; full shelter is disabled if true. |
+| `waterproofness` | number | `TUNING.WATERPROOFNESS_SMALLMED` | Rain protection value used elsewhere (not modified by this component). |
 
-## Main Functions
-
-### `OnRemoveFromEntity()`
-* **Description:** Called when the component is removed from its entity. Ensures sheltered state is cleanly cleared.
-* **Parameters:** None.
+## Main functions
+### `SetSheltered(issheltered, level)`
+*   **Description:** Updates the sheltered state and triggers events/network updates. Also announces shelter entry/exit via `talker:Say` under specific conditions (e.g., raining or overheating), respecting cooldown.
+*   **Parameters:**  
+  `issheltered` (boolean) – Whether the entity is sheltered.  
+  `level` (number) – Shelter level (`1` = basic, `2` = dense canopy).  
+*   **Returns:** Nothing.
+*   **Error states:**  
+  - If `mounted` is `true` and `level < 2`, `issheltered` is forced to `false`.  
+  -Announcement is suppressed if `announcecooldown > 0`, or if `TheWorld.state.israining` is false and temperature is below overheating threshold.
 
 ### `Start()`
-* **Description:** Initializes or resumes active shelter detection. Recalculates the announce cooldown based on previously stopped time and starts component updates.
-* **Parameters:** None.
+*   **Description:** Resumes component updates, recalculating remaining `announcecooldown` from paused time and starting periodic updates.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `Stop()`
-* **Description:** Pauses active shelter detection. Saves current time as `stoptime`, stops updates, and explicitly sets sheltered state to false.
-* **Parameters:** None.
-
-### `SetSheltered(issheltered, level)`
-* **Description:** Updates the internal sheltered state and synchronizes with the network via replica. Handles transitions between sheltered and exposed states, triggers events, and optionally announces the change via speech (only once per full day if cooldown allows).
-* **Parameters:**
-  - `issheltered` (`boolean`): Whether the entity is currently sheltered.
-  - `level` (`number`): Shelter quality level (typically `1` or `2`). If `level < 2` and `mounted` is true, forces `issheltered = false`.
+*   **Description:** Pauses component updates, freezing `stoptime` to preserve cooldowns across game pauses/stops, and clears shelter state.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-* **Description:** Called every frame while the component is active. Re-evaluates shelter status by:
-  1. Checking if the entity is under canopy trees (player-only, sets `level = 2`).
-  2. If not, counting nearby entities with the `"shelter"` tag (and no exclusion tags) using `TheSim:CountEntities()`.
-  Then calls `SetSheltered()` with the new status and level.
-* **Parameters:**
-  - `dt` (`number`): Delta time (seconds since last frame), used to decrement `announcecooldown`.
+*   **Description:** Runs periodically (when started) to re-evaluate shelter status based on world position or per-entity canopy data, then calls `SetSheltered`.
+*   **Parameters:** `dt` (number) – Time delta since last update.
+*   **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a human-readable debug string indicating whether the component is started/stopped and its current sheltered/presheltered states.
-* **Parameters:** None.
+*   **Description:** Returns a formatted debug string for UI/logs showing component state and running status.
+*   **Parameters:** None.
+*   **Returns:** `string` – e.g., `"STARTED, sheltered: true, presheltered: true"`.
 
-## Events & Listeners
-- **Listens for:** None (component does not register event listeners directly).
-- **Pushes events:**
-  - `"sheltered"`: Triggered *once* when transition to sheltered state occurs (i.e., from `presheltered → sheltered`). Payload: `{ sheltered = true, level = self.sheltered_level }`.
-  - Also sends RPC events via `inst.replica.sheltered:StartSheltered()` / `StopSheltered()`, though these are internal replication details.
+### `OnRemoveFromEntity()`
+*   **Description:** Safely clears shelter state when the component is removed from the entity.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:** None (explicit event registration is not performed).
+- **Pushes:** `sheltered` – Fired with payload `{ sheltered=true/false, level=number }` when `sheltered` transitions from `false` → `true` or `true` → `false`.
+- **Replica sync:** Uses `self.inst.replica.sheltered:StartSheltered()` / `:StopSheltered()` to synchronize state across clients.

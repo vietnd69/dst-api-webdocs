@@ -1,60 +1,48 @@
 ---
 id: shadow_knightbrain
 title: Shadow Knightbrain
-description: Controls the AI behavior of the Shadow Knight boss entity, managing attack timing, dodge actions, face-target logic, and eventual despawn via a behavior tree.
-tags: [ai, boss, combat, behavior-tree]
+description: Controls the AI behavior of the Shadow Knight entity, coordinating combat actions, movement, and despawning logic via a behavior tree.
+tags: [ai, combat, boss, movement]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 06723aa5
+system_scope: brain
 ---
 
 # Shadow Knightbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-
-This brain component implements the AI logic for the Shadow Knight boss entity using a behavior tree (`BT`). It orchestrates priority-based actions including attacking when not in cooldown, fleeing/dodging when targeted, facing the nearest player, wandering, and automatically triggering a `despawn` event after a fixed time. The brain relies on the `Combat` component to determine whether a valid target exists and whether an attack is in cooldown, and on the `Health` component to validate target state (e.g., not dead, not a ghost). It integrates with several behavior modules: `ChaseAndAttack`, `RunAway`, `FaceEntity`, `Wander`, and custom utility functions.
+`Shadow_KnightBrain` implements the AI logic for the Shadow Knight entity using a behavior tree (`BT`) built from common DST behavior components. It manages combat engagement (chasing and attacking when no target is active), evasive dodging (run away) when a target is locked on and attacking, facing the nearest player for visual alignment, and autonomous wandering while waiting for a timer to trigger a despawn event. This brain relies heavily on the `combat` and `health` components for real-time state evaluation.
 
 ## Usage example
-
 ```lua
+local inst = CreateEntity()
+inst:AddTag("shadowknight")
+inst:AddComponent("combat")
+inst:AddComponent("health")
 inst:AddBrain("shadow_knightbrain")
-inst:ListenForEvent("despawn", function() ... end)
 ```
 
 ## Dependencies & tags
-
-**Components used:**
-- `Combat`: accessed via `inst.components.combat` to check for `HasTarget()` and `InCooldown()`
-- `Health`: accessed via `target.components.health` to check `IsDead()`, and via `inst.components.health` (indirectly via target)
-
-**Tags:**
-- `notarget`: checked on candidate targets to exclude them from targeting
-- `playerghost`: checked on candidate targets to exclude ghost players
-- `despawn`: pushed as an event by this component after TUNING.SHADOW_CHESSPIECE_DESPAWN_TIME
+**Components used:** `combat`, `health`  
+**Tags:** Checks `notarget`, `playerghost` on potential targets; no tags added or removed by this component itself.
 
 ## Properties
-
-No public properties are initialized in the constructor. The component stores only the behavior tree root internally as `self.bt`.
+No public properties.
 
 ## Main functions
-
 ### `OnStart()`
-* **Description:** Initializes the behavior tree root for the Shadow Knight. It constructs a prioritized sequence of behaviors: (1) Attack when no target is present or cooldown has ended, (2) Dodge/run away when a target is active, (3) Face the nearest valid player, and (4) Concurrently wander and schedule a `despawn` event after a fixed time. Called automatically when the brain is attached and started.
-* **Parameters:** None.
-* **Returns:** `nil`.
-* **Error states:** None documented. Assumes `inst.components.combat` and `inst.components.health` exist on the entity.
+*   **Description:** Initializes the behavior tree root node with a priority structure. The tree evaluates combat state to decide between attacking (via `ChaseAndAttack`), dodging (via `RunAway`), facing a nearby player (via `FaceEntity`), and performing concurrent wandering with a timed despawn action.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** None identified. Requires `self.inst.components.combat` and `self.inst.components.health` to be present for correct node evaluation.
 
 ## Events & listeners
-
-- **Listens to:** None directly — event listeners are managed internally by behavior modules (e.g., `ChaseAndAttack`, `RunAway`).
-- **Pushes:**
-  - `despawn`: Fired on `self.inst` after `TUNING.SHADOW_CHESSPIECE_DESPAWN_TIME` seconds, via the behavior tree. No data payload.
-
----
+- **Listens to:** None.
+- **Pushes:** `despawn` — fired when the timed despawn counter reaches `TUNING.SHADOW_CHESSPIECE_DESPAWN_TIME` via an `ActionNode` in the behavior tree.

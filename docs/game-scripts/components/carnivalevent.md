@@ -1,62 +1,96 @@
 ---
 id: carnivalevent
 title: Carnivalevent
-description: Manages the server-side logic for the Year of the Beefalo Carnival event, including spawning the Carnival Host and tracking Carnival Plazas.
+description: Manages the lifecycle and world presence of the Carnival Host during the Carnival event, including spawning, plaza tracking, and summoning logic.
+tags: [event, world, host, spawn]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 8e8f2f7b
+system_scope: world
 ---
 
 # Carnivalevent
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component is attached to `TheWorld` and acts as the central manager for the Carnival event on the master simulation (server). Its primary responsibilities include spawning and maintaining the existence of the Carnival Host entity, tracking the locations of all Carnival Plazas built in the world, and facilitating the host's appearance at these plazas.
+The `carnivalevent` component manages the spawning and state of the Carnival Host during the Carnival seasonal event. It tracks registered carnival plazas, handles the portal location logic for the host’s spawn, and coordinates with `playerspawner` and `knownlocations` to initialize the host correctly. This component is strictly server-side and must only be added to the world instance.
 
-This component only exists on the server.
+## Usage example
+```lua
+-- Typically added automatically to TheWorld when the Carnival event is active
+TheWorld:AddComponent("carnivalevent")
+TheWorld.components.carnivalevent:RegisterPlaza(plaza_prefab)
+TheWorld.components.carnivalevent:SummonHost(plaza_prefab)
+```
 
-## Dependencies & Tags
-None identified.
+## Dependencies & tags
+**Components used:** `playerspawner`, `knownlocations`  
+**Tags:** None identified
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | Entity | — | Reference to the entity (typically `TheWorld`) that owns this component. |
 
-| Property | Type   | Default Value                                | Description                                               |
-|----------|--------|----------------------------------------------|-----------------------------------------------------------|
-| `inst`   | Entity | The entity instance this component is attached to. | A reference to the entity instance, which is `TheWorld`. |
-
-## Main Functions
-
+## Main functions
 ### `RegisterPlaza(plaza)`
-* **Description:** Adds a Carnival Plaza entity to the component's internal tracking list. This is typically called when a plaza is built. It also triggers a world event to notify other systems.
-* **Parameters:**
-    * `plaza` (Entity): The Carnival Plaza entity to register.
+*   **Description:** Registers a plaza entity as an active carnival plaza and fires the `ms_carnivalplazabuilt` event world-wide.
+*   **Parameters:** `plaza` (Entity or GUID-like identifier) — the plaza to register.
+*   **Returns:** Nothing.
 
 ### `UnregisterPlaza(plaza)`
-* **Description:** Removes a Carnival Plaza entity from the internal tracking list. This is used when a plaza is destroyed.
-* **Parameters:**
-    * `plaza` (Entity): The Carnival Plaza entity to unregister.
+*   **Description:** Removes a plaza from the list of active plazas. Note: The corresponding destroy event (`ms_carnivalplazadestroyed`) is commented out and currently not fired.
+*   **Parameters:** `plaza` (Entity or GUID-like identifier) — the plaza to unregister.
+*   **Returns:** Nothing.
 
 ### `DoesAnyPlazaExist()`
-* **Description:** Checks if any Carnival Plazas are currently registered in the world.
-* **Returns:** `true` if at least one plaza exists, `false` otherwise.
+*   **Description:** Checks whether at least one plaza is currently registered.
+*   **Parameters:** None.
+*   **Returns:** `true` if at least one plaza is registered; `false` otherwise.
 
 ### `GetRandomPlaza()`
-* **Description:** Selects and returns a random Carnival Plaza from the list of all existing plazas.
-* **Returns:** A random Carnival Plaza entity instance, or `nil` if no plazas exist.
+*   **Description:** Returns a randomly selected registered plaza, or `nil` if none exist.
+*   **Parameters:** None.
+*   **Returns:** Entity or GUID-like identifier, or `nil`.
 
 ### `SummonHost(plaza)`
-* **Description:** Attempts to summon the Carnival Host to a specific plaza. This function calls a method on the Carnival Host entity itself to trigger its "summoned" behavior.
-* **Parameters:**
-    * `plaza` (Entity): The target Carnival Plaza where the host should be summoned.
-* **Returns:** A boolean indicating the result of the summon attempt on the host entity. Returns `false` if the Carnival Host does not exist.
+*   **Description:** Attempts to summon the Carnival Host to the specified plaza. Requires the Carnival Host to already be spawned.
+*   **Parameters:** `plaza` (Entity or GUID-like identifier) — the plaza to summon the host to.
+*   **Returns:** Boolean — the result of the host’s `SummonedToPlaza(plaza)` call; `false` if no host is present.
 
-## Events & Listeners
+### `OnPostInit()`
+*   **Description:** Ensures the Carnival Host is spawned after world initialization if it hasn’t been already.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-* **Listens To:**
-    * `onremove` (on `_carnival_host`): When the Carnival Host entity is removed from the world, this listener triggers a function to respawn it, ensuring the host is always present during the event.
-* **Pushes:**
-    * `ms_carnivalplazabuilt`: Fired when a new Carnival Plaza is registered via the `RegisterPlaza` function. The event data is the plaza entity itself.
+### `OnSave()`
+*   **Description:** Prepares serialization data for the Carnival Host GUID for saving.
+*   **Parameters:** None.
+*   **Returns:** Two values:  
+    1. `data` (table) — contains `{ carnival_host = GUID or nil }`.  
+    2. `ents` (array) — list of entity GUIDs to persist (currently only the host, if present).
+
+### `OnLoad(data)`
+*   **Description:** Stub for loading saved state. Currently unused.
+*   **Parameters:** `data` (table) — saved component data.
+*   **Returns:** Nothing.
+
+### `LoadPostPass(newents, savedata)`
+*   **Description:** Restores the Carnival Host after deserialization using saved GUIDs.
+*   **Parameters:**  
+    - `newents` (table) — mapping of GUIDs to loaded entity objects.  
+    - `savedata` (table) — data returned from `OnSave()`.  
+*   **Returns:** Nothing.
+*   **Error states:** If the saved GUID is missing or the entity is not in `newents`, no host is spawned.
+
+## Events & listeners
+- **Listens to:**  
+  - `onremove` on the Carnival Host entity — triggers internal cleanup and respawn logic.
+- **Pushes:**  
+  - `ms_carnivalplazabuilt` — fired when a plaza is registered via `RegisterPlaza`.  
+  - *(Note: `ms_carnivalplazadestroyed` is commented out and not actively fired.)*

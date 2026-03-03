@@ -4,7 +4,6 @@ title: Swamp
 description: Defines cave swamp map room templates with varying layouts, densities, and prefab distributions for procedural world generation.
 tags: [map, procedural, room, worldgen]
 sidebar_position: 1
-
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: environment
 source_hash: 4c040fdd
 ---
-
 # Swamp
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -59,4 +57,3 @@ This file does not define any standalone Lua functions. It calls `AddRoom` with 
 ## Events & listeners
 None identified.
 
----

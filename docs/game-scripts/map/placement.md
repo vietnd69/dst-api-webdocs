@@ -3,7 +3,7 @@ id: placement
 title: Placement
 description: Provides procedural positioning utilities for map nodes using various spatial distribution algorithms (random line, circular offset, circular edge) and two placement strategies (mode0, random).
 tags: [map, placement, procedural]
-sidebar_position: 1
+sidebar_position: 100
 
 last_updated: 2026-02-27
 build_version: 714014

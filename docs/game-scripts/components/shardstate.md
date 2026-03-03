@@ -1,48 +1,51 @@
 ---
 id: shardstate
 title: Shardstate
-description: Manages synchronization of the master session identifier across networked entities in DST's shard architecture.
+description: Manages the master session identifier for network synchronization in DST's shard system.
+tags: [network, world, shard]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: map
 source_hash: d3ac3e93
+system_scope: network
 ---
 
 # Shardstate
 
-## Overview
-This component ensures consistent synchronization of the master session identifier between the server and clients in a Don't Starve Together shard environment. It uses a networked string variable (`net_string`) to propagate the session ID during initialization and when the ID changes on the master, and triggers local updates (e.g., session caching and user serialization) on clients upon receiving synchronization events.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on `net_string` (implicitly via `net_string(...)` call).
-- No other components are added or removed by this script.
-- Listens to and dispatches custom events (`ms_newmastersessionid`, `mastersessioniddirty`) scoped to `TheWorld` (server) or `inst` (client).
+## Overview
+`ShardState` is a network-aware component that maintains and synchronizes the master session identifier across the client and server in a DST shard setup. It ensures that both the master simulation and non-master instances have a consistent view of the world's session identifier, which is critical for operations such as user session serialization and client-server cache synchronization.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("shardstate")
+local session_id = inst.components.shardstate:GetMasterSessionId()
+-- Use session_id for session-specific logic or validation
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity this component is attached to (typically the player or world root). |
-| `_mastersessionid` | `net_string` | Initialized with `TheWorld.meta.session_identifier` | Networked string variable storing the current master session identifier. |
+| `inst` | entity instance | `nil` | Reference to the entity that owns this component. Initialized in constructor. |
 
-*Note:* No explicit public properties beyond `inst` are defined in `_ctor`. All other state is held in local (private) scope.
-
-## Main Functions
-
+## Main functions
 ### `GetMasterSessionId()`
-* **Description:** Returns the current value of the master session identifier stored in the networked variable `_mastersessionid`.
-* **Parameters:** None.
+*   **Description:** Returns the current master session identifier. On the master simulation, this value is authoritative; on non-master instances, it is synced via the network layer.
+*   **Parameters:** None.
+*   **Returns:** string — the session identifier string.
+*   **Error states:** None.
 
-## Events & Listeners
-- **Listens to `ms_newmastersessionid` (server only):**  
-  When received on the master, updates `_mastersessionid` with the new session ID passed as the event argument (`session_id`).
-- **Listens to `mastersessioniddirty` (client only):**  
-  Triggers `TheNet:SetClientCacheSessionIdentifier` and `SerializeUserSession` to update local session state when the server updates the identifier.
-
-- **Triggers `ms_newmastersessionid` (server only):**  
-  Not directly triggered by this component; expected to be fired elsewhere in the codebase when the master session ID changes (e.g., during shard handover or session reset).
-- **Triggers `mastersessioniddirty` (client only):**  
-  Not directly triggered here; expected to be fired by the network layer when `_mastersessionid` is updated on the server.
+## Events & listeners
+- **Listens to:**  
+  - `ms_newmastersessionid` (on master simulation): Updates the cached session identifier when triggered by `TheWorld`.
+  - `mastersessioniddirty` (on non-master): Syncs the client-side cache with the server’s current session identifier and re-serializes user session data.
+- **Pushes:** None.

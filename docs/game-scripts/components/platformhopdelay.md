@@ -1,45 +1,62 @@
 ---
 id: platformhopdelay
 title: Platformhopdelay
-description: Manages a delay timer (in ticks) that controls how soon an entity can perform a platform hop action after a previous one.
+description: Manages a delay period measured in frame ticks before allowing a platform-hopping action (e.g., moving between floating platforms) to occur.
+tags: [locomotion, platform, delay, physics]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: e8f51f0c
+system_scope: locomotion
 ---
-
 # Platformhopdelay
 
-## Overview
-This component provides a delay mechanism for platform-hopping behavior, storing the number of ticks that must elapse before an entity (typically a player or creature) can hop to another platform again. It is used to enforce a cooldown period between successive platform hops, likely to prevent spamming of the action or to ensure realistic movement timing.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-The component relies on the `FRAMES` global constant (used to convert time-in-seconds to ticks). It does not add or remove any entity tags, nor does it require other components.
+## Overview
+`PlatformHopDelay` is a lightweight component that tracks a delay in frame ticks for platform-hopping actions—typically used for characters like Wigfrid or Warly when moving across floating platforms in the Ruins or Gorge. It stores the remaining delay duration (`delayticks`) and provides methods to configure and query it. The component does not enforce the delay itself but serves as a shared state source that other systems can reference (e.g., in state graphs or locomotion logic) to gate platform transitions.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("platformhopdelay")
+
+-- Set delay in seconds (converted to ticks internally)
+inst.components.platformhopdelay:SetDelay(0.5)
+
+-- Alternatively, set delay directly in ticks
+inst.components.platformhopdelay:SetDelayTicks(4)
+
+-- Query current delay
+local ticks = inst.components.platformhopdelay:GetDelayTicks()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the owner entity, set during construction. |
-| `delayticks` | `number` (integer) | `8` | Number of ticks to wait before allowing another platform hop. |
+| `delayticks` | number | `8` | Number of frame ticks remaining before the hop delay expires. `8` ticks ≈ 0.133 seconds at 60 FPS (`FRAMES = 0.0166667`). |
 
-## Main Functions
+## Main functions
 ### `SetDelay(time)`
-* **Description:** Sets the hop delay based on a time duration in seconds. Internally converts seconds to ticks by dividing by `FRAMES` and rounding up.
-* **Parameters:**  
-  `time` (`number`): Duration in seconds for the delay.
+*   **Description:** Sets the delay duration in seconds, converting and rounding up to the nearest whole tick.
+*   **Parameters:** `time` (number) — delay duration in seconds.
+*   **Returns:** Nothing.
 
 ### `SetDelayTicks(ticks)`
-* **Description:** Directly sets the hop delay in ticks.
-* **Parameters:**  
-  `ticks` (`number`): Number of ticks to wait.
+*   **Description:** Sets the delay duration directly in frame ticks.
+*   **Parameters:** `ticks` (number) — integer or float (converted to integer) delay in ticks.
+*   **Returns:** Nothing.
 
 ### `GetDelayTicks()`
-* **Description:** Returns the current hop delay in ticks.
-* **Parameters:** None.
+*   **Description:** Returns the current remaining delay in frame ticks.
+*   **Parameters:** None.
+*   **Returns:** number — current delay ticks.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified

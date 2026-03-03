@@ -1,52 +1,66 @@
 ---
 id: area_trigger
 title: Area Trigger
-description: Applies configured tuning overrides when the world changes to specific story areas or depth values.
+description: Applies runtime tuning overrides when the player enters specific story zones during world generation.
+tags: [world, tuning, zone]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 9266600b
+system_scope: world
 ---
 
-# area_trigger
+# Area Trigger
+
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The `area_trigger` component provides a mechanism for an entity to dynamically adjust game tuning settings based on the current game area or "story" identifier. It listens for the global `"changearea"` event and, if configured, applies a set of predefined tuning overrides associated with the new area's story or its depth. This allows for context-sensitive modifications to game mechanics, such as altering spawn rates, damage multipliers, or other game parameters when players enter specific regions or progress through narrative stages.
+`AreaTrigger` is a client-side component that applies dynamic tuning overrides when the player entity enters designated story zones (areas) during world generation. It listens for the `"changearea"` event and executes custom tuning functions associated with the entered story. The component is typically attached to the player prefab to enable zone-specific rule adjustments without altering base tuning files.
 
-## Dependencies & Tags
-**Dependencies:**
-*   Relies on the global event system for the `"changearea"` event to be pushed.
-*   Requires the `tuning_override` Lua module to perform actual tuning adjustments.
+## Usage example
+```lua
+local inst = ThePlayer
+inst:AddComponent("area_trigger")
+inst.components.area_trigger:RegisterTriggers({
+    ["deep_caves"] = {
+        {"CAMERA_ZOOM_MAX", 2.5},
+        {"CAMERA_ZOOM_MIN", 1.0},
+    },
+})
+```
 
+## Dependencies & tags
+**Components used:** None directly accessed; relies on external `"tuning_override.lua"` via `require`.
 **Tags:** None identified.
 
 ## Properties
-| Property  | Type    | Default Value | Description                                                    |
-| :-------- | :------ | :------------ | :------------------------------------------------------------- |
-| `inst`    | `Entity` | (provided in ctor) | A reference to the entity this component is attached to.      |
-| `stories` | `table` | `{}`          | A table mapping area story identifiers (strings for `area.story` or numbers for `area.story_depth`) to lists of tuning overrides. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | `nil` (assigned in constructor) | Reference to the entity that owns this component. |
+| `stories` | table | `{}` | Maps story zone names (strings) to lists of tuning override pairs. |
 
-## Main Functions
+## Main functions
+### `RegisterTriggers(stories)`
+* **Description:** Registers a mapping of story zone names to their respective tuning override instructions.
+* **Parameters:** `stories` (table) — A dictionary where keys are story identifiers (e.g., `"deep_caves"`) and values are arrays of `{ tuning_key, value }` pairs.
+* **Returns:** Nothing.
+* **Error states:** No validation; expects valid keys from `tuning_override.lua`.
 
-### `AreaTrigger:DoOverride(overrides)`
-*   **Description:** Applies a list of tuning overrides. It iterates through the provided `overrides` table, where each override is expected to be a table containing a key (corresponding to a function name in the `tuning_override` module) and a value (the argument for that function). It then calls the corresponding `tuning_override` function with the specified value.
-*   **Parameters:**
-    *   `overrides`: `table` - A list of override definitions. Each element should be a table `[key, value]` where `key` is a string matching a function name in the `tuning_override` module and `value` is the argument for that function.
+### `CheckTrigger(area)`
+* **Description:** Evaluates whether the current area (passed via `"changearea"` event) has registered triggers and executes them.
+* **Parameters:** `area` (table) — The area data containing at least a `story` string and optionally `story_depth`.
+* **Returns:** Nothing.
+* **Error states:** Silently skips if `area.story` or `area.story_depth` have no matching entry in `self.stories`.
 
-### `AreaTrigger:CheckTrigger(area)`
-*   **Description:** This function is invoked when the game area changes (typically via the `"changearea"` event). It inspects the provided `area` table for `story` and `story_depth` fields. If either of these matches a key registered in `self.stories`, the associated list of tuning overrides is passed to `AreaTrigger:DoOverride` to be applied.
-*   **Parameters:**
-    *   `area`: `table` - An object representing the new game area. Expected to contain a `story` (string) field and optionally a `story_depth` (number) field.
+### `DoOverride(overrides)`
+* **Description:** Applies a list of tuning overrides by invoking the corresponding setter functions from `tuning_override.lua`.
+* **Parameters:** `overrides` (table) — An array of `{ tuning_key, value }` pairs; each `tuning_key` must exist as a function in the loaded `tuning_override` module.
+* **Returns:** Nothing.
+* **Error states:** Skips silently if the `tuning_key` does not exist in `tuning_override`; does not validate value types.
 
-### `AreaTrigger:RegisterTriggers(stories)`
-*   **Description:** Sets the internal table of story-based tuning overrides for this component. This is the primary method used to configure which specific area stories or story depths should trigger particular tuning adjustments. The component will then use this mapping when `"changearea"` events occur.
-*   **Parameters:**
-    *   `stories`: `table` - A table where keys are story identifiers (strings for `area.story` or numbers for `area.story_depth`) and values are tables of tuning override definitions (in the format expected by `AreaTrigger:DoOverride`).
-
-## Events & Listeners
-*   **Listens For:**
-    *   `"changearea"`: This event is typically pushed when the player or game state transitions to a new distinct game area. When received, it triggers the component's `AreaTrigger:CheckTrigger` method, passing the new area's data.
+## Events & listeners
+- **Listens to:** `changearea` — Triggers `CheckTrigger` whenever the player enters a new area; provides the new area data as the second argument.
+- **Pushes:** None.

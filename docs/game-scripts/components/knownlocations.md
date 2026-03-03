@@ -1,73 +1,96 @@
 ---
 id: knownlocations
 title: Knownlocations
-description: Tracks and persists named world coordinates associated with an entity, allowing locations to be remembered, retrieved, forgotten, and saved across sessions.
+description: Manages a collection of named coordinate positions associated with an entity for persistent tracking and recall.
+tags: [map, persistence, storage]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 5febcc7d
+system_scope: world
 ---
 
 # Knownlocations
 
-## Overview
-This component manages a collection of named 3D world positions (`Vector3`) associated with an entity. It provides functionality to remember (store), retrieve, forget, serialize, and deserialize these locations—making it particularly useful for saving and loading persistent world landmarks or waypoints. It integrates with the game’s save/load system via `OnSave` and `OnLoad` methods.
+> Based on game build **7140014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`KnownLocations` is a lightweight component that stores and retrieves named world positions (`Vector3`) on an entity. It supports serialization for save/load functionality and provides debugging output via `GetDebugString`. While currently unused for debugging in active code (the debugger integration is commented out), it is designed to support tools and systems that need to track specific points of interest relative to an entity, such as bosses, structures, or dynamic world markers.
+
+The component does not manage spatial logic or pathfinding; it acts purely as a key-value store for positions.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("knownlocations")
+
+inst.components.knownlocations:RememberLocation("spawn", Vector3(10, 0, -20))
+inst.components.knownlocations:RememberLocation("exit", Vector3(-5, 0, 15), true) -- do not overwrite if exists
+
+local spawn_pos = inst.components.knownlocations:GetLocation("spawn")
+local saved_data = inst.components.knownlocations:OnSave()
+inst.components.knownlocations:OnLoad(saved_data)
+```
+
+## Dependencies & tags
+**Components used:** `debugger` (commented out; not actively used)
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `locations` | `table` | `{}` | A dictionary mapping location names (strings) to `Vector3` position values. |
-| `inst` | `Entity` | passed to constructor | Reference to the entity this component is attached to. |
+| `locations` | table (map of string → `Vector3`) | `{}` | Internal dictionary storing named positions. |
 
-## Main Functions
-### `RememberLocation(name, pos, dont_overwrite)`
-* **Description:** Stores a named position in the `locations` table. If `dont_overwrite` is `true`, the position is only stored if the name does not already exist. Includes validation to detect invalid (NaN/Inf) coordinates and logs an error if found.
-* **Parameters:**  
-  - `name` (string): The identifier for the location.  
-  - `pos` (`Vector3`): The 3D world position to store.  
-  - `dont_overwrite` (boolean, optional): If `true`, prevents overwriting an existing entry for the same `name`.
-
-### `GetLocation(name)`
-* **Description:** Returns the stored `Vector3` position for a given location name, or `nil` if not found.
-* **Parameters:**  
-  - `name` (string): The identifier of the location to retrieve.
-
-### `ForgetLocation(name)`
-* **Description:** Removes a named location from the `locations` table.
-* **Parameters:**  
-  - `name` (string): The identifier of the location to remove.
+## Main functions
+### `GetDebugString()`
+* **Description:** Returns a human-readable string listing all known location names and their positions. Intended for debugging/logs.
+* **Parameters:** None.
+* **Returns:** `string` — formatted as `"location_name: Vector3(x, y, z) ..."` for all entries.
+* **Error states:** None. If no locations exist, returns an empty string.
 
 ### `SerializeLocations()`
-* **Description:** Converts the internal `locations` table into a serializable array of tables, each containing `name`, `x`, `y`, and `z`.
-* **Parameters:** None.  
-* **Returns:** `table?` — A list of location records, or `nil` if no locations exist.
+* **Description:** Serializes all stored locations into a plain table suitable for save data.
+* **Parameters:** None.
+* **Returns:** `table?` — `nil` if no locations exist; otherwise, a table of objects with keys `{name, x, y, z}` for each location.
+* **Error states:** Returns `nil` if `self.locations` is empty.
 
 ### `DeserializeLocations(data)`
-* **Description:** Restores locations from serialized data by calling `RememberLocation` for each entry.
-* **Parameters:**  
-  - `data` (table): An array of location records (as returned by `SerializeLocations`).
+* **Description:** Restores locations from serialized data (e.g., loaded from save).
+* **Parameters:** `data` (table) — a table of location objects, each with keys `{name, x, y, z}`.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Serializes and returns the stored locations for saving to disk. Used by the save system.
-* **Parameters:** None.  
-* **Returns:** `table?` — A table of the form `{ locations = serialized_data }`, or `nil` if no locations exist.
+* **Description:** Helper method to prepare component state for world/entity saving.
+* **Parameters:** None.
+* **Returns:** `{locations = ...}` (table) or `nil` — only returns a non-`nil` table if locations exist.
+* **Error states:** Returns `nil` if `locations` is empty.
 
 ### `OnLoad(data)`
-* **Description:** Loads previously saved location data and restores them. Used by the load system.
+* **Description:** Restores component state from saved data during load.
+* **Parameters:** `data` (table) — expected to contain a `locations` key matching the output of `SerializeLocations()`.
+* **Returns:** Nothing.
+
+### `RememberLocation(name, pos, dont_overwrite)`
+* **Description:** Records or updates a named location.
 * **Parameters:**  
-  - `data` (table): Save data containing `data.locations`, if any.
+  - `name` (string) — unique identifier for the location.  
+  - `pos` (`Vector3`) — world position to store.  
+  - `dont_overwrite` (boolean?) — if `true`, does not overwrite an existing entry (optional; defaults to `nil` → overwrite allowed).
+* **Returns:** Nothing.
+* **Error states:** If `pos` contains invalid numbers (NaN or inf), prints an error message to console and raises a Lua error.
 
-### `GetDebugString()`
-* **Description:** Returns a string listing all known location names and their positions, primarily for debugging display (e.g., via debugger UI). Includes commented-out visualization logic.
-* **Parameters:** None.  
-* **Returns:** `string` — A space-separated string of `"name: position"` entries.
+### `GetLocation(name)`
+* **Description:** Retrieves a stored location by name.
+* **Parameters:** `name` (string) — the identifier of the location.
+* **Returns:** `Vector3?` — the stored position, or `nil` if not found.
 
-## Events & Listeners
-None.
+### `ForgetLocation(name)`
+* **Description:** Removes a location from the store.
+* **Parameters:** `name` (string) — the identifier to remove.
+* **Returns:** Nothing.
+
+## Events & listeners
+None identified.

@@ -1,60 +1,86 @@
 ---
 id: blinkstaff
 title: Blinkstaff
-description: Manages the teleportation logic, visual effects, and sound cues for staff-like items.
+description: Handles teleportation logic and visual/audio effects for the Blink Staff item in DST.
+tags: [teleport, item, fx, combat]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 0da7bd0d
+system_scope: entity
 ---
 
 # Blinkstaff
 
-## Overview
-The `blinkstaff` component orchestrates the teleportation (blinking) sequence for an item, typically a staff. It handles the initiation of the teleport, spawning visual and audio effects at the origin and destination, performing map validity checks, and executing the caster's position change after a short delay.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified. This component acts upon a `caster` entity, which is expected to have components like `Physics`, `SoundEmitter`, and potentially `health`, but these are not direct dependencies of the entity hosting the `blinkstaff` component itself.
+## Overview
+`Blinkstaff` manages the behavior of the Blink Staff item, including teleporting the user, spawning visual and sound effects, and coordinating invincibility during the short blink delay. It is attached to the Blink Staff entity and invoked via script when the item is used (e.g., on right-click). The component integrates closely with the target entity’s `health` component to grant temporary invincibility during the blink sequence.
+
+## Usage example
+```lua
+local staff = Prefab("blinkstaff")
+staff:AddComponent("blinkstaff")
+staff.components.blinkstaff:SetFX("staff_blink_front", "staff_blink_back")
+staff.components.blinkstaff:SetSoundFX("dontstarve/common/staff_blink_pre", "dontstarve/common/staff_blink_post")
+staff.components.blinkstaff:SetOnBlinkFn(function(inst, pt, caster) print("Blink started!") end)
+```
+
+## Dependencies & tags
+**Components used:** `health` (via `SetInvincible` to manage invincibility during blink)  
+**Tags:** None identified.
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | *(none)* | The entity instance the component is attached to. |
+| `onblinkfn` | function or `nil` | `nil` | Optional callback invoked when `Blink()` is called. |
+| `blinktask` | `Task` or `nil` | `nil` | Reference to the pending blink completion task; used to cancel ongoing blinks. |
+| `frontfx` | string or `nil` | `nil` | Prefab name to spawn at target position (front effect). |
+| `backfx` | string or `nil` | `nil` | Prefab name to spawn slightly below target (back effect). |
+| `presound` | string | `"dontstarve/common/staff_blink"` | Sound event to play at start of blink. |
+| `postsound` | string | `"dontstarve/common/staff_blink"` | Sound event to play after blink completes. |
 
-| Property    | Type     | Default Value                            | Description                                                                 |
-|-------------|----------|------------------------------------------|-----------------------------------------------------------------------------|
-| `onblinkfn` | function | `nil`                                    | An optional callback function that is triggered when a blink is initiated.  |
-| `blinktask` | task     | `nil`                                    | A reference to the scheduled task that completes the teleportation.         |
-| `frontfx`   | string   | `nil`                                    | The prefab name for the "front" visual effect spawned during a blink.       |
-| `backfx`    | string   | `nil`                                    | The prefab name for the "back" visual effect spawned during a blink.        |
-| `presound`  | string   | `"dontstarve/common/staff_blink"` | The sound asset path played at the start of the teleport.                   |
-| `postsound` | string   | `"dontstarve/common/staff_blink"` | The sound asset path played at the end of the teleport.                     |
-
-## Main Functions
+## Main functions
 ### `SetFX(front, back)`
-* **Description:** Sets the names of the prefabs to be used for the visual effects when blinking.
-* **Parameters:**
-    * `front` (string): The prefab name for the foreground visual effect.
-    * `back` (string): The prefab name for the background visual effect.
+* **Description:** Sets the visual effect prefabs to spawn during a blink. `front` appears at the destination; `back` appears slightly beneath it.
+* **Parameters:**  
+  - `front` (string or `nil`) — name of the front-effect prefab.  
+  - `back` (string or `nil`) — name of the back-effect prefab.  
+* **Returns:** Nothing.
 
 ### `ResetSoundFX()`
-* **Description:** Resets the pre-blink and post-blink sounds to their default values.
+* **Description:** Resets sound event paths to default values (both pre- and postsound to `"dontstarve/common/staff_blink"`).
+* **Parameters:** None.  
+* **Returns:** Nothing.
 
 ### `SetSoundFX(presound, postsound)`
-* **Description:** Overrides the default sound effects for the teleport sequence.
-* **Parameters:**
-    * `presound` (string): The sound asset to play at the start of the teleport.
-    * `postsound` (string): The sound asset to play upon arrival at the destination.
+* **Description:** Sets custom sound events to play at the start and end of the blink.
+* **Parameters:**  
+  - `presound` (string) — sound to play when blink begins.  
+  - `postsound` (string) — sound to play after teleport completes.  
+* **Returns:** Nothing.
 
 ### `SpawnEffect(inst)`
-* **Description:** Spawns the configured `frontfx` and `backfx` prefabs at the world position of the provided entity instance.
-* **Parameters:**
-    * `inst` (Entity): The entity at whose location the effects should be spawned.
+* **Description:** Spawns the configured visual effects at the given entity’s position.
+* **Parameters:**  
+  - `inst` (`Entity`) — the entity whose position is used as the spawn point.  
+* **Returns:** Nothing.
 
 ### `Blink(pt, caster)`
-* **Description:** Initiates the teleportation sequence for a caster to a target point. It performs safety checks to ensure the target location is valid, plays initial sound and visual effects, hides the caster, and schedules a delayed task to complete the teleportation.
-* **Parameters:**
-    * `pt` (Point): The target destination point (Vector3) for the teleport.
-    * `caster` (Entity): The entity that will be teleported.
-* **Returns:** `true` if the blink was successfully initiated, `false` otherwise (e.g., if the target location is invalid).
+* **Description:** Initiates a blink (teleport) for the caster to the target point `pt`. Performs validation checks (teleport permissions, passability, blocked targets), spawns effects and sound, grants temporary invincibility, and schedules a delayed completion task. Returns `true` on successful initiation.
+* **Parameters:**  
+  - `pt` (`Vector` or `DynamicPosition`) — the destination point (must be passable and unblocked).  
+  - `caster` (`Entity`) — the entity performing the blink.  
+* **Returns:** `true` if blink started; `false` if the teleport was blocked by validation rules.  
+* **Error states:**  
+  - Returns `false` if `IsTeleportingPermittedFromPointToPoint` fails.  
+  - Returns `false` if caster is in a non-`quicktele` state (if stategraph exists) or destination is impassable/blocked.  
+  - Cancels and replaces any existing pending blink task (`blinktask`) before starting a new one.
+
+## Events & listeners
+- **Listens to:** None identified.  
+- **Pushes:** The component itself does not push events, but the delayed `OnBlinked` callback (called via `DoTaskInTime`) may trigger custom logic via `caster.sg.statemem.onstopblinking` or health invincibility toggle.

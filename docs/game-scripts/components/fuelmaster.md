@@ -1,51 +1,62 @@
 ---
 id: fuelmaster
 title: Fuelmaster
-description: Calculates and applies a multiplicative fuel efficiency bonus to an entity based on custom logic and a base multiplier.
+description: Manages fuel-burning multiplier bonuses for entities that consume fuel, such as fire sources or lanterns.
+tags: [fuel, entity, utility]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: c310f291
+system_scope: entity
 ---
 
 # Fuelmaster
 
-## Overview
-The `Fuelmaster` component enhances an entity's fuel efficiency calculations by allowing dynamic adjustment of fuel usage multipliers. It provides a mechanism to override or augment how much fuel a device consumes when operating, using both a simple scalar multiplier and an optional custom callback function.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified
+## Overview
+`Fuelmaster` provides a mechanism to dynamically adjust the fuel efficiency multiplier for an entity. It is designed to be attached to entities that burn fuel (e.g., campfires, lanterns, beefalo ovens) and allows external systems (e.g., upgrades, environment effects, or character modifiers) to modify how long fuel lasts or how efficiently it burns. The component supports a static multiplier (`bonusmult`) and a dynamic callback function (`bonusfn`) that can compute per-item adjustments.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("fuelmaster")
+inst.components.fuelmaster:SetBonusMult(1.5)
+inst.components.fuelmaster:SetBonusFn(function(inst, item, target) return item.bonus or 1 end)
+local multiplier = inst.components.fuelmaster:GetBonusMult(item, target)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `bonusmult` | number | `1` | A constant multiplier applied to all fuel consumption/burn calculations. |
+| `bonusfn` | function or nil | `nil` | An optional callback function that computes per-item bonuses. |
 
-| Property    | Type     | Default Value | Description |
-|-------------|----------|---------------|-------------|
-| `inst`      | `Entity` | *(from arg)*  | Reference to the entity this component is attached to. |
-| `bonusmult` | `number` | `1`           | Base multiplier applied to fuel usage calculations. |
-| `bonusfn`   | `function?` | `nil`       | Optional callback function used to compute an additional multiplier per fuel usage event. |
-
-## Main Functions
-
+## Main functions
 ### `SetBonusMult(mult)`
-* **Description:** Sets the base fuel usage multiplier (`bonusmult`) applied to all fuel calculations.
-* **Parameters:**
-  * `mult` (`number`): The new multiplicative factor. Must be a numeric value (typically > 0).
+*   **Description:** Sets the constant bonus multiplier applied to fuel usage calculations.
+*   **Parameters:** `mult` (number) — the multiplier to apply (e.g., `1.5` for +50% fuel efficiency).
+*   **Returns:** Nothing.
 
 ### `SetBonusFn(fn)`
-* **Description:** Assigns a custom callback function to dynamically determine fuel usage adjustments per item/target pair.
-* **Parameters:**
-  * `fn` (`function`): A function expecting three arguments: `(instance, item, target)`, and returning a numeric multiplier.
+*   **Description:** Sets the optional callback function used to compute item-specific bonuses. The function can override or adjust the base `bonusmult` dynamically based on the item being used and the target entity.
+*   **Parameters:** `fn` (function) — a function of the form `fn(inst, item, target)`, expected to return a numeric multiplier.
+*   **Returns:** Nothing.
 
 ### `GetBonusMult(item, target)`
-* **Description:** Computes and returns the final fuel efficiency bonus multiplier by combining the base multiplier (`bonusmult`) and the result of the optional callback (`bonusfn`). Used when determining fuel consumption for items or devices.
-* **Parameters:**
-  * `item` (`Entity`): The item being consumed as fuel.
-  * `target` (`Entity`): The entity consuming the fuel (e.g., a fire, lantern, or engine).
-  * **Returns:** `number` – The effective multiplier used to scale fuel consumption (e.g., higher values = more fuel used).
+*   **Description:** Computes and returns the final fuel multiplier, combining the `bonusfn` result (if present) and `bonusmult`. Used by other systems (e.g., fuel components) to determine how fuel should be consumed.
+*   **Parameters:**  
+    - `item` (any) — the fuel item being consumed (e.g., a torch, log, or bulb).  
+    - `target` (any) — the entity consuming the fuel (typically `self.inst`).  
+*   **Returns:** number — the effective multiplier. Defaults to `1` if `bonusfn` is `nil`.  
+*   **Error states:** No explicit error handling; returns `bonusmult` alone if `bonusfn` is `nil`. Behavior depends on the correctness of `bonusfn`'s return value.
 
-## Events & Listeners
-None
+## Events & listeners
+None identified

@@ -1,86 +1,104 @@
 ---
 id: knowndynamiclocations
 title: Knowndynamiclocations
-description: Manages named dynamic positions and tracks their stability relative to walkable platforms in the world.
+description: Manages named dynamic positions associated with an entity, supporting platform-relative storage and persistence across saves.
+tags: [world, position, persistence, dynamic]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: ca6d8753
+system_scope: world
 ---
 
 # Knowndynamiclocations
 
-## Overview
-This component tracks named dynamic locations in the game world by storing `DynamicPosition` objects, which may be anchored to walkable platforms. It provides methods to remember, retrieve, and persist these positions—including handling of platform removal and world loading—making it essential for stable reference points that adapt to dynamic world changes (e.g., moving platforms or floating islands).
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-* Uses the `DynamicPosition` class (imported/available in scope).
-* Listens for the `"onremove"` event on `walkable_platform` entities to detect platform removal and convert to world-space coordinates.
-* Does not add or remove any tags.
+## Overview
+`KnownDynamicLocations` is a component that stores and manages named dynamic position references relative to walkable platforms or absolute world space. It allows entities to remember and retrieve positions with optional platform attachment (e.g., for floating structures) and supports loading, saving, and handling platform removal events. It integrates with DST’s dynamic position system and worldgen lifecycle hooks (`POPULATING`, `LoadPostPass`).
+
+This component is typically attached to entities that need to persist spatial references (like beehives, beefalo pens, or procedural structures) across save/load cycles and platform changes.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("knowndynamiclocations")
+
+-- Remember a new location named "spawner_pos"
+inst.components.knowndynamiclocations:RememberLocation("spawner_pos", Vector3(10, 0, 20))
+
+-- Retrieve the stored position as a Vector3
+local pos = inst.components.knowndynamiclocations:GetLocation("spawner_pos")
+
+-- Store additional locations as needed
+inst.components.knowndynamiclocations:RememberLocation("exit_pos", Vector3(-5, 0, 15), true) -- dont_overwrite = true
+
+-- Cleanup on removal
+inst:RemoveComponent("knowndynamiclocations")
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified  
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (passed to constructor) | Reference to the entity this component is attached to. |
-| `locations` | `table` | `{}` | Map of location names (`string`) to internal entry records (each containing `pos`, optional `loading`, and `onremoveplatform`). |
+No public properties.
 
-## Main Functions
-
-### `RememberLocation(name, pt, dont_overwrite)`
-* **Description:** Records a new named location at the given position `pt`. If `dont_overwrite` is `true`, existing entries are preserved; otherwise, the previous entry (if any) is cleared first. Position is stored as a `DynamicPosition`, with deferred platform attachment during world loading.
-* **Parameters:**
-  * `name` (`string`): Unique identifier for the location.
-  * `pt` (`Vector3`): The position (x, y, z) to remember.
-  * `dont_overwrite` (`boolean`, optional): If `true`, does not overwrite an existing entry for `name`. Defaults to `false`.
-
-### `ForgetLocation(name)`
-* **Description:** Removes a named location and cleans up associated platform event listeners.
-* **Parameters:**
-  * `name` (`string`): The name of the location to remove.
-
+## Main functions
 ### `GetLocation(name)`
-* **Description:** Returns the world-space position (`Vector3`) of a named location, or `nil` if the location does not exist.
-* **Parameters:**
-  * `name` (`string`): The name of the location.
+* **Description:** Returns the absolute world-space position of a remembered location as a `Vector3`. Returns `nil` if the name is not found.
+* **Parameters:** `name` (string) – the identifier used when remembering the location.
+* **Returns:** `Vector3?` – world-space position or `nil`.
 
 ### `GetDynamicLocation(name)`
-* **Description:** Returns the internal `DynamicPosition` object for a named location (allowing direct manipulation or checks), or `nil` if not found.
-* **Parameters:**
-  * `name` (`string`): The name of the location.
+* **Description:** Returns the raw `DynamicPosition` object for a remembered location (enabling platform-aware position updates). Returns `nil` if the name is not found.
+* **Parameters:** `name` (string) – the identifier used when remembering the location.
+* **Returns:** `DynamicPosition?` – dynamic position object or `nil`.
+
+### `RememberLocation(name, pt, dont_overwrite)`
+* **Description:** Records a new position `pt` under the given `name`. If `dont_overwrite` is `true`, it does not overwrite an existing entry; otherwise, any prior entry is removed first. Handles deferred loading (`POPULATING`) and automatic platform attachment.
+* **Parameters:**  
+  `name` (string) – unique identifier for the location.  
+  `pt` (Vector3) – position coordinates (x, y, z). Must be valid numbers (non-NaN/Inf).  
+  `dont_overwrite` (boolean, optional) – if `true`, preserves existing entry; defaults to `false`.
+* **Returns:** Nothing.
+* **Error states:** Throws an error if `pt` contains invalid numeric values (e.g., `NaN`, `Inf`).
+
+### `ForgetLocation(name)`
+* **Description:** Removes a remembered location by name, unsubscribing from any associated platform removal events.
+* **Parameters:** `name` (string) – the identifier of the location to forget.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Serializes all known locations into a table for world save, storing position coordinates. Omits `y=0` for brevity.
-* **Returns:** `table` or `nil` — e.g., `{ locations = { { name = "exit", x = 10, z = -5 }, ... } }`.
+* **Description:** Serializes all remembered locations into a data table suitable for saving. Excludes entries if none exist.
+* **Parameters:** None.
+* **Returns:** `{ locations = { { name = "string", x = number, y = number?, z = number } } }` or `nil`.
 
 ### `OnLoad(data)`
-* **Description:** Restores remembered locations from saved data by re-calling `RememberLocation` with saved coordinates.
-* **Parameters:**
-  * `data` (`table`): The saved data table, typically containing a `locations` key.
+* **Description:** Reconstructs remembered locations from saved data. Clears prior entries before reloading.
+* **Parameters:** `data` (table) – the saved data table containing a `locations` array.
+* **Returns:** Nothing.
 
 ### `LoadPostPass(ents, data)`
-* **Description:** Called after loading to finalize deferred `DynamicPosition` creation (i.e., attaches to platforms and switches to world-space positions for entries marked during loading).
-* **Parameters:**
-  * `ents` (`table`): Entity lookup table (unused in current implementation).
-  * `data` (`table`): Saved data table (unused in current implementation).
+* **Description:** Called during post-load initialization to finalize platform-relative positions deferred during initial load (`POPULATING` state). Converts static `local_pt` positions into full `DynamicPosition` objects and attaches platform listeners.
+* **Parameters:**  
+  `ents` (table) – entity mapping for resolution (unused in current implementation).  
+  `data` (table) – loaded data (unused in current implementation).
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a human-readable string listing all known locations and their current `DynamicPosition` state, or `nil` if none are stored.
-* **Returns:** `string?`
+* **Description:** Returns a human-readable string listing all remembered locations and their `DynamicPosition` representations. Returns `nil` if no locations exist.
+* **Parameters:** None.
+* **Returns:** `string?` – formatted debug string or `nil`.
 
-### `WatchPlatformForEntry(entry)`
-* **Description:** Attaches an `"onremove"` event listener to a platform if the `DynamicPosition` is platform-anchored, ensuring the position updates to world coordinates upon platform removal.
-* **Parameters:**
-  * `entry` (`table`): Internal location record containing `pos` and `onremoveplatform` fields.
+### `OnRemoveFromEntity()`
+* **Description:** Called when the component is removed from its entity. Stops watching all registered platforms to prevent dangling event callbacks.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `StopWatchingPlatformForEntry(entry)`
-* **Description:** Removes the platform removal listener and clears related fields.
-* **Parameters:**
-  * `entry` (`table`): Internal location record.
-
-## Events & Listeners
-* Listens for `"onremove"` event on `entry.pos.walkable_platform` (added via `WatchPlatformForEntry`) to update position to world space when the platform is destroyed.
-* Uses `inst:ListenForEvent` and `inst:RemoveEventCallback` for platform listener management.
+## Events & listeners
+- **Listens to:** `onremove` – registered per-platform entry to detect when a walkable platform is removed, updating the stored position to world-space absolute coordinates.
+- **Pushes:** None identified.

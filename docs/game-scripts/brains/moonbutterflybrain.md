@@ -1,68 +1,50 @@
 ---
 id: moonbutterflybrain
 title: Moonbutterflybrain
-description: Controls the behavior tree logic for moonbutterfly entities, managing panic responses, fleeing from threats, homing, and wandering behavior.
+description: Controls the AI behavior of the Moon Butterfly, prioritizing escape from threats, homing to a remembered location, and wandering within a limited radius.
+tags: [ai, creature, movement, escape]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: brain
-system_scope: brain
+category_type: map
 source_hash: de37f84d
+system_scope: brain
 ---
 
 # Moonbutterflybrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-This component implements the behavior tree for moonbutterfly entities. It defines priority-based decision-making, including panic responses (e.g., from electric fences or enemies with the `scarytoprey` tag), fleeing when threats approach within `RUN_AWAY_DIST`, homing to the remembered "home" location via `Wander`, and escaping dangerous situations. The brain relies on shared behavior logic (`behaviours/` module) and external components (`knownlocations`, `skilltreeupdater`) to determine relevant state and context.
+`Moonbutterflybrain` implements the behavior tree for the Moon Butterfly entity in DST. It defines a priority-based AI sequence: panic and flee from nearby threats (excluding those mitigated by the Wormwood Bugs skill), return to a remembered "home" location if needed, and otherwise wander within a fixed radius. It relies on the `knownlocations` component to store and retrieve the home position and uses standard DST behavior nodes (`RunAway`, `Wander`, `BrainCommon.PanicTrigger`) for decision-making.
 
-## Dependencies & Tags
-- **Components used:**  
-  - `knownlocations` — used to store and retrieve the "home" position via `RememberLocation` and `GetLocation`.  
-  - `skilltreeupdater` — checked to determine if the `wormwood_bugs` skill is activated, which modifies flee behavior.  
-- **Tags:**  
-  - Checks for the `scarytoprey` tag on other entities to trigger fleeing.  
-  - The brain itself does not modify tags directly.
+## Usage example
+```lua
+-- This brain is automatically attached to the Moon Butterfly prefab and not added manually.
+-- The component registers itself during entity initialization via the brain assignment in the prefab file.
+```
+
+## Dependencies & tags
+**Components used:** `knownlocations`
+**Tags:** Checks `scarytoprey` (via `RunAway` parameters); does not modify tags directly.
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `RUN_AWAY_DIST` | number | `5` | Distance threshold (units) at which the moonbutterfly begins fleeing from a threat. |
-| `STOP_RUN_AWAY_DIST` | number | `10` | Distance threshold (units) at which the moonbutterfly stops fleeing and resumes normal behavior. |
-| `POLLINATE_FLOWER_DIST` | number | `10` | Not used in this version of the brain. Likely reserved for future or variant logic. |
-| `SEE_FLOWER_DIST` | number | `30` | Not used in this version of the brain. |
-| `MAX_WANDER_DIST` | number | `20` | Maximum radius (units) from the "home" position the moonbutterfly will wander. |
-| `inst` | Entity | (inherited) | Reference to the entity this brain controls. |
-| `bt` | BehaviorTree | `nil` | Behavior tree instance; initialized in `OnStart`. |
+No public properties
 
-## Main Functions
-### `GetHomePos(inst)`
-* **Description:** Helper function that retrieves the stored "home" position for the moonbutterfly using the `knownlocations` component.
-* **Parameters:**  
-  - `inst` — The entity instance whose home location is queried.  
-* **Returns:**  
-  - `Vector` — The position stored under the key `"home"` in `inst.components.knownlocations.locations`. Returns `nil` if no home location is set.
+## Main functions
+### `OnStart()`
+* **Description:** Initializes the behavior tree for the Moon Butterfly. Sets up a priority node with panic, flee, and wander behaviors, ordering them by urgency.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No known failure conditions.
 
-### `ButterflyBrain:OnStart()`
-* **Description:** Initializes the behavior tree for the moonbutterfly. Builds a priority-based root node containing panic, flee, and wander behaviors. The behavior tree is only active while this function is called.
-* **Parameters:** None.  
-* **Returns:** None.  
-* **Notes:**  
-  - The behavior tree root prioritizes behaviors in this order:  
-    1. `BrainCommon.PanicTrigger`  
-    2. `BrainCommon.ElectricFencePanicTrigger`  
-    3. `RunAway` — configured to flee entities with the `scarytoprey` tag (unless `wormwood_bugs` is activated).  
-    4. `Wander` — uses `GetHomePos` as the home reference and `MAX_WANDER_DIST` as the wander radius.
+### `OnInitializationComplete()`
+* **Description:** Records the Moon Butterfly's current position as its "home" location. This position is stored in the `knownlocations` component and used as the anchor for wandering behavior.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No known failure conditions.
 
-### `ButterflyBrain:OnInitializationComplete()`
-* **Description:** Records the moonbutterfly’s current position as its "home" location. This call happens after the entity is fully spawned and initialized.
-* **Parameters:** None.  
-* **Returns:** None.  
-* **Notes:**  
-  - Calls `RememberLocation("home", position, true)` with `dont_overwrite = true`, ensuring the home position is set only once.
-
-## Events & Listeners
-None. This brain does not register or emit any events directly. It relies entirely on the behavior tree system and its integrated behaviors (e.g., `RunAway`, `Wander`) to react to world changes and triggers.
+## Events & listeners
+None identified.

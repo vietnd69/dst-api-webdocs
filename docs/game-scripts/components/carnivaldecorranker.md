@@ -1,56 +1,74 @@
 ---
 id: carnivaldecorranker
 title: Carnivaldecorranker
-description: Calculates a cumulative decor score and rank based on nearby Carnival decorations.
+description: Tracks and calculates the total decorative value and rank of carnival-themed decorations within proximity of an entity.
+tags: [carnival, decoration, ranking, environment]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: e1e25b69
+system_scope: environment
 ---
 
 # Carnivaldecorranker
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Carnivaldecorranker` component is attached to an entity to measure the decorative appeal of its surroundings. Upon initialization, it scans a radius for entities with the `carnivaldecor` tag, summing their decor values to calculate a total score. This score is then converted into a numerical rank. The component dynamically updates this rank when decorations are added or removed from its tracking list, and can execute a callback function whenever the rank changes.
+`CarnivalDecorRanker` is a passive component that measures the cumulative decorative value of nearby carnival-themed entities and computes a corresponding rank. It listens for proximity-based decorative items tagged with `"carnivaldecor"`, sums their values, and emits a rank change notification when the total crosses thresholds defined by `TUNING.CARNIVAL_DECOR_VALUE_PER_RANK`. The component is typically attached to structures like carnival stages or festival centers that benefit from surrounding decoration density.
 
-## Dependencies & Tags
+It depends on `CarnivalDecor` (specifically its `GetDecorValue` method) to retrieve individual decoration values, and only counts decorations that are not attached to a platform (`decor:GetCurrentPlatform() == nil`).
 
-**Dependencies**
-*   This component interacts with entities that have the `carnivaldecor` component to retrieve their decor value.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("carnivaldecorranker")
 
-**Tags**
-*   Adds the `carnivaldecor_ranker` tag to the entity.
+-- Attach a listener to be notified when rank changes
+inst.components.carnivaldecorranker.onrankchanged = function(inst, new_rank, prev_rank, snap)
+    print("Rank changed from", prev_rank, "to", new_rank)
+end
+
+-- The component auto-calculates on initialization; manual recalculation is optional
+inst.components.carnivaldecorranker:UpdateDecorValue(true)
+```
+
+## Dependencies & tags
+**Components used:** `carnivaldecor` (via `GetDecorValue`)  
+**Tags:** Adds `"carnivaldecor_ranker"` to the owning entity.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
-| :--- | :--- | :--- | :--- |
-| `decor` | `table` | `{}` | A table mapping nearby decor entities to their numerical decor value. |
-| `totalvalue` | `number` | `0` | The sum of all decor values from the `decor` table. |
-| `rank` | `number` | `0` | The calculated decor rank based on `totalvalue`. |
-| `onrankchanged` | `function` | `nil` | A callback function triggered when the rank changes. It receives the entity instance, new rank, previous rank, and a 'snap' boolean as arguments. |
+|----------|------|---------------|-------------|
+| `decor` | table | `{}` | Map of nearby decoration entities to their decorative values. |
+| `totalvalue` | number | `0` | Sum of all decorative values currently tracked. |
+| `rank` | number | `0` | Current rank, computed as `floor(totalvalue / TUNING.CARNIVAL_DECOR_VALUE_PER_RANK) + 1`, clamped to `TUNING.CARNIVAL_DECOR_RANK_MAX`. |
+| `onrankchanged` | function | `nil` | Optional callback fired when rank changes: `function(inst, new_rank, prev_rank, snap)`. |
 
-## Main Functions
-
+## Main functions
 ### `UpdateDecorValue(snap)`
-* **Description:** Recalculates the total decor value by summing all values in the `decor` table. It then calculates a new rank based on this total. If the new rank is different from the current rank, it updates the `rank` property and triggers the `onrankchanged` callback if it has been assigned.
-* **Parameters:**
-    * `snap` (boolean): An optional boolean that is passed directly to the `onrankchanged` callback.
+*   **Description:** Recalculates the total decorative value from the `decor` map and updates the rank if it has changed. If `onrankchanged` is set, invokes it with the new and previous rank values.
+*   **Parameters:** `snap` (boolean) — passed through to the callback; typically indicates whether the change is due to a snapshot-style recalculation (e.g., on initialization).
+*   **Returns:** Nothing.
 
 ### `AddDecor(decor)`
-* **Description:** Adds a new decor entity to the internal tracking list and updates its value. After adding, it calls `UpdateDecorValue` to recalculate the total score and rank.
-* **Parameters:**
-    * `decor` (Entity): The decor entity to add. It must have a `carnivaldecor` component.
+*   **Description:** Registers a new decoration entity by retrieving and storing its decorative value via `CarnivalDecor:GetDecorValue`. Triggers an immediate recalculation.
+*   **Parameters:** `decor` (Entity) — entity with a `carnivaldecor` component and no platform (`GetCurrentPlatform() == nil`).
+*   **Returns:** Nothing.
 
 ### `RemoveDecor(decor)`
-* **Description:** Removes a decor entity from the internal tracking list. After removal, it calls `UpdateDecorValue` to recalculate the total score and rank.
-* **Parameters:**
-    * `decor` (Entity): The decor entity to remove.
+*   **Description:** Unregisters a previously registered decoration entity and triggers recalculation.
+*   **Parameters:** `decor` (Entity) — the decoration entity to remove.
+*   **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted string containing the current number of tracked decor items, the total decor value, and the current rank. Useful for debugging.
-* **Parameters:** None.
+*   **Description:** Returns a human-readable debug string containing decoration count, total value, and current rank.
+*   **Parameters:** None.
+*   **Returns:** String — formatted as `"Num Decor: X Value: Y Rank: Z"`.
+
+## Events & listeners
+- **Listens to:** None directly (uses `DoTaskInTime` on construction to trigger initial recalculation via `recalculate_decor`).
+- **Pushes:** None (event notification is delivered only via the optional `onrankchanged` callback, not via `PushEvent`).

@@ -1,60 +1,97 @@
 ---
 id: corpsepersistmanager
 title: Corpsepersistmanager
-description: This component manages the persistence of creature corpses in the world, limiting their total count and applying persistence rules to prevent them from despawning.
+description: Manages corpse persistence logic by tracking registered corpses and applying persistence sources based on configured callback functions.
+tags: [world, entity, lifecycle]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: af20b667
+system_scope: world
 ---
 
 # Corpsepersistmanager
 
-## Overview
-This component is responsible for managing the persistence of creature corpses throughout the master simulation. It maintains a global list of all active corpses, enforces a maximum limit to prevent performance issues, and applies various user-defined persistence functions to determine which corpses should remain in the world and which should eventually despawn. It constantly updates the persistence status of managed corpses.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified. This component primarily manages entity references and relies on those entities (corpses) having methods like `RemovePersistSource` and `SetPersistSource`.
+## Overview
+`CorpsePersistManager` is a server-only component responsible for determining which corpses should persist in the world and managing their persistence state. It maintains an internal list of registered corpses and applies persistent behavior based on callback functions registered via `AddPersistSourceFn`. It enforces a global maximum of 200 corpses (`MAX_CORPSES`) and periodically updates corpse persistence states and cleanup.
+
+This component is designed to be attached to the world root entity (`TheWorld`) and is not instantiated on clients, as enforced by an assertion in its constructor.
+
+## Usage example
+```lua
+-- Typically added to TheWorld in master initialization
+TheWorld:AddComponent("corpsepersistmanager")
+
+-- Register a persistence source (e.g., specific creature types)
+TheWorld.components.corpsepersistmanager:AddPersistSourceFn("monster", function(creature)
+    return creature.prefab == "bearger" or creature.prefab == "deerclops"
+end)
+
+-- Example usage to check if a creature should become a corpse
+if TheWorld.components.corpsepersistmanager:ShouldRetainCreatureAsCorpse(some_creature) then
+    some_creature:SpawnCorpse()
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-No public properties were clearly identified from the source's `_ctor` equivalent block, other than the standard `self.inst` reference to the parent entity.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | `nil` | Reference to the owning entity (typically `TheWorld`). |
 
-## Main Functions
+## Main functions
 ### `AddPersistSourceFn(key, fn)`
-*   **Description:** Adds a new function that will be used to determine if a corpse should persist. If this is the first persistence function added, the component will start updating.
-*   **Parameters:**
-    *   `key` (string): A unique identifier for this persistence source (e.g., "player_nearby").
-    *   `fn` (function): A function that takes a `creature` entity as an argument and returns `true` if the creature should persist, `false` otherwise.
+*   **Description:** Registers a callback function that determines whether a creature or corpse should persist. If this is the first persistence source added, starts component updates.
+*   **Parameters:**  
+    `key` (string) — Unique identifier for this persistence source.  
+    `fn` (function) — A function accepting one argument (`creature` or `corpse`) returning a boolean indicating whether persistence is desired.
+*   **Returns:** Nothing.
+*   **Error states:** None.
 
 ### `RemovePersistSourceFn(key)`
-*   **Description:** Removes a previously registered persistence function. When a function is removed, it also removes that specific persistence source from all currently managed corpses. If no persistence functions remain, the component will stop updating.
-*   **Parameters:**
-    *   `key` (string): The unique identifier of the persistence source to remove.
+*   **Description:** Removes a previously registered persistence source and updates all tracked corpses to remove that source. Stops updates if no sources remain.
+*   **Parameters:**  
+    `key` (string) — The key of the persistence source to remove.
+*   **Returns:** Nothing.
+*   **Error states:** If `key` does not exist, this function has no effect.
 
 ### `ShouldRetainCreatureAsCorpse(creature)`
-*   **Description:** Checks if a given creature entity should be retained as a corpse, considering both the global maximum corpse limit and all currently active persistence functions. This function is typically called *before* a creature fully dies to decide if it should generate a persistent corpse.
-*   **Parameters:**
-    *   `creature` (entity): The creature entity to check.
+*   **Description:** Determines whether the given creature should be allowed to spawn a persistent corpse. Enforces `MAX_CORPSES` limit first.
+*   **Parameters:**  
+    `creature` (Entity) — The creature entity being evaluated.
+*   **Returns:** `boolean` — `true` if a persistent corpse should be created, `false` otherwise.
+*   **Error states:** Returns `false` immediately if `MAX_CORPSES` has been reached.
 
 ### `IsMaxReached()`
-*   **Description:** Returns `true` if the total number of managed corpses has reached the `MAX_CORPSES` limit, `false` otherwise.
+*   **Description:** Checks if the total number of tracked corpses has reached the world limit.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if `_corpses` array length `>= MAX_CORPSES`, otherwise `false`.
 
 ### `AnyCorpseExists()`
-*   **Description:** Returns `true` if there is at least one corpse currently managed by this component, `false` otherwise.
+*   **Description:** Checks if any corpses are currently being tracked.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if the `_corpses` array is non-empty, otherwise `false`.
 
 ### `OnUpdate(dt)`
-*   **Description:** The main update loop for the component. This function periodically iterates through all managed corpses. For each corpse, it applies all registered persistence functions to determine if the corpse should be marked as persistent or not. If the `MAX_CORPSES` limit is exceeded, any excess corpses beyond the limit are forced to unpersist, essentially scheduling them for despawning.
-*   **Parameters:**
-    *   `dt` (number): The time elapsed since the last update frame.
+*   **Description:** Periodically (based on internal cooldown) iterates through all registered corpses, applying or removing persistence sources based on registered callbacks. Cleans up corpses exceeding `MAX_CORPSES`.
+*   **Parameters:**  
+    `dt` (number) — Delta time in seconds since the last update.
+*   **Returns:** Nothing.
+*   **Error states:** Does not run updates if cooldown is active; cooldown resets each run using a random value (`10` to `15` seconds). Only runs on the server (via `TheWorld.ismastersim`).
 
 ### `GetDebugString()`
-*   **Description:** Returns a formatted string indicating the current number of corpses being persisted. Useful for debugging purposes.
+*   **Description:** Returns a debug string summarizing the current number of persisted corpses.
 *   **Parameters:** None.
+*   **Returns:** `string` — Format: `"Persisting N corpses"`.
 
-## Events & Listeners
-*   `inst:ListenForEvent("ms_registercorpse", RegisterCorpse)`: Listens for `ms_registercorpse` events pushed by other components (e.g., `corpses` component on a creature) to add a new corpse to its management list.
-*   `inst:ListenForEvent("onremove", OnRemoveCorpse, corpse)`: Listens for the `onremove` event on individual corpses it manages to automatically remove them from its internal list when they are destroyed or despawn.
+## Events & listeners
+- **Listens to:** `ms_registercorpse` — Triggered when a new corpse should be tracked (registered via `inst:PushEvent("ms_registercorpse", corpse)`).
+- **Pushes:** None.

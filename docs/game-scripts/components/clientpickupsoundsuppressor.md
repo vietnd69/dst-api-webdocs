@@ -1,36 +1,47 @@
 ---
 id: clientpickupsoundsuppressor
 title: Clientpickupsoundsuppressor
-description: This component temporarily suppresses an entity's pickup sound on the client, particularly for newly spawned or specific interaction scenarios.
+description: Temporarily suppresses pickup sound playback for an entity on the client to avoid duplicate sounds during network synchronization.
+tags: [audio, network, synchronization]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: audio
+category_type: components
 source_hash: 7d8f002d
+system_scope: audio
 ---
 
 # Clientpickupsoundsuppressor
 
-## Overview
-This component provides functionality to temporarily disable the pickup sound of an entity on the client-side. It is primarily used to prevent unintended pickup sounds when an entity spawns or during specific interactions where a sound would be redundant or incorrect, ensuring a smoother client-side audio experience. The suppression is brief and automatically re-enables the original sound after a short delay.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-This component relies on the entity having a `pickupsound` property, which it temporarily modifies. It does not add or remove any specific tags.
-None identified.
+## Overview
+`ClientPickupSoundSuppressor` prevents redundant pickup sound events on the client during entity spawn and network resynchronization. It works by temporarily setting `inst.pickupsound` to `"NONE"` and restoring it after a short delay, using a networked boolean flag (`_ignorenext`) to distinguish between newly spawned entities on the client versus existing entities receiving delayed spawn events. This component is only active on non-master simulation clients.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("clientpickupsoundsuppressor")
+-- Optionally trigger suppression logic for next pickup event
+inst.components.clientpickupsoundsuppressor:IgnoreNextPickupSound()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified  
 
 ## Properties
-| Property | Type | Default Value | Description |
-| :------- | :--- | :------------ | :---------- |
-| `_ignorenext` | `net_bool` | `false` | A network-synchronized boolean that signals whether the next potential pickup sound should be ignored. It also triggers an event listener on client instances when its value changes. |
+No public properties  
 
-## Main Functions
-### `ClientPickupSoundSuppressor:IgnoreNextPickupSound()`
-*   **Description:** Instructs the component to suppress the entity's next pickup sound on clients. It determines if the entity has just spawned and sets the `_ignorenext` network boolean accordingly, which then triggers the actual sound suppression logic on client instances.
-*   **Parameters:** None.
+## Main functions
+### `IgnoreNextPickupSound()`
+* **Description:** Marks the next pickup event to be ignored on the client by setting a networked boolean flag. Used to prevent duplicate sound playback when an entity spawns on the client but is not newly spawned server-side.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** If the entity has `pickupsound == "NONE"`, no action is taken.
 
-## Events & Listeners
-*   **Listens For:** `clientpickupsoundsuppressor._ignorenext` (on non-master simulations only)
-    *   Triggered when the `_ignorenext` `net_bool` changes its value. This event handler (`OnIgnoreNext`) is responsible for temporarily setting `inst.pickupsound` to "NONE" and scheduling its restoration after a short duration (2 frames). It includes a special check to avoid suppressing sounds if the entity just spawned on the client but isn't a new server spawn, preventing unintended sound loss for valid spawn events.
+## Events & listeners
+- **Listens to:** `clientpickupsoundsuppressor._ignorenext` — triggers `OnIgnoreNext()` to suppress `pickupsound` when the networked flag is set to `true`.
+- **Pushes:** None.

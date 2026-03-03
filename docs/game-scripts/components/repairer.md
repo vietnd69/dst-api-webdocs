@@ -1,50 +1,53 @@
 ---
 id: repairer
 title: Repairer
-description: Manages the repair capabilities of an entity by tracking repair values and applying/removing corresponding tags based on the configured repair material.
-
+description: Adds repair capability to an entity by exposing material-specific repair properties and managing associated tags.
+tags: [repair, tags, inventory, crafting]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 353aa4ba
+system_scope: entity
 ---
 
 # Repairer
 
-## Overview
-The `Repairer` component enables an entity to define and dynamically update its repair behavior by specifying values for different repair types (e.g., work, health, perish, finite uses). It manages associated tags on the entity to signal compatibility with various repair materials and actions. When repair values change or the repair material is updated, it automatically updates the relevant tags.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Tags added:** `"repairer"` (always added on construction)
-- **Dynamic tags added/removed based on repair material and values:**
-  - `"work_" .. material`
-  - `"health_" .. material`
-  - `"freshen_" .. material`
-  - `"finiteuses_" .. material`
-- **Dependencies:** None explicitly added via `AddComponent`. Relies on standard `inst` functionality for tags.
+## Overview
+`Repairer` enables an entity to be repaired using specific materials. It tracks repair values for various repair types (work, health, perish, finite uses) and maintains dynamic tags indicating which materials can be used for each repair type. Tags follow the format `work_<material>`, `health_<material>`, `freshen_<material>`, and `finiteuses_<material>`. The component is typically added to items that can be repaired (e.g., tools, clothing, weapons).
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("repairer")
+inst.components.repairer.workrepairvalue = 100
+inst.components.repairer.healthrepairvalue = 20
+inst.components.repairer.repairmaterial = "stone"
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `repairer`; dynamically adds/removes `work_<material>`, `health_<material>`, `freshen_<material>`, `finiteuses_<material>` based on repair values and material.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `workrepairvalue` | `number` | `0` | Amount of work damage (e.g., tool durability) this entity repairs when using the configured material. |
-| `healthrepairvalue` | `number` | `0` | Absolute health restored when using the configured material. |
-| `healthrepairpercent` | `number` | `0` | Percentage of max health restored when using the configured material. |
-| `perishrepairpercent` | `number` | `0` | Percentage of perish (rot) reversed when using the configured material. |
-| `finiteusesrepairvalue` | `number` | `0` | Number of finite uses restored (e.g., for items like lanterns). |
-| `repairmaterial` | `string or nil` | `nil` | Name of the material used to perform repairs; e.g., `"stone"`, `"gold"`. |
+| `workrepairvalue` | number | `0` | Amount of work (durability) restored by repair. |
+| `healthrepairvalue` | number | `0` | Absolute health points restored by repair. |
+| `healthrepairpercent` | number | `0` | Percentage of max health restored by repair. |
+| `perishrepairpercent` | number | `0` | Percentage of perish (rot) reversed by repair. |
+| `finiteusesrepairvalue` | number | `0` | Number of finite uses restored by repair. |
+| `repairmaterial` | string? | `nil` | Name of the material this entity can be repaired with (e.g., `"stone"`, `"cutgrass"`). |
 
-## Main Functions
-
+## Main functions
 ### `OnRemoveFromEntity()`
-* **Description:** Cleanup method called when the component is removed from an entity. Removes all repair-related tags associated with the current repair material to prevent stale tags from persisting.
-* **Parameters:** None.
+*   **Description:** Cleans up all material-specific tags when the component is removed from the entity.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- The component uses the `Class` framework’s automatic property watchers. When any of the following properties are modified externally, the corresponding callback functions are invoked:
-  - `workrepairvalue`, `healthrepairvalue`, `healthrepairpercent`, `perishrepairpercent`, `finiteusesrepairvalue` → triggers `onrepairvalue`
-  - `repairmaterial` → triggers `onrepairmaterial`
-- No manual `inst:ListenForEvent` or `inst:PushEvent` usage is present in this component.
+## Events & listeners
+*   None identified — the component uses table metamethods (`__newindex`) on its public properties to trigger automatic tag updates. Setting any tracked property invokes its associated listener function (`onrepairvalue` or `onrepairmaterial`).

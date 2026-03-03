@@ -1,92 +1,102 @@
 ---
 id: compostingbin
 title: Compostingbin
-description: This component manages the state and logic for a composting bin, handling material input, processing, and triggering the production of compost.
+description: Manages composting progress and material storage for composting bins, calculating processing time based on green-to-brown material ratios.
+tags: [crafting, inventory, timer, environment]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: environment
+category_type: components
 source_hash: 890a9275
+system_scope: crafting
 ---
 
 # Compostingbin
 
-## Overview
-The `Compostingbin` component is responsible for managing the lifecycle and mechanics of a composting structure in Don't Starve Together. It tracks the quantities of "greens" and "browns" materials, calculates optimal composting times based on their ratio, processes materials over time, and triggers the completion of composting cycles. It also handles adding compostable items and saving/loading its state.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-*   **Dependencies:** This component implicitly relies on the `timer` component being present on the entity (`inst.components.timer`).
-*   **Tags:**
-    *   Adds/Removes `"compostingbin_accepts_items"`: This tag is added to the entity when `self.accepts_items` is `true` and removed when it is `false`, indicating whether the bin is currently accepting new compostable items.
+## Overview
+`Compostingbin` manages the state and processing logic for composting bins in DST. It tracks green and brown organic materials, computes composting duration based on the ratio of materials, and handles composting cycles via a timer. It interacts with the `stackable` component to consume items and the `timer` component to manage composting progress. The component supports dynamic callbacks for custom behavior during composting lifecycle events.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("compostingbin")
+inst.components.compostingbin.calcmaterialvalue = function(bin, item)
+    return { greens = item:HasTag("veggie") and 1 or 0, browns = item:HasTag("deadplant") and 1 or 0 }
+end
+inst.components.compostingbin:Refresh()
+```
+
+## Dependencies & tags
+**Components used:** `stackable`, `timer`  
+**Tags:** Adds or removes `compostingbin_accepts_items` based on `accepts_items` state.
 
 ## Properties
-| Property                  | Type           | Default Value | Description                                                                                             |
-| :------------------------ | :------------- | :------------ | :------------------------------------------------------------------------------------------------------ |
-| `inst`                    | `Entity`       | -             | A reference to the entity this component is attached to.                                                |
-| `max_materials`           | `number`       | `6`           | The maximum combined total of greens and browns materials the bin can hold.                             |
-| `greens`                  | `number`       | `0`           | The current quantity of "greens" materials in the bin.                                                  |
-| `browns`                  | `number`       | `0`           | The current quantity of "browns" materials in the bin.                                                  |
-| `materials_per_fertilizer`| `number`       | `2`           | The number of materials (combined greens/browns) consumed per composting cycle to produce fertilizer.   |
-| `greens_ratio`            | `number`       | `nil`         | The ratio of greens to total materials, calculated during `Refresh`.                                    |
-| `composting_time_min`     | `number`       | `6`           | The minimum time in seconds for a composting cycle.                                                     |
-| `composting_time_max`     | `number`       | `20`          | The maximum time in seconds for a composting cycle.                                                     |
-| `current_composting_time` | `number`       | `nil`         | The dynamically calculated duration for the current composting cycle.                                   |
-| `accepts_items`           | `boolean`      | `true`        | Determines if the composting bin is currently able to receive new items. (Automatically adds/removes tag). |
-| `calcdurationmultfn`      | `function`     | `nil`         | Optional callback function `(inst)` to calculate a multiplier for composting duration.                  |
-| `calcmaterialvalue`       | `function`     | `nil`         | Optional callback function `(inst, item)` to determine the greens/browns value of an `item`.           |
-| `onaddcompostable`        | `function`     | `nil`         | Optional callback function `(inst, item)` triggered when an item is successfully added.                 |
-| `finishcyclefn`           | `function`     | `nil`         | Optional callback function `(inst)` triggered when a composting cycle is completed.                     |
-| `onstartcompostingfn`     | `function`     | `nil`         | Optional callback function `(inst)` triggered when composting officially starts.                        |
-| `onstopcompostingfn`      | `function`     | `nil`         | Optional callback function `(inst)` triggered when composting officially stops.                         |
-| `onrefreshfn`             | `function`     | `nil`         | Optional callback function `(inst, cycle_completed)` triggered when the bin's state is refreshed.       |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `max_materials` | number | `6` | Maximum total amount of green/brown materials allowed. |
+| `greens` | number | `0` | Current count of green materials (e.g., veggies). |
+| `browns` | number | `0` | Current count of brown materials (e.g., dead plants). |
+| `materials_per_fertilizer` | number | `2` | Not used in current implementation. |
+| `greens_ratio` | number or nil | `nil` | Ratio of greens to total materials (computed on refresh). |
+| `composting_time_min` | number | `6` | Minimum composting duration in seconds (when ratio is 50/50). |
+| `composting_time_max` | number | `20` | Maximum composting duration in seconds (when ratio is 0/100 or 100/0). |
+| `current_composting_time` | number or nil | `nil` | Current duration of the active composting cycle (seconds). |
+| `accepts_items` | boolean | `true` | Controls whether the bin accepts new compostable items. |
+| `calcdurationmultfn` | function or nil | `nil` | Optional custom function to scale composting time (signature: `(bin_inst) -> number`). |
+| `calcmaterialvalue` | function or nil | `nil` | Required function to compute material contribution of an item (signature: `(bin_inst, item) -> {greens, browns}`). |
+| `onaddcompostable` | function or nil | `nil` | Callback fired when an item is added (signature: `(bin_inst, item)`). |
+| `finishcyclefn` | function or nil | `nil` | Callback fired at the end of each composting cycle (signature: `(bin_inst)`). |
+| `onstartcompostingfn` | function or nil | `nil` | Callback fired when composting starts (signature: `(bin_inst)`). |
+| `onstopcompostingfn` | function or nil | `nil` | Callback fired when composting stops (signature: `(bin_inst)`). |
+| `onrefreshfn` | function or nil | `nil` | Callback fired when `Refresh()` is called (signature: `(bin_inst, cycle_completed)`). |
 
-## Main Functions
-### `CompostingBin:OnRemoveFromEntity()`
-*   **Description:** Cleans up the event listener when the component is removed from its entity.
-*   **Parameters:** None.
+## Main functions
+### `GetMaterialTotal()`
+* **Description:** Returns the total count of green and brown materials stored.
+* **Parameters:** None.
+* **Returns:** `number` — sum of `greens` and `browns`.
 
-### `CompostingBin:GetMaterialTotal()`
-*   **Description:** Returns the combined total quantity of greens and browns currently in the bin.
-*   **Parameters:** None.
+### `IsFull()`
+* **Description:** Returns whether the bin is at its maximum material capacity (`max_materials`).
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if `GetMaterialTotal() >= max_materials`, otherwise `false`.
 
-### `CompostingBin:IsFull()`
-*   **Description:** Checks if the total materials in the bin have reached or exceeded `max_materials`.
-*   **Parameters:** None.
+### `Refresh(cycle_completed)`
+* **Description:** Recalculates and updates the composting timer based on current material ratio and duration modifiers. Starts composting if sufficient materials are present, or stops it if below threshold.
+* **Parameters:** `cycle_completed` (boolean) — whether a full composting cycle just finished.
+* **Returns:** Nothing.
+* **Error states:** If `calcmaterialvalue` or `calcdurationmultfn` are required by external logic (e.g., item validation), missing functions may cause runtime issues during item processing.
 
-### `CompostingBin:Refresh(cycle_completed)`
-*   **Description:** Updates the composting state of the bin. It calculates the `greens_ratio`, determines the `current_composting_time` based on this ratio and an optional duration multiplier, and either starts/restarts the "composting" timer or stops it if materials are insufficient. It also triggers the `onrefreshfn` callback.
-*   **Parameters:**
-    *   `cycle_completed`: `boolean`, indicates if the refresh is being called after a composting cycle has just finished.
+### `AddCompostable(item)`
+* **Description:** Attempts to add a compostable item, using `calcmaterialvalue` to determine its contribution. Removes the item after processing.
+* **Parameters:** `item` (Entity) — the item to compost.
+* **Returns:** `boolean` — `true` if successfully composted, `false` if `calcmaterialvalue` is missing or returns `nil`/`false`.
+* **Error states:** If `calcmaterialvalue` is `nil`, returns `false` without modifying state. If the item has a `stackable` component, it consumes one unit; otherwise, removes the item entirely.
 
-### `CompostingBin:AddCompostable(item)`
-*   **Description:** Attempts to add a compostable `item` to the bin. It uses the `calcmaterialvalue` callback to determine the item's greens and browns value. If successful, the item is consumed, and the materials are added to the bin, triggering `onaddcompostable` and `Refresh`.
-*   **Parameters:**
-    *   `item`: The `Entity` representing the compostable item to add.
-*   **Returns:** `true` if the item was successfully added, `false` otherwise.
+### `AddMaterials(greens, browns)`
+* **Description:** Increases the internal `greens` and `browns` counts and triggers a `Refresh()` to update composting time.
+* **Parameters:** `greens` (number, optional) — amount of green materials to add. `browns` (number, optional) — amount of brown materials to add.
+* **Returns:** Nothing.
 
-### `CompostingBin:AddMaterials(greens, browns)`
-*   **Description:** Increases the `greens` and `browns` counts in the bin by the specified amounts, then calls `Refresh` to update the composting process.
-*   **Parameters:**
-    *   `greens`: `number`, the amount of greens to add (defaults to 0 if `nil`).
-    *   `browns`: `number`, the amount of browns to add (defaults to 0 if `nil`).
+### `IsComposting()`
+* **Description:** Checks whether composting is currently active (i.e., a `composting` timer exists).
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if the `composting` timer exists.
 
-### `CompostingBin:IsComposting()`
-*   **Description:** Checks if the "composting" timer is currently active, indicating that the bin is in the process of composting.
-*   **Parameters:** None.
+### `OnSave()`
+* **Description:** Serializes state for world saving when necessary (i.e., if composting is active or materials are present).
+* **Parameters:** None.
+* **Returns:** `table` with keys `greens`, `browns`, and optionally `current_composting_time`, or `nil` if no state to save.
 
-### `CompostingBin:OnSave()`
-*   **Description:** Returns a table containing the current `greens`, `browns`, and `current_composting_time` for saving the component's state, but only if there are materials or composting is in progress.
-*   **Parameters:** None.
-*   **Returns:** `table` or `nil`.
+### `OnLoad(data)`
+* **Description:** Restores saved state after world loading.
+* **Parameters:** `data` (table) — contains `greens`, `browns`, and optionally `current_composting_time`.
+* **Returns:** Nothing.
 
-### `CompostingBin:OnLoad(data)`
-*   **Description:** Loads the component's state from saved `data`, restoring the `greens`, `browns`, and `current_composting_time`. It also recalculates `greens_ratio` if materials are present.
-*   **Parameters:**
-    *   `data`: `table`, the saved data for the component.
-
-## Events & Listeners
-*   **Listens For:**
-    *   `"timerdone"`: Triggered by the `timer` component when a named timer expires. The `ontimerdone` local function handles the "composting" timer, consuming materials and potentially triggering `finishcyclefn`.
+## Events & listeners
+- **Listens to:** `timerdone` — triggers `ontimerdone` to finalize composting cycles (contributes 1 green and 1 brown material per cycle, or reduces larger stacks proportionally).
+- **Pushes:** None directly. External callbacks (`finishcyclefn`, `onstartcompostingfn`, `onstopcompostingfn`, `onrefreshfn`) may indirectly fire custom events.

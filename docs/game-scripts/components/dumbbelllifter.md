@@ -1,57 +1,81 @@
 ---
 id: dumbbelllifter
 title: Dumbbelllifter
-description: This component manages an entity's ability to lift and interact with a mighty dumbbell, tracking the lifting state and applying workout effects.
+description: Manages the ability for an entity to lift and use a dumbbell for workout-related gameplay effects.
+tags: [workout, combat, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 1baa2143
+system_scope: entity
 ---
 
 # Dumbbelllifter
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Dumbbelllifter` component is responsible for enabling an entity to engage in the act of lifting a specific "mighty dumbbell" item. It tracks whether the entity is currently lifting a dumbbell, provides methods to initiate and conclude the lifting action, and mediates the interaction with the dumbbell's own `mightydumbbell` component to apply workout effects. This component adds and removes a tag to the entity to signify its current lifting status.
+`DumbbellLifter` is a component that enables an entity to interact with a `MightyDumbbell` instance—lifting it, initiating workouts, and performing repeated exercises. It acts as a controller that tracks the currently lifted dumbbell and synchronizes workout state changes (e.g., starting, stopping, doing work) with the dumbbell’s `mightydumbbell` component. It also manages the `"liftingdumbbell"` tag on the lifter entity to indicate active usage.
 
-## Dependencies & Tags
-This component expects the `dumbbell` entity (passed into its methods) to possess a `mightydumbbell` component to properly function.
+This component is typically added to player characters and works in conjunction with `MightyDumbbell` to deliver strength-building mechanics.
 
-*   **Adds Tag:** `liftingdumbbell` (when `StartLifting` is called)
-*   **Removes Tag:** `liftingdumbbell` (when `StopLifting` is called or `Lift` fails)
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("dumbbelllifter")
+
+-- Assume 'dumbbell' is a valid entity with a 'mightydumbbell' component
+local dumbbell = GetDumbbellSomehow()
+inst.components.dumbbelllifter:StartLifting(dumbbell)
+inst.components.dumbbelllifter:Lift()  -- performs a single rep
+inst.components.dumbbelllifter:StopLifting()
+```
+
+## Dependencies & tags
+**Components used:** `mightydumbbell`
+**Tags:** Adds `"liftingdumbbell"` when lifting starts; removes it on stop.
 
 ## Properties
-| Property   | Type      | Default Value | Description                                                    |
-| :--------- | :-------- | :------------ | :------------------------------------------------------------- |
-| `dumbbell` | `Entity?` | `nil`         | A reference to the currently lifted `mightydumbbell` entity. Is `nil` if the entity is not currently lifting any dumbbell. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `dumbbell` | `Entity` or `nil` | `nil` | Reference to the currently lifted dumbbell entity. |
 
-## Main Functions
+## Main functions
 ### `CanLift(dumbbell)`
-*   **Description:** Checks if the entity is able to lift the provided dumbbell. In its current implementation, it always returns `true`.
-*   **Parameters:**
-    *   `dumbbell` (`Entity`): The dumbbell entity to check.
+* **Description:** Determines whether the entity is allowed to lift the given dumbbell. Currently always permits lifting.
+* **Parameters:** `dumbbell` (Entity) – the dumbbell entity to check.
+* **Returns:** `true` – lifting is always allowed.
 
 ### `IsLiftingAny()`
-*   **Description:** Returns `true` if the entity is currently lifting any dumbbell (i.e., `self.dumbbell` is not `nil`).
-*   **Parameters:** None.
+* **Description:** Checks if the entity is currently lifting *any* dumbbell.
+* **Parameters:** None.
+* **Returns:** `true` if a dumbbell is being lifted; `false` otherwise.
 
 ### `IsLifting(dumbbell)`
-*   **Description:** Returns `true` if the entity is currently lifting the *specific* provided dumbbell.
-*   **Parameters:**
-    *   `dumbbell` (`Entity`): The dumbbell entity to compare against the currently lifted one.
+* **Description:** Checks if the entity is currently lifting the *specific* dumbbell provided.
+* **Parameters:** `dumbbell` (Entity) – the dumbbell entity to compare against.
+* **Returns:** `true` if the given dumbbell is the one currently being lifted; `false` otherwise.
 
 ### `StartLifting(dumbbell)`
-*   **Description:** Initiates the lifting process for the specified dumbbell. It sets `self.dumbbell`, tells the dumbbell's `mightydumbbell` component to start the workout, and adds the "liftingdumbbell" tag to the owning entity.
-*   **Parameters:**
-    *   `dumbbell` (`Entity`): The dumbbell entity to start lifting. This entity is expected to have a `mightydumbbell` component.
+* **Description:** Begins lifting a dumbbell: stores a reference, notifies the dumbbell component, and applies the `"liftingdumbbell"` tag.
+* **Parameters:** `dumbbell` (Entity) – the dumbbell to start lifting.
+* **Returns:** Nothing.
+* **Error states:** Does not validate dumbbell; assumes caller ensures validity.
 
 ### `StopLifting()`
-*   **Description:** Terminates the lifting process. If a dumbbell is currently being lifted, it tells its `mightydumbbell` component to stop the workout and then clears the `self.dumbbell` reference. It also removes the "liftingdumbbell" tag from the owning entity.
-*   **Parameters:** None.
+* **Description:** Ends lifting: notifies the dumbbell to stop, clears the reference, and removes the `"liftingdumbbell"` tag.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `Lift()`
-*   **Description:** Attempts to perform a single "lift" action with the currently held dumbbell. It calls the `DoWorkout` method on the dumbbell's `mightydumbbell` component. If the workout is successful, it returns `true`. If the workout fails (e.g., due to insufficient strength or fatigue), it clears `self.dumbbell` and returns `false`.
-*   **Parameters:** None.
+* **Description:** Performs a single repetition: calls `DoWorkout` on the currently lifted dumbbell. Updates internal state if the workout completes or the dumbbell is depleted.
+* **Parameters:** None.
+* **Returns:** `true` if the workout succeeded and the dumbbell remains usable; `false` if the workout failed or the dumbbell ran out of uses and was cleared.
+* **Error states:** Returns `false` and clears `self.dumbbell` if the dumbbell becomes invalid or runs out of uses during the workout.
+
+## Events & listeners
+- **Pushes:** None.
+- **Listens to:** None.

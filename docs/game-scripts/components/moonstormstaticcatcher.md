@@ -1,60 +1,93 @@
 ---
 id: moonstormstaticcatcher
 title: Moonstormstaticcatcher
-description: This component allows an entity to capture and hold onto Moonstorm Static entities by interacting with their capturable state.
+description: Tracks and captures moonstorm static charges by interacting with capturable entities during targeting and catch operations.
+tags: [combat, moonstorm, capture, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: d5e982e0
+system_scope: entity
 ---
 
 # Moonstormstaticcatcher
 
-## Overview
-This component provides the logic for an entity (typically a player or mob) to target, catch, and hold Moonstorm Static entities. It handles range and validity checks before initiating capture, and supports callback execution upon successful capture.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Depends on the target entity having a `moonstormstaticcapturable` component.
-- The catcher entity must support the `IsValid()` check and `GetPhysicsRadius()` methods (standard for most entities).
-- No explicit tags are added or removed by this component.
+## Overview
+`Moonstormstaticcatcher` manages the logic for capturing moonstorm static charges. It maintains a reference to a current *target* entity and performs capture operations using proximity and capturability checks. It coordinates with the `moonstormstaticcapturable` component on target entities to register targeting, untargeting, and successful capture events.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("moonstormstaticcatcher")
+
+-- Set a custom callback to run on successful capture
+inst.components.moonstormstaticcatcher:SetOnCaughtFn(function(catcher, doer)
+    print("Static caught by", doer and doer:GetDebugName())
+end)
+
+-- Attempt to target a capturable entity
+local target = GetSomeCapturableEntity()
+if target then
+    inst.components.moonstormstaticcatcher:OnTarget(target)
+end
+
+-- Attempt to capture the targeted static charge
+local success, reason = inst.components.moonstormstaticcatcher:Catch(target, inst)
+```
+
+## Dependencies & tags
+**Components used:** `moonstormstaticcapturable`
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (assigned via constructor) | Reference to the entity that owns this component. |
-| `target` | `Entity?` | `nil` | The currently targeted Moonstorm Static entity, if any. |
-| `oncaughtfn` | `function?` | `nil` | Optional callback function invoked when a successful catch occurs; signature: `fn(inst, doer)`. |
+| `inst` | `GEntity` | `nil` (assigned in constructor) | The entity instance that owns this component. |
+| `target` | `GEntity?` | `nil` | The currently targeted capturable entity. |
+| `oncaughtfn` | `function?` | `nil` | Optional callback invoked when a catch succeeds. |
 
-## Main Functions
+## Main functions
+### `OnRemoveFromEntity()`
+* **Description:** Automatically called when the component is removed from its entity. Ensures any active target is properly untargeted.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SetOnCaughtFn(fn)`
-* **Description:** Sets a callback function to be executed upon successful capture of a Moonstorm Static entity.
-* **Parameters:**
-  * `fn (function)` — A function to be called with arguments `(catcher_entity, doer_entity)` when a catch completes successfully.
+* **Description:** Assigns a callback function to be executed on successful static capture.
+* **Parameters:** `fn` (function) - callback taking two arguments: `(catcher_inst, doer_inst)`.
+* **Returns:** Nothing.
 
 ### `Catch(target, doer)`
-* **Description:** Attempts to catch the given Moonstorm Static entity. Performs validity, proximity, and capturability checks. On success, invokes the capturable component's `OnCaught` method and the optional callback.
-* **Parameters:**
-  * `target (Entity)` — The target Moonstorm Static entity to catch.
-  * `doer (Entity)` — The entity performing the catch action (e.g., the player).
-* **Returns:**
-  * `true` on success.
-  * `false, "MISSED"` on failure due to invalid target, insufficient proximity, or the target being unavailable for capture.
+* **Description:** Attempts to capture the given target, validating proximity and capturability. On success, notifies the target's `moonstormstaticcapturable` component and triggers the `oncaughtfn` callback.
+* **Parameters:**  
+  - `target` (GEntity) — the entity to capture (expected to have `moonstormstaticcapturable`).  
+  - `doer` (GEntity) — the entity performing the catch (usually the owner of this component).  
+* **Returns:**  
+  - `(true)` — if capture succeeded.  
+  - `(false, reason)` — if capture failed (`"MISSED"` for invalid target, distance, or disabled capturable state).  
+* **Error states:** Returns early with `("MISSED")` if:
+  - `target:IsValid()` is `false`,  
+  - `doer` is not within `1 + doer:GetPhysicsRadius(0) + 0.2` units of `target`, or  
+  - `target.components.moonstormstaticcapturable` is missing or not enabled.
 
 ### `OnTarget(target)`
-* **Description:** Begins targeting a Moonstorm Static entity. If a different target is already active, it untargets that first. Records the new target and notifies its `moonstormstaticcapturable` component.
-* **Parameters:**
-  * `target (Entity)` — The Moonstorm Static entity to begin targeting.
+* **Description:** Begins targeting a capturable entity. Clears any previous target before setting a new one. Registers this component as a targeter on the target's `moonstormstaticcapturable` component.
+* **Parameters:** `target` (GEntity) — the entity to target.
+* **Returns:** Nothing.
+* **Error states:** Does nothing if `target` is invalid or lacks `moonstormstaticcapturable`. No-op if `target` is unchanged.
 
 ### `OnUntarget(target)`
-* **Description:** Ends targeting of a Moonstorm Static entity. If a specific target is passed and matches the current target, or if no target is passed, it untargets the stored target and notifies its capturable component.
-* **Parameters:**
-  * `target (Entity?, optional)` — Optionally specify which target to untarget; if omitted or `nil`, untargets the stored target.
+* **Description:** Ends targeting of the current or specified entity. Unregisters this component from the target's `moonstormstaticcapturable`.
+* **Parameters:** `target` (GEntity?) — optional specific target to untarget; if omitted, untargets the stored `self.target`.
+* **Returns:** Nothing.
+* **Error states:** Does nothing if no active target is set or `target` does not match.
 
-## Events & Listeners
-- Listens for entity removal via `OnRemoveFromEntity()` → calls `OnUntarget()`.
-- No `inst:ListenForEvent` or `inst:PushEvent` calls are present in the component code.
+## Events & listeners
+- **Listens to:** None identified.
+- **Pushes:** None identified.  
+  *(Note: Events are handled via the target's `moonstormstaticcapturable` component; see that component's documentation for `moonstormstaticcapturable_targeted` and `moonstormstaticcapturable_untargeted`.)*

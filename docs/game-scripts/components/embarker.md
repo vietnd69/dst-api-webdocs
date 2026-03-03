@@ -1,96 +1,121 @@
 ---
 id: embarker
 title: Embarker
-description: This component manages an entity's movement and state during embarkation onto or disembarkation from a walkable platform or a specific world position.
+description: Manages the movement and positioning of an entity during embarkation or disembarkation onto/from a platform or designated position.
+tags: [locomotion, platform, movement]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 27dc6b38
+system_scope: locomotion
 ---
 
 # Embarker
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The Embarker component is responsible for orchestrating the movement and state changes of an entity when it needs to embark onto a target (e.g., a boat or another platform) or disembark to a specific land position. It handles pathfinding towards the target, checks for completion or cancellation conditions, and provides methods to set the embark/disembark destinations and finalize the action.
+`Embarker` handles the physics and logic for moving an entity toward a specific target position, typically during transitions such as boarding or exiting platforms (e.g., boats, rafts, or walkable structures). It is used in coordination with `WalkablePlatform` (for embarking) and `LocoMotor` (for speed and hop mechanics). The component supports both continuous movement updates and atomic teleportation, emitting events at key stages.
 
-## Dependencies & Tags
-This component implicitly relies on the owning entity having the following components:
-*   `locomotor`: For retrieving hop distance and signaling completion of hopping.
-*   `Transform`: For getting and setting world positions and rotations.
-*   `Physics`: For controlling movement (stopping, setting motor velocity, teleporting).
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("embarker")
 
-Additionally, the `embarkable` target entity, if set, is expected to have a `walkableplatform` component.
-No specific tags are added or removed by this component.
+local platform = TheWorld.Map:GetPlatformAtPoint(x, z)
+if platform and platform.components.walkableplatform then
+    inst.components.embarker:SetEmbarkable(platform)
+    inst.components.embarker:StartMoving()
+end
+```
+
+## Dependencies & tags
+**Components used:** `locomotor`, `walkableplatform`, `physics`, `transform`
+**Tags:** None identified.
 
 ## Properties
-| Property            | Type        | Default Value | Description                                                                   |
-| :------------------ | :---------- | :------------ | :---------------------------------------------------------------------------- |
-| `inst`              | `Entity`    | `self`        | A reference to the entity this component is attached to.                      |
-| `embarkable`        | `Entity/nil`| `nil`         | The target entity (e.g., a boat) to embark onto.                              |
-| `start_x, start_y, start_z` | `number`    | Entity's current world position | The world position of the entity when the component is initialized. |
-| `embark_speed`      | `number`    | `10`          | The speed at which the entity moves during an embark/disembark action.        |
-| `last_embark_x, last_embark_z` | `number/nil` | `nil`         | The last known or calculated embark position, used as a fallback destination. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `embarkable` | `Entity?` | `nil` | Reference to the `WalkablePlatform` entity being boarded, if any. |
+| `embark_speed` | number | `10` | Speed in units per second used during movement. |
+| `disembark_x`, `disembark_z` | number? | `nil` | Target coordinates for disembarking (manual override). |
+| `last_embark_x`, `last_embark_z` | number? | `nil` | Last known valid embark position, used as fallback. |
+| `start_x`, `start_y`, `start_z` | number | World position at instantiation | Initial world coordinates captured in constructor. |
+| `max_hop_dist_sq` | number? | `nil` | Squared maximum allowed travel distance for a hop (set in `StartMoving`). |
+| `hop_start_pt` | `{x, y, z}`? | `nil` | Position at start of current hop (used for distance tracking). |
 
-## Main Functions
-### `Embarker:UpdateEmbarkingPos(dt)`
-*   **Description:** This is the core update logic for the embarking/disembarking movement. It calculates the entity's current position relative to its destination, applies movement, rotation, and checks for completion or if the maximum hop distance has been exceeded.
-*   **Parameters:**
-    *   `dt`: (`number`) The time elapsed since the last frame.
+## Main functions
+### `UpdateEmbarkingPos(dt)`
+*   **Description:** Advances the entity toward its current embark target over `dt` seconds. If the target is reached, teleports to the final position and fires `done_embark_movement`. If movement exceeds `max_hop_dist_sq`, cancels the move and fires `done_embark_movement`.
+*   **Parameters:** `dt` (number) — time elapsed since last update.
+*   **Returns:** Nothing.
+*   **Error states:** If no valid destination is set (`GetEmbarkPosition` returns `nil`), behavior falls back to the entity’s current position, which may stall movement.
 
-### `Embarker:SetEmbarkable(embarkable)`
-*   **Description:** Sets the target entity that the owning entity will embark onto. This also updates the `last_embark_x`/`z` and forces the entity to face the embark point. It clears any previous disembark destination.
-*   **Parameters:**
-    *   `embarkable`: (`Entity`) The entity (e.g., a boat, platform) to embark onto. This entity is expected to have a `walkableplatform` component.
+### `SetEmbarkable(embarkable)`
+*   **Description:** Sets the `WalkablePlatform` instance to be boarded. Computes and updates the embark position using the platform’s `GetEmbarkPosition`, and orients the entity toward it.
+*   **Parameters:** `embarkable` (`Entity`) — the platform entity with a `walkableplatform` component.
+*   **Returns:** Nothing.
+*   **Error states:** No explicit validation; assumes `embarkable.components.walkableplatform` exists.
 
-### `Embarker:SetDisembarkPos(pos_x, pos_z)`
-*   **Description:** Sets a specific world position as the disembark destination. This forces the entity to face the disembark point and clears any `embarkable` target.
-*   **Parameters:**
-    *   `pos_x`: (`number`) The X-coordinate of the disembark position.
-    *   `pos_z`: (`number`) The Z-coordinate of the disembark position.
+### `SetDisembarkPos(pos_x, pos_z)`
+*   **Description:** Sets a direct disembark position (e.g., on land) without referencing a platform. Clears `embarkable` and forces the entity to face the new position.
+*   **Parameters:**  
+    `pos_x` (number) — X coordinate of disembark position.  
+    `pos_z` (number) — Z coordinate of disembark position.  
+*   **Returns:** Nothing.
 
-### `Embarker:SetDisembarkActionPos(pos_x, pos_z)`
-*   **Description:** Calculates and sets the disembark position, potentially adjusting it to be a safe distance from the target using the `GetDisembarkPosAndDistance` helper function.
-*   **Parameters:**
-    *   `pos_x`: (`number`) The desired X-coordinate for disembarking.
-    *   `pos_z`: (`number`) The desired Z-coordinate for disembarking.
+### `SetDisembarkActionPos(pos_x, pos_z)`
+*   **Description:** Sets a disembark position using a helper function that computes a safe distance away from the target, typically to avoid overlapping obstacles.
+*   **Parameters:** `pos_x`, `pos_z` (number) — coordinates of the intended disembark target.
+*   **Returns:** Nothing.
+*   **Notes:** Internally calls `GetDisembarkPosAndDistance`, which adjusts the position based on platform availability and distance.
 
-### `Embarker:StartMoving()`
-*   **Description:** Initiates the movement phase for embarking or disembarking. It stops current physics movement, calculates the maximum hop distance, records the starting point, and begins updating the component. It also pushes the "start_embark_movement" event.
+### `StartMoving()`
+*   **Description:** Begins the movement update loop. Computes the maximum hop distance using `LocoMotor:GetHopDistance` (scaled by 1.5×), records the hop start position, and fires `start_embark_movement`.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Early return if `max_hop_dist_sq` is already set (i.e., movement already in progress).
 
-### `Embarker:OnUpdate(dt)`
-*   **Description:** The main update callback for the component, called by the entity's update loop when the component is started. It simply delegates to `UpdateEmbarkingPos`.
-*   **Parameters:**
-    *   `dt`: (`number`) The time elapsed since the last frame.
+### `OnUpdate(dt)`
+*   **Description:** Wrapper for `UpdateEmbarkingPos(dt)` used when the component is registered for updates via `inst:StartUpdatingComponent(self)`.
+*   **Parameters:** `dt` (number) — time elapsed.
+*   **Returns:** Nothing.
 
-### `Embarker:HasDestination()`
-*   **Description:** Checks if the component currently has an active embarkable target or a disembark position set, indicating it has a pending destination.
+### `HasDestination()`
+*   **Description:** Checks if a valid destination is currently set (either via `embarkable` or `disembark_x/z`).
 *   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if a destination is active, otherwise `false`.
 
-### `Embarker:GetEmbarkPosition()`
-*   **Description:** Determines the current target position for the entity's movement. If an `embarkable` entity is set, it queries its `walkableplatform` component for the position. Otherwise, it uses the `disembark_x`/`z` or `last_embark_x`/`z` as fallback, or the entity's current position if no other target is specified.
+### `GetEmbarkPosition()`
+*   **Description:** Retrieves the current target position for movement. Prioritizes `embarkable`, then `disembark_x/z`, and finally `last_embark_x/z`.
 *   **Parameters:** None.
+*   **Returns:** `number, number` — `x`, `z` coordinates of the target position.
+*   **Error states:** Returns entity’s current position if no embark/disembark target is set and `last_embark_x/z` is `nil`.
 
-### `Embarker:Embark()`
-*   **Description:** Finalizes the embark/disembark action. It teleports the entity to its calculated destination, resets all internal state variables related to the embark/disembark action, stops the component's updates, and signals the locomotor component to finish hopping.
+### `Embark()`
+*   **Description:** Finalizes the movement by teleporting to the computed embark position and resetting all internal state (clearing platforms, positions, hop tracking). Calls `LocoMotor:FinishHopping` to clean up reserved platform state.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `Embarker:Cancel()`
-*   **Description:** Stops the ongoing embark/disembark movement immediately, resets all internal state variables, stops the component's updates, and signals the locomotor component to finish hopping. It effectively aborts the action without reaching the destination.
+### `Cancel()`
+*   **Description:** Immediately terminates movement without completing the hop, resetting all state and stopping physics. Also calls `LocoMotor:FinishHopping`.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `GetDisembarkPosAndDistance(inst, target_x, target_z)` (Global Helper)
-*   **Description:** A global utility function that calculates a safe disembark position and the distance to it. It attempts to find a spot approximately `disembark_distance` units away from the `target_x`/`target_z` towards the `inst`'s current position, ensuring it's on land and not on a platform.
-*   **Parameters:**
-    *   `inst`: (`Entity`) The entity attempting to disembark.
-    *   `target_x`: (`number`) The X-coordinate of the intended disembark target.
-    *   `target_z`: (`number`) The Z-coordinate of the intended disembark target.
+### `GetDisembarkPosAndDistance(inst, target_x, target_z)`
+*   **Description:** *Standalone helper function* — computes a safe disembark position `disembark_distance` (default `4`) units away from a target, while avoiding invalid terrain. Returns the adjusted coordinates and the original distance.
+*   **Parameters:**  
+    `inst` (`Entity`) — the entity performing the disembark.  
+    `target_x`, `target_z` (number) — intended target coordinates.  
+*   **Returns:**  
+    `number, number, number` — adjusted `x`, `z` coordinates, and original or adjusted travel distance (as a safety metric).
+*   **Error states:** If the adjusted position lies on invalid terrain (e.g., water or underground), falls back to `target_x/z` with distance `0`.
 
-## Events & Listeners
-This component pushes the following events:
-*   `"done_embark_movement"`: Triggered when the entity completes its movement (reaches destination or is canceled due to exceeding hop distance).
-*   `"start_embark_movement"`: Triggered when the `StartMoving()` function is called, indicating the beginning of an embark/disembark action.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:**  
+    - `start_embark_movement` — fired when `StartMoving()` initiates movement.  
+    - `done_embark_movement` — fired when movement completes (success or cancellation).

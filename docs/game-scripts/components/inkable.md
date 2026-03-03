@@ -1,52 +1,63 @@
 ---
 id: inkable
 title: Inkable
-description: Applies and manages a temporary squid ink debuff on a player entity that impairs visibility for a short duration.
+description: Tracks and manages temporary ink status on players affected by squid attacks.
+tags: [combat, debuff, player]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 59acd2ec
+system_scope: player
 ---
 
 # Inkable
 
-## Overview
-This component manages the state and lifecycle of a squid ink effect applied to a player, including setting a fixed duration, applying visual/audio debuffs via the `squid_ink_player_fx` debuff, and broadcasting a `deinked` event upon expiration. It is tied to player entities and integrates with the game's debuff and update systems.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components:** Relies on the presence of `player_classified` component (to trigger `inked:push()` on its event queue), `debuffs` component (to apply/remove `"squid_ink_player_fx"`), and standard entity update mechanisms (`StartUpdatingComponent`, `StopUpdatingComponent`).
-- **Tags:** None explicitly added or removed by this component.
+## Overview
+`Inkable` manages the temporary "inked" debuff applied to players when struck by squid attacks. When a player is inked, a visual effect (`squid_ink_player_fx`) is applied, and the component tracks a 2-second duration before removing the debuff and resetting state. It also supports component transfer during entity reparenting (e.g., when a player respawns).
+
+## Usage example
+```lua
+local inst = TheEnt
+inst:AddComponent("inkable")
+inst.components.inkable:Ink()
+-- Later, if needed:
+if inst.components.inkable.inked then
+    print("Player is currently inked for " .. inst.components.inkable.inktime .. " more seconds")
+end
+```
+
+## Dependencies & tags
+**Components used:** `player_classified` (accessed via `self.inst.player_classified.inked`), `debuff` (via `AddDebuff`/`RemoveDebuff`)
+**Tags:** Adds `squid_ink_player_fx` debuff tag; does not add/remove entity tags directly.
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inked` | boolean or `nil` | `nil` | Whether the entity is currently inked (`true`) or not (`nil`). |
+| `inktime` | number | `0` | Remaining time (in seconds) until the ink effect expires. |
 
-| Property    | Type    | Default Value | Description                                                                 |
-|-------------|---------|---------------|-----------------------------------------------------------------------------|
-| `inst`      | `Entity`| `nil`         | Reference to the entity this component is attached to.                      |
-| `inked`     | `boolean` or `nil` | `nil`   | `true` when ink effect is active; `nil` when inactive.                     |
-| `inktime`   | `number`| `0`           | Remaining duration (in seconds) of the ink effect. Initialized to `0`.     |
-
-## Main Functions
-
+## Main functions
 ### `Ink()`
-* **Description:** Activates the ink effect by setting `inktime` to 2 seconds, marking `inked` as `true`, emitting an `inked` event via `player_classified`, adding the `squid_ink_player_fx` debuff, and starting the component's update loop.
+* **Description:** Activates the inked state for 2 seconds, applying the visual debuff effect and starting updates.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** If called multiple times rapidly, `inktime` resets to `2`, but overlapping calls do not stack.
 
 ### `OnUpdate(dt)`
-* **Description:** Called every frame while the component is active (after `Ink()`). Decrements `inktime` by `dt`; when it reaches 0 or below, it clears the effect, fires the `deinked` event, removes the debuff, and stops further updates.
-* **Parameters:**
-  * `dt` (`number`): Delta time in seconds since the last frame.
+* **Description:** Decrements the remaining ink duration each frame; when time expires, removes the debuff, stops updating, and fires the `deinked` event.
+* **Parameters:** `dt` (number) — elapsed time since the last update.
+* **Returns:** Nothing.
 
 ### `TransferComponent(newinst)`
-* **Description:** Transfers the ink effect to another entity (e.g., on respawn or item transfer). If inked, it re-applies the effect on the new entity and preserves the remaining `inktime`.
-* **Parameters:**
-  * `newinst` (`Entity`): The target entity receiving the component.
+* **Description:** Transfers the inked state to a new entity instance (e.g., on player death/respawn). If currently inked, applies the ink state to the new entity and preserves remaining time.
+* **Parameters:** `newinst` (Entity) — the target entity instance.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens to:** None.
-- **Triggers:**
-  - `inked` (via `self.inst.player_classified.inked:push()`) — sent immediately when ink is applied.
-  - `deinked` (via `self.inst:PushEvent("deinked")`) — sent when ink duration expires.
+## Events & listeners
+- **Pushes:** `deinked` — fired when the ink effect expires (via `self.inst:PushEvent("deinked")`).
+- **Listens to:** `self.inst.player_classified.inked:push()` — an event stream used to notify the network of ink state changes (client-server sync via `player_classified` component).

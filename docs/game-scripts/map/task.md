@@ -3,7 +3,7 @@ id: task
 title: Task
 description: Represents a procedural map generation task with room placement rules, locking/Key requirements, and special room configurations.
 tags: [map, generation, procedural, room, task]
-sidebar_position: 1
+sidebar_position: 100
 
 last_updated: 2026-02-27
 build_version: 714014

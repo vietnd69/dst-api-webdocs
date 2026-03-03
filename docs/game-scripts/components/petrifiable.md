@@ -1,84 +1,95 @@
 ---
 id: petrifiable
 title: Petrifiable
-description: Controls the petrification state of an entity, including timed delays, chaining to nearby entities, and save/load persistence.
+description: Enables an entity to be petrified and chain-petrify nearby petrifiable entities within a radius.
+tags: [petrify, chaining, entity_state, network_sync]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: f691186b
+system_scope: entity
 ---
 
 # Petrifiable
 
-## Overview
-This component manages the petrification logic for an entity, enabling delayed or immediate petrification, propagation ("chaining") to nearby petrifiable entities within range, and proper handling of sleep/wake states and persistence across sessions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds the `"petrifiable"` tag to the entity upon initialization.
-- Relies on the entity having `FindEntity`, `DoTaskInTime`, `RemoveEventCallback`, `ListenForEvent`, `PushEvent`, and `RemoveTag` available in its context (standard engine functions).
-- No additional component dependencies are explicitly added by this script.
+## Overview
+`Petrifiable` allows an entity to enter a petrified state, optionally chaining the effect to other nearby entities with the `petrifiable` component. It supports timed activation (e.g., after waking from sleep) and network-aware save/load via `OnSave`/`OnLoad`. The component automatically adds the `"petrifiable"` tag to the owning entity upon construction and manages associated tasks to avoid overlapping petrification chains.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("petrifiable")
+
+-- Set a callback for when petrification occurs
+inst.components.petrifiable:SetPetrifiedFn(function(target)
+    print(target.prefab .. " has been petrified!")
+end)
+
+-- Petrify the entity immediately (default behavior)
+inst.components.petrifiable:Petrify()
+
+-- Or, delay petrification until the entity wakes up (if currently asleep)
+inst.components.petrifiable:Petrify(false)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `"petrifiable"`; removes `"petrifiable"` upon removal if not already petrified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the owning entity. Set in constructor. |
-| `onPetrifiedFn` | `function?` | `nil` | Optional callback invoked when petrification completes. |
-| `petrified` | `boolean` | `false` | Indicates whether the entity is currently petrified. |
-| `_petrifytask` | `Task?` | `nil` | Pending task scheduled to trigger petrification. |
-| `_waketask` | `Task?` | `nil` | Pending task scheduled to wake the entity (used only when petrifying while asleep). |
+| `inst` | `Entity` | `nil` (assigned in constructor) | The entity instance this component belongs to. |
+| `onPetrifiedFn` | function or `nil` | `nil` | Optional callback invoked when petrification completes. |
+| `petrified` | boolean | `false` | Whether the entity is currently petrified. |
+| `_petrifytask` | `Task` or `nil` | `nil` | Task responsible for triggering petrification. |
+| `_waketask` | `Task` or `nil` | `nil` | Task that wakes the entity and triggers petrification if it was asleep when petrified. |
 
-## Main Functions
+## Main functions
+### `Petrify(immediate)`
+* **Description:** Initiates the petrification process for the entity. If `immediate` is true or omitted, petrification occurs after a short randomized delay (unless already petrified). If `immediate` is `false` and the entity is asleep, a wake-based delay is scheduled; otherwise, a standard delay is used.
+* **Parameters:**  
+  `immediate` (boolean or `nil`) — If `nil` or `true`, petrify after shortest delay. If `false`, defer until entity wakes (if currently asleep).
+* **Returns:** Nothing.
+* **Error states:** No effect if already petrified (`petrified == true`). Internally cancels pending tasks before scheduling new ones.
 
-### `Petrifiable:Petrify(immediate)`
-* **Description:** Initiates the petrification process for the entity. If `immediate` is `true` (or omitted), petrification occurs after a short random delay. If `immediate` is `false` and the entity is asleep, it schedules a wake timer; otherwise, it schedules a delayed petrify task.
-* **Parameters:**
-  * `immediate` (optional, `boolean?`): If not `false`, petrification proceeds after a short delay. If `false`, behavior depends on sleep state.
+### `SetPetrifiedFn(fn)`
+* **Description:** Sets the optional callback function that is executed when petrification completes (i.e., when `DoPetrify` runs).
+* **Parameters:**  
+  `fn` (function or `nil`) — Function accepting a single `Entity` argument (the petrified entity).
+* **Returns:** Nothing.
 
-### `Petrifiable:SetPetrifiedFn(fn)`
-* **Description:** Registers a callback function to be executed when petrification completes (i.e., when `DoPetrify` finishes chaining).
-* **Parameters:**
-  * `fn` (function): A function that accepts the entity instance as its sole argument.
-
-### `Petrifiable:IsPetrified()`
+### `IsPetrified()`
 * **Description:** Returns whether the entity is currently in the petrified state.
 * **Parameters:** None.
+* **Returns:** `true` if petrified, otherwise `false`.
 
-### `Petrifiable:OnRemoveFromEntity()`
-* **Description:** Cleans up tasks and removes tags/events upon component removal. If not already petrified, unregisters the entity from world-wide petrifiable tracking and removes the `"petrifiable"` tag.
+### `OnRemoveFromEntity()`
+* **Description:** Cleanly removes the component by canceling pending tasks, removing the `"petrifiable"` tag (if not already petrified), and unregistering from the world's petrifiable registry.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `Petrifiable:OnSave()`
-* **Description:** Serializes the current petrified state and any pending wake timer for save/load compatibility.
+### `OnSave()`
+* **Description:** Serializes the component state for saving to disk. Returns data only if petrified.
 * **Parameters:** None.
-* **Returns:** `nil` if not petrified; otherwise, a table containing `remainingtime` for the wake task.
+* **Returns:** `{ remainingtime = number }` if petrified and a task is active (e.g., `_waketask`), otherwise `nil`.
 
-### `Petrifiable:OnLoad(data)`
-* **Description:** Restores petrified state and pending tasks from saved data.
-* **Parameters:**
-  * `data` (table?): Saved state containing `remainingtime`.
+### `OnLoad(data)`
+* **Description:** Restores the component state from saved data. Rebuilds pending tasks and schedules petrification or wake events as needed.
+* **Parameters:**  
+  `data` (table or `nil`) — Save data containing `remainingtime`.
+* **Returns:** Nothing.
 
-### `Petrifiable:GetDebugString()`
-* **Description:** Returns a debug-friendly string summarizing the petrified state and remaining times of pending tasks.
+### `GetDebugString()`
+* **Description:** Returns a formatted debug string for in-game diagnostics, showing petrification status and remaining times of pending tasks.
 * **Parameters:** None.
-* **Returns:** `string`
+* **Returns:** `string` — e.g., `"petrified: true, waketime: 1.23, petrifytime: 0.00"`.
 
-## Events & Listeners
-
-- **Listens to:**
-  - `"entitywake"` — triggers `OnEntityWake` to handle scheduled wake tasks.
-- **Pushes:**
-  - `"ms_registerpetrifiable"` — when component is added and entity is petrifiable.
-  - `"ms_unregisterpetrifiable"` — when component is removed and entity is not yet petrified.
-  - Custom event (via callback) `onPetrifiedFn(inst)` — invoked after petrification logic completes.
-
-### Helper Internal Events & Listeners
-
-- `OnEntityWake(inst)` — internal callback invoked when the entity wakes up naturally or via scheduled task. Handles scheduling petrify tasks if none exist.
-- `DoChainPetrify(...)` — schedules chained petrification for nearby entities if applicable.
-- `DoPetrify(inst, self, OnEntityWake)` — performs core petrification logic and initiates chaining.
-- `DoWake(inst, self, OnEntityWake)` — completes the wake process by invoking the callback and cleaning up.
+## Events & listeners
+- **Listens to:** `"entitywake"` — To cancel the wake-based petrification delay and reschedule a new petrify delay if not already active.
+- **Pushes:** `"ms_registerpetrifiable"` (on construction), `"ms_unregisterpetrifiable"` (on removal if not petrified), and `"entitywake"` (via callback, not pushed).

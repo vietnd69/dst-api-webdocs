@@ -1,92 +1,110 @@
 ---
 id: saddler
 title: Saddler
-description: A combat utility component that modifies incoming damage through absorption, applies bonus damage, and manages movement speed adjustments via inventory item synchronization.
+description: Manages item-saddle modifiers such as bonus damage, speed multiplier, and damage absorption, and applies modified damage calculations during combat.
+tags: [combat, inventory, modifier, network]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: combat
+category_type: components
 source_hash: 4e1db4ff
+system_scope: combat
 ---
 
 # Saddler
 
-## Overview
-The `Saddler` component provides damage absorption and modification logic for an entity's incoming physical and special damage. It also supports optional bonus damage and speed multiplier adjustments, and integrates with the `inventoryitem_replica` to propagate walk speed changes over the network. It does not manage health directly but works in conjunction with damage-related components like `damagetyperesist`.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on: `spdamageutil` module for special damage defense calculations.
-- Interacts with: `damagetyperesist` component (if present) for damage type resistance multipliers.
-- Interacts with: `inventoryitem_replica` (if present) to sync walk speed adjustments.
-- Does not add or remove entity tags.
+## Overview
+`Saddler` is a component that encapsulates configurable modifiers for an item (typically a saddle) used on mounts like Beefalo or Bears. It stores and provides access to bonus damage, walk speed multiplier, and damage absorption values. The component also implements a damage calculation pipeline that applies resistance multipliers (via `damagetyperesist`) and damage absorption, and handles special damage adjustments using `spdamageutil`. It integrates with `inventoryitem` replication to sync walk speed changes across the network.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("saddler")
+inst.components.saddler:SetBonusDamage(5)
+inst.components.saddler:SetBonusSpeedMult(1.2)
+inst.components.saddler:SetAbsorption(0.25) -- 25% damage reduction
+local leftover, spdamage = inst.components.saddler:ApplyDamage(10, attacker, weapon, spdamage_map)
+```
+
+## Dependencies & tags
+**Components used:** `damagetyperesist`, `inventoryitem` (accessed via `replica`), `spdamageutil` (imported)
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *none* (assigned in `_ctor`) | The entity instance this component is attached to. |
-| `swapsymbol` | `string?` | `nil` | Symbol to use when swapping items visually. |
-| `swapbuild` | `string?` | `nil` | Build identifier used for item swapping. |
-| `skin_guid` | `string?` | `nil` | GUID for the skin used during swaps. |
-| `bonusdamage` | `number?` | `nil` | Additional flat damage added when this entity deals damage. |
-| `speedmult` | `number?` | `nil` | Multiplier applied to the entity's walk speed. |
-| `absorbpercent` | `number?` | `nil` | Percentage of damage absorbed (0.0 = 0%, 1.0 = 100%). |
-| `discardedcb` | `function?` | `nil` | Callback invoked when the item is discarded (if applicable). |
+| `swapsymbol` | string \| nil | `nil` | Symbol used for item swaps/skins. |
+| `swapbuild` | string \| nil | `nil` | Build identifier for item swaps/skins. |
+| `skin_guid` | string \| nil | `nil` | GUID for the skin asset. |
+| `bonusdamage` | number \| nil | `nil` | Flat damage bonus applied during combat. |
+| `speedmult` | number \| nil | `nil` | Walk speed multiplier (also synced to `inventoryitem` replica). |
+| `absorbpercent` | number \| nil | `nil` | Fraction of damage absorbed (e.g., `0.25` = 25% reduction). |
+| `discardedcb` | function \| nil | `nil` | Optional callback invoked when the item is discarded. |
 
-## Main Functions
-
+## Main functions
 ### `SetSwaps(build, symbol, skin_guid)`
-* **Description:** Configures visual swap parameters for use during item swapping (e.g., skin or appearance changes).
-* **Parameters:**
-  - `build`: Build identifier string used for networking or prefabs.
-  - `symbol`: Render symbol string used to swap visual appearance.
-  - `skin_guid`: Unique identifier for the associated skin asset.
+* **Description:** Sets metadata for item swap/skin support (e.g., skin overrides or build variants).
+* **Parameters:**  
+  - `build` (string) — Build identifier.  
+  - `symbol` (string) — Symbol used in visual representation.  
+  - `skin_guid` (string) — Unique identifier for the skin asset.
+* **Returns:** Nothing.
 
 ### `SetBonusDamage(damage)`
-* **Description:** Sets a flat bonus damage value added to this entity’s outgoing damage.
-* **Parameters:**
-  - `damage`: Non-negative number representing additional damage.
+* **Description:** Sets the flat bonus damage to be applied in combat calculations.
+* **Parameters:** `damage` (number) — Additional damage value to add.
+* **Returns:** Nothing.
 
 ### `SetBonusSpeedMult(mult)`
-* **Description:** Sets the movement speed multiplier applied to the entity. Propagates via `onspeedmult` callback to the `inventoryitem_replica` if present.
-* **Parameters:**
-  - `mult`: Positive number; e.g., `1.0` = normal speed, `1.5` = 50% faster.
+* **Description:** Sets the speed multiplier and pushes the updated value to the `inventoryitem` replica for network sync.
+* **Parameters:** `mult` (number) — Multiplicative walk speed factor (e.g., `1.1` for +10% speed).
+* **Returns:** Nothing.
 
 ### `SetAbsorption(percent)`
-* **Description:** Sets the percentage of damage absorbed (as a value between `0` and `1`).
-* **Parameters:**
-  - `percent`: Float in range `[0, 1]`; `0` = no absorption, `1` = full absorption.
+* **Description:** Sets the damage absorption fraction.
+* **Parameters:** `percent` (number) — Fraction of damage absorbed (e.g., `0.3` means 30% reduction).
+* **Returns:** Nothing.
 
 ### `GetBonusDamage(target)`
-* **Description:** Returns the currently set bonus damage (defaulting to `0` if unset).
-* **Parameters:**
-  - `target`: Not used in current implementation; included for signature consistency.
+* **Description:** Returns the stored bonus damage value (defaults to `0` if unset).
+* **Parameters:**  
+  - `target` (Entity, ignored) — Retained for interface compatibility but unused.
+* **Returns:** `number` — Bonus damage, or `0` if `nil`.
+* **Error states:** Always returns a numeric value.
 
 ### `GetBonusSpeedMult()`
-* **Description:** Returns the currently set speed multiplier (defaulting to `1` if unset).
+* **Description:** Returns the stored speed multiplier (defaults to `1` if unset).
 * **Parameters:** None.
+* **Returns:** `number` — Speed multiplier, or `1` if `nil`.
 
 ### `GetAbsorption()`
-* **Description:** Returns the currently set absorption percentage (defaulting to `0` if unset).
+* **Description:** Returns the stored absorption fraction (defaults to `0` if unset).
 * **Parameters:** None.
+* **Returns:** `number` — Absorption fraction, or `0` if `nil`.
 
 ### `SetDiscardedCallback(cb)`
-* **Description:** Registers a callback function to be invoked when the associated item is discarded.
-* **Parameters:**
-  - `cb`: A function accepting no arguments.
+* **Description:** Registers a callback to be invoked when the item is discarded (e.g., removed from inventory or destroyed).
+* **Parameters:** `cb` (function) — Function to call on discard; signature is implementation-dependent.
+* **Returns:** Nothing.
 
 ### `ApplyDamage(damage, attacker, weapon, spdamage)`
-* **Description:** Processes incoming damage using resistance multipliers, absorption, and special damage defense. Returns the final physical damage and updated special damage table.
-* **Parameters:**
-  - `damage`: Base physical damage value.
-  - `attacker`: Entity dealing the damage (used by `damagetyperesist` and `SpDamageUtil`).
-  - `weapon`: Item or entity used as the weapon (used by `damagetyperesist`).
-  - `spdamage`: Optional table mapping special damage types to numeric values.
-* **Returns:**
-  - `leftover_damage`: Physical damage after absorption and resistance.
-  - `spdamage`: Modified special damage table (entries ≤ 0 are removed or set to `nil`).
+* **Description:** Applies damage modifiers including resistances, absorption, and special damage reduction. Used to compute final outgoing damage after accounting for the entity’s defenses.
+* **Parameters:**  
+  - `damage` (number) — Base incoming damage amount.  
+  - `attacker` (Entity \| nil) — Attacking entity (used for tag-based resistance checks).  
+  - `weapon` (Entity \| nil) — Weapon entity (used for tag-based resistance checks).  
+  - `spdamage` (table \| nil) — Map of special damage types (`sptype` → damage) to be reduced individually.  
+* **Returns:**  
+  - `leftover_damage` (number) — Physical damage after absorption and resistances.  
+  - `spdamage` (table \| nil) — Modified special damage table, with entries removed (`nil`) if reduced to `<= 0`.  
+* **Error states:**  
+  - If `damagetyperesist` is absent, resistance multiplier defaults to `1`.  
+  - If `spdamage` becomes empty after processing, it is set to `nil`.
 
-## Events & Listeners
-- `self.inst:ListenForEvent("speedmult", onspeedmult)` — Internal listener (via the `Class` constructor’s third argument); invokes `onspeedmult` when the `"speedmult"` event is pushed on the entity, updating `inventoryitem_replica` walk speed.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** None.

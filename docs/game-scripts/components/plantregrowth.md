@@ -1,89 +1,103 @@
 ---
 id: plantregrowth
 title: Plantregrowth
-description: Manages periodic regrowth of plants (e.g., trees, mushrooms) by tracking growth progress, spawning nearby offspring, and adjusting regrowth rates based on seasonal and biome conditions.
+description: Manages periodic regrowth of plants by tracking per-prefab timers and spawning nearby instances when growth conditions are met.
+tags: [plant, regrowth, world]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 3cfb3a65
+system_scope: world
 ---
 
 # Plantregrowth
 
-## Overview
-The `plantregrowth` component implements a shared, world-scoped regrowth system for flora (trees, mushrooms, etc.). Entities with this component track cumulative growth time against global internal timers, periodically attempt to spawn a new instance of themselves (or a configured product) within a radius, and support dynamic adjustment of regrowth rates and seasons via `TimeMultipliers`. It avoids frame contention by bucketed updates and handles serialization for world save/load.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Uses global utility `regrowthutil.lua` (not shown), specifically `GetFiveRadius`.
-- Relies on `TheWorld`, `TheSim`, `TheCamera`, `RoadManager`, and `TUNING` constants.
-- Adds no component or tags to the entity; instead, it *is* the component attached to flora entities.
+## Overview
+`PlantRegrowth` implements a centralized, batched update system for plant regrowth mechanics across the world. It tracks per-prefab internal timers using `InternalTimes`, periodically checks entities that own this component during scheduled buckets, and spawns nearby instances of the configured product prefab if growth conditions (e.g., terrain, proximity, spacing) are satisfied. It supports seasonal and moon-phase modifiers via `TimeMultipliers`, and handles save/load state serialization to preserve timing across sessions.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddTag("plant")
+inst:AddComponent("plantregrowth")
+inst.components.plantregrowth:SetRegrowthRate(1800) -- 30 minutes base
+inst.components.plantregrowth:SetProduct("pinecone")
+inst.components.plantregrowth:SetSearchTag("tree")
+inst.components.plantregrowth:ResetGrowthTime()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `plant` (via the `prefab` string in `TrySpawnNearby`), checks `structure` and `wall` as blockers; reads tags like `"tree"` and `"plant"` indirectly via `searchtag` and `prefab`.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `regrowthrate` | number | `nil` | Base time (in seconds) for a full regrowth cycle; used with variance. |
-| `product` | string | `nil` | Prefab name to spawn during regrowth; defaults to the entity's own prefab if `nil`. |
-| `searchtag` | string | `nil` | Tag used to count existing nearby entities (e.g., for spawn caps). |
-| `nextregrowth` | number | `0` | Global internal time at which the next regrowth attempt is allowed. |
-| `fiveradius` | number | `nil` | Radius used to determine spawn eligibility (computed on first `TrySpawnNearby` call). |
-| `area` | any | `nil` | Reserved; currently unused (commented out as deferred). |
+| `regrowthrate` | number | `nil` | Base time (in seconds) required for regrowth; used with variance in `ResetGrowthTime`. |
+| `product` | string | `nil` | Prefab name to spawn on successful regrowth; defaults to `self.inst.prefab` if `nil`. |
+| `searchtag` | string | `nil` | Tag used when counting existing entities in the spawn area. |
+| `nextregrowth` | number | `0` | Internal timestamp when regrowth is allowed. |
+| `fiveradius` | number | `nil` | Cached radius around this plant for regrowth checks; computed lazily. |
 | `skip_plant_check` | boolean | `nil` | If true, bypasses `Map:CanPlantAtPoint` check during spawn. |
-| `_bucket` | table | `nil` | Internal bucket index used for batched update scheduling. |
 
-## Main Functions
-
+## Main functions
 ### `ResetGrowthTime()`
-* **Description:** Resets the `nextregrowth` timer by adding the current global time for the entity’s prefab (from `InternalTimes`) plus a random variance (±20%) of `regrowthrate`.
+* **Description:** Sets `nextregrowth` to the current internal time for this plant’s prefab plus a random variance (±20% of `regrowthrate`). Used to initialize or reset the regrowth window.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SetRegrowthRate(rate)`
-* **Description:** Sets the base `regrowthrate` and registers this entity into the global update buckets for periodic processing. If growth is already due, immediately triggers a reset.
-* **Parameters:**  
-  - `rate` (number): Base regrowth time in seconds.
+* **Description:** Sets the base `regrowthrate` and registers this instance into the global batched update system. If the current internal time has already exceeded `nextregrowth`, it immediately resets the timer.
+* **Parameters:** `rate` (number) - base regrowth duration in seconds.
+* **Returns:** Nothing.
 
 ### `SetProduct(product)`
-* **Description:** Configures the prefab name to spawn during regrowth (instead of using the entity’s own prefab).
-* **Parameters:**  
-  - `product` (string): Prefab name of the spawned offspring.
+* **Description:** Specifies the prefab to spawn during regrowth. If unset, the instance's own prefab is used.
+* **Parameters:** `product` (string) - prefab name.
+* **Returns:** Nothing.
 
 ### `SetSearchTag(tag)`
-* **Description:** Sets the tag used when counting nearby entities to enforce the "5-per-cluster" rule.
-* **Parameters:**  
-  - `tag` (string): Tag used in `FindEntities` to identify同类 instances.
+* **Description:** Specifies the tag used when counting nearby entities during regrowth (via `TheSim:FindEntities`).
+* **Parameters:** `tag` (string) - tag to filter entities in spawn area.
+* **Returns:** Nothing.
 
 ### `SetSkipCanPlantCheck(bool)`
-* **Description:** If `true`, skips the `Map:CanPlantAtPoint` validation during spawn attempts (useful for non-plant terrain like rock trees).
-* **Parameters:**  
-  - `bool` (boolean): Whether to skip the plantability check.
+* **Description:** If `true`, skips the `Map:CanPlantAtPoint` check during `GetSpawnPoint`, allowing regrowth on non-plantable terrain (e.g., some structures).
+* **Parameters:** `bool` (boolean).
+* **Returns:** Nothing.
 
 ### `OnRemoveFromEntity()` / `OnRemoveEntity()`
-* **Description:** Removes this instance from the global update buckets; if the bucket becomes empty, cancels the global update task if no other entities remain.
+* **Description:** Removes this instance from the global batched update buckets and cancels the global update task if no instances remain.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `TrySpawnNearby()`
-* **Description:** Checks if regrowth time has elapsed. If so, samples random nearby positions (within `fiveradius`), validates spawnability (using `GetSpawnPoint`), counts existing entities of the target type (max 5), and spawns one new instance if space is available.
+* **Description:** Checks if regrowth is due; if so, attempts to find a valid nearby spawn location using `GetSpawnPoint`. If a location is found and the area is not overcrowded (fewer than 5 matching entities), spawns the `product` prefab at that location.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Returns early without resetting the timer if `nextregrowth` has not been reached; resets the timer on failure even if spawn fails.
 
 ### `OnSave()`
-* **Description:** Returns a compact table containing only the remaining regrowth time (relative to current global time) for serialization.
-* **Parameters:** None.  
-* **Returns:** `{ regrowthtime = <number> }` or `nil` if no data.
+* **Description:** Returns a table containing the remaining regrowth time (`nextregrowth - InternalTimes[prefab]`) for serialization.
+* **Parameters:** None.
+* **Returns:** Table with `regrowthtime` key, or `nil` if empty.
 
 ### `OnLoad(data)`
-* **Description:** Restores the `nextregrowth` timer using saved relative time and current global time for the prefab.
-* **Parameters:**  
-  - `data` (table or nil): Data from `OnSave`.
+* **Description:** Restores `nextregrowth` using the loaded remaining time and current `InternalTimes[prefab]`.
+* **Parameters:** `data` (table | nil) - data returned from `OnSave`.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a debug string with current `fiveradius` and remaining regrowth time (or `"NO GROWTH HERE"` if radius is invalid).
-* **Parameters:** None.  
-* **Returns:** string.
+* **Description:** Returns a human-readable string with current `fiveradius` and remaining regrowth time. If `fiveradius` is not yet computed, it is lazily initialized first.
+* **Parameters:** None.
+* **Returns:** string - formatted debug info (e.g., `"fiveradius: 6.42 regrowth time: 420.00"` or `"NO GROWTH HERE"`).
 
-## Events & Listeners
-None. This component does not register or dispatch any events via `ListenForEvent` or `PushEvent`. It operates via explicit periodic polling and method calls.
-
----
+## Events & listeners
+- **Listens to:** `onremovefromentity` — triggers `OnRemoveFromEntity`.
+- **Listens to:** `onremoveentity` — triggers `OnRemoveEntity`.
+- **Pushes:** None identified.

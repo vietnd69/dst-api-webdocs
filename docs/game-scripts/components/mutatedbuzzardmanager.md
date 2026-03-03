@@ -1,55 +1,95 @@
 ---
 id: mutatedbuzzardmanager
 title: Mutatedbuzzardmanager
-description: Manages the lifecycle, migration, and shadow spawning of mutated buzzards in response to player positions, rift states, and in-game events like megaflare detonations and entity deaths.
+description: Manages mutated buzzard gestalt populations, tracks circling shadows for players, and controls spawning/dropping behavior in response to rift states, megaflares, and deaths.
+tags: [boss, ai, migration, environment, rift]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 83ac3648
+system_scope: environment
 ---
 
 # Mutatedbuzzardmanager
 
-## Overview
-The `MutatedBuzzardManager` is a world-scoped component responsible for tracking migrating mutated buzzard groups, spawning and managing circling shadow entities that follow players, and coordinating buzzard behavior based on environmental conditions (e.g., rift activity, time of day, moon phase). It integrates with the `migrationmanager`, `corpsepersistmanager`, and `riftspawner` systems to control spawn conditions, persistence, and population tracking.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component dependencies**: `inst:AddComponent("migrationmanager")`, `inst:AddComponent("corpsepersistmanager")`, `inst:AddComponent("riftspawner")` (optional, used conditionally).
-- **Tags**: Uses `MIGRATION_TYPES.MUTATED_BUZZARD_GESTALT` internally as a custom migration type.
-- **Source modifications**: Adds a persistent corpse attraction source `"mutatedbuzzard_corpse_persist"` to `corpsepersistmanager`.
+## Overview
+`Mutatedbuzzardmanager` is a server-side component responsible for managing mutated buzzard gestalt populations and their associated circling shadow entities (`circlingbuzzard_lunar`). It coordinates population migration across world nodes, tracks player associations with migrating groups, spawns shadows that circle players, and drops actual buzzards under specific conditions (e.g., inactive rifts or winter). It interfaces with `migrationmanager` for population logic, `corpsepersistmanager` to extend corpse persistence near buzzards, and `riftspawner` to react to lunar portal states.
+
+## Usage example
+```lua
+-- Typically added automatically to the world entity on server init
+-- Example of manual usage in a mod:
+local world = TheWorld
+world:AddComponent("mutatedbuzzardmanager")
+world.components.mutatedbuzzardmanager:SetDropBuzzardsSource("winter_active", true)
+```
+
+## Dependencies & tags
+**Components used:** `corpsepersistmanager`, `migrationmanager`, `riftspawner`, `mutatedbuzzardcircler`  
+**Tags:** None identified.
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `inst` | `Entity` | `self.inst` | Reference to the component's owning entity (typically `TheWorld`). |
-| `UPDATE_TIME_SECONDS` | `number` | `0.5` | Interval (in seconds) for the main `OnUpdate` loop. |
-| `UPDATE_DROP_BUZZARD_SECONDS` | `number` | `3` | Interval (in seconds) for dropping buzzards when active. |
-| `CORPSE_PERSIST_SOURCE` | `string` | `"mutatedbuzzard_corpse_corpse_persist"` | Identifier used when registering corpse persistence logic. |
-| `MUTATEDBUZZARD_MAX_SHADOWS` | `number` | `10` | Maximum circling shadows permitted per player. |
-| `MUTATEDBUZZARD_CORPSE_RANGE_SQ` | `number` | Squared value of `TUNING.MUTATEDBUZZARD_CORPSE_RANGE` | Distance threshold squared used to check proximity for corpse attraction. |
-| `_activeplayers` | `table` | `{}` | Tracks per-player migration state (e.g., `population_uid`, `population_time`). |
-| `_buzzards` | `table` | `{}` | List of active mutated buzzard entities tracked by this component. |
-| `_buzzardshadows` | `table` | `{}` | List of active circling buzzard shadow entities. |
-| `_dropbuzzardsources` | `SourceModifierList` | `SourceModifierList(inst, false, SourceModifierList.boolean)` | Controls whether buzzards should be dropped (disabled by default). |
-| `megaflare_nodes` | `table` | `{}` | Maps migration nodes to remaining time (in seconds) after a megaflare detonation. |
-| `death_nodes` | `table` | `{}` | Maps migration nodes to lists of decay timers triggered by entity deaths. |
-| `lunarrifts_nodes` | `table` | `{}` | Maps rift entities to their associated migration nodes. |
+No public properties.
 
-## Main Functions
-
+## Main functions
 ### `SetDropBuzzardsSource(source, boolval)`
-* **Description:** Enables or disables buzzard dropping based on a named source (e.g., `"rift_inactive"` or `"winter_active"`). Multiple sources can be active simultaneously; dropping is enabled if any source is `true`.
-* **Parameters:**
-  - `source` (`string`): Identifier for the condition causing buzzard dropping.
-  - `boolval` (`boolean`): Whether to enable dropping for this source.
+* **Description:** Enables or disables a named source that triggers buzzard dropping behavior (e.g., `rift_inactive`, `winter_active`). When any active source is `true`, `Mutatedbuzzardmanager` will begin dropping buzzards periodically.
+* **Parameters:**  
+  - `source` (string) — Identifier for the trigger source (e.g., `"rift_inactive"`).  
+  - `boolval` (boolean) — Whether this source should activate buzzard dropping.
+* **Returns:** Nothing.
 
 ### `GetDropBuzzards()`
-* **Description:** Returns whether buzzard dropping is currently enabled (i.e., if any registered source is active).
-* **Returns:** `boolean` — `true` if dropping is active, otherwise `false`.
+* **Description:** Returns whether buzzard dropping is currently active due to any registered source.
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if at least one active source is enabled, otherwise `false`.
 
 ### `TrackPopulationOnPlayer(player, population)`
-* **Description:** Associates a player with a specific mutated buzzard population group and starts a timed tracking window. Used when a
+* **Description:** Associates a player with a specific mutated buzzard gestalt population, ensuring that population follows the player and shadows are spawned for them.
+* **Parameters:**  
+  - `player` (Entity) — The player entity.  
+  - `population` (table) — Migration population group table from `migrationmanager`.
+* **Returns:** Nothing.
+
+### `ClearPopulationTracking(player)`
+* **Description:** Clears the player's association with a buzzard population and triggers migration to the next node if needed. Removes any circling shadows for that population.
+* **Parameters:**  
+  - `player` (Entity) — The player entity.
+* **Returns:** Nothing.
+
+### `OnPostInit()`
+* **Description:** Initializes the component after the world is fully loaded. Registers corpse persistence logic and pre-populates lunar rift data.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `OnSave()`
+* **Description:** Serializes transient state (e.g., megaflare and death attraction timers) for savegame persistence.
+* **Parameters:** None.
+* **Returns:** `data` (table or `nil`) — Serialized state or `nil` if empty; `ents` (table) — Always `nil` in this implementation.
+
+### `OnLoad(data)`
+* **Description:** Restores transient state from saved data (e.g., megaflare and death attraction timers).
+* **Parameters:**  
+  - `data` (table) — Data from `OnSave`.
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:**  
+  - `ms_playerjoined` — Registers new players.  
+  - `ms_playerleft` — Removes leaving players.  
+  - `ms_registermutatedbuzzard` — Registers a new buzzard instance.  
+  - `megaflare_detonated` — Records megaflare proximity timer for node distraction.  
+  - `entity_death` — Records death attraction timer for node.  
+  - `ms_riftaddedtopool` — Adds rift node mapping and updates rift state.  
+  - `ms_riftremovedfrompool` — Removes rift node mapping and updates rift state.  
+- **Pushes:** None.
+
+## Notes
+- This component only exists on the **server** (`TheWorld.ismastersim`) and is typically added to the world entity.
+- It relies heavily on tuning constants (e.g., `MUTATEDBUZZARD_MIGRATE_TIME_BASE`, `MUTATEDBUZZARD_MAX_SHADOWS`) defined in `TUNING`.
+- Shadow circling is handled by the `mutatedbuzzardcircler` component attached to `circlingbuzzard_lunar` prefabs.

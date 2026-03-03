@@ -1,91 +1,64 @@
 ---
 id: moonbeastbrain
 title: Moonbeastbrain
-description: Controls the behavior tree of the Moon Beast, managing its targeting, petrification, and return-to-base logic during the Moon Base event.
+description: Controls the AI behavior of the Moon Beast boss, managing its transitions between chasing, attacking the Moon Base, and petrification states.
+tags: [ai, boss, combat]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: e0f0890c
+system_scope: brain
 ---
 
 # Moonbeastbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The `MoonBeastBrain` component implements the decision-making logic for the Moon Beast entity, a hostile creature summoned during the Moon Base event. It uses a behavior tree (`BT`) to orchestrate high-priority survival actions, petrification states, and the primary objective of attacking the Moon Base. The brain coordinates closely with the `entitytracker`, `health`, `combat`, and `workable` components to maintain awareness of the Moon Base's state and enforce appropriate behavioral transitions (e.g., dying if too far from the base, entering petrify mode if no moon charge is active, or prioritizing Moon Base work).
+`MoonBeastBrain` defines the decision-making logic for the Moon Beast boss. It coordinates behavior via a behavior tree (`BT`) that evaluates state conditions and executes appropriate actions. Key behaviors include patrolling toward the Moon Base, attacking it when it is vulnerable (during `mooncharge`), chasing players, and entering petrification when the Moon Base is no longer charging. The brain is tightly integrated with the `entitytracker`, `combat`, `health`, `timer`, and `workable` components, and uses common DST behavior modules like `ChaseAndAttack`, `Leash`, `StandStill`, and `AttackWall`.
 
-## Dependencies & Tags
-- **Components used:**
-  - `entitytracker`: To retrieve the Moon Base entity (`GetMoonBase` helper).
-  - `health`: To kill the Moon Beast (`Kill()`).
-  - `combat`: To reset attack cooldown (`ResetCooldown()`) and check last attack time (`GetLastAttackedTime()`).
-  - `timer`: To check existence of the `"mooncharge"` timer (`TimerExists()`).
-  - `workable`: To verify if the Moon Base is workable (`CanBeWorked()`) and to perform work (`WorkedBy()`).
-- **Tags:** No tags are added, removed, or checked directly by this brain.
+## Usage example
+```lua
+-- Typically added automatically when the Moon Beast prefab is instantiated
+-- Manual usage is not recommended as it relies on specific prefabs and tags.
+-- Example of internal brain initialization:
+local brain = MoonBeastBrain(some_inst)
+some_inst.brain = brain
+brain:OnStart()
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `entitytracker`, `health`, `timer`, `workable`  
+**Tags checked:** `playerskeleton`, `HAMMER_workable` (used in `BreakSkeletons`)
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `_losttime` | `number?` (Unix timestamp) | `nil` | Time when the Moon Beast first moved beyond `LOST_DIST` from the Moon Base; used to determine if the beast has been separated long enough to warrant death. |
-| `_petrifytime` | `number?` (Unix timestamp) | `nil` | Timestamp when the Moon Beast should transition to the "Petrify" state (e.g., due to the `"mooncharge"` timer ending); set dynamically via `ForcePetrify()` or `LostMoonCharge()`. |
+No public properties. Internal state is held in private fields `_losttime` and `_petrifytime`.
 
-## Main Functions
-### `MoonBeastBrain:ForcePetrify()`
-* **Description:** Forces the Moon Beast to enter the petrify state immediately by setting `_petrifytime` to the current time plus a random variance.
+## Main functions
+### `ForcePetrify()`
+* **Description:** Forces the Moon Beast to enter the petrification state by setting a reference time for petrification expiration.
 * **Parameters:** None.
-* **Returns:** `nil`.
+* **Returns:** Nothing.
 
-### `MoonBeastBrain:OnStart()`
-* **Description:** Constructs and assigns the behavior tree (`self.bt`) for the Moon Beast. Defines a priority-weighted root node with nested sequences and conditionals that govern behavior flow. Key stages include checking for separation from the Moon Base, lunar charge status, skeleton breaking, Moon Base targeting, and fallback aggression.
+### `OnStart()`
+* **Description:** Initializes and starts the behavior tree root node. This is called once when the brain is first attached to the entity and should only be invoked by the engine or prefab setup logic.
 * **Parameters:** None.
-* **Returns:** `nil`.
+* **Returns:** Nothing.
 
-### Helper Functions
-The following functions are defined as local closures within the constructor and are integral to behavior tree conditionals:
+## Events & listeners
+- **Pushes:** `workmoonbase` — fired when the Moon Beast begins working on the Moon Base; includes `{ moonbase = <inst> }` in data.
+- **Pushes:** `moonpetrify` — fired when the Moon Beast should enter the petrified state.
+- **Listens to:** None — this brain does not register custom event listeners. It relies on behavior tree conditions and node actions.
 
-#### `GetMoonBase(inst)`
-* **Description:** Retrieves the Moon Base entity via `entitytracker`.
-* **Parameters:** `inst` (EntityInstance) — the Moon Beast instance.
-* **Returns:** `Entity?` — The Moon Base entity or `nil` if not found.
-
-#### `LostMoonBase(self)`
-* **Description:** Determines if the Moon Beast has become too far from the Moon Base for too long. Returns `true` if separation exceeds `LOST_TIME` seconds. Resets `_losttime` if the Moon Beast returns to `LOST_DIST`.
-* **Parameters:** `self` (MoonBeastBrain instance).
-* **Returns:** `boolean` — `true` if the Moon Beast is lost beyond the allowed time threshold.
-
-#### `LostMoonCharge(self)`
-* **Description:** Checks if the `"mooncharge"` timer on the Moon Base has ended. If so, triggers petrify mode after a short delay. Sets `_petrifytime` if not already set.
-* **Parameters:** `self` (MoonBeastBrain instance).
-* **Returns:** `boolean` — `true` if the Moon Beast should be petrified (i.e., `mooncharge` timer does not exist and `_petrifytime` has elapsed).
-
-#### `ShouldTargetMoonBase(inst)`
-* **Description:** Evaluates whether the Moon Beast should target and work on the Moon Base. Requires the Moon Base to exist, be workable, have an active `"mooncharge"` timer, and the Moon Beast to not have recently attacked.
-* **Parameters:** `inst` (EntityInstance).
-* **Returns:** `boolean`.
-
-#### `GetMoonBasePos(inst)`
-* **Description:** Returns the world position of the Moon Base if it exists.
-* **Parameters:** `inst` (EntityInstance).
-* **Returns:** `Vector3?` — Position of the Moon Base or `nil`.
-
-#### `WorkMoonBase(inst)`
-* **Description:** Pushes a `"workmoonbase"` event with the Moon Base entity, signaling the entity's workable component (or event handlers) to perform work.
-* **Parameters:** `inst` (EntityInstance).
-* **Returns:** `nil`.
-
-#### `BreakSkeletons(inst)`
-* **Description:** Scans for nearby skeletons (`playerskeleton` + `HAMMER_workable` tags) within a 1.25 unit radius and works them once with `WorkedBy()`, clearing obstacles near the Moon Beast.
-* **Parameters:** `inst` (EntityInstance).
-* **Returns:** `nil`.
-
-## Events & Listeners
-The component does **not** register listeners. However, it pushes the following events:
-- `"moonpetrify"`: Fired when the petrify timer expires, initiating petrification.
-- `"workmoonbase"`: Fired when the Moon Beast begins working on the Moon Base, containing `moonbase` in the event data.
-
----
+### Behavior Tree Nodes (Internal Use)
+The `OnStart()` method constructs the behavior tree with these critical internal behaviors:
+- `LostMoonBase`: Ends the Moon Beast’s existence if it fails to reacquire the Moon Base within `LOST_TIME` (5 seconds).
+- `LostMoonCharge`: Triggers petrification when the Moon Base’s `mooncharge` timer ends or vanishes.
+- `ShouldTargetMoonBase`: Returns true when the Moon Base is workable, charging, and the Moon Beast is not under recent attack (`> AGGRO_TIME`).
+- `BreakSkeletons`: Attacks any nearby skeleton entities tagged with `playerskeleton` and `HAMMER_workable` using `WorkedBy`.
+- `WorkMoonBase`: Pushes the `workmoonbase` event to signal work initiation.
+- `ChaseAndAttack`: Default behavior for targeting players within `100` units.
+- `Leash`: Enforces positional constraints relative to the Moon Base (working, returning, or roaming distances).

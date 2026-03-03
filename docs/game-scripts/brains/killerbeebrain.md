@@ -1,51 +1,54 @@
 ---
 id: killerbeebrain
 title: Killerbeebrain
-description: Implements the AI behavior tree for the killer bee entity, governing movement, combat, and navigation including fleeing from danger, attacking targets, returning to hive home, and wandering.
+description: Manages the AI behavior of the killer bee entity using a behavior tree to handle attacking, retreating, homing, and wandering.
+tags: [ai, combat, navigation, bee]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: aa3f8047
+system_scope: brain
 ---
 
 # Killerbeebrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-`KillerBeeBrain` is a behavior tree-based AI controller assigned to the killer bee entity. It manages high-level decision-making through a priority node structure, coordinating combat, evasion, navigation, and wander behaviors. It leverages shared behavior modules (`ChaseAndAttack`, `RunAway`, `Wander`, `DoAction`) and integrates with the `Combat` component for target detection and timing, as well as the `KnownLocations` component to remember and navigate back to its home location. It extends the base `Brain` class and defines behavior upon activation (`OnStart`) and initialization completion (`OnInitializationComplete`).
+`KillerBeeBrain` implements the behavior tree for the killer bee entity. It inherits from `Brain` and defines a priority-based sequence of behaviors: panic triggers, attacking when able, dodging during attack cooldowns, returning home, and wandering. It relies on the `combat` and `knownlocations` components to coordinate movement and combat logic.
 
-## Dependencies & Tags
-- **Components used:**  
-  - `combat` (reads: `HasTarget`, `InCooldown`, `target`)  
-  - `knownlocations` (reads: `GetLocation("home")`; writes: `RememberLocation("home", pos)`)  
-- **Tags:** None identified.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddTag("killerbee")
+inst:AddComponent("combat")
+inst:AddComponent("knownlocations")
+inst:AddComponent("brain")
+inst.components.brain:SetBrain("killerbeebrain")
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `knownlocations`
+**Tags:** Adds `killerbee` (via entity definition, not directly in this script); checks no tags in this component.
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `MAX_CHASE_DIST` | number | 25 | Maximum distance (in tiles) the killer bee will chase its target. |
-| `MAX_CHASE_TIME` | number | 10 | Maximum duration (in seconds) the killer bee will continue chasing. |
-| `RUN_AWAY_DIST` | number | 3 | Distance threshold at which the killer bee begins fleeing from its combat target. |
-| `STOP_RUN_AWAY_DIST` | number | 6 | Distance threshold at which the killer bee stops fleeing and resumes behavior. |
-| `inst` | Entity | — | The entity instance the brain controls (inherited from `Brain`). |
-| `bt` | BT | — | Behavior tree instance created during `OnStart`; stores the root node. |
+No public properties
 
-## Main Functions
+## Main functions
+### `OnStart()`
+*   **Description:** Initializes the behavior tree root node with a priority-ordered list of behaviors. Includes panic responses, attack windows (with chase-and-attack), dodge windows (with run-away), homing action, and wandering.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** None identified.
 
-### `KillerBeeBrain:OnStart()`
-* **Description:** Initializes and assigns the root behavior tree node. It constructs a priority-based tree where actions are evaluated in order of priority: panic triggers, combat (attack during cooldown window or dodge during attack cooldown), returning home, and wandering. This function is called automatically when the brain is started.
-* **Parameters:** None.
-* **Returns:** None.
+### `OnInitializationComplete()`
+*   **Description:** Records the killer bee’s current world position as its “home” location using `knownlocations:RememberLocation`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** None identified.
 
-### `KillerBeeBrain:OnInitializationComplete()`
-* **Description:** Records the killer bee’s starting position as its "home" location using the `KnownLocations` component. This location is used later by the `Wander` and `DoAction` ("go home") behaviors for navigation.
-* **Parameters:** None.
-* **Returns:** None.
-
-## Events & Listeners
-None.
+## Events & listeners
+None identified.

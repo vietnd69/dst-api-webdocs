@@ -1,44 +1,54 @@
 ---
 id: treegrowthsolution
 title: Treegrowthsolution
-description: Applies growth effects to a target entity when used, consuming itself in the process if not stackable.
+description: Applies growth progression to a target tree entity, consuming the solution item after use.
+tags: [growth, utility, environment, item]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: c6e49270
+system_scope: environment
 ---
 
 # Treegrowthsolution
 
-## Overview
-This component enables an item to cause target entities (typically trees or plants) to grow when used. It handles precondition checks (e.g., blocking growth on stumps or burnt entities), spawns optional visual effects, delegates growth logic to the target’s `growable` component or custom override function, and consumes or decrements the item’s stack size upon success.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Uses `SpawnPrefab` (global) to instantiate visual effects.
-- Interacts with the following target entity components/tags:
-  - `target.components.growable` → calls `DoGrowth()`
-  - `target.components.stackable` → used to decrement stack size on success
-  - Tags checked on target: `"no_force_grow"`, `"stump"`, `"fire"`, `"burnt"`
-- Does *not* add or remove any tags on itself or the target.
+## Overview
+`TreeGrowthSolution` is a utility component that accelerates the growth of eligible tree entities. When applied to a target tree, it bypasses normal growth stages and forces the next growth step, then consumes the item (either decrementing stack size or removing the entity if unstackable). It is typically attached to consumable items like Tree Growth Solution.
+
+## Usage example
+```lua
+local solution_item = CreateEntity()
+solution_item:AddTag("instrument")
+solution_item:AddComponent("stackable")
+solution_item:AddComponent("treegrowthsolution")
+solution_item.components.treegrowthsolution.fx_prefab = "treegrowthsolutionfx"
+
+-- Later, apply it to a tree:
+local tree = GetSomeTree()
+solution_item.components.treegrowthsolution:GrowTarget(tree)
+```
+
+## Dependencies & tags
+**Components used:** `growable`, `stackable`  
+**Tags:** None added or checked by this component itself (but checks tags on target entities).
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` → passed via constructor | The entity that owns this component (i.e., the growth-item). |
-| `fx_prefab` | `string?` | `nil` | Optional prefab name for visual effects (e.g., particle fx) to spawn at the target's position. Set externally before calling `GrowTarget`. |
+| `fx_prefab` | string or nil | `nil` | Optional FX prefab to spawn at the target's position during growth. |
 
-*Note: `fx_prefab` is commented out in the constructor but is set and used at runtime. It must be assigned externally (e.g., via `inst.components.treegrowthsolution.fx_prefab = "growthfx"`).*
-
-## Main Functions
-
+## Main functions
 ### `GrowTarget(target)`
-* **Description:** Attempts to trigger growth on the given `target` entity. Performs guard checks (prevents growth of stumps, burnt entities, etc.), spawns visual effects if configured, invokes the target’s growth logic, and consumes or decrements the owner item. Returns `true` on success, `false` otherwise.
-* **Parameters:**
-  - `target` (`Entity`): The entity to grow (e.g., a sapling or tree).
+*   **Description:** Attempts to grow the provided target entity. Skips growth if the target has disqualifying tags (`no_force_grow`, `stump`, `fire`, or `burnt`). If growth succeeds, spawns optional FX, triggers growth via `growable:DoGrowth()` or a custom override function, and consumes the solution item (either reducing stack size or destroying the item entirely).
+*   **Parameters:** `target` (Entity instance) — the tree or entity intended for growth.
+*   **Returns:** `boolean` — `true` if growth was applied successfully, `false` otherwise.
+*   **Error states:** Returns `false` early if the target has any prohibited tag or lacks a growth mechanism. Does not validate that the target is a tree beyond tag checks.
 
-## Events & Listeners
-None identified.
+## Events & listeners
+- **Listens to:** None.  
+- **Pushes:** `stacksizechange` — indirectly via `stackable:SetStackSize()`.

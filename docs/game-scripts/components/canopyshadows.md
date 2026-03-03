@@ -1,62 +1,88 @@
 ---
 id: canopyshadows
 title: Canopyshadows
-description: Manages the procedural generation and lifecycle of shadow entities to create a large canopy effect around its owner.
+description: Manages the spawning and despawning of leaf canopy shadow tiles around an entity within a configurable radius.
+tags: [environment, lighting, world]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: environment
+category_type: map
 source_hash: 56402517
+system_scope: environment
 ---
 
 # Canopyshadows
 
-## Overview
-This component is responsible for creating a large, shaded area around an entity, such as a large tree. It procedurally calculates a circular pattern of shadow locations, then spawns and despawns "leaf canopy" entities at these positions. The system uses a global, reference-counted registry to efficiently manage overlapping canopies from multiple sources, ensuring that a shadow is only spawned once on any given tile. It also optimizes performance by despawning the shadows when the host entity is asleep (off-screen) and respawning them when it wakes up.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-*   **Dependencies:** Relies on the entity's `Transform` component to get its world position.
-*   **Tags:** None identified.
+## Overview
+`Canopyshadows` is a world-generation and rendering helper component that controls dynamic leaf canopy shadows for a given entity. It calculates shadow tile positions in a circular area around the entity, tracks shared references to those tiles via a global registry (`Global_Canopyshadows`), and spawns/despawns the visual effects (`SpawnLeafCanopy` / `DespawnLeafCanopy`) when the entity is awake. It also pauses shadow rendering when the entity enters a sleeping state (e.g., during loading or off-screen culling).
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("canopyshadows")
+
+-- Shadows are automatically generated and spawned at startup.
+-- The component automatically responds to entity sleep/wake states.
+-- To remove shadows when the entity is destroyed:
+inst.components.canopyshadows:OnRemoveEntity()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified  
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `GEntity` | *(passed in)* | The entity instance this component is attached to. |
+| `range` | number | `math.floor(TUNING.SHADE_CANOPY_RANGE/4)` | Radius (in tile units) over which shadow positions are computed. |
+| `canopy_positions` | table | `{}` | List of `{x, z}` coordinate pairs (aligned to 4-tile grid) where shadows may be spawned. |
+| `spawned` | boolean | `false` | Whether canopy shadows are currently visible. |
 
-| Property           | Type    | Default Value                                | Description                                                                          |
-| ------------------ | ------- | -------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `inst`             | `Entity`| The entity instance.                         | A reference to the host entity this component is attached to.                        |
-| `range`            | `number`| `floor(TUNING.SHADE_CANOPY_RANGE/4)`           | The radius, in world tiles, within which canopy shadows will be generated.           |
-| `canopy_positions` | `table` | `{}`                                         | An array storing the `{x, z}` world coordinates of each generated shadow position.    |
-| `spawned`          | `boolean`| `false`                                      | A flag indicating whether the shadow entities are currently spawned in the world.    |
-
-## Main Functions
-
-### `OnRemoveEntity()`
-*   **Description:** Handles cleanup when the component or entity is removed. It despawns all associated shadows and removes their position data from the global registry. This is aliased as `OnRemoveFromEntity`.
-*   **Parameters:** None.
-
+## Main functions
 ### `GenerateCanopyShadowPositions()`
-*   **Description:** Calculates a random set of tile-aligned coordinates in a circle around the entity based on the `range` property. For each valid position, it increments a reference count in a global table to track how many canopy sources want a shadow at that location.
-*   **Parameters:** None.
+* **Description:** Computes a set of circularly distributed tile positions around the entity, aligned to a 4-tile grid, and registers them in the global shadow registry. Each tile is only added with 80% probability.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No explicit error handling; silently skips if called on an invalid component instance.
 
 ### `RemoveCanopyShadowPositions()`
-*   **Description:** The counterpart to `GenerateCanopyShadowPositions`. It iterates through its stored shadow positions and decrements the global reference count for each, removing the entry from the global registry if the count reaches zero.
-*   **Parameters:** None.
-
-### `OnEntitySleep()`
-*   **Description:** Called when the host entity goes to sleep (typically when off-screen). It despawns all visual shadow entities to save performance.
-*   **Parameters:** None.
-
-### `OnEntityWake()`
-*   **Description:** Called when the host entity wakes up (typically when on-screen). It respawns the visual shadow entities.
-*   **Parameters:** None.
+* **Description:** Removes the component’s registered shadow positions from the global registry, decrementing reference counts and clearing entries when no longer referenced.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SpawnShadows()`
-*   **Description:** Spawns the actual leaf canopy entities at the pre-calculated positions. It uses a global `spawnrefs` counter to ensure that a shadow entity is only spawned once per tile, even if multiple canopies from different entities overlap.
-*   **Parameters:** None.
+* **Description:** Spawns leaf canopy prefabs (`SpawnLeafCanopy`) at all registered positions, but only if not already spawned and the entity is awake. Uses reference counting to avoid duplicate spawns for overlapping entities.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Returns early if `self.spawned` is `true` or the entity is not awake.
 
 ### `DespawnShadows(ignore_entity_sleep)`
-*   **Description:** Despawns the leaf canopy entities. It decrements the global `spawnrefs` counter and removes the shadow entity from the world only when the count reaches zero.
-*   **Parameters:**
-    *   `ignore_entity_sleep` (boolean, optional): If true, the despawn will proceed even if the entity is awake. This is used during entity removal to guarantee cleanup.
+* **Description:** Despawns leaf canopy prefabs (`DespawnLeafCanopy`) using reference counting. If `ignore_entity_sleep` is `true`, it proceeds regardless of sleep state (used during entity removal).
+* **Parameters:** `ignore_entity_sleep` (boolean) — if `true`, bypasses the entity-wake check.
+* **Returns:** Nothing.
+* **Error states:** Returns early if `self.spawned` is `false` or (if `ignore_entity_sleep` is `false`) the entity is currently awake.
+
+### `OnRemoveEntity()`
+* **Description:** Cleans up all shadow positions and ensures all associated shadow prefabs are despawned.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Notes:** Also assigned to `OnRemoveFromEntity`.
+
+### `OnEntitySleep()`
+* **Description:** Pauses shadow rendering by calling `DespawnShadows()` when the entity goes to sleep.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `OnEntityWake()`
+* **Description:** Restores shadow rendering by calling `SpawnShadows()` when the entity wakes up.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+## Events & listeners
+None.  
+*(Note: The component uses `inst:DoTaskInTime(0, ...)` in its constructor to trigger one-time initialization, but no event listeners are registered via `inst:ListenForEvent` in this file.)*

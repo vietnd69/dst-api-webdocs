@@ -1,0 +1,10 @@
+{
+    "position": 2,
+    "label": "Rooms",
+    "collapsed": true,
+    "link": {
+        "type": "generated-index",
+        "title": "Rooms",
+        "description": "DST rooms API documentation"
+    }
+}

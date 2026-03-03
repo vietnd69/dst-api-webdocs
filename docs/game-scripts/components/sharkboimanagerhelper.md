@@ -1,44 +1,62 @@
 ---
 id: sharkboimanagerhelper
 title: Sharkboimanagerhelper
-description: A helper component that defines and provides utilities for checking whether a point lies within a configurable circular arena in the game world.
+description: Helper component for managing and querying the Sharkboi arena’s spatial boundaries in the game world.
+tags: [arena, map, networking]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: e9db4337
+system_scope: world
 ---
 
 # Sharkboimanagerhelper
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component manages the geometric definition of an arena (center and radius) for an entity and offers a method to determine whether a given world point lies within that arena. It is designed to work with the entity’s networked state, storing arena parameters as replicated float values.
+`Sharkboimanagerhelper` stores and provides utilities for the Sharkboi arena’s geometry — specifically its origin coordinates (`arena_origin_x`, `arena_origin_z`) and radius (`arena_radius`). These values are defined as networked float properties using `net_float`, enabling synchronization across the client and server. The component exposes a single utility method, `IsPointInArena`, to check whether a world point lies within the arena's playable area while also verifying that the location is walkable ground.
 
-## Dependencies & Tags
-- Relies on `TheWorld` and `TheWorld.Map` for coordinate and terrain checks.
-- Uses `net_float` to expose arena parameters (`arena_origin_x`, `arena_origin_z`, `arena_radius`) over the network, keyed by the entity's GUID.
-- Requires the `TILE_SCALE` and `SQRT2` constants (globally available).
-- Assumes the presence of `_map:IsVisualGroundAtPoint(x, y, z)` for ground validation.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("sharkboimanagerhelper")
 
-No components or tags are explicitly added or removed by this script.
+-- Set arena parameters (typically done by sharkboimanager)
+inst.components.sharkboimanagerhelper.arena_origin_x:set(100)
+inst.components.sharkboimanagerhelper.arena_origin_z:set(200)
+inst.components.sharkboimanagerhelper.arena_radius:set(64)
+
+-- Check if a point is inside the arena
+if inst.components.sharkboimanagerhelper:IsPointInArena(102, 0, 198) then
+    -- Point is inside and on valid ground
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (parameter) | The entity instance the component is attached to. |
-| `arena_origin_x` | `net_float` | `0` | Networked X coordinate (world space) of the arena center. |
-| `arena_origin_z` | `net_float` | `0` | Networked Z coordinate (world space) of the arena center. |
+| `arena_origin_x` | `net_float` | `0` | Networked X-coordinate of the arena center. |
+| `arena_origin_z` | `net_float` | `0` | Networked Z-coordinate of the arena center. |
 | `arena_radius` | `net_float` | `0` | Networked radius of the arena (in world units). |
 
-## Main Functions
+## Main functions
 ### `IsPointInArena(x, y, z)`
-* **Description:** Checks if the given world point `(x, y, z)` lies within the arena. The check considers both radial distance (with padding via `SQRT2` for tile-based collision margin) and whether the point resides on valid visual ground.
-* **Parameters:**
-  - `x` (number): World X coordinate.
-  - `y` (number): World Y (height) coordinate (used for ground lookup but not distance calculation).
-  - `z` (number): World Z coordinate.
+* **Description:** Determines if the given world point `(x, y, z)` lies within the Sharkboi arena, considering both distance and visual ground validity.
+* **Parameters:**  
+  `x` (number) — World X-coordinate to test.  
+  `y` (number) — World Y-coordinate (unused in distance check, but passed for completeness).  
+  `z` (number) — World Z-coordinate to test.  
+* **Returns:**  
+  `true` if the point is within the arena radius and `_map:IsVisualGroundAtPoint(x, y, z)` returns `true`; otherwise `false`.  
+* **Error states:** Returns `false` if `arena_radius` is `<= 0`, or if the point exceeds the computed bounding region.
 
-Note: Arena radius is rounded up to the nearest tile scale and scaled by `SQRT2` to cover diagonal tile coverage. Returns `false` if radius is zero or negative.
+## Events & listeners
+None identified

@@ -1,57 +1,67 @@
 ---
 id: planarentity
 title: Planarentity
-description: Provides planar attack resistance mechanics, modifying incoming damage and triggering visual effects when non-planar damage is absorbed.
+description: Modifies incoming damage to follow a non-linear scaling curve and triggers planar-specific visual effects for resistances or vulnerabilities.
+tags: [combat, planar, visual]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: b9be8f5f
+system_scope: combat
 ---
 
 # Planarentity
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component grants planar defense capabilities to an entity by reducing incoming non-planar damage through a custom formula and spawning visual feedback effects. It does not actively manage planar damage (e.g., handling planar-specific attacks) but focuses on resisting *non-planar* damage sources.
+`PlanarEntity` is a combat-related component that applies a custom damage mitigation formula to incoming physical damage. It also handles specialized effects when resisting non-planar attacks and when planar attacks hit an undefended target. This component is intended for use on entities that interact with planar mechanics—such as planar creatures or planar-themed bosses—and modifies both damage calculation and visual feedback.
 
-## Dependencies & Tags
-**Dependencies:**
-- No explicit component additions (e.g., `AddComponent`) are visible in the source.
-- Relies on external prefabs: `"planar_resist_fx"` and `"planar_hit_fx"`.
-- Requires the entity to have a `Transform` component (for position access) and `GetPhysicsRadius()` support (from `Physics` or similar component).
-- May optionally depend on a `spawn_effect_on` callback property (commented out in source), suggesting integration with entities like `centipede` for targeted effect placement.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("planarentity")
+-- Optionally set spawn_effect_on for custom effect positioning (e.g., centipede-style logic)
+-- inst.components.planarentity.spawn_effect_on = my_custom_effect_fn
+```
 
+## Dependencies & tags
+**Components used:** None identified.  
 **Tags:** None identified.
 
 ## Properties
-No public properties are initialized in the constructor (`_ctor` is not present, and the class function only stores `inst`). The commented line `--self.spawn_effect_on = nil` indicates an optional callback that may be set externally but is not part of the core component initialization.
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed) | Reference to the associated game entity. |
+| `spawn_effect_on` | function or `nil` | `nil` | Optional callback that takes `(inst, attacker)` and returns an entity. Used to determine where resist effects spawn (e.g., for centipede-like behavior). |
 
-*Note:* No public properties beyond `inst` were clearly identified.
-
-## Main Functions
-
+## Main functions
 ### `AbsorbDamage(damage, attacker, weapon, spdmg)`
-* **Description:** Calculates reduced damage using a scaling formula, and triggers resistance effects if the attack is non-planar (i.e., `spdmg` is `nil` or lacks a `planar` field). Returns the modified damage value and `spdmg`.
-* **Parameters:**
-  - `damage` (number): Raw incoming damage value.
-  - `attacker` (Entity?): The source entity of the attack (may be `nil`).
-  - `weapon` (any): Weapon item involved (unused in current logic).
-  - `spdmg` (table?): Damage table; if `nil` or `spdmg.planar` is falsy, resistance effects are applied.
+*   **Description:** Applies a non-linear damage reduction formula to incoming physical damage. Returns the modified damage value and the original `spdmg` parameter. If `spdmg` is missing or lacks a `planar` key, triggers a non-planar attack resistance effect.
+*   **Parameters:**
+    *   `damage` (number) — Raw incoming damage value.
+    *   `attacker` (Entity or `nil`) — The entity dealing damage.
+    *   `weapon` (Entity or `nil`) — The weapon used (unused in this implementation).
+    *   `spdmg` (table or `nil`) — Special damage info; if present, checked for `spdmg.planar` key.
+*   **Returns:**
+    *   `damage` (number) — Computed damage using the formula: `(math.sqrt(damage * 4 + 64) - 8) * 4`.
+    *   `spdmg` (table or `nil`) — Echoes the input `spdmg`.
+*   **Error states:** None. The function always returns a computed value; `spdmg` may be `nil`.
 
 ### `OnResistNonPlanarAttack(attacker)`
-* **Description:** Spawns a `planar_resist_fx` particle effect around the entity to visually represent damage absorption. The effect position is randomized in a ring around the entity and adjusted based on the attacker’s position if available.
-* **Parameters:**
-  - `attacker` (Entity?): The attacking entity (used to orient the effect direction).
+*   **Description:** Spawns a `planar_resist_fx` particle effect at a position relative to the entity and attacker. If `spawn_effect_on` is defined, it is used to determine the effect’s target entity.
+*   **Parameters:**
+    *   `attacker` (Entity or `nil`) — The entity causing the resistance effect.
+*   **Returns:** Nothing.
+*   **Error states:** None. Falls back to `self.inst` if `spawn_effect_on` is `nil`. Position is randomized on the entity’s surface using physics radius and angular randomness.
 
 ### `OnPlanarAttackUndefended(target)`
-* **Description:** Spawns a `planar_hit_fx` particle effect *attached to the target entity*, likely used to indicate planar damage was applied without resistance (e.g., planar weapons hitting non-planar targets). Note: Despite the name, the function itself does not imply resistance failure—it simply visualizes the hit.
+*   **Description:** Spawns a `planar_hit_fx` effect and parents it to the hit target’s entity, presumably to indicate a direct planar hit on an undefended entity.
+*   **Parameters:**
+    *   `target` (Entity) — The entity being hit by the undefended planar attack.
+*   **Returns:** Nothing.
 
-## Events & Listeners
+## Events & listeners
 None identified.

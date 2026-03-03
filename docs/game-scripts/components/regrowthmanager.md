@@ -1,74 +1,83 @@
 ---
 id: regrowthmanager
 title: Regrowthmanager
-description: Manages regrowth logic for specific prefabs by scheduling and executing regrowth events based on time, environment conditions, and spatial constraints.
+description: Manages the scheduled regrowth of harvestable plants and structures after they are collected, using time-based timers and world state conditions.
+tags: [environment, harvesting, world, plant, season]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 39e9381e
+system_scope: environment
 ---
 
 # Regrowthmanager
 
-## Overview
-The RegrowthManager component orchestrates the delayed regrowth of specific in-game entities (e.g., plants, mushrooms, dens) on the master simulation. It tracks scheduled regrowth events, applies time multipliers based on world state (season, time of day, weather), enforces biome and spacing constraints, and spawns new instances once their regrowth timer completes.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component dependency**: None explicitly required on the host entity (`inst`).
-- **Tags used internally**: `"structure"`, `"wall"`, `"regrowth_blocker"` (in `REGROWBLOCKER_ONEOF_TAGS`).
-- **System scope**: Requires `TheWorld.ismastersim`; fails if instantiated on the client.
+## Overview
+`RegrowthManager` is a server-only component responsible for scheduling and executing the delayed regrowth of harvestable entities (e.g., plants, mushrooms, mushrooms, caves). It tracks regrowth timers using internal cumulative time, applies world-state-dependent growth multipliers (e.g., season, time of day, weather), and handles placement of new prefabs when timers expire—respecting terrain, player proximity, and entity density rules. This component is typically added to the `TheWorld` entity and works with the `beginregrowth` event and periodic update loop.
+
+## Usage example
+```lua
+-- Typically added automatically to TheWorld in the world initialization.
+-- To configure a custom regrowth type (e.g., a mod-added plant):
+inst.components.regrowthmanager:SetRegrowthForType(
+    "my_modded_plant",
+    TUNING.MY_PLANT_REGROWTH_TIME,
+    "my_modded_plant",
+    function()
+        -- Return growth multiplier based on world state
+        return (_worldstate.isspring and 1.5) or 1.0
+    end
+)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified  
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (passed to constructor) | Reference to the entity this component is attached to (typically the world). |
-| `_worldstate` | `WorldState` | `TheWorld.state` | Internal reference to current world state (season, time, weather, etc.). |
-| `_map` | `Map` | `TheWorld.Map` | Reference to the terrain map. |
-| `_internaltimes` | `table` | `{}` | Tracks cumulative time elapsed per prefab type since last regrowth. |
-| `_regrowthvalues` | `table` | `{}` | Stores per-prefab configuration: `regrowtime`, `product`, and `timemult` function. |
-| `_lists` | `table` | `{}` | Maps prefab names to `LinkedList` of pending regrowth timers. |
+| `inst` | `Entity` | `self.inst` | The entity instance (typically `TheWorld`) this component is attached to. |
 
-## Main Functions
-
+## Main functions
 ### `SetRegrowthForType(prefab, regrowtime, product, timemult)`
-* **Description**: Configures regrowth behavior for a given prefab by storing its base regrowth time, spawn target, and time multiplier function.
-* **Parameters**:
-  - `prefab`: `string` — Name of the prefab to configure.
-  - `regrowtime`: `number` — Base regrowth duration (in seconds).
-  - `product`: `string` — Name of the prefab to spawn upon successful regrowth.
-  - `timemult`: `function` — Returns a multiplier based on current world state (e.g., season, time of day).
+*   **Description:** Registers regrowth behavior for a given prefab type. Defines how long it takes to regrow, what prefab spawns, and a multiplier function that adjusts speed based on world state.
+*   **Parameters:**
+    *   `prefab` (string) – The name of the harvested entity prefab (e.g., `"carrot_planted"`).
+    *   `regrowtime` (number) – Base regrowth time in seconds.
+    *   `product` (string) – The prefab name to spawn on regrowth completion.
+    *   `timemult` (function) – A function returning a real-valued multiplier (e.g., `0`, `0.5`, `2.0`) based on `_worldstate`, which adjusts the effective growth rate.
+*   **Returns:** Nothing.
+*   **Error states:** None.
 
 ### `LongUpdate(dt)`
-* **Description**: Periodically processes all pending regrowth timers per prefab type. Advances internal timers, checks conditions, and spawns new entities when thresholds are met. Handles success, cached (retry), and failure (reset) cases.
-* **Parameters**:
-  - `dt`: `number` — Delta time (seconds) elapsed since last update.
+*   **Description:** Called periodically (every `UPDATE_PERIOD = 29` seconds). Processes all pending regrowth timers for each registered prefab type, spawns new prefabs when their accumulated time reaches or exceeds the regrowth threshold, and updates internal state (remove completed timers, requeue failed ones).
+*   **Parameters:**
+    *   `dt` (number) – Delta time in seconds since the last update.
+*   **Returns:** Nothing.
+*   **Error states:** Timers may be skipped or retried depending on `DoRegrowth` outcome (`SUCCESS`, `FAILED`, `CACHE`).
 
 ### `OnSave()`
-* **Description**: Serializes pending regrowth timers for save compatibility. Stores relative regrowth times and positions.
-* **Returns**: `table` — Save data containing `timers`, a nested table mapping prefab names to lists of timer objects.
+*   **Description:** Serializes in-progress regrowth timers into a table format for world save. Stores remaining regrowth time relative to current internal time.
+*   **Parameters:** None.
+*   **Returns:** `{ timers = { [prefab] = { { product, regrowtime, position }, ... }, ... } }` (table).
 
 ### `OnLoad(data)`
-* **Description**: Restores pending regrowth timers from saved data. Reconstructs timer objects with absolute regrowth thresholds and positions.
-* **Parameters**:
-  - `data`: `table` — Save data as returned by `OnSave()`.
+*   **Description:** Loads serialized regrowth timer data from a previous save. Recreates internal timer queues using saved positions and relative times.
+*   **Parameters:**
+    *   `data` (table) – Save data containing `timers`, as returned by `OnSave`.
+*   **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description**: Generates a debug string listing active regrowth timers for each prefab (count, next regrowth time, time multiplier).
-* **Returns**: `string` — Multi-line debug output.
+*   **Description:** Returns a multi-line debug string summarizing active timer queues per prefab (count, multiplier, next timer's remaining time).
+*   **Parameters:** None.
+*   **Returns:** `string` – A formatted string for use in debug overlays or logs.
 
-### `DoRegrowth(key, product, position)`
-* **Description**: Attempts to spawn `product` at a jittered position near `position`, checking terrain, spacing, and player proximity constraints.
-* **Parameters**:
-  - `key`: `string` — Prefab name being regrown (used for logging/config lookup).
-  - `product`: `string` — Name of the prefab to spawn.
-  - `position`: `Point` — Target position for regrowth center.
-* **Returns**: `number` — Status code (`0 = SUCCESS`, `1 = FAILED`, `2 = CACHE`).
-
-## Events & Listeners
-- **Listens to**:
-  - `"beginregrowth"` → `OnBeginRegrowth(src, target)`: Registers a new regrowth timer when the event is pushed (typically when a plant is harvested).
-- **No events are pushed** by this component.
+## Events & listeners
+- **Listens to:** `beginregrowth` – Fires when an entity (e.g., harvested carrot) triggers its regrowth timer. Handler `OnBeginRegrowth` records timer data and queues it.
+- **Pushes:** None identified.

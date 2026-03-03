@@ -1,161 +1,190 @@
 ---
 id: yotc_racecompetitor
 title: Yotc Racecompetitor
-description: Manages race participation logic for entities, including checkpoint navigation, stamina tracking, race state transitions, and prize awarding.
+description: Manages race participation logic for entities competing in YOTC-style races, including checkpoint navigation, stamina management, and race completion or abort handling.
+tags: [race, ai, navigation, stamina]
 sidebar_position: 1
-
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 95d88cb2
+system_scope: entity
 ---
-
 # Yotc Racecompetitor
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component enables an entity to participate in a structured race by tracking race state (prerace, racing, postrace, raceover), navigating between checkpoints, managing stamina-based movement limitations, and handling prize distribution upon race completion. It dynamically finds the next valid checkpoint, records path statistics, and coordinates with `yotc_raceprizemanager` for registration and prize assignment.
+`Yotc_RaceCompetitor` enables an entity to participate in a race by navigating a sequence of checkpoints, managing stamina, and communicating race progress. It interacts with `yotc_raceprizemanager` to register checkpoints, report finish times, and remove racers. The component handles dynamic pathfinding via proximity checks to valid `yotc_racecheckpoint` entities and supports features such as forgetfulness (randomly revisiting old checkpoints) and delayed starts.
 
-## Dependencies & Tags
-**Dependencies:**
-- Uses the `yotc_raceprizemanager` world component for racer registration and prize coordination.
-- Requires tag-based identification of checkpoints: must have tag `"yotc_racecheckpoint"` and must not have `"fire"` or `"burnt"` tags.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("yotc_racecompetitor")
 
-**Tags Added/Removed:**
-- Adds `"has_prize"` when a prize is awarded (`OnAllRacersFinished` with non-nil prize_table).
-- Adds `"has_no_prize"` when no prize is awarded (`OnAllRacersFinished` with nil prize_table).
-- Removes both `"has_prize"` and `"has_no_prize"` during cleanup (e.g., `OnRemoveFromEntity`, `CollectPrize`).
+-- Set race callbacks
+inst.components.yotc_racecompetitor:SetRaceBegunFn(function(racer) print("Race started!") end)
+inst.components.yotc_racecompetitor:SetRaceFinishedFn(function(racer) print("Race finished!") end)
+inst.components.yotc_racecompetitor:SetRaceOverFn(function(racer) print("Race over!") end)
+
+-- Define the starting checkpoint
+local start_cp = SpawnPrefab("yotc_racecheckpoint")
+start_cp:AddTag("yotc_racefinishline")
+inst.components.yotc_racecompetitor:SetRaceStartPoint(start_cp)
+
+-- Initiate race with optional delay
+inst.components.yotc_racecompetitor:StartRace(0.25)
+```
+
+## Dependencies & tags
+**Components used:** `yotc_raceprizemanager` (global `TheWorld.components`), `unwrappable` (via `pouch.components.unwrappable`)
+**Tags:** Adds/removes `has_prize`, `has_no_prize`; checks for `yotc_racecheckpoint`, `yotc_racefinishline`, `fire`, `burnt`, `moving`, `sleeping`, `exhausted`.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *(none)* | The entity instance the component is attached to. |
-| `racestate` | `string` | `"prerace"` | Current race state: `"prerace"`, `"racing"`, `"postrace"`, or `"raceover"`. |
-| `checkpoints` | `table` | `{}` | Map of visited checkpoints to visit counts. |
-| `race_distance` | `number` | `0` | Accumulated Euclidean distance between consecutive checkpoints. |
-| `next_checkpoint` | `Entity?` | `nil` | The next expected checkpoint entity (or `nil` if race not started or failed). |
-| `prev_checkpoint` | `Entity?` | `nil` | Previously visited checkpoint (used for path tracking and forgetfulness logic). |
-| `checkpoint_timer` | `number` | `GetTime()` at `_SetCheckPoint` | Timestamp when `next_checkpoint` was assigned; used for timeout. |
-| `forgetfulness` | `number` | `0` | Counter tracking successful checkpoint passes; used in forgetfulness probability calculation. |
-| `stamina_max` | `number` | `8` | Base maximum stamina value. |
-| `stamina_max_var` | `number` | `2` | Random variance added to stamina on recovery. |
-| `stamina` | `number` | `stamina_max` | Current stamina; decrements while moving, triggers exhaustion at `<= 0`. |
-| `exhausted_time` | `number` | `2` | Base duration before stamina recovers after exhaustion. |
-| `exhausted_time_var` | `number` | `1` | Random variance added to recovery delay. |
-| `race_start_point` | `Entity?` | `nil` | The starting checkpoint entity (used for finish-line detection and recovery logic). |
-| `race_begun_fn` | `function?` | `nil` | Callback invoked when race begins (first checkpoint passed). |
-| `race_finished_fn` | `function?` | `nil` | Callback invoked when the race finish line is reached. |
-| `race_over_fn` | `function?` | `nil` | Callback invoked when the race is finalized (`racestate` = `"raceover"`). |
-| `race_prize` | `table?` | `nil` | Array of prefab names constituting the prize (set by `yotc_raceprizemanager`). |
-| `queuedstarttask` | `DoTaskInTime?` | `nil` | Delayed task used to defer race start (for `delay > 0` in `StartRace`). |
-| `recover_stamina_task` | `DoTaskInTime?` | `nil` | Delayed task to recover stamina after exhaustion. |
-| `latestartertask` | `DoTaskInTime?` | `nil` | Delayed task indicating the racer is starting late. |
-| `isforgetful` | `boolean?` | *(not set in constructor)* | Controls whether forgetfulness logic is active; must be set externally if used. |
+| `inst` | `Entity` | *(none)* | The entity this component is attached to. |
+| `racestate` | string | `"prerace"` | Current race state: `"prerace"`, `"racing"`, `"postrace"`, `"raceover"`. |
+| `checkpoints` | table | `{}` | Map of visited checkpoints to visit counts. |
+| `race_distance` | number | `0` | Total accumulated distance between consecutive checkpoints. |
+| `checkpoint_timer` | number | `GetTime()` at last checkpoint change | Timestamp for timeout validation. |
+| `forgetfulness` | number | `0` | Counter used to compute random revisit probability. |
+| `stamina_max` | number | `8` | Base maximum stamina. |
+| `stamina_max_var` | number | `2` | Random variance added to max stamina on recovery. |
+| `stamina` | number | `stamina_max` | Current stamina (depletes while moving). |
+| `exhausted_time` | number | `2` | Base time (in seconds) before stamina recovery begins. |
+| `exhausted_time_var` | number | `1` | Random variance added to `exhausted_time`. |
+| `race_start_point` | `Entity?` | `nil` | Optional reference to the race start checkpoint entity. |
+| `race_begun_fn` | `function?` | `nil` | Callback when race starts. |
+| `race_finished_fn` | `function?` | `nil` | Callback when race finishes successfully. |
+| `race_over_fn` | `function?` | `nil` | Callback when race ends (finish, abort, or timeout). |
+| `next_checkpoint` | `Entity?` | `nil` | Current target checkpoint entity. |
+| `prev_checkpoint` | `Entity?` | `nil` | Previous checkpoint entity (used for routing). |
+| `race_prize` | table? | `nil` | Table of item prefabs awarded on finish. |
+| `latestartertask` | `ActiveTask?` | `nil` | Delayed task used for late-start simulation. |
+| `recover_stamina_task` | `ActiveTask?` | `nil` | Task scheduled for stamina recovery. |
+| `queuedstarttask` | `ActiveTask?` | `nil` | Delayed task to initiate race start. |
 
-## Main Functions
-
-### `:OnRemoveEntity()`
-* **Description:** Cleans up when the entity is removed from the world; deregisters the racer from `yotc_raceprizemanager` if present.
+## Main functions
+### `OnRemoveEntity()`
+* **Description:** Called when the entity is removed from the world; notifies `yotc_raceprizemanager` to remove this racer.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `:OnRemoveFromEntity()`
-* **Description:** Cleans up race-related state and callbacks when the component is removed; cancels pending tasks, resets tags, clears checkpoint reference, and invokes final callbacks.
+### `OnRemoveFromEntity()`
+* **Description:** Clean-up called when component is removed from the entity. Cancels pending tasks, clears checkpoint, removes tags, and invokes finish/over callbacks if not already called.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `:OnEntitySleep()`
-* **Description:** Immediately removes the component if the entity sleeps during active racing phases, preventing invalid progress tracking.
+### `OnEntitySleep()`
+* **Description:** Aborts the race by removing the component if the entity enters sleep mode during an active race.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `:SetRaceBegunFn(race_begun_fn)`
-* **Description:** Sets the callback function executed once the race officially begins (after passing the first checkpoint).
-* **Parameters:**
-  - `race_begun_fn (function)` – Function signature: `function(racer: Entity)`.
-
-### `:SetRaceFinishedFn(race_finished_fn)`
-* **Description:** Sets the callback function executed upon reaching the finish line (`yotc_racefinishline` checkpoint).
-* **Parameters:**
-  - `race_finished_fn (function)` – Function signature: `function(racer: Entity)`.
-
-### `:SetRaceOverFn(race_over_fn)`
-* **Description:** Sets the callback function executed when the race is finalized (`racestate` = `"raceover"`).
-* **Parameters:**
-  - `race_over_fn (function)` – Function signature: `function(racer: Entity)`.
-
-### `:_SetCheckPoint(checkpoint, is_starting_line)`
-* **Description:** Assigns a new checkpoint as the immediate target; manages event listeners on the checkpoint entity and resets timer.
-* **Parameters:**
-  - `checkpoint (Entity?)` – The target checkpoint entity or `nil`.
-  - `is_starting_line (boolean)` – If `true`, registers listener for `"yotc_racebegun"` event on the checkpoint.
-
-### `:StartRace(delay)`
-* **Description:** Initiates the race after an optional delay; initializes state, resets distance, recovers stamina, begins movement update loop, and triggers the `"yotc_racebegun"` callback.
-* **Parameters:**
-  - `delay (number?)` – Delay in seconds before starting; if `nil`, starts immediately.
-
-### `:FinishRace()`
-* **Description:** Marks the race as finished (reached finish line); stops update loop, invokes `"yotc_racefinished"` callback, and sets `"postrace"` state.
+### `GetRaceDistance()`
+* **Description:** Returns the total accumulated race distance in world units.
 * **Parameters:** None.
+* **Returns:** `number` — total race distance.
 
-### `:AbortRace(prize_table)`
-* **Description:** Aborts the race (e.g., due to timeout or failure); calls `FinishRace()` and `OnAllRacersFinished()` with `nil` prize to clear tags.
-* **Parameters:**
-  - `prize_table (table?)` – Unused in this method; retained for API compatibility.
+### `SetRaceBegunFn(race_begun_fn)`
+* **Description:** Registers a callback invoked once when the race begins (after initial delay if present).
+* **Parameters:** `race_begun_fn` (function) — function taking `(racer)` as argument.
+* **Returns:** Nothing.
 
-### `:OnAllRacersFinished(prize_table)`
-* **Description:** Finalizes race state after all racers complete or fail; assigns `"has_prize"` or `"has_no_prize"` tags and invokes `"race_over"` callback.
-* **Parameters:**
-  - `prize_table (table?)` – Array of prize prefab names; if non-nil, award prize.
+### `SetRaceFinishedFn(race_finished_fn)`
+* **Description:** Registers a callback invoked once when the race finishes (i.e., `FinishRace` is called).
+* **Parameters:** `race_finished_fn` (function) — function taking `(racer)` as argument.
+* **Returns:** Nothing.
 
-### `:SetRaceStartPoint(start_point_entity)`
-* **Description:** Designates the starting checkpoint (used for distance measurement and finish-line detection).
-* **Parameters:**
-  - `start_point_entity (Entity)` – The checkpoint entity serving as the race start.
+### `SetRaceOverFn(race_over_fn)`
+* **Description:** Registers a callback invoked once when the race ends (finish, abort, or timeout), but only if not previously invoked.
+* **Parameters:** `race_over_fn` (function) — function taking `(racer)` as argument.
+* **Returns:** Nothing.
 
-### `:_FindNextCheckPoint()`
-* **Description:** Determines the next valid checkpoint using proximity search, visit count limits, and optional forgetfulness logic. Registers checkpoints with the prize manager and updates `race_distance`.
+### `_SetCheckPoint(checkpoint, is_starting_line)`
+* **Description:** Updates the `next_checkpoint`, removes event callbacks from the old checkpoint, and adds new callbacks if a new checkpoint is provided.
+* **Parameters:**  
+  - `checkpoint` (`Entity?`) — target checkpoint entity or `nil`.  
+  - `is_starting_line` (`boolean?`) — if `true`, listens for `"yotc_racebegun"` on the checkpoint to trigger `StartRace`.
+* **Returns:** Nothing.
+
+### `StartRace(delay)`
+* **Description:** Begins the race: resets race state, initializes `race_distance`, schedules a delayed start if `delay > 0`, or starts immediately if `delay <= 0` and `next_checkpoint` is valid.
+* **Parameters:** `delay` (`number?`) — optional delay before starting.
+* **Returns:** Nothing.
+* **Error states:** No effect if `next_checkpoint` is `nil`.
+
+### `FinishRace()`
+* **Description:** Stops updating, sets `racestate` to `"postrace"`, cancels pending start task, invokes `race_finished_fn` once, and clears references.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `:OnUpdate(dt)`
-* **Description:** Main race loop, called during updates while racing; handles timeout, checkpoint proximity, exhaustion mechanics, and finish-line detection.
-* **Parameters:**
-  - `dt (number)` – Delta time in seconds.
+### `AbortRace(prize_table)`
+* **Description:** Terminates the race prematurely. Calls `FinishRace`, `OnAllRacersFinished`, and removes the racer from `yotc_raceprizemanager`.
+* **Parameters:** `prize_table` (`table?`) — optional prize items (not applied; only used to clear racer).
+* **Returns:** Nothing.
 
-### `:SetLateStarter(start_delay)`
-* **Description:** Registers a delayed start timer; used to indicate the racer begins late.
-* **Parameters:**
-  - `start_delay (number)` – Delay in seconds before signaling late start completion.
+### `OnAllRacersFinished(prize_table)`
+* **Description:** Finalizes race state: sets `"raceover"`, clears checkpoint, assigns `"has_prize"` or `"has_no_prize"` tag, and invokes `race_over_fn`.
+* **Parameters:** `prize_table` (`table?`) — if non-nil, sets `race_prize`, otherwise clears it and adds `"has_no_prize"` tag.
+* **Returns:** Nothing.
 
-### `:IsStartingLate()`
-* **Description:** Returns `true` if the racer has a pending late-start task.
+### `SetRaceStartPoint(start_point_entity)`
+* **Description:** Sets and registers the race start checkpoint; marks it with `"yotc_racefinishline"` flag to support race loop logic.
+* **Parameters:** `start_point_entity` (`Entity`) — the start/finish checkpoint.
+* **Returns:** Nothing.
+
+### `_FindNextCheckPoint()`
+* **Description:** Determines the next checkpoint using proximity search and visited-count prioritization; supports forgetfulness logic that may revert to `prev_checkpoint`.
 * **Parameters:** None.
-* **Returns:** `boolean`.
+* **Returns:** Nothing.
+* **Error states:** Sets `next_checkpoint` to `nil` if no suitable checkpoint is found, leading to `AbortRace`.
 
-### `:IsExhausted()`
-* **Description:** Returns `true` if the racer is currently recovering from exhaustion.
+### `OnUpdate(dt)`
+* **Description:** Main update loop during `"racing"` state. Handles timeout, checkpoint proximity, stamina depletion, and exhaustion logic. Triggers finish if checkpoint is `yotc_racefinishline`.
+* **Parameters:** `dt` (`number`) — time delta since last frame.
+* **Returns:** Nothing.
+
+### `SetLateStarter(start_delay)`
+* **Description:** Schedules a task to clear `latestartertask`, simulating a delayed race start (e.g., for cinematic or gameplay pacing).
+* **Parameters:** `start_delay` (`number`) — delay before task completes.
+* **Returns:** Nothing.
+
+### `IsStartingLate()`
+* **Description:** Indicates whether a delayed start task is pending.
 * **Parameters:** None.
-* **Returns:** `boolean`.
+* **Returns:** `boolean` — `true` if a late-start task is active.
 
-### `:RecoverStamina()`
-* **Description:** Restores stamina to a random value between `stamina_max` and `stamina_max + stamina_max_var`; cancels pending recovery task.
+### `IsExhausted()`
+* **Description:** Indicates whether the racer is currently in a stamina recovery phase.
 * **Parameters:** None.
+* **Returns:** `boolean` — `true` if recovery task is scheduled.
 
-### `:CollectPrize()`
-* **Description:** Spawns a wrapped `"redpouch_yotc"` containing the race prize items if prize exists; removes `"has_prize"` tag and returns the pouch.
+### `RecoverStamina()`
+* **Description:** Restores stamina to a randomized maximum value and cancels any pending recovery task.
 * **Parameters:** None.
-* **Returns:** `Entity?` – The `redpouch_yotc` entity if a prize was awarded; `nil` otherwise.
+* **Returns:** Nothing.
 
-### `:GetDebugString()`
-* **Description:** Returns a formatted string for debugging purposes, showing key state values (checkpoint, state, stamina, distance, etc.).
+### `CollectPrize()`
+* **Description:** Spawns a `"redpouch_yotc"` at the racer's location, wraps the prize items using `unwrappable`, and removes `"has_prize"` tag. If no prize is assigned, returns `nil`.
 * **Parameters:** None.
-* **Returns:** `string`.
+* **Returns:** `Entity?` — the spawned pouch if prize exists, otherwise `nil`.
 
-## Events & Listeners
-- **Listens for:**
-  - `"onremove"` on `next_checkpoint` → calls `onnextcheckpointremove`.
-  - `"burntup"` on `next_checkpoint` → calls `onnextcheckpointremove`.
-  - `"yotc_racebegun"` on `next_checkpoint` (only if assigned as starting line) → calls `start_race`.
-- **Triggers:**
-  - `"yotc_racer_at_checkpoint"` on `next_checkpoint` when reached.
-  - `"yotc_racer_exhausted"` on `inst` when stamina reaches `0`.
-  - `"carrat_error_direction"` on `inst` when forgetfulness causes skipping backward to previous checkpoint.
+### `GetDebugString()`
+* **Description:** Returns a formatted debug string containing current checkpoint, race state, forgetfulness, stamina, and race distance.
+* **Parameters:** None.
+* **Returns:** `string` — human-readable status line.
+
+## Events & listeners
+- **Listens to:**  
+  - `"onremove"` on `next_checkpoint` — via `onnextcheckpointremove`, clears checkpoint reference.  
+  - `"burntup"` on `next_checkpoint` — via `onnextcheckpointremove`.  
+  - `"yotc_racebegun"` on `next_checkpoint` (if `is_starting_line`) — triggers `StartRace`.  
+  - `"yotc_racer_at_checkpoint"` (internal use, not registered by this component).  
+  - `"yotc_racer_exhausted"` (internal use, not registered by this component).
+- **Pushes:**  
+  - `"carrat_error_direction"` — when forgetting and reverting to `prev_checkpoint`.  
+  - `"yotc_racer_exhausted"` — when stamina reaches zero.  
+  - `"wrappeditem"` — on `prize_items` during prize collection (via `unwrappable`).
+

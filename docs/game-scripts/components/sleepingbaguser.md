@@ -1,79 +1,109 @@
 ---
 id: sleepingbaguser
 title: Sleepingbaguser
-description: Manages a player entity's sleeping behavior while using a sleeping bag, including entering/exiting sleep, processing sleep ticks, and applying bonuses based on equipped items.
+description: Manages a player's sleeping behavior and associated stat regeneration while using a sleeping bag.
+tags: [sleep, player, stat, inventory]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: f758d8f8
+system_scope: player
 ---
 
 # Sleepingbaguser
 
-## Overview
-This component handles the mechanics of a player (or other entity) sleeping inside a sleeping bag. It manages transitioning into and out of sleep, periodic sleep ticks that restore hunger/health/sanity, and dynamic wake-up behavior (e.g., during daytime or starvation). It also supports configurable bonus multipliers and custom sleep eligibility logic.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on: `inventory`, `hunger`, `health`, `sanity`, `sleepingbag` (on the bed), `statemachine` (via `sg`)
-- Adds/uses: Entity state `bedroll`, event `"phase"` (world state)
-- Uses tag: `good_sleep_aid` (on equipped head item)
+## Overview
+`Sleepingbaguser` handles the logic for a player entity when sleeping in a sleeping bag (bed). It coordinates stat regeneration (health, hunger, sanity), tracks the sleep phase to wake up at dawn, manages sleep-specific bonuses (e.g., from equipment), and initiates wake-up actions. It works closely with the `sleepingbag` component on the sleeping bag entity and requires `health`, `hunger`, `sanity`, and `inventory` components on the sleeping entity.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("sleepingbaguser")
+inst:AddComponent("health")
+inst:AddComponent("hunger")
+inst:AddComponent("sanity")
+inst:AddComponent("inventory")
+
+-- Optional: set bonus multipliers and custom sleep check
+inst.components.sleepingbaguser:SetHealthBonusMult(1.5)
+inst.components.sleepingbaguser:SetCanSleepFn(function(e) return not e:HasTag("player") end)
+
+-- Start sleeping in a bed
+local bed = GetBedEntity()
+inst.components.sleepingbaguser:DoSleep(bed)
+
+-- Wake up manually
+inst.components.sleepingbaguser:DoWakeUp()
+```
+
+## Dependencies & tags
+**Components used:** `health`, `hunger`, `sanity`, `inventory`, `sleepingbag`  
+**Tags:** Does not add/remove tags directly; checks `good_sleep_aid` tag on equipped headgear.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed in) | Reference to the owning entity (typically a player). |
-| `healthsleep` | `boolean` | `true` | Whether health regeneration occurs during sleep (inherited from the bed). |
-| `dryingrate` | `number?` | `nil` | Unused in current implementation. |
-| `sleeper` | `string?` | `nil` | Unused in current implementation. |
-| `onsleep` | `function?` | `nil` | Unused in current implementation. |
-| `onwake` | `function?` | `nil` | Unused in current implementation. |
-| `hunger_bonus_mult` | `number` | `1` | Multiplier applied to hunger restored per tick. |
-| `health_bonus_mult` | `number` | `1` | Multiplier applied to health restored per tick. |
-| `sanity_bonus_mult` | `number` | `1` | Base multiplier for sanity restored per tick. |
-| `bed` | `Entity?` | `nil` | Reference to the sleeping bag entity currently being used. |
-| `sleeptask` | `TimerTask?` | `nil` | Periodic task scheduled during sleep to process sleep ticks. |
-| `cansleepfn` | `function?` | `nil` | Optional custom function to determine if the entity can sleep. |
+| `healthsleep` | boolean | `true` | Whether health should regenerate during sleep. |
+| `dryingrate` | number or nil | `nil` | *(Not used in current implementation)* |
+| `sleeper` | entity or nil | `nil` | Reference to the entity using this sleeping bag (set externally by `sleepingbag`). |
+| `bed` | entity or nil | `nil` | Reference to the sleeping bag entity currently in use. |
+| `sleeptask` | task or nil | `nil` | Periodic task running `SleepTick()` during sleep. |
+| `onsleep` | function or nil | `nil` | Callback triggered on sleep start (if any). |
+| `onwake` | function or nil | `nil` | Callback triggered on wake up (if any). |
+| `hunger_bonus_mult` | number | `1` | Multiplier applied to hunger regeneration rate. |
+| `health_bonus_mult` | number | `1` | Multiplier applied to health regeneration rate. |
+| `sanity_bonus_mult` | number | `1` | Multiplier applied to sanity regeneration rate. |
+| `cansleepfn` | function or nil | `nil` | Optional predicate function `(inst) -> success, reason` determining if sleep is allowed. |
 
-## Main Functions
-
+## Main functions
 ### `SetHungerBonusMult(bonus)`
-* **Description:** Sets the multiplier used to scale hunger restored per sleep tick.
-* **Parameters:** `bonus` — A numeric multiplier (e.g., `1.5` for 50% more hunger restored).
+*   **Description:** Sets the multiplier applied to the hunger stat regeneration rate during sleep.
+*   **Parameters:** `bonus` (number) - multiplier factor for hunger tick.
+*   **Returns:** Nothing.
 
 ### `SetHealthBonusMult(bonus)`
-* **Description:** Sets the multiplier used to scale health restored per sleep tick.
-* **Parameters:** `bonus` — A numeric multiplier (e.g., `0.5` for half health regeneration).
+*   **Description:** Sets the multiplier applied to the health stat regeneration rate during sleep.
+*   **Parameters:** `bonus` (number) - multiplier factor for health tick.
+*   **Returns:** Nothing.
 
 ### `SetSanityBonusMult(bonus)`
-* **Description:** Sets the base multiplier for sanity restored per sleep tick (good sleep aid modifies this further).
-* **Parameters:** `bonus` — A numeric multiplier.
+*   **Description:** Sets the multiplier applied to the sanity stat regeneration rate during sleep.
+*   **Parameters:** `bonus` (number) - multiplier factor for sanity tick.
+*   **Returns:** Nothing.
 
 ### `SetCanSleepFn(cansleepfn)`
-* **Description:** Assigns a custom function to override the default sleep permission logic. The function receives the owner entity and must return `success` (boolean) and optionally `reason` (string).
-* **Parameters:** `cansleepfn` — A function `(entity) -> success, reason`.
+*   **Description:** Assigns a custom predicate function to determine if the entity is allowed to sleep. If set, `ShouldSleep()` will call this function; otherwise, sleep is always permitted.
+*   **Parameters:** `cansleepfn` (function) - function with signature `(inst) -> success (boolean), reason (string?)`.
+*   **Returns:** Nothing.
 
 ### `DoSleep(bed)`
-* **Description:** Initiates sleep using the given sleeping bag. Registers a world-state watcher to wake up at phase changes (e.g., daytime), cancels any prior sleep task, and starts a periodic tick task based on the bed’s tick period.
-* **Parameters:** `bed` — The sleeping bag entity (must have a `sleepingbag` component).
+*   **Description:** Begins the sleep process using the specified `bed` entity. Sets up a periodic tick task and watches the world phase to wake up at dawn.
+*   **Parameters:** `bed` (entity) - the sleeping bag entity to sleep in; must have a `sleepingbag` component.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if the `bed` has no `sleepingbag` component (no explicit check; may cause runtime errors). Cancels any existing `sleeptask` before starting.
 
 ### `DoWakeUp(nostatechange)`
-* **Description:** Ends the sleep state. Cancels the sleep tick task, stops phase monitoring, and triggers the `"wakeup"` state in the entity’s state machine (unless `nostatechange` is `true`). Checks for `good_sleep_aid` headgear to influence state behavior.
-* **Parameters:** `nostatechange` — If `true`, skips state machine transition (e.g., for in-code wakeups).
+*   **Description:** Ends the current sleep session. Cancels the sleep tick task, stops watching for phase changes, and transitions the entity to the `"wakeup"` state unless `nostatechange` is `true`.
+*   **Parameters:** `nostatechange` (boolean) - if `true`, skips the `"wakeup"` state transition (e.g., for internal wake-ups like starvation).
+*   **Returns:** Nothing.
 
 ### `ShouldSleep()`
-* **Description:** Determines if the entity is allowed to sleep. Uses the custom `cansleepfn` if provided; otherwise, returns `true`.
-* **Returns:** `success` (boolean), `reason?` (string, if custom function returns it).
+*   **Description:** Checks whether the entity is allowed to sleep, using an optional custom predicate (`cansleepfn`) or defaulting to `true`.
+*   **Parameters:** None.
+*   **Returns:** `success` (boolean), `reason` (string?, optional) — reason if `success` is `false`.
+*   **Error states:** Returns `true, nil` if no custom predicate is set.
 
 ### `SleepTick()`
-* **Description:** Processes a single sleep tick: restores hunger, sanity, and (if applicable) health. Applies multipliers and considers `good_sleep_aid` for extra sanity gain. Wakes the player up if they become starving.
-* **Behavior:** Reads current tick values from `bed.components.sleepingbag` and applies bonus multipliers. Supports custom temperature handling via `temperaturetickfn`.
+*   **Description:** Runs periodically during sleep to apply stat regenerations based on sleeping bag tick values and multipliers. Wakes the entity if it becomes starving.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Does not regenerate health if the entity is starving. Sanity regenerates only if below 100% after penalty. Health regenerates only if `sleepingbag.healthsleep` is `true`. Uses `TUNING.GOODSLEEP_SANITY` if a `good_sleep_aid` headgear is equipped.
 
-## Events & Listeners
-- **Listens to:** `"phase"` world state (`WatchWorldState("phase", WakeUpTest)`) — triggers wake-up if the world phase changes while sleeping.
-- **Stops listening on wake-up:** `StopWatchingWorldState("phase", WakeUpTest)`
-- **Triggers via `WakeUpTest`:** Calls `bed:DoWakeUp()` when phase mismatch is detected.
+## Events & listeners
+- **Listens to:** `phase` (world state) — triggers `WakeUpTest` to exit sleep when the phase changes (e.g., from night to day).
+- **Pushes:** No events directly; interacts with `health`, `hunger`, `sanity` components via their own events (e.g., `healthdelta`, `sanitydelta`).

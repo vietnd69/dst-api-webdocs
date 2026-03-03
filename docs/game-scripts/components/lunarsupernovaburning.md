@@ -1,58 +1,72 @@
 ---
 id: lunarsupernovaburning
 title: Lunarsupernovaburning
-description: Applies periodic damage and visual effects to an entity based on nearby sources marked with the "supernovaburning" state tag during the Alter Guardian's Phase 4 lunar supernova mechanic.
+description: Applies and manages damage and visual effects for the Alter Guardian's lunar supernova ability during Phase 4.
+tags: [combat, boss, fx, utility]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: combat
+category_type: components
 source_hash: aea6a6b8
+system_scope: combat
 ---
 
 # Lunarsupernovaburning
 
-## Overview
-This component manages the lunar burn effect applied during the Alter Guardian's Phase 4 (supernova) mechanic in DST. It tracks sources of "supernovaburning" state, spawns and positions associated visual effects, and periodically inflicts damage on both the entity and its mount (if any), scaled by the number of valid burning sources.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires components: `health`, `rider` (optional), `colouradder` (added dynamically), `grogginess` (optional, updated conditionally)
-- Adds/removes tags: None (does not modify entity tags directly)
-- Removes itself via `inst:RemoveComponent("lunarsupernovaburning")` when no sources remain or the entity becomes invalid/unargetable
+## Overview
+`LunarSupernovaBurning` is a component used by the Alter Guardian's Phase 4 form to simulate the lunar supernova attack. It maintains a set of source entities (typically minions) that contribute to the burning effect, spawns and positions visual effect prefabs (`alterguardian_lunar_supernova_burn_fx`) around the caster, and periodically deals damage to both the caster and affected mounts. The component integrates closely with the `health`, `rider`, `colouradder`, `combat`, and `grogginess` components, and uses `WagBossUtil` functions for positioning and damage calculations.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("lunarsupernovaburning")
+-- Add a source entity (e.g., a minion) that will emit the burn effect
+inst.components.lunarsupernovaburning:AddSource(minion)
+-- The component automatically starts updating and managing effects/damage
+```
+
+## Dependencies & tags
+**Components used:** `health`, `rider`, `colouradder`, `combat`, `grogginess`
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (injected by Class) | The entity this component is attached to |
-| `sources` | `table` | `{}` | Map of active sources (keys are entities with "supernovaburning" state) to their visual effect prefabs |
-| `firsttick` | `boolean` | `true` | Tracks if this is the first update tick; reset to `nil` after first damage application |
-| `wasdamaging` | `boolean` | `false` | Indicates whether damage was applied in the previous update tick |
+| `sources` | table | `{}` | Map of valid source entities to their associated effect prefabs. |
+| `firsttick` | boolean | `true` | Indicates if the first `OnUpdate` call is pending (used for initial damage timing). |
+| `wasdamaging` | boolean | `false` | Tracks whether damage was applied in the previous update. |
 
-## Main Functions
-
+## Main functions
 ### `OnRemoveFromEntity()`
-* **Description:** Cleans up when the component is removed: unregisters lunar burn source from health, removes visual tint, and removes all associated visual effect prefabs.
-* **Parameters:** None (implicit `self`)
+*   **Description:** Cleans up the component when removed from an entity. Unregisters lunar burn sources, removes colour additions, and destroys all associated effect prefabs.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `GetFxSize()`
-* **Description:** Determines the appropriate visual effect size (`small`, `med`, or `large`) and radius based on the entity's physics radius and tags (e.g., `"epic"`, `"largecreature"`), considering mounted entities when applicable.
-* **Parameters:** None (implicit `self`)
-* **Returns:** Two values: a string (`"small"`, `"med"`, `"large"`) and a numeric radius.
+*   **Description:** Determines the appropriate visual size (`"small"`, `"med"`, or `"large"`) and radius for effect prefabs based on the entity’s physics radius and tags. If the entity has a mount, the mount is used instead.
+*   **Parameters:** None.
+*   **Returns:** Two values: `size` (string: `"small"`, `"med"`, or `"large"`), and `rad` (number: radius used for positioning).
+*   **Error states:** Returns default radii if the entity is very small or very large.
 
 ### `AddSource(source)`
-* **Description:** Registers a new source entity (expected to have `"supernovaburning"` state) and spawns a corresponding visual effect prefab (`alterguardian_lunar_supernova_burn_fx`). Positions the effect based on relative location during the next update.
-* **Parameters:**
-  * `source` (`Entity`): The entity being tracked as a lunar burn source.
+*   **Description:** Registers a new source entity (e.g., a minion) and spawns a corresponding `alterguardian_lunar_supernova_burn_fx` visual effect. If this is the first source, the effect is shown immediately; otherwise, it is hidden until `OnUpdate` determines visibility.
+*   **Parameters:** `source` (entity instance) - the entity acting as a source of the supernova burn.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if the source is already registered.
 
 ### `OnUpdate(dt)`
-* **Description:** Core logic called every tick. Validates active sources (removing invalid or out-of-range ones), updates visual effect positions, and applies periodic damage and grogginess effects when sources are present. Removes itself if no valid sources remain or the entity becomes untargetable.
-* **Parameters:**
-  * `dt` (`number`): Delta time (unused explicitly; tick-based logic dominates).
+*   **Description:** Called every tick to manage effect visibility, source validity, and damage application. Removes invalid or out-of-range sources, positions effects, and applies damage proportional to the number of active sources. Also manages lunar burn flags and colour additions.
+*   **Parameters:** `dt` (number) - time since last update (unused directly, but passed per component convention).
+*   **Returns:** Nothing.
+*   **Error states:** 
+    *   Removes the component early if no valid sources remain.
+    *   Removes the component early if the entity is invincible, dead, in limbo, or otherwise cannot be targeted.
+    *   Damage is scaled by `numdots`, which is incremented for each visible, unblocked source.
 
-## Events & Listeners
-* Listens for component removal via `OnRemoveFromEntity()` (called automatically by the ECS on component removal)
-* Does not listen for game events (e.g., via `inst:ListenForEvent`)
-* Does not push custom events via `inst:PushEvent`
+## Events & listeners
+- **Listens to:** None explicitly (uses `inst:StartUpdatingComponent(self)` instead of event callbacks for updates).
+- **Pushes:** None. However, it manipulates events via `self.inst.components.health:RegisterLunarBurnSource(...)` and `self.inst.components.health:UnregisterLunarBurnSource(...)`, which internally push `startlunarburn` and `stoplunarburn` events.

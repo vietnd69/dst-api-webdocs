@@ -1,40 +1,59 @@
 ---
 id: quagmire_map
 title: Quagmire Map
-description: This component extends the Map system to provide Quagmire-specific tile and terrain validation logic, specifically for identifying and checking cultivatable Quagmire soil.
+description: Extends the world map functionality with Quagmire-specific terrain checks, specifically identifying farmable Quagmire soil and evaluating tillability at a given point.
+tags: [quagmire, terrain, map, farming]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: d7470f44
+system_scope: world
 ---
 
 # Quagmire Map
 
-## Overview
-This component adds Quagmire-specific tile checks to the `Map` class, enabling validation of Quagmire soil as a cultivatable tile type and verifying terrain readiness for tilling (e.g., checking for blocking entities). Note that the actual implementation resides within the shared `map.lua` file, and this file (`quagmire_map.lua`) serves solely as a wrapper or extension point.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Depends on: `Map` class (inherited from core engine), `TheWorld.Map`, `TheSim`, and `WORLD_TILES` constants.
-- Uses tag: `"plantedsoil"` as a blocking entity tag during tilling checks.
-- Adds no new components or tags to entities.
+## Overview
+This component supplements the core `map` system by adding Quagmire-specific logic for farmland detection and soil tillability. It is not a standalone ECS component but a set of extension methods added to the global `Map` object (the world map instance). The functions help determine where crops can be planted by validating terrain type and checking for interfering placed entities.
+
+## Usage example
+```lua
+local pt = Vector3(x, y, z)
+if TheWorld.Map:IsFarmableSoilAtPoint(x, y, z) then
+    -- terrain is Quagmire soil; safe to consider planting
+end
+
+if TheWorld.Map:CanTillSoilAtPoint(pt) then
+    -- point is tillable (farmable soil and no planted soil blocks present)
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified.  
+**Tags:** Uses `plantedsoil` internally as a must-tag when querying entities.
 
 ## Properties
-No public properties are initialized in this file. All logic is implemented via methods on the `Map` class.
+No public properties.
 
-## Main Functions
-### `Map:IsFarmableSoilAtPoint(x, y, z)`
-* **Description:** Returns whether the tile at the specified world coordinates is Quagmire soil, which is considered cultivatable in the Quagmire biome.
-* **Parameters:**
-  - `x`, `y`, `z`: World coordinates (numbers). Note: `y` is typically ignored for 2D tile lookups.
+## Main functions
+### `IsFarmableSoilAtPoint(x, y, z)`
+*   **Description:** Checks whether the tile at the specified world coordinates is Quagmire farmland (i.e., `QUAGMIRE_SOIL`).
+*   **Parameters:**  
+    * `x` (number) — World X coordinate.  
+    * `y` (number) — World Y coordinate.  
+    * `z` (number) — World Z coordinate.
+*   **Returns:** `true` if the tile at `(x, y, z)` is `WORLD_TILES.QUAGMIRE_SOIL`; otherwise `false`.
 
-### `Map:CanTillSoilAtPoint(pt)`
-* **Description:** Returns whether Quagmire soil at the given point can be tilled. It verifies two conditions: (1) the tile is valid Quagmire soil, and (2) no entities with the `"plantedsoil"` tag occupy the location (which would block tilling).
-* **Parameters:**
-  - `pt`: A `Vector3`-like object with `.x`, `.z` fields (and `.y`, though unused); used to query location and pass to `TheSim:FindEntities`.
+### `CanTillSoilAtPoint(pt)`
+*   **Description:** Determines whether the soil at the given point can be tilled — that is, if it is farmable Quagmire soil and no entity with the `plantedsoil` tag occupies the same tile.
+*   **Parameters:**  
+    * `pt` (Vector3 or table with `.x`, `.z`) — World position to check.
+*   **Returns:** `true` if the point is tillable; otherwise `false`.
+*   **Error states:** Returns `false` if the tile is not `QUAGMIRE_SOIL`, or if any entity at radius `1` with the `plantedsoil` tag is present at the point.
 
-## Events & Listeners
-None identified.
+## Events & listeners
+Not applicable.

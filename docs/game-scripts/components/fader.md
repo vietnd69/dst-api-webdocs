@@ -1,55 +1,74 @@
 ---
 id: fader
 title: Fader
-description: Manages smooth transitions (fades) of arbitrary numeric values over time by updating them each frame until completion.
+description: Manages time-based value interpolation (fading) between start and end values using custom setter callbacks.
+tags: [animation, interpolation, component]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: f2555918
+system_scope: entity
 ---
 
 # Fader
 
-## Overview
-The `Fader` component enables smooth interpolation (fade-in/fade-out) of numeric values over time. It maintains a list of active fade operations, each defined by a start value, end value, duration, and a setter function to apply the interpolated value. It automatically starts/stops its own update loop based on active fades.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on `inst:StartUpdatingComponent(self)` and `inst:StopUpdatingComponent(self)` to integrate with the entity’s update loop.
-- No components are added or tags assigned by this script.
-- No other components are directly required or referenced.
+## Overview
+`Fader` is a lightweight component that performs linear value interpolation over time. It is typically attached to entities that need smooth transitions of numeric properties (e.g., opacity, scale, sound volume) via custom setter functions. The component tracks one or more concurrent fade operations, updates them each frame, and cleans up completed fades automatically.
+
+It does not manage rendering or physics directly—instead, it delegates the actual value assignment to a provided setter function, enabling integration with arbitrary property systems.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("fader")
+
+-- Fade an entity's alpha from 1.0 to 0.0 over 2 seconds
+local setter = function(val, target)
+    target.Transform:SetHide(true)
+    target.AnimState:SetMultAlpha(val)
+end
+
+inst.components.fader:Fade(1.0, 0.0, 2.0, setter)
+```
+
+## Dependencies & tags
+**Components used:** None  
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity the component is attached to. |
-| `values` | `table` | `{}` | List of active fade operations (each a table of fade parameters). |
-| `numvals` | `number` | `0` | Count of currently active fades. |
+| `values` | table | `{}` | Array of active fade operations; each entry contains interpolation state. |
+| `numvals` | number | `0` | Count of active fade operations. |
 
-## Main Functions
+## Main functions
 ### `Fade(startval, endval, time, setter, atend, id)`
-* **Description:** Adds a new fade operation to the queue. Interpolates the value from `startval` to `endval` over `time` seconds using linear interpolation. The `setter` function is called each frame with `(current_value, inst)` to apply the interpolated value. Optionally executes `atend` when the fade completes.
+* **Description:** Starts a new fade operation, interpolating from `startval` to `endval` over `time` seconds. Updates the value via `setter(val, inst)` each frame, and optionally calls `atend(inst, val)` when complete.
 * **Parameters:**
-  - `startval` (number): Starting value for the fade.
-  - `endval` (number): Target value at the end of the fade.
-  - `time` (number): Duration of the fade in seconds.
-  - `setter` (function): Callback `(value, inst)` invoked each frame to apply the current interpolated value.
-  - `atend` (function, optional): Callback `(inst, value)` invoked once when the fade finishes.
-  - `id` (number/string, optional): Identifier for the fade; defaults to its 1-based index in `values`.
+  * `startval` (number) — initial value of the fade.
+  * `endval` (number) — target value at the end of the fade.
+  * `time` (number) — duration in seconds.
+  * `setter` (function) — callback taking `(val, inst)` to apply the interpolated value.
+  * `atend` (function, optional) — callback taking `(inst, final_val)` fired when fade completes.
+  * `id` (number or string, optional) — user-defined identifier; defaults to 1-based index.
+* **Returns:** `number` — the assigned fade ID (either provided or auto-incremented).
+* **Error states:** None.
 
 ### `StopAll()`
-* **Description:** Immediately completes all active fades (by fast-forwarding their remaining time), clears the fade queue, and stops the component’s update loop.
+* **Description:** Immediately finishes all active fades by setting all values to their `endval`, triggers each `atend` callback (if any), clears the fade queue, and stops component updates.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-* **Description:** Internal callback invoked each frame. Updates all active fades by decrementing remaining time, computing the interpolated value, and invoking the `setter`. Completes and removes any fades whose time has elapsed (and triggers `atend` if present).
-* **Parameters:**
-  - `dt` (number): Delta time in seconds since the last frame.
+* **Description:** Internal frame update handler invoked by the engine. Advances all active fades by `dt` seconds, updates via `setter`, and removes completed fades.
+* **Parameters:** `dt` (number) — time elapsed since last frame.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- Listens to: none (`inst:ListenForEvent` not used).
-- Emits: none (`inst:PushEvent` not used).
-- Updates itself via the entity’s update loop (`StartUpdatingComponent`/`StopUpdatingComponent`), which is standard for DST components but not classified as a game event.
+## Events & listeners
+- **Listens to:** None  
+- **Pushes:** None

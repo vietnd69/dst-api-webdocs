@@ -1,137 +1,118 @@
 ---
 id: yotc_raceprizemanager
 title: Yotc Raceprizemanager
-description: Manages race event lifecycle and award distribution for the Yotc mod's race system.
+description: Manages prize distribution for carrat races, tracking race data and awarding loot based on race completion.
+tags: [racing, loot, world, event]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: b8e0a030
+system_scope: world
 ---
 
 # Yotc Raceprizemanager
 
-## Overview
-This component manages race registration, execution, and prize distribution within the Yotc mod for Don't Starve Together. It maintains active races per track, tracks racer participation and completion, awards in-game items (gold nuggets) upon race completion, and synchronizes prize availability with game world cycles.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **World State Watched**: `"cycles"`
-- **Events Listened To**: Internal `yotc_ratraceprizechange` event handling
-- **Tags/Components Used**:
-  - `yotc_racecompetitor` (racer)
-  - `entitytracker` (racer)
-- **No tags are added or removed** by this component.
-- **No direct `inst:AddComponent(...)` calls** are made.
+## Overview
+`yotc_raceprizemanager` is a world-scoped component responsible for managing carrat race progression and distributing race prizes to racers upon completion. It tracks active races per starting line (`start_line`), registers racers and checkpoints, detects race completion, calculates prize amounts (based on distance completed and racers present), and awards loot using the `yotc_racecompetitor` component. It respects world state (`TheWorld.state.cycles`) to prevent prize exhaustion and broadcasts the `"yotc_ratraceprizechange"` event when prize availability changes.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("yotc_raceprizemanager")
+
+-- Register a racer to a starting line
+local success, old_racer = inst.components.yotc_raceprizemanager:RegisterRacer(racer_inst, start_line_entity)
+
+-- Begin the race at the specified starting line
+inst.components.yotc_raceprizemanager:BeginRace(start_line_entity)
+
+-- When a racer finishes
+inst.components.yotc_raceprizemanager:RacerFinishedRace(racer_inst, distance_value)
+
+-- Query prize availability
+if inst.components.yotc_raceprizemanager:HasPrizeAvailable() then
+    print("Prizes are available!")
+end
+```
+
+## Dependencies & tags
+**Components used:** `yotc_racecompetitor`, `entitytracker`
+**Tags:** Adds `has_prize` or `has_no_prize` via `yotc_racecompetitor` (not directly on `inst`).
+**World events listened to:** `"cycles"` (via `WatchWorldState`)
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity instance the component is attached to (the manager itself). |
-| `_races` | `table` | `{}` | Dictionary mapping `start_line` entity IDs to active race data records. |
-| `_prize` | `number` | `-1` | The world cycle count after which the next race prize becomes available. Initialized to `-1` (prize available immediately). |
-| `_themetask` | `DoTaskInTime` or `nil` | `nil` | Periodic task used to maintain race music theme during active races. |
+| `inst` | `Entity` | `nil` | The entity instance this component is attached to. |
+| `_races` | table | `{}` | Dictionary mapping `start_line` entities to race data tables. |
+| `_prize` | number | `-1` | World cycle count when the last prize was awarded. `-1` means prizes are always available. |
 
-## Main Functions
-
-### `GivePrizes(race)`
-* **Description:** Awards race prizes to participants based on race results and distance achieved. Determines the first-place prize and consolation prize using tunable multipliers and distance bonuses. If prizes are awarded, updates `_prize` to the current world cycle.
-* **Parameters:**
-  * `race` (table): Race data record containing `results`, `racers`, and `num_racers`.
-
+## Main functions
 ### `HasPrizeAvailable()`
-* **Description:** Checks whether a race prize is currently available (i.e., enough cycles have passed since the last prize was awarded).
+* **Description:** Checks if prizes are available for the current world cycle.
 * **Parameters:** None.
-* **Returns:** `boolean` — `true` if `_prize < current_cycle`.
+* **Returns:** `boolean` — `true` if `_prize < TheWorld.state.cycles`, otherwise `false`.
 
 ### `RegisterRacer(new_racer, start_line)`
-* **Description:** Registers a racer for a race at the given track (`start_line`). Validates eligibility (trainer presence or ghost racer), avoids duplicates, and enforces one trainer per lane. Detects if an existing racer from the same trainer should be replaced.
-* **Parameters:**
-  * `new_racer` (`Entity`): The racer entity attempting to join.
-  * `start_line` (`Entity`): The track entity representing the race start.
-* **Returns:** 
-  * `true`, `old_racer` (`Entity` or `nil`) if successfully registered or replaced.
-  * `false`, `nil` if invalid or already registered.
+* **Description:** Registers a racer to a specific race (identified by `start_line`). Validates the racer (must have a trainer or be a ghost racer) and avoids duplicates. If a trainer already has a racer in the race, the older racer is replaced.
+* **Parameters:** `new_racer` (`Entity`) — The racer entity; `start_line` (`Entity`) — The starting line entity.
+* **Returns:** `true, old_racer?` — `true` on success, with `old_racer` if another racer from the same trainer was replaced; `false, nil` if registration failed (e.g., invalid racer).
+* **Error states:** Returns `false, nil` if `new_racer` is invalid, missing required components, or already registered.
 
 ### `BeginRace(start_line)`
-* **Description:** Marks a registered race as started and initializes music theme updates if not already active.
-* **Parameters:**
-  * `start_line` (`Entity`): The race start entity (also used as race ID).
-
-### `GetRaceIdByRacer(racer)`
-* **Description:** Returns the `start_line` (race ID) for a given racer, or `nil` if not in a race.
-* **Parameters:**
-  * `racer` (`Entity`): The racer entity.
-
-### `GetRaceByRacer(racer)`
-* **Description:** Returns the full race data record for a given racer, or `nil`.
-* **Parameters:**
-  * `racer` (`Entity`): The racer entity.
-
-### `GetRaceById(start_line)`
-* **Description:** Returns the race data record for a given race ID (track), or `nil`.
-* **Parameters:**
-  * `start_line` (`Entity`): The race start entity.
-
-### `IsRaceUnderway(start_line)`
-* **Description:** Returns whether a race at the given track has been started.
-* **Parameters:**
-  * `start_line` (`Entity`): The race start entity.
-* **Returns:** `boolean`.
+* **Description:** Marks a race as started, fires `"yotc_racebegun"` on the `start_line` entity, and initializes a periodic music state task.
+* **Parameters:** `start_line` (`Entity`) — The starting line entity used during `RegisterRacer`.
+* **Returns:** Nothing.
+* **Error states:** No-op if `start_line` race data does not exist or has no racers.
 
 ### `EndOfRace(race_id)`
-* **Description:** Cleans up a finished race: resets music states, signals all checkpoints, and removes the race record.
-* **Parameters:**
-  * `race_id` (`Entity`): The race start entity (used as ID).
+* **Description:** Cleans up a race after completion: resets racer music state, fires `"yotc_race_over"` on all checkpoints, and removes the race entry from `_races`.
+* **Parameters:** `race_id` (`Entity`) — The `start_line` entity acting as the race ID.
+* **Returns:** Nothing.
 
 ### `RemoveRacer(racer)`
-* **Description:** Removes a racer from its current race. Handles race cancellation if no racers remain or award distribution if all remaining racers finish.
-* **Parameters:**
-  * `racer` (`Entity`): The racer to remove.
+* **Description:** Removes a racer from its assigned race before or during the race. If no racers remain or all racers finished, triggers prize distribution (`GivePrizes`) and cleanup.
+* **Parameters:** `racer` (`Entity`) — The racer to remove.
+* **Returns:** Nothing.
+* **Error states:** No-op if racer is not registered to a race.
 
 ### `RegisterCheckpoint(racer, checkpoint)`
-* **Description:** Registers a checkpoint entity as part of a racer’s race track.
-* **Parameters:**
-  * `racer` (`Entity`): The racer using the checkpoint.
-  * `checkpoint` (`Entity`): The checkpoint entity.
+* **Description:** Records a checkpoint entity under the racer’s race data.
+* **Parameters:** `racer` (`Entity`) — Registered racer; `checkpoint` (`Entity`) — The checkpoint to register.
+* **Returns:** Nothing.
+* **Error states:** No-op if racer is not registered to a race.
 
 ### `RacerFinishedRace(racer, distance)`
-* **Description:** Records a racer’s finish time/distance. Sets first-place status for the race if this is the first finisher. Triggers prize award and cleanup if all racers have finished.
-* **Parameters:**
-  * `racer` (`Entity`): The finishing racer.
-  * `distance` (`number`): Distance traveled in the race.
-* **Returns:** `boolean` — `true` if the racer finished first.
+* **Description:** Records a racer’s completion of the race. If all racers in the race have finished, triggers prize distribution.
+* **Parameters:** `racer` (`Entity`) — The racer that finished; `distance` (`number`) — Distance covered (used for prize calculation).
+* **Returns:** `boolean` — `true` if this racer placed first; `false` otherwise.
 
 ### `IsFirstPlaceRacer(racer)`
-* **Description:** Checks if the racer is the current first-place finisher (i.e., first to finish *so far* in this race).
-* **Parameters:**
-  * `racer` (`Entity`): The racer entity.
-* **Returns:** `boolean` — `true` only if the racer is set as `results.first_place` *and* no other racer has finished yet.
+* **Description:** Determines if the racer is the current first-place finisher *before* any racer has finished the race (i.e., `race.results == nil` and the racer was first registered).
+* **Parameters:** `racer` (`Entity`) — The racer to check.
+* **Returns:** `boolean` — `true` if racer is first place *prior* to any finish; otherwise `false`.
+* **Error states:** Returns `false` if `racer` is not in a race or if results are already recorded.
 
 ### `OnSave()`
-* **Description:** Serializes the prize state (`_prize`) for world save.
+* **Description:** Serializes state (currently only `_prize`) for world save.
+* **Parameters:** None.
 * **Returns:** `table` — `{ prize_date = _prize }`.
 
 ### `LoadPostPass(ents, data)`
-* **Description:** Restores `_prize` from save data. Handles backward compatibility for old `prize` (0/1) values. Fires `yotc_ratraceprizechange` to notify listeners of restored prize state.
-* **Parameters:**
-  * `ents` (`table`): Entity map (unused).
-  * `data` (`table` or `nil`): Saved component data.
+* **Description:** Restores state from world save. Handles legacy format (`data.prize == 0 or 1`) and current format (`data.prize_date`).
+* **Parameters:** `ents` (`table`) — Unused; `data` (`table?`) — Saved data.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a debug string representation of the prize state.
-* **Returns:** `string` — e.g., `"prize:5"`.
-
-### `racethemecheck()`
-* **Description:** Applies the race music theme (`CARRAT_MUSIC_STATES.RACE`) to all racers currently in active races. Cancels the theme task if no races remain.
+* **Description:** Returns a compact debug representation of the component state.
 * **Parameters:** None.
+* **Returns:** `string` — `"prize:<value>"`.
 
-## Events & Listeners
-- **Listens For**:
-  - `"cycles"` World state change → triggers internal `updateprize`
-- **Triggers/Pushes**:
-  - `"yotc_racebegun"` on `start_line` when `BeginRace` is called.
-  - `"yotc_race_over"` on each checkpoint when `EndOfRace` is called.
-  - `"yotc_ratraceprizechange"` on prize availability update (both `GivePrizes` and `LoadPostPass`).
+## Events & listeners
+- **Listens to:** `"cycles"` — Triggers `updateprize` to detect when prizes may become available again.
+- **Pushes:** `"yotc_ratraceprizechange"` — Broadcast when prize availability changes (after prizes are awarded or loaded). `"yotc_racebegun"` — Broadcast on the `start_line` entity when a race begins. `"yotc_race_over"` — Broadcast on each checkpoint entity when a race completes.

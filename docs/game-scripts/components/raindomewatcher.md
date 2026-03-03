@@ -1,48 +1,56 @@
 ---
 id: raindomewatcher
 title: Raindomewatcher
-description: Tracks whether an entity is currently inside a rain dome and emits events upon entering or exiting one.
+description: Tracks whether an entity is inside a rain dome and notifies the entity upon entering or exiting.
+tags: [environment, weather, collision]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: environment
+category_type: map
 source_hash: 75f16698
+system_scope: environment
 ---
 
 # Raindomewatcher
 
-## Overview
-This component monitors the entity's position relative to rain domes in the world. It maintains a boolean flag `underdome` indicating current enclosure within a rain dome and dispatches appropriate events when the entity enters or exits a dome.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires `Transform` component (for `GetWorldPosition`)
-- Requires `GetRainDomesAtXZ` global function (not a component dependency, but an environment query)
-- No components are added or tags modified directly by this script.
+## Overview
+`RainDomeWatcher` is a lightweight component that monitors an entity's position relative to active rain domes in the world. It periodically checks if the entity is inside one or more rain domes and emits events when the entity enters or exits such zones. It is designed for world- or weather-sensitive entities that need to react to rain dome coverage.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("raindomewatcher")
+inst.components.raindomewatcher:IsUnderRainDome()  -- returns true/false
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `GloballyUniqueInstance` | (passed in) | Reference to the owning entity. |
-| `underdome` | `boolean` | `false` | Whether the entity is currently inside a rain dome. |
+| `underdome` | boolean | `false` | Whether the entity is currently inside at least one rain dome. |
 
-## Main Functions
-
+## Main functions
 ### `IsUnderRainDome()`
-* **Description:** Returns the current `underdome` status.
-* **Parameters:** None.
+*   **Description:** Returns whether the entity is currently inside a rain dome.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if the entity is under a rain dome, `false` otherwise.
 
 ### `OnUpdate(dt)`
-* **Description:** Called periodically by the entity update loop. Determines if the entity is inside any rain dome by sampling its x/z world coordinates. Updates `underdome` state and pushes `"enterraindome"`, `"underraindomes"`, or `"exitraindome"` events as appropriate.
-* **Parameters:**
-  - `dt` (`number`): Delta time since last update (unused in logic but required by component contract).
+*   **Description:** Internal update callback, invoked each frame. Checks the entity's current world position for rain dome coverage and updates `underdome` state accordingly.
+*   **Parameters:** `dt` (number) — Delta time since the last frame. Not used directly but passed by the framework.
+*   **Returns:** Nothing.
+*   **Error states:** None. The method is safe to call each frame.
 
-## Events & Listeners
-- Listens for internal updates via `inst:StartUpdatingComponent(self)` (not a network event).
-- Pushes the following events:
-  - `"enterraindome"` — when the entity transitions from outside to inside a rain dome.
-  - `"underraindomes", domes` — sent every update while inside at least one rain dome, where `domes` is a table of dome entities at the current x/z position.
-  - `"exitraindome"` — when the entity transitions from inside to outside all rain domes.
+## Events & listeners
+- **Listens to:** None  
+- **Pushes:**  
+  - `enterraindome` — fired the first frame the entity enters a rain dome (i.e., when `underdome` transitions from `false` to `true`).  
+  - `exitraindome` — fired the first frame the entity exits all rain domes (i.e., when `underdome` transitions from `true` to `false`).  
+  - `underraindomes` — fired every frame while the entity remains inside rain domes; includes table `domes` (array of dome instances/records) in the event payload.

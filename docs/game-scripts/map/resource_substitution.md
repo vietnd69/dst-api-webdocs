@@ -3,7 +3,7 @@ id: resource_substitution
 title: Resource Substitution
 description: Provides a mapping and random selection mechanism for substituting game resources (e.g., rocks, trees, grass) with alternate variants based on predefined rules.
 tags: [map, worldgen, resource, randomness]
-sidebar_position: 1
+sidebar_position: 100
 
 last_updated: 2026-02-27
 build_version: 714014

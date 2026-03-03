@@ -1,30 +1,41 @@
 ---
 id: reloaditem
 title: Reloaditem
-description: This is a minimal placeholder component that initializes with the entity instance but contains no functional logic.
+description: A placeholder component with no functionality; does not implement any logic, properties, or event handling.
+tags: [placeholder]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 7838cf6b
+system_scope: entity
 ---
 
 # Reloaditem
 
-## Overview
-This component is a trivial stub implementation—it inherits from `Class` and stores the entity instance (`inst`) in `self.inst`, but otherwise performs no initialization logic, defines no properties, and registers no event listeners or dependencies. It serves no active gameplay purpose and appears to be unused or incomplete in the codebase.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Reloaditem` is a minimal placeholder component that only initializes `self.inst` and returns the class definition. It contains no logic, properties, methods, event listeners, or behavior. It serves as a structural stub and has no active role in gameplay or system architecture.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("reloaditem")
+-- No further interaction or usage is possible or required.
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified  
 
 ## Properties
-No public properties were clearly identified from the source.
+No public properties
 
-## Main Functions
-No functional methods were identified beyond the constructor.
+## Main functions
+No main functions
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified

@@ -1,53 +1,60 @@
 ---
 id: hideandseeker
 title: Hideandseeker
-description: Periodically validates a player's proximity to a Hide-and-Seek game and handles announcements when they go too far or return within range.
+description: Monitors a seeker entity’s distance from a hide-and-seek game instance and triggers announcements or removal when the entity strays too far or returns within range.
+tags: [game, game_logic, communication]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: f313dc93
+system_scope: world
 ---
 
 # Hideandseeker
 
-## Overview
-The `hideandseeker` component monitors an entity's distance from an active Hide-and-Seek game instance. It uses a periodic task to check proximity thresholds and triggers speech announcements (e.g., if the entity strays too far or returns within range), or removes itself if the game is no longer valid.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component usage**: `inst:RemoveComponent("hideandseeker")` — may be removed dynamically during validation.
-- **Dependencies**:
-  - `talker` component: Required to trigger speech announcements via `Say()`.
-  - `hideandseekgame` component (on the game entity): Provides configuration values such as `hiding_range`, `hiding_range_toofar`, `seeker_too_far_announce`, `seeker_too_far_return_announce`, and `gameaborted_announce`.
-- **No tags are added or removed** by this component.
+## Overview
+`Hideandseeker` is a lightweight entity component that ensures a seeker entity remains within a designated range of the active `hideandseekgame` instance. It periodically validates the seeker’s position using `Validate`, which compares the seeker’s proximity to the game’s `hiding_range` and `hiding_range_toofar` thresholds. If the game is no longer active, it announces a message (via `talker`) and removes itself. If the seeker is too far away, it sets `is_faraway` to `true` and announces the condition; if returning within range, it clears the flag and announces re-entry.
+
+This component is designed to work exclusively with the `hideandseekgame` component and relies on the `talker` component for localized speech.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("hideandseeker")
+local game = inst.entity:GetParent()  -- or however the game instance is obtained
+inst.components.hideandseeker:SetGame(game)
+-- Validation runs automatically via periodic task; no further setup required
+```
+
+## Dependencies & tags
+**Components used:** `hideandseekgame`, `talker`  
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `GEntity` | — | Reference to the entity the component is attached to. |
-| `hideandseekgame` | `Component?` | `nil` | Reference to the `hideandseekgame` component of the active game. Set via `SetGame()`. |
-| `abort_game_msg` | `string?` | `nil` | Localization key for the announcement when the game is aborted (set when `SetGame()` is called). |
-| `is_faraway` | `boolean` | `false` | Tracks whether the entity is currently too far from the game to participate. |
-| `validate_task` | `Task?` | `nil` | Periodic task (runs every 1 second) that calls the `Validate()` function. |
+| `inst` | `Entity` | — | Reference to the entity owning this component (inherited from constructor). |
+| `validate_task` | `Task` | `nil` | Periodic task (every 1 second) that runs `Validate`; set in constructor. |
+| `hideandseekgame` | `Component` (optional) | `nil` | Reference to the `hideandseekgame` component instance; set via `SetGame()`. |
+| `abort_game_msg` | `string` (key) | `nil` | Localized string key for the abort announcement; derived from `hideandseekgame.gameaborted_announce`. |
+| `is_faraway` | `boolean` | `false` | Flag indicating whether the entity is currently outside the `hiding_range_toofar` threshold. |
 
-## Main Functions
-
+## Main functions
 ### `SetGame(hideandseekgame)`
-* **Description:** Assigns the active Hide-and-Seek game instance and preloads the abort-message localization key. Resets `abort_game_msg` based on the game’s configuration.
-* **Parameters:**
-  - `hideandseekgame` (`Component?`): The `hideandseekgame` component of the game entity. If `nil`, `abort_game_msg` becomes `nil`.
+*   **Description:** Attaches the component to a specific `hideandseekgame` instance and configures the abort message key.
+*   **Parameters:** `hideandseekgame` (`Component` or `nil`) — the game component to track; if `nil`, `abort_game_msg` is set to `nil`.
+*   **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a human-readable debug string showing the current game reference and `is_faraway` state.
-* **Parameters:** None.
+*   **Description:** Returns a debug-friendly string summarizing the current state: the `hideandseekgame` reference (as string) and `is_faraway` status.
+*   **Parameters:** None.
+*   **Returns:** `string` — e.g., `"[Component hideandseekgame] @ 0x123456, is far away: false"`.
 
-### `OnRemoveFromEntity()`
-* **Description:** Cleans up by canceling the `validate_task` to prevent memory leaks or orphaned tasks when the component is removed.
-* **Parameters:** None.
-
-## Events & Listeners
-None. This component does **not** use event listeners (`inst:ListenForEvent`) or explicitly push events (`inst:PushEvent`). All logic is driven by the periodic task.
+## Events & listeners
+- **Listens to:** Periodic task (`DoPeriodicTask(1, Validate)`) — calls `Validate` every 1 second.
+- **Pushes:** No events; relies on side effects (`talker:Say`, `inst:RemoveComponent`).

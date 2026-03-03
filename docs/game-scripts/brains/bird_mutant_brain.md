@@ -1,51 +1,60 @@
 ---
 id: bird_mutant_brain
 title: Bird Mutant Brain
-description: Controls the AI behavior of the Mutant Bird (both pecker and spitter variants), coordinating combat, movement, skeleton breaking, and spitting mechanics via behavior tree execution.
+description: Controls AI behavior for mutant bird entities, including swarming, combat, skeleton breaking, and (for spitters) projectile spitting.
+tags: [ai, combat, boss, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 8581e4ae
+system_scope: brain
 ---
 
 # Bird Mutant Brain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The `BirdMutantBrain` component implements the behavior tree logic for Mutant Birds (both `bird_mutant` and `bird_mutant_spitter` variants) in Don't Starve Together. It coordinates core behaviors such as panic, wall breaking, skeleton shattering, chasing and attacking swarm targets, and—specifically for spitter variants—spitting projectiles. This brain uses a priority-based behavior tree to evaluate high-priority triggers (e.g., panic, electric fences) before falling back to routine tasks like movement and combat.
+`BirdMutantBrain` is an AI brain component that governs the behavior of mutant bird entities in Don't Starve Together. It defines a behavior tree (`BT`) containing sequences and conditional nodes that handle movement toward a tracked swarm target, combat engagement, wall-patrolling, skeleton breaking, and conditional spit attacks (for spitter variants). The brain integrates with core systems such as `combat`, `entitytracker`, `workable`, and `timer`, and uses common helper behaviors like `chaseandattack`, `panic`, and `leash`.
 
-Key external dependencies include the `combat` component for attack targeting and cooldown management, `entitytracker` for locating swarm targets, and several predefined behaviors (`chaseandattack`, `panic`, `attackwall`, `leash`, `standstill`) imported via the behaviors module.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddTag("bird_mutant_spitter") -- optional, enables spit logic
+inst:AddComponent("combat")
+inst:AddComponent("entitytracker")
+inst:AddComponent("timer")
+inst:AddComponent("workable")
+inst:AddComponent("follower")
+inst:AddBrain("bird_mutant_brain")
+```
 
-## Dependencies & Tags
-- **Components used:** `combat`, `entitytracker`, `follower`, `timer`, `workable`
-- **Tags:** `bird_mutant_spitter` (conditional logic branch), `playerskeleton`, `HAMMER_workable`
+## Dependencies & tags
+**Components used:** `combat`, `entitytracker`, `timer`, `workable`, `follower`.  
+**Tags:** Checks `bird_mutant_spitter` (alters behavior tree); uses `player`, `playerskeleton`, `HAMMER_workable`.
 
 ## Properties
-No public properties are initialized or exposed by this brain component itself. Behavior state is maintained internally via the behavior tree node hierarchy and component-accessed variables (e.g., `inst.components.combat.target`).
+No public properties.
 
-## Main Functions
-No public methods are defined outside the constructor. The core behavior logic resides in the `OnStart()` method, which constructs and initializes the behavior tree.
+## Main functions
+### `OnStart()`
+* **Description:** Initializes and assigns the behavior tree (`self.bt`) based on entity state and tags. Constructs the root `PriorityNode` with the full behavior sequence, including conditional spit/spit-wait logic if `bird_mutant_spitter` is present.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `BirdMutantBrain:OnStart()`
-* **Description:** Constructs and assigns the behavior tree for the Mutant Bird. Builds a priority-ordered sequence of behavior nodes, optionally extending it for spitter variants with spitting logic.
-* **Parameters:** None (method of the class).
-* **Returns:** `nil`. The constructed `PriorityNode` tree is stored in `self.bt`.
+## Events & listeners
+None identified.
 
-The behavior tree sequence (in order of priority) includes:
-1. Panic triggers (electric fence, general panic).
-2. For *spitter variants only*:
-   - `WhileNode` for continuous spitting while in range (`shouldspit`).
-   - `IfNode` to enter a `StandStill` node when very close to target (`shouldwaittospit`).
-3. Skeleton breaking and wall attacking sequence (always executed first among core actions).
-4. Attack node, triggered if a valid target is within range (`CanBirdAttack`).
-5. Movement node (chase swarm target via `Leash`).
-6. Stand-still node (to approach/swarm near target).
-7. General panic fallback.
-
-## Events & Listeners
-This component does not register any event listeners or fire custom events directly. Behavior transitions and state management are handled entirely through the behavior tree nodes and their action functions.
+## Helper Functions (Internal)
+The following helper functions are defined locally and used within the behavior tree:
+- `GetSwarmTarget(inst)`: Returns the entity stored under `"swarmTarget"` in `entitytracker`.
+- `GetSwarmTargetPos(inst)`: Returns the world position of the swarm target, or `nil`.
+- `CanBirdAttack(inst)`: Returns a valid combat target if conditions (cooldown, state, range, or nearby players) are met; otherwise `nil`.
+- `AttackTarget(inst)`: Invokes `combat:TryAttack` on the target returned by `CanBirdAttack`.
+- `BreakSkeletons(inst)`: Finds a nearby skeleton tagged with `playerskeleton` or `HAMMER_workable`, and calls `workable:WorkedBy(self.inst, 1)`.
+- `shouldspit(inst)`: Returns `true` if a valid combat target is within `TUNING.MUTANT_BIRD_SPIT_RANGE` and the `"spit_cooldown"` timer does not exist.
+- `spit(inst)`: Returns a buffered `TOSS` action on the combat target.
+- `shouldwaittospit(inst)`: Returns `true` if the combat target is within 4 game units (2 tiles) and is valid.

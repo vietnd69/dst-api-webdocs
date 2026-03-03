@@ -1,39 +1,55 @@
 ---
 id: batteryuser
 title: Batteryuser
-description: Manages an entity's ability to consume charge from another entity that has a `battery` component.
+description: Enables an entity to consume power from a battery component, handling charge verification and callback execution.
+tags: [power, inventory, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 299c15cf
+system_scope: entity
 ---
 
 # Batteryuser
 
-## Overview
-The `batteryuser` component allows an entity to act as a consumer of electrical charge. It provides the logic for an entity to interact with and draw power from another entity that possesses a `battery` component.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-*   **Tags:** Adds the `batteryuser` tag to the entity upon initialization.
+## Overview
+`BatteryUser` allows an entity to draw power from another entity that possesses the `battery` component. It enforces validation via `Battery:CanBeUsed`, executes an optional user-defined callback (`onbatteryused`), and notifies the battery via `Battery:OnUsed` upon successful consumption. The component automatically adds the `batteryuser` tag to its entity on initialization and removes it when detached.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("batteryuser")
+-- Optional: define custom behavior on battery use
+inst.components.batteryuser.onbatteryused = function(user, battery)
+    -- Custom logic (e.g., sound,fx,or extra checks)
+    return true, ""
+end
+-- Charge from a battery-powered item (e.g., lantern)
+local success, reason = inst.components.batteryuser:ChargeFrom(lantern)
+```
+
+## Dependencies & tags
+**Components used:** `battery`
+**Tags:** Adds `batteryuser` on attach; removes `batteryuser` on detach.
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :--- | :--- | :--- | :--- |
-| `onbatteryused` | `function` | `nil` | An optional callback function that is executed before successfully using the battery. It can be used to add custom conditions or side effects. The function receives the user and the battery entity as arguments. |
+|----------|------|---------------|-------------|
+| `onbatteryused` | function or `nil` | `nil` | Optional callback invoked *before* battery consumption. Receives `user` and `charge_target` as arguments; must return `result` (boolean) and `reason` (string). |
 
-## Main Functions
-### `OnRemoveFromEntity()`
-* **Description:** A lifecycle function called when the component is removed from its entity. It cleans up by removing the `batteryuser` tag.
-* **Parameters:** None.
-
+## Main functions
 ### `ChargeFrom(charge_target)`
-* **Description:** Attempts to draw a single charge from a target entity. This function first checks if the target's `battery` component can be used. It then calls the optional `onbatteryused` callback for additional validation. If all checks pass, it consumes a charge from the target and returns a success status.
-* **Parameters:**
-    *   `charge_target` (Entity): The entity instance with a `battery` component to draw charge from.
-* **Returns:**
-    *   `result` (boolean): `true` if the charge was successful, `false` otherwise.
-    *   `reason` (string): A string explaining why the charge failed, if applicable.
+* **Description:** Attempts to draw power from the given `charge_target` entity’s `battery` component. Validates via `CanBeUsed`, runs the `onbatteryused` callback (if defined), and on success triggers `OnUsed` on the target battery.
+* **Parameters:** `charge_target` (entity) – the entity containing the `battery` component to charge from.
+* **Returns:**  
+  - `result` (boolean) – `true` if the charge succeeded; `false` otherwise.  
+  - `reason` (string) – descriptive message explaining failure (often from `CanBeUsed` or the callback).
+* **Error states:** Returns `false` if `CanBeUsed` fails or if the `onbatteryused` callback returns `false`.
+
+## Events & listeners
+None identified.

@@ -1,145 +1,188 @@
 ---
 id: playeractionpicker
 title: Playeractionpicker
-description: Determines available player actions based on context such as mouse position, target entity, held items, and active filters.
+description: Determines valid player actions based on context (mouse position, target, held item, and modifiers).
+tags: [player, input, action, inventory, combat]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 15757341
+system_scope: player
 ---
 
 # Playeractionpicker
 
-## Overview
-The `PlayerActionPicker` component calculates and prioritizes valid actions for the player based on context (e.g., cursor position, target entity, held item, and controller state). It integrates action definitions from items and the player, applies priority-based filtering, and produces `BufferedAction` instances for UI rendering and execution. It supports left-click, right-click, and special-actions scenarios including steering, cannon aiming, point casting, container interaction, and inventory use.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-* Depends on: `TheWorld.Map` (via `self.map = TheWorld.Map`), `inst.replica.inventory`, `inst.replica.combat`, `inst.components.playercontroller`, `inst.components.boatcannonuser`, `TheInput`.
-* No explicit `inst:AddComponent(...)` calls in this script.
-* No tags added or removed by this component.
+## Overview
+`PlayerActionPicker` resolves contextual player actions (left-click, right-click, double-click, and hover states) into concrete executable actions. It sits at the intersection of input handling, inventory, world state, and gameplay systems, aggregating action proposals from attached prefabs, items, and components (`SCENE`, `USEITEM`, `EQUIPPED`, `POINT`, `INVENTORY`), then filters and sorts them by priority and validity. It integrates with `PlayerController`, `AOETargeting`, and container systems to ensure correct action behavior under modifiers like `FORCE_STACK`, `FORCE_INSPECT`, and boat steering.
+
+## Usage example
+```lua
+local inst = ThePlayer
+inst:AddComponent("playeractionpicker")
+
+-- Register a container to enable its actions
+inst.components.playeractionpicker:RegisterContainer(mycontainer)
+
+-- Get left-click actions at a world position
+local actions = inst.components.playeractionpicker:GetLeftClickActions(Vector3(x, y, z), target_entity)
+
+-- Push/pop an action filter to temporarily override action availability
+local function myFilter(inst, action) return action.action ~= ACTIONS.DROP end
+inst.components.playeractionpicker:PushActionFilter(myFilter, 10)
+inst.components.playeractionpicker:PopActionFilter(myFilter)
+```
+
+## Dependencies & tags
+**Components used:** `playercontroller`, `boatcannonuser`, `container`, `inventory`, `rider`, `combat`, `aoetargeting`, `aoecharging`  
+**Tags:** Checks `hostile`, `inspectable`, `walkableplatform`, `walkableperipheral`, `ignoremouseover`, `repairer`, `deployable`, `allow_action_on_impassable`; adds none.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `EntityScript` | (passed to constructor) | The player entity this picker serves. |
-| `map` | `WorldMap` | `TheWorld.Map` | Reference to the world map for spatial queries (e.g., passability checks). |
-| `containers` | `table` | `{}` | Map of registered containers to cleanup callbacks. |
-| `leftclickoverride` | `function?` | `nil` | Optional override function for left-click action generation (`fn(inst, target, position) → actions, usedefault`). |
-| `rightclickoverride` | `function?` | `nil` | Optional override function for right-click action generation (`fn(inst, target, position) → actions, usedefault`). |
-| `pointspecialactionsfn` | `function?` | `nil` | Function for point-specific actions (e.g., deployables, tools with reticle-based targeting). Signature: `(inst, pos, useitem, right, usereticulepos) → actions, [pos2]`. |
-| `actionfilterstack` | `table` | `{}` | Stack of action filter entries: `{ fn = function, priority = number }`. |
-| `actionfilter` | `function?` | `nil` | Currently active filter function derived from the highest-priority entry in `actionfilterstack`. |
+| `inst` | `EntityScript` | — | Owner entity (typically player). |
+| `map` | `WorldMap` | `TheWorld.Map` | Map geometry/accessibility reference. |
+| `containers` | table | `{}` | Mapping of container → unregister callback. |
+| `leftclickoverride` | function or `nil` | `nil` | Custom override for left-click action resolution. |
+| `rightclickoverride` | function or `nil` | `nil` | Custom override for right-click action resolution. |
+| `pointspecialactionsfn` | function or `nil` | `nil` | Function returning special point-based actions (e.g., double-tap or touch gestures). |
+| `actionfilterstack` | table | `{}` | Stack of action filter entries: `{fn = function, priority = number}`. |
+| `actionfilter` | function or `nil` | `nil` | Currently active filter function; `nil` means no filtering. |
 
-## Main Functions
-
+## Main functions
 ### `RegisterContainer(container)`
-* **Description:** Registers a container (e.g., inventory, chest) with automatic cleanup when the container is removed.
-* **Parameters:** `container` (table or entity) — The container to register.
+*   **Description:** Registers a container entity to participate in action resolution. A callback is attached to the container’s `"onremove"` event to auto-unregister on destruction.  
+*   **Parameters:** `container` (`EntityScript` or `nil`) — entity to register.  
+*   **Returns:** Nothing.
 
 ### `UnregisterContainer(container)`
-* **Description:** Unregisters a previously registered container and removes its event listener.
-* **Parameters:** `container` (table or entity) — The container to unregister.
+*   **Description:** Removes a previously registered container and cleans up event callbacks.  
+*   **Parameters:** `container` (`EntityScript` or `nil`) — entity to unregister.  
+*   **Returns:** Nothing.
 
 ### `HasContainerWidgetAction()`
-* **Description:** Returns `true` if any containers are currently registered and have associated widget actions.
-* **Parameters:** None.
+*   **Description:** Returns `true` if any containers are currently registered and contributing actions.  
+*   **Parameters:** None.  
+*   **Returns:** `boolean`.
 
 ### `PushActionFilter(filterfn, priority)`
-* **Description:** Pushes a new action filter function onto the stack with the given priority. Filters modify or restrict which actions are included in the final list.
-* **Parameters:**  
-  `filterfn` (function) — Filter function `fn(inst, action) → boolean`.  
-  `priority` (number, optional, default `0`) — Higher values have higher priority (override lower priorities).
+*   **Description:** Adds an action filter function to the top of the priority stack; the highest-priority active filter is used during action sorting.  
+*   **Parameters:**  
+    - `filterfn` (`function`): `(inst, action) -> boolean` — returns `true` if action is allowed.  
+    - `priority` (`number`, optional): priority level; defaults to `0`.  
+*   **Returns:** Nothing.
 
 ### `PopActionFilter(filterfn)`
-* **Description:** Removes a filter function from the stack. If `filterfn` is provided, removes the first matching entry; otherwise removes the top entry.
-* **Parameters:**  
-  `filterfn` (function, optional) — Specific filter function to remove.
+*   **Description:** Removes a filter from the stack. If `filterfn` is `nil`, removes the highest-priority filter unconditionally.  
+*   **Parameters:** `filterfn` (`function` or `nil`) — filter to remove.  
+*   **Returns:** Nothing.
 
 ### `SortActionList(actions, target, useitem)`
-* **Description:** Sorts a list of actions by priority (descending), applies the active `actionfilter`, and wraps each qualifying action in a `BufferedAction`. Handles AOE range inclusion if `ACTIONS.CASTAOE`.
-* **Parameters:**  
-  `actions` (table) — List of `ACTIONS.*` constants or pre-constructed actions.  
-  `target` (EntityScript or Vector3 or `nil`) — Target entity, point, or `nil` (for point actions).  
-  `useitem` (Item or `nil`) — Item being used (if any), used for AOE range checks.
+*   **Description:** Sorts action proposals by priority (via `OrderByPriority`) and applies the active `actionfilter`. For `CASTAOE` actions, it attaches the effective AOE range (`useitem.components.aoetargeting:GetRange()`). Constructs `BufferedAction` objects for valid actions.  
+*   **Parameters:**  
+    - `actions` (`table`): List of `ACTIONS` or action tables.  
+    - `target` (`EntityScript`, `Vector3`, or `nil`): Action target.  
+    - `useitem` (`EntityScript` or `nil`): Item being used (to determine AOE range).  
+*   **Returns:** `table` of `BufferedAction` instances.
 
 ### `GetSceneActions(useitem, right)`
-* **Description:** Collects and returns actions available in the scene (e.g., inspecting, using tools on entities). Includes inherent scene actions if no actions are collected.
-* **Parameters:**  
-  `useitem` (Item or `nil`) — The item in use (or `nil` for entity/ground actions).  
-  `right` (boolean) — `true` if for right-click.
+*   **Description:** Collects scene-level actions for an item or the player. If no actions exist and inspection is valid, adds `WALKTO` as fallback (unless AOE targeting is active on right-click).  
+*   **Parameters:**  
+    - `useitem` (`EntityScript`): Item or player performing actions.  
+    - `right` (`boolean`): `true` for right-click context (alt actions), `false` for left-click.  
+*   **Returns:** `table` of `BufferedAction` instances.
 
 ### `GetUseItemActions(target, useitem, right)`
-* **Description:** Collects actions when using a specific item on a target (e.g., placing, equipping, interacting).
-* **Parameters:**  
-  `target` (EntityScript or `nil`) — Target entity.  
-  `useitem` (Item) — The item being used.  
-  `right` (boolean) — `true` if for right-click.
+*   **Description:** Collects actions for `useitem` applied to `target`.  
+*   **Parameters:**  
+    - `target` (`EntityScript`): Target entity.  
+    - `useitem` (`EntityScript`): Item performing the action.  
+    - `right` (`boolean`): Context flag.  
+*   **Returns:** `table` of `BufferedAction` instances.
 
 ### `GetSteeringActions(inst, pos, right)`
-* **Description:** Returns actions for steering a boat (e.g., `SET_HEADING`, `STOP_STEERING_BOAT`) when the player is controlling a vessel.
-* **Parameters:**  
-  `inst` (EntityScript) — Player entity (unused, kept for signature compatibility).  
-  `pos` (Vector3) — Mouse world position.  
-  `right` (boolean) — `true` if for right-click.
+*   **Description:** Returns steering-related actions if the player is steering a boat. Returns `STOP_STEERING_BOAT` (right) or `SET_HEADING` (left, non-controller).  
+*   **Parameters:**  
+    - `inst` (`EntityScript`): Player entity.  
+    - `pos` (`Vector3`): Click position.  
+    - `right` (`boolean`): Context flag.  
+*   **Returns:** `table` of `BufferedAction` or `nil`.
 
 ### `GetCannonAimActions(inst, pos, right)`
-* **Description:** Returns actions for aiming or firing a boat cannon.
-* **Parameters:** Same as `GetSteeringActions`.
+*   **Description:** Returns boat cannon aiming/shooting actions if a cannon is active.  
+*   **Parameters:**  
+    - `inst` (`EntityScript`): Player entity.  
+    - `pos` (`Vector3`): Click position.  
+    - `right` (`boolean`): Context flag.  
+*   **Returns:** `table` of `BufferedAction` or `nil`.
 
 ### `GetPointActions(pos, useitem, right, target)`
-* **Description:** Collects actions that occur at a point (e.g., placing items on the ground, casting spells).
-* **Parameters:**  
-  `pos` (Vector3) — World position of the cursor.  
-  `useitem` (Item or `nil`) — Item being used.  
-  `right` (boolean) — `true` if for right-click.  
-  `target` (EntityScript or `nil`) — Optional mouseover target used during point actions.
+*   **Description:** Collects point-based actions (e.g., drop, throw, place). Enforces `wholestack` option unless `CONTROL_FORCE_STACK` is held.  
+*   **Parameters:**  
+    - `pos` (`Vector3`): Click position.  
+    - `useitem` (`EntityScript`): Item performing the action.  
+    - `right` (`boolean` or `nil`): Context flag.  
+    - `target` (`EntityScript` or `nil`): Optional target (e.g., for `DROP` on a container).  
+*   **Returns:** `table` of `BufferedAction` instances.
 
 ### `GetPointSpecialActions(pos, useitem, right, usereticulepos)`
-* **Description:** Invokes the optional `pointspecialactionsfn` hook for custom point-targeted actions (e.g., deployables with reticle-based targeting).
-* **Parameters:** Same as `GetPointActions`, plus `usereticulepos` (boolean) indicating if the reticle position should be used instead of `pos`.
+*   **Description:** Invokes `pointspecialactionsfn` if defined (e.g., for touch/double-tap actions). Supports an optional second position return (`pos2`) for reticule-based targeting.  
+*   **Parameters:**  
+    - `pos` (`Vector3`): Initial click position.  
+    - `useitem` (`EntityScript` or `nil`).  
+    - `right` (`boolean` or `nil`).  
+    - `usereticulepos` (`boolean`): Indicates whether to use reticule position instead of raw `pos`.  
+*   **Returns:** `table` of `BufferedAction` instances.
 
 ### `GetDoubleClickActions(pos, dir, target)`
-* **Description:** Invokes the optional `doubleclickactionsfn` hook for double-click specific actions (e.g., movement double-tap).
-* **Parameters:**  
-  `pos` (Vector3 or `nil`) — Double-click world position.  
-  `dir` (Vector3 or `nil`) — WASD/analog input direction.  
-  `target` (EntityScript or `nil`) — Double-click mouseover target.
+*   **Description:** Invokes `doubleclickactionsfn` if defined (not shown in this file but expected). Supports an optional second position return.  
+*   **Parameters:**  
+    - `pos` (`Vector3` or `nil`): Double-click position (mouse).  
+    - `dir` (`Vector3` or `nil`): Direction (WASD/analog).  
+    - `target` (`EntityScript` or `nil`): Target under mouse.  
+*   **Returns:** `table` of `BufferedAction` instances.
 
 ### `GetEquippedItemActions(target, useitem, right)`
-* **Description:** Collects actions using the currently equipped hands item on a target.
-* **Parameters:**  
-  `target` (EntityScript or `nil`)  
-  `useitem` (Item) — Equipped hands item.  
-  `right` (boolean) — `true` if for right-click.
+*   **Description:** Collects actions triggered by the equipped `useitem` on `target`.  
+*   **Parameters:**  
+    - `target` (`EntityScript`): Target entity.  
+    - `useitem` (`EntityScript`): Equipped item.  
+    - `right` (`boolean`): Context flag.  
+*   **Returns:** `table` of `BufferedAction` instances.
 
 ### `GetInventoryActions(useitem, right)`
-* **Description:** Collects actions available on an item in the player’s inventory (e.g., use, drop, trade).
-* **Parameters:**  
-  `useitem` (Item) — Item being used.  
-  `right` (boolean) — `true` if for right-click.
+*   **Description:** Collects inventory-related actions (`DROP`, `THROW`, `EAT`, etc.). Overrides to `ACTIONS.DROP` when `CONTROL_FORCE_TRADE` is held; enforces `wholestack` unless `CONTROL_FORCE_STACK` is held.  
+*   **Parameters:**  
+    - `useitem` (`EntityScript`): Item in hand.  
+    - `right` (`boolean`): Context flag.  
+*   **Returns:** `table` of `BufferedAction` instances.
 
 ### `GetLeftClickActions(position, target)`
-* **Description:** The core handler for generating left-click actions. Consults overrides, steering/cannon states, and various fallbacks (inventory, equipped item, scene, point).
-* **Parameters:**  
-  `position` (Vector3 or `nil`) — Mouse world position.  
-  `target` (EntityScript or `nil`) — Mouseover target entity.
+*   **Description:** Resolves the full set of left-click actions. Checks overrides, steering, cannon aim, item use (on entities or point), scene inspection/attack/equipped-item actions, and point special actions.  
+*   **Parameters:**  
+    - `position` (`Vector3`): World click position.  
+    - `target` (`EntityScript` or `nil`): Entity under mouse (or `nil` for point).  
+*   **Returns:** `table` of `BufferedAction` instances.
 
 ### `GetRightClickActions(position, target, spellbook)`
-* **Description:** The core handler for generating right-click actions. Supports containers, inventory, equipped item, scene, point, and spellbook interactions. Respects AOE targeting state to strip/allow actions.
-* **Parameters:**  
-  `position` (Vector3)  
-  `target` (EntityScript or `nil`)  
-  `spellbook` (Item or `nil`) — Currently open spellbook (if any).
+*   **Description:** Resolves the full set of right-click actions. Handles containers, item use, equipped weapons (including stripping actions for `CASTAOE`), scene inspection/attack/equipped-item actions, point special actions, and AOE passability logic. Respects `disable_right_click` (set by steering/cannon precedence).  
+*   **Parameters:**  
+    - `position` (`Vector3`): World click position.  
+    - `target` (`EntityScript` or `nil`): Entity under mouse (or `nil` for point).  
+    - `spellbook` (`EntityScript` or `nil`): Optional spellbook (used for AOE targeting).  
+*   **Returns:** `table` of `BufferedAction` instances.
 
 ### `DoGetMouseActions(position, target, spellbook)`
-* **Description:** Top-level method that returns the top-priority `BufferedAction` for left and right mouse clicks. Handles AOE targeting mode, darkness visibility checks, and filters out UI-only actions (e.g., `CLOSESPELLBOOK`).
-* **Parameters:** Same as `GetRightClickActions`, plus `position` can be `nil` to derive from input state.
-* **Returns:** `lmb`, `rmb` — Up to two `BufferedAction` instances (or `nil`).
+*   **Description:** Main entry point for retrieving top-priority left- and right-click actions. Handles AOE targeting state, point visibility (darkness), and filters out redundant actions (e.g., `CLOSESPELLBOOK` on self). Returns the highest-priority action for each button, if any.  
+*   **Parameters:**  
+    - `position` (`Vector3` or `nil`): Mouse position in world.  
+    - `target` (`EntityScript` or `nil`): Entity under mouse.  
+    - `spellbook` (`EntityScript` or `nil`): Active spellbook for AOE targeting.  
+*   **Returns:** `BufferedAction` (LMB), `BufferedAction` (RMB or `nil`).
 
-## Events & Listeners
-* Listens for `"onremove"` event on registered containers to automatically unregister them.
-* Does not push events.
+## Events & listeners
+- **Listens to:** `"onremove"` on registered containers to trigger `UnregisterContainer`.

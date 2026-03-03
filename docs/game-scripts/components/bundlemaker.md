@@ -1,54 +1,75 @@
 ---
 id: bundlemaker
 title: Bundlemaker
-description: Manages the data and callbacks for an entity that can create bundled items.
+description: Stores configuration for bundling items, including the source and target prefabs, optional skin data, and a callback for when bundling begins.
+tags: [crafting, inventory]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: crafting
+category_type: components
 source_hash: cf22819f
+system_scope: inventory
 ---
 
 # Bundlemaker
 
-## Overview
-The Bundlemaker component holds configuration data for entities capable of bundling items. It defines the prefabs used for the in-progress bundling animation and the final bundled item, and allows for custom logic to be executed when the bundling action begins. It can also carry over skin data to the resulting bundled item.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`BundleMaker` is a utility component that holds metadata required for item bundling operations. It does not perform bundling itself but provides the necessary configuration (prefab names, optional skin data, and startup callback) to external systems (such as crafting or inventory logic) that execute the bundling process. This component is typically attached to crafting-related prefabs or containers where bundling is a supported action.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("bundlemaker")
+inst.components.bundlemaker:SetBundlingPrefabs("bundle", "stick")
+inst.components.bundlemaker:SetSkinData("summer_stick", 12345)
+inst.components.bundlemaker:SetOnStartBundlingFn(function(inst, doer)
+    print("Starting bundling for", inst.prefab)
+end)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-
 | Property | Type | Default Value | Description |
-| :--- | :--- | :--- | :--- |
-| `bundlingprefab` | string | `nil` | The asset prefab name for the entity that appears while bundling is in progress. |
-| `bundledprefab` | string | `nil` | The asset prefab name for the final item created after bundling is complete. |
-| `onstartbundlingfn` | function | `nil` | A callback function that is executed when bundling starts. |
-| `bundledskinname` | string | `nil` | The skin name to be applied to the final bundled item. |
-| `bundledskin_id` | number | `nil` | The numerical skin ID to be applied to the final bundled item. |
+|----------|------|---------------|-------------|
+| `bundlingprefab` | string or nil | `nil` | The prefab name of the bundling tool (e.g., `"bundle"`). |
+| `bundledprefab` | string or nil | `nil` | The prefab name of the item being bundled (e.g., `"stick"`). |
+| `bundledskinname` | string or nil | `nil` | Optional skin name for the bundled item. |
+| `bundledskin_id` | number or nil | `nil` | Optional numeric ID for the bundled item's skin. |
+| `onstartbundlingfn` | function or nil | `nil` | Optional callback invoked when bundling begins; signature `fn(inst, doer)`. |
 
-## Main Functions
+## Main functions
 ### `SetBundlingPrefabs(bundling, bundled)`
-* **Description:** Sets the prefabs to be used for the bundling process and the resulting item.
-* **Parameters:**
-    * `bundling` (string): The prefab name for the in-progress bundling object.
-    * `bundled` (string): The prefab name for the completed bundled item.
+* **Description:** Sets the prefab names for the bundling tool and the item being bundled.
+* **Parameters:**  
+  - `bundling` (string) — prefab name of the bundling item/tool.  
+  - `bundled` (string) — prefab name of the item that will be created/bundled.
+* **Returns:** Nothing.
 
 ### `SetSkinData(skinname, skin_id)`
-* **Description:** Assigns skin information to be applied to the final bundled item.
-* **Parameters:**
-    * `skinname` (string): The name of the skin.
-    * `skin_id` (number): The numerical ID of the skin.
+* **Description:** Sets optional skin information for the bundled item, used when skin variants exist.
+* **Parameters:**  
+  - `skinname` (string) — skin identifier name.  
+  - `skin_id` (number) — unique numeric skin ID.
+* **Returns:** Nothing.
 
 ### `SetOnStartBundlingFn(fn)`
-* **Description:** Sets a callback function to be executed when the `OnStartBundling` function is called.
-* **Parameters:**
-    * `fn` (function): The function to be called. It will receive the component's entity instance (`inst`) and the `doer` as arguments.
+* **Description:** Assigns a callback function to be executed when bundling is initiated.
+* **Parameters:**  
+  - `fn` (function) — a function that accepts two arguments: `inst` (the bundlemaker owner) and `doer` (the entity performing bundling).
+* **Returns:** Nothing.
 
 ### `OnStartBundling(doer)`
-* **Description:** Triggers the bundling process by executing the `onstartbundlingfn` callback if it has been set.
-* **Parameters:**
-    * `doer` (Entity): The entity that initiated the bundling action.
+* **Description:** Invokes the stored callback (if present) to signal bundling has started.
+* **Parameters:**  
+  - `doer` (entity) — the entity that triggered the bundling action.
+* **Returns:** Nothing.
+
+## Events & listeners
+None identified

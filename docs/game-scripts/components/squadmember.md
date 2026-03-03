@@ -1,66 +1,85 @@
 ---
 id: squadmember
 title: Squadmember
-description: Manages entity membership in squads, tracking other members and broadcasting join/leave events.
+description: Manages an entity's membership in a named squad, tracking other members and broadcasting squad join/leave events.
+tags: [squad, group, event, ai]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: ac1b27e1
+system_scope: entity
 ---
 
 # Squadmember
 
-## Overview
-The `SquadMember` component tracks whether an entity belongs to a squad (a named group), maintains a set of currently grouped entities, and listens for squad membership events (join/leave) to update tracking accordingly. It supports dynamic squad membership changes, automatic bidirectional tracking between squad members, and event-driven lifecycle management (e.g., removal from entity triggers squad exit).
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component dependency:** Relies on the `squadmember` component being present on other entities for bidirectional tracking (via `other.components.squadmember`).
-- **No explicit tag changes** are made on the entity itself.
-- Uses global world events (`ms_joinsquad_*`, `ms_leavesquad_*`) via `TheWorld:PushEvent` and `inst:ListenForEvent`.
+## Overview
+`SquadMember` enables an entity to belong to a named squad (e.g., `beefalo_herd`, `tentacle_horde`) and maintain bidirectional awareness of other squad members. It facilitates dynamic squad membership tracking via events (`ms_joinsquad_*` and `ms_leavesquad_*`) and supports synchronization across clients in multiplayer. This component is typically attached to entities that participate in group behavior, such as beefalo or other social creatures.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("squadmember")
+inst.components.squadmember:JoinSquad("beefalo_herd")
+print(inst.components.squadmember:GetSquadName()) -- "beefalo_herd"
+for member in pairs(inst.components.squadmember:GetOtherMembers()) do
+    print("Squadmate:", member:GetDebugString())
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity instance this component is attached to. |
-| `squad` | `string` or `nil` | `""` (empty string) | The name of the squad this entity belongs to; `nil` after leaving a squad. |
-| `others` | `table` | `{}` | A set-like table mapping other squad members (entities) to `true`; cleared on leave/disconnect. |
+| `squad` | string or `nil` | `""` | The name of the squad this entity belongs to; empty string or `nil` means not in a squad. |
+| `others` | table | `{}` | Dictionary mapping other squad member entities to `true`. |
 
-## Main Functions
-
+## Main functions
 ### `IsInSquad()`
-* **Description:** Returns whether the entity is currently in any squad (i.e., `squad` is non-empty).
+* **Description:** Returns whether the entity is currently in a squad (i.e., `squad` is non-empty).
 * **Parameters:** None.
+* **Returns:** `boolean` — `true` if `squad` is a non-empty string, otherwise `false`.
 
 ### `GetSquadName()`
-* **Description:** Returns the current squad name as a string, or an empty string if not in a squad.
+* **Description:** Returns the name of the squad this entity belongs to.
 * **Parameters:** None.
+* **Returns:** `string` — the squad name, or empty string if not in a squad.
 
 ### `GetOtherMembers()`
-* **Description:** Returns the internal set of currently tracked squad members (other entities).
+* **Description:** Returns a table of all other entities currently in the same squad.
 * **Parameters:** None.
+* **Returns:** `table` — a dictionary where keys are entity instances and values are `true`. Includes only members currently tracked via event callbacks.
 
 ### `JoinSquad(squadname)`
-* **Description:** Joins the specified squad (or empty string to clear membership). Automatically stops tracking old members, updates `squad`, registers for join events on the new squad, and broadcasts a join event. Bidirectional tracking with new members is established via `_onotherjoined`.
-* **Parameters:**
-  * `squadname` (`string`, optional, default `""`): The name of the squad to join.
+* **Description:** Assigns this entity to a squad and registers for join/leave events of that squad. Existing squad membership is dropped first. If `squadname` is `nil` or empty, it behaves like leaving any current squad without joining a new one.
+* **Parameters:** `squadname` (string or `nil`) — the name of the squad to join.
+* **Returns:** Nothing.
+* **Error states:** If already in the same squad, no action is taken.
 
 ### `LeaveSquad()`
-* **Description:** Exits the current squad: stops tracking all members, clears the `squad` field, and broadcasts a leave event for the previous squad. Called automatically on entity removal via `OnRemoveFromEntity`.
+* **Description:** Removes this entity from its current squad, cleans up tracking of other members, and fires a leave event for the old squad.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Safe to call multiple times; no-op if not in a squad.
 
 ### `GetDebugString()`
-* **Description:** Returns a multi-line debug string summarizing squad membership: the squad name in angle brackets, followed by line-by-line references to tracked members. Returns `nil` if not in a squad.
+* **Description:** Returns a multi-line debug string summarizing the entity's squad membership and list of squadmates.
 * **Parameters:** None.
+* **Returns:** `string` or `nil` — if in a squad, returns a formatted string like `"<squadname>\n  entity1\n  entity2"`, otherwise `nil`.
 
-## Events & Listeners
-- **Listens for (`inst:ListenForEvent`):**
-  - `"ms_joinsquad_<squadname>"` → triggers `_onotherjoined`
-  - `"ms_leavesquad_<squadname>"` → triggers `_onotherleft`
-  - `"onremove"` → triggers `_onotherleft`
-- **Triggers (`inst:PushEvent` or `TheWorld:PushEvent`):**
-  - `"ms_joinsquad_<squadname>"` (via `TheWorld`) when joining a squad.
-  - `"ms_leavesquad_<squadname>"` when leaving a squad.
+## Events & listeners
+- **Listens to:**  
+  - `ms_joinsquad_<squadname>` (on `TheWorld`) — triggers when another entity joins the same squad; adds the new member to `others` and sets up mutual tracking.  
+  - `ms_leavesquad_<squadname>` (on `self.inst`) — triggered when another squad member leaves; removes that member from `others`.  
+  - `onremove` (on `self.inst`) — triggered when a tracked squad member is removed; removes it from `others`.  
+- **Pushes:**  
+  - `ms_leavesquad_<squadname>` — fired on `self.inst` when leaving a squad (not broadcast on `TheWorld`).  
+
+SquadMember does not push `ms_joinsquad_*` events; joining is exclusively communicated via global `TheWorld` event callbacks.

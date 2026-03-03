@@ -1,37 +1,52 @@
 ---
 id: occupier
 title: Occupier
-description: Tracks ownership of an entity by assigning and retrieving an owner reference.
+description: Stores and manages ownership information for an entity, typically used for map regions or structures claimed by a specific entity (e.g., a boss or character).
+tags: [map, ownership, region]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 47604145
+system_scope: entity
 ---
 
 # Occupier
 
-## Overview
-The Occupier component provides simple owner management for an entity by storing and exposing a reference to the entity's current owner. It does not enforce or manage ownership logic itself—only stores and returns the owner value.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Occupier` is a lightweight component that provides simple ownership semantics for an entity. It allows storing and retrieving a reference to the entity that "owns" or "occupies" the host entity, such as a claimed zone or structure. It does not perform any logic itself—its sole purpose is to hold and expose ownership state.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("occupier")
+inst.components.occupier:SetOwner(some_entity)
+local owner = inst.components.occupier:GetOwner()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (assigned via constructor) | Reference to the entity instance the component is attached to. |
-| `owner` | `Entity?` | `nil` | Reference to the entity's owner (e.g., a player or another entity). Can be `nil`. |
+| `owner` | `Guid` or `Entity` or `nil` | `nil` | Reference to the entity that occupies or claims this instance. |
 
-## Main Functions
+## Main functions
 ### `GetOwner()`
-* **Description:** Returns the current owner reference stored in the component.
+* **Description:** Returns the current owner of this entity.
 * **Parameters:** None.
+* **Returns:** The owner entity, or `nil` if no owner is set.
 
 ### `SetOwner(owner)`
-* **Description:** Assigns a new owner to the entity. Accepts any entity reference (or `nil` to clear ownership).
-* **Parameters:**
-  * `owner` (`Entity?`) — The entity to set as the owner. May be `nil`.
+* **Description:** Sets the owner of this entity.
+* **Parameters:** `owner` (Entity or `nil`) — the entity to set as owner.
+* **Returns:** Nothing.
+
+## Events & listeners
+None identified

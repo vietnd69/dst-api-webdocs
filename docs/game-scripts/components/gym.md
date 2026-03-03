@@ -1,110 +1,121 @@
 ---
 id: gym
 title: Gym
-description: Manages training interactions between a gym structure and a trainee entity, including start/stop training, sleep-cycle responsiveness, and training progress updates.
+description: Manages training interactions with a trainee entity, including training timer management, perishability checks, music state transitions, and phase-based rest behavior.
+tags: [training, entity, timer, perishable]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: e486cde5
+system_scope: entity
 ---
 
 # Gym
 
-## Overview
-This component enables a gym structure entity to manage training sessions with a designated trainee entity. It handles training lifecycle events (start, stop, completion), integrates with the world day/night cycle to trigger rest states, monitors trainee perishability, and persists training state across saves. It is designed to be attached to a gym structure and coordinate activity with a single trainee entity.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components used**: `timer`, `perishable` (on trainee), `musicstate` (assumed on `self.inst`)
-- **Tags**: None explicitly added or removed.
-- **Events listened to internally**: `"timerdone"`, `"onremove"` (on trainee), `"death"` (on trainee), `"rest"`, `"starttraining"`, `"endtraining"`, `"endrest"`
-- **World state watched**: `"phase"` (day/night)
+## Overview
+The `Gym` component handles training interactions for an entity, such as a Carrat, by managing a training timer, associating a `trainee` entity, executing training logic via a callback function, and responding to in-world events (e.g., time of day, trainee removal, perishability). It integrates with the `timer` and `perishable` components to ensure robust training flow and state synchronization.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("gym")
+inst.components.gym:SetTrainFn(function(gym_inst, trainee_inst)
+    trainee_inst.components.talker:Say("I learned something!")
+end)
+local trainee = GetPlayerEntity()
+inst.components.gym:SetTrainee(trainee)
+inst.components.gym:StartTraining()
+```
+
+## Dependencies & tags
+**Components used:** `timer`, `perishable`  
+**Tags:** None added, removed, or checked by this component.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity this component is attached to (the gym structure). |
-| `trainfn` | `function` | `nil` | Callback function executed each time a training session completes. Receives `(gym_inst, trainee_inst)`. |
-| `trainee` | `Entity?` | `nil` | The entity currently undergoing training (e.g., a character). |
-| `traintime` | `number` | `TUNING.CARRAT_GYM.TRAINING_TIME` | Duration in seconds of a single training cycle (unless overridden). |
-| `onLoseTraineeFn` | `function?` | `nil` | Optional callback when the trainee is removed (via `SetOnRemoveTraineeFn`). Receives `gym_inst`. |
-| `_removetrainee` | `function?` | `nil` | Internal handler for trainee removal/death events. |
-| `perishcheck` | `Task?` | `nil` | Periodic task (every 5s) checking trainee perish level during training. |
-| `resttask` | `Task?` | `nil` | Delayed task used to resume training after a perish-based interruption. |
-| `montagemusic` | `Task?` | `nil` | Periodic task (every 4s) to manage music state during training. |
+| `inst` | `GObj` | — | Reference to the entity that owns this component. |
+| `trainfn` | `function?` | `nil` | Callback function invoked after training completes; signature: `(gym_inst, trainee_inst)`. |
+| `trainee` | `GObj?` | `nil` | The entity currently being trained. |
+| `traintime` | number | `TUNING.CARRAT_GYM.TRAINING_TIME` | Default duration (in seconds) for training sessions. |
+| `onLoseTraineeFn` | `function?` | `nil` | Optional callback invoked when the trainee is removed. |
 
-## Main Functions
-
+## Main functions
 ### `SetOnRemoveTraineeFn(fn)`
-* **Description:** Sets a custom callback to execute when the trainee is removed (e.g., despawned, died, or manually cleared).  
-* **Parameters:**  
-  - `fn(function)`: Function to call with `gym_inst` as its argument.
+* **Description:** Sets a callback to be executed when the trainee is removed (e.g., via `RemoveTrainee()` or spontaneous events like death).
+* **Parameters:** `fn` (function) — receives the gym instance as its only argument.
+* **Returns:** Nothing.
 
 ### `RemoveTrainee()`
-* **Description:** Removes the current trainee, cleans up event listeners, stops training, and invokes the `onLoseTraineeFn` callback if set.  
+* **Description:** Unsets the trainee, removes event listeners attached to the trainee, and cancels an active training timer if present.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Silently returns if `trainee` is `nil`.
 
 ### `SetTrainee(inst)`
-* **Description:** Assigns an entity as the trainee. Sets up `"onremove"` and `"death"` event listeners to auto-remove the trainee if it leaves the world or dies.  
-* **Parameters:**  
-  - `inst(Entity?)`: The entity to train; `nil` clears the trainee.
+* **Description:** Assigns an entity as the current trainee and registers `onremove` and `death` listeners to automatically remove it if it leaves the world.
+* **Parameters:** `inst` (`GObj?`) — the entity to train; `nil` removes the current trainee.
+* **Returns:** Nothing.
 
 ### `SetTrainFn(fn)`
-* **Description:** Sets the callback function invoked at the end of each training session (after `traintime` elapses). Typically used to apply training effects (e.g., stat increases).  
-* **Parameters:**  
-  - `fn(function)`: Signature: `fn(gym_inst, trainee_inst)`.
-
-### `PushMontage()`
-* **Description:** Controls the gym’s music state: switches to `TRAINING` music if it’s daytime and a trainee exists; otherwise sets to `NONE`.  
-* **Parameters:** None.
+* **Description:** Assigns the callback function invoked upon training completion.
+* **Parameters:** `fn` (function) — function to run when training finishes.
+* **Returns:** Nothing.
 
 ### `StartTraining(inst, time)`
-* **Description:** Begins a training session. Starts a `"training"` timer, pushes `"starttraining"` or `"rest"` event based on time of day, and launches periodic tasks for perish checks and montage music.  
-* **Parameters:**  
-  - `inst(Entity)`: The trainee (optional; defaults to stored `self.trainee`).  
-  - `time(number?)`: Duration override in seconds; falls back to `self.traintime` if omitted.
+* **Description:** Begins a training session by starting a named `"training"` timer, pushing `"starttraining"` (or `"rest"` at night) events, and setting up periodic checks (perishability and music).
+* **Parameters:**
+  * `inst` (`GObj?`) — currently unused; retained for compatibility but does not affect behavior.
+  * `time` (number?) — optional override for training duration; defaults to `traintime`.
+* **Returns:** Nothing.
 
 ### `StopTraining()`
-* **Description:** Halts training: cancels all associated tasks, stops the timer, resets music state, and pushes `"endtraining"`. Does *not* remove the trainee.  
+* **Description:** Ends the training session: cancels the timer and periodic tasks, and pushes `"endtraining"` event.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `CheckPerish()`
-* **Description:** During training, checks if the trainee is >90% perishable (i.e., `GetPercent() < 0.1`). If so, with 30% probability, ends training and schedules a short rest before potentially resuming.  
+* **Description:** Periodically inspects the trainee's perish state during training; if perish level falls below `0.1`, it triggers a random chance to briefly interrupt training with a `"rest"` state.
 * **Parameters:** None.
-
-### `OnTimerDone(data)`
-* **Description:** Callback for `"timerdone"` events. When the `"training"` timer completes, it stops training and triggers the `Train()` step.  
-* **Parameters:**  
-  - `data(table)`: Event payload; must contain `name == "training"`.
+* **Returns:** Nothing.
+* **Error states:** Does nothing if trainee or trainee's `perishable` component is missing.
 
 ### `Train()`
-* **Description:** Applies the training effect by incrementing `trainee.training` and invoking `trainfn`.  
+* **Description:** Executes the `trainfn` callback and increments the trainee's `training` counter (if present).
 * **Parameters:** None.
-
-### `checktraineesleep(phase)`
-* **Description:** Responds to day/night phase changes while a trainee is assigned: pushes `"rest"` at night and `"endrest"` at day.  
-* **Parameters:**  
-  - `phase(string)`: `"day"` or `"night"`.
+* **Returns:** Nothing.
+* **Error states:** Silently returns if `trainfn` or `trainee` is `nil`.
 
 ### `OnSave()`
-* **Description:** Returns a table with the remaining time of the `"training"` timer (if active) for serialization.  
+* **Description:** Returns serialization data for the current training timer (time remaining), if any.
 * **Parameters:** None.
+* **Returns:** `{ timer: number? }` — `timer` is the remaining time in seconds or `nil`.
 
 ### `LoadPostPass(newents, data)`
-* **Description:** Restarts training after load if training was in progress, using the saved timer value as duration.  
-* **Parameters:**  
-  - `newents(table)`: Unused.  
-  - `data(table)`: Contains `timer` (remaining seconds) if training was ongoing.
+* **Description:** Resumes an incomplete training session on load by restarting the timer with saved time.
+* **Parameters:**
+  * `newents` — unused, required for interface.
+  * `data` (table) — must contain `data.timer` if a session should be resumed.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a placeholder debug string (`"nothing yet"`).  
+* **Description:** Returns a debug string representation of the component's state.
 * **Parameters:** None.
+* **Returns:** `"nothing yet"` (string).
 
-## Events & Listeners
-- Listens to `"timerdone"` on `self.inst`, routing to `OnTimerDone`.
-- Listens to `"onremove"` and `"death"` on the trainee (when assigned), routing to internal `_removetrainee`.
-- Watches `"phase"` world state via `WatchWorldState`, routing to `checktraineesleep`.
-- Pushes events: `"rest"`, `"starttraining"`, `"endtraining"`, `"endrest"`.
+## Events & listeners
+- **Listens to:**  
+  * `"timerdone"` — handled by `OnTimerDone()` to conclude training and invoke `Train()`.  
+  * `"onremove"` and `"death"` — attached to the `trainee` to trigger `RemoveTrainee()`.  
+  * `"phase"` — watched via `WatchWorldState` to call `checktraineesleep()` and push `"rest"`/`"endrest"` events based on time of day.
+
+- **Pushes:**  
+  * `"starttraining"` — fired when training begins.  
+  * `"endtraining"` — fired when training ends or is interrupted (e.g., by perish threshold or phase change).  
+  * `"rest"` — fired when training transitions to rest (e.g., at night or after perish threshold).  
+  * `"endrest"` — fired when rest ends at dawn.

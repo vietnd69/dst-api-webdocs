@@ -1,46 +1,58 @@
 ---
 id: maxhealer
 title: Maxhealer
-description: A consumable component that heals a target entity by reducing their health penalty and is consumed upon use.
+description: Applies a health penalty reduction to a target entity when consumed, typically used for revive-like consumable items.
+tags: [consumable, health, revival, item]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: inventory
+category_type: components
 source_hash: 089cca79
+system_scope: entity
 ---
 
 # Maxhealer
 
-## Overview
-The `Maxhealer` component enables an entity (typically a consumable item like a Maxillae or similar) to restore a target’s health by reducing their accumulated health penalty. It is designed for single-use: after healing a target, the item is removed from the game world or stack.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on the `health` component being present on the target entity.
-- May interact with the `stackable` component if the item is stackable.
-- No tags are added or removed by this component.
+## Overview
+`Maxhealer` is a component that applies a penalty reduction to a target's health by increasing their effective maximum health. It is designed for consumable items (e.g., revival items like Maxmallow) that reduce the current health penalty (i.e., heal the entity by effectively raising their max HP). The component consumes the item after use, either by decrementing stack size (if stackable) or removing the entity entirely.
+
+This component interacts directly with the `health` component (to adjust penalty) and optionally with the `stackable` component (to handle stack consumption).
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("maxhealer")
+inst:AddComponent("stackable")
+inst.components.maxhealer:SetHealthAmount(TUNING.MAX_HEALING_REVIVE)
+-- When used:
+inst.components.maxhealer:Heal(player_entity)
+```
+
+## Dependencies & tags
+**Components used:** `health`, `stackable`  
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity to which this component is attached. |
-| `healamount` | `number` | `TUNING.MAX_HEALING_NORMAL` | The amount of health penalty (as a raw value or percentage factor) to remove from the target upon healing. Not a health *value*, but a *penalty reduction* amount. |
+| `healamount` | number | `TUNING.MAX_HEALING_NORMAL` | The amount of penalty reduction (as a positive value) applied when healing. Represented as a factor (e.g., percentage) of max health, not raw HP. |
 
-## Main Functions
-
+## Main functions
 ### `SetHealthAmount(health)`
-* **Description:** Sets the amount of health penalty to be removed during the next heal operation. The comment clarifies this is a factor tied to the number of revives, not raw HP.
-* **Parameters:**
-  - `health` (number): The new penalty reduction amount to apply.
+*   **Description:** Sets the amount of penalty reduction to apply during healing. This value is used in subsequent calls to `Heal()` and represents the amount to *subtract* from the target’s health penalty.
+*   **Parameters:** `health` (number) — the desired penalty reduction amount (positive).
+*   **Returns:** Nothing.
 
 ### `Heal(target)`
-* **Description:** Applies healing to the specified target entity by reducing its health penalty. After successful healing, consumes the item (removes it from the stack or deletes it entirely).
-* **Parameters:**
-  - `target` (Entity): The entity to heal. Must have a `health` component.
-* **Returns:** `true` if healing was applied (i.e., `target.components.health` existed and `DeltaPenalty` was called); otherwise returns `nil`.
+*   **Description:** Applies the configured penalty reduction to the target entity’s health. Consumes the item after successful healing (either by decrementing stack size or destroying the instance). Returns whether the healing was successful.
+*   **Parameters:** `target` (Entity) — the entity to heal. Must have a `health` component.
+*   **Returns:** `true` if healing was applied (i.e., target has `components.health`); otherwise `nil`.
+*   **Error states:** Returns `nil` (no effect) if the target does not have a `health` component. If the item is stackable, only one unit is consumed via `stackable:Get()`, which may return a new entity (if stack size > 1). After healing, the consumed unit (either the original instance or the new one) is removed.
 
-## Events & Listeners
-None identified.
+## Events & listeners
+- **Listens to:** None identified.
+- **Pushes:** None identified.

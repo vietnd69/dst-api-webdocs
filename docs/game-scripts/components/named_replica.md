@@ -1,41 +1,56 @@
 ---
 id: named_replica
 title: Named Replica
-description: This component synchronizes the name and author of an entity across the network using replica variables and updates local instance properties in response to dirty events on clients.
+description: Manages network-replicated name and author information for entities in DST's multiplayer system.
+tags: [network, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: components
 source_hash: 936a8f23
+system_scope: network
 ---
 
 # Named Replica
 
-## Overview
-This component manages client-server synchronization of an entity's display name and author identifier. It uses `net_string` replica variables to propagate changes from the master simulation to clients and listens for dirty events on non-master instances to update local name and author properties.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Replica Variables:** Creates two replica string variables: `_name` and `_author_netid`.
-- **No external component dependencies** (e.g., no `AddComponent` calls).
-- **Event Listeners:** Registers local listeners for `"namedirty"` and `"authordirty"` events only on non-master instances.
+## Overview
+`Named Replica` is a lightweight component that handles the replication of entity name and author metadata between server and clients in multiplayer sessions. It creates networked variables (`net_string`) for `_name` and `_author_netid`, and sets up local listeners on non-master clients to synchronize `inst.name` and `inst.name_author_netid` when changes occur. The component is intended for server-authoritative updates only.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("named_replica")
+-- Server-side only
+inst.components.named_replica:SetName("Legendary Artifact", "Player123")
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `_name` | `net_string` | `net_string(inst.GUID, "named._name", "namedirty")` | Replica variable storing the entity's display name; synchronized across the network. |
-| `_author_netid` | `net_string` | `net_string(inst.GUID, "named._author_netid", "authordirty")` | Replica variable storing the author's NetID as a string; synchronized across the network. |
+| `inst.replica.named._name` | net_string | (created in constructor) | Networked string for the entity's display name. |
+| `inst.replica.named._author_netid` | net_string | (created in constructor) | Networked string for the entity's author netid. |
+| `inst.name` | string | `STRINGS.NAMES[UPPERCASE_PREFAB]` | Local cached name, synced from replica. |
+| `inst.name_author_netid` | string or nil | `nil` | Local cached author netid, synced from replica. |
 
-## Main Functions
+## Main functions
+### `SetName(name, author)`
+*   **Description:** Sets the entity's name and author netid on the server. Values are replicated to all clients.
+*   **Parameters:**  
+    `name` (string) — The display name to assign.  
+    `author` (string) — The netid of the entity's author (e.g., player who placed or created it).  
+*   **Returns:** Nothing.
+*   **Error states:** Only executes on the master simulation (`TheWorld.ismastersim`). Client calls have no effect.
 
-### `Named:SetName(name, author)`
-* **Description:** Sets the entity's name and author on the master simulation. This triggers dirty events on the master, which propagate the values to clients via replica sync.
-* **Parameters:**
-  * `name` (string): The display name to assign to the entity. Empty strings are accepted but may trigger fallback naming on clients.
-  * `author` (string): The author's NetID (as a string). Can be empty; clients treat empty values as `nil`.
-
-## Events & Listeners
-- **Listens for `"namedirty"` event** (client-side only): Triggers `OnNameDirty`, which updates `inst.name` using the value from `self._name` or falls back to a default string based on `inst.prefab`.
-- **Listens for `"authordirty"` event** (client-side only): Triggers `OnAuthorDirty`, which updates `inst.name_author_netid` with the author NetID from `self._author_netid`, or sets it to `nil` if the value is empty.
+## Events & listeners
+- **Listens to:**  
+    `namedirty` — Triggers `OnNameDirty()` to update `inst.name` from the replica name on non-master clients.  
+    `authordirty` — Triggers `OnAuthorDirty()` to update `inst.name_author_netid` from the replica author on non-master clients.  
+- **Pushes:** None.

@@ -1,50 +1,75 @@
 ---
 id: pocketwatch
 title: Pocketwatch
-description: A lightweight component that manages an entity's casting state by tracking whether it is inactive and conditionally enabling spell casting.
+description: Controls whether an entity can cast spells based on its inactive state and optional custom casting conditions.
+tags: [spellcasting, state, ability]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: fbbba304
+system_scope: entity
 ---
 
 # Pocketwatch
 
-## Overview
-The `PocketWatch` component serves as a flexible spell-casting gatekeeper. It tracks whether an entity is in an *inactive* state (via the `inactive` property) and conditionally allows spell casting—either by default (if `CanCastFn`/`DoCastSpell` functions are assigned externally) or explicitly denied when inactive.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-* **Tags Added/Removed:** `"pocketwatch_inactive"` (added when `inactive = true`, removed on component removal or when `inactive = false`)
-* **Component Dependencies:** None declared. Requires only that the entity (`inst`) supports tag management (`AddOrRemoveTag`, `RemoveTag`).
+## Overview
+The `pocketwatch` component implements a toggle mechanism to enable or disable spellcasting functionality on an entity. It manages an `inactive` state flag, which—if `true`—blocks all spell casting unless explicitly overridden by custom logic. When the component is attached to an entity, it automatically manages the `"pocketwatch_inactive"` tag based on the `inactive` state, allowing game systems to query tag presence for conditional behavior.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("pocketwatch")
+
+-- Override casting logic (optional)
+inst.components.pocketwatch.CanCastFn = function(inst, doer, target, pos)
+    return doer:HasTag("player") and pos ~= nil
+end
+
+inst.components.pocketwatch.DoCastSpell = function(inst, doer, target, pos)
+    -- Perform spell logic here
+    return true
+end
+
+-- Disable spellcasting by setting inactive = true (default)
+inst.components.pocketwatch.inactive = true
+
+-- Enable spellcasting
+inst.components.pocketwatch.inactive = false
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds/removes `"pocketwatch_inactive"` on the owner entity based on the `inactive` state.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (assigned in constructor) | Reference to the owning entity. |
-| `inactive` | `boolean` | `true` | Controls whether the pocketwatch is active. When `true`, casting is blocked unless `CanCastFn`/`DoCastSpell` explicitly allow it. |
-| `CanCastFn` | `function` | `nil` | Optional external callback (set externally) that overrides the default cast check. |
-| `DoCastSpell` | `function` | `nil` | Optional external callback (set externally) containing the actual spell logic. |
+| `inactive` | boolean | `true` | If `true`, casting is blocked (unless overridden by `CanCastFn`). Controls the `"pocketwatch_inactive"` tag. |
+| `CanCastFn` | function or `nil` | `nil` | Optional custom predicate used in `CanCast`. Signature: `fn(inst, doer, target, pos) -> boolean`. |
+| `DoCastSpell` | function or `nil` | `nil` | Optional spellcasting implementation. Signature: `fn(inst, doer, target, pos) -> success (boolean), reason (string?)`. |
 
-> **Note:** `CanCastFn` and `DoCastSpell` are not initialized in the constructor but are expected to be assigned externally (e.g., by the modder or higher-level logic) to enable full spell functionality.
-
-## Main Functions
+## Main functions
 ### `CanCast(doer, target, pos)`
-* **Description:** Determines whether the entity is allowed to cast a spell. Returns `true` only if `inactive = true` *and* either no custom `CanCastFn` is set, or `CanCastFn` returns `true`.
-* **Parameters:**
-  * `doer`: The entity attempting to cast.
-  * `target`: The target entity (if any).
-  * `pos`: The target position (if any).
+*   **Description:** Checks whether spellcasting is allowed at this time. Returns `false` if `inactive` is `true`, unless overridden by `CanCastFn`.
+*   **Parameters:**
+    *   `doer` (entity) – The entity attempting to cast the spell.
+    *   `target` (entity or `nil`) – The target entity, if any.
+    *   `pos` (`Vector3` or `nil`) – The target position, if any.
+*   **Returns:** `boolean` – `true` if casting is permitted, `false` otherwise.
 
 ### `CastSpell(doer, target, pos)`
-* **Description:** Executes the spell logic *if* `inactive = true` *and* a `DoCastSpell` function has been assigned. Returns `false` if conditions aren’t met; otherwise returns the result of `DoCastSpell`.
-* **Parameters:**
-  * `doer`: The entity attempting to cast.
-  * `target`: The target entity (if any).
-  * `pos`: The target position (if any).
+*   **Description:** Attempts to execute the spell using `DoCastSpell`, but only if `inactive` is `false`.
+*   **Parameters:**
+    *   `doer` (entity) – The entity casting the spell.
+    *   `target` (entity or `nil`) – The target entity, if any.
+    *   `pos` (`Vector3` or `nil`) – The target position, if any.
+*   **Returns:** `success (boolean)`, `reason (string or nil)` – Success status and optional failure reason (e.g., "not implemented"). Returns `false, nil` if `DoCastSpell` is `nil` or `inactive` is `true`.
 
-## Events & Listeners
-* Listens to the `"inactive"` event: Triggers the `oninactive` handler to add/remove the `"pocketwatch_inactive"` tag on the entity when the `"inactive"` event is pushed.
+## Events & listeners
+- **Pushes:** `pocketwatch_inactive` tag is added/removed via `inst:AddOrRemoveTag` when `inactive` changes (handled via property setter).  
+- **Listens to:** None identified.

@@ -1,139 +1,171 @@
 ---
 id: stageactingprop
 title: Stageactingprop
-description: Manages the logic and state for theatrical performances on stage props, including cast collection, script selection, line execution, and performance lifecycle.
+description: Manages theatrical performance logic for stage props, including script selection, cast collection, and line delivery coordination.
+tags: [theater, ai, performance, script, event]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 7c36412d
+system_scope: entity
 ---
 
 # Stageactingprop
 
-## Overview
-This component enables a stage prop entity (e.g., a stage or podium) to host and orchestrate theatrical performances. It handles casting nearby `stageactor` entities, selecting and executing lines from scripts based on available costumes, managing performance state (e.g., progress tags), and triggering callbacks for performance start/end events.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Adds Tag:** `stageactingprop`
-- **Requires Components:** `inventory` (via `GetEquippedItem`), `stageactor` (for cast members), `talker`, `locomotor`, `Transform`, `entitytracker` (for `GetEntity("lecturn")`)
-- **Events Listened For:** `unequip`, `newstate` (on cast members); internal thread sleep for line timing
-- **Events Pushed:** `play_begun`, `play_ended`, `perform_do_next_line`, `stopstageacting`, `startstageacting`, `play_performed`
+## Overview
+`Stageactingprop` orchestrates stage performances for props (e.g., lecterns, stages) in Don't Starve Together. It collects actors within range, matches them to roles using costume data, selects an appropriate script, and coordinates line delivery via `Talker` and stategraph events. It integrates with `stageactor`, `inventory`, `locomotor`, `playbill_lecturn`, and `entitytracker` to manage scene flow, coordination, and transitions.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("stageactingprop")
+
+inst.components.stageactingprop:AddGeneralScript("Act1", { cast = { "BEARCAT", "MONOLOGUE" }, lines = { ... } })
+inst.components.stageactingprop:AddPlay({
+    costumes = { BEARCAT = { head = "bearcat_head", body = "bearcat_body" } },
+    scripts = { Act1 = { ... } },
+    current_act = "Act1"
+})
+
+inst.components.stageactingprop:DoPerformance(player)
+```
+
+## Dependencies & tags
+**Components used:** `entitytracker`, `inventory`, `locomotor`, `playbill_lecturn`, `stageactor`, `talker`  
+**Tags:** Adds `stageactingprop` to its owner; checks/removes `acting`, `play_in_progress`, `NOCLICK`, `fire`, `burnt` on actors.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity this component is attached to (the stage prop) |
-| `cast` | `table` | `nil` | Map of costume name → `{castmember=Entity}`; populated during `CollectCast()` |
-| `script` | `string?` | `nil` | Key of the selected script to execute (e.g., act name); set before `DoLines()` |
-| `performance_problem` | `string?` | `nil` | Error code if performance is invalid (e.g., `"BAD_COSTUMES"`, `"NO_SCRIPT"`) |
-| `costumes` | `table` | `{}` | Map of costume name → `{head=string, body=string}` defining valid costume combos |
-| `current_act` | `string?` | `nil` | Key of the currently active script/act |
-| `generalscripts` | `table` | `{}` | General scripts loaded at initialization (from `play_generalscripts.lua`) |
-| `scripts` | `table` | `{}` | Combined scripts: general + play-specific (set via `AddPlay`) |
-| `enablefn` | `function?` | `nil` | Callback for enabling the prop (invoked by `EnableProp`) |
-| `dissablefn` | `function?` | `nil` | Callback for disabling the prop (invoked by `DisableProp`) |
-| `onperformancebegun` | `function?` | `nil` | Custom callback invoked when a performance starts (`DoPerformance`) |
-| `onperformanceended` | `function?` | `nil` | Custom callback invoked when a performance ends (`EndPerformance`) |
+| `cast` | table | `nil` | Map of `costume -> { castmember = ent }` for active performance. |
+| `script` | string | `nil` | Name of the currently active script. |
+| `performance_problem` | string | `nil` | Indicates why performance failed (e.g., `"NO_SCRIPT"`, `"BAD_COSTUMES"`). |
+| `costumes` | table | `{}` | Map of costume names to `{ head = prefab, body = prefab }`. |
+| `current_act` | string | `nil` | Name of the currently selected act. |
+| `generalscripts` | table | `{}` | General-purpose scripts stored on initialization. |
+| `scripts` | table | `{}` | Active scripts (general + play-specific). |
 
-## Main Functions
-
+## Main functions
 ### `AddGeneralScript(script_name, script_content)`
-* **Description:** Registers a general-purpose script by name. Fails if a script with the same name already exists.
-* **Parameters:**
-  * `script_name`: `string` — Unique identifier for the script.
-  * `script_content`: `table` — Script data (typically containing `cast`, `lines`, etc.).
+* **Description:** Registers a general script (applies to all plays) and adds it to `self.scripts`.
+* **Parameters:**  
+  `script_name` (string) — unique script identifier.  
+  `script_content` (table) — script definition table.  
+* **Returns:** Nothing.  
+* **Error states:** Asserts if `script_name` already exists in `generalscripts` or `scripts`.
 
 ### `AddPlay(playdata)`
-* **Description:** Loads a specific play’s data, merging general scripts with play-specific ones, and updating costumes and the current act.
-* **Parameters:**
-  * `playdata`: `table` — Table with keys `costumes` (map), `scripts` (map), and `current_act` (string).
+* **Description:** Loads a new play’s costume and script definitions, preserving general scripts.
+* **Parameters:**  
+  `playdata` (table) — expects `costumes`, `scripts`, and `current_act` keys.  
+* **Returns:** Nothing.
 
 ### `EnableProp()`
-* **Description:** Re-enables the stage prop by adding the `stageactingprop` tag and invoking `enablefn` if set.
+* **Description:** Ensures the `stageactingprop` tag is present and invokes the optional `enablefn`.
+* **Parameters:** None.  
+* **Returns:** Nothing.
 
 ### `DisableProp(time)`
-* **Description:** Disables the stage prop (removes `stageactingprop` tag), triggers `dissablefn` if set, and starts an update loop to re-enable after `time` seconds.
-* **Parameters:**
-  * `time`: `number?` — Seconds to wait before re-enabling; if omitted, the prop remains disabled until manually re-enabled.
+* **Description:** Removes `stageactingprop` tag, invokes `dissablefn`, and schedules re-enabling after `time` seconds.
+* **Parameters:**  
+  `time` (number?) — delay before re-enabling. If `nil`, no timer is started.  
+* **Returns:** Nothing.
 
 ### `FindCostume(head, body)`
-* **Description:** Searches `costumes` for a full or partial match based on item prefabs. Returns costume key or `nil`.
-* **Parameters:**
-  * `head`: `string?` — Prefab name of the head item.
-  * `body`: `string?` — Prefab name of the body item.
-* **Side Effects:** Sets `performance_problem = "BAD_COSTUMES"` if a partial (non-full) match is found.
+* **Description:** Finds the costume name matching the given head/body prefabs. Sets `performance_problem = "BAD_COSTUMES"` on partial match.
+* **Parameters:**  
+  `head` (string?) — head prefab name.  
+  `body` (string?) — body prefab name.  
+* **Returns:** (string?) — costume name if exact match; `nil` otherwise.
 
 ### `CheckCostume(player)`
-* **Description:** Invokes `FindCostume` using the player’s equipped head and body items.
-* **Parameters:**
-  * `player`: `Entity` — The actor entity whose inventory is checked.
+* **Description:** Checks what costume the player is wearing based on equipped head/body items.
+* **Parameters:**  
+  `player` (entity) — entity with `inventory` component.  
+* **Returns:** (string?) — costume name or `nil`.
 
 ### `CollectCast(doer)`
-* **Description:** Scans entities within 5.5 units for actors (`stageactor` tag, excluding `fire`/`burnt`). Builds the `cast` table. Adds `doer` as a monologue if no costume matches.
-* **Parameters:**
-  * `doer`: `Entity` — The actor who initiated the performance.
-* **Side Effects:** May set `performance_problem = "REPEAT_COSTUMES"` if duplicate costume roles are used.
+* **Description:** Finds actors in range, assigns them to `self.cast` by matching costumes. If `doer` has no costume, only `doer` is added as a `MONOLOGUE` fallback.
+* **Parameters:**  
+  `doer` (entity) — entity triggering the performance.  
+* **Returns:** Nothing.
 
 ### `FindScript(doer)`
-* **Description:** Finds eligible scripts where all required cast roles (from `script.cast`) are filled in the current `cast`. Prefers scripts with more roles. Returns script key or `"NO_SCRIPT"`.
-* **Parameters:**
-  * `doer`: `Entity` — Ignored; included for API consistency.
-* **Side Effects:** May set `performance_problem = "NO_SCRIPT"` or `"BAD_COSTUMES"` if already set.
-
-### `EndPerformance(doer)`
-* **Description:** Finalizes a performance: clears cast tags, resets components, triggers callbacks, disables blackout/blackout birds, and schedules cleanup.
-* **Parameters:**
-  * `doer`: `Entity?` — The player who triggered the performance.
-
-### `ClearPerformance(doer)`
-* **Description:** Immediately cancels and cleans up an ongoing or pending performance by calling `EndPerformance` and killing the play thread.
-* **Parameters:**
-  * `doer`: `Entity?` — Passed to `EndPerformance`.
+* **Description:** Identifies valid scripts requiring all cast members; prefers longer casts. Returns `"NO_SCRIPT"` or `"BAD_COSTUMES"` on failure.
+* **Parameters:**  
+  `doer` (entity) — used to infer monologue fallback.  
+* **Returns:** (string?) — script name or error code.
 
 ### `DoPerformance(doer)`
-* **Description:** Starts a new performance: collects cast, selects a script, spawns birds (if applicable), sets up event listeners, and begins line execution via thread.
-* **Parameters:**
-  * `doer`: `Entity` — The player who triggered the performance.
-* **Returns:** `boolean` — `true` if performance started; `false` if already in progress or no valid script.
+* **Description:** Initiates a performance by collecting cast and selecting a script; sets up listeners and tags. Returns `false` if performance already in progress.
+* **Parameters:**  
+  `doer` (entity) — actor triggering the performance.  
+* **Returns:** (boolean) — `true` if performance started; `false` otherwise.
+
+### `EndPerformance(doer)`
+* **Description:** Ends a performance, cleans up tags, audio, birds, and callbacks. Fires `"play_ended"` and optional `onperformanceended`.
+* **Parameters:**  
+  `doer` (entity?) — triggering actor (may be `nil`).  
+* **Returns:** Nothing.
+
+### `ClearPerformance(doer)`
+* **Description:** Ends the performance and cancels the active play task (`self.playtask`).
+* **Parameters:**  
+  `doer` (entity) — actor ending the performance.  
+* **Returns:** Nothing.
 
 ### `DoLines()`
-* **Description:** Executes lines from the selected script sequentially, respecting timing (`Sleep`), conditions (e.g., `lucytest`, `treetest`), and callbacks. Triggers `perform_do_next_line` for each line.
-* **Side Effects:** Pushes `play_performed` with metadata; may call `FinishAct` if script has `next`.
+* **Description:** Executes the script’s lines sequentially. Skips lines based on `lucytest`/`treetest`, triggers `perform_do_next_line`, and handles sounds.
+* **Parameters:** None.  
+* **Returns:** Nothing. Fires `"play_performed"` with metadata at completion.
 
 ### `FinishAct(next_act)`
-* **Description:** Updates the current act and syncs a lecturn entity to reflect the next act.
-* **Parameters:**
-  * `next_act`: `string` — Key of the next act/script.
+* **Description:** Updates the current act and syncs with lecturn via `playbill_lecturn`.
+* **Parameters:**  
+  `next_act` (string) — next act/script name.  
+* **Returns:** Nothing.
 
 ### `SpawnBirds(arch)`
-* **Description:** Spawns two "Charlie heckler" birds (`charlie_heckler`) that orbit the stage prop and play synchronized sounds.
-* **Parameters:**
-  * `arch`: `Entity?` — Entity to use as anchor; defaults to `self.inst`.
+* **Description:** Spawns two heckler birds that follow the prop (or optional `arch`) and face it.
+* **Parameters:**  
+  `arch` (entity?) — optional anchor entity (defaults to `self.inst`).  
+* **Returns:** Nothing.
 
-### `OnUpdate(dt)` / `LongUpdate(dt)`
-* **Description:** Decrements internal timer for re-enabling the prop after disable; used during the disable cooldown.
-* **Parameters:**
-  * `dt`: `number` — Delta time since last frame.
+### `OnUpdate(dt)`
+* **Description:** Decrements the disable timer during `DisableProp` and re-enables when elapsed.
+* **Parameters:**  
+  `dt` (number) — delta time.  
+* **Returns:** Nothing.
 
-### `OnSave()` / `LoadPostPass(newents, data)`
-* **Description:** Saves and restores the disable timer (`self.time`) across game sessions.
-* **Parameters:**
-  * `data`: `table?` — Saved state containing `time` (seconds remaining).
+### `OnSave()`
+* **Description:** Serializes only `time` (remaining disable duration).
+* **Parameters:** None.  
+* **Returns:** (table) — `{ time = self.time }`.
+
+### `LoadPostPass(newents, data)`
+* **Description:** Restores disable state after deserialization if `data.time` is present.
+* **Parameters:**  
+  `newents` (table) — mapping of GUIDs to entities.  
+  `data` (table?) — saved data from `OnSave`.  
+* **Returns:** Nothing.
 
 ### `OnRemoveFromEntity()`
-* **Description:** Removes the `stageactingprop` tag on entity removal.
+* **Description:** Cleans up `stageactingprop` tag when component is removed.
+* **Parameters:** None.  
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens For:**
-  - `"unequip"` → `costumecheck` (on cast member entities)
-  - `"newstate"` → `abortplay` (on cast member state machines)
-- **Triggers/Pushes:**
-  - `"play_begun"` — When performance starts (via `DoPerformance`)
-  - `"play_ended"` — When performance ends (via `EndPerformance`)
-  - `"perform_do_next_line"` — Per line, to animate/speak (via `DoLines`)
-  - `"stopstageacting"` / `"startstageacting"` — On cast members to signal acting mode
-  - `"play_performed"` — After script lines finish (includes metadata: `next`, `error`, `skip_hound_spawn`)
+## Events & listeners
+- **Listens to:**  
+  `unequip` — on cast members; triggers `costumecheck` to end performance if costume is removed.  
+  `newstate` — on cast members; triggers `abortplay` to verify actor is still active.  
+  `play_ended` — pushed by this component to signal performance conclusion.  
+  `play_begun` — pushed by this component to signal start.  
+  `play_performed` — pushed after script execution; includes `next`, `error`, `skip_hound_spawn`.  
+- **Pushes:**  
+  `startstageacting` / `stopstageacting` — on actors to signal entry/exit from acting state.  
+  `perform_do_next_line` — triggers animation/line delivery on actors.

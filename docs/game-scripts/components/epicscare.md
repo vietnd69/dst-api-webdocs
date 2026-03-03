@@ -1,53 +1,66 @@
 ---
 id: epicscare
 title: Epicscare
-description: Triggers a scare effect on nearby visible non-dead entities within a defined radius.
+description: Triggers a scare effect on nearby entities within a specified radius, excluding certain tags and including only entities matching one of a set of required tags.
+tags: [combat, ai, crowd-control]
 sidebar_position: 1
 
-last_updated: 2026-02-26
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: e9d93700
+system_scope: entity
 ---
 
 # Epicscare
 
-## Overview
-This component enables an entity to broadcast an `epicscare` event to nearby entities within a specified radius, excluding itself, invisible entities, and dead entities. It provides configurable parameters such as search range, default scare duration, and entity filtering via inclusion/exclusion/must-have tags.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Epicscare` is a utility component that enables an entity to broadcast a "scare" effect to qualifying nearby entities. It queries entities in a radius using `TheSim:FindEntities`, applying inclusion and exclusion tag filters, then pushes an `epicscare` event to qualifying targets. This is typically used by special abilities or events (e.g., Abigail's summoning, boss alerts) to trigger fear, flee, or disruption behavior in affected creatures.
+
+The component relies on the `health` component to exclude dead entities and respects visibility and self-exclusion checks.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("epicscare")
+inst.components.epicscare:SetRange(20)
+inst.components.epicscare:SetDefaultDuration(3)
+inst.components.epicscare:Scare()
+```
+
+## Dependencies & tags
+**Components used:** `health` (for `IsDead()` check during entity filtering)  
+**Tags:** Excludes `epic`, `INLIMBO`; requires at least one of `"_combat"`, `"locomotor"` in target entities.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (assigned during construction) | Reference to the owning entity instance. |
-| `range` | `number` | `15` | Radius (in units) within which to find entities to scare. |
-| `defaultduration` | `number` | `5` | Default duration (in seconds) for the scare effect if not overridden. |
-| `scaremusttags` | `table` or `nil` | `nil` | Tags that found entities *must* have (if provided). |
-| `scareexcludetags` | `table` | `{"epic", "INLIMBO"}` | Tags that, if present on an entity, exclude it from being scared. |
-| `scareoneoftags` | `table` | `{"_combat", "locomotor"}` | At least one of these tags must be present on an entity to be affected. |
+| `range` | number | `15` | Radius around the owner entity in which to apply the scare effect. |
+| `defaultduration` | number | `5` | Default duration (seconds) passed to targets if no explicit duration is provided to `Scare`. |
+| `scaremusttags` | table or `nil` | `nil` | Tags that *all* qualifying entities *must* have. |
+| `scareexcludetags` | table | `{ "epic", "INLIMBO" }` | Tags that exclude entities from being scared. |
+| `scareoneoftags` | table | `{ "_combat", "locomotor" }` | Entities must have *at least one* of these tags to be scared. |
 
-## Main Functions
-
+## Main functions
 ### `SetRange(range)`
-* **Description:** Updates the search radius used in `Scare` to locate entities.
-* **Parameters:**  
-  `range` (number) — New radius in game units.
+* **Description:** Sets the radius (in game units) within which entities will be scanned for scaring.
+* **Parameters:** `range` (number) — the new search radius.
+* **Returns:** Nothing.
 
 ### `SetDefaultDuration(duration)`
-* **Description:** Updates the default scare duration used when `Scare` is called without a `duration` argument.
-* **Parameters:**  
-  `duration` (number) — New default scare duration in seconds.
+* **Description:** Sets the fallback duration (in seconds) to use when `Scare()` is called without an explicit duration argument.
+* **Parameters:** `duration` (number) — the new default duration.
+* **Returns:** Nothing.
 
 ### `Scare(duration)`
-* **Description:** Finds all entities within `range`, filters them using `scaremusttags`, `scareexcludetags`, and `scareoneoftags`, then pushes an `epicscare` event to each qualifying entity (excluding self, invisible, and dead entities).
-* **Parameters:**  
-  `duration` (number, optional) — Override duration for this scare instance. If omitted, `self.defaultduration` is used.
+* **Description:** Finds and frightens qualifying entities within `range`. Each affected entity receives an `epicscare` event with metadata.
+* **Parameters:** `duration` (number, optional) — if omitted, uses `self.defaultduration`.
+* **Returns:** Nothing.
+* **Error states:** None. Skips entities that are the scare source itself, not visible, or dead (via `health:IsDead()`).
 
-## Events & Listeners
-- **Pushed Events:**
-  - `epicscare` — Sent to each qualifying entity found, with payload `{ scarer = self.inst, duration = duration }`.
-- **Listeners:** None.
+## Events & listeners
+- **Pushes:** `epicscare` — sent to each qualifying entity with payload `{ scarer = self.inst, duration = ... }`. Affected entities should have handlers for this event to implement fear behavior (e.g., fleeing, stunned).
+- **Listens to:** None.

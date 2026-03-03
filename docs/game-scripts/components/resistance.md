@@ -1,80 +1,104 @@
 ---
 id: resistance
 title: Resistance
-description: Manages damage resistance logic for an entity by tracking tag-based resistances and associated callback functions.
+description: Manages damage resistance by tracking tags that grant immunity or mitigation against specific damage sources.
+tags: [combat, damage, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: combat
+category_type: components
 source_hash: f6bec40b
+system_scope: combat
 ---
 
 # Resistance
 
-## Overview
-This component enables an entity to declare and respond to damage resistances based on attacker or weapon tags. It maintains a set of resistance tags, provides callbacks for custom resistance behavior, and triggers events when damage is resisted.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Dependencies:** None — does not require other components to be added to the entity.
-- **Tags Added/Removed:** None — it *uses* tags for comparison but does not add or remove entity tags itself.
+## Overview
+The `Resistance` component enables an entity to declare resistance (typically immunity) to damage from entities or weapons carrying specific tags. It is commonly used to implement mechanics such as fireproofing (`resistsfire`), electric resistance, or boss immunities to certain weapon types. This component does not reduce damage values directly; instead, it flags resistance conditions and triggers events when damage is resisted.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("resistance")
+
+-- Grant resistance to fire-tagged attackers
+inst.components.resistance:AddResistance("fire")
+
+-- Grant resistance to weapons with the "electric" tag
+inst.components.resistance:AddResistance("electric")
+
+-- Optionally configure custom logic
+inst.components.resistance:SetShouldResistFn(function(ent) return ent.components.health and ent.components.health:IsAlive() end)
+inst.components.resistance:SetOnResistDamageFn(function(inst, damage, attacker)
+    -- e.g., play sound, spawn FX
+end)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds and removes custom string tags (e.g., `"fire"`, `"electric"`). No built-in tags are managed internally.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `tags` | `table` | `{}` | A set of tag strings representing damage types the entity resists (key and value both equal to the tag name). |
-| `onresistdamage` | `function?` | `nil` | Optional callback invoked when damage is resisted; signature: `fn(inst, damage_amount, attacker)`. |
-| `shouldresistfn` | `function?` | `nil` | Optional predicate function determining if resistance should occur; signature: `fn(inst)`. |
+| `tags` | table | `{}` | Map of resistance tags; keys and values are identical tag strings. |
+| `onresistdamage` | function or nil | `nil` | Optional callback invoked when damage is resisted. Signature: `fn(inst, damage_amount, attacker)`. |
+| `shouldresistfn` | function or nil | `nil` | Optional predicate function that determines whether resistance should apply. Signature: `fn(inst) -> boolean`. |
 
-## Main Functions
-
+## Main functions
 ### `AddResistance(tag)`
-* **Description:** Registers a tag as a resistance condition. If an attacker or weapon carries this tag, resistance logic may apply.
-* **Parameters:**
-  - `tag` (`string`): The tag to add to the list of resistances.
+*   **Description:** Registers a tag as a source of damage that this entity resists.
+*   **Parameters:** `tag` (string) — the tag to resist (e.g., `"fire"`, `"boss"`).
+*   **Returns:** Nothing.
 
 ### `RemoveResistance(tag)`
-* **Description:** Removes a previously registered resistance tag.
-* **Parameters:**
-  - `tag` (`string`): The tag to remove from the resistance list.
+*   **Description:** Removes a previously registered resistance tag.
+*   **Parameters:** `tag` (string) — the tag to remove from resistance.
+*   **Returns:** Nothing.
 
 ### `HasResistance(attacker, weapon)`
-* **Description:** Checks whether the entity resists the given `attacker` or `weapon` based on shared tags. Returns `true` if any resistance tag matches either the attacker or weapon.
-* **Parameters:**
-  - `attacker` (`Entity?`): The entity dealing damage (may be `nil`).
-  - `weapon` (`Entity?`): The weapon used in the attack (may be `nil`).
+*   **Description:** Checks if the entity resists damage from the given attacker and/or weapon by comparing their tags against registered resistances.
+*   **Parameters:** 
+    * `attacker` (GO or nil) — the entity delivering the damage.
+    * `weapon` (GO or nil) — the weapon used to deal damage (may be `nil`).
+*   **Returns:** `true` if any tag on `attacker` or `weapon` matches a registered resistance; otherwise `false`.
+*   **Error states:** Returns `nil` implicitly if no matching tag is found or if `attacker` is `nil`.
 
 ### `HasResistanceToTag(tag)`
-* **Description:** Returns `true` if the given tag is registered as a resistance.
-* **Parameters:**
-  - `tag` (`string`): The tag to check.
+*   **Description:** Checks if a specific tag is currently a registered resistance.
+*   **Parameters:** `tag` (string) — the tag to check.
+*   **Returns:** `true` if the tag is registered; otherwise `false`.
 
 ### `SetOnResistDamageFn(fn)`
-* **Description:** Sets a custom callback to execute when damage is resisted.
-* **Parameters:**
-  - `fn` (`function?`): Function to call on resistance; signature: `fn(inst, damage_amount, attacker)`.
+*   **Description:** Sets the callback function executed when damage is successfully resisted.
+*   **Parameters:** `fn` (function or nil) — function to invoke with `(inst, damage_amount, attacker)`. Pass `nil` to clear.
+*   **Returns:** Nothing.
 
 ### `SetShouldResistFn(fn)`
-* **Description:** Sets a predicate function to determine whether resistance should be applied. If not set, resistance always applies.
-* **Parameters:**
-  - `fn` (`function?`): Function returning `true`/`false`; signature: `fn(inst)`.
+*   **Description:** Sets a predicate function that controls *whether* resistance should be applied in a given scenario (e.g., based on health state).
+*   **Parameters:** `fn` (function or nil) — function to invoke with `(inst)` and returning `true`/`false`. Pass `nil` to enable resistance unconditionally.
+*   **Returns:** Nothing.
 
 ### `ShouldResistDamage()`
-* **Description:** Evaluates whether resistance should occur based on `shouldresistfn`, returning `true` if no function is set.
-* **Parameters:** None.
+*   **Description:** Evaluates the `shouldresistfn` to determine if resistance should currently be active.
+*   **Parameters:** None.
+*   **Returns:** `true` if `shouldresistfn` is `nil` or returns `true`; otherwise `false`.
 
 ### `ResistDamage(damage_amount, attacker)`
-* **Description:** Triggers the resistance callback (if set) and broadcasts the `damageresisted` event.
-* **Parameters:**
-  - `damage_amount` (`number`): The amount of damage resisted.
-  - `attacker` (`Entity?`): The entity that dealt the damage.
+*   **Description:** Triggers the resistance action. Calls `onresistdamage` and fires the `damageresisted` event.
+*   **Parameters:** 
+    * `damage_amount` (number) — the amount of damage being resisted.
+    * `attacker` (GO) — the entity responsible for the damage.
+*   **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted string listing all registered resistance tags for debugging.
-* **Parameters:** None.
+*   **Description:** Returns a human-readable string listing all registered resistance tags for debugging.
+*   **Parameters:** None.
+*   **Returns:** string — e.g., `"Resists: fire, electric"`.
 
-## Events & Listeners
-- **Events Pushed:**
-  - `damageresisted`: Dispatched with payload `{damage_amount = number, attacker = Entity?}` when `ResistDamage()` is called.
+## Events & listeners
+- **Pushes:** `damageresisted` — fired when `ResistDamage` is called. Data payload: `{damage_amount = number, attacker = GO}`.

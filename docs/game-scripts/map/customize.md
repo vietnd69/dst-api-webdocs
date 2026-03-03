@@ -3,7 +3,7 @@ id: customize
 title: Customize
 description: Central registry and API for world generation and world settings customization options used by the sandbox menu and world configuration systems.
 tags: [world, configuration, ui, modding]
-sidebar_position: 1
+sidebar_position: 100
 
 last_updated: 2026-02-27
 build_version: 714014

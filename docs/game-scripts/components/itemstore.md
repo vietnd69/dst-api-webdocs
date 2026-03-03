@@ -1,65 +1,87 @@
 ---
 id: itemstore
 title: Itemstore
-description: Manages a persistent store of item records, allowing items to be saved and later restored via their save data.
+description: Manages a storage list of item records for an entity, supporting adding, retrieving, saving, and loading of items without persisting the actual item instances.
+tags: [inventory, storage, persistence]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: inventory
+category_type: components
 source_hash: 630aaf8c
+system_scope: inventory
 ---
 
 # Itemstore
 
-## Overview
-The `ItemStore` component stores item records in memory for later reconstruction, typically used by containers or systems that need to preserve item state across saves or sessions. It does not hold live entities directly but keeps serialized `item_record` data; items are spawned on demand (e.g., via `GetFirstItems`) and removed from the store. It integrates with the game’s save/load system via `OnSave` and `OnLoad`.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Depends on `SpawnPrefab` (a global utility for creating prefabs with optional skins and creators).
-- Does not add or remove entity tags.
-- Does not require other components to function, though it is typically attached to an entity (e.g., a storage container) via `inst:AddComponent("itemstore")`.
+## Overview
+`Itemstore` is a lightweight component that stores references to items as serialized records (`item_record`) and optional migration metadata (`migrationdata`), rather than keeping the actual item instances. It is typically attached to entities (e.g., containers, special interactable objects) that need to persistently store item definitions across game sessions. The component supports saving and loading via the entity's save/load lifecycle, and notifies listeners of count changes via events.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("itemstore")
+
+-- Add an item by instance
+inst.components.itemstore:AddItem(some_item)
+
+-- Add using a pre-existing record and migration data
+inst.components.itemstore:AddItemRecordAndMigrationData(record, { sessionid = "abc123" })
+
+-- Retrieve and spawn the first 5 stored items
+local items = inst.components.itemstore:GetFirstItems(5)
+for _, spawned_item in ipairs(items) do
+    spawned_item.Transform:SetPosition(inst.Transform:GetWorldPosition())
+end
+
+print("Remaining items:", inst.components.itemstore:GetNumberOfItems())
+```
+
+## Dependencies & tags
+**Components used:** None identified.  
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `storeditemdatas` | `table` | `{}` | A list of item record entries; each entry is a table with `item_record` (required) and optionally `migrationdata`. |
+| `storeditemdatas` | table | `{}` | Internal list of stored item data records. Each entry is a table with `item_record` (required) and optional `migrationdata`. |
 
-## Main Functions
-
+## Main functions
 ### `GetNumberOfItems()`
-* **Description:** Returns the total number of item records currently stored.
+* **Description:** Returns the total number of stored item records.
 * **Parameters:** None.
+* **Returns:** `number` — count of items currently stored.
 
 ### `GetFirstItems(count)`
-* **Description:** Retrieves and spawns the first `count` stored items as live entities, then removes them from the internal list. Spawns each item using its saved record and persistence data. Emits the `itemstore_changedcount` event after modification.
-* **Parameters:**
-  * `count` (`number`): The number of items to retrieve. If fewer than `count` items exist, returns as many as are available.
+* **Description:** Spawns the first `count` stored items, removes them from storage, and returns a list of the spawned item instances. This function modifies the store by draining the oldest entries.
+* **Parameters:** `count` (number) — number of items to retrieve and spawn.
+* **Returns:** `table` — array of spawned item instances (may contain fewer than `count` items if storage has fewer).
+* **Error states:** If `count` exceeds available items, only the existing items are spawned; the remaining entries are adjusted accordingly. No error is thrown.
 
 ### `AddItem(item)`
-* **Description:** Adds a live item to the store by extracting its save record, removing the item from the world, and storing the record. Emits the `itemstore_changedcount` event.
-* **Parameters:**
-  * `item` (`Entity`): A live item entity to be stored (it will be removed from the world after capture).
+* **Description:** Serializes the given item instance, adds its record to storage, and removes the item from the world.
+* **Parameters:** `item` (Entity) — the item instance to store.
+* **Returns:** Nothing.
 
 ### `AddItemRecordAndMigrationData(item_record, migrationdata)`
-* **Description:** Adds a raw item record (and optional migration metadata) directly to the store, without requiring a live item. Useful for deserialization or importing items. Emits the `itemstore_changedcount` event.
-* **Parameters:**
-  * `item_record` (`table`): A table containing prefab name, optional skin name, skin ID, and persist data—typically the output of `item:GetSaveRecord()`.
-  * `migrationdata` (`table` or `nil`): Optional data used to track the origin session (e.g., for creator attribution), typically containing a `sessionid`.
+* **Description:** Adds a pre-existing item record (typically from save data or copy) directly to storage, optionally including migration/session metadata.
+* **Parameters:**  
+  * `item_record` (table) — save record from `item:GetSaveRecord()`, containing at least `prefab`, `skinname`, `skin_id`, and `data`.  
+  * `migrationdata` (table?) — optional metadata (e.g., `{ sessionid = ... }`) used during item reconstruction. May be `nil`.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Returns the serializable state of the component for saving to disk. Returns `nil` if the store is empty.
+* **Description:** Called during entity save to serialize stored items. Returns `nil` if no items are stored.
 * **Parameters:** None.
-* **Returns:** A table of the form `{ itemdatas = self.storeditemdatas }`, or `nil`.
+* **Returns:** `table?` — save data table `{ itemdatas = storeditemdatas }`, or `nil` if empty.
 
 ### `OnLoad(data)`
-* **Description:** Restores the component state from saved data. Triggers the `itemstore_changedcount` event if items were loaded (i.e., if the count is non-zero).
-* **Parameters:**
-  * `data` (`table` or `nil`): The saved data for this component, typically from `OnSave()`. If `nil`, no action is taken.
+* **Description:** Called during entity load to restore stored items from saved data.
+* **Parameters:** `data` (table?) — the saved data table (expected to contain `itemdatas`). May be `nil`.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- Emits:
-  - `"itemstore_changedcount"`: Triggered whenever the number of stored items changes (e.g., after `AddItem`, `GetFirstItems`, or `OnLoad` with non-zero items).
-- Does not listen for any events (no `ListenForEvent` calls found).
+## Events & listeners
+- **Pushes:** `itemstore_changedcount` — fired whenever an item is added or retrieved (i.e., after `AddItem`, `AddItemRecordAndMigrationData`, and `GetFirstItems`). Used to update UI or other dependent systems.

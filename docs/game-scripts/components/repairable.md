@@ -1,80 +1,95 @@
 ---
 id: repairable
 title: Repairable
-description: Provides repair behavior and tagging logic for entities based on their repair properties and current state.
+description: Manages repair logic and tags for entities based on their state (health, durability, perishability, uses) and associated repair materials.
+tags: [repair, inventory, state, component]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 79d651fc
+system_scope: entity
 ---
 
 # Repairable
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Repairable` component manages whether and how an entity can be repaired by external repair items. It tracks repair constraints (e.g., material type, health/work/perish/finite-uses state), dynamically manages entity tags to reflect repairability conditions, and executes repair actions when valid repair items are used.
+The `Repairable` component enables an entity to be repaired by compatible repair items (via the `repairer` component). It tracks repair eligibility via boolean flags and adds/removes corresponding tags (`healthrepairable`, `workrepairable`, `finiteusesrepairable`, `repairable_<material>`). It also provides logic to detect if repairs are needed and execute repairs using compatible items.
 
-## Dependencies & Tags
-**Dependencies:**  
-- `inst.components.health` (used if present for health-based repair logic)  
-- `inst.components.workable` (used if present for work-based repair logic)  
-- `inst.components.perishable` (used if present for perish-time-based repair logic)  
-- `inst.components.finiteuses` (used if present for finite-uses-based repair logic)
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("repairable")
+inst.components.repairable:SetHealthRepairable(true)
+inst.components.repairable:SetWorkRepairable(false)
+inst.components.repairable:SetFiniteUsesRepairable(true)
+inst.components.repairable.repairmaterial = "metal"
+```
 
-**Tags added/removed dynamically:**  
-- `"repairable_<material>"`, where `<material>` is the value of `self.repairmaterial`  
-- `"healthrepairable"` when `self.healthrepairable` is true  
-- `"workrepairable"` when `self.workrepairable` is true  
-- `"finiteusesrepairable"` when `self.finiteusesrepairable` is true  
+## Dependencies & tags
+**Components used:** `health`, `workable`, `perishable`, `finiteuses`, `repairer`, `stackable`  
+**Tags:** Adds/removes dynamically:
+- `healthrepairable`, `workrepairable`, `finiteusesrepairable`
+- `repairable_<material>` (where `<material>` is the current `repairmaterial` value)
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `repairmaterial` | `string?` | `nil` | Required material type for repairs; used to tag the entity as compatible with specific repair items. |
-| `healthrepairable` | `boolean?` | `nil` | Indicates whether the entity is eligible for health-based repairs (based on current health deficit). |
-| `workrepairable` | `boolean?` | `nil` | Indicates whether the entity is eligible for work-based repairs (based on remaining work left). |
-| `finiteusesrepairable` | `boolean?` | `nil` | Indicates whether the entity is eligible for finite-uses-based repairs (based on remaining uses). |
-| `noannounce` | `boolean?` | `nil` | Reserved; unused in provided code. |
-| `checkmaterialfn` | `function?` | `nil` | Optional callback to validate repair materials beyond basic equality. |
-| `testvalidrepairfn` | `function?` | `nil` | Optional callback to validate whether a repair attempt is allowed before material checks. |
+| `repairmaterial` | string? | `nil` | Repair material type required (e.g., `"metal"`). Controls the `repairable_<material>` tag. |
+| `healthrepairable` | boolean? | `nil` | Whether the entity can be repaired by increasing health. Controls the `healthrepairable` tag. |
+| `workrepairable` | boolean? | `nil` | Whether the entity can be repaired by restoring work points (e.g., durability). Controls the `workrepairable` tag. |
+| `finiteusesrepairable` | boolean? | `nil` | Whether the entity can be repaired by restoring finite uses. Controls the `finiteusesrepairable` tag. |
+| `noannounce` | boolean? | `nil` | If set, suppresses repair announcements (not used in this file, but part of the data model). |
+| `checkmaterialfn` | function? | `nil` | Optional custom function `(entity, repair_item) -> success, reason` to validate repair compatibility. |
+| `testvalidrepairfn` | function? | `nil` | Optional early-rejection function `(entity, repair_item) -> boolean`. |
+| `justrunonrepaired` | boolean? | `nil` | If `true`, allows `Repair()` to succeed even if no actual repair was applied. |
 
-## Main Functions
-### `Repairable:SetHealthRepairable(repairable)`
-* **Description:** Sets the `healthrepairable` flag and updates the `"healthrepairable"` tag accordingly.
-* **Parameters:**  
-  - `repairable` (`boolean`): Whether the entity is currently repairable via health restoration.
+## Main functions
+### `SetHealthRepairable(repairable)`
+* **Description:** Enables or disables health-based repairability and updates the `healthrepairable` tag accordingly.
+* **Parameters:** `repairable` (boolean) — whether the entity should be considered health-repairable.
+* **Returns:** Nothing.
 
-### `Repairable:SetWorkRepairable(repairable)`
-* **Description:** Sets the `workrepairable` flag and updates the `"workrepairable"` tag accordingly.
-* **Parameters:**  
-  - `repairable` (`boolean`): Whether the entity is currently repairable via work restoration.
+### `SetWorkRepairable(repairable)`
+* **Description:** Enables or disables work-point-based repairability and updates the `workrepairable` tag accordingly.
+* **Parameters:** `repairable` (boolean) — whether the entity should be considered work-repairable.
+* **Returns:** Nothing.
 
-### `Repairable:SetFiniteUsesRepairable(repairable)`
-* **Description:** Sets the `finiteusesrepairable` flag and updates the `"finiteusesrepairable"` tag accordingly.
-* **Parameters:**  
-  - `repairable` (`boolean`): Whether the entity is currently repairable via finite-uses restoration.
+### `SetFiniteUsesRepairable(repairable)`
+* **Description:** Enables or disables finite-uses-based repairability and updates the `finiteusesrepairable` tag accordingly.
+* **Parameters:** `repairable` (boolean) — whether the entity should be considered finite-uses-repairable.
+* **Returns:** Nothing.
 
-### `Repairable:OnRemoveFromEntity()`
-* **Description:** Cleans up all repair-related tags when the component is removed from its entity.
+### `NeedsRepairs()`
+* **Description:** Determines if the entity requires repairs by checking its current state against a threshold (95% full). Checks health first, then workable, then perishable, then finiteuses.
 * **Parameters:** None.
+* **Returns:** `true` if any repairable aspect is below the threshold; `false` otherwise.
 
-### `Repairable:NeedsRepairs()`
-* **Description:** Determines whether the entity is below a repair threshold (95% health/work/perish/uses) and thus *needs* repairs. Prioritizes health > work > perish > finiteuses.
-* **Parameters:** None.  
-* **Returns:** `boolean` — `true` if repairs are needed, `false` otherwise.
+### `Repair(doer, repair_item)`
+* **Description:** Attempts to repair the entity using the given repair item. Validates material compatibility and repair function, then applies repairs incrementally across health, work, perish, and uses.
+* **Parameters:**
+  - `doer` (entity) — the entity performing the repair.
+  - `repair_item` (entity) — the item being used to repair (must have `repairer` component).
+* **Returns:**
+  - `true` if the repair succeeded (including when `justrunonrepaired` is `true` and no actual change occurred).
+  - `false` if the repair failed due to incompatibility or full state.
+  - `false, reason` (string) if `checkmaterialfn` fails and returns a reason.
+* **Error states:**
+  - Returns `false` if `repair_item` lacks a `repairer` component.
+  - Returns `false` if `repairmaterial` mismatches.
+  - Returns `false` if `testvalidrepairfn` (if present) rejects the repair.
+  - Returns `false` if `checkmaterialfn` (if present) returns `false` (optionally with a reason).
+  - Returns `false` if the target is already at full capacity for the applicable property.
 
-### `Repairable:Repair(doer, repair_item)`
-* **Description:** Executes a repair action on the entity using a given repair item. Validates material compatibility, runs custom checks, applies repair amounts, consumes the repair item, and triggers callbacks.
-* **Parameters:**  
-  - `doer` (`Entity`): The entity performing the repair (typically a player).  
-  - `repair_item` (`Entity`): The item used to perform repairs (e.g., rope, glue, patch).  
-* **Returns:** `boolean` — `true` if repair succeeded; `false` otherwise.
+### `OnRemoveFromEntity()`
+* **Description:** Cleans up all repair-related tags when the component is removed from an entity.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- Listens to changes in `repairmaterial` via the `onrepairmaterial` listener (added in `Class()` constructor) → updates `"repairable_<material>"` tag.
-- Listens to changes in `healthrepairable` via the `onhealthrepairable` listener → updates `"healthrepairable"` tag.
-- Listens to changes in `workrepairable` via the `onworkrepairable` listener → updates `"workrepairable"` tag.
-- Listens to changes in `finiteusesrepairable` via the `onfiniteusesrepairable` listener → updates `"finiteusesrepairable"` tag.
+## Events & listeners
+- **Listens to:** None — the constructor (implicitly via `Class` constructor arguments) registers callbacks for property changes (`repairmaterial`, `healthrepairable`, `workrepairable`, `finiteusesrepairable`) to manage tags automatically on updates.
+- **Pushes:** `repairable` itself does not push events, but `Repair()` calls `onrepaired(self.inst, doer, repair_item)` if defined as a local closure or assigned externally.

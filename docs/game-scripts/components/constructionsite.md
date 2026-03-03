@@ -1,176 +1,176 @@
 ---
 id: constructionsite
 title: Constructionsite
-description: This component manages the state, materials, and progress of an entity that is being constructed by players.
+description: Manages the state and materials required to construct a building or object at a construction site.
+tags: [crafting, inventory, world]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 855e8ce0
+system_scope: crafting
 ---
 
 # Constructionsite
 
-## Overview
-The `constructionsite` component is attached to entities that are intended to be built by players, such as structures, walls, or other craftable objects that require multiple steps or materials. It tracks the required materials, the materials added, the current builder, and handles the completion or interruption of the construction process, including managing excess materials.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-*   **Tags Added to `self.inst`**:
-    *   `"constructionsite"`: Identifies the entity as a construction site.
-*   **External Component Interactions**:
-    *   `builder.components.constructionbuilder`: Interacts with the builder's `constructionbuilder` component to stop construction.
-    *   `builder.components.inventory`: Interacts with the builder's inventory to return excess materials.
-    *   `v.components.stackable`: Checks stack sizes and sets them for materials.
-    *   `v.components.inventoryitem`: Handles dropping excess materials if the builder cannot hold them.
-*   **Global Module Interactions**:
-    *   `Stats`: Pushes metrics events related to construction.
-    *   `CONSTRUCTION_PLANS`: Relies on this global table (presumably defined elsewhere) to determine required materials and amounts for the specific prefab.
+## Overview
+`Constructionsite` tracks which builder is working on a site, records consumed materials, and determines when construction is complete. It is attached to entities that serve as intermediate steps during building construction (e.g., foundations, structures like foundations or houndholes). It interacts closely with `ConstructionBuilder`, `Inventory`, and `InventoryItem` to manage item consumption and builder state, and uses `Stats` to log construction events for telemetry.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("constructionsite")
+inst.components.constructionsite:SetConstructionPrefab("hut")
+inst.components.constructionsite:Enable()
+inst.components.constructionsite:AddMaterial("planks", 10)
+if inst.components.constructionsite:IsComplete() then
+    inst.components.constructionsite:OnConstruct(builder, items)
+end
+```
+
+## Dependencies & tags
+**Components used:** `constructionbuilder`, `inventory`, `inventoryitem`, `stackable`, `container`
+**Tags:** Adds `constructionsite` to the entity.
 
 ## Properties
-| Property              | Type          | Default Value | Description                                                                         |
-| :-------------------- | :------------ | :------------ | :---------------------------------------------------------------------------------- |
-| `inst`                | `Entity`      | `nil`         | A reference to the entity this component is attached to.                            |
-| `materials`           | `table`       | `{}`          | A table storing the materials already added to the construction site, indexed by prefab name, containing `amount` and `slot`. |
-| `builder`             | `Entity`      | `nil`         | A reference to the player or entity currently building this construction site.      |
-| `constructionprefab`  | `string`      | `nil`         | The prefab name of the final entity that will be spawned upon completion.           |
-| `onstartconstructionfn` | `function`    | `nil`         | A callback function to be executed when construction starts. Signature: `fn(inst, doer)`. |
-| `onstopconstructionfn`  | `function`    | `nil`         | A callback function to be executed when construction stops. Signature: `fn(inst, doer)`.  |
-| `onconstructedfn`     | `function`    | `nil`         | A callback function to be executed when construction is completed. Signature: `fn(inst, doer)`. |
-| `enabled`             | `boolean`     | `true`        | Determines if the construction site is currently active and can be built upon.      |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `materials` | table | `{}` | Maps prefab name strings to `{amount = number, slot = number?}` tables tracking how many of each item have been added. |
+| `builder` | entity or `nil` | `nil` | Reference to the entity currently building at this site. |
+| `constructionprefab` | string or `nil` | `nil` | Name of the final prefab this site is constructing. |
+| `enabled` | boolean | `true` | Whether construction is permitted at this site. |
+| `onstartconstructionfn` | function or `nil` | `nil` | Callback invoked when construction starts. |
+| `onstopconstructionfn` | function or `nil` | `nil` | Callback invoked when construction stops. |
+| `onconstructedfn` | function or `nil` | `nil` | Callback invoked when construction completes. |
 
-## Main Functions
-### `onbuilder(self, builder)`
-*   **Description:** Internal setter callback triggered when the `self.builder` property is assigned a new value. It updates the replica's builder state for networking.
-*   **Parameters:**
-    *   `self`: The `Constructionsite` component instance.
-    *   `builder`: The entity that is now building this construction site.
-
-### `onenabled(self, enabled)`
-*   **Description:** Internal setter callback triggered when the `self.enabled` property is assigned a new value. It updates the replica's enabled state for networking.
-*   **Parameters:**
-    *   `self`: The `Constructionsite` component instance.
-    *   `enabled`: A boolean indicating the new enabled state.
-
+## Main functions
 ### `ForceStopConstruction()`
-*   **Description:** Forces any current builder to stop constructing this site. It checks if there's a builder and if their `constructionbuilder` component is actively engaged with this site before stopping them.
+*   **Description:** Immediately halts ongoing construction by invoking `StopConstruction()` on the attached builder's `ConstructionBuilder` component, if present.
 *   **Parameters:** None.
-
-### `OnRemoveFromEntity()`
-*   **Description:** An alias for `ForceStopConstruction`. This function is automatically called by the ECS when the `constructionsite` component is removed from its entity.
-*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `Enable()`
-*   **Description:** Sets the construction site to an enabled state, allowing construction to proceed.
+*   **Description:** Enables construction at this site by setting `enabled` to `true`.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `Disable()`
-*   **Description:** Disables the construction site, preventing further construction. It also forces any current builder to stop construction.
+*   **Description:** Disables construction, drops all currently stored materials, and stops any active builder.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `IsEnabled()`
-*   **Description:** Returns `true` if the construction site is currently enabled, `false` otherwise.
+*   **Description:** Returns whether construction is currently allowed.
 *   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if enabled, otherwise `false`.
 
 ### `SetConstructionPrefab(prefab)`
-*   **Description:** Sets the prefab name of the final object that will be created once construction is complete.
-*   **Parameters:**
-    *   `prefab`: (`string`) The prefab name of the completed object.
+*   **Description:** Sets the target prefab name for this construction site, used to determine required materials via `CONSTRUCTION_PLANS`.
+*   **Parameters:** `prefab` (string) — the name of the prefab to be constructed.
+*   **Returns:** Nothing.
 
 ### `SetOnStartConstructionFn(fn)`
-*   **Description:** Sets a callback function to be invoked when a builder begins constructing this site.
-*   **Parameters:**
-    *   `fn`: (`function`) The callback function with signature `fn(inst, doer)`.
+*   **Description:** Registers a callback invoked when construction begins.
+*   **Parameters:** `fn` (function) — function of signature `fn(inst, doer)`.
+*   **Returns:** Nothing.
 
 ### `SetOnStopConstructionFn(fn)`
-*   **Description:** Sets a callback function to be invoked when a builder stops constructing this site (before completion).
-*   **Parameters:**
-    *   `fn`: (`function`) The callback function with signature `fn(inst, doer)`.
+*   **Description:** Registers a callback invoked when construction stops.
+*   **Parameters:** `fn` (function) — function of signature `fn(inst, doer)`.
+*   **Returns:** Nothing.
 
 ### `SetOnConstructedFn(fn)`
-*   **Description:** Sets a callback function to be invoked when the construction of this site is successfully completed.
-*   **Parameters:**
-    *   `fn`: (`function`) The callback function with signature `fn(inst, doer)`.
+*   **Description:** Registers a callback invoked when construction completes.
+*   **Parameters:** `fn` (function) — function of signature `fn(inst, doer)`.
+*   **Returns:** Nothing.
 
 ### `OnStartConstruction(doer)`
-*   **Description:** Records the given `doer` as the current builder and invokes the `onstartconstructionfn` callback if set.
-*   **Parameters:**
-    *   `doer`: (`Entity`) The entity that has started constructing.
+*   **Description:** Records the builder and invokes the `onstartconstructionfn` callback.
+*   **Parameters:** `doer` (entity) — the entity starting construction (typically a player).
+*   **Returns:** Nothing.
 
 ### `OnStopConstruction(doer)`
-*   **Description:** Clears the current builder and invokes the `onstopconstructionfn` callback if set.
-*   **Parameters:**
-    *   `doer`: (`Entity`) The entity that has stopped constructing.
+*   **Description:** Clears the builder reference and invokes the `onstopconstructionfn` callback.
+*   **Parameters:** `doer` (entity) — the entity stopping construction.
+*   **Returns:** Nothing.
 
 ### `OnConstruct(doer, items)`
-*   **Description:** Handles the submission of materials to the construction site. It processes the given `items`, adds them to the construction, handles any remainder by returning to the builder or dropping, and removes consumed items. It then clears the builder, pushes construction metrics, and invokes the `onconstructedfn` callback.
-*   **Parameters:**
-    *   `doer`: (`Entity`) The entity that submitted the materials.
-    *   `items`: (`table`) A table of `inventoryitem` entities being submitted as materials.
+*   **Description:** Processes completed construction. Consumes required materials from `items`, returns overfilled items to the builder if possible, and fires the `onconstructedfn` callback.
+*   **Parameters:**  
+  `doer` (entity) — the entity triggering completion.  
+  `items` (table) — list of item entities used in construction.
+*   **Returns:** Nothing.
 
 ### `HasBuilder()`
-*   **Description:** Returns `true` if there is an entity currently building this construction site, `false` otherwise.
+*   **Description:** Checks if a builder is currently assigned to this site.
 *   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if a builder is assigned, otherwise `false`.
 
 ### `IsBuilder(guy)`
-*   **Description:** Checks if the given `guy` entity is the current builder of this construction site.
-*   **Parameters:**
-    *   `guy`: (`Entity`) The entity to check.
+*   **Description:** Checks if a specific entity is the current builder.
+*   **Parameters:** `guy` (entity or `nil`) — the entity to check.
+*   **Returns:** `boolean` — `true` if `guy` is the assigned builder.
 
 ### `AddMaterial(prefab, num)`
-*   **Description:** Adds a specified number of a material prefab to the construction site. It checks `CONSTRUCTION_PLANS` to determine required amounts and updates the internal `materials` table and the replica.
-*   **Parameters:**
-    *   `prefab`: (`string`) The prefab name of the material to add.
-    *   `num`: (`number`) The number of units of the material to add.
-*   **Returns:** (`number`) The number of material units that could not be added (remainder).
+*   **Description:** Attempts to add up to `num` units of `prefab` to the site's material inventory. Uses `CONSTRUCTION_PLANS` to validate and distribute across slots.
+*   **Parameters:**  
+  `prefab` (string) — name of the item prefab.  
+  `num` (number) — quantity to add.
+*   **Returns:** `number` — amount of `prefab` that could not be consumed (remainder).
 
 ### `RemoveMaterial(prefab, num)`
-*   **Description:** Removes a specified number of a material prefab from the construction site. It updates the internal `materials` table and the replica.
-*   **Parameters:**
-    *   `prefab`: (`string`) The prefab name of the material to remove.
-    *   `num`: (`number`, optional) The number of units to remove. Defaults to 1 if not provided.
-*   **Returns:** (`number`) The actual number of material units that were removed.
+*   **Description:** Removes up to `num` units of `prefab` from the material inventory.
+*   **Parameters:**  
+  `prefab` (string) — name of the item prefab.  
+  `num` (number? — defaults to `1`) — quantity to remove.
+*   **Returns:** `number` — amount actually removed.
 
 ### `DropAllMaterials(drop_pos)`
-*   **Description:** Spawns all currently stored materials at or near the construction site's position, clearing the `materials` table.
-*   **Parameters:**
-    *   `drop_pos`: (`Vector3`, optional) The specific world position to drop the materials. If `nil`, drops at the construction site's current world position.
+*   **Description:** Spawns individual item entities for all materials stored at this site and drops them at `drop_pos`.
+*   **Parameters:** `drop_pos` (Vec3 or `nil`) — position to drop items at. If `nil`, drops at current site position.
+*   **Returns:** Nothing.
 
 ### `GetMaterialCount(prefab)`
-*   **Description:** Returns the current count of a specific material prefab that has been added to the construction site.
-*   **Parameters:**
-    *   `prefab`: (`string`) The prefab name of the material.
-*   **Returns:** (`number`) The count of the material.
+*   **Description:** Returns the current count of a specific material stored.
+*   **Parameters:** `prefab` (string) — the item prefab name.
+*   **Returns:** `number` — count of stored material.
 
 ### `GetSlotCount(slot)`
-*   **Description:** Returns the current count of material for a specific slot, as defined in `CONSTRUCTION_PLANS`.
-*   **Parameters:**
-    *   `slot`: (`number`) The numerical index of the material slot in `CONSTRUCTION_PLANS`.
-*   **Returns:** (`number`) The count of the material in that slot.
+*   **Description:** Returns the count of material stored in a specific construction slot (by index), based on `CONSTRUCTION_PLANS`.
+*   **Parameters:** `slot` (number) — index into `CONSTRUCTION_PLANS`.
+*   **Returns:** `number` — count of material in that slot.
 
 ### `IsComplete()`
-*   **Description:** Checks if all required materials, as defined in `CONSTRUCTION_PLANS`, have been added to the construction site.
+*   **Description:** Checks if all required materials in `CONSTRUCTION_PLANS` for the current `constructionprefab` are present.
 *   **Parameters:** None.
-*   **Returns:** (`boolean`) `true` if construction is complete, `false` otherwise.
+*   **Returns:** `boolean` — `true` if all materials meet required amounts.
 
 ### `ForceCompletion(doer)`
-*   **Description:** Instantly adds any missing materials to complete the construction and then calls `OnConstruct` as if the `doer` had completed it.
-*   **Parameters:**
-    *   `doer`: (`Entity`) The entity credited with forcing completion.
+*   **Description:** Instantly fulfills all missing material requirements and triggers `OnConstruct()` with an empty item list.
+*   **Parameters:** `doer` (entity) — entity completing the construction.
+*   **Returns:** Nothing.
 
 ### `OnSave()`
-*   **Description:** Provides data for saving the component's state, specifically the amounts of each material collected.
+*   **Description:** Returns serialization data for the material inventory.
 *   **Parameters:** None.
-*   **Returns:** (`table`) A table containing a `materials` key with material prefab names mapped to their collected amounts, or `nil` if no materials are present.
+*   **Returns:** `{ materials = { [prefab] = amount, ... } }` or `nil` if no materials are stored.
 
 ### `OnLoad(data)`
-*   **Description:** Restores the component's state from saved data, populating the `materials` table and updating the replica.
-*   **Parameters:**
-    *   `data`: (`table`) The table containing saved data, typically from `OnSave`.
+*   **Description:** Restores material inventory from saved data.
+*   **Parameters:** `data` (table) — contains `data.materials` mapping prefabs to amounts.
+*   **Returns:** Nothing.
 
 ### `GetDebugString()`
-*   **Description:** Generates a string containing debug information about the construction site, including the current builder and the progress of each required material.
+*   **Description:** Returns a human-readable string listing builder and per-slot material progress.
 *   **Parameters:** None.
-*   **Returns:** (`string`) A formatted debug string.
+*   **Returns:** `string` — debug representation.
+
+## Events & listeners
+- **Listens to:** `onremove` (via `ConstructionSite.OnRemoveFromEntity = ForceStopConstruction`) — triggers `ForceStopConstruction()` on site removal.
+- **Pushes:** `stacksizechange` (via `stackable:SetStackSize`) — emitted when excess items are returned to builder.
+- **Pushes:** `stopconstruction` (via `ConstructionBuilder:StopConstruction()`) — fired when a builder stops construction.
+- **Pushes:** Custom events `onstartconstructionfn`, `onstopconstructionfn`, `onconstructedfn` callbacks — invoked during construction lifecycle.

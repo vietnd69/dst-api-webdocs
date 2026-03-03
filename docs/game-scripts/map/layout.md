@@ -1,101 +1,94 @@
 ---
 id: layout
 title: Layout
-description: A utility module for computing force-directed layouts of node clusters using physics-based repulsion and attraction forces.
-tags: [layout, positioning, physics, utility]
-last_updated: 2026-02-27
+description: Provides utility functions for force-directed layout of nodes in 2D space, including repulsion from walls and points.
+tags: [layout, physics, map]
+sidebar_position: 100
+
+last_updated: 2026-03-04
 build_version: 714014
 change_status: stable
 category_type: map
-system_scope: environment
 source_hash: 38c6472f
+system_scope: map
 ---
 
 # Layout
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-04
 
 ## Overview
-
-The `Layout` module is a standalone utility that provides algorithms for arranging node entities in 2D space using a force-directed graph layout approach. It does not implement an Entity Component System component; instead, it defines reusable functions (`ForceDirected`, `KeepAwayFromWall`, `KeepAwayFromPoints`, and `RunForceDirected`) that operate on arbitrary node tables with position and velocity fields. It is typically used during world generation or room layout planning to organically space entities (e.g., loot, props, or structural elements) within a bounded area while respecting spatial constraints.
-
-The module exposes a single table `layout` with three key functions: `run`, `avoidwall`, and `avoidpoints`, which wrap internal logic for layout execution and obstacle avoidance.
+The `layout` module is a collection of utility functions used to compute and apply force-directed positioning for node-based layouts in 2D space. It is primarily used for arranging entities or points in maps (e.g., room layout generation, visual layout of grottoes or static layouts) by simulating physical forces such as spring attraction between connected nodes and repulsion from walls and other points. This module does not attach to entities or act as a component—it is a standalone utility module with exported functions.
 
 ## Usage example
-
 ```lua
-local layout = require "map/layout"
-
--- Define a node table where each node has:
--- node.data.position = {x = 0, y = 0}
--- node.data.dx = 0 -- velocity x
--- node.data.dy = 0 -- velocity y
--- node:IsConnectedTo(otherNode) -> boolean
--- node:UpdateMovePositionWithConstraint(fn) -> void
+local layout = require "map.layout"
 
 local nodes = {
-    { id = "a", data = { position = {x=0, y=0}, dx=0, dy=0 }, IsConnectedTo = function() return false end, UpdateMovePositionWithConstraint = function() end },
-    { id = "b", data = { position = {x=1, y=0}, dx=0, dy=0 }, IsConnectedTo = function() return true end, UpdateMovePositionWithConstraint = function() end },
+    { id = 1, data = { position = {x=0,y=0}, dx=0, dy=0, connected_to = {} } },
+    { id = 2, data = { position = {x=1,y=1}, dx=0, dy=0, connected_to = {} } },
 }
 
-local center = {x = 10, y = 10}
-local constrainFn = function(x, y) return x, y end -- placeholder constraint
+-- Connect nodes (example-only; logic must be implemented externally)
+nodes[1].data.connected_to[nodes[2].id] = true
+nodes[2].data.connected_to[nodes[1].id] = true
 
-layout.run(center, nodes, function(x, y) return 0, 0 end, constrainFn)
+layout.run({x=0, y=0}, nodes, function() return 0,0 end, function(node) end)
 ```
 
 ## Dependencies & tags
-**Components used:** None. This module does not interact with entity components directly and is stateless.
-**Tags:** None identified.
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-No public properties are defined in this module.
+No public properties
 
 ## Main functions
+### `RunForceDirected(center, nodes, layoutFn, constrainFn)`
+*   **Description:** Runs an iterative force-directed layout algorithm to position nodes around a center point. Nodes are repelled from each other (via charge force), pulled toward connected neighbors (via spring force), slowed via damping, and optionally guided by a custom layout function and constraint function. Stops when kinetic energy falls below `0.5` or after 100 iterations.
+*   **Parameters:**
+    *   `center` (table with `x`, `y` fields) - The reference center point for layout.
+    *   `nodes` (array of node tables) - Each node table must contain a `data` field with `position` (table `{x,y}`), `dx` (number, velocity), `dy` (number, velocity), and `IsConnectedTo(otherNode)` method.
+    *   `layoutFn` (function: `(x, y) -> dx, dy`) - Optional custom force function that returns per-axis adjustments; used to incorporate environment-specific constraints (e.g., walls).
+    *   `constrainFn` (function: `(node) -> nil`) - Function applied per-node to enforce position constraints (e.g., bounding boxes).
+*   **Returns:** Nothing.
+*   **Error states:** None documented; assumes valid node structures.
 
 ### `ForceDirected(nodes, springForce, chargeForce, dampingForce, globalEffectFN, constrainFn)`
-* **Description:** Computes and applies forces to each node based on connections and mutual repulsion, updating velocities. This is the core physics engine of the layout system.
-* **Parameters:**
-  * `nodes`: Table of node objects. Each node must have:
-    * `node.data.position` (table `{x, y}`)
-    * `node.data.dx`, `node.data.dy` (velocity accumulators, updated in-place)
-    * `node:IsConnectedTo(otherNode)` → boolean
-    * `node:UpdateMovePositionWithConstraint(constrainFn)` → void (applies constraint to position and resets velocities)
-  * `springForce`: Number. Target distance for connected (spring) nodes to maintain.
-  * `chargeForce`: Number. Scaling factor for repulsive force between all node pairs.
-  * `dampingForce`: Number. Velocity decay factor applied per iteration (e.g., 0.5 halves velocity).
-  * `globalEffectFN`: Function `(x, y) -> dx, dy`. Optional global force field (currently disabled in code).
-  * `constrainFn`: Function `(x, y) -> newX, newY`. Constraint function applied to position after force accumulation.
-* **Returns:** `total_kinetic_energy` (number). Sum of squared velocities across all nodes (a proxy for system stability).
-* **Error states:** May return `0` if forces evaluate to `NaN` or `inf` (explicitly handled by clamping). Requires all node fields to be correctly initialized; missing fields may cause runtime errors.
+*   **Description:** Internal helper function implementing the core force computation loop for `RunForceDirected`. Computes pairwise forces between nodes and updates velocities accordingly.
+*   **Parameters:**
+    *   `nodes` (array of node tables) - Same structure as `RunForceDirected`.
+    *   `springForce` (number) - Target distance for connected nodes to maintain.
+    *   `chargeForce` (number) - Strength of repulsion between unconnected nodes.
+    *   `dampingForce` (number) - Multiplier applied to velocity to reduce kinetic energy each iteration.
+    *   `globalEffectFN` (function: `(x, y) -> force`) - Unused in current code (commented out), retained for extensibility.
+    *   `constrainFn` (function: `(node) -> nil`) - Same as `RunForceDirected`.
+*   **Returns:** `total_kinetic_energy` (number) - Sum of squared velocities across all nodes.
+*   **Error states:** Returns early with `force = 0` if `isbadnumber(force)` is true for any computed force.
 
 ### `KeepAwayFromWall(wall, x, y, attract)`
-* **Description:** Computes scalar repulsion (or attraction if `attract` is true) force magnitude exerted on position `(x, y)` by a rectangular wall boundary.
-* **Parameters:**
-  * `wall`: Table `{center = {x, y}, width = number, height = number}` defining the wall bounds.
-  * `x`, `y`: Numbers. Position to evaluate.
-  * `attract`: Boolean. If true, force direction is reversed (attraction instead of repulsion).
-* **Returns:** Force magnitude (number). Positive value indicates repulsion, negative attraction when `attract` is true.
-* **Error states:** Uses `assert(not isnan(force))` and `assert(not isinf(force))` internally; illegal values will cause a runtime assertion failure.
+*   **Description:** Computes a scalar repulsion (or attraction if `attract` is `true`) force from a rectangular wall boundary defined by `wall.center` and `wall.width/height`.
+*   **Parameters:**
+    *   `wall` (table with `center` `{x,y}`, `width`, `height`) - Defines the rectangular obstacle.
+    *   `x`, `y` (numbers) - Current position coordinates.
+    *   `attract` (boolean) - If `true`, inverts the force to *attract* toward the wall instead of repelling.
+*   **Returns:** `force` (number) - Net scalar force magnitude.
+*   **Error states:** Assertion fails if `isnan(force)` or `isinf(force)`—should not occur for valid inputs.
 
 ### `KeepAwayFromPoints(points, x, y, attract)`
-* **Description:** Computes cumulative repulsive force vector (dx, dy) exerted on position `(x, y)` by a list of point obstacles.
-* **Parameters:**
-  * `points`: List of tables `{x = number, y = number}` representing point obstacles.
-  * `x`, `y`: Numbers. Position to evaluate.
-  * `attract`: Boolean. Currently unused; force is always repulsive.
-* **Returns:** `dxAcc, dyAcc` (two numbers). Net repulsive force components.
-* **Error states:** Includes a bug in the reference code: `dyAcc = dyAcc + dx` should be `dyAcc = dyAcc + dy`. May return zero if forces are invalid (`isbadnumber` check suppresses errors).
+*   **Description:** Computes net 2D force vector to repel (or attract if `attract` is `true`) from a set of point obstacles.
+*   **Parameters:**
+    *   `points` (array of tables with `x`, `y`) - List of point locations to avoid (or seek).
+    *   `x`, `y` (numbers) - Current position.
+    *   `attract` (boolean) - If `true`, inverts the repulsion to attraction.
+*   **Returns:** `dx`, `dy` (numbers) - Net force vector components.
+*   **Error states:** If `isbadnumber(force)` occurs, that node's contribution is skipped.
 
-### `RunForceDirected(center, nodes, layoutFn, constrainFn)`
-* **Description:** Runs the force-directed layout algorithm on `nodes` to distribute them around a `center` point within a predefined area, respecting constraints. Performs up to 100 iterations until system kinetic energy drops below `0.5`.
-* **Parameters:**
-  * `center`: Table `{x, y}`. Center point of the layout zone.
-  * `nodes`: Table of node objects (same requirements as `ForceDirected`).
-  * `layoutFn`: Function `(x, y) -> dx, dy`. Optional global force (currently unused).
-  * `constrainFn`: Function `(x, y) -> newX, newY`. Position constraint applied per iteration.
-* **Returns:** `nil`. Modifies node positions in-place via `UpdateMovePositionWithConstraint`.
-* **Error states:** Not directly documented, but may fail or behave unexpectedly if node tables lack required fields (`data`, `IsConnectedTo`, `UpdateMovePositionWithConstraint`).
+### `printNodes(nodelist)`
+*   **Description:** Utility function to generate a human-readable string of node positions (floored to integers) for debugging.
+*   **Parameters:**
+    *   `nodelist` (array of node tables) - Same node structure as other functions.
+*   **Returns:** `str` (string) - Formatted string of node coordinates.
 
 ## Events & listeners
-This module has no event system or interaction with DST's event infrastructure. It is purely functional and stateless.
+None identified.

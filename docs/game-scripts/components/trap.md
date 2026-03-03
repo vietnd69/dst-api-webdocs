@@ -1,141 +1,185 @@
 ---
 id: trap
 title: Trap
-description: Manages trap logic including setting, baiting, triggering, looting, and state persistence for traps in the game world.
+description: Manages trap logic including setting, baiting, springing, harvesting, and loot generation for traps in the game.
+tags: [combat, trap, loot, inventory, ai]
 sidebar_position: 1
-
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 22cae9e1
+system_scope: entity
 ---
-
 # Trap
 
-## Overview
-The `Trap` component governs the behavior of static traps in the game: it handles setting the trap, accepting bait, detecting and capturing eligible targets within range, managing spring logic (including loot generation and starvation timers), and persisting state across saves. It interacts with the Entity Component System by attaching to a trap entity, adding/removing tags, listening for world/player events, and coordinating with other components like `timer`, `health`, `inventoryitem`, and `lootdropper`.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Requires:** `timer` component (added if missing on initialization)
-- **Listens to events:** `timerdone`, `ondropped`, `onpickup`
-- **Adds/removes tags:**  
-  - Adds `"canbait"` when trap is set and has no bait  
-  - Adds `"trapsprung"` when trap is sprung  
-  - Removes both tags on removal from entity or state reset
+## Overview
+`Trap` is an entity component that implements full trap lifecycle management: setting the trap, accepting bait, detecting and springing on valid targets, storing trapped entities as loot, handling spoilage over time, and harvesting to release loot. It integrates with `timer`, `bait`, `inventory`, `lootdropper`, `perishable`, `health`, `eater`, and `finiteuses` components, and supports networked save/load via `OnSave`/`OnLoad`. Traps can be used by players or AI to capture small creatures for resource farming.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("trap")
+inst.components.trap:Set()
+inst.components.trap:SetBait(SpawnPrefab("worms"))
+inst.components.trap:SetOnHarvestFn(function(trap) print("Trap harvested!") end)
+```
+
+## Dependencies & tags
+**Components used:** `timer`, `perishable`, `lootdropper`, `inventory`, `inventoryitem`, `health`, `eater`, `finiteuses`, `bait`  
+**Tags added/removed:** Adds/Removes `canbait`, `trapsprung` depending on state  
+**Tags checked:** `smallcreature`, `INLIMBO`, `untrappable`, `mole`, `baitstealer`, `edible_*`, `molebait`
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `bait` | `entity` or `nil` | `nil` | The bait entity currently placed in the trap. |
+| `issprung` | boolean | `false` | Whether the trap has been sprung (and is no longer active). |
+| `isset` | boolean | `false` | Whether the trap is active and waiting for a target. |
+| `range` | number | `1.5` | Detection radius around the trap for targets. |
+| `targettag` | string | `"smallcreature"` | Tag required (in addition to other checks) for a valid target. |
+| `checkperiod` | number | `0.75` | Seconds between target checks when trap is set. |
+| `onharvest` | function or `nil` | `nil` | Callback triggered on trap harvest. |
+| `onbaited` | function or `nil` | `nil` | Callback triggered when bait is added. |
+| `onspring` | function or `nil` | `nil` | Callback triggered when trap springs (args: trap, target, bait). |
+| `target` | `entity` or `nil` | `nil` | The most recently detected target (valid only until springing). |
+| `lootprefabs` | `table` or `nil` | `nil` | List of prefabs to drop on harvest. |
+| `lootdata` | any or `nil` | `nil` | Custom data saved for `restoredatafromtrap()` on harvested items. |
+| `numsouls` | number or `nil` | `nil` | Number of souls to award on harvest if trapped alive. |
+| `starvednumsouls` | number or `nil` | `nil` | Number of souls to award on spoilage completion if starved. |
+| `starvedlootprefabs` | `table` or `nil` | `nil` | Loot generated when the trapped item spoils completely. |
 
-| Property         | Type      | Default Value | Description |
-|------------------|-----------|---------------|-------------|
-| `inst`           | `Entity`  | —             | The entity instance the component is attached to. |
-| `bait`           | `Entity?` | `nil`         | The bait item currently placed in the trap (if any). |
-| `issprung`       | `boolean` | `false`       | Whether the trap has been triggered. |
-| `isset`          | `boolean` | `false`       | Whether the trap is currently active (set and baited, waiting for a target). |
-| `range`          | `number`  | `1.5`         | Radius (in tiles) around the trap to scan for targets. |
-| `targettag`      | `string`  | `"smallcreature"` | Tag used to identify eligible target entities. |
-| `checkperiod`    | `number`  | `0.75`        | Interval (in seconds) between target checks. |
-| `onharvest`      | `function?` | `nil`       | Callback invoked when the trap is harvested. |
-| `onbaited`       | `function?` | `nil`       | Callback invoked when bait is placed in the trap. |
-| `onspring`       | `function?` | `nil`       | Callback invoked when the trap springs. |
-| `task`           | `PeriodicTask?` | `nil`   | Reference to the scheduled update task for periodic scanning. |
-| `target`         | `Entity?` | `nil`         | The entity currently trapped (valid only when sprung and not yet harvested). |
-| `lootprefabs`    | `{string}?` | `nil`     | List of prefabs to spawn as loot when the trap is harvested. |
-| `lootdata`       | `table?`  | `nil`         | Custom data passed to loot entities via `restoredatafromtrap`. |
-| `numsouls`       | `number?` | `nil`         | Number of souls associated with the trapped creature (e.g., Wortox souls). |
-| `starvednumsouls`| `number?` | `nil`         | Number of souls to grant if the creature starves while trapped. |
-| `starvedlootprefabs` | `{string}?` | `nil` | Loot spawned if the creature starves (generated during starvation). |
-
-## Main Functions
-
+## Main functions
 ### `Set()`
-* **Description:** Activates the trap for trapping: sets `isset = true`, clears prior state, and begins periodic target scanning. Must be called after `SetBait`.
+* **Description:** Activates the trap for detection. Resets state (except bait is removed) and starts periodic target scanning.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `Reset(sprung)`
-* **Description:** Clears trap state (bait, target, loot, timers, etc.). If `sprung` is `true`, marks the trap as sprung but not yet harvested.
-* **Parameters:**
-  * `sprung` (`boolean?`): Optional flag indicating whether the trap was sprung.
+* **Description:** Clears all trap state (loot, target, timers, bait). If `sprung` is `true`, marks trap as permanently sprung (used on spoilage failure).
+* **Parameters:** `sprung` (boolean, optional) — forces `issprung = true` even if trap is idle.
+* **Returns:** Nothing.
 
 ### `SetBait(bait)`
-* **Description:** Places a bait item into the trap. Validates that the item is a bait and updates internal state and animation offset. Triggers the `onbaited` callback if defined.
-* **Parameters:**
-  * `bait` (`Entity`): The bait item entity (must have a `bait` component).
+* **Description:** Attaches a bait entity to the trap. Removes any existing bait first. Adds `bait` to trap’s loot on harvest and removes bait after springing or spoilage.
+* **Parameters:** `bait` (`entity` or `nil`) — The bait entity to place in the trap.
+* **Returns:** Nothing.
 
 ### `RemoveBait()`
-* **Description:** Removes the current bait from the trap, resetting the bait reference and associated component links.
+* **Description:** Safely clears `self.bait`, resetting related bait component references and animation offsets.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `StartUpdate()` / `StopUpdating()`
-* **Description:** `StartUpdate` begins the periodic scanning loop (via `DoPeriodicTask`) to check for eligible targets within range. `StopUpdating` cancels the current scan task.
+### `IsBaited()`
+* **Description:** Returns `true` if the trap is set, not sprung, and has bait attached.
 * **Parameters:** None.
+* **Returns:** `boolean` — `true` if baited and ready.
 
-### `OnEntityWake()` / `OnEntitySleep()`
-* **Description:** Adjusts the update task when the trap enters/leaves sleep mode (e.g., far from players). Slows the update rate during sleep and restores it on wake.
+### `IsFree()`
+* **Description:** Returns `true` if no bait is currently attached (trap may or may not be set).
 * **Parameters:** None.
+* **Returns:** `boolean` — `true` if free of bait.
 
-### `OnUpdate(dt)`
-* **Description:** Core scanning logic. If the trap is set (`isset == true`), searches for an eligible entity within `range`. On finding one, triggers `DoTriggerOn`.
-* **Parameters:**
-  * `dt` (`number`): Time since last update (unused directly but passed by task system).
-
-### `DoTriggerOn(target)`
-* **Description:** Handles the spring event when a target is found. Pushes `"springtrap"` to the trap entity, `"trapped"` (or `"safelydisarmedtrap"`) to the target, and stops further scanning.
-* **Parameters:**
-  * `target` (`Entity`): The entity that triggered the trap.
-
-### `DoSpring()`
-* **Description:** Executes the full spring sequence when a target is captured: sets `issprung = true`, records loot and soul counts, starts the starvation timer, removes the target, and handles bait consumption or bait stealing.
+### `HasLoot()`
+* **Description:** Returns `true` if the trap currently holds loot (i.e., a trapped entity or generated loot list).
 * **Parameters:** None.
+* **Returns:** `boolean` — `true` if loot is pending harvest.
+
+### `IsSprung()`
+* **Description:** Returns `true` if the trap has been sprung (even if still holding loot).
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if the trap has sprung.
 
 ### `Harvest(doer)`
-* **Description:** Harvests the trap, spawning loot, granting souls (if applicable), updating perishable items with time-in-trap, and resetting or rearming the trap depending on finite uses.
-* **Parameters:**
-  * `doer` (`Entity?`): The entity harvesting the trap (player/character), used for giving loot and sending soul events.
+* **Description:** Completes trap harvesting: drops loot, awards souls, handles perishable updates, and resets or re-arms the trap depending on finiteuses count.
+* **Parameters:** `doer` (`entity` or `nil`) — The actor harvesting the trap (for soul events).
+* **Returns:** Nothing.
+* **Error states:** No effect if trap is not `issprung`.
+
+### `StartStarvation()`
+* **Description:** Initializes the spoilage timer (based on trapped entity’s `perishremainingtime` or default), and precomputes starved loot and soul counts.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `StopStarvation()`
+* **Description:** Cancels the spoilage timer and clears `starvedlootprefabs`.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnTrappedStarve()`
-* **Description:** Called when the starvation timer completes. Spawns spoiled loot based on `starvedlootprefabs`, pushes `"starvedtrapsouls"` event if applicable, and resets the trap.
+* **Description:** Called when the spoilage timer completes. Drops starved loot (spoiled food or configured prefabs), awards souls, and resets the trap.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `StartStarvation()` / `StopStarvation()`
-* **Description:** Starts/stops the "foodspoil" timer for the trapped creature (if perishable). `StartStarvation` also populates `starvedlootprefabs`.
-* **Parameters:** None.
+### `DoTriggerOn(target)`
+* **Description:** Triggers the spring event on the given `target`, pushes `springtrap`/`safelydisarmedtrap` events, and stops detection updates.
+* **Parameters:** `target` (`entity`) — The entity to spring on.
+* **Returns:** Nothing.
 
-### `AcceptingBait()`
-* **Description:** Returns `true` if the trap is set and not yet baited.
+### `DoSpring()`
+* **Description:** Finalizes spring logic: saves loot and soul counts, generates starvation data, removes/bait or captures new bait, fires `onspring` callback, and marks trap as sprung.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `IsBaited()`, `IsFree()`, `IsSprung()`, `HasLoot()`
-* **Description:** Simple boolean helpers for trap state.
+### `OnSave()`
+* **Description:** Returns a serializable state table and an entity-GUID dependency list for saving.
 * **Parameters:** None.
+* **Returns:** 
+  * Table with keys `sprung`, `isset`, `bait`, `loot`, `souls`, `starvedsouls`, `starvedloot`, `lootdata`.
+  * Array containing bait GUID (if any) for save dependency resolution.
+* **Error states:** Bait GUID is included but not saved directly in the first table (handled via dependency array).
+
+### `OnLoad(data)`
+* **Description:** Loads trap state from saved data; supports legacy string-type `loot` and `starvedloot`. Restarts update task if trap was set.
+* **Parameters:** `data` (table) — The saved state table.
+* **Returns:** Nothing.
+
+### `LoadPostPass(newents, savedata)`
+* **Description:** Restores the bait entity reference after `newents` is populated during map load.
+* **Parameters:** 
+  * `newents` (table) — Map of GUIDs to entity objects.
+  * `savedata` (table) — The parsed save data, containing `bait` GUID.
+* **Returns:** Nothing.
+
+### `SetOnHarvestFn(fn)`
+* **Description:** Assigns a callback to run when the trap is harvested.
+* **Parameters:** `fn` (function) — Callback with signature `fn(trap)`.
+* **Returns:** Nothing.
+
+### `SetOnSpringFn(fn)`
+* **Description:** Assigns a callback to run when the trap springs.
+* **Parameters:** `fn` (function) — Callback with signature `fn(trap, target, bait)`.
+* **Returns:** Nothing.
+
+### `SetOnBaitedFn(fn)`
+* **Description:** Assigns a callback to run when bait is added.
+* **Parameters:** `fn` (function) — Callback with signature `fn(trap, bait)`.
+* **Returns:** Nothing.
+
+### `BaitTaken(target)`
+* **Description:** Invoked when a `baitstealer` or matching tag entity takes bait; triggers spring if tag matches.
+* **Parameters:** `target` (`entity`) — The entity that took the bait.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a debug-friendly string summarizing the trap’s state (e.g., `"SET! Bait:mouse Loot:cheese"`).
+* **Description:** Returns a human-readable string summarizing current state (e.g., `"SET! Bait:worms Target:rabbit Loot:rabbit"`).
 * **Parameters:** None.
+* **Returns:** `string` — Debug summary.
 
-### `SetOnHarvestFn(fn)` / `SetOnBaitedFn(fn)` / `SetOnSpringFn(fn)`
-* **Description:** Registers a callback to be invoked on harvest, bait placement, or spring events, respectively.
-* **Parameters:**
-  * `fn` (`function`): Callback function accepting the trap entity and optionally the target/bait.
+### `StartUpdate()`, `StopUpdating()`, `OnEntitySleep()`, `OnEntityWake()`
+* **Description:** Helper methods to manage the periodic target-check task, including reduced frequency during sleep.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `OnSave()` / `OnLoad(data)` / `LoadPostPass(newents, savedata)`
-* **Description:** Persists trap state to disk and restores it on load, including bait GUID, loot, souls, and timer state.
-* **Parameters:** Standard save/load data and new entities map.
-
-## Events & Listeners
-- **Listens for:**
-  - `"timerdone"` → calls `OnTimerDone` (triggers `OnTrappedStarve` when timer is `"foodspoil"`)
-  - `"ondropped"` → calls `OnDropped` (resets trap to `Set()`)
-  - `"onpickup"` → calls `OnPickup` (resets trap to `Reset()`)
-
-- **Emits:**
-  - `"springtrap"` (on trap activation, including during load)
-  - `"harvesttrap"` (when harvested, with optional `doer` and `sprung`)
-  - `"trapped"` (pushed to the target entity)
-  - `"safelydisarmedtrap"` (if target is untrappable)
-  - `"ontrapped"` (pushed to the target before removal)
-  - `"starvedtrapsouls"` (via `TheWorld` when creature starves and has souls)
-  - `"harvesttrapsouls"` (to harvester when harvesting soul-storing trap)
-
-## Events & Listeners
+## Events & listeners
+- **Listens to:** `timerdone` — triggers `OnTrappedStarve()` when `foodspoil` timer finishes.
+- **Listens to:** `ondropped` — calls `Set()` to re-arm trap after being dropped.
+- **Listens to:** `onpickup` — calls `Reset()` to clear loot when picked up.
+- **Pushes:** `springtrap` — fired when trap springs (with `{trap = self.inst}` and optionally `{loading = true}`).
+- **Pushes:** `harvesttrap` — fired when trap is harvested (with `{doer = doer, sprung = true}`).
+- **Pushes:** `safelydisarmedtrap` — fired when trap springs on an untrappable entity (with `{trap = self.inst}`).
+- **Pushes (via target):** `trapped` — fired on the trapped entity (with `{trap = self.inst}`).
+- **Pushes (via target):** `ontrapped` — fired on the trapped entity (with `{trapper = self.inst, bait = self.bait}`).
+- **Pushes (via target or world):** `harvesttrapsouls` or `starvedtrapsouls` — awards souls on harvest or spoilage.

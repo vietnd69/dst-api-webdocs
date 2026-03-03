@@ -1,49 +1,67 @@
 ---
 id: carnivalgameshooter
 title: Carnivalgameshooter
-description: Manages the aiming and shooting mechanics for a carnival shooting gallery game entity.
+description: Manages the aiming and shooting mechanics for the carnival shooting mini-game, controlling projectile launch parameters and aim animation.
+tags: [minigame, combat, animation, physics]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: f4028d48
+system_scope: world
 ---
 
 # Carnivalgameshooter
 
-## Overview
-The `Carnivalgameshooter` component provides the core logic for the carnival shooting minigame. It is responsible for managing the oscillating aiming meter, locking in the aim, and firing a projectile along a calculated arc towards the targets.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components:** This component requires the `SoundEmitter` component on the same entity to function correctly.
-- **Tags:** None identified.
+## Overview
+`CarnivalGameShooter` implements the core logic for the carnival shooting mini-game projectile launcher. It maintains an oscillating aiming angle and calculates projectile trajectories relative to the entity’s orientation. The component does not manage state persistence or network sync directly but delegates projectile physics to the `ComplexProjectile` component.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("carnivalgameshooter")
+inst.components.carnivalgameshooter:Initialize()
+-- During gameplay loop:
+local angle, direction = inst.components.carnivalgameshooter:UpdateAiming(dt)
+inst.components.carnivalgameshooter:Shoot()
+```
+
+## Dependencies & tags
+**Components used:** `complexprojectile`, `transform`, `soundemitter`  
+**Tags:** None identified.
 
 ## Properties
-Properties are initialized in the `Initialize` method rather than a constructor.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `angle` | number | Calculated as midpoint of min/max tuning | Current aiming angle in degrees, oscillates during gameplay. |
+| `power` | number | `TUNING.CARNIVALGAME_SHOOTING_POWER` | Projectile power parameter (unused in current implementation). |
+| `meterdirection` | number | `1` | Direction of angle oscillation: `1` for increasing, `-1` for decreasing. |
 
-| Property       | Type   | Default Value                                                              | Description                                                      |
-|----------------|--------|----------------------------------------------------------------------------|------------------------------------------------------------------|
-| `angle`        | number | `(TUNING.CARNIVALGAME_SHOOTING_ANGLE_METER_MIN + TUNING.CARNIVALGAME_SHOOTING_ANGLE_METER_MAX)/2` | The current aiming angle in degrees.                             |
-| `power`        | number | `TUNING.CARNIVALGAME_SHOOTING_POWER`                                         | The pre-defined power or force of the shot.                      |
-| `meterdirection` | number | `1`                                                                        | The direction the aiming meter is moving (1 for up, -1 for down). |
-
-## Main Functions
+## Main functions
 ### `Initialize()`
-* **Description:** Initializes or resets the shooter's aiming properties to their default state. This sets the starting angle to the midpoint of its range, sets the shot power, and sets the initial meter direction.
+* **Description:** Initializes default aim parameters: sets `angle` to the midpoint of the allowed range and assigns the configured `power`. Does not affect `meterdirection`, which remains `nil` until updated.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `UpdateAiming(dt)`
-* **Description:** Updates the aiming angle for the oscillating meter based on the elapsed time (`dt`). The angle moves back and forth between `TUNING.CARNIVALGAME_SHOOTING_ANGLE_METER_MIN` and `TUNING.CARNIVALGAME_SHOOTING_ANGLE_METER_MAX`, reversing direction when it hits a boundary.
-* **Parameters:**
-    * `dt` (number): The time elapsed since the last update frame.
+* **Description:** Updates the current aiming angle over time, bouncing between the min/max angle bounds defined in tuning. Simulates a back-and-forth aiming meter.
+* **Parameters:** `dt` (number) — Delta time in seconds since last frame.
+* **Returns:** Two values: `angle` (number) — current aim angle in degrees; `meterdirection` (number) — current oscillation direction (`1` or `-1`).
 
 ### `SetAim()`
-* **Description:** Plays a sound effect to provide feedback when the player locks in their aim.
+* **Description:** Plays a placement sound effect when the cannon is positioned (e.g., on setup).
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `Shoot()`
-* **Description:** Spawns a "carnivalgame_shooting_projectile" prefab and launches it. It calculates the target position along a predefined arc based on the entity's rotation and the currently set `angle`. The projectile is then launched towards this target using its `complexprojectile` component.
+* **Description:** Spawns a `carnivalgame_shooting_projectile` prefab, positions it relative to the shooter, and launches it along a calculated arc trajectory. Uses `ComplexProjectile` to handle physics launch and flight.
 * **Parameters:** None.
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:** None identified.
+- **Pushes:** None identified.

@@ -1,45 +1,57 @@
 ---
 id: crabking_mobbrain
 title: Crabking Mobbrain
-description: Controls the behavior tree logic for the Crab King mob, including platform abandonment when the platform is critically damaged, evasion of electric fences and panic triggers, combat engagement, and homing wander movement to a remembered home location.
+description: Controls the behavior tree logic for Crab King mobs, handling platform abandonment, panic responses, combat pursuit, and homing to their known home location.
+tags: [ai, boss, combat, platform]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 9f160765
+system_scope: brain
 ---
 
 # Crabking Mobbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
+`CrabkingMobBrain` is a brain component that defines the behavior tree for Crab King–associated mob entities (e.g., Crabkin guards or minions). It implements a priority-based behavior tree using common behaviors like `ChaseAndAttack`, `Wander`, and a custom `DoAction` handler for abandoning a dying platform. It integrates with the `health` and `knownlocations` components to respond to platform degradation and remember the mob’s home position.
 
-This brain component defines the behavior tree for the Crab King mob, a boss-entity in DST. It orchestrates high-priority survival behaviors (panic triggers), tactical platform abandonment, active combat via `ChaseAndAttack`, and navigation back to a remembered home position using `Wander`. It inherits from the base `Brain` class and is attached to the mob entity via `inst:AddComponent("brain")`. The brain relies on two external components: `health` to determine when the Crab King's platform is too damaged to remain on, and `knownlocations` to store and retrieve the home position used for wander navigation.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("crabking_mobbrain")
+-- The brain is automatically initialized and runs when the entity spawns,
+-- using logic defined in OnStart and OnInitializationComplete
+```
 
-## Dependencies & Tags
-- **Components used:**  
-  - `health`: Reads `currenthealth` to evaluate platform integrity.
-  - `knownlocations`: Calls `GetLocation("home")` for wander target and `RememberLocation("home", ...)` during initialization.
-- **Tags:** None identified.
+## Dependencies & tags
+**Components used:** `health`, `knownlocations`  
+**Tags:** None identified.
 
 ## Properties
-No public instance properties are initialized in the constructor beyond the base `Brain` functionality. The component uses local constants and internal state (`self.bt`) which are not exposed as public properties.
+No public properties.
 
-## Main Functions
+## Main functions
+### `OnStart()`
+*   **Description:** Initializes the behavior tree with a priority node containing sequential behavior options: panic triggers, platform abandonment, combat pursuit, and wandering. This is called once when the brain starts.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `CrabkingMobBrain:OnStart()`
-* **Description:** Constructs and assigns the behavior tree root node. This method is called automatically when the brain begins running. It defines a priority node with five sub-nodes evaluated in order: panic triggers (for fire/electric fence), a platform-abandonment check, combat engagement, and wander movement.
-* **Parameters:** None.
-* **Returns:** None. Initializes `self.bt` with the constructed behavior tree.
+### `OnInitializationComplete()`
+*   **Description:** Records the mob's current position as the `"home"` location for later use during wandering behavior.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `CrabkingMobBrain:OnInitializationComplete()`
-* **Description:** Registers the mob's current position as its "home" location in the `knownlocations` component. This point becomes the target for wander behavior during later gameplay.
-* **Parameters:** None.
-* **Returns:** None.
+## Events & listeners
+- **Listens to:** None identified.
+- **Pushes:** None identified.
 
-## Events & Listeners
-None. This component does not register or fire any events directly. It operates entirely through behavior tree evaluation and component API calls.
+## Notes
+- Uses `GetWanderPoint`, which retrieves `"home"` from the `knownlocations` component.
+- The `DoAbandonPlatform` action is only triggered if the mob’s current platform’s health is `<= ABANDON_PLATFORM_HEALTH_THRESHOLD` (i.e., `2`).
+- The abandonment logic calculates escape vectors around the platform in 16 discrete angular steps and returns a `BufferedAction` targeting the first valid empty tile.
+- This brain inherits from `Brain` via `Class(Brain, ...)` and uses the common DST brain infrastructure (`BT`, `PriorityNode`, `ChaseAndAttack`, `Wander`, `DoAction`, `BrainCommon`).

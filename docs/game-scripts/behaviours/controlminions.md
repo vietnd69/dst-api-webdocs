@@ -1,67 +1,67 @@
 ---
 id: controlminions
 title: Controlminions
-description: Controls minion behavior by locating nearby interactable entities and assigning buffered harvesting, picking, or pickup actions to the nearest available minion.
+description: Controls minion behavior to harvest, pick, or pick up nearby target entities within a defined radius.
+tags: [ai, minions, combat, harvesting, locomotion]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: behaviour
-system_scope: entity
+category_type: behaviours
 source_hash: e5bc79f8
+system_scope: ai
 ---
 
 # Controlminions
 
-## Overview
-`ControlMinions` is a behaviour node that enables an entity (typically the player or a controller) to direct minions—spawned via a `minionspawner` component—to perform specific tasks on nearby interactable entities. It operates by scanning for valid interactable objects (such as crops, stewers, dryers, or pickable items) within a calculated radius around the controller, then assigns the nearest idle minion to perform the appropriate action (e.g., `HARVEST`, `PICK`, or `PICKUP`). This behaviour integrates closely with `minionspawner` and several target components (`crop`, `stewer`, `dryer`, `pickable`, `inventoryitem`) to determine task eligibility and execution.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components used:**
-  - `minionspawner` (`self.ms`): Provides minion list, count, and position history.
-  - `crop`: Checked for `IsReadyForHarvest()`.
-  - `stewer`: Checked for `IsDone()`.
-  - `dryer`: Checked for `IsDone()`.
-  - `pickable`: Checked for `CanBePicked()` and `caninteractwith`.
-  - `inventoryitem`: Checked for `cangoincontainer`, `canbepickedup`, and `canbepickedupalive`.
-- **Tags used for entity filtering:**
-  - `NO_TAGS`: Entities *with any* of these tags are excluded from search: `FX`, `NOCLICK`, `DECOR`, `INLIMBO`, `irreplaceable`, `heavy`, `lureplant`, `eyeplant`, `notarget`, `noattack`, `flight`, `invisible`, `catchable`, `fire`, `eyeplant_immune`.
-  - `ACT_TAGS`: Entities *must have at least one* of these tags to be considered: `_inventoryitem`, `pickable`, `donecooking`, `readyforharvest`, `dried`.
+## Overview
+`Controlminions` is a behaviour node that enables a minion spawner's minions to cooperatively harvest, pick, or pick up target entities within their range. It operates as part of the AI state graph system (`stategraphs`) and uses `BufferedAction` to queue valid actions for individual minions. It queries entities based on tags and component availability, selecting the closest available minion for each action.
+
+The component relies on the `minionspawner` component to track active minions and their positions, and interfaces with multiple item components (e.g., `crop`, `stewer`, `dryer`, `pickable`, `inventoryitem`) to determine action eligibility.
+
+## Usage example
+```lua
+-- Typically instantiated automatically by the stategraph system.
+-- Example usage in a stategraph node configuration:
+stategraph.SetStateGraph("SGminion")
+-- ...
+-- In a branch node:
+-- {
+--     name = "ControlMinions",
+--     node = require("behaviours/controlminions")(inst),
+-- },
+```
+
+## Dependencies & tags
+**Components used:** `minionspawner`, `crop`, `stewer`, `dryer`, `pickable`, `inventoryitem`, `transform`
+**Tags:** Checks against multiple filter tags (`NO_TAGS` and `ACT_TAGS`) during entity search; no tags are added/removed.
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | `nil` | The entity instance this behaviour belongs to (usually the spawner entity). |
+| `ms` | `MinionSpawner` component | `nil` | Reference to the minion spawner component. |
+| `radius` | number | `nil` | Computed radius for entity search; recalculated when needed based on minion positions. |
+| `minionrange` | number | `3.5` | Maximum distance (in world units) between minions and targets to consider action eligibility. |
 
-| Property       | Type    | Default Value | Description |
-|----------------|---------|---------------|-------------|
-| `inst`         | `Entity`| —             | The entity instance to which this component is attached. |
-| `ms`           | `MinionSpawner` component | — | Cached reference to `inst.components.minionspawner`. |
-| `radius`       | `number` or `nil` | `nil` | Calculated search radius around the controller; derived from minion position history. |
-| `minionrange`  | `number` | `3.5` | Maximum distance (squared threshold: `3.5^2`) from a target at which a minion can be assigned to act on it. |
-
-## Main Functions
-
+## Main functions
 ### `GetClosestMinion(item, minions)`
-* **Description:** Identifies the nearest minion to the given `item` entity, within the configured `minionrange`. Excludes the item itself (if mistakenly included) and invalid entities.
-* **Parameters:**
-  - `item`: `Entity` — The target entity to measure distance from.
-  - `minions`: `table` — A list (array-like) of minion entities.
-* **Returns:** `Entity?` — The closest minion within range, or `nil` if none found.
+*   **Description:** Finds the closest minion to a target item within `minionrange`, excluding the item itself. Used to assign tasks to specific minions.
+*   **Parameters:**
+    *   `item` (`Entity`) — The target entity to measure distance to.
+    *   `minions` (`table` of `Entity`) — List of minion entities to search.
+*   **Returns:** `Entity` — The closest minion within range, or `nil` if none are close enough.
+*   **Error states:** Returns `nil` if all minions are too far away or the item is invalid.
 
 ### `Visit()`
-* **Description:** The core behaviour logic. Determines if minions exist, calculates an appropriate search radius, scans for eligible entities, assigns buffered actions to idle minions, and updates the behaviour status (`SUCCESS`, `FAILED`, or remains `RUNNING` during state transitions).
-* **Parameters:** None.
-* **Returns:** None. Updates `self.status` internally.
-* **Details:**
-  - Starts in `READY` state; transitions to `RUNNING` only if `self.ms.numminions > 0`.
-  - Computes `radius` using the most recent minion position (from `self.ms.minionpositions`) if not already set.
-  - Filters entities using `TheSim:FindEntities()` with `NO_TAGS` and `ACT_TAGS`.
-  - For each valid entity, checks for actionable states via component inspection:
-    - `crop:IsReadyForHarvest()` → `HARVEST`
-    - `stewer:IsDone()` or `dryer:IsDone()` → `HARVEST`
-    - `pickable:CanBePicked()` and `caninteractwith` → `PICK`
-    - `inventoryitem.cangoincontainer` and either pick-up flag → `PICKUP`
-  - Assigns a `BufferedAction` to the nearest idle minion (no `busy` state tag), forces the minion to face the target, and marks `SUCCESS` only if at least one minion was assigned an action.
-  - Returns `FAILED` if no minions, no valid entities, or radius couldn't be computed.
+*   **Description:** Main entry point for the behaviour node. Evaluates minion state, updates `radius` as needed, finds eligible target entities, and assigns actions (`HARVEST`, `PICK`, or `PICKUP`) to appropriate minions.
+*   **Parameters:** None.
+*   **Returns:** `nil` — Modifies internal `self.status` (`SUCCESS`, `FAILED`, or `RUNNING`).
+*   **Error states:** Returns early with `FAILED` status if `ms.minionpositions` is `nil`, no minions are active, or no eligible entities are found.
 
-## Events & Listeners
-None.
+## Events & listeners
+*   **Listens to:** None — this behaviour does not register event listeners.
+*   **Pushes:** None — this behaviour does not fire events directly.

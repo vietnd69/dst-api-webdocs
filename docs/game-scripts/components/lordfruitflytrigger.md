@@ -1,55 +1,72 @@
 ---
 id: lordfruitflytrigger
 title: Lordfruitflytrigger
-description: Triggers activation logic on nearby fruit fly spawners within range when active, and manages its update state in response to death and respawn events.
+description: Monitors entities within a range to activate or deactivate fruit fly spawners when they enter or remain inside the trigger zone.
+tags: [environment, entity, trigger]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: a7929100
+system_scope: environment
 ---
 
 # Lordfruitflytrigger
 
-## Overview
-This component monitors a radius around its entity for entities tagged with `"fruitflyspawner"`. It maintains a list of overlapping spawners and invokes their `_activatefn` callback when first detected. The component automatically starts updating when added to an entity (if the world's `farming_manager` exists) and responds to death/respawn events by pausing or resuming its updates.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds the `"lordfruitflytrigger"` tag to its entity.
-- Requires `TheWorld.components.farming_manager` to be present to begin updating (checked at construction).
-- Listens for events `"ms_fruitflytimerfinished"`, `"death"`, and `"respawnfromghost"`.
+## Overview
+`LordFruitFlyTrigger` is an environment-trigger component that periodically scans for entities with the `fruitflyspawner` tag within a specified radius. When such an entity enters the trigger area, it calls the entity's `_activatefn` function (typically used to activate the spawner). When the entity leaves or has been outside the range for some time, it is de-activated. The component automatically starts when attached to an entity if the `farming_manager` component exists in the world, and responds to death/resurrection events to pause or resume scanning.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("lordfruitflytrigger")
+-- Optional: adjust range before start
+inst.components.lordfruitflytrigger.trigger_range = 20
+-- The component starts automatically if farming_manager is present
+```
+
+## Dependencies & tags
+**Components used:** `farming_manager` (checked for existence at initialization)  
+**Tags:** Adds `lordfruitflytrigger` to the owning entity; expects entities within range to have `fruitflyspawner` tag and implement `_activatefn(entity, trigger)`
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `trigger_range` | number | `15` | Radius (in units) around the entity within which fruit fly spawners are detected. |
-| `findentitiesfn` | function | `findentities` | Function used to query entities in range; defaults to a closure calling `TheSim:FindEntities` with tags `{"fruitflyspawner"}`. |
-| `updating` | boolean | `false` | Tracks whether the component is actively updating. Set to `true` on initialization (if farming_manager exists). |
-| `overlapping` | table | `{}` | Table tracking overlapping fruit fly spawners; keys are entity references, values are `true` (active) or `false` (just left range). |
-| `inst` | Entity | `self`'s entity | Reference to the entity this component is attached to. |
+| `trigger_range` | number | `15` | Radius in game units around the owner entity to search for fruit fly spawners. |
+| `findentitiesfn` | function | `findentities` (local) | Custom search function used to find entities. Typically returns entities matching `FRUITFLYSPAWNER_MUST_TAGS` within range. |
+| `updating` | boolean | `false` | Whether the component is currently active and being updated every frame. |
+| `overlapping` | table | `{}` | Map of entity instances currently overlapping or recently overlapping the trigger area. Used to track activation state. |
 
-## Main Functions
-### `OnUpdate()`
-* **Description:** Called each frame while updating. Clears stale overlap entries, then scans for nearby spawners. For each new spawner, invokes its `_activatefn`; for previously seen ones, refreshes their active status.
-* **Parameters:** None (uses internal `overlapping`, `findentitiesfn`, and `trigger_range`).
-
+## Main functions
 ### `StartUpdating()`
-* **Description:** Begins periodic `OnUpdate()` calls if not already active. Calls `inst:StartUpdatingComponent(self)` internally.
-* **Parameters:** None.
+*   **Description:** Begins periodic `OnUpdate` calls for this component. Automatically called during initialization (if `farming_manager` is present) and resurrection.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if already updating.
 
 ### `StopUpdating()`
-* **Description:** Halts `OnUpdate()` calls if currently active. Calls `inst:StopUpdatingComponent(self)` internally.
-* **Parameters:** None.
+*   **Description:** Stops periodic `OnUpdate` calls. Automatically called on death or manually to disable the trigger.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if not currently updating.
 
-### `OnRemoveFromEntity()`
-* **Description:** Cleanup logic invoked when the component is removed. Removes the `"lordfruitflytrigger"` tag and detaches all event listeners.
-* **Parameters:** None.
+### `OnUpdate()`
+*   **Description:** Core logic called each frame while updating. Clears stale entries in `overlapping`, finds new entities in range, and activates them if newly entered or previously active. Deactivates entities that have not been seen recently.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Assumes each entity found has a callable `_activatefn(ent, trigger)` method.
 
-## Events & Listeners
-- Listens for `"ms_fruitflytimerfinished"` on `TheWorld` and calls `ontimerfinished(self)` (which clears the `overlapping` table).
-- Listens for `"death"` on `inst` and calls `ondeath(inst)` (which stops updating).
-- Listens for `"respawnfromghost"` on `inst` and calls `onresurrect(inst)` (which starts updating again).
-- Pushes no events itself.
+## Events & listeners
+- **Listens to:** `death` – stops updating when the owner dies.  
+- **Listens to:** `respawnfromghost` – restarts updating when the owner respawns.  
+- **Listens to:** `ms_fruitflytimerfinished` – clears the `overlapping` table (via `ontimerfinished`).  
+- **Pushes:** None.
+
+## Additional notes
+- The component does not manage spawner lifecycles directly — it only invokes `_activatefn` on matched entities.
+- On removal from an entity (`OnRemoveFromEntity`), all event listeners and tags are properly cleaned up.
+- The component does not require explicit activation — it starts automatically if `TheWorld.components.farming_manager` exists at init time.

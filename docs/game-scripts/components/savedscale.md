@@ -1,47 +1,51 @@
 ---
 id: savedscale
 title: Savedscale
-description: Manages persistence of an entity's 3D scale values (x, y, z) across save/load cycles.
+description: Stores and restores non-default scale values for an entity's transform during save/load operations.
+tags: [save, network, transform]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 987f94a1
+system_scope: entity
 ---
 
 # Savedscale
 
-## Overview
-This component ensures that an entity's transform scale is saved to and restored from the game save file. It records non-default scale components (i.e., values not equal to 1) in a compact format during `OnSave` and applies them during `OnLoad`, defaulting missing axes to the x-scale for symmetry.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires the `Transform` component to be present on the same entity (via `self.inst.Transform`).
-- No component dependencies added (`AddComponent`).
-- No tags are added or removed.
+## Overview
+`Savedscale` is a lightweight component responsible for persisting and restoring an entity's non-default scale values across game sessions. It integrates with the DST save/load system by implementing `OnSave` and `OnLoad` callbacks. The component records scale components (`x`, `y`, `z`) only when they differ from the default value of `1`, optimizing saved data size by omitting redundant information.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("savedscale")
+-- Scale is automatically saved and loaded with the entity; no manual intervention required.
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-No public properties are initialized in the constructor or elsewhere. The component relies solely on the `inst` reference passed at construction.
+No public properties
 
-## Main Functions
-
+## Main functions
 ### `OnSave()`
-* **Description:** Captures the entity’s current transform scale (x, y, z) and returns a compact table containing only non-default (non-1) scale components. Specifically:
-  - `x` is saved only if ≠ 1.
-  - `y` is saved only if ≠ `x`.
-  - `z` is saved only if ≠ `x`.
-  Returns `nil` if all scales are 1 (no custom scaling).
+* **Description:** Captures the entity's current scale and returns a minimal table of non-default values for saving.
 * **Parameters:** None.
+* **Returns:** A table with keys `x`, `y`, and/or `z` containing scale values that differ from `1`, or `nil` if all scales are `1`.
+* **Error states:** If `inst.Transform` is missing or inaccessible, behavior is undefined (component assumes valid transform).
 
 ### `OnLoad(data)`
-* **Description:** Restores the entity’s transform scale from saved `data`. Uses `data.x` as the base scale, defaulting to 1. Then sets:
-  - x = `data.x` or 1
-  - y = `data.y` or (x value)
-  - z = `data.z` or (x value)
-* **Parameters:**
-  - `data` (table or nil): Optional saved scale data. If `nil` or empty, scales are reset to (1,1,1).
+* **Description:** Restores the entity's scale using the saved data table.
+* **Parameters:** `data` (table or nil) — a table containing scale values under `x`, `y`, and `z` keys, or `nil` if no custom scale was saved.
+* **Returns:** Nothing.
+* **Error states:** If `data` is `nil`, defaults all axes to `1`. If `data.y` or `data.z` are omitted, they default to `data.x`.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified

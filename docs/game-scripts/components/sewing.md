@@ -1,42 +1,52 @@
 ---
 id: sewing
 title: Sewing
-description: A utility component that enables repairing tagged entities using a sewing kit by consuming fuel and applying repair value.
+description: Enables repair of entities with the 'needssewing' tag using fuel-based or consumable sewing kits.
+tags: [crafting, repair, inventory]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: inventory
+category_type: components
 source_hash: d0dfd891
+system_scope: crafting
 ---
 
 # Sewing
 
-## Overview
-This component provides a `DoSewing` method that repairs eligible targets (those with the `"needssewing"` tag) by consuming fuel or stackable quantity from the sewing kit entity. It is typically attached to items like the Sewing Kit and coordinates interactions with the target’s `fueled` component, the kit’s own consumable components (`finiteuses` or `stackable`), and supports optional post-repair callbacks and achievement tracking.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- `target.components.fueled`: Required to apply repair (via `DoDelta`).
-- `inst.components.finiteuses` or `inst.components.stackable`: Used to consume the tool (optional).
-- `inst`: Must be an entity capable of acting as a tool (e.g., Sewing Kit); no tags are added/removed by this component itself.
-- Listens for no internal events itself, but triggers side effects like achievements.
+## Overview
+The `sewing` component provides a standardized method for repairing entities that require sewing (e.g., clothing or gear with the `needssewing` tag). It is typically attached to items like Sewing Kits. When `DoSewing` is called, it consumes the tool (either decrementing finite uses or removing a stack item) and restores fuel to the target via the `fueled` component. It also triggers achievement progression and custom post-sewing logic if defined.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("sewing")
+inst.components.sewing.repair_value = 25
+-- Later, when the item repairs a target:
+local success = inst.components.sewing:DoSewing(target_entity, player_entity)
+```
+
+## Dependencies & tags
+**Components used:** `fueled`, `finiteuses`, `stackable`
+**Tags:** Checks `needssewing` on target; awards achievement `sewing_kit` via `AwardPlayerAchievement`.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `repair_value` | number | `1` | The amount of fuel (HP) restored to a target per sewing operation. |
-| `inst` | EntityInstance | *(passed in constructor)* | Reference to the entity this component is attached to (e.g., Sewing Kit). |
-| `onsewn` | function | `nil` | Optional callback invoked after successful sewing; accepts `(self.inst, target, doer)` arguments. |
+| `repair_value` | number | `1` | The amount of fuel to add to the target entity. |
 
-## Main Functions
-
+## Main functions
 ### `DoSewing(target, doer)`
-* **Description:** Attempts to repair the given `target` entity if it has the `"needssewing"` tag. Consumes one use of the sewing kit (either via `finiteuses` or `stackable`), applies `repair_value` to the target’s `fueled` component, triggers an achievement for the `doer`, and invokes the optional `onsewn` callback if defined. Returns `true` on success or `nil` if the target is not eligible.
-* **Parameters:**
-  - `target`: Entity – The entity to repair; must have the `"needssewing"` tag and a `fueled` component.
-  - `doer`: Entity – The entity performing the sewing (e.g., a player); used for achievement granting and context.
+*   **Description:** Attempts to repair the given target entity by restoring fuel and consuming this sewing tool. Only succeeds if the target has the `needssewing` tag.
+*   **Parameters:**  
+    `target` (Entity) — The entity to repair; must have a `fueled` component and the `needssewing` tag.  
+    `doer` (Entity) — The entity performing the repair; used for achievement attribution and event context.
+*   **Returns:** `true` if repair was successful, `nil` otherwise.
+*   **Error states:** Returns `nil` silently if the target lacks the `needssewing` tag. If this component is attached to a tool with no `finiteuses` or `stackable` component, the tool is not consumed (though repair still succeeds, which may indicate a logic bug).
 
-## Events & Listeners
-None.
+## Events & listeners
+- **Listens to:** None directly. Custom callback can be attached via `self.onsewn`.
+- **Pushes:** `AwardPlayerAchievement("sewing_kit", doer)` — triggers in-game achievement.

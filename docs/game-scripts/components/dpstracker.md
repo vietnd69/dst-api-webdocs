@@ -1,56 +1,72 @@
 ---
 id: dpstracker
-title: Dpstracker
-description: This component tracks and calculates an entity's damage per second based on its health changes over a defined time window.
+title: DpsTracker
+description: Tracks damage per second (DPS) by monitoring health changes over a sliding time window.
+tags: [combat, tracking, network]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: combat
+category_type: components
 source_hash: c3996e98
+system_scope: combat
 ---
 
-# Dpstracker
+# DpsTracker
+
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The Dpstracker component is responsible for monitoring an entity's health changes over time to compute and maintain its current Damage Per Second (DPS) value. It uses a ring buffer to store health snapshots within a configurable time window, allowing for dynamic and real-time DPS calculations. This component is essential for providing combat feedback or for AI systems that react to damage taken.
+`DpsTracker` calculates and maintains the current damage per second (DPS) for an entity by recording health values at timestamps in a circular buffer. It listens for `healthdelta` events to update its internal state and computes DPS based on the health loss over a configurable time window (default 2 seconds). It interacts directly with the `health` component to access current health values and can notify external code of updates via a custom callback.
 
-## Dependencies & Tags
-This component relies on the `health` component being present on the same entity to access its `currenthealth` property and listen for `healthdelta` events.
-None identified.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("dpstracker")
+inst.components.dpstracker:SetOnDpsUpdateFn(function(entity, dps)
+    print(entity.prefab .. " DPS:", dps)
+end)
+```
+
+## Dependencies & tags
+**Components used:** `health`
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
-|---|---|---|---|
-| `inst` | `Entity` | `n/a` | The entity this component is attached to. |
-| `tbl` | `table` | `{}` | A ring buffer used to store historical health and timestamp entries. |
-| `i0` | `number` | `1` | The head index (oldest entry) within the `tbl` ring buffer. |
-| `sz` | `number` | `0` | The current number of active entries in the `tbl` ring buffer. |
-| `max_size` | `number` | `100` | The maximum capacity of the `tbl` ring buffer, limiting how many historical entries are kept. |
-| `max_window` | `number` | `2` | The maximum time window (in seconds) over which DPS is calculated. Entries older than this window are discarded. |
-| `dps` | `number` | `0` | The currently calculated Damage Per Second value. |
-| `ondpsupdatefn` | `function` | `nil` | An optional callback function that is invoked when the DPS value is updated, passing the entity and the new DPS value. |
+|----------|------|---------------|-------------|
+| `max_size` | number | `100` | Maximum number of entries in the ring buffer. |
+| `max_window` | number | `2` | Time window (in seconds) over which DPS is calculated. |
+| `dps` | number | `0` | Current DPS value. |
+| `tbl` | table | `{}` | Ring buffer storing timestamped health entries. |
+| `i0` | number | `1` | Head index of the ring buffer. |
+| `sz` | number | `0` | Current number of valid entries in the buffer. |
+| `ondpsupdatefn` | function or nil | `nil` | Optional callback invoked on DPS update: `fn(inst, dps)`. |
 
-## Main Functions
-### `OnRemoveFromEntity()`
-*   **Description:** This function is called when the component is removed from its entity. It ensures that the `healthdelta` event callback is properly unregistered to prevent memory leaks or errors.
-*   **Parameters:** None.
+## Main functions
+### `DoUpdate()`
+* **Description:** Updates the DPS calculation using the current health and the ring buffer. Removes outdated entries and computes DPS as `(health_loss) / (time_window)`.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** If the computed time delta `dt` is zero or negative, it defaults to `max_window` to avoid division by zero.
 
 ### `SetOnDpsUpdateFn(fn)`
-*   **Description:** Sets an optional callback function to be executed whenever the DPS value is updated. This allows other systems to react to changes in the entity's damage intake.
-*   **Parameters:**
-    *   `fn`: A function that will be called with two arguments: `(inst, dps)`, where `inst` is the entity this component is attached to, and `dps` is the newly calculated Damage Per Second.
+* **Description:** Sets a callback function to invoke whenever DPS is updated (i.e., after `DoUpdate` runs).
+* **Parameters:** `fn` (function or nil) — callback expecting two arguments: `(inst, dps)`.
+* **Returns:** Nothing.
 
 ### `GetDps()`
-*   **Description:** Returns the last calculated Damage Per Second value for the entity.
-*   **Parameters:** None.
+* **Description:** Returns the most recently calculated DPS value.
+* **Parameters:** None.
+* **Returns:** number — current DPS.
 
-### `DoUpdate()`
-*   **Description:** This is the core logic function that calculates and updates the entity's DPS. It manages a ring buffer of health snapshots, discards entries older than `max_window`, and then computes the DPS based on the health difference and time elapsed between the oldest and newest relevant entries. If an `ondpsupdatefn` is set, it will be called with the updated DPS.
-*   **Parameters:** None.
+## Events & listeners
+- **Listens to:** `healthdelta` — triggers `DoUpdate` when health changes.
+- **Pushes:** None identified.
 
-## Events & Listeners
-*   **Listens For:**
-    *   `healthdelta`: Triggered by the `health` component whenever the entity's health changes. This event calls `DoUpdate()` to recalculate the DPS.
+## Special behavior
+- The ring buffer (`tbl`) stores entries as tables of the form `{t = timestamp, hp = currenthealth}`.
+- The buffer wraps around when full (`max_size = 100`). If the oldest entry lies outside the `max_window` time frame, it is discarded.
+- DPS is computed only when at least two valid entries exist in the window.
+- If `healthdelta` events occur faster than the time step resolution (e.g., multiple events per frame), only one entry per timestamp `t = GetTime()` is retained; subsequent events with the same timestamp overwrite the existing entry.

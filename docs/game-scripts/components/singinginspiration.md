@@ -1,172 +1,192 @@
 ---
 id: singinginspiration
 title: Singinginspiration
-description: Manages a player character's inspiration resource, including gain, drain, active battle songs, and buff application to nearby allies.
+description: Manages a player's inspiration resource and active battle songs, handling inspiration gain/loss, song activation, and buff application to nearby allies.
+tags: [combat, buff, ai, audio]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 1b41402e
+system_scope: entity
 ---
 
-# SingingInspiration
+# Singinginspiration
+
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The `SingingInspiration` component manages the inspiration system for player characters (especially Wathgrithr), tracking the current inspiration value (0–max), handling inspiration gain from combat and riding, draining when inactive, managing active battle songs (including instant and periodic ones), and applying debuffs to friendly targets within range. It integrates with UI, network sync, and save/load systems.
+`SingingInspiration` manages the inspiration resource and active battle songs for a player entity, primarily used by the Wathgrithr character. It tracks current inspiration (a resource bounded by `INSPIRATION_MAX`), calculates inspiration gain based on combat actions (damaging enemies), and manages a list of currently active songs. Active songs apply debuffs to friendly targets within a radius (`attach_radius`). The component integrates with `combat`, `health`, `leader`, `follower`, `domesticatable`, `saltlicker`, `inventory`, `skilltreeupdater`, and `rechargeable` components to determine valid targets, song costs, and song eligibility.
 
-## Dependencies & Tags
-- `inst:AddComponent("health")` (indirectly via `death` event listener)
-- `inst:AddComponent("combat")` (used via `self.inst.components.combat:CanTarget`)
-- `inst:AddComponent("rider")` (checked in `DisplayFx`)
-- `inst:AddComponent("leader")` / `inst:AddComponent("follower")` / `inst:AddComponent("domesticatable")` / `inst:AddComponent("saltlicker")` (used in `FindFriendlyTargetsToInspire`)
-- `inst:AddComponent("rechargeable")` (used in `OnAddInstantSong`)
-- `inst:AddComponent("skilltreeupdater")` (used for skill checks and CD tracking)
-- `inst:AddComponent("inventory")` (used via `FindItems` in `FindFriendlyTargetsToInspire`)
-- Adds no tags, but relies on many entity tags (`epic`, `critter`, `_combat`, `_health`, `INLIMBO`, `structure`, `prey`, `hostile`, `companion`, etc.).
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("singinginspiration")
+
+-- Set custom inspiration limit
+inst.components.singinginspiration:SetMaxInspiration(2000)
+
+-- Add a battle song (e.g., from song_defs)
+local songdata = require("prefabs/battlesongdefs").song_defs["wathgrithr_battlesong_1"]
+inst.components.singinginspiration:AddSong(songdata)
+
+-- Check if a song is active
+if inst.components.singinginspiration:IsSongActive(songdata) then
+    print("Song is active!")
+end
+
+-- Manually update inspiration on riding
+inst.components.singinginspiration:OnRidingTick(dt)
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `health`, `leader`, `follower`, `domesticatable`, `saltlicker`, `inventory`, `skilltreeupdater`, `rechargeable`, `rider`, `inventoryitem`  
+**Tags:** None added or removed by this component.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `max` | number | `TUNING.INSPIRATION_MAX` | Maximum inspiration value |
-| `current` | number | `0` | Current inspiration value |
-| `active_songs` | table | `{}` | List of currently active `songdata` objects (battle songs) |
-| `attach_radius` | number | `TUNING.BATTLESONG_ATTACH_RADIUS` | Radius (squared) for targeting allies when inspiring |
-| `detach_radius` | number | `TUNING.BATTLESONG_DETACH_RADIUS` | Radius where allies lose the song effect (not directly used in this component) |
-| `available_slots` | number | `0` | Number of song slots currently available based on inspiration percentage |
-| `is_draining` | boolean | `false` | Whether inspiration is currently draining |
-| `max_enemy_health` | number | `5000` | Used for inspiration gain scaling (unused in current codebase) |
-| `inspiration_gain_bonus` | number | `750` | Unused multiplier for inspiration gain (not referenced) |
-| `gainratemultipliers` | SourceModifierList | `SourceModifierList(self.inst)` | Modifier list applied to combat-based inspiration gain |
-| `validvictimfn` | function | `nil` | Optional predicate for filtering valid victims in `OnHitOther` |
-| `CalcAvailableSlotsForInspirationFn` | function | `nil` | Callback to compute available song slots from inspiration percentage |
+| `max` | number | `TUNING.INSPIRATION_MAX` | Maximum inspiration value. |
+| `current` | number | `0` | Current inspiration value. |
+| `active_songs` | table (array) | `{}` | List of active battle song definitions. |
+| `attach_radius` | number | `TUNING.BATTLESONG_ATTACH_RADIUS` | Radius around the player to which songs apply buffs. |
+| `detach_radius` | number | `TUNING.BATTLESONG_DETACH_RADIUS` | Radius at which inspirations stop applying. |
+| `available_slots` | number | `0` | Number of song slots currently available, computed dynamically. |
+| `is_draining` | boolean | `false` | Whether inspiration is currently draining. |
+| `gainratemultipliers` | SourceModifierList | — | Modifier list for inspiration gain rate. |
+| `last_attack_time` | number | `nil` | Timestamp of the last attack that contributed to inspiration gain. |
 
-## Main Functions
+## Main functions
+### `SetInspiration(value)`
+* **Description:** Sets the current inspiration value and triggers updates (e.g., event dispatch, start/stop component updates).
+* **Parameters:** `value` (number) — The absolute inspiration amount to set (clamped to `[0, max]`).
+* **Returns:** Nothing.
 
-### `SingingInspiration:SetCalcAvailableSlotsForInspirationFn(fn)`
-* **Description:** Sets the function used to compute how many song slots are available based on inspiration percentage.
-* **Parameters:** `fn(inst, percent)` — a callback that takes the entity and current inspiration percentage (0–1) and returns an integer.
-
-### `SingingInspiration:SetMaxInspiration(max)`
-* **Description:** Updates the maximum inspiration cap.
-* **Parameters:** `max` — new maximum inspiration value.
-
-### `SingingInspiration:GetMaxInspiration()`
-* **Description:** Returns the current maximum inspiration value.
+### `GetPercent()`
+* **Description:** Returns the current inspiration as a fraction (0.0–1.0).
 * **Parameters:** None.
+* **Returns:** `number` — The current inspiration divided by `max`.
 
-### `SingingInspiration:SetInspiration(value)`
-* **Description:** Sets the current inspiration value directly (clamped to `[0, max]`) and triggers an update. Resets `last_attack_time`.
-* **Parameters:** `value` — absolute inspiration amount.
+### `SetPercent(percent)`
+* **Description:** Sets inspiration based on a percentage of `max`.
+* **Parameters:** `percent` (number) — A value between `0` and `1`.
+* **Returns:** Nothing.
 
-### `SingingInspiration:GetPercent()`
-* **Description:** Returns the inspiration as a percentage (0.0 to 1.0).
-* **Parameters:** None.
+### `IsSongActive(songdata)`
+* **Description:** Checks if a specific song (by its `NAME` field) is currently active.
+* **Parameters:** `songdata` (table) — A song definition table containing a `NAME` field.
+* **Returns:** `boolean` — `true` if the song is active, otherwise `false`.
 
-### `SingingInspiration:SetPercent(percent)`
-* **Description:** Sets the current inspiration as a fraction of max, and triggers an update.
-* **Parameters:** `percent` — value in [0.0, 1.0].
-
-### `SingingInspiration:GetDetachRadius()`
-* **Description:** Returns the detach radius.
-* **Parameters:** None.
-
-### `SingingInspiration:IsSongActive(songdata)`
-* **Description:** Checks whether a given battle song is currently active (based on name match).
-* **Parameters:** `songdata` — a song definition table (expects a `NAME` field).
-
-### `SingingInspiration:GetActiveSong(slot_num)`
-* **Description:** Returns the `songdata` at the given slot (1-indexed).
-* **Parameters:** `slot_num` — 1-based index of the slot.
-
-### `SingingInspiration:IsSinging()`
-* **Description:** Returns `true` if any battle songs are currently active.
-* **Parameters:** None.
-
-### `SingingInspiration:OnAttacked(data)`
-* **Description:** Handles inspiration gain when the player is attacked. Gains inspiration proportional to damage taken, scaled by `(1 - current_percent)`.
-* **Parameters:** `data` — event data containing `attacker` and `damageresolved`.
-
-### `SingingInspiration:OnHitOther(data)`
-* **Description:** Handles inspiration gain when the player hits a valid target. Gains inspiration proportional to damage dealt, scaled by `(1 - current_percent)` and bonuses (epic bonus, multiplier).
-* **Parameters:** `data` — event data containing `target`, `damage`, and `damageresolved`.
-
-### `SingingInspiration:OnRidingTick(dt)`
-* **Description:** Gradually increases inspiration while riding (e.g., on a pig or beefalo), up to `TUNING.INSPIRATION_RIDING_GAIN_MAX`.
-* **Parameters:** `dt` — delta time.
-
-### `SingingInspiration:DoDelta(delta, forceupdate)`
-* **Description:** Applies a delta to current inspiration (clamped), recomputes available song slots, removes overflowing songs, and triggers the `inspirationdelta` event. Starts/stops component updates if crossing 0 inspiration.
+### `AddSong(songdata, skip_inspire, inst)`
+* **Description:** Attempts to add a battle song. Validates via `CanAddSong`, applies costs (e.g., charging `rechargeable`, decrementing inspiration), and starts song upkeep tasks.
 * **Parameters:**  
-  - `delta` — amount to add to `current` (may be negative).  
-  - `forceupdate` — if `true`, forces update even if crossing from 0.
+  `songdata` (table) — A song definition from `battlesongdefs.lua`.  
+  `skip_inspire` (boolean, optional) — If `true`, does not immediately apply song buffs.  
+  `inst` (Entity, optional) — Entity used for instant-song costs (e.g., rechargeable item).
+* **Returns:** Nothing.
 
-### `SingingInspiration:CanAddSong(songdata, inst)`
-* **Description:** Checks whether the player can add the given battle song. Enforces skill requirements, instant song thresholds, rechargeable item state, and slot availability.
+### `CanAddSong(songdata, inst)`
+* **Description:** Validates whether a song can be added. Checks skill activation, song type (instant vs.持续), available slots, and charge state.
 * **Parameters:**  
-  - `songdata` — song definition table.  
-  - `inst` — optional item instance (e.g., for instant songs requiring a charged item).
+  `songdata` (table) — A song definition.  
+  `inst` (Entity, optional) — Entity with `rechargeable` if relevant.
+* **Returns:** `boolean` — `true` if the song can be added, otherwise `false`.
 
-### `SingingInspiration:DisplayFx()`
-* **Description:** Spawns looping visual FX for active songs in a round-robin fashion, adjusting height/offset based on mount state. Recursively schedules itself.
-* **Parameters:** None.
-
-### `SingingInspiration:OnAddInstantSong(songdata, inst)`
-* **Description:** Processes an instant battle song: deducts inspiration, handles CD/recharge item, and triggers `InstantInspire`.
+### `DoDelta(delta, forceupdate)`
+* **Description:** Applies a delta to `current`, clamps it between `0` and `max`, recomputes `available_slots`, and dispatches `inspirationdelta` and `inspirationsongchanged` events as needed.
 * **Parameters:**  
-  - `songdata` — song definition.  
-  - `inst` — item instance (if any).
+  `delta` (number) — Amount to add to `current` (can be negative).  
+  `forceupdate` (boolean) — If `true`, forces `inspirationdelta` event even if `current` was `0`.
+* **Returns:** Nothing.
 
-### `SingingInspiration:AddSong(songdata, skip_inspire, inst)`
-* **Description:** Adds a battle song to the active list, starts its periodic application, triggers its FX, syncs it to the UI, and optionally invokes `Inspire()` once.
-* **Parameters:**  
-  - `songdata` — song definition.  
-  - `skip_inspire` — if `true`, skips immediate buff application (used on load).  
-  - `inst` — item instance (for instant songs).
+### `OnAttacked(data)`
+* **Description:** Handles inspiration gain when the player is attacked and takes damage. Gain is proportional to damage taken and `(1 - current_percent)`.
+* **Parameters:** `data` (table) — Event data containing `attacker`, `damageresolved`.
+* **Returns:** Nothing.
 
-### `SingingInspiration:PopSong()`
-* **Description:** Removes the last added song from the active list, cancels related tasks if empty, and syncs removal to UI.
+### `OnHitOther(data)`
+* **Description:** Handles inspiration gain when the player hits a valid enemy. Gain is proportional to damage dealt, scaled by `gainratemultipliers`, and includes an `epic` enemy bonus.
+* **Parameters:** `data` (table) — Event data containing `target`, `damage`, `damageresolved`.
+* **Returns:** Nothing.
+
+### `OnRidingTick(dt)`
+* **Description:** Gains inspiration while riding (e.g., Beefalo), up to `INSPIRATION_RIDING_GAIN_MAX`.
+* **Parameters:** `dt` (number) — Delta time in seconds.
+* **Returns:** Nothing.
+
+### `FindFriendlyTargetsToInspire()`
+* **Description:** Collects all valid friendly entities (players, their followers, domesticated creatures, salt-licked creatures) within `attach_radius`.
 * **Parameters:** None.
+* **Returns:** `table` — Array of `Entity` objects eligible to receive debuffs.
 
-### `SingingInspiration:FindFriendlyTargetsToInspire()`
-* **Description:** Collects all friendly targets (players, domesticated creatures, followers of players, companions of items) within `attach_radius`, excluding those in combat with the player or dead.
+### `Inspire()`
+* **Description:** Applies all active songs’ debuffs to each entity returned by `FindFriendlyTargetsToInspire()`.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `SingingInspiration:InstantInspire(songdata)`
-* **Description:** Executes the `ONINSTANT` callback of a song for all valid hostile enemies within range (excluding friendly or special-tagged entities).
-* **Parameters:** `songdata` — song definition.
+### `InstantInspire(songdata)`
+* **Description:** For instant songs, executes `songdata.ONINSTANT` on all valid nearby hostile entities (excludes friendly, structured, or non-combat targets).
+* **Parameters:** `songdata` (table) — The instant song definition.
+* **Returns:** Nothing.
 
-### `SingingInspiration:Inspire()`
-* **Description:** Applies all active songs (as debuffs) to each friendly target returned by `FindFriendlyTargetsToInspire`.
+### `PopSong()`
+* **Description:** Removes the last active song from `active_songs`, cancels upkeep tasks if empty, and dispatches `inspirationsongchanged`.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `SingingInspiration:SetValidVictimFn(fn)`
-* **Description:** Sets an optional predicate used in `OnHitOther` to filter valid victims.
-* **Parameters:** `fn(target)` — returns `true` if target should count for inspiration gain.
+### `OnUpdate(dt)`
+* **Description:** Called periodically. If no recent attacks occurred (`last_attack_time` older than `INSPIRATION_DRAIN_BUFFER_TIME`), drains inspiration at `INSPIRATION_DRAIN_RATE`.
+* **Parameters:** `dt` (number) — Delta time in seconds.
+* **Returns:** Nothing.
 
-### `SingingInspiration:OnUpdate(dt)`
-* **Description:** Called periodically while inspiration is active. Drains inspiration over time if no attacks occurred within `INSPIRATION_DRAIN_BUFFER_TIME`.
-* **Parameters:** `dt` — delta time.
-
-### `SingingInspiration:OnSave()`
-* **Description:** Returns a serializable table with current inspiration and list of active song names (for save file).
+### `OnSave()`
+* **Description:** Serializes the component for save data, including `current` and list of active song `ITEM_NAME`s.
 * **Parameters:** None.
+* **Returns:** `table` — Save data table.
 
-### `SingingInspiration:OnLoad(data)`
-* **Description:** Loads inspiration state and re-adds active songs (skipping immediate inspire).
-* **Parameters:** `data` — saved data table with `current` and `active_songs`.
+### `OnLoad(data)`
+* **Description:** Restores `current` and re-adds songs after loading from save data.
+* **Parameters:** `data` (table) — Saved component data.
+* **Returns:** Nothing.
 
-### `SingingInspiration:GetDebugString()`
-* **Description:** Returns a debug-friendly string with key values.
+### `GetDebugString()`
+* **Description:** Returns a debug-friendly string summarizing key values.
 * **Parameters:** None.
+* **Returns:** `string` — `"current: X, active_songs Y, available_slots Z"`.
 
-## Events & Listeners
-- **Listens for:**
-  - `"onhitother"` → `self:OnHitOther(data)`
-  - `"attacked"` → `self:OnAttacked(data)`
-  - `"death"` → `self:SetInspiration(0)`
-- **Emits:**
-  - `"inspirationdelta"` — on inspiration change, with `{ newpercent, slots_available }`
-  - `"inspirationsongchanged"` — on song addition/removal, with `{ songdata, slotnum }` or `{ slotnum }`
+### `SetCalcAvailableSlotsForInspirationFn(fn)`
+* **Description:** Registers a custom function to compute `available_slots` from current inspiration percentage.
+* **Parameters:** `fn` (function) — Function signature `(inst: Entity, percent: number) -> number`.
+* **Returns:** Nothing.
+
+### `SetValidVictimFn(fn)`
+* **Description:** Sets a filter function (`fn(target: Entity) -> boolean`) used by `OnHitOther` to determine valid damage sources for gain.
+* **Parameters:** `fn` (function) — Validation function for damage targets.
+* **Returns:** Nothing.
+
+### `IsSinging()`
+* **Description:** Returns whether any songs are currently active.
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if `#active_songs > 0`.
+
+### `GetActiveSong(slot_num)`
+* **Description:** Returns the song definition at the given 1-based slot index.
+* **Parameters:** `slot_num` (number) — Slot index (1 to `#active_songs`).
+* **Returns:** `table?` — Song definition or `nil` if out of bounds.
+
+### `GetDetachRadius()`
+* **Description:** Returns the radius beyond which inspirations are removed from targets.
+* **Parameters:** None.
+* **Returns:** `number` — `detach_radius` value.
+
+## Events & listeners
+- **Listens to:**  
+  `onhitother` — handled by `OnHitOther`, triggers inspiration gain on successful hits.  
+  `attacked` — handled by `OnAttacked`, triggers inspiration gain when damaged.  
+  `death` — handled by `SetInspiration(0)`, resets inspiration on death.
+
+- **Pushes:**  
+  `inspirationdelta` — dispatched when `current` changes, includes `newpercent` and `slots_available`.  
+  `inspirationsongchanged` — dispatched when songs are added or removed, includes `songdata` (on add) or `slotnum` (on remove).

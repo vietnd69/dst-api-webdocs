@@ -1,139 +1,161 @@
 ---
 id: ropebridgemanager
 title: Ropebridgemanager
-description: Manages the creation, destruction, health, and earthquake resilience of rope bridges in the game world.
+description: Manages rope bridge creation, destruction, health tracking, and earthquake damage response across the world grid.
+tags: [world, map, physics, entity, environment]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: b891c293
+system_scope: world
 ---
 
 # Ropebridgemanager
 
-## Overview
-The `RopebridgeManager` component is responsible for managing the full lifecycle of rope bridges in the game world—including their placement, health tracking, scheduled destruction (including timed拆除), visual effects, and earthquake damage response. It operates exclusively on the master simulation and uses multiple data grids to store tile-level metadata such as bridge health, direction, destruction state, and associated FX prefabs.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component**: None explicitly added via `AddComponent`; relies on `TheWorld` and `TheSim` APIs.
-- **Event Listeners**: Listens for `"worldmapsetsize"` (to initialize grids) and `"startquake"` (to trigger earthquake response).
-- **Tags Used Internally**: `"quake_blocker"` (to detect shielded zones for quake protection).
-- **No tags are added to the host entity (`self.inst`)**.
+## Overview
+`Ropebridgemanager` is a server-side component responsible for managing the lifecycle of rope bridges in the world. It maintains a grid-based state for bridge tiles—including health, direction, and destruction state—and handles creation, damage, scheduled destruction (e.g., due to aging or quakes), and visualFX. It integrates closely with `undertile` to preserve underlying tile data during bridge placement and removal. The component responds to world-level `startquake` events by applying uniform damage to unshielded bridges, scanning for `quake_blocker` entities to determine protected segments.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("ropebridgemanager")
+inst:OnPostInit()
+
+-- Create a rope bridge at a point
+inst.components.ropebridgemanager:CreateRopeBridgeAtPoint(x, y, z, {x=1, z=0}, 0)
+
+-- Damage a bridge tile
+inst.components.ropebridgemanager:DamageRopeBridgeAtPoint(x, y, z, 10)
+
+-- Queue destruction (e.g., due to breakage or timer)
+inst.components.ropebridgemanager:QueueDestroyForRopeBridgeAtPoint(x, y, z, { destroytime = 1 * FRAMES })
+```
+
+## Dependencies & tags
+**Components used:** `undertile` (accessed via `_world.components.undertile`)
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed in) | Reference to the component host (typically `TheWorld` or a world proxy). |
-| `WIDTH`, `HEIGHT` | `number` | derived from map size | Dimensions of the map grid. Initialized via `"worldmapsetsize"` event. |
-| `marked_for_delete_grid` | `DataGrid` | `nil` → initialized lazily | Tracks tiles marked for pending rope bridge destruction. |
-| `duration_grid` | `DataGrid` | `nil` → initialized lazily | Stores tile data as `{health, direction, [icon_offset?]}` for active rope bridges. |
-| `damage_prefabs_grid` | `DataGrid` | `nil` → initialized lazily | Stores reference to `"dock_damage"` prefabs for visual damage feedback. |
-| `bridge_anims_grid` | `DataGrid` | `nil` → initialized lazily | Stores `"rope_bridge_fx"` prefabs for bridge animations. |
-| `DEFAULT_BREAKDATA` | `table` | see code | Precomputed break timing values: `fxtime`, `shaketime`, and `destroytime`. |
+| `inst` | `Entity` | (none) | Entity owning this component (typically `TheWorld`). |
+| `WIDTH`, `HEIGHT` | `number` | `nil` (initialized on world map set) | Dimensions of the world grid in tiles. |
+| `marked_for_delete_grid` | `DataGrid` | `nil` | Tracks tiles scheduled for imminent destruction. |
+| `duration_grid` | `DataGrid` | `nil` | Stores per-tile bridge health, direction, and optional icon offset as `{health, direction, icon_offset}`. |
+| `damage_prefabs_grid` | `DataGrid` | `nil` | Holds references to `dock_damage` prefabs per bridge tile. |
+| `bridge_anims_grid` | `DataGrid` | `nil` | Holds references to `rope_bridge_fx` FX prefabs per bridge tile. |
+| `DEFAULT_BREAKDATA` | `table` | (see constructor) | Default timing parameters for bridge break FX and cleanup. |
 
-## Main Functions
-
-### `IsPointProtectedFromQuakes(x, y, z)`
-* **Description:** Checks whether the given world point is shielded from earthquake damage (e.g., by a `"quake_blocker"` entity within range).
-* **Parameters:**
-  * `x, y, z` (number): World coordinates.
-
-### `CalculateProtection_Internal(protected, i, tile_data)`
-* **Description:** Determines whether a specific rope bridge tile is protected from earthquake damage, and propagates that protection to the entire bridge (via directional scanning). Updates the `protected` table in-place.
-* **Parameters:**
-  * `protected` (table): Map from grid index → boolean (updated in-place).
-  * `i` (number): Grid index of the current tile.
-  * `tile_data` (table): `{health, direction, ...}` entry from `duration_grid`.
-
-### `OnQuaked()`
-* **Description:** Executes earthquake damage: calculates protection per bridge, then damages unprotected tiles.
-* **Parameters:** None.
-
-### `OnStartQuake(data)`
-* **Description:** Schedules `OnQuaked()` to run after a delay (based on `data.debrisperiod` or 0), allowing for visual buildup before quake effects.
-* **Parameters:**
-  * `data` (table, optional): May contain `debrisperiod` (seconds to delay).
-
-### `OnPostInit()`
-* **Description:** Registers `"startquake"` listener on the world’s network component.
-
+## Main functions
 ### `CreateRopeBridgeAtPoint(x, y, z, direction, icon_offset)`
-* **Description:** Instantiates a rope bridge at a world point, updating tile data and spawning FX. Converts coordinates to tile space.
-* **Parameters:**
-  * `x, y, z` (number): World coordinates.
-  * `direction` (Vector3 or table): Bridge direction vector (e.g., `{x=1, z=0}`).
-  * `icon_offset` (number, optional): Offset used by FX for icon alignment.
+*   **Description:** Places a rope bridge tile at world coordinates `(x, y, z)`, updating the tile layer and recording metadata in internal grids. Calls `CreateRopeBridgeAtTile`.
+*   **Parameters:**  
+    `x`, `y`, `z` (numbers) – World position.  
+    `direction` (table with `x`, `z` keys) – Unit vector indicating bridge orientation.  
+    `icon_offset` (number) – Offset for visual icon alignment.
+*   **Returns:** `true` on success.
 
 ### `CreateRopeBridgeAtTile(tile_x, tile_y, x, z, direction, icon_offset)`
-* **Description:** Internal helper for `CreateRopeBridgeAtPoint`; operates directly on tile coordinates.
-* **Parameters:**
-  * `tile_x, tile_y` (number): Tile coordinates.
-  * `x, z` (number, optional): World X/Z used for FX positioning.
-  * `direction` (Vector3/table)
-  * `icon_offset` (number, optional)
+*   **Description:** Internal implementation for bridge creation at tile coordinates. Updates tile type, ensures undertile consistency, initializes grid state, and spawns visualFX.
+*   **Parameters:**  
+    `tile_x`, `tile_y` (integers) – Tile coordinates.  
+    `x`, `z` (numbers) – World coordinates (optional; computed if `nil`).  
+    `direction`, `icon_offset` – As above.
+*   **Returns:** `true` on success.
 
 ### `QueueCreateRopeBridgeAtPoint(x, y, z, data)`
-* **Description:** Schedules bridge creation with randomized delay for smoother multiplayer sync.
-* **Parameters:**
-  * `x, y, z` (number): World coordinates.
-  * `data` (table, optional): May include `base_time`, `random_time`, `direction`, `icon_offset`.
+*   **Description:** Schedules delayed bridge creation (for procedural/worldgen pacing), adding tile metadata to `duration_grid` and spawning creation after a randomized delay.
+*   **Parameters:**  
+    `x`, `y`, `z` (numbers) – Position.  
+    `data` (table, optional) – May contain `base_time`, `random_time`, `direction`, `icon_offset`.
+*   **Returns:** `nil`.
 
 ### `DestroyRopeBridgeAtPoint(x, y, z, data)`
-* **Description:** Immediately destroys a rope bridge tile (if present), restoring the underlying tile, removing FX/damage prefabs, and updating grids.
-* **Parameters:**
-  * `x, y, z` (number): World coordinates.
-  * `data` (table, optional): Unused (reserved for future extensibility).
-* **Returns:** `true` if a bridge existed and was destroyed; `false` otherwise.
+*   **Description:** Immediately removes the rope bridge tile at world position, restoring underlying tile and cleaning up all associated state (grid, FX, damage prefabs).
+*   **Parameters:**  
+    `x`, `y`, `z` (numbers) – Position.  
+    `data` (table, optional) – Not used in this method.
+*   **Returns:** `true` if a bridge existed at the point; `false` otherwise.
 
 ### `QueueDestroyForRopeBridgeAtPoint(x, y, z, data)`
-* **Description:** Schedules a timed rope bridge destruction with visual warnings (shake, FX, warning UI). Also sets `marked_for_delete`.
-* **Parameters:**
-  * `x, y, z` (number): World coordinates.
-  * `data` (table, optional): Allows override of `destroytime`, `fxtime`, `shaketime`.
+*   **Description:** Schedules bridge destruction after a delay with visual/auditory cues (shake, warning), used for dynamic breakage (e.g., quakes or overloading). Marks tile in `marked_for_delete_grid` to prevent duplicate destruction.
+*   **Parameters:**  
+    `x`, `y`, `z` (numbers) – Position.  
+    `data` (table, optional) – Timing overrides (`fxtime`, `shaketime`, `destroytime`); defaults to `DEFAULT_BREAKDATA`.
+*   **Returns:** `nil`.
 
 ### `DamageRopeBridgeAtPoint(x, y, z, damage)`
-* **Description:** Delegates to `DamageRopeBridgeAtTile`, converts world point to tile coordinates.
-* **Parameters:**
-  * `x, y, z` (number): World coordinates.
-  * `damage` (number): Health to subtract.
+*   **Description:** Applies damage to a bridge tile at world coordinates; triggers destruction if health reaches `0`. Calls `DamageRopeBridgeAtTile`.
+*   **Parameters:**  
+    `x`, `y`, `z` (numbers) – Position.  
+    `damage` (number) – Damage amount.
+*   **Returns:** New health value (number) or `nil` if tile is already at `0` health or nonexistent.
 
 ### `DamageRopeBridgeAtTile(tx, ty, damage)`
-* **Description:** Applies damage to a rope bridge at tile coordinates; reduces health, spawns/updates damage FX, and auto-queues destruction if health reaches 0.
-* **Parameters:**
-  * `tx, ty` (number): Tile coordinates.
-  * `damage` (number)
-* **Returns:** New health value (0–`TUNING.ROPEBRIDGE_HEALTH`) or `nil` if tile had no bridge.
+*   **Description:** Internal damage implementation at tile coordinates. Updates `duration_grid` health value, spawns or updates `dock_damage` prefab based on health percentage, and queues destruction if `new_health == 0`.
+*   **Parameters:**  
+    `tx`, `ty` (integers) – Tile coordinates.  
+    `damage` (number).
+*   **Returns:** New health value (number) or `nil`.
 
-### `SpawnDamagePrefab(tile_index, health)`
-* **Description:** Spawns or updates `"dock_damage"` prefab to visually represent bridge health loss.
-* **Parameters:**
-  * `tile_index` (number): Grid index.
-  * `health` (number): Current bridge health.
+### `OnQuaked()`
+*   **Description:** Applies earthquake damage to all bridge tiles in `duration_grid`, skipping those covered by a `quake_blocker` entity.
+*   **Parameters:** None.
+*   **Returns:** `nil`.
+
+### `OnStartQuake(data)`
+*   **Description:** Callback triggered by `startquake` event; schedules `OnQuaked` after an optional debris delay.
+*   **Parameters:**  
+    `data` (table, optional) – May contain `debrisperiod` (delay before damage).
+*   **Returns:** `nil`.
 
 ### `SpawnBridgeAnim(tile_index, x, z, direction, icon_offset)`
-* **Description:** Spawns `"rope_bridge_fx"` prefab with correct rotation (based on direction) and icon offset.
-* **Parameters:**
-  * `tile_index` (number): Grid index.
-  * `x, z` (number): World X/Z for position.
-  * `direction` (Vector3/table)
-  * `icon_offset` (number, optional)
+*   **Description:** Spawns and positions `rope_bridge_fx` prefab if none exists at the tile index. Sets orientation based on direction.
+*   **Parameters:**  
+    `tile_index` (integer) – Index in `bridge_anims_grid`.  
+    `x`, `z` (numbers) – World position.  
+    `direction`, `icon_offset` – As in creation.
+*   **Returns:** `nil`.
+
+### `SpawnDamagePrefab(tile_index, health)`
+*   **Description:** Creates or updates a `dock_damage` FX prefab at the tile to visually indicate bridge degradation.
+*   **Parameters:**  
+    `tile_index` (integer).  
+    `health` (number).
+*   **Returns:** `nil`.
 
 ### `OnSave()`
-* **Description:** Serializes `marked_for_delete_grid` and `duration_grid` into a zip+base64 string for save data.
+*   **Description:** Serializes `marked_for_delete_grid` and `duration_grid` into a zip-encoded save table.
+*   **Parameters:** None.
+*   **Returns:** Encoded save data (table).
 
 ### `OnLoad(data)`
-* **Description:** Loads and reconstructs bridge state from save data:
-  * Restarts pending destructions (`marked_for_delete`).
-  * Re-spawns FX and damage prefabs for loaded bridge tiles.
-* **Parameters:**
-  * `data` (string): Encoded save data.
+*   **Description:** Loads grid state from save data, reconstructs bridge tiles and animations, and restarts pending destruction tasks if tiles were marked for deletion.
+*   **Parameters:**  
+    `data` (table) – Encoded save data from `OnSave`.
+*   **Returns:** `nil`.
 
-## Events & Listeners
-- **Listens for:**
-  - `"worldmapsetsize"` → calls `initialize_grids`
-  - `"startquake"` on `_world.net` → calls `OnStartQuake`
-- **Pushes / Triggers no events** (does not call `inst:PushEvent`).
+### `IsPointProtectedFromQuakes(x, y, z)`
+*   **Description:** Helper that checks if a point is within `TUNING.QUAKE_BLOCKER_RANGE` of an entity with tag `quake_blocker`.
+*   **Parameters:**  
+    `x`, `y`, `z` (numbers) – World position.
+*   **Returns:** `true` if protected; `false` otherwise.
+
+### `CalculateProtection_Internal(protected, i, tile_data)`
+*   **Description:** Scans tile direction to determine if the entire bridge segment is protected (all tiles must be checked for any `quake_blocker` proximity). Marks all tiles in the bridge as protected/unprotected in the `protected` array.
+*   **Parameters:**  
+    `protected` (table) – Output table indexed by grid index.  
+    `i` (integer) – Current grid index.  
+    `tile_data` (table) – `{health, direction}` entry.
+*   **Returns:** `nil`.
+
+## Events & listeners
+- **Listens to:**  
+  `worldmapsetsize` (on `TheWorld`) – Initializes grid dimensions.  
+  `startquake` (on `TheWorld.net`) – Triggers bridge damage via `OnStartQuake`.
+- **Pushes:** None.

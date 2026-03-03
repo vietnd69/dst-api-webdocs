@@ -1,242 +1,171 @@
 ---
 id: map
 title: Map
-description: Manages world terrain, tile-based spatial queries, entity deployment validation, and arena point generation for the game world.
+description: Provides world geometry and terrain query utilities for placement, navigation, and arena validation.
+tags: [terrain, deployment, navigation, world]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 9cafeaf5
+system_scope: world
 ---
 
 # Map
 
-## Overview
-The `Map` component provides core world spatial logic for terrain type inspection, passability checks, deployment validation (placement of structures, plants, bridges, docks, etc.), terrain modification (`SetTile`), and procedural generation of optimal spawning points for arenas. It operates at the world scale, interfacing with the tile grid, topology system, and physics entities to support gameplay decisions related to map layout and object placement.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **No explicit component registrations or tag modifications** are performed by this script itself.
-- Relies on global modules: `terrain`, `TheSim`, `TheWorld`, `TileGroupManager`, and others.
-- Uses tagged entity queries via `TheSim:FindEntities` and `FindEntities_Registered` with tags like `"walkableplatform"`, `"terraformblocker"`, `"groundhole"`, `"dockjammer"`, `"mast"`, `"soil"`, `"player"`, `"INLIMBO"`, `"NOBLOCK"`, `"structure"`, `"blocker"`, `"plant"`, `"isdead"`, `"walkableperipheral"`, `"locomotor"`, `"_inventoryitem"`, `"allow_casting"`, and `"groundtargetblocker"`.
+## Overview
+The `Map` component encapsulates core world geometry and terrain logic. It is responsible for terrain type checks, valid deployment spot validation, platform and overhang detection, and arena point identification (for boss fights). It serves as the central interface for tile-based spatial reasoning across the game, integrating with components like `walkableplatform`, `pickable`, `placer`, and external helpers (`sharkboimanagerhelper`, `vault_floor_helper`, `wagpunk_floor_helper`).
+
+## Usage example
+```lua
+local map = TheWorld.Map
+local x, y, z = 10, 0, -20
+
+-- Check if a point is passable land
+if map:IsPassableAtPoint(x, y, z, false, false) then
+    -- Test if deployment is clear of obstacles
+    local pt = Vector3(x, y, z)
+    if map:CanDeployAtPoint(pt, inst) then
+        -- Deploy entity
+        inst.Transform:SetPosition(x, y, z)
+    end
+end
+```
+
+## Dependencies & tags
+**Components used:** `walkableplatform`, `pickable`, `placer`, `riftspawner`, `sharkboimanagerhelper`, `vault_floor_helper`, `wagpunk_floor_helper`, `moonstorms`
+
+**Tags:** 
+- Uses `walkableplatform` for platform detection.
+- Checks for `terraformblocker`, `groundhole`, `groundtargetblocker`, `INLIMBO`, `NOBLOCK`, `player`, `FX`, `DECOR`, `structure`, `wall`, `dockjammer`, `lunacyarea`, `nocavein`, `noquaker`, `tree`, `boulder`, `spiderden`, `okayforarena`, `blocker`, `plant`, `antlion_sinkhole_blocker`, `structure`, `ignorewalkableplatforms`.
+- `walkableperipheral` and `walkableplatform` for peripheral deployment.
 
 ## Properties
-No public instance properties are initialized in a visible constructor. Global constants are declared instead, which serve as configuration for deployment/terrain logic:
+No public properties.
 
-| Property | Type | Default Value | Description |
-|---|---|---|---|
-| `DEPLOY_EXTRA_SPACING` | `number` | `0` | Maximum extra spacing radius required by deployable entities (e.g., via `SetDeployExtraSpacing`). |
-| `TERRAFORM_EXTRA_SPACING` | `number` | `0` | Maximum extra spacing required to prevent terraforming near blockers. |
-| `MAX_GROUND_TARGET_BLOCKER_RADIUS` | `number` | `0` | Largest radius of entities that block ground targeting. |
-| `GOODARENAPOINTS_CACHE_SIZE_MIN` / `_MAX` | `number` | `50` / `100` | Cache bounds for land arena point candidates. |
-| `GOODARENAPOINTS_ITERATIONS_PER_TICK` | `number` | `20` | Iteration budget per tick for land arena scanning. |
-| `GOODARENAPOINTS_TIME_PER_TICK` | `number` | `0.1` | Time budget per tick for land arena scanning. |
-| `GOODARENAPOINTS_SIZE_INTERVAL` | `number` | `50` | Tile grid interval for land arena candidate sampling. |
-| `GOODOCEANARENAPOINTS_*` | Various | Same semantics as above, but for ocean arenas. | Configuration for ocean arena point scanning. |
-
-## Main Functions
+## Main functions
 ### `Map:SetTile(x, y, tile, ...)`
-* **Description:** Sets the tile at `(x, y)` to the specified type and emits the `"onterraform"` event with original and new tile info. Overrides `Map.SetTile`.
-* **Parameters:**  
-  `x`, `y`: Tile coordinates.  
-  `tile`: New tile type (e.g., `WORLD_TILES.GRASS`).  
-  `...`: Additional arguments passed to the original `Map.SetTile`.
-
-### `Map:RegisterDeployExtraSpacing(spacing)`
-* **Description:** Updates `DEPLOY_EXTRA_SPACING` to the maximum of its current value and `spacing`, used to enforce clearance for deploying entities.
-* **Parameters:**  
-  `spacing`: Desired extra spacing radius (set by entities via `EntityScript:SetDeployExtraSpacing`).
-
-### `Map:RegisterDeploySmartRadius(radius)`
-* **Description:** Extends `DEPLOY_EXTRA_SPACING` to include spacing implied by an entity’s `"smart radius"` (a deployment rule). Formula: `radius + HALF(LARGE_DEPLOYSPACING)`.
-* **Parameters:**  
-  `radius`: Smart radius of the entity (via `EntityScript:SetDeploySmartRadius`).
-
-### `Map:RegisterTerraformExtraSpacing(spacing)`
-* **Description:** Updates `TERRAFORM_EXTRA_SPACING` to the max of its current value and `spacing`, used in terraform checks to avoid blockers.
-* **Parameters:**  
-  `spacing`: Extra spacing required by terraform-blocking entities.
-
-### `Map:RegisterGroundTargetBlocker(radius)`
-* **Description:** Updates `MAX_GROUND_TARGET_BLOCKER_RADIUS` to the maximum radius of ground-target-blocking entities.
-* **Parameters:**  
-  `radius`: Radius of the blocker.
+*   **Description:** Overrides the terrain tile at `(x, y)` and fires `onterraform` event with original and new tile data.
+*   **Parameters:** 
+    - `x`, `y` (number) — tile coordinates.
+    - `tile` (number) — `WORLD_TILES.*` identifier.
+    - `...` (vararg) — additional arguments passed to underlying `Map.SetTile`.
+*   **Returns:** Nothing.
 
 ### `Map:IsPassableAtPoint(x, y, z, allow_water, exclude_boats)`
-* **Description:** Returns `true` if the point `(x, y, z)` is walkable. Allows optional water (e.g., ocean tiles) and boat exclusion.
-* **Parameters:**  
-  `x`, `y`, `z`: World coordinates.  
-  `allow_water`: If `true`, ocean tiles are passable.  
-  `exclude_boats`: If `true`, ignores boat platforms (treats them as obstacles).
-
-### `Map:IsPassableAtPointWithPlatformRadiusBias(...)`
-* **Description:** Enhanced passability check with platform radius bias (for boats or walkable platforms) and overhang support.
-* **Parameters:**  
-  Includes all arguments of `IsPassableAtPoint`, plus `platform_radius_bias` (extra radius for platform-based passability), and `ignore_land_overhang`.
+*   **Description:** Checks if point `(x, y, z)` is walkable land or valid water (if `allow_water` is `true`). Also considers walkable platforms if `exclude_boats` is `false`.
+*   **Parameters:** 
+    - `x`, `y`, `z` (number) — world coordinates.
+    - `allow_water` (boolean) — whether water tiles are considered passable.
+    - `exclude_boats` (boolean) — whether to exclude walkable platforms (e.g., boats).
+*   **Returns:** 
+    - `valid_tile` (boolean) — `true` if the point is on land or valid water.
+    - `is_overhang` (boolean, optional) — `true` if point is in an overhang region.
 
 ### `Map:IsAboveGroundAtPoint(x, y, z, allow_water)`
-* **Description:** Returns `true` if the point is on land or (if `allow_water`) ocean tile (ignores overhangs).
-* **Parameters:**  
-  `x`, `y`, `z`: World coordinates.  
-  `allow_water`: Whether ocean tiles count as above ground.
-
-### `Map:IsLandTileAtPoint(x, y, z)`
-### `Map:IsOceanTileAtPoint(x, y, z)`
-### `Map:IsInvalidTileAtPoint(x, y, z)`
-### `Map:IsImpassableTileAtPoint(x, y, z)`
-### `Map:IsTemporaryTileAtPoint(x, y, z)`
-* **Description:** Returns `true` if the tile at the point matches the respective tile category.
-* **Parameters:**  
-  `x`, `y`, `z`: World coordinates.
-
-### `Map:IsOceanAtPoint(x, y, z, allow_boats)`
-* **Description:** Returns `true` if the point is ocean tile, not an overhang, and not occupied by a boat (unless `allow_boats` is true).
-* **Parameters:**  
-  `x`, `y`, `z`, `allow_boats`: Same semantics.
+*   **Description:** Returns `true` if `(x, y, z)` lies on land or ocean tile (not invalid or overhang).
+*   **Parameters:** 
+    - `x`, `y`, `z` (number) — world coordinates.
+    - `allow_water` (boolean) — ignored in implementation (logic only considers tile group).
+*   **Returns:** `true` if tile is land or ocean.
 
 ### `Map:CanTerraformAtPoint(x, y, z)`
-* **Description:** Returns `true` if terraforming is allowed at `(x, y, z)`, considering terrain immunity and blocker spacing (`TERRAFORM_EXTRA_SPACING`).
-* **Parameters:**  
-  `x`, `y`, `z`: World coordinates.
-
-### `Map:IsTerraformingBlockedByAnObject(tile_x, tile_y)`
-* **Description:** Returns `true` if any visible blocker entity prevents terraforming at the given tile center.
-* **Parameters:**  
-  `tile_x`, `tile_y`: Tile coordinates.
-
-### `Map:CanPlowAtPoint(x, y, z)`
-* **Description:** Returns `true` if plowing (i.e., tilling farm soil) is allowed at `(x, y, z)`, using `CanPlantAtPoint` checks and blocker spacing.
-* **Parameters:**  
-  `x`, `y`, `z`: World coordinates.
-
-### `Map:CanPlantAtPoint(x, y, z)`
-* **Description:** Returns `true` if planting is allowed: tile is land and not hardened.
-* **Parameters:**  
-  `x`, `y`, `z`: World coordinates.
-
-### `Map:CanTillSoilAtPoint(x, y, z, ignore_tile_type)`
-* **Description:** Returns `true` if tilling soil is allowed at `(x, y, z)`, depending on tile type (`farm_soil`) and blocker spacing, with optional tile-type bypass.
-* **Parameters:**  
-  `x`, `y`, `z`: World coordinates.  
-  `ignore_tile_type`: If `true`, ignores tile type (assumes tiling on valid land).
-
-### `Map:IsDeployPointClear(pt, inst, min_spacing, ...)`
-### `Map:IsDeployPointClear2(pt, inst, object_size, ...)`
-* **Description:** Returns `true` if `(x, y, z)` has sufficient clear space for deploying an entity (ignoring tags like `"player"`, `"walkableplatform"`, `"NOBLOCK"`, etc.). `IsDeployPointClear2` improves spacing logic and integration with `DEPLOY_EXTRA_SPACING`.
-* **Parameters:**  
-  `pt`: `Vector3` of deployment point.  
-  `inst`: Instance to exclude (e.g., the deployer).  
-  `min_spacing`, `object_size`: Minimal spacing radius around deployment.  
-  `...`: Optional custom ignore tags and custom near-other check logic.
+*   **Description:** Verifies that terraforming is allowed at the specified point (e.g., not immune tile, no blockers within `TERRAFORM_EXTRA_SPACING`).
+*   **Parameters:** 
+    - `x`, `y`, `z` (number) — world coordinates.
+*   **Returns:** `true` if terraforming is allowed.
 
 ### `Map:CanDeployAtPoint(pt, inst, mouseover)`
-* **Description:** Returns `true` if an item can be deployed at `pt`, respecting passability, deployment spacing, and optional `mouseover` constraints (e.g., player/walkable platforms allowed as base).
-* **Parameters:**  
-  `pt`: Deployment point.  
-  `inst`: Deployer instance.  
-  `mouseover`: Optional target entity under cursor.
+*   **Description:** Checks if an entity can be deployed at `pt`, considering terrain passability, deployment spacing, and mouseover type.
+*   **Parameters:** 
+    - `pt` (Vector3) — deployment point.
+    - `inst` (Entity) — entity being deployed (used for spacing and tags).
+    - `mouseover` (Entity, optional) — currently hovered entity.
+*   **Returns:** `true` if deployment is valid.
 
 ### `Map:CanDeployWallAtPoint(pt, inst)`
-* **Description:** Returns `true` if a wall can be deployed. Snaps point to grid (±0.5), checks passability and close wall player blocking.
-* **Parameters:**  
-  `pt`, `inst`: Same as above.
+*   **Description:** Specialized deployment check for walls, snapping coordinates to nearest meter grid and applying wall-specific spacing rules.
+*   **Parameters:** 
+    - `pt` (Vector3) — target point.
+    - `inst` (Entity) — wall entity being deployed.
+*   **Returns:** `true` if wall placement is valid.
 
 ### `Map:CanDeployDockAtPoint(pt, inst, mouseover)`
-* **Description:** Returns `true` if a dock can be placed: on ocean tile, no docks in tile, no boats too close, and deploy point is clear.
-* **Parameters:**  
-  `pt`, `inst`, `mouseover`: Same as above.
+*   **Description:** Validates dock placement on ocean tiles, ensuring no nearby boats and no dock jammers.
+*   **Parameters:** Same as `CanDeployAtPoint`, but restricted to ocean tiles.
+*   **Returns:** `true` if dock placement is valid.
 
 ### `Map:CanDeployBridgeAtPointWithFilter(pt, inst, mouseover, tilefilterfn)`
-* **Description:** Generic bridge deploy check: validates tile type with `tilefilterfn`, avoids vault regions, dockjammer entities, and enforces spacing from boats.
-* **Parameters:**  
-  `pt`, `inst`, `mouseover`, `tilefilterfn`: A function returning `true` for valid bridge tiles (e.g., void or ocean/void).
-
-### `Map:CanDeployRopeBridgeAtPoint`, `Map:CanDeployVineBridgeAtPoint`
-* **Description:** Call `CanDeployBridgeAtPointWithFilter` with predefined tile filters (`void` for rope, `ocean or void` for vine).
-* **Parameters:**  
-  `pt`, `inst`, `mouseover`: Same as above.
-
-### `Map:CanDeployMastAtPoint(pt, inst, mouseover)`
-* **Description:** Returns `true` if a mast can be placed: on ocean tile, no other masts within 1.5 units, passable, and deploy clear.
-* **Parameters:**  
-  `pt`, `inst`, `mouseover`: Same as above.
+*   **Description:** Generic bridge placement check using a custom tile filter (e.g., `BridgeFilter_Void`, `BridgeFilter_OceanAndVoid`).
+*   **Parameters:** 
+    - `tilefilterfn` (function) — function `(self, tileid) → boolean` that validates tile types.
+*   **Returns:** `true` if bridge placement is valid.
 
 ### `Map:CanDeployBoatAtPointInWater(pt, inst, mouseover, data)`
-* **Description:** Returns `true` if a boat can be placed at a water location, checking boat spacing, deploy clear, and surrounded-by-water.
-* **Parameters:**  
-  `pt`, `inst`, `mouseover`, `data`: `data.boat_radius`, `boat_extra_spacing`, and `min_distance_from_land`.
-
-### `Map:CanDeployRecipeAtPoint(pt, recipe, rot)`
-* **Description:** Returns `true` if a full recipe can be deployed, checking build mode (water vs land) and optional recipe `testfn`.
-* **Parameters:**  
-  `pt`, `recipe`, `rot`: Recipe object, rotation (unused directly).
+*   **Description:** Validates boat deployment on water, checking for proximity to other platforms and ensuring sufficient ocean coverage.
+*   **Parameters:** 
+    - `data` (table) — must include `boat_radius`, `boat_extra_spacing`, and `min_distance_from_land`.
+*   **Returns:** `true` if boat can be deployed.
 
 ### `Map:IsSurroundedByWater(x, y, z, radius)`
-* **Description:** Returns `true` if all sampled points within a square of `radius` from `(x, y, z)` are ocean tiles. Includes overhang buffer in radius.
-* **Parameters:**  
-  `x`, `y`, `z`, `radius`: World coordinates and radius.
+*   **Description:** Verifies that all points on a square perimeter and interior (within `radius`) are ocean tiles.
+*   **Parameters:** 
+    - `radius` (number) — half-width of the sampling square (inclusive, with +1 internal padding).
+*   **Returns:** `true` if the region is fully ocean.
 
-### `Map:IsDeployPointClear2`, `Map:IsDeployPointClear`, `Map:IsGroundTargetBlocked`, `Map:IsPointNearHole`
-* **Description:** High-level deployment and targeting checks using `TheSim:FindEntities` with tags, distances, and radii.
-
-### `Map:GetNearestPlatformInDirection(x, z, forward_x, forward_z, dist)`
-* **Description:** Finds the nearest walkable platform (e.g., boat) within `dist` in a given direction.
-* **Parameters:**  
-  `x`, `z`, `forward_x`, `forward_z`, `dist`: Start point, normalized direction vector, and search distance.
-
-### `Map:FindRandomPointWithFilter(max_tries, filterfn)`
-* **Description:** Returns a random point within world bounds that satisfies `filterfn(self, x, y, z)`.
-* **Parameters:**  
-  `max_tries`: Maximum random sampling attempts.  
-  `filterfn`: Function returning `true` for valid points.
-
-### `Map:FindRandomPointInOcean(max_tries)`
-### `Map:FindRandomPointOnLand(max_tries)`
-* **Description:** Convenience wrappers for `FindRandomPointWithFilter` using ocean/land filters.
-
-### `Map:FindVisualNodeAtPoint(x, y, z, has_tag)`
-* **Description:** Finds the *visual* topology node that the point belongs to, handling tile overlap edge cases (expensive; scans local tiles).
-* **Parameters:**  
-  `x`, `y`, `z`, `has_tag`: Optional tag to require on the node.
-
-### `Map:IsInLunacyArea(x, y, z)`
-* **Description:** Returns `true` if any lunacy condition applies at the point (e.g., full moon near rift, moonstorm, lunacy tiles, or lunacy area tag).
-* **Parameters:**  
-  `x`, `y`, `z`: World coordinates.
+### `Map:IsDeployPointClear(pt, inst, min_spacing, min_spacing_sq_fn, near_other_fn, check_player, custom_ignore_tags)`
+*   **Description:** Determines whether deployment at `pt` is clear of blocking entities, using spacing rules and tag filters.
+*   **Parameters:** 
+    - `inst` (Entity, optional) — entity being deployed (excluded from checks).
+    - `min_spacing` (number, optional) — required clearance radius.
+    - `near_other_fn` (function, optional) — custom proximity check function.
+*   **Returns:** `true` if no blockers found.
 
 ### `Map:GetLunacyAreaModifier(x, y, z)`
-* **Description:** Returns a mutation spawn modifier (e.g., `1.5`, `2.0`) based on how many lunacy conditions apply at `(x, y, z)`.
-* **Parameters:**  
-  `x`, `y`, `z`: World coordinates.
+*   **Description:** Calculates a mutation spawn chance multiplier based on proximity to lunar anomaly sources (rifts, full moon, moonstorms, lunacy tiles, or lunacy areas).
+*   **Parameters:** 
+    - `x`, `y`, `z` (number) — world coordinates.
+*   **Returns:** Multiplier ≥ `1.0` (base is `1.0`, +`0.5` per active condition).
 
-### `Map:CanCastAtPoint(pt, alwayspassable, allowwater, deployradius)`
-* **Description:** Returns `true` if a spell can be cast at `(x, y, z)`, considering passability, ground target blocks, and deployment spacing (e.g., to avoid blocking entities).
-* **Parameters:**  
-  `pt`: `Vector3` point.  
-  `alwayspassable`: Bypasses passability checks.  
-  `allowwater`: Whether water is passable.  
-  `deployradius`: Required clearance for ground placement.
+### `Map:FindBestSpawningPointForArena(CustomAllowTest, perfect_only, spawnpoints)`
+*   **Description:** Searches for the best spawning point for a land-based arena, prioritizing points with no obstacles and no players nearby.
+*   **Parameters:** 
+    - `CustomAllowTest` (function) — function `(map, x, y, z) → boolean` for additional criteria.
+    - `perfect_only` (boolean) — if `true`, only returns ideal (obstacle-free) points.
+    - `spawnpoints` (table, optional) — list of candidate points.
+*   **Returns:** `(x, y, z)` of best point or `nil, nil, nil`.
 
-### `Map:IsInMapBounds(x, y, z)`
-* **Description:** Returns `true` if `(x, y, z)` lies within the world tile grid bounds.
-* **Parameters:**  
-  `x`, `y`, `z`: World coordinates.
+### `Map:StartFindingGoodArenaPoints()`
+*   **Description:** Begins background scanning for optimal land arena points (cached for later reuse in arena placement).
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `Map:StartFindingGoodArenaPoints`, `Map:StopFindingGoodArenaPoints`
-* **Description:** Starts/stops asynchronous scanning of the world to find candidate points for building arenas. Scans grid at intervals, caches up to 100 good points, and uses periodic tasks.
+### `Map:IsInLunacyArea(x, y, z)`
+*   **Description:** Checks if the point is in any active lunacy condition (e.g., during moon rift events or on lunacy tiles).
+*   **Parameters:** 
+    - `x`, `y`, `z` (number) — world coordinates.
+*   **Returns:** `true` if lunacy is active.
 
-### `Map:FindBestSpawningPointForArena(...)`
-### `Map:FindBestSpawningPointForOceanArena(...)`
-* **Description:** Finds the best arena spawn point, prioritizing locations free of blockers and players, falling back to best available, and optionally triggering more scanning if needed.
-* **Parameters:**  
-  `CustomAllowTest`: Custom validation callback.  
-  `perfect_only`: If `true`, only exact matches accepted.  
-  `spawnpoints`: Optional list of candidate points.
+### `Map:IsPointInVaultRoom(x, y, z)`
+*   **Description:** Checks if the point is inside a vault room using replicated vault positioning data.
+*   **Parameters:** Same as above.
+*   **Returns:** `true` if inside vault room.
 
-## Events & Listeners
-- Listens to:  
-  None (no `inst:ListenForEvent` calls observed).
-- Triggers:  
-  - `"onterraform"` — Emits in `Map:SetTile` with payload `{x, y, original_tile, tile}`.
+### `Map:IsWagPunkArenaBarrierUp()`
+*   **Description:** Checks if the WagPunk arena barrier is currently active.
+*   **Parameters:** None.
+*   **Returns:** `true` if barrier is up.
+
+### `Map:GetWagPunkArenaCenterXZ()`
+*   **Description:** Returns the center `(x, z)` of the WagPunk arena.
+*   **Parameters:** None.
+*   **Returns:** `(x, z)` or `nil, nil` if not available.
+
+## Events & listeners
+- **Listens to:** None (component does not register event listeners directly).
+- **Pushes:** 
+    - `onterraform` — fired by `Map:SetTile` when a tile is changed; includes `{x, y, original_tile, tile}`.

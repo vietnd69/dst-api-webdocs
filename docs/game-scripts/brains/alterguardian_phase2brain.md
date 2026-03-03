@@ -1,42 +1,51 @@
 ---
 id: alterguardian_phase2brain
 title: Alterguardian Phase2Brain
-description: Controls the decision-making behavior of the Alterguardian boss during its second combat phase, prioritizing chasing and attacking players while maintaining orientation and wander patterns.
+description: Manages the AI behavior tree for the Alterguardian boss during Phase 2, coordinating movement, targeting, and state-aware actions.
+tags: [ai, boss, combat, navigation]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: brain
-system_scope: brain
+category_type: entity
 source_hash: 78582173
+system_scope: brain
 ---
 
 # Alterguardian Phase2Brain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
+`AlterGuardian_Phase2Brain` defines the decision-making logic for the Alterguardian boss during its second combat phase. It uses a behavior tree to prioritize actions such as chasing and attacking players, maintaining orientation toward targets, and wandering within a defined range. The brain relies on the `knownlocations` component to remember the spawn point for wander homing and coordinates with the entity’s state graph to suppress movement while spinning.
 
-This brain component defines the AI behavior for the Alterguardian during Phase 2 of its encounter. It uses a behavior tree (BT) to orchestrate high-level decision-making, combining `ChaseAndAttack`, `FaceEntity`, and `Wander` behaviors. The brain ensures the boss rotates toward the nearest valid player within range, pursues and attacks targets aggressively, and periodically wanders near its spawn point when no valid targets are present. It integrates with the `knownlocations` component to remember and reference its initial position as a home point for wandering.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("brain")
+inst.components.brain:SetBrainClass("alterguardian_phase2brain")
+-- Once initialized, the brain automatically sets up behavior and remembers spawn position
+```
 
-## Dependencies & Tags
-- **Components used:** `knownlocations` (accessed via `inst.components.knownlocations`)
-- **Tags:** The brain references the `"notarget"` tag when evaluating potential targets but does not add or remove it itself.
+## Dependencies & tags
+**Components used:** `knownlocations` (for remembering and retrieving spawn point)
+**Tags:** None explicitly added, removed, or checked by this component.
 
 ## Properties
-No public instance properties are initialized in the constructor beyond inherited brain state. The behavior tree (`self.bt`) is assigned during `OnStart`.
+No public properties
 
-## Main Functions
+## Main functions
 ### `OnStart()`
-* **Description:** Initializes and assigns the behavior tree root node. This sets up a hierarchical priority structure: the boss performs `ChaseAndAttack` if a target is within range, otherwise orients itself toward the closest valid player (`FaceEntity`), and falls back to `Wander` near its spawn point if neither condition applies. A conditional wrapper (`WhileNode`) prevents all these behaviors from running while the entity is in the `"spin"` state tag (i.e., during spin attacks).
+* **Description:** Initializes the behavior tree with prioritized behaviors: `ChaseAndAttack`, `FaceEntity`, and `Wander`. The tree skips movement behaviors when the state graph has the `"spin"` tag.
 * **Parameters:** None.
-* **Returns:** None.
+* **Returns:** Nothing.
+* **Error states:** Behavior setup depends on correct `TUNING` values; invalid ranges may cause unexpected AI behavior.
 
 ### `OnInitializationComplete()`
-* **Description:** Records the Alterguardian's current position as `"spawnpoint"` in its `knownlocations` component. This location is later used by the `Wander` behavior as its home point.
+* **Description:** Records the entity’s current position as the `"spawnpoint"` in the `knownlocations` component. Used to anchor the wander behavior.
 * **Parameters:** None.
-* **Returns:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-No explicit event listeners are registered in this component. The behavior tree handles state transitions internally and does not rely on custom event firing or listening in this class.
+## Events & listeners
+None identified.

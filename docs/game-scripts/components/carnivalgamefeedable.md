@@ -1,36 +1,55 @@
 ---
 id: carnivalgamefeedable
 title: Carnivalgamefeedable
-description: Enables an entity to be a target for feeding interactions within the context of a carnival game.
+description: Manages whether an entity can be fed during carnival minigames by toggling the `carnivalgame_canfeed` tag and providing a callback hook for feeding logic.
+tags: [game, carnival, interaction]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: e77130db
+system_scope: entity
 ---
 
 # Carnivalgamefeedable
 
-## Overview
-This component allows an entity to be "fed" by a player as part of a carnival game. It manages the entity's feedable state by adding or removing a specific tag and provides a customizable callback function to define the outcome of the feeding action.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-**Tags**
-*   `carnivalgame_canfeed`: Added to the entity when the component is `enabled`, marking it as a valid target for feeding. Removed when disabled.
+## Overview
+`CarnivalGameFeedable` is a lightweight component that enables or disables an entity's eligibility to be fed during carnival minigames. It controls the presence of the `carnivalgame_canfeed` tag on the entity based on its `enabled` state, and provides a customizable `OnFeed` callback that can be assigned by other systems (e.g., a carnival game manager) to define feeding behavior.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("carnivalgamefeedable")
+inst.components.carnivalgamefeedable.enabled = true
+-- Assign custom feeding logic
+inst.components.carnivalgamefeedable.OnFeed = function(ent, doer, item)
+    print(doer .. " fed " .. ent .. " with " .. item)
+    return true
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `carnivalgame_canfeed` when `enabled` is `true`; removes it when `false`.
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `enabled` | boolean | `false` | Controls whether the entity is marked as feedable via the `carnivalgame_canfeed` tag. |
+| `OnFeed` | function or `nil` | `nil` | Optional callback function invoked when the entity is fed. Signature: `function(inst, doer, item)`. Should return a boolean indicating success. |
 
-| Property | Type     | Default Value | Description                                                                                                      |
-|----------|----------|---------------|------------------------------------------------------------------------------------------------------------------|
-| `enabled`  | `boolean`  | `false`         | Controls whether the entity can be fed. When set to `true`, it adds the `carnivalgame_canfeed` tag.          |
-| `OnFeed`   | `function` | `nil`           | A callback function executed when `DoFeed` is called. It defines the specific result of the feeding action. |
-
-## Main Functions
+## Main functions
 ### `DoFeed(doer, item)`
-* **Description:** Executes the `OnFeed` callback function if it has been assigned. This function is typically called by an interactor to process the feeding event. It returns the result of the callback, or `false` if no callback is set.
-* **Parameters:**
-    *   `doer`: The entity performing the feeding action.
-    *   `item`: The item being fed to the entity.
+*   **Description:** Invokes the `OnFeed` callback (if set) to handle feeding logic. Typically called by a feeding action handler (e.g., when a player feeds the entity during a carnival event).
+*   **Parameters:**  
+    - `doer` (Entity) — The entity performing the feeding action.  
+    - `item` (Entity) — The food/item used to feed the entity.  
+*   **Returns:**  
+    - `true` or `false` — The return value of the `OnFeed` callback, or `false` if `OnFeed` is `nil`.  
+
+## Events & listeners
+None identified

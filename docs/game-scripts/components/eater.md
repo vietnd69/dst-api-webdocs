@@ -1,178 +1,164 @@
 ---
 id: eater
 title: Eater
-description: This component manages an entity's ability to eat, defining its diet, processing food consumption, and applying resulting stat changes.
+description: Manages an entity's ability to consume food items, applying health, hunger, and sanity effects while handling diet restrictions and spoilage tolerance.
+tags: [consumption, diet, food, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 5258c060
+system_scope: entity
 ---
 
 # Eater
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The Eater component is a fundamental part of Don't Starve Together's entity component system, granting an entity the capability to consume food items. It defines what an entity can eat (its diet), what foods it prefers, how various food types affect its health, hunger, and sanity, and manages attributes like the time since it last ate. This component also handles the application of specific tags to the entity, reflecting its dietary traits (e.g., `strongstomach`, `_eater` tags for specific food groups).
+The `Eater` component governs how an entity consumes food, including which foods it can eat, dietary preferences, and the magnitude of nutritional benefits or penalties. It is typically added to characters, creatures, and entities capable of eating. The component integrates with `edible`, `health`, `hunger`, `sanity`, `perishable`, `foodaffinity`, and `foodmemory` components to compute precise stat changes during consumption. Tag management is used internally to indicate compatibility with specific food types (e.g., `rawmeat_eater`, `spoiled_eater`).
 
-## Dependencies & Tags
-This component itself doesn't explicitly add other components to the `inst`, but it heavily interacts with other components that are expected to be present on the `inst` entity or on the `food` entity being consumed:
-*   **On `inst` (the eating entity):**
-    *   `health`: To apply health benefits/penalties from food.
-    *   `hunger`: To apply hunger benefits/penalties from food.
-    *   `sanity`: To apply sanity benefits/penalties from food.
-    *   `foodmemory`: To apply food multipliers based on remembered foods.
-    *   `inventoryitem`: To check ownership when feeding entities in containers.
-    *   `rideable`: To check if the feeder is the rider when feeding mounts.
-*   **On `food` (the consumed item):**
-    *   `edible`: Essential for determining food values and handling consumption.
-    *   `perishable`: To check for spoilage.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("eater")
+inst.components.eater:SetDiet({ FOODGROUP.OMNI }, { FOODGROUP.OMNI })
+inst.components.eater:SetStrongStomach(true)
+inst.components.eater:SetIgnoresSpoilage(true)
+inst.components.eater:SetCanEatRaw()
+```
 
-**Tags added to `inst` by this component:**
-*   `[FOODGROUP/FOODTYPE]_eater`: Added dynamically based on `self.caneat` and specific `SetCanEat...` functions (e.g., `omni_eater`, `horrible_eater`, `gears_eater`, `nitre_eater`, `raw_eater`).
-*   `strongstomach`: Added by `SetStrongStomach(true)`.
-*   `eatsrawmeat`: Added by `SetCanEatRawMeat(true)`.
-*   `ignoresspoilage`: Added by `SetIgnoresSpoilage(true)`.
-*   `nospoiledfood`: Added by `SetRefusesSpoiledFood(true)`.
+## Dependencies & tags
+**Components used:** `edible`, `health`, `hunger`, `sanity`, `perishable`, `foodaffinity`, `foodmemory`, `inventoryitem`, `container`, `rideable`  
+**Tags:** Adds/removes food-type tags dynamically (e.g., `"edible_"..v`, `"strongstomach"`, `"eatsrawmeat"`, `"ignoresspoilage"`, `"nospoiledfood"`, `"<type>_eater"`); checks `"spoiled"`, `"monstermeat"`, `"rawmeat"` on food items.
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :------- | :--- | :------------ | :---------- |
-| `inst` | `Entity` | `nil` | A reference to the entity this component is attached to. |
-| `strongstomach` | `boolean` | `false` | If true, the entity gains the "strongstomach" tag, indicating it may ignore negative effects of certain foods (e.g., monster meat). |
-| `preferseating` | `table` | `{ FOODGROUP.OMNI }` | A list of food groups or types the entity prefers to eat. Used to determine if an entity "prefers" a food. |
-| `caneat` | `table` | `{ FOODGROUP.OMNI }` | A list of food groups or types the entity is capable of eating. This property is dynamically linked to entity tags via a metamethod. |
-| `oneatfn` | `function` | `nil` | An optional callback function to be executed when the entity successfully eats food. Signature: `(inst, food, feeder)`. |
-| `lasteattime` | `number` | `nil` | The game time (from `GetTime()`) when the entity last consumed food. |
-| `ignoresspoilage` | `boolean` | `false` | If true, the entity gains the "ignoresspoilage" tag and is not affected by food spoilage. |
-| `eatwholestack` | `boolean` | `false` | If true, when the entity eats an item from a stack, the entire stack is consumed. |
-| `healthabsorption` | `number` | `1` | A multiplier applied to the health gained from food. |
-| `hungerabsorption` | `number` | `1` | A multiplier applied to the hunger gained from food. |
-| `sanityabsorption` | `number` | `1` | A multiplier applied to the sanity gained from food. |
-| `preferseatingtags` | `table` | `nil` | An optional table of additional tags that the entity specifically prefers in food. If set, foods must have one of these tags to be preferred. |
-| `cacheedibletags` | `table` or `boolean` | `nil` | Caches the processed edible tags derived from `self.caneat`. Can be set to `false` to disable caching. |
-| `eatsrawmeat` | `boolean` | `false` (implicit) | If true, the entity gains the "eatsrawmeat" tag, allowing it to eat raw meat without penalties. |
-| `nospoiledfood` | `boolean` | `false` (implicit) | If true, the entity gains the "nospoiledfood" tag and will refuse to eat spoiled food. |
-| `custom_stats_mod_fn` | `function` | `nil` | An optional function that can be used to modify the final health, hunger, and sanity delta values after absorption, before they are applied. Signature: `(inst, health_delta, hunger_delta, sanity_delta, food, feeder)`. |
+|----------|------|---------------|-------------|
+| `eater` | boolean | `false` | Flag indicating the entity is capable of eating. |
+| `strongstomach` | boolean | `false` | Whether the entity can safely consume Monster Meat without sanity loss. |
+| `preferseating` | table | `{ FOODGROUP.OMNI }` | List of preferred food groups/Types the entity likes to eat. |
+| `caneat` | table | `{ FOODGROUP.OMNI }` | List of food groups/Types the entity is physically capable of eating. |
+| `ignoresspoilage` | boolean | `false` | Whether spoilage effects are ignored on food (perishable only). |
+| `eatwholestack` | boolean | `false` | Whether the entire stack is consumed at once. |
+| `eatsrawmeat` | boolean | `false` | Whether the entity can eat raw meat without penalty. |
+| `nospoiledfood` | boolean | `false` | Whether the entity refuses to eat spoiled food. |
+| `healthabsorption` | number | `1` | Multiplier applied to health values gained from food. |
+| `hungerabsorption` | number | `1` | Multiplier applied to hunger values gained from food. |
+| `sanityabsorption` | number | `1` | Multiplier applied to sanity values gained from food. |
+| `lasteattime` | number? | `nil` | Timestamp of the last time the entity ate. |
 
-## Main Functions
-### `OnRemoveFromEntity()`
-*   **Description:** Clears all dietary tags from the entity when the component is removed.
-*   **Parameters:** None.
-
+## Main functions
 ### `SetDiet(caneat, preferseating)`
-*   **Description:** Sets the entity's dietary rules, specifying what it can eat and what it prefers. This will update the associated tags on the entity.
-*   **Parameters:**
-    *   `caneat`: (`table`) A list of `FOODGROUP` or `FOODTYPE` values the entity is physically capable of eating.
-    *   `preferseating`: (`table`, optional) A list of `FOODGROUP` or `FOODTYPE` values the entity prefers. If not provided, it defaults to `caneat`.
+* **Description:** Configures what food types the entity can eat (`caneat`) and prefers to eat (`preferseating`). Calls `oncaneat` to manage associated tags.
+* **Parameters:** `caneat` (table) - list of edible food groups/Types; `preferseating` (table?) - list of preferred food groups/Types, defaults to `caneat` if `nil`.
+* **Returns:** Nothing.
 
 ### `SetAbsorptionModifiers(health, hunger, sanity)`
-*   **Description:** Sets multipliers for the health, hunger, and sanity values gained from consumed food.
-*   **Parameters:**
-    *   `health`: (`number`) Multiplier for health gain.
-    *   `hunger`: (`number`) Multiplier for hunger gain.
-    *   `sanity`: (`number`) Multiplier for sanity gain.
+* **Description:** Sets absorption multipliers for stat gains from consumed food.
+* **Parameters:** `health` (number), `hunger` (number), `sanity` (number) - multipliers (e.g., `0.5` for half effect, `2` for double).
+* **Returns:** Nothing.
 
 ### `TimeSinceLastEating()`
-*   **Description:** Returns the amount of game time that has passed since the entity last ate.
-*   **Parameters:** None.
+* **Description:** Returns how many seconds have passed since the entity last ate.
+* **Parameters:** None.
+* **Returns:** `number` - seconds elapsed, or `nil` if never eaten.
 
 ### `HasBeen(time)`
-*   **Description:** Checks if the entity has not eaten within a specified amount of game time, or if it has never eaten.
-*   **Parameters:**
-    *   `time`: (`number`) The duration (in seconds) to check against.
+* **Description:** Checks if enough time has elapsed since the last eating event.
+* **Parameters:** `time` (number) - threshold in seconds.
+* **Returns:** `boolean` - `true` if `lasteattime` is `nil` or elapsed time ≥ `time`.
 
 ### `OnSave()`
-*   **Description:** Prepares component data for saving the game. It saves the `time_since_eat` if the entity has ever eaten.
-*   **Parameters:** None.
+* **Description:** Serialization helper for saving state.
+* **Parameters:** None.
+* **Returns:** `table?` - `{ time_since_eat = <seconds> }` if `lasteattime` exists, else `nil`.
 
 ### `OnLoad(data)`
-*   **Description:** Loads component data from a saved game. It restores `lasteattime` based on the saved `time_since_eat`.
-*   **Parameters:**
-    *   `data`: (`table`) The table containing saved component data.
+* **Description:** Deserialization helper for restoring state after loading.
+* **Parameters:** `data` (table) - must contain `time_since_eat` (number) to restore `lasteattime`.
+* **Returns:** Nothing.
 
 ### `SetCanEatHorrible()`
-*   **Description:** Adds `FOODTYPE.HORRIBLE` to both the `preferseating` and `caneat` lists, and adds the `horrible_eater` tag to the entity.
-*   **Parameters:** None.
+* **Description:** Grants the entity the ability to eat `HORRIBLE`-type food and updates related tags.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SetCanEatGears()`
-*   **Description:** Adds `FOODTYPE.GEARS` to both the `preferseating` and `caneat` lists, and adds the `gears_eater` tag to the entity.
-*   **Parameters:** None.
+* **Description:** Grants the entity the ability to eat `GEARS`-type food and updates related tags.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SetCanEatNitre(can_eat)`
-*   **Description:** Toggles the entity's ability and preference for eating `FOODTYPE.NITRE`. Adds or removes the `nitre_eater` tag accordingly.
-*   **Parameters:**
-    *   `can_eat`: (`boolean`) If true, the entity can eat Nitre; if false, it cannot.
+* **Description:** Enables or disables ability to eat `NITRE`-type food.
+* **Parameters:** `can_eat` (boolean) - whether the entity can now eat Nitre.
+* **Returns:** Nothing.
 
 ### `SetCanEatRaw()`
-*   **Description:** Adds `FOODTYPE.RAW` to both the `preferseating` and `caneat` lists, and adds the `raw_eater` tag to the entity.
-*   **Parameters:** None.
-
-### `SetPrefersEatingTag(tag)`
-*   **Description:** Adds a specific tag to the list of `preferseatingtags`, indicating additional food tags the entity prefers.
-*   **Parameters:**
-    *   `tag`: (`string`) The tag to add to the preferred eating tags.
+* **Description:** Grants the entity the ability to eat raw food items.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SetStrongStomach(is_strong)`
-*   **Description:** Toggles the entity's "strong stomach" trait. If true, adds the `strongstomach` tag; otherwise, removes it.
-*   **Parameters:**
-    *   `is_strong`: (`boolean`) If true, the entity has a strong stomach; if false, it does not.
+* **Description:** Enables/disables strong stomach status, allowing consumption of Monster Meat without sanity loss.
+* **Parameters:** `is_strong` (boolean).
+* **Returns:** Nothing.
 
 ### `SetCanEatRawMeat(can_eat)`
-*   **Description:** Toggles the entity's ability to eat raw meat without penalties. If true, adds the `eatsrawmeat` tag; otherwise, removes it.
-*   **Parameters:**
-    *   `can_eat`: (`boolean`) If true, the entity can eat raw meat; if false, it cannot.
+* **Description:** Enables/disables eating raw meat without associated penalties.
+* **Parameters:** `can_eat` (boolean).
+* **Returns:** Nothing.
 
 ### `SetIgnoresSpoilage(ignores)`
-*   **Description:** Toggles whether the entity ignores food spoilage effects. If true, adds the `ignoresspoilage` tag; otherwise, removes it.
-*   **Parameters:**
-    *   `ignores`: (`boolean`) If true, the entity ignores spoilage; if false, it does not.
+* **Description:** Enables/disables ignoring of spoilage effects on food.
+* **Parameters:** `ignores` (boolean).
+* **Returns:** Nothing.
 
 ### `SetRefusesSpoiledFood(refuses)`
-*   **Description:** Toggles whether the entity refuses to eat spoiled food. If true, adds the `nospoiledfood` tag; otherwise, removes it.
-*   **Parameters:**
-    *   `refuses`: (`boolean`) If true, the entity refuses spoiled food; if false, it does not.
+* **Description:** Enables/disables refusal to eat spoiled food (overrides default behavior).
+* **Parameters:** `refuses` (boolean).
+* **Returns:** Nothing.
 
 ### `SetOnEatFn(fn)`
-*   **Description:** Sets a custom function to be called immediately after the entity successfully eats food.
-*   **Parameters:**
-    *   `fn`: (`function`) The function to call. It receives `(inst, food, feeder)` as arguments.
+* **Description:** Sets a custom callback function triggered immediately after food consumption logic completes.
+* **Parameters:** `fn` (function) - signature: `fn(eater_entity, food, feeder_entity)`.
+* **Returns:** Nothing.
 
 ### `DoFoodEffects(food)`
-*   **Description:** Determines if an entity should receive the standard positive or negative effects from a given food, considering specific traits like `strongstomach` or `eatsrawmeat`.
-*   **Parameters:**
-    *   `food`: (`Entity`) The food item being considered.
+* **Description:** Determines whether food-specific exceptions apply (e.g., Monster Meat is safe if `strongstomach`, raw meat safe if `eatsrawmeat`, or food affinity matches).
+* **Parameters:** `food` (Entity) - the food item being evaluated.
+* **Returns:** `boolean` - `true` if the food’s “bad” effects should still be applied, `false` otherwise.
 
 ### `GetEdibleTags()`
-*   **Description:** Generates and returns a list of "edible_" tags based on the `caneat` property. This list can be cached.
-*   **Parameters:** None.
+* **Description:** Returns a list of tags indicating which food categories the entity can eat (e.g., `{"edible_OMNI", "edible_RAWMEAT"}`).
+* **Parameters:** None.
+* **Returns:** `table` - list of `string` tags.
 
 ### `Eat(food, feeder)`
-*   **Description:** Handles the process of an entity consuming a food item. It checks if the entity prefers the food, calculates stat changes (health, hunger, sanity) with absorption and multipliers, applies them, triggers `oneat` events, and updates the `lasteattime`.
-*   **Parameters:**
-    *   `food`: (`Entity`) The food item to be eaten.
-    *   `feeder`: (`Entity`, optional) The entity that is feeding `self.inst`. Defaults to `self.inst` if not provided.
+* **Description:** Consumes the given food item, applying health, hunger, and sanity changes. Handles stack consumption, food memory, and custom callbacks.
+* **Parameters:** `food` (Entity) - the food to eat; `feeder` (Entity?) - the entity feeding or acting on behalf of the eater (defaults to `self.inst`).
+* **Returns:** `boolean` - `true` if food was eaten (i.e., `PrefersToEat(food)` passed), else `nil`.
+* **Error states:** Returns `nil` if `PrefersToEat` returns `false`; early exits if no consumable stat changes are possible.
 
 ### `TestFood(food, testvalues)`
-*   **Description:** A helper function that checks if a food item has any of the tags or food types specified in `testvalues`.
-*   **Parameters:**
-    *   `food`: (`Entity`) The food item to test.
-    *   `testvalues`: (`table`) A list of `FOODGROUP` or `FOODTYPE` values to check against.
+* **Description:** Internal helper to check if a food item matches any of the specified edible food types or groups.
+* **Parameters:** `food` (Entity?) - food item to test; `testvalues` (table) - list of food types/groups (e.g., `self.preferseating`).
+* **Returns:** `boolean` - `true` if food contains a matching `"edible_<type>"` tag.
 
 ### `PrefersToEat(food)`
-*   **Description:** Determines if the entity "prefers" to eat a given food item, taking into account `preferseating`, `preferseatingtags`, and `nospoiledfood` rules. This is a stricter check than `CanEat`.
-*   **Parameters:**
-    *   `food`: (`Entity`) The food item to check.
+* **Description:** Checks if the entity *prefers* to eat the food (includes tag, spoilage, and diet checks).
+* **Parameters:** `food` (Entity) - food item.
+* **Returns:** `boolean` - `true` if the entity prefers to eat the food.
+* **Error states:** Returns `false` for `"winter_food4"` (fruitcake) on players; returns `false` if food is spoiled and `nospoiledfood` is set; returns `false` if `preferseatingtags` are defined and food lacks them.
 
 ### `CanEat(food)`
-*   **Description:** Determines if the entity is physically capable of eating a given food item based on its `caneat` list.
-*   **Parameters:**
-    *   `food`: (`Entity`) The food item to check.
+* **Description:** Checks if the entity is *physically capable* of eating the food, ignoring preference or spoilage.
+* **Parameters:** `food` (Entity) - food item.
+* **Returns:** `boolean` - `true` if food is within the `caneat` list.
 
-## Events & Listeners
-This component pushes the following events:
-*   `inst:PushEvent("oneat", { food = food, feeder = feeder })`: Triggered on the `inst` entity when it successfully eats food.
-*   `feeder:PushEvent("feedincontainer")`: Triggered on the `feeder` if the `inst` is an `inventoryitem` being fed while inside a container opened by the `feeder`.
-*   `feeder:PushEvent("feedmount", { food = food, eater = self.inst })`: Triggered on the `feeder` if the `inst` is a `rideable` mount and the `feeder` is its rider.
+## Events & listeners
+- **Listens to:** None (no event registration via `inst:ListenForEvent` in this component).
+- **Pushes:** `"oneat"` (after consumption succeeds) with `{ food = food, feeder = feeder }`; `"feedincontainer"` (to `feeder` if eating from a container); `"feedmount"` (to `feeder` if eating as a mount).
+- **Listeners on `food`:** Not directly registered, but calls `food.components.edible:OnEaten()` and `food.components.edible:HandleEatRemove()`.

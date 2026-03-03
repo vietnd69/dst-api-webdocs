@@ -1,99 +1,138 @@
 ---
 id: prophider
 title: Prophider
-description: Manages timed hiding and reappearing behavior for an entity by replacing it with a temporary prop.
+description: Manages temporary visibility toggling of an entity using a placeholder prop, with optional callbacks and scheduled re-emergence logic.
+tags: [visibility, prop, scheduling, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: a8c98956
+system_scope: entity
 ---
 
 # Prophider
 
-## Overview
-The `PropHider` component implements a timed hide-and-replace mechanism: when triggered, it removes the entity from the world and replaces it with a temporary prop, scheduling a reappear task after a randomized duration. It supports configurable hide durations, repeatable cycles (via counter), and optional callbacks at key stages (hide, unhide, reveal). It is typically used for entities that should temporarily vanish (e.g., traps, hidden items, illusions).
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Usage**: Relies on `inst:DoTaskInTime(...)` for delayed tasks, and expects `inst:RemoveFromScene()`, `inst:ReturnToScene()`, and `inst:IsValid()` to exist.
-- **Tags**: None added/removed.
-- **Tasks**: Manages a single task (`hide_task`) that is cancelled on removal or sleep.
+## Overview
+`PropHider` enables an entity to temporarily hide itself by removing it from the scene and replacing it with a generated prop object (e.g., a rock, bush, or decoration). When the entity is ready to reappear, the prop is removed and the entity returns to the scene. It supports configurable hide durations with random variance, a retry counter (for multi-stage hides), and multiple optional callback functions for custom logic at each stage (hide, unhide, prop creation, visibility change). The component also handles save/load state, awake/sleep synchronization, and provides a debug string.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("prophider")
+
+-- Optional: set custom behavior callbacks
+inst.components.prophider:SetPropCreationFn(function(e)
+    return SpawnPrefab("rock")
+end)
+inst.components.prophider:SetOnHideFn(function(e)
+    print("Entity hidden")
+end)
+inst.components.prophider:SetOnUnhideFn(function(e, target)
+    print("Entity revealed; target was", target)
+end)
+
+-- Hide for default duration, with default counter of 10
+inst.components.prophider:HideWithProp()
+
+-- Manually trigger reveal (e.g., when triggered by player interaction)
+inst.components.prophider:ShowFromProp()
+```
+
+## Dependencies & tags
+**Components used:** None identified.
+**Tags:** Checks `valid` on props via `prop:IsValid()`; no tags added/removed directly.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `hideupdate_duration` | `number` | `6` | Base duration (seconds) before the entity reappears. |
-| `hideupdate_variance` | `number` | `1` | Maximum deviation from `hideupdate_duration`; actual time = `duration + variance * (random * 2 - 1)`. |
-| `propcreationfn` | `function?` | `nil` | Optional callback to create the temporary prop (takes `inst` as argument). |
-| `onvisiblefn` | `function?` | `nil` | Callback triggered when the entity becomes visible again. |
-| `willunhidefn` | `function?` | `nil` | Callback invoked before reappearing; if it returns a non-`nil` target, `ShowFromProp` is called immediately. |
-| `onunhidefn` | `function?` | `nil` | Callback triggered *only* when `willunhidefn` returns a valid target (i.e., early unhide). |
-| `onhidefn` | `function?` | `nil` | Callback triggered immediately upon hiding. |
-| `prop` | `GObj?` | `nil` | Reference to the temporary prop object (if any). |
-| `counter` | `number?` | `nil` | Number of times the entity should cycle through hide/reappear logic before permanent visibility. |
-| `hiding` | `boolean?` | `nil` | Internal state flag indicating if the entity is currently hidden. |
-| `hide_task` | `Task?` | `nil` | Reference to the scheduled task that triggers reappearing. |
+| `hideupdate_duration` | number | `6` | Base duration (seconds) used for scheduled re-emergence. |
+| `hideupdate_variance` | number | `1` | Random variance (±1 second) applied to hide duration. |
+| `propcreationfn` | function\|nil | `nil` | Callback that creates the prop object when hiding. |
+| `onvisiblefn` | function\|nil | `nil` | Called when the entity becomes fully visible again. |
+| `willunhidefn` | function\|nil | `nil` | Called before unhide; returns a `target` (any) or `nil`. If non-`nil`, triggers full reveal + `onunhidefn`. |
+| `onunhidefn` | function\|nil | `nil` | Called after full unhide (only when `willunhidefn` returns non-`nil`). |
+| `onhidefn` | function\|nil | `nil` | Called immediately after hiding (after `RemoveFromScene`). |
+| `prop` | entity\|nil | `nil` | Reference to the generated prop during hide state. |
+| `counter` | number\|nil | `nil` | Number of remaining hide cycles before full reveal. |
+| `hiding` | boolean\|nil | `nil` | `true` if currently hidden; `nil` otherwise. |
+| `hide_task` | task\|nil | `nil` | Pending scheduled task to attempt unhide. |
 
-## Main Functions
-
+## Main functions
 ### `SetPropCreationFn(fn)`
-* **Description:** Sets the callback function used to generate the temporary prop when hiding. The function receives the entity instance (`inst`) as an argument and should return a valid prop entity or `nil`.
-* **Parameters:** `fn` — A function `(inst: Entity) -> GObj?`.
+* **Description:** Sets the callback function used to create the replacement prop when hiding. The function receives the hidden entity instance as argument and should return a valid prefab instance.
+* **Parameters:** `fn` (function\|nil) — callback with signature `fn(inst: Entity) -> prop: Entity?`.
+* **Returns:** Nothing.
 
 ### `SetOnVisibleFn(fn)`
-* **Description:** Sets the callback triggered when the entity successfully reappears (`ShowFromProp` completes).
-* **Parameters:** `fn` — A function `(inst: Entity) -> ()`.
+* **Description:** Sets the callback invoked when the entity finishes becoming fully visible again (i.e., after `ShowFromProp` completes).
+* **Parameters:** `fn` (function\|nil) — callback with signature `fn(inst: Entity)`.
+* **Returns:** Nothing.
 
 ### `SetWillUnhideFn(fn)`
-* **Description:** Sets the callback invoked *before* reappearing. If it returns a non-`nil` value (e.g., a target), the entity reappears immediately; otherwise, the scheduled task proceeds.
-* **Parameters:** `fn` — A function `(inst: Entity) -> any?`.
+* **Description:** Sets the callback invoked before attempting to unhide. Return `nil` to keep hiding (and decrement `counter`), or return a non-`nil` value to trigger immediate full reveal and invoke `onunhidefn`.
+* **Parameters:** `fn` (function\|nil) — callback with signature `fn(inst: Entity) -> target: any?`.
+* **Returns:** Nothing.
 
 ### `SetOnUnhideFn(fn)`
-* **Description:** Sets the callback triggered *only* if `willunhidefn` returns a non-`nil` result (early unhide). It is *not* called during normal scheduled reappearances.
-* **Parameters:** `fn` — A function `(inst: Entity, target: any) -> ()`.
+* **Description:** Sets the callback invoked only when a full unhide occurs (i.e., `willunhidefn` returned non-`nil`). Does not run if unhide is deferred via counter decrement.
+* **Parameters:** `fn` (function\|nil) — callback with signature `fn(inst: Entity, target: any)`.
+* **Returns:** Nothing.
 
 ### `SetOnHideFn(fn)`
-* **Description:** Sets the callback triggered immediately after the entity is hidden and the prop is created.
-* **Parameters:** `fn` — A function `(inst: Entity) -> ()`.
+* **Description:** Sets the callback invoked immediately after the entity is removed from the scene and a prop is (optionally) created.
+* **Parameters:** `fn` (function\|nil) — callback with signature `fn(inst: Entity)`.
+* **Returns:** Nothing.
 
 ### `GenerateHideTime()`
-* **Description:** Computes the randomized hide duration using the formula: `hideupdate_duration + hideupdate_variance * (random() * 2 - 1)`.
-* **Returns:** `number` — The randomized duration in seconds.
+* **Description:** Computes a randomized hide duration in seconds, based on `hideupdate_duration` and `hideupdate_variance`.
+* **Parameters:** None.
+* **Returns:** number — hide duration = `duration + variance * (random * 2 - 1)`.
+* **Error states:** None.
 
 ### `ClearHideTask()`
-* **Description:** Cancels the current hide task (`hide_task`) if it exists, and sets `hide_task` to `nil`. Prevents duplicate or orphaned tasks.
+* **Description:** Cancels any pending scheduled unhide task (`hide_task`) and clears the reference.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `HideWithProp(duration, counter)`
-* **Description:** Initiates the hiding process. Removes the entity from the scene, replaces it with a prop (if `propcreationfn` is set), and schedules a reappear task. Updates internal state and fires `onhidefn`.
-* **Parameters:**
-  - `duration` (`number?`) — Optional override for hide duration. If omitted, uses `GenerateHideTime()`.
-  - `counter` (`number?`) — Optional override for the number of times the hide/unhide cycle may repeat. Defaults to `10` if omitted.
+* **Description:** Hides the entity by removing it from the scene and (optionally) spawning a prop. Schedules a reappear attempt after `duration`. Uses `counter` to allow multi-stage hides (re-hide until `counter` reaches `1`).
+* **Parameters:**  
+  `duration` (number\|nil) — hide interval in seconds. If `nil`, uses `GenerateHideTime`.  
+  `counter` (number\|nil) — number of times to re-hide before final reveal. If `nil`, defaults to `10`.
+* **Returns:** Nothing.
+* **Error states:** No-op if already hiding (`hiding == true`). Does nothing if `prop` is invalid during cleanup; only invalidates it internally.
 
 ### `ShowFromProp()`
-* **Description:** Restores the entity to the scene, cancels scheduled tasks, notifies of visibility via `onvisiblefn`, and signals the prop (if any) via `"propreveal"` event. Clears the prop reference.
+* **Description:** Immediately reveals the entity (returns to scene), triggers `onvisiblefn`, sends `propreveal` event to the current prop (if valid), and clears state (`prop`, `hiding`, `counter`, `hide_task`).
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No-op if not currently hiding (`hiding ~= true`).
 
 ### `OnEntityWake()`
-* **Description:** Reschedules the hide task if the entity wakes up while still hidden and no task is pending (e.g., after server reconnection or sleep-mode wake).
+* **Description:** Restarts the scheduled unhide task if the entity was hidden and no task was pending (e.g., after waking from sleep).
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Returns a minimal state table containing `hiding = true` and `counter` if the entity is currently hidden, otherwise `nil`.
-* **Returns:** `table?` — `{ hiding = true, counter = counter }` or `nil`.
+* **Description:** Serializes the component's hide state for saving.
+* **Parameters:** None.
+* **Returns:** table\|nil — returns `{ hiding = true, counter = counter }` if `hiding == true`; otherwise `nil`.
 
 ### `OnLoad(data)`
-* **Description:** Restores hiding state on load. If `data.hiding` or `data.hidetime` (legacy) is present, it re-applies `HideWithProp` using saved `counter`.
-* **Parameters:** `data` (`table?`) — Save data loaded from disk.
+* **Description:** Restores state from save data. If `data` indicates the entity was hidden (either `data.hiding` or `data.hidetime` is present), calls `HideWithProp` with saved `counter` and default duration.
+* **Parameters:** `data` (table\|nil) — data returned by `OnSave` or legacy format (`hidetime`).
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a debug string for inspecting current state (e.g., remaining counter and task time).
-* **Returns:** `string` — e.g., `"Counters: 5, Time for counter: 2.3"`.
+* **Description:** Returns a formatted debug string for debugging visibility state.
+* **Parameters:** None.
+* **Returns:** string — e.g., `"Counters: 3, Time for counter: 2.1"`.
 
-## Events & Listeners
-- Listens to no `ListenForEvent` events directly.
-- Pushes the `"propreveal"` event on the `prop` entity (if valid) when `ShowFromProp` is called.
-- Calls `willunhidefn(self.inst)` internally to allow custom unhide triggers.
+## Events & listeners
+- **Listens to:** None identified (component uses `DoTaskInTime` internally but does not register events with `inst:ListenForEvent`).
+- **Pushes:** None identified (component calls `prop:PushEvent("propreveal", self.inst)` if `prop` is valid, but this is entity-to-entity, not a `inst:PushEvent` from this component).

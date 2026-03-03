@@ -1,103 +1,121 @@
 ---
 id: rider
 title: Rider
-description: Manages entity mounting and dismounting logic, including animation, physics, damage redirection, and interaction with rideable mounts.
+description: Manages a player entity mounting and dismounting rideable creatures (such as beefalo), handling animations, physics, damage redirection, and serialization.
+tags: [locomotion, entity, mount, combat]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 07720704
+system_scope: locomotion
 ---
-
 # Rider
 
-## Overview
-The `Rider` component enables an entity (typically a player) to mount and ride compatible entities (e.g., Beefalo, Pig Guards) by managing state transitions, visual overrides (animations, saddle skins), physics synchronization, and communication with the mount's `rideable` component and game systems. It handles both normal gameplay mounting/dismounting and save/load persistence.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components relied on:**  
-  - `self.inst.components.health` (accessed, but not added by this component)  
-  - `self.inst.components.combat` (accessed and modified)  
-  - `self.inst.components.sheltered` (accessed)  
-  - `self.inst.components.pinnable` (accessed)  
-  - `self.inst.replica.rider` (RPC target for network state sync)  
-  - `mount.components.rideable` (required on mount entity)  
-  - `mount.components.combat` (accessed for damage redirection)  
-  - `mount.components.brain` (Hibernate/Wake via BrainManager)  
-  - `mount.SoundEmitter` (optional, for sound muting)  
-  - `saddle.components.saddler` (optional, for saddle rendering)  
-- **Tags affected:** None directly added/removed, but `canbepinned` is toggled based on mounting state.
+## Overview
+`Rider` enables an entity (typically a player) to mount and ride rideable creatures (e.g., beefalo). It manages the transition into and out of the mounted state, including animation switching, physics synchronization, parent-child relationships, and temporary disabling of mounting constraints. It coordinates closely with the `rideable` component on the mount, and integrates with `health`, `combat`, `sheltered`, `pinnable`, and `saddler` components.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("rider")
+-- To mount a rideable creature:
+local mount = some_beefalo_entity
+inst.components.rider:Mount(mount, false)
+-- To dismount:
+inst.components.rider:Dismount()
+-- Check current state:
+if inst.components.rider:IsRiding() then
+    print("Player is mounted!")
+end
+```
+
+## Dependencies & tags
+**Components used:** `rideable`, `health`, `combat`, `sheltered`, `pinnable`, `saddler`, `brain`, `weapon`  
+**Tags:** Checks `pseudoprojectile` on attacker for damage redirection; no tags added/removed by this component itself.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity the component is attached to. |
-| `target_mount` | `Entity?` | `nil` | Temporary reference to a pending mount during `Mount()` process. Cleared after successful mount. |
-| `mount` | `Entity?` | `nil` | The currently mounted entity. `nil` when not riding. |
-| `saddle` | `Entity?` | `nil` | The saddle currently equipped on the mount, if any. Populated during mount tracking. |
-| `_mountannouncetask` | `Task?` | `nil` | Delayed task used to announce mount wound status (e.g., “mountwounded” event) after mounting. |
-| `_onSaddleChanged` | `function` | — | Event handler callback for `"saddlechanged"` events on the mount. |
+| `target_mount` | `Entity` or `nil` | `nil` | Temporary reference to the intended mount during mounting logic. |
+| `mount` | `Entity` or `nil` | `nil` | The entity currently being ridden. |
+| `saddle` | `Entity` or `nil` | `nil` | The saddle equipped on the current mount (if any). |
+| `riding` | boolean | `false` | Internal flag indicating whether the entity is currently mounted. |
 
-## Main Functions
-### `Rider:Mount(target, instant)`
-* **Description:** Initiates the mounting process on the given `target` entity. Validates mountability, applies visual/audio/physics adjustments, redirects combat, and triggers `"mounted"` upon completion.  
-* **Parameters:**  
-  - `target` (`Entity`): The rideable entity to mount. Must have the `rideable` component.  
-  - `instant` (`boolean`): If `true`, skips the `"mount"` state transition and goes directly to `"idle"`. Used during loading/reconnection.
+## Main functions
+### `Mount(target, instant)`
+*   **Description:** Initiates mounting a specified `target` entity. Verifies obedience, rider eligibility, and mount availability before performing the mount sequence.
+*   **Parameters:**
+    * `target` (`Entity`) — The rideable creature to mount. Must have the `rideable` component.
+    * `instant` (`boolean`) — If `true`, skips the mount animation and transitions directly to the "idle" state.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early without mounting if: `self.riding` is `true`, `target` lacks `rideable` component, `target` is already being ridden, `TestObedience()` or `TestRider()` fails on the mount.
 
-### `Rider:Dismount()`
-* **Description:** Initiates a clean dismount by pushing the `"dismount"` event. The actual dismount logic is deferred to the state graph (`SGState`), or for internal/cleanup use, `ActualDismount()` can be called directly.  
-* **Parameters:** None.
+### `Dismount()`
+*   **Description:** Triggers a dismount event. The actual dismount logic is deferred to `ActualDismount()`, typically invoked by the state graph.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `Rider:ActualDismount()`
-* **Description:** Performs the complete dismount sequence, restoring the entity’s state (animations, physics, shadow, shielding, pinning, etc.), clearing saddle overrides, unhibernating the mount, and reparenting it back to the scene. Triggers `"dismounted"` with the dismounted mount as payload.  
-* **Parameters:** None.
+### `ActualDismount()`
+*   **Description:** Performs the core dismount logic: restores animations, re-enables physics and pinning, resets parent-child hierarchy, and reactivates the mount's brain and state graph.
+*   **Parameters:** None.
+*   **Returns:** `Entity` — The mount entity that was just dismounted, or `nil` if not riding.
+*   **Error states:** Returns early without action if `riding` is `false`.
 
-### `Rider:StartTracking(mount)`
-* **Description:** Begins listening for `"saddlechanged"` events on the given `mount` to keep the local `saddle` property in sync. Also initializes `self.saddle` from the mount’s current saddle.  
-* **Parameters:**  
-  - `mount` (`Entity?`): The mount entity to track. `nil` is allowed (no-op).
+### `IsRiding()`
+*   **Description:** Reports whether the entity is currently mounted.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if mounted, `false` otherwise.
 
-### `Rider:StopTracking(mount)`
-* **Description:** Stops listening for `"saddlechanged"` events on the mount and clears `self.saddle`.  
-* **Parameters:**  
-  - `mount` (`Entity?`): The mount entity to stop tracking. `nil` is allowed.
+### `GetMount()`
+*   **Description:** Returns the entity currently being ridden.
+*   **Parameters:** None.
+*   **Returns:** `Entity` or `nil` — The current mount, or `nil` if not mounted.
 
-### `Rider:GetSaddle()`
-* **Description:** Returns the current saddle entity equipped on the mount, or `nil`.  
-* **Parameters:** None.
+### `StartTracking(mount)`
+*   **Description:** Registers interest in `saddlechanged` events on the given mount to keep the local `saddle` reference up to date.
+*   **Parameters:**
+    * `mount` (`Entity`) — The mount to begin tracking, or `nil` to stop tracking current mount.
+*   **Returns:** Nothing.
 
-### `Rider:GetMount()`
-* **Description:** Returns the currently mounted entity, or `nil` if not riding.  
-* **Parameters:** None.
+### `StopTracking(mount)`
+*   **Description:** Unregisters `saddlechanged` interest and clears local saddle reference.
+*   **Parameters:**
+    * `mount` (`Entity`) — The mount to stop tracking, or `nil`.
+*   **Returns:** Nothing.
 
-### `Rider:IsRiding()`
-* **Description:** Returns `true` if the entity is currently mounted.  
-* **Parameters:** None.
+### `GetSaddle()`
+*   **Description:** Returns the current saddle entity equipped on the mounted creature.
+*   **Parameters:** None.
+*   **Returns:** `Entity` or `nil` — The saddle, or `nil` if no saddle is equipped.
 
-### `Rider:OnSave()`
-* **Description:** Prepares serialization data for the mount entity, including saving its record if it supports persistence (`rideable:ShouldSave()`).  
-* **Parameters:** None.  
-* **Returns:** `table` — Save data with optional `mount` key containing the save record.
+### `OnSave()`
+*   **Description:** Prepares mount data for serialization during autosave/quit. Only saves if the mount has `rideable:ShouldSave()` returning `true`.
+*   **Parameters:** None.
+*   **Returns:** `table` — Save data with key `mount`, containing the mount's `GetSaveRecord()`, or empty table `{}` if no mount or `ShouldSave()` is `false`.
 
-### `Rider:OnLoad(data)`
-* **Description:** Restores the mounted state during load by spawning and re-mounting the saved mount entity.  
-* **Parameters:**  
-  - `data` (`table?`): Save data that may contain a `mount` record.
+### `OnLoad(data)`
+*   **Description:** Restores the mount during load. Spawns the saved mount entity and immediately mounts it.
+*   **Parameters:**
+    * `data` (`table`) — Save data containing the mount record under `data.mount`.
+*   **Returns:** Nothing.
 
-### `Rider:OnRemoveFromEntity()`
-* **Description:** Cleans up upon component removal: cancels pending health announcement tasks and stops tracking the current mount.  
-* **Parameters:** None.
+### `OnRemoveFromEntity()`
+*   **Description:** Cleanup function called when the component is removed from the entity. Cancels pending health announcement task and stops tracking the current mount.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens for:**
-  - `"saddlechanged"` (on mount entity) → Triggers `self._onSaddleChanged` to update `self.saddle`
-- **Pushes:**
-  - `"mounted"` → Fired when mounting completes (payload: `{target = <mount_entity>}`)
-  - `"dismount"` → Fired at start of dismount process (no payload)
-  - `"dismounted"` → Fired after full dismount completes (payload: `{target = <ex_mount_entity>}`)
-  - `"refusedmount"` → Fired when mount refusal occurs (payload: `{rider=self.inst, rideable=target}`)
-  - `"mountwounded"` → Fired if mount health drops below 20% ~2–4 seconds after mounting (no payload)
+## Events & listeners
+- **Listens to:**  
+  - `saddlechanged` (on mount) — Updates `self.saddle` via `self._onSaddleChanged`. Registered in `StartTracking`, removed in `StopTracking`.
+
+- **Pushes:**  
+  - `mounted` — Fired after mounting completes. Payload: `{ target = mount }`.  
+  - `dismount` — Fired when dismount is initiated (via `Dismount()`).  
+  - `dismounted` — Fired after dismount completes (in `ActualDismount`). Payload: `{ target = ex_mount }`.  
+  - `refusedmount` — Fired if mount is refused due to obedience or rider test failure. Payload: `{ rider = self.inst, rideable = target }`.  
+  - `refusedrider` — Fired on the mount when mount refusal occurs. Payload: `{ rider = self.inst, rideable = target }`.  
+  - `mountwounded` — Fired when the mount’s health drops below 20% (after ~2–4 seconds post-mount, triggered by `_mountannouncetask`).

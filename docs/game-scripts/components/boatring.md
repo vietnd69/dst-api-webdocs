@@ -1,103 +1,116 @@
 ---
 id: boatring
 title: Boatring
-description: Manages the rotational movement, attached bumpers, and rotators for a boat entity.
+description: Manages rotation behavior and bumper collision detection for a boat entity in the game world.
+tags: [boat, rotation, collision, map, movement]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: a99f1f1b
+system_scope: world
 ---
 
 # Boatring
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The Boatring component is the central controller for a boat's physical ring structure. It manages the boat's rotation, keeps track of attached functional parts like bumpers and rotators (e.g., masts), and handles the core update loop that applies rotational movement to the boat's transform. It works in tandem with the `boatringdata` component to define the boat's physical properties.
+`BoatRing` handles the rotational dynamics and collision logic for a boat entity. It uses the `boatringdata` component to retrieve geometric properties like radius and segment count, coordinates rotation updates via rotator entities (e.g., paddles or motors), and manages bumper objects for collision detection. It also integrates with the event system to respond to death and rotation changes, ensuring proper sound cleanup and rotator synchronization.
 
-## Dependencies & Tags
-**Dependencies:**
-- `boatringdata`: Required for accessing core boat properties like radius and segment count. The component will fail to initialize if `boatringdata` is not present.
-- `SoundEmitter`: Used to play and stop boat movement sounds.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("boatring")
+inst:AddComponent("boatringdata")
+inst.components.boatringdata.radius = 10
+inst.components.boatringdata.segments = 8
 
-**Tags:**
-- None identified.
+inst.components.boatring:AddRotator(rotator_entity)
+inst.components.boatring:SetRotationDirection(1) -- start rotating clockwise
+```
+
+## Dependencies & tags
+**Components used:** `boatringdata`
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
-|---|---|---|---|
-| `rotationdirection` | number | `0` | The current direction of rotation. `1` for clockwise, `-1` for counter-clockwise, and `0` for stationary. |
-| `rotate_speed` | number | `0.5` | The base rotational speed contributed by a single rotator. |
-| `max_rotate_speed` | number | `2` | The maximum possible rotational speed, regardless of the number of rotators. |
-| `updating` | boolean | `false` | A flag indicating whether the component is currently receiving `OnUpdate` calls. |
-| `boatbumpers` | table | `{}` | An array-like table containing references to all attached bumper entities. |
-| `rotators` | table | `{}` | An array-like table containing references to all attached rotator entities (e.g., masts). |
-| `onrotationchanged`| function | `function` | A callback function that triggers when the boat's rotation direction changes. It updates the state of all attached rotators. |
+|----------|------|---------------|-------------|
+| `rotationdirection` | number | `0` | Current rotation direction: `0` = stopped, `>0` = clockwise, `<0` = counter-clockwise. |
+| `rotate_speed` | number | `0.5` | Rotation speed multiplier per rotator. |
+| `max_rotate_speed` | number | `2` | Maximum allowed rotation speed. |
+| `updating` | boolean | `false` | Whether the component is currently being updated via `OnUpdate`. |
+| `boatbumpers` | table | `{}` | Array of bumper entities associated with the boat. |
+| `rotators` | table | `{}` | Array of rotator entities that drive rotation. |
 
-## Main Functions
+## Main functions
 ### `GetRadius()`
-* **Description:** Retrieves the radius of the boat ring. This value is fetched from the attached `boatringdata` component.
+* **Description:** Returns the boat's radius (in world units), retrieved from the `boatringdata` component.
 * **Parameters:** None.
-* **Returns:** `number` - The radius of the boat.
+* **Returns:** `number` — boat radius.
 
 ### `GetNumSegments()`
-* **Description:** Retrieves the number of segments that make up the boat ring. This value is fetched from the attached `boatringdata` component.
+* **Description:** Returns the number of angular segments defining the boat’s ring, used for segmentation-based collision checks.
 * **Parameters:** None.
-* **Returns:** `number` - The number of boat segments.
+* **Returns:** `number` — number of segments.
 
 ### `SetRotationDirection(dir)`
-* **Description:** Sets the boat's direction of rotation. This function also controls the component's update loop, starting it when rotation begins and stopping it when the boat is stationary.
-* **Parameters:**
-    * `dir` (number): The desired rotation direction (`1`, `-1`, or `0`).
+* **Description:** Sets the boat’s rotation direction and starts/stops the update loop as needed. Also informs `boatringdata` and all registered rotators of the change.
+* **Parameters:** `dir` (number) — rotation direction: `0` to stop, positive for clockwise, negative for counter-clockwise.
+* **Returns:** Nothing.
 
 ### `AddBumper(bumper)`
-* **Description:** Adds a bumper entity to the internal list of tracked bumpers.
-* **Parameters:**
-    * `bumper` (Entity): The bumper entity instance to add.
+* **Description:** Adds a bumper entity to the internal list for collision detection.
+* **Parameters:** `bumper` (Entity) — entity representing a bumper segment.
+* **Returns:** Nothing.
 
 ### `RemoveBumper(bumper)`
-* **Description:** Removes a specific bumper entity from the internal list.
-* **Parameters:**
-    * `bumper` (Entity): The bumper entity instance to remove.
-
-### `AddRotator(rotator)`
-* **Description:** Adds a rotator entity (e.g., a mast) to the internal list of tracked rotators.
-* **Parameters:**
-    * `rotator` (Entity): The rotator entity instance to add.
-
-### `RemoveRotator(rotator)`
-* **Description:** Removes a specific rotator entity from the internal list.
-* **Parameters:**
-    * `rotator` (Entity): The rotator entity instance to remove.
+* **Description:** Removes a bumper entity from the internal list.
+* **Parameters:** `bumper` (Entity) — entity to remove.
+* **Returns:** Nothing.
 
 ### `GetBumperAtPoint(x, z)`
-* **Description:** Searches through all attached bumpers to find one that occupies the specified world coordinates.
-* **Parameters:**
-    * `x` (number): The x-coordinate to check.
-    * `z` (number): The z-coordinate to check.
-* **Returns:** The bumper `Entity` instance at the given point, or `nil` if none is found.
+* **Description:** Determines which bumper (if any) covers the given world coordinates `(x, z)` based on angular sectors.
+* **Parameters:**  
+  - `x` (number) — world X coordinate  
+  - `z` (number) — world Z coordinate  
+* **Returns:** `Entity?` — the bumper entity covering the point, or `nil` if none.
+
+### `AddRotator(rotator)`
+* **Description:** Registers a rotator entity to contribute to the boat’s rotation.
+* **Parameters:** `rotator` (Entity) — entity controlling rotation (e.g., paddle or motor).
+* **Returns:** Nothing.
+
+### `RemoveRotator(rotator)`
+* **Description:** Unregisters a rotator entity from influencing the boat.
+* **Parameters:** `rotator` (Entity) — entity to remove.
+* **Returns:** Nothing.
 
 ### `OnDeath()`
-* **Description:** A callback function triggered when the boat entity is destroyed. It kills the "boat_movement" sound.
+* **Description:** Cleans up sounds associated with boat movement upon the entity’s death.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-* **Description:** The main update function, called every frame when the boat is rotating. It calculates the rotation speed based on the number of active rotators and applies the rotation to the boat's transform.
-* **Parameters:**
-    * `dt` (number): The time delta since the last update.
+* **Description:** Performs frame-by-frame rotation logic during updates. Computes angular velocity based on active rotators and applies rotation to the boat’s transform.
+* **Parameters:** `dt` (number) — delta time in seconds.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Saves the component's state for persistence. It saves the `rotationdirection`.
+* **Description:** Serializes the component’s state for persistence (e.g., world save).
 * **Parameters:** None.
-* **Returns:** A `table` containing the data to be saved.
+* **Returns:** `table?` — `{ rotationdirection = <number> }`, though the function currently returns nothing due to an early `return`.
 
 ### `OnLoad(data)`
-* **Description:** Loads the component's state from saved data. It restores the `rotationdirection`.
-* **Parameters:**
-    * `data` (table): The saved data table.
+* **Description:** Restores component state from saved data.
+* **Parameters:** `data` (table?) — saved state; expects `data.rotationdirection`.
+* **Returns:** Nothing.
 
-## Events & Listeners
-* **Listens for `death`:** When the boat entity dies, it calls the `OnDeath()` function to clean up sounds.
-* **Listens for `rotationdirchanged`:** When this event is triggered on the boat entity, it calls the internal `onrotationchanged` handler to update the visual state of all attached rotator entities (e.g., turning sails).
+## Events & listeners
+- **Listens to:**  
+  - `death` — triggers `OnDeath()` to stop movement sounds.  
+  - `rotationdirchanged` — triggers `onrotationchanged` callback to update rotator states.
+- **Pushes:** None.

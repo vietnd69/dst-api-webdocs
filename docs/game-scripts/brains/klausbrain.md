@@ -1,70 +1,55 @@
 ---
 id: klausbrain
 title: Klausbrain
-description: Brain component for Klaus that manages combat behavior including enraged states, chomp attacks, chasing, and wandering, coordinated via a Behavior Tree.
+description: AI brain component that controls Klaus's behavior, including rage states, combat, wandering, and chomp attacks.
+tags: [ai, boss, combat, behavior_tree]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 31f4d457
+system_scope: brain
 ---
 
 # Klausbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-`Klausbrain` is a brain component that defines the decision-making logic for the Klaus character. It orchestrates high-level behavior using a Behavior Tree (BT) with priority-based node sequencing. Core behaviors include engaging the nearest target via `ChaseAndAttack`, entering an "enraged" state when troop numbers drop below two, triggering a chomp attack under specific conditions, and periodically resetting combat engagement while wandering toward the remembered spawn point.
+`Klausbrain` is the AI behavior tree component for the boss entity Klaus. It orchestrates Klaus's core behavioral patterns—namely rage triggering when soldier count is low, chomp attacks when unchained and targeting an enemy, combat engagement via `ChaseAndAttack`, periodic reset of combat state, and wandering near his spawn point. It relies heavily on external components for target detection (`combat`), soldier count monitoring (`commander`), location tracking (`knownlocations`), and timing (`timer`).
 
-The brain integrates closely with the `combat`, `commander`, `knownlocations`, and `timer` components to make state-aware decisions.
+## Usage example
+```lua
+-- The component is automatically added and used by the Klaus prefab (prefabs/klaus.lua).
+-- It is not intended for direct manual instantiation in mod code.
+-- Standard usage is via the prefab definition, e.g.:
+-- inst:AddComponent("brain")
+-- inst.components.brain:SetBrainClass("klausbrain")
+```
 
-## Dependencies & Tags
-- **Components used:** `combat`, `commander`, `knownlocations`, `timer`
-- **Tags:** None identified.
+## Dependencies & tags
+**Components used:** `combat`, `commander`, `knownlocations`, `timer`
+**Tags:** None identified.
 
 ## Properties
-No public instance properties are explicitly initialized in the constructor or module scope.
+No public properties.
 
-## Main Functions
-### `KlausBrain:OnStart()`
-* **Description:** Initializes and assigns the Behavior Tree root node for Klaus. The BT handles priority-based execution of enrage checks, chomp attempts, chasing/attacking, combat reset, and wandering.
+## Main functions
+### `OnStart()`
+* **Description:** Initializes Klaus's behavior tree. Sets up priority-based behavior nodes for enraging (when soldier count < 2), chomping (when unchained and has a target), chasing/attacking, resetting combat engagement after 10 seconds, and wandering within 5 units of the home position.
 * **Parameters:** None.
-* **Returns:** None.
+* **Returns:** Nothing.
 
-### `KlausBrain:OnInitializationComplete()`
-* **Description:** Records Klaus's current position (with `y` clamped to `0`) as the "spawnpoint" location using `KnownLocations.RememberLocation`. The `dont_overwrite=true` flag ensures this location is only set once.
+### `OnInitializationComplete()`
+* **Description:** Records Klaus's current ground-level position (with `y` clamped to `0`) as `"spawnpoint"` in `knownlocations`. The `dont_overwrite` flag prevents overwriting if already set.
 * **Parameters:** None.
-* **Returns:** None.
+* **Returns:** Nothing.
 
-### `GetHomePos(inst)` (local function)
-* **Description:** Helper function that retrieves the remembered "spawnpoint" location. Used as the target position for wandering.
-* **Parameters:** `inst` — Entity instance.
-* **Returns:** Vector3 position of the spawnpoint, or `nil` if not yet set.
-
-### `ShouldEnrage(inst)` (local function)
-* **Description:** Determines whether Klaus should enter an enraged state. Conditions are: Klaus is not currently enraged AND has fewer than 2 soldiers under command.
-* **Parameters:** `inst` — Entity instance.
-* **Returns:** Boolean — `true` if enrage conditions are met.
-
-### `ShouldChomp(inst)` (local function)
-* **Description:** Determines whether Klaus should perform a chomp attack. Conditions are: Klaus is unchained, has an active combat target, and the chomp cooldown timer does not exist.
-* **Parameters:** `inst` — Entity instance.
-* **Returns:** Boolean — `true` if chomp conditions are met.
-
-## Events & Listeners
-- **Listens to:** None explicitly defined in this module.
-- **Pushes:** `enrage`, `chomp` — triggered by behavior tree nodes when their respective conditions become true.
-
-## Behavior Tree Structure Summary
-The Behavior Tree root (defined in `OnStart`) evaluates nodes in this priority order:
-1. **Enrage** — Triggers `inst:PushEvent("enrage")` if `ShouldEnrage(inst)` is true.
-2. **Chomp** — Triggers `inst:PushEvent("chomp")` if `ShouldChomp(inst)` is true.
-3. **ChaseAndAttack** — Continuously pursue and attack the current target.
-4. **Parallel node:**
-   - Sequence: After waiting `RESET_COMBAT_DELAY` seconds, calls `self.inst:SetEngaged(false)`.
-   - Wander: Moves toward home (`GetHomePos`) within a radius of `5` units.
-
-The `.5` tolerance parameter allows for minor behavior overlap when priorities conflict.
+## Events & listeners
+- **Listens to:** None identified.
+- **Pushes:** 
+  - `enrage` — fired when `ShouldEnrage` condition is met.
+  - `chomp` — fired when `ShouldChomp` condition is met.
+  - (Internally, `ChaseAndAttack` and `Wander` may push further events, but these are defined externally.)

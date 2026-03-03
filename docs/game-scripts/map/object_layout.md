@@ -3,7 +3,7 @@ id: object_layout
 title: Object Layout
 description: Provides layout definition, conversion, and placement utilities for world generation, supporting static and procedural positioning of prefabs in maps.
 tags: [world, map, layout, procedural]
-sidebar_position: 1
+sidebar_position: 100
 
 last_updated: 2026-02-27
 build_version: 714014

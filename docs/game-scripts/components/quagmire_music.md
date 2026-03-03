@@ -1,64 +1,54 @@
 ---
 id: quagmire_music
 title: Quagmire Music
-description: Manages background music playback for the Quagmire arena based on active players and level state.
+description: Manages background music playback for the Quagmire arena based on world level and win state, synchronized across clients.
+tags: [audio, world, network, event]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: audio
+category_type: map
 source_hash: 589c45c0
+system_scope: audio
 ---
 
 # Quagmire Music
 
-## Overview
-This component handles Quagmire-specific background music playback in response to player activation/deactivation events and level changes. It uses networked variables to ensure synchronized music state across clients and master simulation, playing different tracks based on the current arena level or a victory theme upon winning.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components**: Relies on `inst.GUID` (inherited from the entity), `TheWorld`, and `TheFocalPoint.SoundEmitter`.
-- **Tags**: None explicitly added or removed.
-- **Network**: Uses `net_tinybyte` and `net_event` to bind state (`level`) and events (`won`) to the entity's GUID.
+## Overview
+`QuagmireMusic` is a world-level component responsible for playing background music tracks in the Quagmire arena. It activates when a player enters the arena, plays music dynamically based on the current level (via networked state), and plays a victory sound upon winning. The component handles client-server synchronization using network variables and events, ensuring consistent audio behavior across all clients.
+
+## Usage example
+```lua
+-- Typically added automatically to TheWorld in quagmire worlds
+-- No direct manual usage required by modders
+-- Example of manual usage (advanced use only):
+inst:AddComponent("quagmire_music")
+inst.components.quagmire_music._netvars.level:set(2)
+```
+
+## Dependencies & tags
+**Components used:** `TheFocalPoint.SoundEmitter`, `TheWorld` (global), `event_server_data` (internal server utility)
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (passed in) | The entity the component is attached to. |
-| `_world` | `TheWorld` (global) | `TheWorld` | Reference to the global world instance. |
-| `_soundemitter` | `SoundEmitter` | `nil` | Sound emitter used for playing/canceling background music; assigned only when a player is active. |
-| `_activatedplayer` | `Entity` (player) | `nil` | Cached reference to the currently active player; used for clean-up on deactivation. |
-| `_levelplaying` | `number` | `nil` | Tracks the last level index whose music is playing; used to avoid redundant playback. |
-| `_netvars.level` | `net_tinybyte` | `1` (initialized in `_ctor`) | Networked variable storing the current arena level (1 or 2). |
-| `_netvars.won` | `net_event` | — | Network event pushed when the arena is won. |
+| `inst` | `GEntity` | (passed in) | The entity instance the component is attached to (typically `TheWorld`). |
+| `_netvars.level` | `net_tinybyte` | `1` | Networked variable representing the current arena level; values correspond to indices in `MUSIC`. |
+| `_netvars.won` | `net_event` | (unused in client code) | Network event fired when the arena is won. |
+| `_activatedplayer` | `GActivePlayer` | `nil` | Cached reference to the player who activated the music session. |
+| `_levelplaying` | `number?` | `nil` | Tracks the level index currently playing to prevent redundant sound restarts. |
 
-## Main Functions
-### `OnLevelDirty(inst)`
-* **Description:** Checks for changes in the networked arena level and updates the background music accordingly. Stops the current BGM and plays the appropriate track (`cook_1` or `cook_2`) if the level changed.
-* **Parameters:** `inst` — The entity instance (unused directly; used only for context in event callback).
+## Main functions
+The component has no publicly exposed methods. All functionality is encapsulated in private event handlers and initialization logic.
 
-### `OnWon(inst)`
-* **Description:** Plays the victory music (`gorge_win`) when the arena is successfully completed.
-* **Parameters:** `inst` — The entity instance (unused directly; used only for context in event callback).
-
-### `OnPlayerDeactivated(src, player)`
-* **Description:** Handles player deactivation by stopping background music and cleaning up resources if the deactivating player matches the currently active one.
-* **Parameters:**  
-  * `src` — The source of the event (typically `TheWorld`).  
-  * `player` — The entity that was deactivated.
-
-### `OnPlayerActivated(src, player)`
-* **Description:** Activates music control when a player enters the arena. Deactivates any prior player’s session first, sets up event listeners and sound emitter, then triggers immediate level-based music playback.
-* **Parameters:**  
-  * `src` — The source of the event (typically `TheWorld`).  
-  * `player` — The entity that was activated.
-
-## Events & Listeners
-- **Listens for:**
-  - `"playeractivated"` (on `TheWorld`) → triggers `OnPlayerActivated`
-  - `"playerdeactivated"` (on `TheWorld`) → triggers `OnPlayerDeactivated`
-  - `"leveldirty"` (on `inst`) → triggers `OnLevelDirty`
-  - `"lavaarenamusic._netvars.won"` (on `inst`) → triggers `OnWon`
-- **Pushes events:**
-  - None directly; relies on `net_event` for synchronization.
+## Events & listeners
+- **Listens to:**  
+  `playeractivated` (on `TheWorld`) — triggers activation of music playback when a player enters the arena.  
+  `playerdeactivated` (on `TheWorld`) — deactivates and cleans up music when the active player exits.  
+  `leveldirty` (on `inst`) — triggers music change if the networked level changes.  
+  `lavaarenamusic._netvars.won` (on `inst`) — plays the victory sound.
+- **Pushes:** None identified.

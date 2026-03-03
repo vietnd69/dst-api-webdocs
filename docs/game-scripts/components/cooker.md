@@ -1,58 +1,65 @@
 ---
 id: cooker
 title: Cooker
-description: This component manages the logic for cooking items, including checking if an item can be cooked and performing the cooking action.
+description: Validates and executes cooking operations for items placed on a cooking entity, ensuring required conditions are met and handling side effects like sound playback and event callbacks.
+tags: [crafting, cooking, interaction]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: crafting
+category_type: components
 source_hash: 5bfc849f
+system_scope: crafting
 ---
 
 # Cooker
 
-## Overview
-The `Cooker` component enables an entity to function as a cooking station within Don't Starve Together. It provides robust functionality to determine if a given item can be cooked by a specific chef and to execute the cooking process, transforming the raw item into its cooked counterpart. This component also handles sound effects and custom callback functions post-cooking, making it a central piece for any cooking-related entity like a Crock Pot or Campfire.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-*   **Tags:**
-    *   `cooker`: Added to the entity when this component is initialized, and removed when the component is detached. This identifies the entity as a cooking station.
-    *   `dangerouscooker`: A tag that, if present on the cooker, restricts cooking to entities with the `expertchef` tag.
-    *   `expertchef`: A tag checked on the `chef` entity to allow cooking on `dangerouscooker` stations.
-*   **Other Components:**
-    *   `item.components.cookable`: Essential for an item to be eligible for cooking and for the actual cooking transformation. Without this component, an item cannot be cooked.
-    *   `self.inst.components.fueled`: The cooker may require fuel to operate. This component is checked in `CanCook` to ensure the cooker is not empty if it uses fuel.
-    *   `item.components.burnable`: Checked in `CanCook` to prevent cooking items that are currently burning.
-    *   `item.components.projectile`: Checked in `CanCook` to prevent cooking items that are currently thrown as projectiles.
-    *   `self.inst.components.inventoryitem`: Used in `CookItem` to locate the sound emitter for cooking sounds, typically when the cooker is part of a larger inventory (e.g., a portable cooker held by a player).
+## Overview
+The `Cooker` component enables an entity to cook other items by transforming cookable items into their cooked variants. It enforces cooking rules—such as requiring fuel, preventing burning or thrown items, and enforcing expert chef requirements for dangerous cookers—and handles the full cooking workflow, including product creation, state cleanup, and event callbacks.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("cooker")
+inst:AddTag("cooker") -- Recommended for pristine prefabs
+-- Optional: Configure behavior via callbacks
+inst.components.cooker.oncookfn = function(cooker, newitem, chef)
+    print(chef.prefab .. " cooked " .. newitem.prefab)
+end
+-- Later, when cooking is initiated:
+inst.components.cooker:CookItem(item, chef)
+```
+
+## Dependencies & tags
+**Components used:** `fueled`, `cookable`, `burnable`, `inventoryitem`, `projectile`  
+**Tags:** Adds `"cooker"` on construction; removes `"cooker"` on entity removal. Checks `"dangerouscooker"` and `"expertchef"` tags conditionally.
 
 ## Properties
-No public properties were explicitly initialized in the `_ctor` beyond `self.inst`. However, the following properties are expected to be set externally to define callback behaviors:
+No public properties
 
-| Property     | Type       | Default Value | Description                                                                                                                                                                                                                                      |
-| :----------- | :--------- | :------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `oncookitem` | `function` | `nil`         | A callback function `function(old_item, new_item)` that is invoked immediately after an item is cooked. `old_item` is the original item that was cooked, and `new_item` is the resulting cooked item.                                          |
-| `oncookfn`   | `function` | `nil`         | A callback function `function(cooker_inst, new_item, chef)` that is invoked after an item is cooked. This provides more context than `oncookitem`, including the cooker entity itself, the newly cooked item, and the chef who performed the action. |
-
-## Main Functions
-
-### `OnRemoveFromEntity()`
-*   **Description:** This function is called automatically by the Entity Component System when the `Cooker` component is removed from its associated entity. Its primary purpose is to clean up by removing the "cooker" tag that was added during initialization.
-*   **Parameters:** None.
-
+## Main functions
 ### `CanCook(item, chef)`
-*   **Description:** Determines whether a given `item` can be cooked by a `chef` using this cooker. It performs several validation checks: ensuring the item has a `cookable` component, verifying the cooker has fuel (if applicable), confirming the item is not currently burning or thrown, and checking if the cooker's "dangerouscooker" tag permits the `chef` to cook (requiring an "expertchef" tag on the chef).
-*   **Parameters:**
-    *   `item`: (`Entity`) The `Entity` object representing the item intended for cooking.
-    *   `chef`: (`Entity`) The `Entity` object representing the character attempting to cook.
-*   **Returns:** (`boolean`) `true` if the item meets all criteria and can be cooked; `false` otherwise.
+*   **Description:** Determines whether the given item can be cooked by this entity under current conditions.
+*   **Parameters:**  
+    `item` (Entity) – The item to cook.  
+    `chef` (Entity) – The entity performing the cooking action.  
+*   **Returns:** `boolean` – `true` if cooking is allowed, `false` otherwise.
+*   **Error states:** Returns `false` if `item` is `nil`, lacks `cookable` component, cooker lacks fuel (`fueled:IsEmpty()`), item is burning (`burnable:IsBurning()`), item is thrown (`projectile:IsThrown()`), or the cooker is `"dangerouscooker"` and chef is not `"expertchef"`.
 
 ### `CookItem(item, chef)`
-*   **Description:** Executes the cooking process for a specified `item` by a `chef`, provided that `CanCook` returns `true`. This function handles the transformation of the original item into its cooked version, updates player statistics ("cooked_" + prefab name), triggers custom callback functions (`oncookitem` and `oncookfn` if defined), plays a cooking sound, and removes the original item from the world.
-*   **Parameters:**
-    *   `item`: (`Entity`) The `Entity` object representing the item to be cooked.
-    *   `chef`: (`Entity`) The `Entity` object representing the character performing the cooking.
-*   **Returns:** (`Entity` or `nil`) The newly created cooked item entity if the cooking was successful and `CanCook` allowed it; otherwise, `nil`.
+*   **Description:** Attempts to cook the given item. If valid, creates the cooked product, plays cooking sound, invokes callbacks, and removes the original item.
+*   **Parameters:**  
+    `item` (Entity) – The item to cook.  
+    `chef` (Entity) – The entity performing the cooking action.  
+*   **Returns:** `Entity?` – The new cooked item entity on success, or `nil` if cooking was disallowed.
+*   **Error states:** Returns `nil` if `CanCook` returns `false`. May return `nil` if `Cookable:Cook` itself produces `nil`.
+
+## Events & listeners
+- **Listens to:** None (no `inst:ListenForEvent` calls found).
+- **Pushes:** `cooked` – via `ProfileStatsAdd("cooked_"..item.prefab)` for stat tracking.  
+  Callbacks:  
+  - `self.oncookitem(item, newitem)` – user-defined function, if assigned.  
+  - `self.oncookfn(cooker, newitem, chef)` – user-defined function, if assigned.

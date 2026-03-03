@@ -1,65 +1,76 @@
 ---
 id: brightmare_gestaltguardbrain
 title: Brightmare Gestaltguardbrain
-description: Controls the behavior tree logic for the Brightmare Gestalt Guard entity, managing state transitions between aggressive pursuit, player-avoidance relocation, target-facing, and wandering.
+description: Implements the AI behavior tree for the Brightmare Gestaltguard, handling aggression, player proximity response, and target tracking using a hierarchical state machine.
+tags: [ai, brain, combat, boss]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 7af630bc
+system_scope: brain
 ---
 
 # Brightmare Gestaltguardbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
+`GestaltGuardBrain` is the AI behavior controller for the Brightmare Gestaltguard entity. It defines how the gestalt guard responds to player proximity, maintains facing direction toward visible targets, and escalates aggression based on its `behaviour_level` (where level 3 is fully aggressive). The brain integrates behavior trees (`BT`) with custom utility functions to manage navigation, combat readiness, and dynamic repositioning (e.g., when players get too close). It depends on the `combat` and `knownlocations` components and is attached to the entity during initialization.
 
-This brain component implements the decision-making logic for the Brightmare Gestalt Guard entity. It extends the base `Brain` class and defines a hierarchical behavior tree (BT) that governs movement and combat actions based on `behaviour_level`, proximity to players, and presence of a combat target. When active, it coordinates interactions with the `combat` and `knownlocations` components to handle aggression, relocation, and navigation.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("brain")
+inst:AddComponent("combat")
+inst:AddComponent("knownlocations")
+inst:AddBrain("brightmare_gestaltguardbrain")
+-- The brain is automatically initialized; OnStart() and OnInitializationComplete() are called by the state graph.
+```
 
-## Dependencies & Tags
-- **Components used:**
-  - `inst.components.combat`: Used to read `combat.target` during target-facing logic.
-  - `inst.components.knownlocations`: Used to remember the entity's spawn point on initialization.
-- **Tags:** None directly added/removed by this component.
+## Dependencies & tags
+**Components used:** `combat`, `knownlocations`  
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed) | Reference to the entity instance owned by this brain component. |
-| `bt` | `BT` | `nil` | Behavior tree instance set in `OnStart()`. |
+| `inst` | `Entity` | `nil` | Reference to the entity instance the brain controls. Inherited from `Brain`. |
+| `bt` | `BT` | `nil` | The Behavior Tree instance created in `OnStart()`. Initialized only after `OnStart()` is called. |
 
-## Main Functions
-
-### `GestaltGuardBrain:OnStart()`
-* **Description:** Initializes and assigns the behavior tree root node for the entity. Constructs a priority-based tree that evaluates high-priority conditions first: aggressive state (`behaviour_level == 3`), player proximity (relocation trigger), target-facing, and finally default wandering.
+## Main functions
+### `OnStart()`
+* **Description:** Initializes and sets up the behavior tree for the gestalt guard. The root node handles state transitions based on `behaviour_level`, proximity checks, and target acquisition.
 * **Parameters:** None.
-* **Returns:** None.
+* **Returns:** Nothing.
+* **Error states:** Assumes `self.inst.sg` is valid and that required behavior modules (`behaviours/...`) are correctly loaded.
 
-### `GestaltGuardBrain:OnInitializationComplete()`
-* **Description:** Registers the entity's current position as its `spawnpoint` in the `knownlocations` component. Prevents overwriting if a `spawnpoint` already exists (`dont_overwrite = true`).
+### `OnInitializationComplete()`
+* **Description:** Records the entity’s current position as its `spawnpoint` using the `knownlocations` component. This prevents overwriting an existing spawnpoint if already set.
 * **Parameters:** None.
-* **Returns:** None.
+* **Returns:** Nothing.
 
-## Behavior Tree Structure
+### `Relocate(inst)`
+* **Description:** Utility function that commands the entity to enter the `"relocate"` state via its state graph. Typically invoked when a player is detected within `RELOCATED_DISTSQ`.
+* **Parameters:** `inst` (Entity) — the gestalt guard instance.
+* **Returns:** Nothing.
 
-The root behavior tree is built as follows:
-1. **Relocation Priority**
-   - Condition: `IsPlayerTooClose(self.inst)` returns true (player within `RELOCATED_DISTSQ = 9` units squared).
-   - Actions: Triggers `"relocate"` state via `Relocate()` and then executes `StandStill`.
-2. **Target-Facing Priority**
-   - Uses `FaceEntity` with `GetFacingTarget` and `KeepFacingTarget` helpers.
-   - `GetFacingTarget` returns `combat.target` only if:
-     - `behaviour_level == 2`, and
-     - Target is valid, and
-     - Distance squared to target is `<= GETFACINGTARGET_DISTSQ` (i.e., within `TUNING.GESTALTGUARD_WATCHING_RANGE`).
-3. **Aggression (behaviour_level == 3)**
-   - Uses `ChaseAndAttack` with `ATTACK_CHASE_TIME = 5`.
-4. **Default State**
-   - `Wander(self.inst, nil, nil, WANDER_TIMES)` with fixed timing parameters.
+### `GetFacingTarget(inst)`
+* **Description:** Returns the current combat target *only if* it exists, is valid, and is within the configured viewing range (`GESTALTGUARD_WATCHING_RANGE`). The check is only performed when `behaviour_level == 2` or higher (note: logic uses level 2 but only aggression at level 3).
+* **Parameters:** `inst` (Entity) — the gestalt guard instance.
+* **Returns:** `Entity` or `nil` — the valid target within viewing range, or `nil`.
+* **Error states:** Returns `nil` if target is invalid, missing, or outside `GETFACINGTARGET_DISTSQ`.
 
-## Events & Listeners
-None identified — this component does not register or push any events.
+### `KeepFacingTarget(inst, target)`
+* **Description:** Returns `true` if the current facing target matches the provided `target` and it remains within range (via `GetFacingTarget`).
+* **Parameters:**  
+  `inst` (Entity) — the gestalt guard instance.  
+  `target` (Entity) — the expected facing target.  
+* **Returns:** `boolean` — `true` if `GetFacingTarget(inst) == target`, otherwise `false`.
+
+## Events & listeners
+- **Listens to:** None identified.
+- **Pushes:** None identified.  
+(Event handling and state transitions are managed internally by the behavior tree and state graph, not via `inst:PushEvent`/`inst:ListenForEvent`.)

@@ -1,98 +1,120 @@
 ---
 id: wereness
 title: Wereness
-description: Manages theWereness level (a hidden gameplay stat) for players, handling value changes, draining mechanics, and state persistence across sessions.
+description: Manages the wereness meter and its dynamic behavior, including draining and state persistence for player entities.
+tags: [combat, player, state]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 57ec51d3
+system_scope: player
 ---
 
 # Wereness
 
-## Overview
-The `Wereness` component tracks and manages a player's "wereness" level—a hidden stat that influences transformation behavior in the game. It supports incrementing/decrementing the value, automatic draining based on a configurable rate, and persistence of state via save/load hooks. It also coordinates with `player_classified.currentwereness` and `player_classified.werenessdrainrate` (likely UI or engine-side representations) to propagate changes.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds the tag `"wereness"` to the entity (`inst:AddTag("wereness")`).
-- Requires the presence of an `inst.player_classified` sub-object to update read-only `currentwereness` and `werenessdrainrate` properties via setters.
-- No other component dependencies are directly added by this script.
+## Overview
+`Wereness` is a component that manages the wereness value (a progress-like meter) for a player entity. It supports setting and updating the current wereness level, controlling the drain rate (e.g., during transformations), and persists state across saves. The component integrates with network replication via `player_classified.currentwereness` and `werenessdrainrate` when available, ensuring client-server consistency.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("wereness")
+
+inst.components.wereness:SetWereMode("normal")
+inst.components.wereness:SetPercent(0.75, false)
+inst.components.wereness:SetDrainRate(-0.5)  -- negative rate for draining
+inst.components.wereness:StartDraining()
+```
+
+## Dependencies & tags
+**Components used:** None identified (uses `inst.player_classified` if present, but does not require other components directly).  
+**Tags:** Adds `"wereness"` to the entity.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `max` | `number` | `100` | Maximum allowed Wereness value. Read-only after initialization if `inst.player_classified` exists. |
-| `current` | `number` | `0` | Current Wereness value; clamped to `[0, max]`. |
-| `_old` | `number` | `self.current` (at construction) | Stores previous `current` value before `DoDelta` for delta comparison. |
-| `rate` | `number` | `0` | Draining rate (negative), in units per second. Positive values are clamped to 0 internally for draining logic. |
-| `draining` | `boolean` | `false` | Indicates whether the component is actively updating and draining. |
-| `weremode` | `any` | `nil` | Stores the current "were-mode" state (e.g., `"wolf"`), or `nil` if not transformed. |
+| `max` | number | `100` | Maximum value of the wereness meter. |
+| `current` | number | `0` | Current wereness value (clamped to `[0, max]`). |
+| `rate` | number | `0` | Drain/charge rate per second (negative = drain, positive = charge). |
+| `draining` | boolean | `false` | Whether the wereness meter is actively being updated. |
+| `weremode` | string \| nil | `nil` | Identifier for the current weremode state (e.g., `"normal"`, `"fullmoon"`). |
 
-## Main Functions
-### `Wereness:SetWereMode(weremode)`
-* **Description:** Sets the current were-mode (e.g., human/wolf form). Stored internally for save/load and logic branching.
-* **Parameters:**
-  * `weremode`: Any value (typically a string) representing the transformation state.
+## Main functions
+### `SetWereMode(weremode)`
+* **Description:** Sets the current weremode identifier (e.g., `"normal"` or `"fullmoon"`), typically used to track transformation state.
+* **Parameters:** `weremode` (string \| nil) – A string identifier for the mode, or `nil` to clear.
+* **Returns:** Nothing.
 
-### `Wereness:GetWereMode()`
-* **Description:** Returns the stored were-mode value.
+### `GetWereMode()`
+* **Description:** Returns the currently stored weremode identifier.
 * **Parameters:** None.
+* **Returns:** `(string \| nil)` – The stored weremode string, or `nil`.
 
-### `Wereness:SetDrainRate(rate)`
-* **Description:** Sets the Wereness drain rate (per second). Values are expected to be ≤ 0 and ≥ -10; valid range enforced via assertion in `onrate` callback.
-* **Parameters:**
-  * `rate`: `number` — Negative number indicating how fast Wereness decreases (e.g., `-0.5` = 0.5 units/sec).
+### `SetDrainRate(rate)`
+* **Description:** Sets the per-second change rate for wereness. Negative values cause draining; positive values increase wereness.
+* **Parameters:** `rate` (number) – Rate of change per second (e.g., `-0.5` drains 0.5 units per second).
+* **Returns:** Nothing.
 
-### `Wereness:StartDraining()`
-* **Description:** Begins automatic draining if not already active *and* current Wereness > 0. Starts periodic updates via `StartUpdatingComponent`.
+### `StartDraining()`
+* **Description:** Begins the draining process by starting component updates. Only starts if currently inactive and `current > 0`.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No-op if `draining` is already `true`.
 
-### `Wereness:StopDraining()`
-* **Description:** Halts automatic draining and stops component updates.
+### `StopDraining()`
+* **Description:** Stops component updates and sets `draining` to `false`.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No-op if `draining` is already `false`.
 
-### `Wereness:DoDelta(delta, overtime)`
-* **Description:** Applies a change (`delta`) to the current Wereness, clamps the result to `[0, max]`, emits a `"werenessdelta"` event, and stops draining if value reaches 0.
-* **Parameters:**
-  * `delta`: `number` — Amount to add to `current` (may be negative).
-  * `overtime`: `boolean` — Indicates whether the delta was applied over time (e.g., via `OnUpdate`).
+### `DoDelta(delta, overtime)`
+* **Description:** Applies a change (`delta`) to the wereness value, clamps it to `[0, max]`, and fires the `"werenessdelta"` event with percent and overtime info.
+* **Parameters:**  
+  `delta` (number) – Amount to add to `current`.  
+  `overtime` (boolean) – Whether the change occurred during a delta update (e.g., from `OnUpdate`).
+* **Returns:** Nothing.
+* **Error states:** Automatically stops draining if `current` reaches `0`.
 
-### `Wereness:GetPercent()`
-* **Description:** Returns the current Wereness as a fraction (0.0–1.0).
+### `GetPercent()`
+* **Description:** Returns the wereness level as a fraction of `max`.
 * **Parameters:** None.
+* **Returns:** `(number)` – A value in `[0, 1]` representing current wereness percentage.
 
-### `Wereness:SetPercent(percent, overtime)`
-* **Description:** Directly sets Wereness to a percentage of `max`, then calls `DoDelta` to normalize and emit events.
-* **Parameters:**
-  * `percent`: `number` — Target fraction (0.0 to 1.0).
-  * `overtime`: `boolean` — Passed to `DoDelta` to indicate context.
+### `SetPercent(percent, overtime)`
+* **Description:** Sets `current` to `max * percent` and triggers a delta update.
+* **Parameters:**  
+  `percent` (number) – Desired percentage (e.g., `0.5` for 50%).  
+  `overtime` (boolean) – Passed to `DoDelta` for event context.
+* **Returns:** Nothing.
 
-### `Wereness:OnUpdate(dt)`
-* **Description:** Callback invoked every tick while draining is active. Applies rate × dt as a delta to Wereness.
-* **Parameters:**
-  * `dt`: `number` — Delta time in seconds since last frame.
+### `OnUpdate(dt)`
+* **Description:** Called periodically while draining is active. Applies `rate * dt` to wereness via `DoDelta`.
+* **Parameters:** `dt` (number) – Time since last update.
+* **Returns:** Nothing.
+* **Error states:** No-op if `rate == 0` or `dt == 0`.
 
-### `Wereness:OnSave()`
-* **Description:** Returns serialization data if `current > 0`, including `current` and `weremode`; otherwise returns `nil`.
+### `OnSave()`
+* **Description:** Returns save data if `current > 0`, otherwise `nil`.
 * **Parameters:** None.
+* **Returns:** `(table \| nil)` – A table with keys `current` (number) and `mode` (string), or `nil`.
 
-### `Wereness:OnLoad(data)`
-* **Description:** Restores Wereness state from save data. If `data.current` exists and > 0, restores values and restarts draining.
-* **Parameters:**
-  * `data`: `table?` — Save data table with optional `current` and `mode` keys.
+### `OnLoad(data)`
+* **Description:** Restores wereness state from saved data if valid.
+* **Parameters:** `data` (table) – Contains `current` (number) and optionally `mode` (string).
+* **Returns:** Nothing.
+* **Error states:** Only loads if `data.current > 0`; otherwise ignores silently.
 
-### `Wereness:GetDebugString()`
-* **Description:** Returns a formatted debug string (e.g., `"42.00/100.00 (-0.50/s)"`) for logging or debug UI.
+### `GetDebugString()`
+* **Description:** Returns a human-readable string for debugging the wereness state.
 * **Parameters:** None.
+* **Returns:** `(string)` – Format: `"current/max (±rate/s)"`, e.g., `"50.00/100.00 (-0.50/s)"`.
 
-## Events & Listeners
-- **Emits events:**
-  - `"werenessdelta"` — Pushed by `DoDelta`, with payload `{ oldpercent, newpercent, overtime }`.
-- **Callback hooks:**
-  - `current = oncurrent` — Triggered when `player_classified.currentwereness:set()` is updated (internal synchronization).
-  - `rate = onrate` — Triggered when `player_classified.werenessdrainrate:set()` is updated (internal synchronization).
-- **No `ListenForEvent` listeners are defined in this component.**
+## Events & listeners
+- **Pushes:**  
+  - `"werenessdelta"` – Fired by `DoDelta` when `current` changes. Payload: `{ oldpercent = number, newpercent = number, overtime = boolean }`.  
+- **Listens to:** None (network replication callbacks `oncurrent` and `onrate` are internal setters, not event listeners).

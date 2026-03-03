@@ -1,104 +1,145 @@
 ---
 id: battleborn
 title: Battleborn
-description: Manages a combat-based resource that accumulates on attacks and triggers a restorative effect upon reaching a threshold.
+description: Manages the "Battleborn" mechanic—accumulating a resource when attacking enemies and consuming it to heal, repair equipment, or restore sanity when a threshold is reached.
+tags: [combat, buff, resource]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: combat
+category_type: components
 source_hash: b0893973
+system_scope: entity
 ---
 
 # Battleborn
 
-## Overview
-This component implements a combat-based resource system, primarily used by the character Wigfrid. It allows an entity to accumulate a "battleborn" value by attacking other creatures. The amount gained is proportional to the damage dealt relative to the victim's maximum health. This accumulated value decays over time if the entity stops fighting. Once the value surpasses a set threshold, it is consumed to trigger a beneficial effect, such as restoring the entity's health and sanity, or repairing their equipped armor.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-*   **Dependencies:**
-    *   `health`: Used to check if the entity is hurt and to apply health restoration.
-    *   `sanity`: Used to apply sanity restoration.
-    *   `combat`: Used to retrieve damage values.
-    *   `inventory`: Used to access and repair equipped items.
-*   **Tags:**
-    *   Checks for the `"battleborn_repairable"` tag on equipped items to determine if they can be repaired by the battleborn effect.
+## Overview
+`Battleborn` tracks damage dealt by an entity and converts it into a resource (`battleborn`) that accumulates over time. When enough is stored—exceeding `battleborn_trigger_threshold`—the component consumes it to restore health (healing or equipment repair) and/or sanity, depending on enabled flags. It supports dynamic tuning of thresholds, decay rates, bonuses, and validation logic, and integrates with the `health`, `sanity`, `inventory`, `armor`, `combat`, and `weapon` components.
+
+The component automatically clears accumulated `battleborn` on death and applies decay logic if stored value exceeds the store window (`battleborn_store_time`) before triggering.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("battleborn")
+
+-- Configure behavior
+inst.components.battleborn:SetTriggerThreshold(10)
+inst.components.battleborn:SetDecayTime(5)
+inst.components.battleborn:SetStoreTime(10)
+inst.components.battleborn:SetBattlebornBonus(1.5)
+inst.components.battleborn:SetHealthEnabled(true)
+inst.components.battleborn:SetSanityEnabled(true)
+
+-- Optional: custom validation or trigger logic
+inst.components.battleborn:SetValidVictimFn(function(victim) return victim:HasTag("monster") end)
+inst.components.battleborn:SetOnTriggerFn(function(inst, amount)
+    inst:PushEvent("battleborn_triggered", { amount = amount })
+end)
+```
+
+## Dependencies & tags
+**Components used:**  
+- `health` (`DoDelta`, `GetMaxWithPenalty`, `IsDead`, `IsHurt`)  
+- `sanity` (`DoDelta`)  
+- `inventory` (`ForEachEquipment`)  
+- `armor` (`Repair`, `IsDamaged`)  
+- `combat` (`defaultdamage`)  
+- `weapon` (`GetDamage`)  
+
+**Tags:**  
+- No tags added or checked directly by this component.
 
 ## Properties
 | Property | Type | Default Value | Description |
-|---|---|---|---|
-| `battleborn` | number | `0` | The current accumulated battleborn value. |
-| `battleborn_time` | number | `0` | The timestamp of the last attack that generated battleborn. Used to calculate decay. |
-| `battleborn_trigger_threshold`| number | `TUNING.BATTLEBORN_TRIGGER_THRESHOLD` | The value `battleborn` must exceed to trigger the beneficial effect. |
-| `battleborn_decay_time` | number | `TUNING.BATTLEBORN_DECAY_TIME` | The duration over which the `battleborn` value will decay back to zero. |
-| `battleborn_store_time` | number | `TUNING.BATTLEBORN_STORE_TIME` | A grace period after an attack before the `battleborn` value begins to decay. |
-| `battleborn_bonus` | number | `0` | A multiplier used in the formula for calculating battleborn gain per attack. |
-| `clamp_min` | number | `0.33` | The minimum amount of battleborn that can be gained from a single valid attack. |
-| `clamp_max` | number | `2.0` | The maximum amount of battleborn that can be gained from a single valid attack. |
-| `allow_zero` | boolean | `true` | If `true`, attacks that deal zero damage can still trigger battleborn gain (clamped to `clamp_min`). |
+|----------|------|---------------|-------------|
+| `battleborn` | number | `0` | Current accumulated Battleborn resource. |
+| `battleborn_time` | number | `0` | Timestamp of last accumulation (used for decay calculation). |
+| `battleborn_trigger_threshold` | number | `TUNING.BATTLEBORN_TRIGGER_THRESHOLD` | Threshold at which accumulated resource triggers healing/recovery. |
+| `battleborn_decay_time` | number | `TUNING.BATTLEBORN_DECAY_TIME` | Time window (in seconds) over which stored resource decays once out of the store window. |
+| `battleborn_store_time` | number | `TUNING.BATTLEBORN_STORE_TIME` | Time window (in seconds) after last hit during which resource is *not* decayed. |
+| `battleborn_bonus` | number | `0` | Multiplier applied to damage-to-resource conversion. |
+| `clamp_min` | number | `0.33` | Minimum per-hit delta for accumulated resource. |
+| `clamp_max` | number | `2.0` | Maximum per-hit delta for accumulated resource. |
+| `allow_zero` | boolean | `true` | Whether damage `<= 0` should still contribute (minimal) resource. |
+| `validvictimfn` | function or `nil` | `nil` | Optional predicate function to validate a target before processing. |
+| `ontriggerfn` | function or `nil` | `nil` | Optional callback fired when resource is fully consumed. |
+| `health_enabled` | boolean | `true` | Whether health/sanity healing is allowed. |
+| `sanity_enabled` | boolean | `true` | Whether sanity restoration is allowed. |
+| `RepairEquipment` | function | `RepairEquipment` | Reference to local repair function (exposed for mod override). |
 
-## Main Functions
+## Main functions
 ### `SetTriggerThreshold(threshold)`
-* **Description:** Overrides the default trigger threshold for the battleborn effect.
-* **Parameters:**
-    * `threshold` (number): The new `battleborn` value required to trigger the effect.
+*   **Description:** Sets the amount of accumulated Battleborn required to trigger healing/repair/sanity restoration.
+*   **Parameters:** `threshold` (number) – target threshold value.
+*   **Returns:** Nothing.
 
 ### `SetDecayTime(time)`
-* **Description:** Overrides the default decay time.
-* **Parameters:**
-    * `time` (number): The new duration, in seconds, over which the `battleborn` value decays to zero.
+*   **Description:** Configures how long (in seconds) it takes for stored Battleborn to decay to zero *after* the store window has expired.
+*   **Parameters:** `time` (number) – decay duration in seconds.
+*   **Returns:** Nothing.
 
 ### `SetStoreTime(time)`
-* **Description:** Overrides the default store time (grace period).
-* **Parameters:**
-    * `time` (number): The new duration, in seconds, after an attack before decay begins.
+*   **Description:** Sets the window (in seconds) *after* an attack during which stored Battleborn is preserved (no decay occurs).
+*   **Parameters:** `time` (number) – store window duration in seconds.
+*   **Returns:** Nothing.
 
 ### `SetOnTriggerFn(ontriggerfn)`
-* **Description:** Assigns a custom callback function to be executed when the battleborn effect triggers.
-* **Parameters:**
-    * `ontriggerfn` (function): The function to call. It will receive the entity instance and the amount of `battleborn` consumed as arguments.
+*   **Description:** Assigns a callback function to be invoked when Battleborn resource is fully consumed.
+*   **Parameters:** `ontriggerfn` (function) – function signature: `fn(inst, amount)` where `amount` is the consumed resource value.
+*   **Returns:** Nothing.
 
 ### `SetBattlebornBonus(bonus)`
-* **Description:** Sets the bonus multiplier used in calculating battleborn gain.
-* **Parameters:**
-    * `bonus` (number): The new multiplier value.
+*   **Description:** Sets a multiplier applied to the damage-based resource calculation. Higher values increase resource gain per hit.
+*   **Parameters:** `bonus` (number) – multiplicative factor (e.g., `1.5` gives 150% base gain).
+*   **Returns:** Nothing.
 
 ### `SetSanityEnabled(enabled)`
-* **Description:** Enables or disables the sanity restoration portion of the battleborn effect.
-* **Parameters:**
-    * `enabled` (boolean): `true` to enable sanity gain, `false` to disable.
+*   **Description:** Enables or disables sanity restoration when triggering.
+*   **Parameters:** `enabled` (boolean) – if `true`, sanity is restored on trigger.
+*   **Returns:** Nothing.
 
 ### `SetHealthEnabled(enabled)`
-* **Description:** Enables or disables the health restoration and equipment repair portion of the battleborn effect.
-* **Parameters:**
-    * `enabled` (boolean): `true` to enable health/repair effects, `false` to disable.
+*   **Description:** Enables or disables health restoration (healing + equipment repair) when triggering.
+*   **Parameters:** `enabled` (boolean) – if `true`, health/equipment is restored on trigger.
+*   **Returns:** Nothing.
 
 ### `SetClampMin(min)`
-* **Description:** Sets the minimum amount of battleborn that can be gained from a single attack.
-* **Parameters:**
-    * `min` (number): The new minimum gain value.
+*   **Description:** Sets the minimum per-hit contribution to Battleborn.
+*   **Parameters:** `min` (number) – lower bound for delta (e.g., `0.33`).
+*   **Returns:** Nothing.
 
 ### `SetClampMax(max)`
-* **Description:** Sets the maximum amount of battleborn that can be gained from a single attack.
-* **Parameters:**
-    * `max` (number): The new maximum gain value.
+*   **Description:** Sets the maximum per-hit contribution to Battleborn.
+*   **Parameters:** `max` (number) – upper bound for delta (e.g., `2.0`).
+*   **Returns:** Nothing.
 
 ### `SetValidVictimFn(fn)`
-* **Description:** Assigns a custom function used to validate if an attacked creature should grant battleborn. If not set, all victims are considered valid.
-* **Parameters:**
-    * `fn` (function): The validation function. It receives the victim entity as an argument and should return `true` if the victim is valid.
+*   **Description:** Assigns a validation function that determines whether an attacked entity counts toward Battleborn accumulation.
+*   **Parameters:** `fn` (function) – predicate: `fn(victim)` returns `true`/`false`. If `nil`, all non-dead victims are valid.
+*   **Returns:** Nothing.
 
 ### `OnAttack(data)`
-* **Description:** Internal handler for the `onattackother` event. It calculates battleborn gain based on damage dealt, handles the decay of existing battleborn, and if the trigger threshold is met, consumes the battleborn to apply health/sanity/repair effects.
-* **Parameters:**
-    * `data` (table): The event data table, which must contain a `target` key referencing the entity that was attacked.
+*   **Description:** Internal handler called on `onattackother` event. Processes an attack to accumulate Battleborn and triggers consumption if threshold is met.
+*   **Parameters:** `data` (table) – event payload containing `target`, `weapon`, and damage information.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if the inst is dead, or if the victim is invalid per `validvictimfn`. Delta is clamped to `[clamp_min, clamp_max]`.
 
 ### `OnDeath()`
-* **Description:** Internal handler for the `death` event. It resets the `battleborn` value to zero.
-* **Parameters:** None.
+*   **Description:** Resets accumulated Battleborn to zero upon entity death.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-*   `onattackother`: Listens for this event on the entity to trigger the `OnAttack` function, which is the core of the component's logic.
-*   `death`: Listens for this event to call `OnDeath` and reset the accumulated `battleborn` value.
+## Events & listeners
+- **Listens to:**  
+  - `onattackother` – triggers `OnAttack(data)` to compute and store Battleborn.  
+  - `death` – triggers `OnDeath()` to clear accumulated Battleborn.  
+- **Pushes:**  
+  - None directly. However, upon triggering:  
+    - `healthdelta` event is fired by `Health:DoDelta`.  
+    - `sanitydelta` event is fired by `Sanity:DoDelta`.  
+    - Custom `ontriggerfn` may push arbitrary events (mod-defined).

@@ -1,81 +1,92 @@
 ---
 id: sleepingbag
 title: Sleepingbag
-description: This component manages sleep interactions for a sleeping bag entity, including tracking the current sleeper, applying sleep-based healing, and handling entering/leaving sleep states.
+description: Manages sleep state and associated gameplay effects for entities interacting with a sleeping bag (e.g., healing, hunger loss, sanity restoration).
+tags: [sleep, healing, inventory, multiplayer]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: f72b74d9
+system_scope: player
 ---
 
 # Sleepingbag
 
-## Overview
-This component enables a sleeping bag entity to host and coordinate player sleep sessions. It maintains a reference to the current sleeper, manages sleep-related state (such as `healthsleep`), handles initialization and cleanup during sleep/wake cycles, and notifies related systems (e.g., via callbacks or the `sleepingbaguser` component) when sleep states change.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component dependency:** Requires the sleeper entity to have a `sleepingbaguser` component (accessed via `sleeper.components.sleepingbaguser`).
-- **Tags added/removed:**
-  - Adds `"hassleeper"` tag when a sleeper is assigned.
-  - Removes `"hassleeper"` tag when the sleeper is cleared.
+## Overview
+`SleepingBag` is a component attached to sleeping bag prefabs (e.g., `sleepingbag`) that handles sleep interactions, including tracking who is currently sleeping in the bag, applying periodic stat adjustments (health, hunger, sanity), and managing the sleeping phase requirement (e.g., night). It works closely with the `sleepingbaguser` component attached to the sleeping entity to coordinate state transitions and networked behavior.
+
+## Usage example
+```lua
+local bag = SpawnPrefab("sleepingbag")
+bag:AddComponent("sleepingbag")
+
+-- Optional: customize behavior
+bag.components.sleepingbag:SetSleepPhase("day")
+bag.components.sleepingbag:SetTemperatureTickFn(my_temp_check_fn)
+
+-- Start a player sleeping
+bag.components.sleepingbag:DoSleep(player)
+
+-- Stop a player sleeping
+bag.components.sleepingbag:DoWakeUp()
+```
+
+## Dependencies & tags
+**Components used:** `sleepingbaguser`, `player_classified`
+**Tags:** Adds `hassleeper` when a sleeper is present; removes it when the sleeper leaves.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `healthsleep` | `boolean` | `true` | Indicates whether the sleeping bag provides sleep-based healing (controls `issleephealing` state on sleeper). |
-| `sleeper` | `Entity` or `nil` | `nil` | Reference to the player currently using the sleeping bag. |
-| `tick_period` | `number` | `TUNING.SLEEP_TICK_PERIOD` | Interval (in seconds) between sleep-related gameplay ticks (e.g., hunger/health/sanity decay). |
-| `hunger_tick` | `number` | `TUNING.SLEEP_HUNGER_PER_TICK` | Amount of hunger lost per sleep tick. |
-| `health_tick` | `number` | `TUNING.SLEEP_HEALTH_PER_TICK` | Amount of health gained per sleep tick. |
-| `sanity_tick` | `number` | `TUNING.SLEEP_SANITY_PER_TICK` | Amount of sanity gained per sleep tick. |
-| `sleep_phase` | `string` | `"night"` | Current phase of the sleep session (e.g., `"night"`, `"day"`). |
-| `onsleep` | `function` or `nil` | `nil` | Optional callback invoked when a player begins sleeping. |
-| `onwake` | `function` or `nil` | `nil` | Optional callback invoked when a player wakes up. |
-| `temperaturetickfn` | `function` or `nil` | `nil` | Optional callback used to handle temperature changes during sleep. |
-| `ambient_temp` | `number` or `nil` | `nil` | Current ambient temperature (used with `temperaturetickfn`). |
-| `sleep_temp_min` | `number` or `nil` | `nil` | Minimum ambient temperature threshold for safe sleep. |
-| `sleep_temp_max` | `number` or `nil` | `nil` | Maximum ambient temperature threshold for safe sleep. |
+| `healthsleep` | boolean | `true` | Whether the sleeping entity receives health healing during sleep. |
+| `dryingrate` | number or nil | `nil` | (Unused in this file; likely for future or contextual drying logic.) |
+| `sleeper` | Entity instance or nil | `nil` | Reference to the entity currently sleeping in this bag. |
+| `onsleep` | function or nil | `nil` | Optional callback fired when sleep begins (`fn(inst, doer)`). |
+| `onwake` | function or nil | `nil` | Optional callback fired when sleep ends (`fn(inst, sleeper, nostatechange)`). |
+| `tick_period` | number | `TUNING.SLEEP_TICK_PERIOD` | Interval in seconds between sleep stat updates. |
+| `hunger_tick` | number | `TUNING.SLEEP_HUNGER_PER_TICK` | Hunger lost per sleep tick. |
+| `health_tick` | number | `TUNING.SLEEP_HEALTH_PER_TICK` | Health restored per sleep tick. |
+| `sanity_tick` | number | `TUNING.SLEEP_SANITY_PER_TICK` | Sanity restored per sleep tick. |
+| `sleep_phase` | string | `"night"` | World phase during which the sleeping bag is effective (e.g., `"night"`). |
 
-## Main Functions
-
+## Main functions
 ### `SetSleepPhase(phase)`
-* **Description:** Updates the current sleep phase (e.g., `"night"` or `"day"`). Used to track whether the player is sleeping during night or daytime (e.g., via a sleeping bag in a sheltered area).
-* **Parameters:**  
-  `phase` (`string`) — The new sleep phase value.
+* **Description:** Sets the world phase (e.g., `"night"`) required for sleep to be valid.  
+* **Parameters:** `phase` (string) – the world phase during which sleeping is allowed.  
+* **Returns:** Nothing.
 
 ### `GetSleepPhase()`
-* **Description:** Returns the current sleep phase.
+* **Description:** Returns the currently configured sleep phase.  
 * **Parameters:** None.  
-* **Returns:** `string` — The current sleep phase.
+* **Returns:** string – the configured sleep phase.
 
 ### `SetTemperatureTickFn(fn)`
-* **Description:** Assigns a custom temperature handling function to be called each sleep tick.
-* **Parameters:**  
-  `fn` (`function`) — A callback function to handle temperature effects during sleep (signature likely `fn(inst, sleeper, ambient_temp)`).
+* **Description:** Assigns a custom function to handle per-tick temperature-related logic during sleep (e.g., temperature loss/gain).  
+* **Parameters:** `fn` (function) – a function of signature `fn(self, sleeper)` to be called each tick.  
+* **Returns:** Nothing.
 
 ### `DoSleep(doer)`
-* **Description:** Initiates a sleep session for the given entity. Assigns the `sleeper`, sets up bidirectional references, calls `sleepingbaguser:DoSleep`, and triggers the `onsleep` callback if defined.
-* **Parameters:**  
-  `doer` (`Entity`) — The player entity beginning sleep.
+* **Description:** Registers the given entity (`doer`) as the current sleeper and initiates the sleep state. It requires that no sleeper is currently active and that `doer` does not already use another sleeping bag.  
+* **Parameters:** `doer` (Entity instance) – the entity beginning sleep.  
+* **Returns:** Nothing.  
+* **Error states:** Early-exits with no effect if `self.sleeper ~= nil` or `doer.sleepingbag ~= nil`.
 
 ### `DoWakeUp(nostatechange)`
-* **Description:** Ends the current sleep session. Clears sleeper references, calls `sleepingbaguser:DoWakeUp`, and triggers the `onwake` callback if defined.
-* **Parameters:**  
-  `nostatechange` (`boolean`, optional) — If `true`, prevents certain state transitions (e.g., not waking to full day). Default behavior assumed by caller.
+* **Description:** Ends the current sleep session. Removes the sleeper reference, cancels sleep tasks, fires the `onwake` callback, and instructs the sleeper's `sleepingbaguser` component to handle state transition.  
+* **Parameters:** `nostatechange` (boolean) – if `true`, suppresses state graph transitions for the sleeper.  
+* **Returns:** Nothing.  
+* **Error states:** Early-exits with no effect if `self.sleeper == nil` or if the sleeper is not bound to this sleeping bag.
 
 ### `InUse()`
-* **Description:** Checks if the sleeping bag is currently occupied.
+* **Description:** Returns whether the sleeping bag is currently occupied.  
 * **Parameters:** None.  
-* **Returns:** `boolean` — `true` if a sleeper is assigned; otherwise `false`.
+* **Returns:** boolean – `true` if a sleeper is active, otherwise `false`.
 
-## Events & Listeners
-- Listens for `"healthsleep"` property changes and updates the sleeper’s `issleephealing` state accordingly.
-- Listens for `"sleeper"` property changes to:
-  - Clear `issleephealing` on the old sleeper (if any),
-  - Add/remove the `"hassleeper"` tag on itself,
-  - Update the new sleeper’s `issleephealing` state (if applicable).
+## Events & listeners
+- **Listens to:** `healthsleep`, `sleeper` – internal watchpoints managed by the `Class` helper to trigger associated callbacks (`onhealthsleep`, `onsleeper`) when these properties are updated.
+- **Pushes:** None directly. However, `DoSleep` and `DoWakeUp` trigger events indirectly via `sleepingbaguser` and optional callbacks.

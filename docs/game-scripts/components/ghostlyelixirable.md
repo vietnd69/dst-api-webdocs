@@ -1,39 +1,62 @@
 ---
 id: ghostlyelixirable
 title: Ghostlyelixirable
-description: This component tags an entity as a Ghostly Elixir item and defines its behavior when applied to another entity.
+description: Marks an entity as a ghostly elixir item by adding the `ghostlyelixirable` tag for use in gameplay logic.
+tags: [item, ghost, elixir]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: inventory
+category_type: components
 source_hash: a3ca163d
+system_scope: inventory
 ---
 
 # Ghostlyelixirable
 
-## Overview
-This component marks an entity (typically an item) as a Ghostly Elixir and provides logic for how it should be applied to another target entity—specifically, it ensures the item tag `"ghostlyelixirable"` is added on initialization and removed upon entity removal. It supports optional override behavior for the application logic via `overrideapplytotargetfn`.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-* Adds the `"ghostlyelixirable"` tag to the entity during construction.
-* Removes the `"ghostlyelixirable"` tag when the component is removed from the entity (via `OnRemoveFromEntity`).
+## Overview
+`GhostlyElixirable` is a lightweight component that tags an entity with `"ghostlyelixirable"`, identifying it as a consumable item used in ghost-related mechanics (e.g., elixirs that affect spirits or ghosts). It provides minimal logic: tag assignment upon initialization, an optional overrideable method to determine its effect target, and automatic tag removal when detached from an entity.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("ghostlyelixirable")
+
+-- Optional: override the target application logic
+inst.components.ghostlyelixirable.overrideapplytotargetfn = function(selfinst, doer, elixir)
+    -- Custom logic, e.g., return a ghost entity instead of self
+    return GetNearestGhost(doer)
+end
+
+-- When applied:
+local target = inst.components.ghostlyelixirable:GetApplyToTarget(player, inst)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `ghostlyelixirable` on initialization; removes it on removal from entity.
 
 ## Properties
-No public properties are initialized in the constructor or elsewhere. The component relies solely on the `inst` reference and optional runtime-overridable function `overrideapplytotargetfn`.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `overrideapplytotargetfn` | function or nil | `nil` | Optional callback to customize the logic for determining the elixir's target. Takes `(inst, doer, elixir)` and returns a target entity. |
 
-## Main Functions
+## Main functions
 ### `GetApplyToTarget(doer, elixir)`
-* **Description:** Determines the result target entity when the Ghostly Elixir is applied. If `overrideapplytotargetfn` is set, it delegates to that function; otherwise, it returns `self.inst` (i.e., the elixir item itself) unchanged.
-* **Parameters:**
-  * `doer`: The entity performing the application (e.g., a player).
-  * `elixir`: The Ghostly Elixir item instance (typically `self.inst`).
+* **Description:** Determines the target entity for the elixir's effect. If `overrideapplytotargetfn` is set, it delegates to that callback; otherwise, it returns `self.inst` (the elixir itself).
+* **Parameters:**  
+  - `doer` (entity) – The entity performing the action (e.g., the player using the elixir).  
+  - `elixir` (entity) – The elixir instance (typically `self.inst`).
+* **Returns:** The target entity (usually the elixir or a custom entity from the override).
+* **Error states:** None — returns `self.inst` when no override is defined.
 
 ### `OnRemoveFromEntity()`
-* **Description:** Ensures cleanup by removing the `"ghostlyelixirable"` tag from the entity when this component is detached.
+* **Description:** Removes the `"ghostlyelixirable"` tag from the entity when the component is detached.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-None identified.
+## Events & listeners
+None identified

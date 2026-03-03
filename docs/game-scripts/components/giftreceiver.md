@@ -1,66 +1,85 @@
 ---
 id: giftreceiver
 title: Giftreceiver
-description: Manages the player's gift count and coordinates gift-related interactions with a gift machine component.
+description: Manages the receiver side of gift items, tracking gift count and coordinating with gift machines.
+tags: [inventory, networking, player]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: fc384c8b
+system_scope: inventory
 ---
 
 # Giftreceiver
 
-## Overview
-The `GiftReceiver` component tracks the number of gifts available for a player and manages communication with a `GiftMachine` component when the player opens or clears gifts. It ensures that the player’s classified UI state (e.g., "has gifts") and the gift machine's internal list of eligible receivers are kept in sync.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components used**: Relies on `inst.player_classified` (assumed to have `hasgift` and `hasgiftmachine` properties) and `TheInventory:GetClientGiftCount()`.
-- **Tags**: None identified.
+## Overview
+`GiftReceiver` tracks the number of gifts available for a player and manages interactions with a connected `giftmachine` component. It is attached to player entities and synchronizes gift data across the client-server boundary. It coordinates opening gifts via the `ms_opengift` event and notifies the gift machine when gifts are added, removed, or in use.
+
+## Usage example
+```lua
+local inst = TheSim:FindEntityByRef("player")
+if inst and inst:HasTag("player") then
+    inst:AddComponent("giftreceiver")
+    inst.components.giftreceiver:SetGiftMachine(giftmachine_entity)
+    inst.components.giftreceiver:OpenNextGift()
+end
+```
+
+## Dependencies & tags
+**Components used:** `player_classified`, `giftmachine`
+**Tags:** Checks `player`; listens to `ms_closepopup`, `ms_updategiftitems`, `ms_opengift`.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `giftcount` | `number` | `0` | Current number of gifts available to the player (synchronized via `TheInventory`). Triggers UI updates when changed. |
-| `giftmachine` | `Entity | nil` | `nil` | Reference to the `GiftMachine` entity currently associated with this receiver. Controls gift-opening interaction and receiver registration. |
+| `giftcount` | number | `0` | Number of gifts currently available to the player. |
+| `giftmachine` | `Entity` or `nil` | `nil` | Reference to the associated gift machine entity, if any. |
 
-## Main Functions
+## Main functions
+### `HasGift()`
+* **Description:** Checks if the player has any gifts available.
+* **Parameters:** None.
+* **Returns:** `true` if `giftcount > 0`, otherwise `false`.
 
 ### `RefreshGiftCount()`
-* **Description:** Fetches the current gift count from `TheInventory` and updates the local state. If the count changes and a gift machine is assigned, notifies the machine by pushing `ms_addgiftreceiver` or `ms_removegiftreceiver` events.
+* **Description:** Updates the local `giftcount` from the server via `TheInventory:GetClientGiftCount(userid)` and synchronizes with the gift machine (if present).
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Performs no action if the new count matches the current `giftcount`.
 
 ### `SetGiftMachine(inst)`
-* **Description:** Assigns a new `GiftMachine` entity as the receiver’s associated machine. Updates both the old and new machines (if applicable) by pushing `ms_removegiftreceiver` or `ms_addgiftreceiver` events to manage the machine’s internal list of eligible receivers.
-* **Parameters:**  
-  - `inst`: The new `GiftMachine` entity to associate, or `nil` to clear the association.
+* **Description:** Sets or updates the entity acting as the gift machine for this receiver. Automatically notifies the old and new machines of presence changes.
+* **Parameters:** `inst` (`Entity` or `nil`) — the new gift machine entity, or `nil` to disconnect.
+* **Returns:** Nothing.
+* **Error states:** If the machine is set to `nil`, `OnStopOpenGift()` is called to ensure any open popup is dismissed.
 
 ### `OpenNextGift()`
-* **Description:** Initiates the gift-opening process *if* the player has gifts and a valid gift machine is assigned. Pushes the `ms_opengift` event to signal intent.
+* **Description:** Initiates the gift opening process if gifts are available and a gift machine is connected.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No effect unless both `giftcount > 0` and `giftmachine ~= nil`.
 
 ### `OnStartOpenGift()`
-* **Description:** Notifies the assigned gift machine that a gift is beginning to be opened by pushing the `ms_giftopened` event.
+* **Description:** Notifies the gift machine that a gift is being opened.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnStopOpenGift(usewardrobe)`
-* **Description:** Signals completion of the gift-opening interaction. Pushes `ms_doneopengift` with optional `wardrobe` data if `usewardrobe` is true.
-* **Parameters:**  
-  - `usewardrobe`: `boolean` indicating whether the wardrobe window should be opened after opening the gift.
+* **Description:** Marks the gift opening as complete and optionally opens the wardrobe if `usewardrobe` is `true`.
+* **Parameters:** `usewardrobe` (`boolean`) — whether the wardrobe UI should be opened after opening the gift.
+* **Returns:** Nothing.
+* **Error states:** If `usewardrobe` is `false` or `nil`, no wardrobe action is taken.
 
-### `HasGift()`
-* **Description:** Returns whether the player currently has any gifts available.
-* **Parameters:** None.  
-* **Returns:** `boolean` — `true` if `giftcount > 0`, otherwise `false`.
-
-## Events & Listeners
-- **Listens for `ms_closepopup`** → Triggers `onclosepopup` handler, which calls `OnStopOpenGift` if the closed popup is `POPUPS.GIFTITEM`.
-- **Listens for `ms_updategiftitems`** (via `OnInit` callback) → Calls `OnUpdateGiftItems`, which in turn calls `RefreshGiftCount`.
-- **Pushes `ms_opengift`** in `OpenNextGift()`.
-- **Pushes `ms_addgiftreceiver` / `ms_removegiftreceiver`** to the assigned `giftmachine` when `giftcount` or `giftmachine` changes.
-- **Pushes `ms_giftopened`** to the assigned `giftmachine` in `OnStartOpenGift()`.
-- **Pushes `ms_doneopengift`** in `OnStopOpenGift()`.
+## Events & listeners
+- **Listens to:**  
+  - `ms_updategiftitems` — triggers `RefreshGiftCount()`.  
+  - `ms_closepopup` — checks for `POPUPS.GIFTITEM` and calls `OnStopOpenGift()` with the popup's first argument.
+- **Pushes:**  
+  - `ms_opengift` — sent when `OpenNextGift()` is called.  
+  - `ms_doneopengift` — sent when `OnStopOpenGift()` is called, optionally with `{ wardrobe = self.giftmachine }`.  
+  - `ms_addgiftreceiver`, `ms_removegiftreceiver` — sent to the `giftmachine` component when the receiver's presence changes.

@@ -1,61 +1,75 @@
 ---
 id: riftthralltype
-title: Riftthralltype
-description: Stores and manages the type classification of a rift thrall entity for persistence and runtime checks.
+title: RiftThrallType
+description: Stores and manages the type classification for a rift thrall entity.
+tags: [ rift, entity, classification ]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 80502ca2
+system_scope: entity
 ---
+# RiftThrallType
 
-# Riftthralltype
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-This component provides a lightweight mechanism for assigning, storing, and retrieving a thrall type identifier for an entity—primarily used to distinguish between different kinds of rift thralls (e.g., spawned by the Rift or related mechanics). It supports saving/loading via `OnSave`/`OnLoad`, offers utility methods for type comparisons, and exposes a debug string representation.
+`RiftThrallType` is a simple component that stores and exposes the type classification of a rift thrall entity. It provides basic getter, setter, and equality-check functionality for the `thrall_type` value, and supports serialization via `OnSave`/`OnLoad` for network and savegame persistence. This component is intended for entities representing thralls spawned from rifts in the game.
 
-## Dependencies & Tags
-None identified.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("riftthralltype")
+
+inst.components.riftthralltype:SetThrallType("warrior")
+assert(inst.components.riftthralltype:GetThrallType() == "warrior")
+assert(inst.components.riftthralltype:IsThrallType("warrior") == true)
+assert(inst.components.riftthralltype:IsThrallType("scout") == false)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-| Property      | Type   | Default Value | Description                                      |
-|---------------|--------|---------------|--------------------------------------------------|
-| `inst`        | `Entity` | —             | The entity instance this component is attached to (injected via constructor). |
-| `thrall_type` | `string` or `nil` | `nil`         | The classified type of the rift thrall (e.g., `"summoned"`, `"bound"`), set via `SetThrallType`. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `thrall_type` | string? | `nil` | The classification string assigned to the thrall (e.g., `"warrior"`, `"scout"`). |
 
-## Main Functions
+## Main functions
 ### `SetThrallType(new_type)`
-* **Description:** Assigns a new thrall type string to the component.
-* **Parameters:**  
-  `new_type` (`string` or `nil`) – The type identifier to assign.
+*   **Description:** Assigns a new type string to the thrall.
+*   **Parameters:** `new_type` (string?) — the type identifier to store. May be `nil`.
+*   **Returns:** Nothing.
 
 ### `GetThrallType()`
-* **Description:** Returns the currently assigned thrall type.
-* **Parameters:** None.  
-* **Returns:** `string` or `nil` – The current `thrall_type`.
+*   **Description:** Returns the currently stored thrall type.
+*   **Parameters:** None.
+*   **Returns:** `string?` — the stored type, or `nil` if unset.
 
 ### `IsThrallType(check_type)`
-* **Description:** Compares the stored type against a given type and returns whether they match.
-* **Parameters:**  
-  `check_type` (`string`) – The type string to compare against.
+*   **Description:** Compares the stored type to the given type.
+*   **Parameters:** `check_type` (string?) — the type to compare against.
+*   **Returns:** `boolean` — `true` if equal, `false` otherwise (including when either value is `nil`).
+*   **Error states:** Returns `false` when `thrall_type` is `nil`, unless `check_type` is also `nil`.
 
 ### `OnSave()`
-* **Description:** Prepares serializable data for world persistence. Returns a table containing the `thrall_type`, or `nil` if no type is set.
-* **Parameters:** None.  
-* **Returns:** `{ thrall_type = string }` or `nil`.
+*   **Description:** Prepares the component's state for serialization.
+*   **Parameters:** None.
+*   **Returns:** `{ thrall_type: string }?` — a table containing `thrall_type` if set; otherwise `nil`.
 
 ### `OnLoad(data)`
-* **Description:** Restores the thrall type from saved data during world loading.
-* **Parameters:**  
-  `data` (`table`) – The saved data table, expected to optionally contain a `thrall_type` key.
+*   **Description:** Restores component state from serialized data.
+*   **Parameters:** `data` (`{ thrall_type: string }?`) — the saved data table.
+*   **Returns:** Nothing.
+*   **Error states:** Silently ignores missing or invalid `data`.
 
 ### `GetDebugString()`
-* **Description:** Returns a human-readable debug string representation of the thrall type (e.g., `"summoned"` or `"NONE"`).
-* **Parameters:** None.  
-* **Returns:** `string`.
+*   **Description:** Returns a human-readable representation of the thrall type for debugging.
+*   **Parameters:** None.
+*   **Returns:** `string` — the stored type or `"NONE"` if `nil`.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified

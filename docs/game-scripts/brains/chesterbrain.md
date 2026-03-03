@@ -1,49 +1,47 @@
 ---
 id: chesterbrain
 title: Chesterbrain
-description: Manages the behavior tree for Chester, controlling movement logic including following the player, wandering near home, facing targets, and reacting to environmental threats.
+description: Controls the AI behavior of Chester, the treasure-hunting monster, managing navigation, panic responses, and interaction with its leader entity.
+tags: [ai, boss, navigation, panic]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: brain
-system_scope: brain
+category_type: map
 source_hash: d225140a
+system_scope: brain
 ---
 
 # Chesterbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The `ChesterBrain` component implements the behavior tree for Chester, a boss entity in Don't Starve Together. It coordinates high-level movement and decision-making logic through a priority-based behavior tree. The component inherits from the base `Brain` class and initializes a set of hierarchical behaviors—including following the player (via `Follow`), wandering near the "home" location (via `Wander`), facing the leader (`FaceEntity`), and triggering panic responses to electric fences or environmental danger (`PanicTrigger`, `ElectricFencePanicTrigger`). It relies on the `follower` and `knownlocations` components to resolve dynamic targets and locations at runtime.
+`ChesterBrain` implements the behavior tree for Chester, a boss entity that follows a designated leader (typically a player). It integrates common brain utilities (e.g., panic triggers), movement behaviors (`Follow`, `Wander`), and orientation (`FaceEntity`) to create responsive AI. It relies on the `follower` component to identify the leader and the `knownlocations` component to access the "home" location for wandering.
 
-## Dependencies & Tags
-- **Components used:** 
-  - `follower` — used to retrieve the current leader via `GetLeader()`.
-  - `knownlocations` — used to fetch the stored "home" location for wandering behavior.
-- **Tags:** None identified.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("follower") -- Required for leader tracking
+inst:AddComponent("knownlocations") -- Required for "home" location
+inst.brain = ChesterBrain(inst)
+inst.brain:OnStart() -- Initialize behavior tree
+```
+
+## Dependencies & tags
+**Components used:** `follower`, `knownlocations`  
+**Tags:** None identified.
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (inherited from `Brain`) | The entity instance this brain controls. Passed via constructor. |
-| `bt` | `BT` | `nil` (initialized in `OnStart`) | The behavior tree instance used to execute decision logic. Set during `OnStart`. |
+No public properties.
 
-## Main Functions
-### `ChesterBrain:OnStart()`
-* **Description:** Initializes the behavior tree root node with a prioritized sequence of behaviors. This method is called automatically when the brain becomes active.
+## Main functions
+### `OnStart()`
+* **Description:** Initializes and assigns the behavior tree (`BT`) by constructing a priority node hierarchy. This defines the priority-ordered tasks Chester performs: panic responses, following the leader, facing the leader, and wandering near "home".
 * **Parameters:** None.
-* **Returns:** `nil`.
+* **Returns:** Nothing.
+* **Error states:** Requires the `follower` and `knownlocations` components to be attached to `self.inst`; missing components may cause runtime errors when behaviors attempt to access them.
 
-### Behavior Tree Nodes (Internally Used)
-The `OnStart` method constructs a `PriorityNode` root containing the following behaviors in order:
-- `BrainCommon.PanicTrigger(self.inst)` — triggers panic if health is critically low.
-- `BrainCommon.ElectricFencePanicTrigger(self.inst)` — triggers panic when near an active electric fence.
-- `Follow(...)` — moves toward the leader (retrieved via `GetLeader`) within specified distance bounds.
-- `FaceEntity(...)` — rotates the entity to face the current leader.
-- `Wander(...)` — moves randomly within a radius around the "home" location if no higher-priority behavior is active.
-
-## Events & Listeners
+## Events & listeners
 None identified.

@@ -1,70 +1,71 @@
 ---
 id: avoidelectricfence
 title: Avoidelectricfence
-description: A behaviour node that triggers evasive movement when the entity is near or shocked by an electrified fence, calculating a safe flee angle and commanding locomotion to run away.
+description: A behavior node that forces an entity to flee away from an active electric fence when it detects proximity or shock events.
+tags: [ai, behavior, electric, panic, locomotion]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: behaviour
-system_scope: entity
+category_type: brain
 source_hash: d15e4d1e
+system_scope: locomotion
 ---
 
 # Avoidelectricfence
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-`AvoidElectricFence` is a behaviour node within the DST behaviour tree system that enables entities to flee from electric fence hazards. It calculates a safe exit direction by averaging the vector directions *away* from all electric fence segments in a shock-affected field, and instructs the entity to run in that direction using the `Locomotor` component. The component is typically used for AI characters or creatures (e.g., Beefalo, Pigs, Wandas) that must avoid damage from electrified fences.
+`AvoidElectricFence` is a behavior node used in AI brain logic to trigger evasive movement when an entity comes into contact with or is near an electric fence. It calculates a safe run angle away from the fence(s) and commands the entity to move using the `locomotor` component. If the entity has a `combat` component, it drops any active target before fleeing.
 
-The component integrates with the `Brain` system via `inst.brain:ForceUpdate()` calls to respond immediately to shock events, and registers callbacks for `"startelectrocute"` and `"shocked_by_new_field"` events to dynamically update its flee angle. It depends on the `Combat` and `Locomotor` components to drop targeted entities and execute movement, respectively.
+This component integrates with the `BrainCommon.HasElectricFencePanicTriggerNode` mechanism by setting an internal tag on the entity, and responds to two key events: `startelectrocute` and `shocked_by_new_field`.
 
-## Dependencies & Tags
-- **Components used:**
-  - `self.inst.components.combat` — accessed in `Visit()` to call `DropTarget()`
-  - `self.inst.components.locomotor` — accessed in `Visit()` to call `RunInDirection(angle)`
-- **Tags:**
-  - Sets `inst._has_electric_fence_panic_trigger = true` internally for use by `BrainCommon.HasElectricFencePanicTriggerNode`
-- **No tags are added/removed via `AddTag` / `RemoveTag`.**
+## Usage example
+```lua
+-- Typically added to prefabs via brain definition:
+-- brain:InsertChild(AvoidElectricFence(inst))
+
+-- The component does not need manual addition; it is instantiated and managed by the brain tree.
+-- Internally, it registers event callbacks and uses `Combat:DropTarget()` and `Locomotor:RunInDirection()` when triggered.
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `locomotor`  
+**Tags:** Sets `inst._has_electric_fence_panic_trigger = true` (private/internal flag for brain node detection)
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity instance the behaviour belongs to (assigned in constructor) |
-| `run_angle` | `number?` | `nil` | Current flee direction in degrees (0–360), calculated from `GetRunAngle()`. Set when shocked; cleared implicitly on `OnStop()` or new shock event |
-| `shocked_by_field` | `function` | — | Event callback handler attached to `"shocked_by_new_field"`; sets `run_angle` and forces a brain update |
-| `_has_electric_fence_panic_trigger` | `boolean` | `true` | Internal flag marking the entity as responsive to electric fence panic triggers |
+| `inst` | Entity | `nil` | Reference to the entity instance the behavior belongs to. |
+| `run_angle` | number | `nil` | Cached direction (in degrees, `0 <= x < 360`) to flee; set when `shocked_by_new_field` fires. |
+| `shocked_by_field` | function | `nil` | Event handler for `"shocked_by_new_field"`; computes and caches `run_angle`. |
 
-## Main Functions
+## Main functions
+### `GetRunAngle(field)`
+*   **Description:** Calculates the average direction *away* from all fences in the given electric fence `field`. It sums unit vectors pointing from the entity to each fence, then inverts the result and normalizes via `atan2`.
+*   **Parameters:**  
+  `field` (table) — an object containing a `fences` array, where each fence has a `Transform` component accessible via `field.fences[i].Transform`.
+*   **Returns:**  
+  `number` — a flee angle in degrees, normalized to the range `[0, 360)`.
+*   **Error states:** Returns `0` if the field has no fences (empty `fences` array), though no explicit guard exists in the current implementation.
 
-### `AvoidElectricFence:GetRunAngle(field)`
-* **Description:** Computes the direction *opposite* to the average position of all electric fence segments in the given field. The resulting angle is in degrees, normalized to `[0, 360)`. This angle represents the safest direction to flee.
-* **Parameters:**
-  - `field` (`table`) — A table containing at least `field.fences`, an array of fence entities, each with a `Transform` component providing world position.
-* **Returns:** `number` — Flee direction in degrees.
+### `Visit()`
+*   **Description:** The core behavior execution method. When the node is active (`status == READY`), it triggers fleeing behavior:
+  - Drops the entity’s combat target (via `Combat:DropTarget()`), if present.
+  - Initiates movement in the saved `run_angle` direction (via `Locomotor:RunInDirection()`).
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `self.run_angle` is `nil`, or if the `locomotor` component is missing.
 
-### `AvoidElectricFence:Visit()`
-* **Description:** The main behaviour-tree entry point. If `run_angle` is set, it starts the movement, drops the current combat target (if any), and commands locomotion to run in the stored direction. Should be called during behaviour tree evaluation.
-* **Parameters:** None.
-* **Returns:** `void`.
+### `OnStop()`
+*   **Description:** Cleans up event listeners when the behavior node is terminated.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `AvoidElectricFence:OnStop()`
-* **Description:** Cleans up event listeners when the behaviour node exits or is destroyed to prevent memory leaks or stale callbacks.
-* **Parameters:** None.
-* **Returns:** `void`.
-
-### `AvoidElectricFence:__tostring()`
-* **Description:** Returns a human-readable debug string representation for logging.
-* **Parameters:** None.
-* **Returns:** `string` — e.g., `"AVOIDELECTRICFENCE, 45.0"`.
-
-## Events & Listeners
-
-- **Listens to:**
-  - `"startelectrocute"` → Calls `onelectrocute(inst)` which triggers `inst.brain:ForceUpdate()` to re-evaluate the behaviour.
-  - `"shocked_by_new_field"` → Calls `self.shocked_by_field`, which computes a new `run_angle` via `GetRunAngle(field)` and forces a brain update.
-
-- **Pushes:** None.
-
----
+## Events & listeners
+- **Listens to:**  
+  `startelectrocute` — triggers `Brain:ForceUpdate()` to re-evaluate the node state (via the internal `onelectrocute` callback).  
+  `shocked_by_new_field` — triggers `self.shocked_by_field`, which computes `run_angle` and forces a brain update.
+- **Pushes:** None (this component does not fire custom events).

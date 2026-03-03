@@ -1,50 +1,68 @@
 ---
 id: thief
 title: Thief
-description: A component enabling an entity to steal stealable items from other entities' inventories or containers, optionally attacking the victim first.
+description: Enables an entity to steal items from other entities' inventories or containers.
+tags: [inventory, combat, interaction]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 4a5b6726
+system_scope: entity
 ---
 
 # Thief
 
-## Overview
-The `Thief` component provides the logic for an entity to steal items from victims (players or other entities) by interacting with their `inventory` or `container` components. If no specific item is targeted, it selects a random stealable item (i.e., one not tagged with `"nosteal"`). It optionally triggers a combat attack before stealing and notifies listeners via a configurable callback and game events.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on the victim having either an `inventory` component (for player-like entities) or a `container` component (for container-like entities such as chests or monsters with loot).
-- Relies on the thief having a `combat` component when `attack = true`.
-- Relies on the victim having `equippable`, `inventoryitem`, and `owner` components under specific conditions when `attack = true`.
-- Tags: None added or removed by this component.
+## Overview
+The `Thief` component allows an entity to steal items from targets that have an `inventory` or `container` component. It supports optional attacks before stealing, and triggers callbacks and events upon successful theft. It is designed for gameplay interactions where characters (e.g., enemies or special entities) can pilfer items from other beings or containers.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("thief")
+inst:AddComponent("combat")
+inst:AddComponent("inventory")
+
+inst.components.thief:SetOnStolenFn(function(thief, victim, item)
+    print("Item '" .. (item.name or "unknown") .. "' stolen from " .. victim.prefab)
+end)
+
+-- Attempt to steal an item from a victim, optionally attacking first
+inst.components.thief:StealItem(victim, nil, true)
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `inventory`, `container`, `equippable`, `inventoryitem`  
+**Tags:** Checks `nosteal` tag on items to determine stealability
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | Reference to the entity this component is attached to. |
-| `stolenitems` | `table` | `{}` (empty table) | Deprecated array intended to hold references to stolen items; no longer used and may be removed in future. |
-| `onstolen` | `function?` | `nil` | Optional callback function set via `SetOnStolenFn`, invoked after a successful steal with arguments `(thief, victim, item)`. |
+| `stolenitems` | table | `{}` (empty) | **Deprecated.** Previously used to track stolen item references; no longer actively used. |
+| `onstolen` | function or `nil` | `nil` | Optional callback function called after an item is successfully stolen. |
 
-## Main Functions
-
+## Main functions
 ### `SetOnStolenFn(fn)`
-* **Description:** Sets the optional callback function to be executed whenever an item is successfully stolen.
-* **Parameters:**
-  * `fn` (`function?`): A function of the form `function(thief, victim, item)` that will be called after each successful steal operation. Pass `nil` to clear.
+*   **Description:** Sets a callback function to be invoked whenever an item is successfully stolen.
+*   **Parameters:** `fn` (function) — a function with signature `(thief, victim, item)`, where `thief` and `victim` are entity instances, and `item` is the stolen item.
+*   **Returns:** Nothing.
 
 ### `StealItem(victim, itemtosteal, attack)`
-* **Description:** Attempts to steal an item from a victim. If `itemtosteal` is provided, that specific item is stolen; otherwise, a random stealable item is selected. If `attack` is true, the thief attacks the victim before stealing (using `combat:DoAttack`). Supports stealing from inventory-based victims (e.g., players) or container-based victims (e.g., mobs with loot or chests).
-* **Parameters:**
-  * `victim` (`Entity`): The target entity from which to steal.
-  * `itemtosteal` (`GameObject?`, optional): A specific item to steal. If omitted, a random stealable item is selected.
-  * `attack` (`boolean`, optional): Whether to attack the victim before stealing. Defaults to `false` if omitted. If true and the victim is equipped and owned, the thief attacks the *owner* (not the victim directly).
+*   **Description:** Attempts to steal an item from a victim entity. If `attack` is `true`, the thief attacks the victim before stealing. Supports both inventory-based and container-based targets.
+*   **Parameters:**
+    * `victim` (Entity instance) — The target entity to steal from.
+    * `itemtosteal` (Entity instance or `nil`) — Optional specific item to steal. If `nil`, a random stealable item is selected.
+    * `attack` (boolean) — Whether to perform an attack on the victim before attempting to steal.
+*   **Returns:** `true` if an item was successfully stolen, `false` otherwise.
+*   **Error states:**
+    * Returns `false` if the victim has neither `inventory` nor `container` components.
+    * Returns `false` if no stealable item is found (i.e., all items are tagged `nosteal` or container/inventory is empty).
+    * If `itemtosteal` is provided but not found in the victim's container/inventory, stealing fails.
 
-## Events & Listeners
-- Listens for no events itself.
-- Emits the following event on the victim entity upon successful theft:
-  - `onitemstolen` with payload `{ item = item, thief = self.inst }`
+## Events & listeners
+- **Listens to:** None (no event listeners are registered directly by this component).
+- **Pushes:** `onitemstolen` — fired on the victim entity when an item is stolen. Event data includes `{ item = item, thief = self.inst }`.

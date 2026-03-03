@@ -1,95 +1,115 @@
 ---
 id: circuitnode
 title: Circuitnode
-description: This component enables an entity to form and manage connections with other compatible entities within a specified range, facilitating networked behaviors.
+description: Manages networked connections between entities within a specified range, enabling bidirectional node relationships for circuit-based logic.
+tags: [network, circuit, connection, world]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 52087934
+system_scope: world
 ---
 
 # Circuitnode
 
-## Overview
-The `Circuitnode` component allows an entity to establish and maintain connections with other entities that also possess a `Circuitnode` component. It provides functionality to discover nearby connectable entities, manage a list of connected nodes, and trigger callbacks when connections are made or broken. This component is fundamental for creating systems that require networked interactions, such as power grids, logic circuits, or proximity-based activations, by defining a range, connection rules (e.g., across platforms), and custom connection/disconnection logic.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-This component implicitly depends on other entities having the `circuitnode` component attached for connections to be formed. No direct component additions or tag manipulations are performed by this script itself on its host entity.
+## Overview
+`CircuitNode` implements a connection system that allows entities to discover and link to other entities with matching tags within a radial range. It supports bidirectional connection tracking, optional platform segregation, and footprint-aware distance checks. The component is typically used in objects like switches, wires, or sensors that need to dynamically form logical circuits with nearby compatible nodes. It does not directly manage game state but serves as a foundational utility for building reactive systems.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("circuitnode")
+inst.components.circuitnode:SetRange(6)
+inst.components.circuitnode:SetConnectAcrossPlatforms(false)
+inst.components.circuitnode:SetOnConnectFn(function(inst, other) print("Connected to", other.prefab) end)
+inst.components.circuitnode:ConnectTo("switch_target")
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :------- | :--- | :------------ | :---------- |
-| `inst` | `Entity` | - | A reference to the entity this component is attached to. |
-| `range` | `number` | `5` | The maximum distance within which this circuit node can connect to other circuit nodes. |
-| `footprint` | `number` | `0` | An optional value representing the physical 'footprint' or size of the node, used to adjust connection range calculations. |
-| `numnodes` | `number` | `0` | The current count of other circuit nodes connected to this instance. |
-| `connectsacrossplatforms` | `boolean` | `true` | Determines if this node can connect to other nodes located on different platforms (e.g., land vs. ocean). |
-| `rangeincludesfootprint` | `boolean` | `false` | If true, the `footprint` value of the target node is subtracted from the `range` when checking connection distance. |
-| `nodes` | `table` | `nil` (initially) | A table used to store references to currently connected circuit nodes. Initialized to `{}` when the first connection is attempted. |
-| `onconnectfn` | `function` | `nil` | A callback function that is invoked when this node successfully connects to another node. Arguments are `(self.inst, connected_node)`. |
-| `ondisconnectfn` | `function` | `nil` | A callback function that is invoked when this node disconnects from another node. Arguments are `(self.inst, disconnected_node)`. |
+|----------|------|---------------|-------------|
+| `range` | number | `5` | Search radius (in game units) for connecting nodes. |
+| `footprint` | number | `0` | Adjustment subtracted from `range` for distance checks when `rangeincludesfootprint` is enabled. |
+| `connectsacrossplatforms` | boolean | `true` | If `false`, prevents connections across different physics platforms. |
+| `rangeincludesfootprint` | boolean | `false` | When `true`, effective range is reduced by `footprint` during distance calculations. |
+| `nodes` | table | `nil` | Internal map of connected nodes (`{ [node_inst] = true }`). |
+| `numnodes` | number | `0` | Count of currently connected nodes. |
+| `onconnectfn` | function | `nil` | Optional callback invoked when a new node connects. |
+| `ondisconnectfn` | function | `nil` | Optional callback invoked when a node disconnects. |
 
-## Main Functions
-### `OnRemoveEntity()`
-* **Description:** Clears the `ondisconnectfn` callback and initiates a full disconnection from all currently connected nodes when the entity is being removed.
-* **Parameters:** None.
-
-### `IsEnabled()`
-* **Description:** Checks if the circuit node system is active, which is determined by whether the `nodes` table has been initialized (i.e., if `ConnectTo` has been called at least once or `AddNode` directly).
-* **Parameters:** None.
-
-### `IsConnected()`
-* **Description:** Returns true if this circuit node is currently connected to one or more other circuit nodes.
-* **Parameters:** None.
-
-### `NumConnectedNodes()`
-* **Description:** Returns the total number of circuit nodes currently connected to this instance.
-* **Parameters:** None.
-
+## Main functions
 ### `ConnectTo(tag)`
-* **Description:** Scans the area around the entity within its `range` for other entities possessing a `circuitnode` component and the specified `tag`. It then attempts to establish a connection with all suitable entities found, respecting platform and footprint rules.
-* **Parameters:**
-    * `tag` (`string`): The tag required for a target entity to be considered for connection.
+*   **Description:** Scans for entities within range that possess the specified `tag` and have an enabled `circuitnode` component. Establishes bidirectional connections to qualifying entities.
+*   **Parameters:** `tag` (string or `nil`) — Tag to search for. If `nil`, no connections are made.
+*   **Returns:** Nothing.
+*   **Error states:** Does nothing if `tag` is `nil`.
 
 ### `Disconnect()`
-* **Description:** Disconnects this circuit node from all currently connected circuit nodes. It iterates through all connections and calls `RemoveNode` for each.
-* **Parameters:** None.
-
-### `SetRange(range)`
-* **Description:** Sets the connection range for this circuit node.
-* **Parameters:**
-    * `range` (`number`): The new range value.
-
-### `SetFootprint(footprint)`
-* **Description:** Sets the footprint value for this circuit node, which can modify range calculations.
-* **Parameters:**
-    * `footprint` (`number`): The new footprint value.
-
-### `SetOnConnectFn(fn)`
-* **Description:** Assigns a callback function to be executed when this circuit node successfully connects to another node.
-* **Parameters:**
-    * `fn` (`function`): The function to call, which receives `(self.inst, connected_node)` as arguments.
-
-### `SetOnDisconnectFn(fn)`
-* **Description:** Assigns a callback function to be executed when this circuit node disconnects from another node.
-* **Parameters:**
-    * `fn` (`function`): The function to call, which receives `(self.inst, disconnected_node)` as arguments.
+*   **Description:** Terminates all current connections, removing bidirectional links and resetting internal state.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `AddNode(node)`
-* **Description:** Establishes a connection with a specific `node` entity. If the connection is new, it increments the connected node count, triggers the `onconnectfn` callback, and then tells the `node` to reciprocally connect to this instance.
-* **Parameters:**
-    * `node` (`Entity`): The entity (with a `circuitnode` component) to connect to.
+*   **Description:** Registers a new connection to the specified `node` entity. Must be called by both ends to establish a bidirectional link.
+*   **Parameters:** `node` (entity instance) — The entity to connect to.
+*   **Returns:** Nothing.
+*   **Error states:** Silently ignores attempts to connect an already-connected node or if `nodes` table is `nil`.
 
 ### `RemoveNode(node)`
-* **Description:** Removes an existing connection with a specific `node` entity. It decrements the connected node count, triggers the `ondisconnectfn` callback, and then tells the `node` to reciprocally disconnect from this instance.
-* **Parameters:**
-    * `node` (`Entity`): The entity to disconnect from.
+*   **Description:** Removes a connection to the specified `node` entity. Must be called by both ends to fully disconnect.
+*   **Parameters:** `node` (entity instance) — The entity to disconnect from.
+*   **Returns:** Nothing.
+*   **Error states:** Silently ignores attempts to remove a non-connected node or if `nodes` table is `nil`.
 
 ### `ForEachNode(fn)`
-* **Description:** Iterates over all currently connected circuit nodes and executes a provided function for each one.
-* **Parameters:**
-    * `fn` (`function`): The function to execute for each connected node, which receives `(self.inst, connected_node)` as arguments.
+*   **Description:** Iterates over all connected nodes, invoking `fn` for each.
+*   **Parameters:** `fn` (function) — Callback called as `fn(self_inst, node_inst)` for each connection.
+*   **Returns:** Nothing.
+
+### `SetRange(range)`
+*   **Description:** Updates the radius used in future `ConnectTo` calls.
+*   **Parameters:** `range` (number) — New search radius.
+*   **Returns:** Nothing.
+
+### `SetFootprint(footprint)`
+*   **Description:** Sets the footprint value used when `rangeincludesfootprint` is enabled.
+*   **Parameters:** `footprint` (number) — Footprint size to subtract from effective range.
+*   **Returns:** Nothing.
+
+### `SetOnConnectFn(fn)`
+*   **Description:** Assigns a callback executed when a node connects.
+*   **Parameters:** `fn` (function or `nil`) — Signature: `function(self_inst, connected_node_inst)`.
+*   **Returns:** Nothing.
+
+### `SetOnDisconnectFn(fn)`
+*   **Description:** Assigns a callback executed when a node disconnects.
+*   **Parameters:** `fn` (function or `nil`) — Signature: `function(self_inst, disconnected_node_inst)`.
+*   **Returns:** Nothing.
+
+### `IsEnabled()`
+*   **Description:** Reports whether the node is active (i.e., has initialized its `nodes` table).
+*   **Parameters:** None.
+*   **Returns:** `true` if `nodes` is non-`nil`, otherwise `false`.
+
+### `IsConnected()`
+*   **Description:** Reports whether the node has at least one active connection.
+*   **Parameters:** None.
+*   **Returns:** `true` if `numnodes > 0`, otherwise `false`.
+
+### `NumConnectedNodes()`
+*   **Description:** Returns the total number of active connections.
+*   **Parameters:** None.
+*   **Returns:** `numnodes` (number).
+
+## Events & listeners
+- **Listens to:** None identified  
+- **Pushes:** None identified

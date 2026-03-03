@@ -1,157 +1,167 @@
 ---
 id: pickable
 title: Pickable
-description: Manages the lifecycle of harvestable objects—including growth, picking, regeneration, and fertility—by tracking state, timers, and interactability.
+description: Manages the harvestable lifecycle of entities that regrow over time, including regen timers, fertility states, and loot dropping behavior.
+tags: [harvest, regen, loot, growth]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 071825aa
+system_scope: entity
 ---
 
 # Pickable
 
-## Overview
-The `Pickable` component governs harvestable entities in the game world, handling their growth cycles (including regrowth timers), interaction constraints, regeneration logic, fertilization, and product spawning upon harvesting. It dynamically manages entity tags (`pickable`, `barren`, `quickpick`, `jostlepick`) and integrates with world time and task scheduling to support dynamic regrowth behavior.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Tags managed:** `pickable`, `barren`, `quickpick`, `jostlepick`
-- **Tag removal on component removal:** All four tags (`pickable`, `barren`, `quickpick`, `jostlepick`) are removed when the component is removed from the entity.
-- **Common external component interactions:**
-  - `burnable` (used in `Fertilize` to stop smoldering)
-  - `lootdropper` (used in `SpawnProductLoot`)
-  - `witherable` (used in `Fertilize`, `OnSave`, `OnLoad`, and `MakeEmpty`)
-- **No internal `inst:AddComponent(...)` calls**, but relies on presence of optional components during runtime.
+## Overview
+`Pickable` controls the core mechanics for entities that can be harvested (e.g., plants, trees, bushes), including regrowth timers, fertization, life-cycle states (empty/barren/full), and looting. It integrates with `lootdropper`, `witherable`, `burnable`, and `fertilizer` components to support dynamic regenerative behavior. Entities with this component typically emit the `pickable`, `barren`, `quickpick`, and `jostlepick` tags.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("pickable")
+inst.components.pickable:SetUp("apple", 600, 3)  -- product, regen time, number per harvest
+inst.components.pickable:MakeEmpty()              -- start regrowth cycle
+inst.components.pickable:Pick(player)             -- harvest the item
+```
+
+## Dependencies & tags
+**Components used:** `lootdropper`, `witherable`, `burnable`, `fertilizer`, `inventory`, `inventoryitem`, `stackable`  
+**Tags:** Adds/removes `pickable`, `barren`, `quickpick`, `jostlepick`.  
+**Tags checked:** `withered`
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `canbepicked` | `boolean?` | `nil` | Indicates if the object can currently be picked. Changed via `Regen()` and `MakeEmpty()`/`Pick()`. |
-| `regentime` | `number?` | `nil` | Current regrowth duration (may be modified by `SpringGrowthMod`). |
-| `baseregentime` | `number?` | `nil` | Base regrowth duration (original, unmodified). |
-| `product` | `string?` | `nil` | Prefab name of the item dropped upon picking. |
-| `onregenfn` | `function?` | `nil` | Callback invoked when regrowth completes (`Regen()`). |
-| `onpickedfn` | `function?` | `nil` | Callback invoked after picking (`Pick()`). |
-| `makeemptyfn` | `function?` | `nil` | Callback invoked when making empty (start of regrowth). |
-| `makefullfn` | `function?` | `nil` | Callback invoked when regenerating ( Becomes `canbepicked`). |
-| `cycles_left` | `number?` | `nil` | Remaining harvest cycles for transplanted plants. |
-| `max_cycles` | `number?` | `nil` | Maximum harvest cycles for transplanted plants. |
-| `transplanted` | `boolean` | `false` | True if the object has been transplanted (and consumes cycles on harvest). |
-| `caninteractwith` | `boolean` | `true` | Controls whether the entity is currently interactable. |
-| `numtoharvest` | `number` | `1` | Number of items produced per harvest. |
-| `quickpick` | `boolean` | `false` | If true, adds `quickpick` tag to the entity. |
-| `jostlepick` | `boolean` | `false` | If true, adds `jostlepick` tag to the entity. |
-| `wildfirestarter` | `boolean` | `false` | Controls whether the object is a wildfire starter (also `true` if entity has `withered` tag). |
-| `dropped` | `boolean?` | `nil` | Indicates if loot should be dropped via `lootdropper`. |
-| `dropheight` | `number?` | `nil` | Vertical offset for looting drop position. |
-| `paused` | `boolean` | `false` | Whether the regrowth timer is paused. |
-| `pause_time` | `number?` | `nil` | Remaining time when paused (pre-calculation). |
-| `targettime` | `number?` | `nil` | Absolute world time when regrowth should complete. |
-| `protected_cycles` | `number?` | `nil` | Number of cycles preserved during withering (e.g., via fertilization). |
-| `task` | `DoTaskInTime?` | `nil` | Scheduled regrowth task. |
-| `useexternaltimer` | `boolean` | `false` | If true, uses external functions (`startregentimer`, `getregentimertime`, etc.) instead of internal tasks. |
+| `canbepicked` | boolean | `nil` | Whether the entity is currently harvestable. |
+| `caninteractwith` | boolean | `true` | Whether players can interact with this entity. |
+| `regentime` | number | `nil` | Current regrowth duration in seconds (affected by mods). |
+| `baseregentime` | number | `nil` | Base regrowth duration in seconds (unchanged by modifiers). |
+| `product` | string | `nil` | Prefab name of the item dropped on harvest. |
+| `cycles_left` | number | `nil` | Remaining growth cycles for transplanted entities (e.g., farms). |
+| `max_cycles` | number | `nil` | Total growth cycles before permanent barren. |
+| `transplanted` | boolean | `false` | Whether this entity has been transplanted (e.g., farm plot). |
+| `numtoharvest` | number | `1` | Number of `product` items to drop per harvest. |
+| `quickpick` | boolean | `false` | If true, adds `quickpick` tag for faster interaction. |
+| `jostlepick` | boolean | `false` | If true, adds `jostlepick` tag for automatic harvest on contact. |
+| `wildfirestarter` | boolean | `false` | If true, entity can start wildfires (also `true` when `withered`). |
+| `droppicked` | boolean | `nil` | If true, uses `lootdropper` to drop product on pick. |
+| `dropheight` | number | `nil` | Vertical offset applied to dropped loot. |
+| `paused` | boolean | `false` | If true, regrowth timer is paused. |
+| `pause_time` | number | `0` | Remaining time when paused. |
+| `targettime` | number | `nil` | World time at which regrowth finishes (non-external timers). |
+| `protected_cycles` | number | `nil` | Cycles during which withering is blocked (if `witherable` is present). |
+| `task` | DTask | `nil` | Scheduled regrowth task (non-external timer mode). |
+| `useexternaltimer` | boolean | `false` | If true, regrowth timer is managed by external functions (e.g., `getregentimefn`, `setregentimertime`). |
 
-## Main Functions
+## Main functions
+### `SetUp(product, regen, number)`
+* **Description:** Initializes harvest configuration. Enables picking, sets product prefab, base regrowth time, and number of items per harvest.
+* **Parameters:**  
+  `product` (string) — Prefab name for the harvested item.  
+  `regen` (number) — Base regrowth time in seconds.  
+  `number` (number) — Items dropped per harvest; defaults to `1`.
+* **Returns:** Nothing.
+* **Error states:** No effect if called multiple times without clearing (idempotent-safe).
 
-### `Pickable:SetUp(product, regen, number)`
-* **Description:** Initializes core properties for a fully grown, immediately harvestable item. Sets `canbepicked` to `true`.
-* **Parameters:**
-  - `product` (`string`): Prefab name of the item produced on harvest.
-  - `regen` (`number`): Base regrowth time (in seconds).
-  - `number` (`number?`, optional): Number of items to produce per harvest. Defaults to `1`.
+### `CanBePicked()`
+* **Description:** Returns whether the entity is currently harvestable.
+* **Parameters:** None.
+* **Returns:** `true` if `canbepicked` is `true`; `false` otherwise.
 
-### `Pickable:CanBePicked()`
-* **Description:** Returns whether the object can currently be picked.
-* **Returns:** `boolean`: True if `canbepicked` is true.
+### `Pick(picker)`
+* **Description:** Attempts to harvest the entity. Handles product dropping, cycle decrement (if transplanted), regrowth rescheduling, and event firing.
+* **Parameters:**  
+  `picker` (Entity or `nil`) — The entity doing the harvesting. If `nil`, no items are produced. If it lacks an inventory, items are dropped at the entity's position.
+* **Returns:**  
+  `true` (boolean) — Harvest succeeded.  
+  `loot` (Entity or table) — Either the spawned loot entity, or a table of entities when `use_lootdropper_for_product` is set.
+* **Error states:** Returns `false, nil` if `canbepicked` or `caninteractwith` is `false`, or if `stuck` is `true`.
 
-### `Pickable:Pick(picker)`
-* **Description:** Handles the harvesting of the item. Decrements cycles (if transplanted), spawns loot, triggers callbacks, and schedules regrowth. Fires `"picked"` event.
-* **Parameters:**
-  - `picker` (`Entity?`): The entity doing the harvesting (may be `nil` or `TheWorld`).
+### `MakeEmpty()`
+* **Description:** Marks the entity as empty and starts regrowth timer if not paused.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Does nothing if `baseregentime` is `nil`.
 
-### `Pickable:Regen()`
-* **Description:** Marks the object as ready to pick (`canbepicked = true`), cancels any pending regrowth task, and calls `makefullfn` and `onregenfn` callbacks.
-* **No parameters.**
+### `MakeBarren()`
+* **Description:** Permanently disables picking and stops all regrowth tasks. Sets `cycles_left` to `0`.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `Pickable:MakeEmpty()`
-* **Description:** Initiates regrowth by setting `canbepicked = false`, calling `makeemptyfn`, and scheduling a regrowth task (if `baseregentime` is set and not paused).
-* **No parameters.**
+### `Regen()`
+* **Description:** Restores full harvestability. Called automatically when the regrowth timer expires.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `Pickable:MakeBarren()`
-* **Description:** Permanently disables regrowth by setting `cycles_left = 0` and `canbepicked = false`. Cancels any pending task. Calls `makebarrenfn` if present.
-* **No parameters.**
+### `Fertilize(fertilizer, doer)`
+* **Description:** Applies fertilizer to the entity, potentially restoring cycles, ending wither state, and playing a sound.
+* **Parameters:**  
+  `fertilizer` (Entity) — The fertilizer item. Its `fertilizer` component provides `fertilize_sound` and `withered_cycles`.  
+  `doer` (Entity or `nil`) — Entity performing the fertilization; used to play sound if applicable.
+* **Returns:** `true`.
+* **Error states:** If `witherable` is present, protected cycles are incremented and withering is disabled.
 
-### `Pickable:Fertilize(fertilizer, doer)`
-* **Description:** Restores or extends harvest cycles (especially for withered plants), cancels withering, and calls `MakeEmpty()`.
-* **Parameters:**
-  - `fertilizer` (`Entity`): The fertilizer entity used (accessed for `fertilizer.components.fertilizer.withered_cycles`).
-  - `doer` (`Entity?`): The entity applying fertilizer (used for sound playback).
+### `IsBarren()`
+* **Description:** Checks if the entity is permanently barren (`cycles_left == 0`).
+* **Parameters:** None.
+* **Returns:** `true` if `cycles_left` is `0`; otherwise `false`.
 
-### `Pickable:OnTransplant()`
-* **Description:** Marks the object as transplanted and calls `ontransplantfn` if defined. Typically invoked on player transplant actions.
-* **No parameters.**
+### `ChangeProduct(newProduct)`
+* **Description:** Updates the `product` prefab name (e.g., after transformation).
+* **Parameters:**  
+  `newProduct` (string) — New prefab name.
+* **Returns:** Nothing.
 
-### `Pickable:LongUpdate(dt)`
-* **Description:** Updates regrowth progress using world time delta. Handles rescheduling and immediate regrowth if timer expires. Respects `useexternaltimer` mode.
-* **Parameters:**
-  - `dt` (`number`): Delta time (time since last update).
+### `Pause()` / `Resume()`
+* **Description:** Pauses or resumes the regrowth timer. Supports both internal and external timers via `useexternaltimer`.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `Pickable:FinishGrowing()`
-* **Description:** Immediately finishes regrowth if the object is not yet ready (`canbepicked` is false). Cancels any pending task and calls `Regen()`.
-* **Returns:** `boolean`: `true` if regrowth was completed during this call.
+### `FinishGrowing()`
+* **Description:** Immediately ends regrowth if in progress and regenerates the entity.
+* **Parameters:** None.
+* **Returns:** `true` if regrowth was interrupted and executed; otherwise `false`.
 
-### `Pickable:Pause()` / `Pickable:Resume()`
-* **Description:** Pauses or resumes regrowth timing logic. Respects both internal (`task`-based) and external timer modes.
-* **Parameters:** None for either method.
+### `LongUpdate(dt)`
+* **Description:** Called during world updates. Progresses regrowth timer for non-paused, non-withered entities.
+* **Parameters:**  
+  `dt` (number) — Delta time since last update.
+* **Returns:** Nothing.
 
-### `Pickable:IsWildfireStarter()`
-* **Description:** Returns whether the object is a wildfire starter.
-* **Returns:** `boolean`: True if `wildfirestarter` is `true` or the entity has the `withered` tag.
+### `OnTransplant()`
+* **Description:** Marks the entity as transplanted (e.g., moved to a farm plot) and triggers callback.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `Pickable:IsBarren()`
-* **Description:** Checks if the object is barren (regrowth cycles exhausted).
-* **Returns:** `boolean`: True if `cycles_left == 0`.
+### `ConsumeCycles(cycles)`
+* **Description:** Decrements `cycles_left` (if transplanted) and `protected_cycles`.
+* **Parameters:**  
+  `cycles` (number) — Number of cycles to remove.
+* **Returns:** Nothing.
 
-### `Pickable:SpawnProductLoot(picker)`
-* **Description:** Spawns the product item(s) on the ground or into the picker’s inventory, respecting `numtoharvest`, `dropped`, and `use_lootdropper_for_product` flags.
-* **Parameters:**
-  - `picker` (`Entity?`): The entity harvesting (used for inventory placement or event firing).
+### `SpawnProductLoot(picker)`
+* **Description:** Spawns and distributes the product item(s) upon harvest, using inventory or world drop logic.
+* **Parameters:**  
+  `picker` (Entity or `nil`) — The entity harvesting the item.
+* **Returns:** `loot` (Entity or table) — Spawned loot entity(s).
+* **Error states:** Returns `nil` if `picker` is `nil` and `use_lootdropper_for_product` is `false`.
 
-### `Pickable:ConsumeCycles(cycles)`
-* **Description:** Manually decrements `cycles_left` (if transplanted) and `protected_cycles`.
-* **Parameters:**
-  - `cycles` (`number`): Number of cycles to consume.
+### `GetDebugString()`
+* **Description:** Returns a debug string summarizing key state (e.g., paused, cycles, regen time).
+* **Parameters:** None.
+* **Returns:** `string` — Human-readable debug info.
 
-### `Pickable:SetStuck(stuck)`
-* **Description:** Sets or clears the `stuck` state. Prevents picking if true.
-* **Parameters:**
-  - `stuck` (`boolean`): New stuck state.
+### `IsWildfireStarter()`
+* **Description:** Indicates whether this entity can ignite wildfires.
+* **Parameters:** None.
+* **Returns:** `true` if `wildfirestarter` is `true` or entity is `withered`.
 
-### `Pickable:IsStuck()`
-* **Description:** Returns whether the object is stuck and unpickable.
-* **Returns:** `boolean`.
-
-### `Pickable:GetDebugString()`
-* **Description:** Returns a debug string summarizing internal state (e.g., paused, regen time remaining, cycles).
-* **Returns:** `string`.
-
-### `Pickable:OnSave()` / `Pickable:OnLoad(data)`
-* **Description:** Serialize/deserialize full state for persistence. Supports saving/restoring `cycles`, regrowth timers, paused state, protection, and transplanted status.
-* **Parameters:**
-  - `data` (`table`): State data to load (for `OnLoad`).
-
-## Events & Listeners
-- **Events listened to (via `inst:ListenForEvent` implied by property setters in Class()):**
-  - `canbepicked`
-  - `caninteractwith`
-  - `cycles_left`
-  - `quickpick`
-  - `jostlepick`
-- **Events triggered (via `inst:PushEvent`):**
-  - `"picked"` with payload `{ picker = ..., loot = ..., plant = ... }`
-  - `"picksomething"` (in `SpawnProductLoot`) with payload `{ object = self.inst, loot = ... }` when inventory is involved.
-- **Timer events (handled internally via `DoTaskInTime`):**
-  - `OnRegen` — triggers `Regen()` when scheduled timer completes.
+## Events & listeners
+- **Listens to:** `saved`, `load` (via `OnSave`/`OnLoad` internal handlers).
+- **Pushes:** `picked` — fired after harvest with payload `{ picker, loot, plant }`.  
+  `pickedbyworld` — **deprecated**, no longer used.

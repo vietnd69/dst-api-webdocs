@@ -1,96 +1,128 @@
 ---
 id: boatmagnetbeacon
 title: Boatmagnetbeacon
-description: Manages the state and pairing logic for a beacon that attracts a Boat Magnet.
+description: Coordinates beacon behavior for boat magnet pairs, including pairing/unpairing logic, beacon activation state, and platform (boat) tracking.
+tags: [boat, magnet, platform, state, network]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 578aa792
+system_scope: entity
 ---
 
 # Boatmagnetbeacon
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Boatmagnetbeacon` component is attached to an entity that serves as a target for a `boatmagnet`. Its primary responsibility is to manage its own state (on/off, picked up, paired), detect which boat it is currently on, and handle the pairing and unpairing process with a corresponding `boatmagnet` entity. It persists its paired state across game sessions.
+`BoatMagnetBeacon` manages the state and pairing logic for a boat magnet beacon entity—typically used in conjunction with `boatmagnet` components to synchronize paired magnet devices (e.g., boat anchors or signal devices). It tracks whether the beacon is active (`turnedoff`), whether it is currently held (picked up), and maintains a reference to its paired magnet via GUID. The component automatically updates beacon visuals and stategraph transitions when turned on/off, and registers event callbacks to maintain pairing integrity when the beacon or its magnet is removed or dies.
 
-## Dependencies & Tags
-**Dependencies:**
-- `inventoryitem` (optional): To change the entity's inventory image based on its on/off state.
+## Usage example
+```lua
+local beacon = SpawnPrefabs["boat_magnet_beacon"]
+beacon:AddComponent("boatmagnetbeacon")
 
-**Tags:**
-- `turnedoff`: Added to the entity when the beacon is deactivated.
-- `paired`: Added to the entity when it is successfully paired with a `boatmagnet`.
+-- Later, when pairing with a magnet
+beacon.components.boatmagnetbeacon:PairWithMagnet(magnet_entity)
+
+-- Check if beacon is active and get its magnet
+if not beacon.components.boatmagnetbeacon:IsTurnedOff() then
+    local magnet = beacon.components.boatmagnetbeacon:PairedMagnet()
+end
+```
+
+## Dependencies & tags
+**Components used:** `inventoryitem`, `boatmagnet` (via external calls)  
+**Tags added/removed:** `paired`, `turnedoff`, `inventoryitem.imagename` changes (client-facing visual only)  
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :--- | :--- | :--- | :--- |
-| `turnedoff` | boolean | `false` | Tracks if the beacon is currently deactivated. |
-| `ispickedup` | boolean | `false` | Tracks if the beacon is currently in a player's inventory. |
-| `boat` | Entity | `nil` | A reference to the boat entity the beacon is currently on. |
-| `magnet` | Entity | `nil` | A reference to the `boatmagnet` entity this beacon is paired with. |
-| `magnet_guid` | string | `nil` | The GUID of the paired `boatmagnet`, used for saving and loading. |
-| `magnet_must_tags` | table | `{"boatmagnet"}` | List of tags an entity must have to be considered a potential magnet. |
-| `magnet_cant_tags` | table | `{"paired"}` | List of tags a potential magnet entity must not have. |
-| `magnet_distance` | number | `TUNING.BOAT.BOAT_MAGNET.MAX_DISTANCE` | The maximum distance to search for a magnet to pair with. |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | — | Reference to the entity that owns this component. |
+| `turnedoff` | boolean | `false` | Whether the beacon is currently off (disabled). |
+| `ispickedup` | boolean | `false` | Whether the beacon entity is currently being held (not on a platform). |
+| `boat` | `Entity?` | `nil` | Reference to the boat entity the beacon is currently attached to. |
+| `magnet` | `Entity?` | `nil` | Reference to the paired `boatmagnet` entity. |
+| `magnet_guid` | number? | `nil` | GUID of the currently paired magnet (used for re-pairing on load). |
+| `magnet_must_tags` | table | `{"boatmagnet"}` | Tags the beacon requires in candidate magnet entities. |
+| `magnet_cant_tags` | table | `{"paired"}` | Tags disqualifying a candidate magnet entity. |
+| `magnet_distance` | number | `TUNING.BOAT.BOAT_MAGNET.MAX_DISTANCE` | Max radius around beacon to search for magnets. |
+| `_setup_boat_task` | `Task?` | `nil` | Delayed task used during initialization to ensure platform assignment. |
 
-## Main Functions
-
+## Main functions
 ### `OnSave()`
-* **Description:** Serializes the component's state for saving the game. It stores whether the beacon is turned off, picked up, and the GUID of its paired magnet.
-* **Parameters:** None.
+*   **Description:** Returns serializable data for save/load support.
+*   **Parameters:** None.
+*   **Returns:** Table containing `turnedoff`, `ispickedup`, and `magnet_guid`.
 
 ### `OnLoad(data)`
-* **Description:** Deserializes the component's state upon loading a game. It restores the `turnedoff` and `ispickedup` states, as well as the `magnet_guid`. It also updates the entity's inventory image if applicable.
-* **Parameters:**
-    - `data` (table): The saved data table from `OnSave`.
+*   **Description:** Restores state from saved data. Reapplies tag `"turnedoff"` if needed and updates `inventoryitem` image name if applicable.
+*   **Parameters:** `data` (table) — data returned by `OnSave()`.
+*   **Returns:** Nothing.
 
 ### `GetBoat()`
-* **Description:** Determines and returns the boat entity that the beacon is currently on. It first checks if the beacon's owner is on a platform, and verifies that the platform has the "boat" tag.
-* **Parameters:** None.
+*   **Description:** Determines and caches the current platform (boat) the beacon is attached to.
+*   **Parameters:** None.
+*   **Returns:** `Entity` if attached to a valid `"boat"` entity, otherwise `nil`.
 
 ### `SetBoat(boat)`
-* **Description:** Assigns a boat entity to this beacon and sets up event listeners to monitor the boat's removal or death, ensuring the component state remains valid.
-* **Parameters:**
-    - `boat` (Entity): The boat entity to associate with this beacon. Can be `nil` to clear the association.
+*   **Description:** Sets or updates the `boat` reference and registers/unregisters callbacks for `onremove` and `death` events on the boat.
+*   **Parameters:** `boat` (`Entity?`) — the boat entity to associate, or `nil` to detach.
+*   **Returns:** Nothing.
 
 ### `PairedMagnet()`
-* **Description:** A simple getter that returns the currently paired magnet entity.
-* **Parameters:** None.
+*   **Description:** Returns the currently paired magnet entity.
+*   **Parameters:** None.
+*   **Returns:** `Entity?` — the magnet, or `nil` if unpaired.
 
 ### `PairWithMagnet(magnet)`
-* **Description:** Pairs this beacon with a specified `boatmagnet` entity. It stores the magnet's reference and GUID, adds listeners for the magnet's death or removal, turns the beacon on, and adds the "paired" tag to itself.
-* **Parameters:**
-    - `magnet` (Entity): The `boatmagnet` entity to pair with.
+*   **Description:** Establishes a pairing with the given magnet entity. Registers event listeners and activates the beacon.
+*   **Parameters:** `magnet` (`Entity`) — the magnet entity to pair with (must have `boatmagnet` component).
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if already paired (`self.magnet ~= nil`) or if `magnet` is `nil`.
 
 ### `UnpairWithMagnet()`
-* **Description:** Breaks the connection with the currently paired `boatmagnet`. It clears the magnet reference and GUID, removes event listeners, turns the beacon off, and removes the "paired" tag.
-* **Parameters:** None.
+*   **Description:** Terminates the current magnet pairing, resets state, and turns off the beacon.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if no magnet is currently paired.
+
+### `IsTurnedOff()`
+*   **Description:** Reports whether the beacon is currently off.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if turned off, `false` otherwise.
 
 ### `TurnOnBeacon()`
-* **Description:** Activates the beacon. It sets `turnedoff` to false, updates the inventory image, plays the "activate" state in the stategraph, and pushes an "onturnon" event.
-* **Parameters:** None.
+*   **Description:** Activates the beacon: updates image name, transitions the stategraph to `"activate"`, fires `"onturnon"`, and removes `"turnedoff"` tag.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `TurnOffBeacon()`
-* **Description:** Deactivates the beacon. It sets `turnedoff` to true, updates the inventory image, plays the "deactivate" state in the stategraph, and pushes an "onturnoff" event.
-* **Parameters:** None.
+*   **Description:** Deactivates the beacon: updates image name, transitions the stategraph to `"deactivate"`, fires `"onturnoff"`, and adds `"turnedoff"` tag.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `IsPickedUp()`
+*   **Description:** Reports whether the beacon is currently held.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if held, `false` otherwise.
 
 ### `SetIsPickedUp(pickedup)`
-* **Description:** Updates the `ispickedup` status of the beacon. If the beacon is being dropped (`pickedup` is false), it will attempt to find the boat it is on.
-* **Parameters:**
-    - `pickedup` (boolean): `true` if the beacon is being picked up, `false` if it's being dropped.
+*   **Description:** Updates the `ispickedup` flag and refreshes the `boat` reference accordingly.
+*   **Parameters:** `pickedup` (`boolean`) — whether the beacon is now held.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-* **Listens for:**
-    - `onpickup` on self: Sets the `ispickedup` state to true.
-    - `ondropped` on self: Sets the `ispickedup` state to false.
-    - `onremove` on `self.boat`: Clears the reference to the boat.
-    - `death` on `self.boat`: Clears the reference to the boat.
-    - `onremove` on `self.magnet`: Triggers `UnpairWithMagnet` if the paired magnet is removed.
-    - `death` on `self.magnet`: Triggers `UnpairWithMagnet` if the paired magnet is destroyed.
-* **Pushes:**
-    - `onturnon`: Pushed when `TurnOnBeacon` is called.
-    - `onturnoff`: Pushed when `TurnOffBeacon` is called.
+### `GetDebugString()`
+*   **Description:** Returns a debug string representation (e.g., magnet GUID or entity reference).
+*   **Parameters:** None.
+*   **Returns:** `string` — empty if unpaired, otherwise `tostring(magnet)`.
+
+## Events & listeners
+- **Listens to:**  
+  `onpickup`, `ondropped` (on self)  
+  `onremove`, `death` (on self, boat, and paired magnet)
+- **Pushes:**  
+  `"onturnon"`, `"onturnoff"` (when beacon activation state changes)

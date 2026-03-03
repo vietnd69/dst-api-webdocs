@@ -1,64 +1,73 @@
 ---
 id: decoratedgrave_ghostmanager
 title: Decoratedgrave Ghostmanager
-description: This component dynamically manages the spawning and despawning of ghost entities from decorated graves based on nearby Wendy players and their skill progression.
+description: Manages the spawning, tracking, and despawning of grave guard ghosts for Wendy's skill-related grave mechanics.
+tags: [wenda, ghost, grave, skill, map]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: d53bf7eb
+system_scope: world
 ---
 
 # Decoratedgrave Ghostmanager
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component is responsible for tracking decorated graves and players with the "ghostlyfriend" tag (specifically Wendy). It continuously monitors the proximity of these players to registered decorated graves and, if the player has a specific skill activated, it will dynamically spawn "graveguard_ghost" entities near the graves, up to a configurable limit. It also manages the despawning of these ghosts if the player moves too far away or if the grave is removed.
+`DecoratedgraveGhostmanager` is a world-scoped component responsible for managing ghost spawns from decorated graves when a player with the `ghostlyfriend` tag (typically Wendy) has the `wendy_gravestone_1` skill activated. It tracks registered graves and active ghost friends, periodically spawning `graveguard_ghost` entities near active ghost friends if the configured ghost count threshold (`TUNING.WENDYSKILL_GRAVESTONE_GHOSTCOUNT`) is not yet met, and handles ghost despawning when players move too far away or the ghost is destroyed. This component only runs on the master simulation.
 
-## Dependencies & Tags
-This component implicitly relies on the following:
-*   `player.components.skilltreeupdater`: Checked to determine if a player has activated specific skills (e.g., `wendy_gravestone_1`).
-*   `ghost.components.health`: Used to determine if a spawned ghost is dead for despawn timing.
-*   `TheWorld`: For checking `ismastersim`.
-*   `AllPlayers`: To initialize tracking of existing players.
-*   `TUNING.WENDYSKILL_GRAVESTONE_GHOSTCOUNT`: A game tuning value for the maximum number of ghosts a player can have.
-*   `TUNING.WENDYSKILL_GRAVEGHOST_DEADTIME`: A game tuning value for ghost despawn time when dead.
-*   `SpawnPrefab`: To create `graveguard_ghost` entities.
-*   `FindClosestPlayer`: To determine if a ghost needs to despawn.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("decoratedgrave_ghostmanager")
 
-**Tags:**
-*   Checks if a player `HasTag("ghostlyfriend")` to identify eligible ghost-summoning players.
-*   Does not add any tags to the entity it is attached to.
+-- Register a decorated grave prefab instance
+inst.components.decoratedgrave_ghostmanager:RegisterDecoratedGrave(grave_inst)
+
+-- Unregister when the grave is removed
+inst.components.decoratedgrave_ghostmanager:UnregisterDecoratedGrave(grave_inst)
+```
+
+## Dependencies & tags
+**Components used:** `skilltreeupdater` (via `ghostfriend.components.skilltreeupdater:IsActivated`), `health` (via `ghost.components.health:IsDead`)  
+**Tags:** Checks for `ghostlyfriend` on players; manages entities tagged as graves and ghost prefabs; does not add/remove tags itself.
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :------- | :--- | :------------ | :---------- |
-| `self.inst` | `Entity` | `inst` | A reference to the entity this component is attached to. |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | `nil` | The entity instance that owns this component (the map/global entity). |
 
-## Main Functions
+## Main functions
 ### `RegisterDecoratedGrave(grave)`
-*   **Description:** Registers a decorated grave with the ghost manager. If this is the first grave registered, it will start the component's update loop. The grave is initially marked as not having an active ghost.
-*   **Parameters:**
-    *   `grave`: (`Entity`) The decorated grave entity to register.
+* **Description:** Registers a decorated grave prefab for ghost management. Initializes tracking but does not immediately spawn a ghost.
+* **Parameters:** `grave` (`Entity` or `nil`) — The grave entity to track. If `nil` or already registered, the function returns early.
+* **Returns:** Nothing.
+* **Error states:** None. Internally enqueues ghost spawning logic on update if the grave is within range of an activated ghost friend.
 
 ### `UnregisterDecoratedGrave(grave)`
-*   **Description:** Unregisters a decorated grave from the ghost manager. This will trigger the removal process for any ghost associated with that grave and clean up internal tracking.
-*   **Parameters:**
-    *   `grave`: (`Entity`) The decorated grave entity to unregister.
+* **Description:** Stops tracking a grave, removes any associated ghost, and cancels pending ghost spawns for that grave.
+* **Parameters:** `grave` (`Entity` or `nil`) — The grave entity to stop tracking. If `nil` or unregistered, the function returns early.
+* **Returns:** Nothing.
+* **Error states:** None.
 
 ### `OnUpdate(dt)`
-*   **Description:** This function is called periodically when the component is updating. It manages the core logic for ghost spawning and despawning. It iterates through registered players and graves, checking player skill status, grave proximity, and current ghost counts to decide whether to spawn new ghosts or despawn existing ones that are too far from any player.
-*   **Parameters:**
-    *   `dt`: (`number`) The time elapsed since the last update.
+* **Description:** The component's update loop, called approximately every `UPDATE_RATE` seconds (`1.0`). Manages ghost spawning (when skill is active and ghost count threshold is unmet), and despawning (when players are too far away).
+* **Parameters:** `dt` (`number`) — Time elapsed since last frame.
+* **Returns:** Nothing.
+* **Error states:** None. Gracefully handles invalid ghosts or graves, and skips updates if player or skill conditions are not met.
 
 ### `GetDebugString()`
-*   **Description:** Returns a string containing debug information about the current state of the ghost manager, specifically the total number of registered graves and the number of currently active ghosts.
-*   **Parameters:** None.
+* **Description:** Returns a debug string summarizing the current state for debugging UI.
+* **Parameters:** None.
+* **Returns:** `string` — A formatted string containing total registered grave count and actual ghost count.
 
-## Events & Listeners
-*   `inst:ListenForEvent("ms_playerjoined", OnPlayerJoined)`: Listens for new players joining the master simulation to track them if they are a "ghostlyfriend".
-*   `inst:ListenForEvent("ms_playerleft", OnPlayerLeft)`: Listens for players leaving the master simulation to stop tracking them and potentially stop the component's update if no "ghostlyfriends" remain.
-*   `inst:ListenForEvent("onremove", OnDecoratedGraveRemoved, grave)`: Dynamically registered for each decorated grave to clean up tracking when a grave is removed.
-*   `self.inst:ListenForEvent("onremove", function, new_ghost)`: Dynamically registered for each spawned `graveguard_ghost` to handle its despawn or a temporary state when it's removed.
+## Events & listeners
+- **Listens to:**  
+  - `ms_playerjoined` — Calls `OnPlayerJoined` to begin tracking new ghost-friend players.  
+  - `ms_playerleft` — Calls `OnPlayerLeft` to stop tracking leaving ghost-friend players.  
+  - `onremove` on registered graves and spawned ghosts — Triggers cleanup of internal state and ghost despawn queuing.  
+- **Pushes:** None.

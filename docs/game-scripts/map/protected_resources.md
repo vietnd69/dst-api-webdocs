@@ -3,8 +3,7 @@ id: protected_resources
 title: Protected Resources
 description: Provides a centralized registry of world-protected static layouts organized by biome and type, used for resource placement and world generation.
 tags: [world, generation, resources]
-sidebar_position: 1
-
+sidebar_position: 100
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: 64029590
 ---
-
 # Protected Resources
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -60,4 +58,3 @@ No exported functions are defined in this module. All data is statically initial
 ## Events & listeners
 None. This module performs no runtime logic, event registration, or entity interaction.
 
----

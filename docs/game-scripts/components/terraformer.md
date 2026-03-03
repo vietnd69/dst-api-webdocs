@@ -1,48 +1,57 @@
 ---
 id: terraformer
 title: Terraformer
-description: Provides functionality to modify terrain tiles at a given world position, supporting both standard terraforming and plowing operations.
+description: Modifies terrain tiles at a given point in the world, handling soil replacement, entity collapse events, and custom callbacks.
+tags: [world, terrain, map]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: d4a29dc0
+system_scope: world
 ---
 
 # Terraformer
 
-## Overview
-The `Terraformer` component enables an entity to alter the underlying ground tile (turf) at a specific world position. It supports two modes: standard terraforming (e.g., turning grass into dirt) and plowing (a restricted subset with additional validation). It optionally triggers custom logic via a callback function and handles downstream effects like soil collapse for adjacent entities.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Usage:** Relies on `TheWorld.Map` (from `TheWorld`) for tile coordinate mapping and tile state manipulation.
-- **Additional Dependencies:** Uses `TheWorld.components.undertile` if no explicit `turf` is set.
-- **Tags:** Does not add or remove any tags on itself or target entities.
-- **External Modules:** Requires `worldtiledefs` (aliased as `GroundTiles`).
+## Overview
+The `Terraformer` component enables terrain modification (terraforming) at a specific world point. It sets a new tile type at a given location, handles soil collapse events for nearby entities, and optionally executes a custom callback or default ground-handling logic. This component is typically attached to entities like shovels or construction tools that interact with the world surface.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("terraformer")
+inst.components.terraformer.turf = WORLD_TILES.DIRT
+inst.components.terraformer.plow = false
+inst.components.terraformer.onterraformfn = function(inst, pt, old_tile, old_tile_data)
+    print("Terrain changed from " .. old_tile)
+end
+inst.components.terraformer:Terraform(Vector3(10, 0, -10), some_doer_entity)
+```
+
+## Dependencies & tags
+**Components used:** `undertile` (via `TheWorld.components.undertile:GetTileUnderneath`)
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `turf` | `WORLD_TILES.*` | `nil` | The target tile type to apply during terraforming. If `nil`, defaults to the underlying tile from `undertile` component or `WORLD_TILES.DIRT`. |
-| `onterraformfn` | `function?` | `nil` | Optional callback invoked after tile replacement. Signature: `(inst, pt, original_tile_type, original_tile_def)`. If absent, defaults to `HandleDugGround`. |
-| `plow` | `boolean` | `nil` | When truthy, enables plow mode (uses `CanPlowAtPoint` validation); otherwise uses `CanTerraformAtPoint`. |
+| `turf` | `WORLD_TILES` constant or `nil` | `nil` | The tile type to set at the target point. Falls back to `GetTileUnderneath` or `WORLD_TILES.DIRT` if `nil`. |
+| `onterraformfn` | function or `nil` | `nil` | Optional callback invoked on terraform with `(self.inst, pt, original_tile_type, original_tile_data)`. If absent, defaults to `HandleDugGround`. |
+| `plow` | boolean or `nil` | `nil` | If `true`, uses plowing validation (`CanPlowAtPoint`) instead of standard terraforming (`CanTerraformAtPoint`). |
 
-> **Note:** The constructor initializes `self.inst`, but `turf`, `onterraformfn`, and `plow` are commented out and thus must be set externally before use (typically via direct assignment on the component instance).
-
-## Main Functions
-### `Terraformer:Terraform(pt, doer)`
-* **Description:** Converts the tile at world point `pt` to the configured `turf`, executes post-terraform logic (custom or default), and triggers collapse events for adjacent "soil"-tagged entities (unless plowing). Returns `true` on success, `false` if terrain modification is invalid at the location.
+## Main functions
+### `Terraform(pt, doer)`
+* **Description:** Applies terrain modification at the specified world point. Validates the tile location, sets a new tile, triggers soil collapse for nearby entities (if not plowing), and fires events.
 * **Parameters:**
-  - `pt`: A point object supporting `:Get()` → `(x, y, z)`.
-  - `doer`: Optional entity that initiated the action (e.g., a player); used to propagate the `"onterraform"` event to them (e.g., for player-specific gameplay effects like Wolfgang’s strength bonus).
+  * `pt` (`Vector3` or point-like object with `:Get()` returning x, y, z) — World coordinate of the terraform target.
+  * `doer` (`Entity` or `nil`) — The entity performing the terraforming; used to push `"onterraform"` event (e.g., for Wolfgang’s effects).
+* **Returns:** `true` on success, `false` if the point is invalid or blocked.
+* **Error states:** Returns `false` early if `CanPlowAtPoint` (when `plow` is true) or `CanTerraformAtPoint` (otherwise) returns `false`. Does not modify tiles if validation fails.
 
-## Events & Listeners
-- **Listens For:**
-  - None.
-- **Triggers:**
-  - `"onterraform"` on `self.inst` (the owner of this component).
-  - `"onterraform"` on `doer`, if `doer` is non-nil.
-  - `"collapsesoil"` on each entity on the same tile that has the `"soil"` tag (only when *not* plowing).
+## Events & listeners
+- **Pushes:** `"onterraform"` — fired by the entity owning this component and optionally by the `doer` entity.
+- **Listens to:** None identified.

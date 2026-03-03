@@ -1,70 +1,83 @@
 ---
 id: physicsmodifiedexternally
 title: Physicsmodifiedexternally
-description: Manages a collection of external velocity sources to compute and apply combined motor velocity to an entity's physics component, with special handling for boats.
+description: Manages externally applied velocity contributions to an entity's physics, aggregating multiple sources and updating physics and locomotor state.
+tags: [physics, locomotion, network, entity]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: e47900d7
+system_scope: physics
 ---
-
 # Physicsmodifiedexternally
 
-## Overview
-This component tracks external velocity contributions from multiple sources, sums them, and applies the resulting vector to the entity's physics system via `SetMotorVelExternal`. It also coordinates with the `locomotor` and `boatphysics` components to ensure correct motion behavior, particularly accounting for anchor drag on boats. It automatically removes itself when all sources are removed.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Requirements:**
-  - The entity must have the `physics` component (for `SetMotorVelExternal`).
-  - May optionally depend on `locomotor` (to sync `externalvelocityvectorx`/`z`) and `boatphysics` (to apply drag adjustments).
-- **Tags/Events:**
-  - Pushes `"gainphysicsmodifiedexternally"` upon construction.
-  - Pushes `"losephysicsmodifiedexternally"` upon removal.
+## Overview
+`Physicsmodifiedexternally` is a component that aggregates external velocity inputs from multiple sources (e.g., boats, currents, or other entities) and applies the resulting vector to the entity's physics system. It ensures all velocity contributions are centralized and correctly synced between server and client. The component interacts directly with the `physics` and `locomotor` components and coordinates with `boatphysics` for drag calculations when applicable. It automatically removes itself when all velocity sources are cleared.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("physicsmodifiedexternally")
+
+-- Add a source (e.g., a boat or another entity)
+inst.components.physicsmodifiedexternally:AddSource(other_inst)
+
+-- Set velocity contribution from that source
+inst.components.physicsmodifiedexternally:SetVelocityForSource(other_inst, 2.0, -1.5)
+```
+
+## Dependencies & tags
+**Components used:** `Physics` (via `inst.Physics`), `locomotor`, `boatphysics`  
+**Tags:** None identified.
 
 ## Properties
-No public instance properties are initialized in `_ctor` beyond internal state; however, the following are used internally as mutable state:
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `sources` | `table` | `{}` | Map of source entities → `{x, z}` velocity vectors. Keys are source entities; values are `{x, z}` tables. |
-| `totalvelocityx` | `number` | `0` | Cumulative X-component of external velocity (updated on recalculation). |
-| `totalvelocityz` | `number` | `0` | Cumulative Z-component of external velocity (updated on recalculation). |
-| `_onremovesource` | `function` | (see implementation) | Callback function triggered when a source entity is removed; cleans up that source and potentially self-destructs. |
+| `sources` | table | `{}` | Dictionary mapping source entities (or tokens) to `{x, z}` velocity vectors. |
+| `totalvelocityx` | number | `0` | Summed X-component of all external velocities (updated on recalculation). |
+| `totalvelocityz` | number | `0` | Summed Z-component of all external velocities (updated on recalculation). |
 
-## Main Functions
-
-### `OnRemoveFromEntity()`
-* **Description:** Cleans up the component on removal: resets external physics velocity to zero, nullifies locomotor external velocity, unregisters `onremove` listeners for all sources, and notifies listeners of component removal via `"losephysicsmodifiedexternally"`.
-* **Parameters:** None.
-
-### `RecalculateExternalVelocity()`
-* **Description:** Sums all stored source velocity vectors, applies boat-specific drag if `boatphysics` is present, then updates both `Physics:SetMotorVelExternal()` and `locomotor.externalvelocityvector*` fields. Drag reduces total velocity based on anchor drag, scaled by tuning constants.
-* **Parameters:** None.
-
+## Main functions
 ### `SetVelocityForSource(src, velx, velz)`
-* **Description:** Updates the velocity contribution of a specific source (`src`) and triggers a recalculation.
-* **Parameters:**
-  - `src`: The entity providing the velocity source.
-  - `velx`: X-component of the velocity vector.
-  - `velz`: Z-component of the velocity vector.
+* **Description:** Sets the external velocity vector for a specific source and triggers recalculation of the total external velocity.  
+* **Parameters:**  
+  - `src` (any hashable value, typically an entity instance or token) – identifier for the velocity source.  
+  - `velx` (number) – X-component of the velocity contribution.  
+  - `velz` (number) – Z-component of the velocity contribution.  
+* **Returns:** Nothing.  
+* **Error states:** Does nothing if `src` has not been added via `AddSource`.
 
 ### `AddSource(src)`
-* **Description:** Registers a new velocity source. If not already tracked, initializes its `{x, z}` velocity to `{0, 0}` and sets up a listener to auto-remove it if the source entity is destroyed.
-* **Parameters:**
-  - `src`: The entity acting as a velocity source.
+* **Description:** Registers a new velocity source and optionally listens for its `onremove` event to auto-cleanup.  
+* **Parameters:**  
+  - `src` (any hashable value) – identifier for the source.  
+* **Returns:** Nothing.  
+* **Error states:** Idempotent – no effect if `src` is already registered.
 
 ### `RemoveSource(src)`
-* **Description:** Removes a previously added source, unregisters its removal listener (if applicable), and triggers cleanup via `_onremovesource`. May cause component removal if no sources remain.
-* **Parameters:**
-  - `src`: The source entity to remove.
+* **Description:** Removes a velocity source, cleans up its event listener, and triggers recalculation.  
+* **Parameters:**  
+  - `src` (any hashable value) – identifier for the source.  
+* **Returns:** Nothing.  
+* **Error states:** No-op if `src` is not registered.
 
-## Events & Listeners
-- **Listens for events:**
-  - `"onremove"` on each registered source entity (except `self.inst`), to automatically clean up the source when the source entity is removed.
-- **Triggers events:**
-  - `"gainphysicsmodifiedexternally"` when the component is fully constructed.
-  - `"losephysicsmodifiedexternally"` when `OnRemoveFromEntity` is called.
+### `RecalculateExternalVelocity()`
+* **Description:** Computes the aggregate external velocity, applies drag if `boatphysics` is present, and updates both the physics engine and locomotor component.  
+* **Parameters:** None.  
+* **Returns:** Nothing.  
+* **Error states:** None.
+
+### `OnRemoveFromEntity()`
+* **Description:** Server-side cleanup hook. Resets all external physics values, cancels event listeners, and broadcasts the `losephysicsmodifiedexternally` event.  
+* **Parameters:** None.  
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:** `onremove` (on registered sources, excluding self) – removes source when the source entity is removed.
+- **Pushes:**  
+  - `gainphysicsmodifiedexternally` – fired during construction upon successful initialization.  
+  - `losephysicsmodifiedexternally` – fired during `OnRemoveFromEntity`.

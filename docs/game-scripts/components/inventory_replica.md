@@ -1,115 +1,220 @@
 ---
 id: inventory_replica
 title: Inventory Replica
-description: This component acts as a networked replica interface for inventory state, synchronizing player inventory data and actions between server and clients via a classified proxy object.
+description: Manages network-synchronized inventory state between server and clients, delegating logic to the actual inventory component when available.
+tags: [inventory, network, client, server]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: components
 source_hash: 8a1a6310
+system_scope: network
 ---
 
 # Inventory Replica
 
-## Overview
-The `Inventory` replica component serves as a network-transparent layer that manages inventory interactions for players (and other entities with inventory support) in Don't Starve Together. It coordinates between the local `inventory` component (on the server) and a remote `inventory_classified` prototype (the classified proxy), enabling clients to display and manipulate inventory state without direct access to the authoritative component. It handles opening/closing the inventory UI, equipping items, managing overflow containers, and synchronizing specialized states such as heavy lifting and floating (e.g., for Werebeaver/Woodie transitions).
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component dependency:** Requires `inst.components.inventory` (server-only) and/or `inst.inventory_classified` (networked classified proxy).
-- **Tag dependency (server side):** Uses `player` to determine initialization path; `corpse` to conditionally hide inventory when revived.
-- **Tags used:** None added or removed by this component itself.
+## Overview
+`inventory_replica` is a client-side component that synchronizes inventory state from the server via a replicated `inventory_classified` object. On the server, it creates and manages the classified object and forwards inventory events to it. On the client, it attaches to an existing classified object to expose the inventory interface without duplicating logic. It delegates all public API calls to either the actual `inventory` component (when present) or the `classified` object, ensuring consistent behavior across server and client.
+
+Key relationships:
+- Reads from and delegates to `components.inventory` when running on the server or when the real inventory exists.
+- Uses `components.playeractionpicker` to manage action filters for heavy lifting and floater-holding states.
+- Interacts with `revivablecorpse` to hide the inventory UI when the entity is a corpse.
+
+## Dependencies & tags
+**Components used:** `inventory`, `playeractionpicker`, `revivablecorpse`
+**Tags:** None added or removed by this component.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *None* (injected) | Reference to the entity the inventory belongs to. |
-| `opentask` | `Tasks` or `nil` | `nil` | Delayed task used to open the inventory UI; cancellable to prevent race conditions. |
-| `classified` | `Component` (`inventory_classified` proxy) or `nil` | `nil` | Reference to the networked classified proxy object used to replicate inventory state to clients. |
-| `ondetachclassified` | `function` or `nil` | `nil` | Callback function registered to handle entity removal of the classified object. |
+| `inst` | `Entity` | `nil` | The entity instance the component is attached to. |
+| `opentask` | `Task` | `nil` | A static task used to defer inventory opening on the server. |
+| `classified` | `inventory_classified` | `nil` | The network-classified object holding synchronized inventory state. |
 
-## Main Functions
+## Main functions
+### `AttachClassified(classified)`
+*   **Description:** Attaches the server-provided `inventory_classified` object to this replica, registers event listeners for state changes, and triggers UI visibility updates.
+*   **Parameters:** `classified` (`inventory_classified`) – The classified object to attach.
+*   **Returns:** Nothing.
 
-### `Inventory:OnOpen()`
-* **Description:** Triggers server-side to open the inventory UI for the entity. Sets the classified proxy’s visibility to true and designates this entity as the target.
-* **Parameters:** None.
+### `DetachClassified()`
+*   **Description:** Detaches the `classified` object, hides the inventory UI, and pushes events to notify other systems of closure.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `Inventory:OnClose()`
-* **Description:** Closes the inventory UI by hiding it. Cancels any pending open task and sets classified visibility to false.
-* **Parameters:** None.
+### `OnOpen()`
+*   **Description:** Informs the `classified` object that the inventory is open, making its `visible` state `true`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `Inventory:OnShow()`
-* **Description:** Makes the inventory UI visible without opening (e.g., for hotkey toggles or state transitions).
-* **Parameters:** None.
+### `OnClose()`
+*   **Description:** Informs the `classified` object that the inventory is closed, setting `visible` to `false` and cancelling pending open tasks.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `Inventory:OnHide()`
-* **Description:** Hides the inventory UI if already open/visible.
-* **Parameters:** None.
+### `SetHeavyLifting(heavylifting)`
+*   **Description:** Sets the heavy-lifting state on the `classified` object and updates action filters to allow or disallow heavy-lifting actions.
+*   **Parameters:** `heavylifting` (`boolean`) – Whether the player is currently heavy lifting.
+*   **Returns:** Nothing.
 
-### `Inventory:SetHeavyLifting(heavylifting)`
-* **Description:** Updates the `heavylifting` state on the classified proxy and refreshes relevant action filters (e.g., forWerebeaver carry behavior).
-* **Parameters:**
-  * `heavylifting` (`boolean`) — Whether the entity is currently engaged in heavy lifting.
+### `SetFloaterHeld(floaterheld)`
+*   **Description:** Sets the floater-holding state on the `classified` object, updates action filters, and triggers state graph events (`sg_startfloating`/`sg_stopfloating`).
+*   **Parameters:** `floaterheld` (`boolean`) – Whether a floater is currently held.
+*   **Returns:** Nothing.
 
-### `Inventory:SetFloaterHeld(floaterheld)`
-* **Description:** Updates the `floaterheld` state (e.g., for Woodie’s floating behavior) and adjusts state machine events + action filters accordingly.
-* **Parameters:**
-  * `floaterheld` (`boolean`) — Whether the entity is holding a floater (e.g., boat/raft).
+### `GetNumSlots()`
+*   **Description:** Returns the total number of inventory slots. Delegates to the real inventory component if present; otherwise returns the maximum slots for the current game mode.
+*   **Parameters:** None.
+*   **Returns:** `number` – Total number of inventory slots.
 
-### `Inventory:AttachClassified(classified)`
-* **Description:** Associates a classified proxy object (typically received from the server) with this replica. Registers event listeners and initializes UI重建.
-* **Parameters:**
-  * `classified` (`Component`) — The `inventory_classified` proxy to attach.
+### `IsVisible()`
+*   **Description:** Returns whether the inventory UI is visible.
+*   **Parameters:** None.
+*   **Returns:** `boolean` – `true` if the inventory is visible, `false` otherwise.
 
-### `Inventory:DetachClassified()`
-* **Description:** Detaches the classified proxy, clears listeners, and resets UI visibility and active item state on client.
-* **Parameters:** None.
+### `IsOpenedBy(guy)`
+*   **Description:** Checks if the inventory is currently opened by a specific entity.
+*   **Parameters:** `guy` (`Entity`) – The entity to check.
+*   **Returns:** `boolean` – `true` if opened by `guy`, `false` otherwise.
 
-### `Inventory:GetNumSlots()`
-* **Description:** Returns the number of inventory slots available. Falls back to default max slots if `inventory` component is absent.
-* **Parameters:** None.
+### `IsHeavyLifting()`
+*   **Description:** Returns whether the player is heavy lifting, based on real inventory state or classified data.
+*   **Parameters:** None.
+*   **Returns:** `boolean` – `true` if heavy lifting, `false` otherwise.
 
-### `Inventory:GetItemInSlot(slot)`
-* **Description:** Returns the item stored in the specified inventory slot. Delegates to `inventory` or `classified` depending on context.
-* **Parameters:**
-  * `slot` (`number`) — Zero-based slot index.
+### `IsFloaterHeld()`
+*   **Description:** Returns whether a floater is currently held, based on real inventory state or classified data.
+*   **Parameters:** None.
+*   **Returns:** `boolean` – `true` if holding a floater, `false` otherwise.
 
-### `Inventory:EquipActiveItem()`, `Inventory:EquipActionItem(item)`, `Inventory:SwapEquipWithActiveItem()`, etc.
-* **Description:** A family of functions for common inventory interactions: equipping active item, equipping a specified item, swapping with equipment slot, etc. All delegate to either the local `inventory` component or the `classified` proxy, ensuring same behavior across authoritative and replicated contexts.
-* **Parameters:** Vary per function (e.g., `item`, `slot`, `eslot`, `container`).
+### `GetItemInSlot(slot)`
+*   **Description:** Gets the item in the specified inventory slot.
+*   **Parameters:** `slot` (`number`) – The slot index.
+*   **Returns:** `Entity?` – The item entity, or `nil` if the slot is empty.
 
-### `Inventory:Has(prefab, amount, checkallcontainers)`, `Inventory:HasItemWithTag(tag, amount)`
-* **Description:** Queries item existence with optional count and container-scanning. Falls back to `classified` implementation when `inventory` component is unavailable.
-* **Parameters:**
-  * `prefab`/`tag` — Query target.
-  * `amount` (`number`) — Minimum required count.
-  * `checkallcontainers` (`boolean`, optional) — Whether to include nested containers.
+### `GetEquippedItem(eslot)`
+*   **Description:** Gets the item equipped in the specified equipment slot.
+*   **Parameters:** `eslot` (`string`) – The equipment slot name (e.g., `MAINHAND`, `BACK`).
+*   **Returns:** `Entity?` – The equipped item, or `nil` if empty.
 
-### `Inventory:GetOpenContainers()`, `Inventory:GetOverflowContainer()`
-* **Description:** Returns tables of currently open containers and the overflow container (e.g., backpack), respectively. Handles both authoritative (`inventory`) and replicated (`HUD.controls.containers`, `classified`) sources.
-* **Parameters:** None.
+### `GetActiveItem()`
+*   **Description:** Gets the currently held active item (e.g., the item being used in UI interactions).
+*   **Parameters:** None.
+*   **Returns:** `Entity?` – The active item entity, or `nil`.
 
-### `Inventory:IsHeavyLifting()`, `Inventory:IsFloaterHeld()`, `Inventory:IsVisible()`, `Inventory:IsOpenedBy(guy)`
-* **Description:** Read-only queries for current inventory state. Each uses local `inventory` component if present, otherwise falls back to `classified` proxy values.
-* **Parameters:** Vary per function (e.g., `guy` for `IsOpenedBy`).
+### `Has(prefab, amount, checkallcontainers)`
+*   **Description:** Checks if the inventory contains at least `amount` of a given prefab.
+*   **Parameters:** 
+    * `prefab` (`string`) – The prefab name.
+    * `amount` (`number`) – Required minimum quantity.
+    * `checkallcontainers` (`boolean?`) – Whether to check containers.
+*   **Returns:** `boolean, number` – Whether the amount is satisfied and the actual count found.
 
-### `Inventory:Open()` (via `self.opentask` hook)
-* **Description:** Internal helper used in delayed task (`DoStaticTaskInTime`) to open the inventory and optionally hide it if the entity is a corpse.
-* **Parameters:** None (defined as `local function OpenInventory`).
+### `GetOpenContainers()`
+*   **Description:** Returns a table of open container entities (keys only, values are `true`). Includes overflow containers.
+*   **Parameters:** None.
+*   **Returns:** `table` – A map of container entities.
 
-## Events & Listeners
-- **Listens to `inst:ListenForEvent("newactiveitem", ...)`** — Syncs active item from inventory to classified proxy (server → client).
-- **Listens to `inst:ListenForEvent("itemget", ...)`** — Syncs slot content changes (server → client).
-- **Listens to `inst:ListenForEvent("itemlose", ...)`** — Handles item removal from slots (server → client).
-- **Listens to `inst:ListenForEvent("equip", ...)`** — Syncs equipment slot updates (server → client).
-- **Listens to `inst:ListenForEvent("unequip", ...)`** — Syncs unequip events (server → client).
-- **Listens to `classified` events:**
-  - `visibledirty` → Toggles crafting/inventory UI visibility.
-  - `heavyliftingdirty` → Updates action filters (heavy lifting) and context.
-  - `floaterhelddirty` → Updates action filters and state machine events (floating).
-- **Listens to `"onremove"` on `classified`** — Triggers detachment logic when classified proxy is destroyed.
+## Events & listeners
+- **Listens to:**
+  - `"visibledirty"` on `classified` – Triggers `OnVisibleDirty` to show/hide crafting and inventory UI.
+  - `"heavyliftingdirty"` on `classified` – Updates player action filters for heavy lifting.
+  - `"floaterhelddirty"` on `classified` – Updates player action filters and triggers floating state graph events.
+  - `"onremove"` on `classified` – Triggers `DetachClassified`.
+  - `"newactiveitem"`, `"itemget"`, `"itemlose"`, `"equip"`, `"unequip"` on `inst` (server only) – Updates `classified` state.
 
-- **Triggers `inst:PushEvent("newactiveitem", {})`** — Clears active item reference when UI is closed.
-- **Triggers `inst:PushEvent("inventoryclosed")`** — Notifies systems that the inventory is closed.
+- **Pushes:**
+  - `"newactiveitem"` with `{}` – Fired during detachment to clear active item on client.
+  - `"inventoryclosed"` – Fired during detachment to notify UI systems.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("inventory_replica")
+
+-- Server-side: Open the inventory
+inst.replica.inventory:OnOpen()
+
+-- Client-side: Check visibility
+if inst.replica.inventory:IsVisible() then
+    print("Inventory is open!")
+end
+
+-- Client-side: Get active item
+local item = inst.replica.inventory:GetActiveItem()
+```
+
+## Main functions (continued)
+### `ReturnActiveItem()`, `PutOneOfActiveItemInSlot(slot)`, `PutAllOfActiveItemInSlot(slot)`, `TakeActiveItemFromHalfOfSlot(slot)`, `TakeActiveItemFromCountOfSlot(slot)`, `TakeActiveItemFromAllOfSlot(slot)`, `AddOneOfActiveItemToSlot(slot)`, `AddAllOfActiveItemToSlot(slot)`, `SwapActiveItemWithSlot(slot)`
+*   **Description:** These functions manipulate the active item and inventory slots. Each delegates to `inventory` or `classified` depending on context.
+*   **Parameters:** `slot` (`number`) – Target inventory slot index.
+*   **Returns:** Nothing.
+
+### `UseItemFromInvTile(item)`, `ControllerUseItemOnItemFromInvTile(item, active_item)`, `ControllerUseItemOnSelfFromInvTile(item)`, `ControllerUseItemOnSceneFromInvTile(item)`, `InspectItemFromInvTile(item)`, `DropItemFromInvTile(item, single)`, `CastSpellBookFromInv(item)`
+*   **Description:** These are tile-based interaction handlers used for inventory context actions (e.g., right-click or controller actions). Each checks validity and delegates to `inventory` or `classified`.
+*   **Parameters:**
+    * `item` (`Entity`) – The item entity to interact with.
+    * `active_item` (`Entity?`) – The currently held item (for item-on-item interactions).
+    * `single` (`boolean?`) – Whether to drop only one item from a stack.
+*   **Returns:** Nothing.
+
+### `EquipActiveItem()`, `EquipActionItem(item)`, `SwapEquipWithActiveItem()`, `TakeActiveItemFromEquipSlot(eslot)`
+*   **Description:** Equipment manipulation functions. Each delegates to `inventory` or `classified`.
+*   **Parameters:** `eslot` (`string`) – Equipment slot name; `item` (`Entity`) – Item to equip.
+*   **Returns:** Nothing.
+
+### `MoveItemFromAllOfSlot(slot, container)`, `MoveItemFromHalfOfSlot(slot, container)`, `MoveItemFromCountOfSlot(slot, container, count)`
+*   **Description:** Move items from inventory slots to another container. Each delegates to `inventory` or `classified`.
+*   **Parameters:**
+    * `slot` (`number`) – Source inventory slot.
+    * `container` (`Container?`) – Target container component.
+    * `count` (`number?`) – Number of items to move (used only in `MoveItemFromCountOfSlot`).
+*   **Returns:** Nothing.
+
+### `CanTakeItemInSlot(item, slot)`
+*   **Description:** Checks whether an item can be placed in a given slot.
+*   **Parameters:**
+    * `item` (`Entity`) – The item to test.
+    * `slot` (`number`) – Target slot index.
+*   **Returns:** `boolean` – `true` if the item can be placed.
+
+### `AcceptsStacks()`
+*   **Description:** Checks whether the inventory accepts stacked items (e.g., can accept full stacks of compatible items).
+*   **Parameters:** None.
+*   **Returns:** `boolean` – `true` if stacks are accepted.
+
+### `IgnoresCanGoInContainer()`
+*   **Description:** Checks whether the inventory bypasses `CanGoInContainer` restrictions for items.
+*   **Parameters:** None.
+*   **Returns:** `boolean` – `true` if restrictions are ignored.
+
+### `EquipHasTag(tag)`
+*   **Description:** Checks if any equipped item has a specific tag.
+*   **Parameters:** `tag` (`string`) – The tag to check.
+*   **Returns:** `boolean` – `true` if any equipped item has the tag.
+
+### `IsHolding(item, checkcontainer)`
+*   **Description:** Checks if a specific item is currently held in the inventory or active slot.
+*   **Parameters:**
+    * `item` (`Entity`) – The item to check.
+    * `checkcontainer` (`boolean?`) – Whether to check contained items.
+*   **Returns:** `boolean` – `true` if holding the item.
+
+### `FindItem(fn)`
+*   **Description:** Finds an item in the inventory that matches a given predicate function.
+*   **Parameters:** `fn` (`function`) – Function taking an item and returning a boolean.
+*   **Returns:** `Entity?` – The first matching item, or `nil`.
+
+### `GetItems()`, `GetEquips()`, `GetOverflowContainer()`, `IsFull()`, `HasItemWithTag(tag, amount)`
+*   **Description:** Additional query functions returning inventory state. All delegate to `inventory` or `classified`.
+*   **Returns:** `GetItems`: `table` of item entities; `GetEquips`: `table` of equipped items; `GetOverflowContainer`: `container_replica?`; `IsFull`: `boolean`; `HasItemWithTag`: `boolean, number`.
+
+## Notes
+- This component does *not* manage inventory logic (e.g., adding/removing items); it only provides a network-safe read/write interface that delegates to the actual `inventory` component on the server or the `classified` object on the client.
+- Server and client code paths diverge based on `TheWorld.ismastersim`. On server, a new `inventory_classified` is spawned; on client, an existing one is attached.
+- Action filters (`HeavyLiftingActionFilter`, `FloaterHeldActionFilter`) dynamically adjust available actions based on classified state.

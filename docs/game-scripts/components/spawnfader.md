@@ -1,64 +1,77 @@
 ---
 id: spawnfader
 title: Spawnfader
-description: Manages visual fade-in and fade-out transitions for an entity during spawning and death using animation color overrides.
+description: Manages visibility fading for newly spawned entities to reduce abrupt appearance.
+tags: [network, fx, entity]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 4c69e3f2
+system_scope: fx
 ---
-
 # Spawnfader
 
-## Overview
-The Spawnfader component controls the visual appearance of an entity during its spawn and death phases by smoothly transitioning its opacity via animation color overrides. It supports both server-authoritative (master sim) and client-side fading, integrates with networked state, and ensures consistent visual behavior across clients. It also manages the `NOCLICK` tag to prevent interaction during transitions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies:** Requires the entity to have a valid `AnimState` component and `highlightchildren` (optional) for child entity color overrides.
-- **Tags Added:** `NOCLICK` (added while fading; removed upon completion on master sim).
-- **Tags Removed:** None.
-- **Network Events Used:** Listens to `"fadedirty"` and `"death"` events on non-master clients; pushes `"spawnfaderin"` and `"spawnfaderout"` events upon completion.
+## Overview
+`Spawnfader` controls the fade-in or fade-out animation for an entity’s visual appearance upon spawning. It handles smooth alpha transitions via colour override on the entity's `AnimState`, ensuring entities do not appear suddenly. This component is designed to run only on the client in multiplayer environments, syncing its state via `net_tinybyte` and `net_bool` types. It also manages the `NOCLICK` tag to prevent interaction during fading.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("spawnfader")
+-- Fade the entity in upon spawn
+inst.components.spawnfader:FadeIn()
+-- Or fade it out if it should appear from behind a screen
+inst.components.spawnfader:FadeOut()
+```
+
+## Dependencies & tags
+**Components used:** `AnimState` (via `self.inst.AnimState:OverrideMultColour(...)`), `highlightchildren` (optional entity property)
+**Tags:** Adds `NOCLICK` during active fade; removes it upon completion.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | Reference to the entity the component is attached to. |
-| `_fade` | `net_tinybyte` | `net_tinybyte(inst.GUID, "spawnfader._fade", "fadedirty")` | Networked property tracking fade progress (0–7 range). |
-| `_fadeout` | `net_bool` | `net_bool(inst.GUID, "spawnfader._fadeout")` | Networked boolean indicating if fading is outgoing (true) or incoming (false). |
-| `fadeval` | `number` | `0` | Local normalized fade value (0 = fully visible, 1 = fully hidden). |
-| `updating` | `boolean` | `false` | Indicates whether the fade animation is currently running. |
+| `_fade` | `net_tinybyte` | (network variable) | Network variable storing scaled fade progress (0–7), used for replication and sync. |
+| `_fadeout` | `net_bool` | (network variable) | Network boolean indicating whether fading out (`true`) or fading in (`false`). |
+| `fadeval` | number | `0` | Local alpha progress value: `1.0` initially (fully faded), decreasing over time to `0` (fully visible). |
+| `updating` | boolean | `false` | Whether the component is actively updating the fade animation. |
 
-## Main Functions
-
+## Main functions
 ### `FadeIn()`
-* **Description:** Initiates a fade-in animation (opacity increases from 0 to full), hiding the entity during spawn and gradually revealing it. Also adds the `NOCLICK` tag and starts the update loop.
+* **Description:** Starts a fade-in sequence, gradually revealing the entity over time. Also adds the `NOCLICK` tag until fade completes.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Safe to call multiple times; re-initiates the fade.
 
 ### `FadeOut()`
-* **Description:** Initiates a fade-out animation (opacity decreases to 0), used during entity death. Adds the `NOCLICK` tag and starts the update loop.
+* **Description:** Starts a fade-out sequence, gradually making the entity invisible over time. Also adds the `NOCLICK` tag until fade completes.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Safe to call multiple times; re-initiates the fade.
 
 ### `Cancel()`
-* **Description:** Immediately halts the current fade animation and resets visual state to fully visible (unless already complete). Does not remove tags or stop updates automatically.
+* **Description:** Immediately stops the fade and sets `fadeval` to zero, causing immediate visibility.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Only effective if `updating` is `true`; otherwise has no effect.
 
 ### `OnUpdate(dt)`
-* **Description:** Called every frame while fading to update the entity's and its children's color multiplier opacity using a quadratic easing function. Handles cleanup (tag removal, event push) when fade completes.
-* **Parameters:**
-  * `dt` (`number`): Delta time in seconds since the last frame.
+* **Description:** Called every frame during fading to update the alpha multiplier using a quadratic ease-out curve. Applies colour override to the entity and its highlight children.
+* **Parameters:** `dt` (number) — time elapsed since last frame.
+* **Returns:** Nothing.
+* **Error states:** None; handles zero or negative `fadeval` by halting updates and pushing completion events.
 
 ### `OnRemoveFromEntity()`
-* **Description:** Cleans up event listeners on non-master sim clients when the component is removed from its entity.
+* **Description:** Cleans up event listeners when the component is removed from an entity.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens to:**
-  - `"fadedirty"` — Triggers `OnFadeDirty` to sync fade state on non-master sim clients.
-  - `"death"` — Triggers `OnDeath`, which calls `Cancel()` to stop any active fade and reset state.
-- **Pushes:**
-  - `"spawnfaderin"` — Pushed when fade-in completes (`fadeval <= 0` and not fading out).
-  - `"spawnfaderout"` — Pushed when fade-out completes (`fadeval <= 0` and fading out).
+## Events & listeners
+- **Listens to:** `fadedirty` — triggers immediate fade update from network sync (`OnFadeDirty`).
+- **Listens to:** `death` — cancels any active fade when the entity dies (`OnDeath`).
+- **Pushes:** `spawnfaderin` — fired when fade-in completes (`fadeval <= 0` and `fadingout == false`).
+- **Pushes:** `spawnfaderout` — fired when fade-out completes (`fadeval <= 0` and `fadingout == true`).

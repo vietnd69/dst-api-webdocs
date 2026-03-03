@@ -1,88 +1,99 @@
 ---
 id: linkeditemmanager
 title: Linkeditemmanager
-description: Manages bidirectional associations between players and items requiring persistent ownership tracking, ensuring items linked to a player are notified of ownership changes when players join, leave, or initialize.
+description: Manages persistent associations between player entities and linked items, ensuring items track their creator/owner and respond appropriately when players join or leave the world.
+tags: [player, inventory, network, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: components
 source_hash: ca7902c6
+system_scope: entity
 ---
 
 # Linkeditemmanager
 
-## Overview
-This component operates on the master simulation thread and maintains a registry of items that are linked to specific players—ensuring that those items can dynamically update their reference to the current owner when the player joins or leaves the world. It coordinates with the `linkeditem` component on individual items and supports initialization synchronization via the skill tree handshake. It is intended for use cases such as tracking item creators or assigning transient ownership that must survive player disconnections.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Requires master simulation**: Asserts `TheWorld.ismastersim` and does not instantiate on clients.
-- **No components added**: It is a standalone manager, not attached to entities.
-- **No tags set**: Does not add or remove tags from entities.
-- **Dependencies on external events**:
-  - `ms_playerjoined`
-  - `ms_playerleft`
-  - `ms_registerlinkeditem`
-  - `ms_unregisterlinkeditem`
-  - `ms_skilltreeinitialized`
+## Overview
+`LinkedItemManager` is a server-side component responsible for maintaining dynamic relationships between player entities and "linked items"—items that must track which player created or owns them. It operates exclusively on the master simulation and ensures that when a `linkeditem` is registered, it receives the appropriate owner instance (via `SetOwnerInst`) and initialization callbacks (via `OnSkillTreeInitialized`) upon player join or skill tree readiness. This is necessary because standard `EntityTracker` cannot reliably handle player-specific item associations in DST.
+
+## Usage example
+```lua
+-- Typically added automatically by the game on the master world.
+-- Example of how a linked item registers itself during creation:
+local inst = CreateEntity()
+inst:AddComponent("linkeditem")
+inst.components.linkeditem:SetOwnerInst(owner)
+inst.components.linkeditem:OnSkillTreeInitialized()
+
+-- Internally, items use the manager event:
+TheWorld:PushEvent("ms_registerlinkeditem", {
+    owner_userid = owner.userid,
+    item = inst
+})
+```
+
+## Dependencies & tags
+**Components used:** `linkeditem` (via `data.item.components.linkeditem`)
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed to constructor) | Reference to the owner entity of this manager (typically the world root). |
-| `linkeditems` | `table<uint, table<Entity, boolean>>` | `{}` | Maps `userid` → set of linked item entities. |
-| `players` | `table<uint, Entity>` | `{}` | Maps `userid` → active player entity. |
-| `waitingforinitialization` | `table<Entity, boolean>` | `{}` | Tracks players awaiting skill tree initialization before calling `OnSkillTreeInitialized` on their linked items. |
-| `OnSkillTreeInitialized` | `function` | (lambda function) | Callback triggered when a player finishes skill tree initialization; dispatches initialization to pending linked items. |
+| `linkeditems` | table | `{}` | Mapping of `player.userid` → `{ linked_item_instance → true }`, tracking all items associated with each player. |
+| `players` | table | `{}` | Mapping of `player.userid` → `player` entity, for quick lookup of active players. |
+| `waitingforinitialization` | table | `{}` | Tracks players whose skill trees have not yet initialized; items for such players delay `OnSkillTreeInitialized` calls. |
 
-## Main Functions
-
+## Main functions
 ### `ForEachLinkedItemForPlayer(player, callback, ...)`
-* **Description:** Iterates over all items currently linked to a given player and invokes the provided callback on each. Uses a shallow copy of the items set to avoid modification during iteration.
-* **Parameters:**
-  - `player` (`Entity`): The player whose linked items should be processed.
-  - `callback` (`function`): Function to call for each item; signature is `callback(item, player, ...)`.
-  - `...` (`any`, optional): Additional arguments forwarded to the callback.
+*   **Description:** Iterates over all linked items registered to a specific player and invokes a callback for each.
+*   **Parameters:**
+    *   `player` (Entity) — the player whose linked items to iterate over.
+    *   `callback` (function) — called as `callback(item, player, ...)`.
+    *   `...` — arbitrary additional arguments passed to the callback.
+*   **Returns:** Nothing.
+*   **Error states:** Uses `shallowcopy` to avoid iteration conflicts; safe to modify `linkeditems` during iteration.
 
 ### `OnPlayerJoined(player)`
-* **Description:** Handles registration of a newly joined player: records the player, updates all previously registered items for this player with the new owner reference, and triggers initialization if the player is ready.
-* **Parameters:**
-  - `player` (`Entity`): The player entity that just joined.
-  - **Skips snapshot sessions** (`player.is_snapshot_user_session` is ignored).
-  - If the player is already `READY` for skill tree use, linked items are initialized immediately.
-  - Otherwise, registers for the `ms_skilltreeinitialized` event.
+*   **Description:** Registers a newly joined player, assigns current owner instances to any pre-existing linked items associated with them, and triggers `OnSkillTreeInitialized` if the skill tree is ready.
+*   **Parameters:** `player` (Entity) — the joining player.
+*   **Returns:** Nothing.
+*   **Error states:** Skips snapshot user sessions (`player.is_snapshot_user_session == true`).
 
 ### `OnPlayerLeft(player)`
-* **Description:** Handles cleanup when a player leaves: clears all linked items' owner references for this player, removes the player from tracking, and cancels pending skill tree initialization.
-* **Parameters:**
-  - `player` (`Entity`): The player entity that left.
+*   **Description:** Cleans up references to a leaving player by clearing their owner instance from linked items and removing them from internal tracking tables.
+*   **Parameters:** `player` (Entity) — the leaving player.
+*   **Returns:** Nothing.
+*   **Error states:** Skips snapshot user sessions; safely removes callbacks if skill tree initialization is pending.
 
 ### `OnRegisterLinkedItem(data)`
-* **Description:** Registers a new item as linked to a specific player, updating internal bookkeeping and immediately assigning ownership if the player is active.
-* **Parameters:**
-  - `data` (`table`): Must contain:
-    - `owner_userid` (`uint`)
-    - `item` (`Entity`)
-  - Creates the per-player item set if missing.
-  - Sets `linkeditem` component's owner to the current player (if present).
-  - Calls `OnSkillTreeInitialized` on the item if the player is already ready.
+*   **Description:** Registers a new linked item for a specific player. Sets the item’s owner and triggers initialization if the player is ready.
+*   **Parameters:**
+    *   `data` (table) with keys:
+        *   `owner_userid` (string) — player user ID.
+        *   `item` (Entity) — the linked item instance.
+*   **Returns:** Nothing.
+*   **Error states:** Ensures `item:IsValid()` and `linkeditem` component exists before acting.
 
 ### `OnUnregisterLinkedItem(data)`
-* **Description:** Removes an item from a player’s linked set and clears its owner reference.
-* **Parameters:**
-  - `data` (`table`): Must contain:
-    - `owner_userid` (`uint`)
-    - `item` (`Entity`)
-  - Cleans up empty per-player sets.
-  - Notifies the item’s `linkeditem` component that ownership is cleared.
+*   **Description:** Removes an item from the manager's tracking for a given player and clears its owner instance.
+*   **Parameters:**
+    *   `data` (table) with keys:
+        *   `owner_userid` (string) — player user ID.
+        *   `item` (Entity) — the linked item instance.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if the player’s item group is not registered.
 
-## Events & Listeners
-- **Listens for:**
-  - `ms_playerjoined` → calls `OnPlayerJoined`
-  - `ms_playerleft` → calls `OnPlayerLeft`
-  - `ms_registerlinkeditem` → calls `OnRegisterLinkedItem`
-  - `ms_unregisterlinkeditem` → calls `OnUnregisterLinkedItem`
-  - `ms_skilltreeinitialized` (per-player) → calls `OnSkillTreeInitialized` (callback function)
-- **Emits no events**: This component acts as a passive coordinator and does not push events to other systems.
+## Events & listeners
+- **Listens to:**
+  - `ms_playerjoined` — triggers `OnPlayerJoined` on new player join.
+  - `ms_playerleft` — triggers `OnPlayerLeft` on player logout/leave.
+  - `ms_registerlinkeditem` — triggers `OnRegisterLinkedItem` when an item registers itself.
+  - `ms_unregisterlinkeditem` — triggers `OnUnregisterLinkedItem` when an item unregisters.
+  - `ms_skilltreeinitialized` — per-player event listened for delayed initialization.
+- **Pushes:** None.
+
+`<`!-- End of documentation -->

@@ -1,55 +1,69 @@
 ---
 id: ruinsshadelingspawner
 title: Ruinsshadelingspawner
-description: Spawns and manages a Ruin Shadeling entity when a specific unsittable chair is placed in a Nightmare-tier ruin, with cooldown and cleanup logic.
+description: Manages spawning and lifecycle of a shadeling entity tied to an unsittable chair in a Nightmare-zone node, with cooldown enforcement.
+tags: [spawn, boss, night, environment, chair]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 5d0916fb
+system_scope: world
 ---
 
 # Ruinsshadelingspawner
 
-## Overview
-This component is attached to the world (`TheWorld`) and governs the conditional spawning of a Ruin Shadeling entity on a designated chair inside Nightmare-tier ruins. It enforces a cooldown period between spawns, listens for key events (e.g., shadeling removal, chair unsittability), and manages the shadeling’s lifecycle—including spawning, sit occupation, and automatic despawning when conditions change.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on `TheWorld.components.ruinsshadelingspawner` being registered globally.
-- Listens to events on the spawned `ruins_shadeling` and `chair` entities.
-- No explicit component additions or tags are applied to the spawner entity itself.
-- Uses `TUNING.TOTAL_DAY_TIME` as the default cooldown duration.
+## Overview
+`Ruinsshadelingspawner` is a world-level component responsible for spawning and tracking the `ruins_shadeling` boss entity under specific conditions. It binds the shadeling to a designated chair within a Nightmare-zone visual node, enforcing a cooldown period after a shadeling is defeated or removed. The component listens to shadeling and chair events to manage spawning and cleanup logic automatically.
+
+It operates globally via `TheWorld.components.ruinsshadelingspawner`, indicating it is a singleton-like component attached to `TheWorld` (the world entity), not individual prefabs.
+
+## Usage example
+```lua
+-- Typically added during world initialization, not manually by mods
+local spawner = TheWorld.components.ruinsshadelingspawner
+spawner.cooldown = TUNING.TOTAL_DAY_TIME -- Optional: adjust cooldown duration
+
+-- Attempt to spawn a shadeling at a given chair
+local chair = GetChairPrefab()
+local spawned = spawner:TrySpawnShadeling(chair)
+if spawned ~= nil then
+    -- Shadeling was successfully spawned and seated
+end
+```
+
+## Dependencies & tags
+**Components used:** `sittable` (via `chair.components.sittable`)
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (constructor argument) | Reference to the entity the component is attached to (typically `TheWorld`). |
-| `shadeling` | `Entity?` | `nil` | Reference to the currently active Ruin Shadeling prefab instance, or `nil` if none is spawned. |
-| `cooldowntask` | `Task?` | `nil` | A scheduled task representing the current cooldown timer; `nil` when no cooldown is active. |
-| `cooldown` | `number` | `TUNING.TOTAL_DAY_TIME` | Duration (in seconds) between shadeling spawns. |
+| `shadeling` | `Entity` or `nil` | `nil` | Reference to the currently active shadeling prefab instance. |
+| `cooldowntask` | `Task` or `nil` | `nil` | Active timer task managing the respawn cooldown. |
+| `cooldown` | number | `TUNING.TOTAL_DAY_TIME` | Duration (in seconds) the spawner waits before allowing another spawn. |
 
-## Main Functions
-
+## Main functions
 ### `TrySpawnShadeling(chair)`
-* **Description:** Attempts to spawn a Ruin Shadeling at the given chair’s position if a shadeling is not already spawned, the cooldown has elapsed, and the chair is valid and unoccupied. Spawning only occurs if the chair’s location has a Nightmare-tier visual node.
-* **Parameters:**
-  - `chair` (`Entity`): The chair entity where the shadeling should spawn. Must have a `sittable` component.
+*   **Description:** Attempts to spawn a shadeling at the given chair if all conditions are met: no active shadeling, cooldown inactive, chair is sittable and unoccupied, and the chair's position is inside a Nightmare-zone node.
+*   **Parameters:** `chair` (Entity) – The chair entity at which to spawn the shadeling.
+*   **Returns:** `Entity` (the spawned shadeling prefab) if successful; otherwise `nil`.
+*   **Error states:** Returns `nil` if any condition fails (e.g., shadeling already spawned, chair occupied, or chair not in Nightmare-zone). Spawning fails silently without raising errors.
 
 ### `LongUpdate(dt)`
-* **Description:** Adjusts the remaining cooldown time when the world transitions between time-of-day states (e.g., skipping night). It reschedules the cooldown task to account for time dilation, preserving the intended cooldown duration.
-* **Parameters:**
-  - `dt` (`number`): Delta time (in seconds) to adjust the remaining cooldown.
+*   **Description:** Adjusts the remaining time on the cooldown task during long updates (e.g., when time-scale changes). It cancels the current task and reschedules a new one with updated time if needed.
+*   **Parameters:** `dt` (number) – Delta time to apply when adjusting the remaining cooldown duration.
+*   **Returns:** Nothing.
+*   **Error states:** None identified.
 
-## Events & Listeners
-
-- **Listens on spawned `shadeling`:**
-  - `"ruins_shadeling_looted"` → triggers `OnShadelingLooted`: Cancels any existing cooldown task and restarts cooldown.
-  - `"onremove"` → triggers `OnShadelingRemoved`: Clears `self.shadeling` reference.
-  
-- **Listens on `chair`:**
-  - `"onremove"` → triggers `OnChairRemoved`: Despawns the shadeling if the chair is removed.
-  - `"becomeunsittable"` → triggers `OnChairBecameUnsittable`: Despawns the shadeling if the chair is no longer occupied by it (e.g., player stand-up or external force).
+## Events & listeners
+- **Listens to:** 
+  - `"ruins_shadeling_looted"` – Fired by the shadeling upon looting; triggers cooldown via `OnShadelingLooted`.
+  - `"onremove"` (shadeling) – Fired when the shadeling is removed; clears `shadeling` reference via `OnShadelingRemoved`.
+  - `"onremove"` (chair) – Fired when the chair is removed; despawns the shadeling via `OnChairRemoved`.
+  - `"becomeunsittable"` (chair) – Fired when the chair becomes unsittable (e.g., broken); despawns the shadeling if it is not occupying the chair via `OnChairBecameUnsittable`.
+- **Pushes:** None identified.

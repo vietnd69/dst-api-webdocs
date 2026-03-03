@@ -1,141 +1,162 @@
 ---
 id: periodicspawner
 title: Periodicspawner
-description: Manages periodic spawning of prefabs at or near a spawn-point entity, with configurable timing, density constraints, and spawn conditions.
+description: Manages periodic spawning of prefabs at or around an entity with configurable timing, spatial density, and conditional logic.
+tags: [spawning, world, environment, schedule]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 76f960c5
+system_scope: world
 ---
 
 # Periodicspawner
 
-## Overview
-The `Periodicspawner` component enables an entity to automatically spawn other prefabs at intervals determined by base and random timing values. It supports spatial constraints (range/density and minimum spacing), offscreen-only spawning, custom spawn position logic, conditional spawning via a test function, and optional callbacks on spawn success. It integrates with DST's save/load system and handles both ground and floating (flotsam) spawning contexts.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Internal constants**: Uses `PERIODICSPAWNER_CANTTAGS = { "INLIMBO" }` to exclude limbo entities during density checks.
-- **Method references**: Uses `FunctionOrValue()` and `TheWorld.components.flotsamgenerator` when available.
-- **No external component requirements** on the host entity—however, if the `OnRemoveFromEntity` sentinel is attached to the host entity, stopping the spawner is handled automatically.
-- **No tags added or removed** on the host entity.
+## Overview
+`PeriodicSpawner` is an entity component that schedules and executes periodic spawning of prefabs near the entity to which it is attached. It supports dynamic timing (base time plus random variance), spatial constraints (range, density, and minimum spacing), offscreen spawning control, and custom validation or post-spawn callbacks. It integrates with the `flotsamgenerator` component when spawning occurs over water or non-platform terrain.
+
+The component is typically added to dynamic entities (e.g., flying creatures or floating structures) that periodically emit objects like resources, minions, or effects. It manages its own scheduling loop via `DoTaskInTime`, and supports save/load synchronization through `OnSave`/`OnLoad`.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("periodicspawner")
+inst.components.periodicspawner:SetPrefab("glommerfuel")
+inst.components.periodicspawner:SetRandomTimes(40, 60)
+inst.components.periodicspawner:SetDensityInRange(10, 3)
+inst.components.periodicspawner:SetMinimumSpacing(2)
+inst.components.periodicspawner:Start()
+```
+
+## Dependencies & tags
+**Components used:** `flotsamgenerator` (via `TheWorld.components.flotsamgenerator:SpawnFlotsam`)  
+**Tags:** Checks for and respects `INLIMBO` tag during spawn proximity checks.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `basetime` | `number` | `40` | Base time (in seconds) between spawns before randomization. |
-| `randtime` | `number` | `60` | Random variance (added to `basetime`) to determine actual interval (`basetime + random * randtime`). |
-| `prefab` | `function or string` | `nil` | Prefab to spawn; can be a string (prefab name) or a function returning a prefab name. |
-| `range` | `number or nil` | `nil` | Maximum radius to search for existing entities of same prefab for density checks. |
-| `density` | `number or nil` | `nil` | Maximum number of existing same-prefab entities allowed within `range` (prevents over-spawning). |
-| `spacing` | `number or nil` | `nil` | Minimum distance from the spawn position to any existing same-prefab entity. |
-| `onspawn` | `function or nil` | `nil` | Optional callback invoked after successful spawn: `fn(spawner_inst, spawned_ent)`. |
-| `spawntest` | `function or nil` | `nil` | Optional predicate: `fn(spawner_inst)` must return `true` for spawn to proceed. |
-| `getspawnpointfn` | `function or nil` | `nil` | Optional function providing custom spawn position: `fn(spawner_inst) → Vector3 or nil`. |
-| `spawnoffscreen` | `boolean` | `false` | If `true`, only spawn when the spawner entity is *not* asleep (i.e., offscreen). |
-| `ignoreflotsamgenerator` | `boolean` | `nil` (treated as `false` if unset) | If `true`, skip flotsam spawning logic and always use `SpawnPrefab`. |
-| `task` | `Task or nil` | `nil` | Internal reference to the scheduled spawn task; not a user-facing property. |
-| `target_time` | `number or nil` | `nil` | Epoch time at which the next spawn is scheduled. |
+| `inst` | `Entity` | — | The entity this component is attached to. |
+| `basetime` | number | `40` | Base interval in seconds between spawns. |
+| `randtime` | number | `60` | Random variance added to `basetime` (uniformly `[0, randtime]`). |
+| `prefab` | string or function | `nil` | Prefab name string or a function returning a prefab name. |
+| `range` | number | `nil` | Radius around the spawner to check for existing spawnees (for density/spacing). |
+| `density` | number | `nil` | Max number of same-prefab entities allowed within `range`. |
+| `spacing` | number | `nil` | Minimum distance required between spawn point and any existing same-prefab entity. |
+| `onspawn` | function | `nil` | Optional callback: `fn(spawner_inst, spawned_ent)` called after successful spawn. |
+| `spawntest` | function | `nil` | Optional predicate: `fn(spawner_inst) → boolean`. Spawn only if `true`. |
+| `getspawnpointfn` | function | `nil` | Optional callback: `fn(spawner_inst) → Vector3`. Overrides default spawn position. |
+| `spawnoffscreen` | boolean | `false` | If `true`, only spawns when the entity is `IsAsleep()` (offscreen). |
+| `ignoreflotsamgenerator` | boolean | `nil` | If truthy, bypasses `flotsamgenerator:SpawnFlotsam` and uses `SpawnPrefab` directly. |
+| `task` | Task | `nil` | Internal scheduled task object (read-only, managed internally). |
+| `target_time` | number | `nil` | Unix timestamp when next spawn is scheduled (read-only, managed internally). |
 
-## Main Functions
-
+## Main functions
 ### `SetPrefab(prefab)`
-* **Description:** Sets the prefab to spawn. Validates the prefab exists in the `Prefabs` table (or is a function).  
-* **Parameters:**  
-  - `prefab`: A string (prefab name) or a function returning a string.
+* **Description:** Sets the prefab to spawn. Accepts a string name or a function returning a string.
+* **Parameters:** `prefab` (string | function) — prefab identifier.
+* **Returns:** Nothing.
+* **Error states:** Raises `assert` if `prefab` is not a string (and not in `Prefabs`) and not a function.
 
 ### `SetRandomTimes(basetime, variance, no_reset)`
-* **Description:** Configures spawn timing: total interval = `basetime + random() * variance`. Automatically restarts the spawner unless `no_reset` is `true`.  
+* **Description:** Configures base and random spawn intervals. Optionally resets or preserves the current schedule.
 * **Parameters:**  
-  - `basetime`: Base time in seconds (must be numeric).  
-  - `variance`: Random time offset in seconds (must be numeric).  
-  - `no_reset`: If `true`, do not restart an already-running task.
+  - `basetime` (number) — base delay in seconds.  
+  - `variance` (number) — maximum random extra delay (uniform `0`–`variance`).  
+  - `no_reset` (boolean, optional) — if `true`, do *not* restart the spawn timer.
+* **Returns:** Nothing.
+* **Error states:** Raises `assert` if either argument is not a number.
 
 ### `SetDensityInRange(range, density)`
-* **Description:** Enables density-based limiting: if the number of existing prefabs within `range` reaches or exceeds `density`, spawning is blocked. Requires `range` and `density` > 0.  
+* **Description:** Enforces a maximum count of existing same-prefab entities within a given radius.
 * **Parameters:**  
-  - `range`: Search radius in world units (must be numeric).  
-  - `density`: Maximum allowed count of same-prefab entities within `range`.
+  - `range` (number) — radius around the spawner to search for existing entities.  
+  - `density` (number) — max number of same-prefab entities allowed in `range`. Spawning fails if count ≥ `density`.
+* **Returns:** Nothing.
 
 ### `SetMinimumSpacing(spacing)`
-* **Description:** Ensures new spawns are at least `spacing` units away from any existing same-prefab entity. Implemented as a strict distance check on spawn position.  
-* **Parameters:**  
-  - `spacing`: Minimum Euclidean distance (must be numeric).
+* **Description:** Ensures the spawn location is at least `spacing` units away from any existing same-prefab entity.
+* **Parameters:** `spacing` (number) — minimum required distance (in world units) from any existing entity of the same prefab.
+* **Returns:** Nothing.
 
 ### `SetOnlySpawnOffscreen(offscreen)`
-* **Description:** If `true`, only spawns when the spawner entity is asleep (i.e., offscreen).  
-* **Parameters:**  
-  - `offscreen`: Boolean flag.
+* **Description:** Controls whether spawning occurs only when the entity is offscreen (`IsAsleep()`).
+* **Parameters:** `offscreen` (boolean) — if `true`, spawn only when `inst:IsAsleep()` is `true`.
+* **Returns:** Nothing.
 
 ### `SetOnSpawnFn(fn)`
-* **Description:** Sets the callback invoked after successful spawn.  
-* **Parameters:**  
-  - `fn`: Function with signature `fn(spawner_inst, spawned_entity)`.
+* **Description:** Registers a callback invoked immediately after a successful spawn.
+* **Parameters:** `fn` (function) — `fn(spawner_inst, spawned_ent)`; `spawned_ent` may be `nil` if spawn failed (handled internally).
+* **Returns:** Nothing.
 
 ### `SetSpawnTestFn(fn)`
-* **Description:** Sets a conditional test; spawn only occurs if `fn(spawner_inst)` returns `true`.  
-* **Parameters:**  
-  - `fn`: Predicate function.
+* **Description:** Registers a predicate that must return `true` for a spawn attempt to proceed.
+* **Parameters:** `fn` (function) — `fn(spawner_inst) → boolean`.
+* **Returns:** Nothing.
 
 ### `SetGetSpawnPointFn(fn)`
-* **Description:** Sets a custom position provider; if absent, the default is the spawner's current world position.  
-* **Parameters:**  
-  - `fn`: Function returning a `Vector3` (or `nil` to cancel spawn).
+* **Description:** Overrides the default spawn position (center of the spawner) with a custom position generator.
+* **Parameters:** `fn` (function) — `fn(spawner_inst) → Vector3 | nil`.
+* **Returns:** Nothing.
+* **Error states:** If `fn` returns `nil`, spawn is aborted with a short retry time (`MISSING_SPAWN_POS_RETRY_TIME`).
 
 ### `SetIgnoreFlotsamGenerator(ignores)`
-* **Description:** If `true`, bypasses flotsam spawning logic and uses `SpawnPrefab` unconditionally—even for invalid-terrain positions.  
-* **Parameters:**  
-  - `ignores`: Boolean flag.
+* **Description:** Forces the spawner to skip the `flotsamgenerator`, using `SpawnPrefab` directly (even over water).
+* **Parameters:** `ignores` (boolean) — if `true`, disable `flotsamgenerator` usage.
+* **Returns:** Nothing.
 
 ### `Start(timeoverride)`
-* **Description:** Schedules the next spawn. Cancels any existing task first. Uses `timeoverride` if provided; otherwise uses randomized interval.  
-* **Parameters:**  
-  - `timeoverride` (optional): Number (seconds until spawn). Defaults to `basetime + random * randtime`.
+* **Description:** Starts or restarts the spawn timer. Cancels any existing scheduled spawn.
+* **Parameters:** `timeoverride` (number, optional) — if provided, uses this as the delay instead of `basetime + random * randtime`.
+* **Returns:** Nothing.
 
 ### `SafeStart(timeoverride)`
-* **Description:** Starts the spawner only if no spawn is already scheduled (`target_time == nil`).  
-* **Parameters:**  
-  - `timeoverride` (optional): Number (seconds until spawn).
+* **Description:** Starts the spawner *only* if no spawn is already scheduled.
+* **Parameters:** `timeoverride` (number, optional) — same as `Start`.
+* **Returns:** Nothing.
 
 ### `Stop()`
-* **Description:** Cancels the scheduled task and clears `target_time`. Called automatically on entity removal via `OnRemoveFromEntity`.  
+* **Description:** Cancels any pending spawn and clears scheduled time.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `TrySpawn(prefab)`
-* **Description:** Attempts to spawn one instance of the prefab, respecting all constraints (position, density, offscreen, test function, flotsam context). Returns `false` on failure (and retry delay) or `true` on success.  
-* **Parameters:**  
-  - `prefab` (optional): Prefab to spawn. Defaults to `self.prefab`.
+* **Description:** Executes a single spawn attempt. Checks validity, offscreen state, spawntest, density, and spacing before spawning.
+* **Parameters:** `prefab` (string | function, optional) — overrides `self.prefab` for this attempt.
+* **Returns:**  
+  - `true` if spawn succeeded.  
+  - `false, retry_time` on early abort (e.g., test failed, density exceeded, missing spawn point).  
+* **Error states:** Aborts silently on invalid entity, offscreen-only mode + onscreen state, or `spawntest` returning `false`. Uses `PERIODICSPAWNER_CANTTAGS = { "INLIMBO" }` to skip invalid entities during proximity checks.
 
 ### `DoSpawn()`
-* **Description:** Performs a single spawn attempt and immediately schedules the next one using the retry delay (if any) returned by `TrySpawn`.  
+* **Description:** Performs a full spawn cycle: calls `TrySpawn`, then reschedules the next spawn using returned retry time (if any).
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `LongUpdate(dt)`
-* **Description:** Handles periodic spawner progress in entities with `LongUpdate` capability (e.g., distant players). Updates `target_time` against real time and triggers `DoSpawn()` if overdue.  
-* **Parameters:**  
-  - `dt`: Delta time (seconds) since last update.
+* **Description:** Advanced scheduling method for sub-frame accuracy during world time adjustments (e.g., pause, fast-forward). Resets the timer based on elapsed `dt`.
+* **Parameters:** `dt` (number) — delta time in seconds.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Returns spawn timing state for saving. If a spawn is pending, returns `{ time = seconds_until_next_spawn }`.  
+* **Description:** Called during save serialization. Returns remaining time to next spawn, or `nil` if none scheduled.
 * **Parameters:** None.
+* **Returns:** `{ time = number }` (if scheduled), otherwise `nil`.
 
 ### `OnLoad(data)`
-* **Description:** Restores the spawn timer from saved data. If `data.time` is present, schedules a spawn after that many seconds.  
-* **Parameters:**  
-  - `data`: Table with optional `time` key (seconds to next spawn).
+* **Description:** Called on load to resume pending spawn based on saved time.
+* **Parameters:** `data` (table) — output from `OnSave()`.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a human-readable debug string showing remaining time until next spawn and current prefab.  
+* **Description:** Returns a human-readable debug string for diagnostics.
 * **Parameters:** None.
+* **Returns:** string — e.g., `"Next Spawn: 12.3 prefab: glommerfuel"`.
 
-## Events & Listeners
-- Listens for none (no `inst:ListenForEvent` calls).
-- Pushes none (no `inst:PushEvent` calls).
-- Uses internal scheduled task callbacks (`DoSpawn`) rather than events.
-
-## Sentinel Assignments
-- `PeriodicSpawner.ForceNextSpawn = PeriodicSpawner.DoSpawn`: Allows external code to force an immediate spawn by calling `spawner:ForceNextSpawn()`.
-- `PeriodicSpawner.OnRemoveFromEntity = PeriodicSpawner.Stop`: If assigned as a property on the host entity, this ensures the spawner stops when the entity is removed.
+## Events & listeners
+None identified.  
+(`PeriodicSpawner` uses `DoTaskInTime` for scheduling, but does not register or push any game events.)

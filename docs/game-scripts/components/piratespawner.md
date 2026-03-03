@@ -1,126 +1,134 @@
 ---
 id: piratespawner
 title: Piratespawner
-description: This component manages spawning, behavior, and loot handling for pirate raids in Don't Starve Together, including ship spawning, crew management, and stash generation.
+description: Manages the spawning, behavior, and persistence of pirate raids and associated assets (boats, captains, crew, loot stash) in the game world.
+tags: [ai, boss, loot, spawn, world]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 5be84724
+system_scope: world
 ---
 
 # Piratespawner
 
-## Overview
-This component implements the world-scoped logic for pirate raids in Don't Starve Together. It periodically spawns pirate ships (boat_pirate) with captains and crew members based on player progression and proximity, manages pirate behavior during raids, handles loot stashing, and responds to key game events such as megaflare detonations and player state changes. It operates exclusively on the master simulation and is tied to the world instance.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Required Components (on self.inst):** None explicitly added; `self.inst` is expected to be the world.
-- **Uses Components Dynamically:**
-  - `TheWorld.components.piratespawner` (self-reference)
-  - `player.components.age`, `player.components.health`, `player.components.talker`, `player:GetCurrentPlatform()`, `player.entity:IsVisible()`
-  - `inst.components.container`, `inst.components.inventory`, `inst.components.inventoryitem`
-  - `boat.components.boatcrew`, `boat.components.vanish_on_sleep`
-  - `TheWorld.Map`, `TheWorld.topology`
-- **Tags Used:**
-  - `"irreplaceable"`, `"personal_possession"`, `"cursed"`, `"pirate"`, `"playerghost"`, `"player"`, `"INLIMBO"`, `"fx"`
-  - `"boat"` in entity searches (`MUST_BOAT`)
-- **No components are added to `self.inst`**, but the component is attached to the world and must be the sole instance (`TheWorld.components.piratespawner`).
+## Overview
+`Piratespawner` is a world-scoped component responsible for coordinating pirate raids in DST. It monitors player positions relative to the Queen, determines when and where to spawn pirate ships and crews, manages loot stashes, and handles save/load persistence. The component is initialized only on the master simulation (`TheWorld.ismastersim`) and operates by tracking active players, evaluating zone-based spawn probabilities over time, and interacting with a suite of helper functions and connected components to manage entities, inventory, and events.
+
+## Usage example
+```lua
+-- Typically added automatically to TheWorld in master mode.
+-- Example of manually triggering a pirate spawn:
+local spawner = TheWorld.components.piratespawner
+if spawner then
+    spawner:SpawnPiratesForPlayer(player)
+end
+
+-- Example of accessing the active loot stash:
+local stash = TheWorld.components.piratespawner:GetCurrentStash()
+```
+
+## Dependencies & tags
+**Components used:** `age`, `boatcrew`, `container`, `crewmember`, `health`, `inventory`, `inventoryitem`, `talker`, `vanish_on_sleep`, `walkableplatform`.  
+**Tags:** Does not directly add or remove tags on its own entity (`TheWorld`), but may influence entities it spawns (e.g., `"personal_possession"`, `"cursed"`, `"irreplaceable"`).  
+**External modules:** `util/sourcemodifierlist`, `messagebottletreasures`.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `GEntity` | `inst` (passed to constructor) | The world entity instance this component is attached to. |
-| `_activeplayers` | `table` | `{}` | List of active, non-dead, non-ghost players currently in the world. |
-| `_nextpiratechance` | `number` | `getnextmonkeytime()` | Current countdown timer toward the next pirate raid spawn; decremented each tick. |
-| `_lasttic_players` | `table` | `{}` | Tracks per-player distance metrics (dist, time) from the Queen for zone weighting and spawn logic. |
-| `shipdatas` | `table` | `{}` | List of active pirate ship data records (contains `boat`, `captain`, and `crew` references). |
-| `queen` | `GEntity?` | `nil` | Reference to the `monkeyqueen` entity, if present; used to determine proximity for raid spawns. |
-| `_current_stash` | `GEntity?` | `nil` | Reference to the currently active `pirate_stash` instance; created on-demand. |
-| `_maxpirates` | `number` | `1` | Hardcoded upper bound on concurrent pirate raids (unused in current code logic). |
-| `_minspawndelay` / `_maxspawndelay` | `number` | `TUNING.PIRATE_SPAWN_DELAY.min/max` | Saved/loaded configuration values; not actively used for delay calculation. |
-| `_timescale` | `number` | `1` | Unused placeholder variable. |
-| `zones` | `table` | `{{INNER}, {MID}, {OUTTER}}` | Defines proximity zones around the Queen (max radius, spawn weight, and chance modifier) used in periodic raid spawning. |
+| `inst` | `GEntity` | `nil` | Public reference to the owning instance (`TheWorld`). |
+| `shipdatas` | table | `{}` | Array of `{ boat, captain, crew }` records tracking active pirate ships. |
+| `queen` | `GEntity?` | `nil` | Reference to the `monkeyqueen` entity, used for raid logic. |
 
-## Main Functions
+## Main functions
+### `FindStashLocation()`
+*   **Description:** Locates a valid ground tile near a random topology node, far from all players, for spawning the current loot stash.
+*   **Parameters:** None.
+*   **Returns:** `Vector3` — 3D world coordinates for the stash position.
+*   **Error states:** Returns a position only if a safe, player-free location is found.
 
-### `self:GetCurrentStash()`
-* **Description:** Returns the current pirate loot stash (`pirate_stash`) instance. If no stash exists, it creates one at a random, valid ocean-free location far from players, populates it with generated loot, and stores the reference.
-* **Parameters:** None.
+### `StashLoot(ent)`
+*   **Description:** Moves all items from the entity's container or inventory to the current pirate stash.
+*   **Parameters:** `ent` (`GEntity`) — Entity whose items should be stashed.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if the entity has no inventory/container or stash is nil.
 
-### `self:ClearCurrentStash()`
-* **Description:** Clears the reference to the current stash (`_current_stash = nil`), allowing a new stash to be created on the next call to `GetCurrentStash()`. Does not destroy the stash entity itself.
-* **Parameters:** None.
+### `GetCurrentStash()`
+*   **Description:** Returns the current active loot stash, creating and populating it if needed.
+*   **Parameters:** None.
+*   **Returns:** `GEntity` — The `pirate_stash` entity.
+*   **Error states:** Returns `nil` if stash creation fails (e.g., invalid location).
 
-### `self:SpawnPiratesForPlayer(player, nodelivery, forcedelivery)`
-* **Description:** Triggers a new pirate raid targeting a specific player. Spawns a pirate ship with a captain and crew, optionally includes a treasure delivery (message bottle + cannon) based on chance or flags.
-* **Parameters:**
-  * `player`: The target player entity.
-  * `nodelivery`: If `true`, skips treasure delivery logic (e.g., for non-delivery spawns like megaflare triggers).
-  * `forcedelivery`: If `true`, forces a delivery spawn regardless of chance.
+### `ClearCurrentStash()`
+*   **Description:** Resets the reference to the current stash, allowing a new one to be created on next access.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `self:SpawnPirates(pt)`
-* **Description:** Spawns a pirate ship at an exact world position (`pt`) without player targeting or delivery logic. Used for direct/spontaneous spawns.
-* **Parameters:**
-  * `pt`: A `Vector3` specifying the spawn location.
+### `SpawnPirates(pt)`
+*   **Description:** Spawns a pirate ship and crew at the specified world position.
+*   **Parameters:** `pt` (`Vector3`) — Spawn center for the boat and entities.
+*   **Returns:** Nothing.
+*   **Error states:** Silently fails if boat or crew prefabs cannot spawn.
 
-### `self:StashLoot(ent)`
-* **Description:** Moves all loot from the entity `ent` (container/inventory) into the current pirate stash. Handles items that cannot be stored (e.g., personal_possession, cursed) by destroying them.
-* **Parameters:**
-  * `ent`: The entity whose items are to be stashed.
+### `SpawnPiratesForPlayer(player, nodelivery, forcedelivery)`
+*   **Description:** Attempts to spawn a pirate ship near the given player's current platform.
+*   **Parameters:**  
+    `player` (`GEntity`) — Target player.  
+    `nodelivery` (`boolean`, optional) — If true, skips treasure delivery (e.g., no message bottle).  
+    `forcedelivery` (`boolean`, optional) — If true, forces a delivery event.
+*   **Returns:** `boolean` — `true` if a ship was successfully spawned.
+*   **Error states:** Returns `false` if no platform is found for the player or spawn location is invalid.
 
-### `self:OnUpdate(dt)`
-* **Description:** Core update loop (called every frame) that drives periodic raid spawning based on player proximity to the Queen, triggers pirate music cues, and updates player proximity state (`v.piratesnear`). Uses `zones` configuration and `TryLuckRoll` for weighted spawning.
-* **Parameters:**
-  * `dt`: Delta time in seconds.
+### `OnUpdate(dt)`
+*   **Description:** Core logic loop for raid scheduling and music state. Evaluates player proximity to the Queen, updates spawn timers, checks zones, and manages the `piratesnear` music state for each player.
+*   **Parameters:** `dt` (`number`) — Delta time since last frame.
+*   **Returns:** Nothing.
 
-### `self:LongUpdate(dt)`
-* **Description:** Alias for `OnUpdate(dt)`. Delegates to `self:OnUpdate(dt)`.
+### `LongUpdate(dt)`
+*   **Description:** Alias for `OnUpdate(dt)`. Used by the scheduler for periodic updates.
+*   **Parameters:** `dt` (`number`).
+*   **Returns:** Nothing.
 
-### `self:SaveShipData(shipdata)`
-* **Description:** Appends the given ship data record (with boat, captain, crew) to the `self.shipdatas` list for persistence and runtime tracking.
-* **Parameters:**
-  * `shipdata`: A table containing `boat`, `captain`, and `crew` (array) entries.
+### `SaveShipData(shipdata)`
+*   **Description:** Appends a ship record to the internal `shipdatas` list for persistence and tracking.
+*   **Parameters:** `shipdata` (`table`) — Ship data table containing `boat`, `captain`, and `crew`.
+*   **Returns:** Nothing.
 
-### `self:RemoveShipData(ship)`
-* **Description:** Removes a ship data record from `self.shipdatas` by matching the `boat` entity reference.
-* **Parameters:**
-  * `ship`: The `boat` entity to remove.
+### `RemoveShipData(ship)`
+*   **Description:** Removes the ship record associated with the given boat entity.
+*   **Parameters:** `ship` (`GEntity`) — The boat entity.
+*   **Returns:** Nothing.
 
-### `self:OnSave()`
-* **Description:** Serializes component state for world save. Captures player timer state, current stash GUID, and all active ship data (boat, captain, crew GUIDs).
-* **Parameters:** None.
-* **Returns:** A `data` table and an `ents` array of referenced GUIDs.
+### `OnSave()`
+*   **Description:** Compiles runtime state into a saveable table, including ship GUIDs and active stash reference.
+*   **Parameters:** None.
+*   **Returns:** `data` (`table`), `ents` (`table<string>`) — Save data table and list of referenced entity GUIDs.
 
-### `self:OnLoad(data)`
-* **Description:** Restores numeric and timer state (`_maxpirates`, `_nextpiratechance`) during load.
-* **Parameters:**
-  * `data`: The component section of the world save data.
+### `OnLoad(data)`
+*   **Description:** Restores simple numeric/state values from save data at early load time.
+*   **Parameters:** `data` (`table`) — Loaded component data.
+*   **Returns:** Nothing.
 
-### `self:LoadPostPass(newents, savedata)`
-* **Description:** Reconstructs ship data records using GUIDs from the save file, reattaching components and reinitializing crew/boat logic.
-* **Parameters:**
-  * `newents`: Table of GUID→entity mappings from the current world load.
-  * `savedata`: The `piratespawner` component save data section.
+### `LoadPostPass(newents, savedata)`
+*   **Description:** Reconstructs entities and component relationships after `newents` is populated. Connects saved GUIDs to real entities and reattaches components.
+*   **Parameters:**  
+    `newents` (`table<string, { entity }>`) — Map of GUIDs to loaded entities.  
+    `savedata` (`table?`) — Saved component data from `OnSave`.
+*   **Returns:** Nothing.
 
-### `self:FindStashLocation()`
-* **Description:** Computes a valid spawn location for a pirate stash in the ocean, ensuring it is distant from players and on solid ground.
-* **Parameters:** None.
-* **Returns:** A `Vector3` representing the stash position.
+## Events & listeners
+- **Listens to:**  
+  - `ms_playerjoined` — Adds player to `_activeplayers`.  
+  - `ms_playerleft` — Removes player from `_activeplayers`.  
+  - `megaflare_detonated` — On successful roll, may trigger a pirate spawn near the detonation.  
+  - `onremove` — Attached to the Queen to clear `self.queen` when it is removed.  
+  - `spawnnewboatleak` — Attached to pirate boats; sets `boatcrew.flee = true` and schedules retreat announcements.
 
-### `self:StashLoot(ent)`
-* **Description:** Moves all items from the given entity (container or inventory) to the current stash, applying `ShouldRemoveItem` logic first.
-* **Parameters:**
-  * `ent`: The source entity with items to stash.
-
-## Events & Listeners
-- Listens to `"ms_playerjoined"` → triggers `OnPlayerJoined`
-- Listens to `"ms_playerleft"` → triggers `OnPlayerLeft`
-- Listens to `"megaflare_detonated"` (on `TheWorld`) → triggers `onmegaflaredetonation`
-- Listens to `"onremove"` (on `self.queen`) → sets `self.queen = nil`
-- Listens to `"spawnnewboatleak"` (on pirate boat) → triggers `HitByCannon`
-- Listens to `"victory"` (on pirate captain) — triggered by `Pirate_AnnounceRetreat`
-- Listens to `"onremove"` (on each monkey/captain) → triggers `ForgetMonkey`
+- **Pushes:**  
+  - `victory` — Fired on the pirate captain when retreat is announced (contains `say` key with localized text).  
+  - `dropitem` — Emitted on the stasher entity when items are dropped during stash operations.

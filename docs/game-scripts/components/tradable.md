@@ -1,32 +1,41 @@
 ---
 id: tradable
 title: Tradable
-description: Marks an entity as having a base gold value for trading purposes in the game's economy system.
+description: Stores a numeric gold value for an entity, used to determine its worth in trade transactions.
+tags: [trade, economy, entity]
 sidebar_position: 1
-
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: inventory
+category_type: components
 source_hash: c3b7e338
+system_scope: economy
 ---
-
 # Tradable
 
-## Overview
-The `Tradable` component assigns a numeric gold value to an entity, enabling it to be traded in the game's economic system. It serves as a foundational marker and data container for items that can be bought or sold by players.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Tradable` is a simple component that assigns a numeric gold value to an entity. It is used by the game's economy and trading systems to determine how much an item or entity is worth when bought, sold, or traded. The component itself only stores the value; higher-level logic in other systems (e.g., trader prefabs or UI) interprets and acts on this value.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("tradable")
+inst.components.tradable.goldvalue = 50
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified  
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `goldvalue` | `number` | `0` | The base gold value of the entity; used to determine its worth in trades. |
+| `goldvalue` | number | `0` | The integer gold value assigned to the entity. |
 
-## Main Functions
-No external-facing functions are defined or exported beyond the constructor. The component only initializes internal state.
+## Main functions
+No public functions are defined beyond property access.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified

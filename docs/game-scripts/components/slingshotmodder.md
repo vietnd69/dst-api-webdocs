@@ -1,43 +1,64 @@
 ---
 id: slingshotmodder
 title: Slingshotmodder
-description: Manages the opening and closing of the slingshot mod interface for a target entity, enforcing ownership restrictions when applicable.
+description: Validates ownership restrictions and manages opening/closing of slingshot modification interfaces on target items.
+tags: [inventory, crafting, network]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: a32b38f5
+system_scope: inventory
 ---
 
 # Slingshotmodder
 
-## Overview
-The `SlingshotModder` component provides an interface for starting and stopping the slingshot modification process on a target entity (typically a slingshot). It checks ownership restrictions before allowing modification and delegates the actual UI interaction to the target's `slingshotmods` component.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies:**
-  - `linkeditem` (if present on the target) — used to verify ownership.
-  - `slingshotmods` (required on the target) — used to invoke `Open` and `Close` methods.
-- **Tags:** None identified.
+## Overview
+`Slingshotmodder` is a lightweight helper component that encapsulates the logic for initiating and terminating slingshot modifications on an item. It verifies ownership constraints via `linkeditem` and delegates container operations to the `slingshotmods` component on the target entity. This component is typically attached to the modder (e.g., a player or tool) to orchestrate safe, permission-aware access to slingshot modification UI.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("slingshotmodder")
+
+-- Attempt to start modifying a target item with a user (e.g., player)
+local success, reason = inst.components.slingshotmodder:StartModding(target, user)
+if not success then
+    print("Modification blocked:", reason)
+end
+
+-- Later, to close the modification interface
+inst.components.slingshotmodder:StopModding(target, user)
+```
+
+## Dependencies & tags
+**Components used:** `linkeditem`, `slingshotmods`  
+**Tags:** None identified.
 
 ## Properties
-No public properties are initialized in the constructor. The component only stores a reference to the entity (`self.inst`) during construction.
+No public properties.
 
-## Main Functions
+## Main functions
 ### `StartModding(target, user)`
-* **Description:** Attempts to open the slingshot mod interface for the target entity on behalf of the user. Enforces that only the item's owner may modify it if the item is restricted to owner use.
+* **Description:** Validates that the `user` is authorized to modify `target` (respecting ownership restrictions), then opens the `slingshotmods` interface for the target. Returns success status and an optional reason code on failure.
 * **Parameters:**
-  - `target`: The entity (e.g., a slingshot) to be modified. Must have a `slingshotmods` component to proceed successfully.
-  - `user`: The player attempting to start modding. Used for ownership verification and passed to `slingshotmods:Open`.
+  * `target` (Entity) – The entity possessing the `slingshotmods` component and optionally the `linkeditem` component.
+  * `user` (Entity, optional) – The entity attempting to open the interface; must have a `userid` property if provided.
+* **Returns:** `success` (boolean), `reason` (string, optional) — `success` is `true` if opening succeeded; `false` otherwise. On failure, `reason` is `"NOT_MINE"` when ownership restriction is violated.
+* **Error states:** Fails with `"NOT_MINE"` if `target` has `linkeditem` with `IsEquippableRestrictedToOwner()` returning `true`, and `user.userid` does not match the item's owner. Also returns `false` if `target.components.slingshotmods` is missing or `:Open(user)` fails.
 
 ### `StopModding(target, user)`
-* **Description:** Attempts to close the slingshot mod interface for the target entity if open. Returns whether the operation succeeded (based on `slingshotmods:Close`).
+* **Description:** Closes the `slingshotmods` interface on `target` for the given `user`.
 * **Parameters:**
-  - `target`: The entity whose mod interface should be closed.
-  - `user`: The player attempting to stop modding (passed to `slingshotmods:Close`).
+  * `target` (Entity) – The entity whose `slingshotmods` container should be closed.
+  * `user` (Entity) – The entity that previously opened the interface.
+* **Returns:** `success` (boolean) — `true` if the `slingshotmods:Close(user)` call succeeded; `false` if `slingshotmods` is missing or closing failed (e.g., mismatched opener or non-master simulation).
+* **Error states:** Returns `false` if `target` lacks a `slingshotmods` component or the underlying `:Close()` operation fails.
 
-## Events & Listeners
-None.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** None. (This component does not fire events; it relies on `slingshotmods` to emit `ms_slingshotmodsclosed`.)

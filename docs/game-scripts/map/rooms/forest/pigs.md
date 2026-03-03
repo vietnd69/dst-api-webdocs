@@ -4,7 +4,6 @@ title: Pigs
 description: Defines forest biome room templates for pig settlements, including pig houses, shrines, and villages, with randomized contents and conditional decor based on special events.
 tags: [world, rooms, procedural, event]
 sidebar_position: 1
-
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: ecde8594
 ---
-
 # Pigs
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -55,4 +53,3 @@ This file does not define any functions. All configuration is done through top-l
 
 This file does not define any event listeners or push any events.
 
----

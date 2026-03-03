@@ -1,38 +1,52 @@
 ---
 id: shard_wagbossinfo
 title: Shard Wagbossinfo
-description: Tracks and synchronizes the defeated state of the Wagboss across shards in Don't Starve Together.
+description: Tracks whether the Wagboss boss has been defeated on the master shard, for use across shards in DST's networked world.
+tags: [network, boss, world]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: map
 source_hash: 07fce7b5
+system_scope: network
 ---
 
 # Shard Wagbossinfo
 
-## Overview
-This component maintains and synchronizes the defeat status of the Wagboss (a boss entity in the game) across the master shard and client shards in multiplayer. It acts as a lightweight synchronization bridge by exposing a boolean flag (`_isdefeated`) that reflects whether the Wagboss has been defeated, ensuring consistency between server-authoritative state and client-side queries.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies:** Relies on `TheWorld.components.wagboss_tracker` being present (used during initialization on the master shard).
-- **Tags:** None identified.
-- **Network Dependencies:** Uses `net_bool` to synchronize state via the `"shard_wagbossinfo._isdefeated"` network variable, requiring the `master_wagbossinfoupdate` event to be dispatched by `wagboss_tracker`.
+## Overview
+`Shard_WagbossInfo` is a network-aware component that stores and synchronizes the defeat status of the Wagboss boss (from the *Shipwrecked* DLC) across shards in a multiplayer DST world. It only runs on the master simulation shard and mirrors the state via a networked boolean (`_isdefeated`). It reads initial state from `wagboss_tracker` and listens for updates to keep the status consistent.
+
+## Usage example
+```lua
+-- Automatically added to an appropriate entity (e.g., TheWorld)
+-- Typically used internally by the game; external usage is rare.
+-- Check defeat status via:
+if TheWorld.components.shard_wagbossinfo:IsWagbossDefeated() then
+    -- Wagboss has been defeated
+end
+```
+
+## Dependencies & tags
+**Components used:** `wagboss_tracker` (reads `IsWagbossDefeated()` on init), `net_bool` (network synchronization)
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
-|---------|------|---------------|-------------|
-| `inst` | `Entity` | (passed to constructor) | Reference to the entity the component is attached to (typically `TheWorld` or a world shard instance). |
-| `_isdefeated` | `net_bool` | `false` | Networked boolean tracking whether the Wagboss is defeated; synchronized from master shard to clients. |
+|----------|------|---------------|-------------|
+| `inst` | `GameClient/Entity` | `self` | Reference to the entity the component is attached to (e.g., `TheWorld`). |
+| `_isdefeated` | `net_bool` | `false` | Networked boolean indicating if Wagboss is defeated; synchronized on master shard. |
 
-## Main Functions
+## Main functions
 ### `IsWagbossDefeated()`
-* **Description:** Returns the current defeat status of the Wagboss as a boolean value.
+* **Description:** Returns whether the Wagboss boss has been defeated.
 * **Parameters:** None.
+* **Returns:** `boolean` — `true` if Wagboss is defeated, `false` otherwise.
+* **Error states:** None.
 
-## Events & Listeners
-- **Listens for:** `"master_wagbossinfoupdate"` event (on master shard only) — triggers `OnWagbossInfoUpdate` to update `_isdefeated` from incoming `data.isdefeated`.
-- **Triggers:** None directly (the `net_bool` variable is implicitly synchronized; updating `_isdefeated` via `:set()` propagates changes to other shards).
+## Events & listeners
+- **Listens to:** `master_wagbossinfoupdate` — triggered when master shard state changes; updates `_isdefeated` value from event data (`data.isdefeated`).
+- **Pushes:** None.

@@ -1,80 +1,101 @@
 ---
 id: boatcannon
 title: Boatcannon
-description: Manages the state and actions of a boat-mounted cannon, including aiming, loading, and firing.
+description: Manages loading, aiming, and firing operations for a boat-mounted cannon, including ammo state tracking and projectile launch with recoil physics.
+tags: [combat, vehicle, physics, projectile]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: combat
+category_type: components
 source_hash: e9719b61
+system_scope: combat
 ---
 
 # Boatcannon
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Boatcannon` component governs the functionality of cannons that can be mounted on boats. It manages the cannon's state, such as whether it is loaded with ammunition or being operated by a player. Its primary responsibilities include handling the loading of ammo, processing the aiming state when a player interacts with it, and executing the firing sequence, which spawns a projectile and applies a recoil force to the parent boat.
+`BoatCannon` is a component attached to cannon entities (typically mounted on boats) to handle operational logic: loading ammo, aiming via a user (operator), firing projectiles, and applying recoil to the boat platform. It integrates with `boatcannonuser`, `boatphysics`, and `complexprojectile` components to coordinate aiming, physics feedback, and projectile spawning.
 
-## Dependencies & Tags
-**Dependencies:**
-*   Uses `boatphysics` component on the parent boat entity to apply recoil.
-*   The spawned projectile requires a `complexprojectile` component.
+## Usage example
+```lua
+local cannon = SpawnPrefab("boatcannon")
+cannon:AddComponent("boatcannon")
+cannon.components.boatcannon:LoadAmmo("cannonball")
+cannon.components.boatcannon:StartAiming(player_entity)
+cannon.components.boatcannon:Shoot()
+```
 
-**Tags:**
-*   `ammoloaded`: Added to the entity when ammunition is loaded. Removed when fired or unloaded.
-*   `occupied`: Added to the entity when a player starts aiming. Removed when they stop.
+## Dependencies & tags
+**Components used:** `boatcannonuser`, `boatphysics`, `complexprojectile`  
+**Tags:** Adds/removes `"ammoloaded"` based on loaded ammo state; adds `"occupied"` when a user is aiming.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
-| :--- | :--- | :--- | :--- |
-| `loadedammo` | `string` or `nil` | `nil` | The prefab name of the ammunition currently loaded in the cannon. |
-| `operator` | `Entity` or `nil` | `nil` | The entity instance (player) currently operating the cannon. |
-| `onstartfn` | `function` or `nil` | `nil` | An optional callback function to execute when a player starts aiming. |
-| `onstopfn` | `function` or `nil` | `nil` | An optional callback function to execute when a player stops aiming. |
+|----------|------|---------------|-------------|
+| `loadedammo` | string or `nil` | `nil` | Prefab name of the currently loaded projectile. |
+| `operator` | Entity or `nil` | `nil` | The entity currently operating (aiming) the cannon. |
 
-## Main Functions
-
+## Main functions
 ### `SetOnStartAimingFn(fn)`
-*   **Description:** Sets a callback function to be executed when an operator begins aiming the cannon.
-*   **Parameters:**
-    *   `fn`: The function to call. It will receive the cannon instance and the operator instance as arguments.
+* **Description:** Sets a callback function executed when aiming begins.
+* **Parameters:** `fn` (function) — signature `(cannon_inst, operator_inst)`.
+* **Returns:** Nothing.
 
 ### `SetOnStopAimingFn(fn)`
-*   **Description:** Sets a callback function to be executed when an operator stops aiming the cannon.
-*   **Parameters:**
-    *   `fn`: The function to call. It will receive the cannon instance and the operator instance as arguments.
+* **Description:** Sets a callback function executed when aiming stops.
+* **Parameters:** `fn` (function) — signature `(cannon_inst, operator_inst)`.
+* **Returns:** Nothing.
 
 ### `StartAiming(operator)`
-*   **Description:** Initiates the aiming state for the cannon. It sets the current operator, adds the `occupied` tag, and triggers the `onstartfn` callback if it exists.
-*   **Parameters:**
-    *   `operator`: The entity instance that is now using the cannon.
+* **Description:** Registers the provided entity as the cannon’s operator, adds the `"occupied"` tag, and triggers the `onstartfn` callback.
+* **Parameters:** `operator` (Entity) — the entity that will control the cannon.
+* **Returns:** Nothing.
 
 ### `StopAiming()`
-*   **Description:** Ends the aiming state. It clears the current operator, removes the `occupied` tag, and triggers the `onstopfn` callback if it exists.
-
-### `IsAmmoLoaded()`
-*   **Description:** Checks if the cannon currently has ammunition loaded.
-*   **Returns:** `boolean` - `true` if `loadedammo` is not nil, `false` otherwise.
-
-### `LoadAmmo(projectileprefab)`
-*   **Description:** Loads the cannon with a specified type of ammunition. It updates the `loadedammo` property and pushes an event to signal the state change.
-*   **Parameters:**
-    *   `projectileprefab`: A `string` representing the prefab name of the ammunition to load. Pass `nil` to unload.
+* **Description:** Ends aiming by clearing the operator reference, removing the `"occupied"` tag, and triggering the `onstopfn` callback.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `Shoot()`
-*   **Description:** Fires the loaded projectile. This function spawns the projectile prefab, configures its trajectory and shooter, applies a recoil force to the boat the cannon is on, and unloads the cannon. It does nothing if no ammo is loaded.
+* **Description:** Fires the loaded projectile. Spawns the projectile prefab, positions it relative to the cannon, launches it forward using `complexprojectile:Launch()`, applies recoil force to the current boat platform, and unloads the ammo.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No effect if `loadedammo` is `nil`.
+
+### `IsAmmoLoaded()`
+* **Description:** Reports whether the cannon currently has ammo loaded.
+* **Parameters:** None.
+* **Returns:** `true` if `loadedammo` is non-`nil`; otherwise `false`.
+
+### `LoadAmmo(projectileprefab)`
+* **Description:** Loads a projectile prefab into the cannon. Updates the `"ammoloaded"` tag and pushes `"ammoloaded"` or `"ammounloaded"` events accordingly.
+* **Parameters:** `projectileprefab` (string or `nil`) — prefab name of the projectile to load, or `nil` to unload.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-*   **Description:** Serializes the component's state for game saving. It saves the `loadedammo` prefab if one is loaded.
+* **Description:** Serializes the component state for saving.
+* **Parameters:** None.
+* **Returns:** `{ loadedammo = projectileprefab }` if ammo is loaded; otherwise `nil`.
 
 ### `OnLoad(data)`
-*   **Description:** Deserializes the component's state when loading a game. It restores the loaded ammunition based on the save data.
+* **Description:** Restores ammo state from saved data by calling `LoadAmmo`.
+* **Parameters:** `data` (table) — contains `loadedammo` key if ammo was saved.
+* **Returns:** Nothing.
 
-## Events & Listeners
+## Events & listeners
+- **Listens to:** `"onremove"` — on the operator entity, to call `StopAiming()` if the operator is removed.
+- **Pushes:** `"ammoloaded"` or `"ammounloaded"` — when ammo state changes.
 
-*   **Listens for `onremove` on the `operator` entity:** When the operator entity is removed from the world (e.g., player disconnects or dies), the `StopAiming()` function is called to cleanly exit the aiming state.
-*   **Pushes `ammoloaded`:** Triggered on the cannon entity when `LoadAmmo` is called with a valid projectile prefab.
-*   **Pushes `ammounloaded`:** Triggered on the cannon entity when `LoadAmmo` is called with `nil` or after `Shoot` is called.
+## Events (internal)
+- **`onloadedammo` callback:** Internal listener for `loadedammo` changes. Automatically adds/removes `"ammoloaded"` tag based on whether ammo is present.
+
+## Component lifecycle
+- Attached to cannon prefabs (e.g., `boatcannon`).
+- Manages ammo and operator state.
+- Interacts with `boatcannonuser` via `SetCannon(nil)` on removal.
+- Handles recoil by calling `boatphysics:ApplyForce()` on the parent boat platform.
+- Projectile launch delegates to `complexprojectile:Launch()` using the cannon’s forward direction and range settings (`TUNING.BOAT.BOATCANNON.RANGE`).

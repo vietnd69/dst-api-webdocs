@@ -4,7 +4,6 @@ title: Max Puzzle1
 description: Static layout definition for a puzzle map area containing stone walls, wooden walls, and rocks arranged in a structured pattern.
 tags: [map, static_layout, puzzle, environment]
 sidebar_position: 1
-
 last_updated: 2026-02-28
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: environment
 source_hash: 97078757
 ---
-
 # Max Puzzle1
 
 > Based on game build **714014** | Last updated: 2026-02-28
@@ -60,4 +58,3 @@ This file does not define any functions. It is a data-only module returning a ta
 ## Events & listeners
 This file does not define or use events or event listeners.
 
----

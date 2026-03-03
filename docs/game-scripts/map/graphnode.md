@@ -3,7 +3,7 @@ id: graphnode
 title: Graphnode
 description: Manages procedural generation logic for a Voronoi region in the world map, including entity placement, tile generation, and population using custom functions or Voronoi-based sampling.
 tags: [world, generation, voronoi, entity, terrain]
-sidebar_position: 1
+sidebar_position: 100
 
 last_updated: 2026-02-27
 build_version: 714014

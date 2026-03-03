@@ -1,61 +1,72 @@
 ---
 id: batspawner
 title: Batspawner
-description: Manages the periodic spawning and tracking of bats from a central entity point.
+description: Manages the spawning and tracking of bats for a given entity, ensuring bats are only active when the owner is awake and respecting spawn limits.
+tags: [environment, entity, ai]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 8aa1ee09
+system_scope: environment
 ---
 
 # Batspawner
 
-## Overview
-The Batspawner component is responsible for spawning and managing a population of bats around its host entity. It controls the rate of spawning, the maximum number of active bats, and finds valid spawn locations in the world. It also tracks the bats it creates and can despawn them under certain conditions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`BatSpawner` is a component that handles the lifecycle of bats associated with an entity (typically a boss like Abigail or related creatures). It spawns bats around the owner within a fan-shaped area, maintains a cap on bat count, and ensures spawned bats are automatically removed when the owner goes to sleep. The component integrates with the world map and ground creep system to avoid invalid spawn locations.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("batspawner")
+inst.components.batspawner:SetMaxBats(8)
+inst.components.batspawner:SetSpawnTimes(5)
+-- Spawn bats by calling spawner functions periodically or via external logic
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-
 | Property | Type | Default Value | Description |
-| :--- | :--- | :--- | :--- |
-| inst | `EntityScript` | - | The entity instance this component is attached to. |
-| bats | `table` | `{}` | A table that tracks all active bat entities spawned by this component. |
-| timetospawn | `number` | `0` | A countdown timer for when the next bat should be spawned. |
-| batcap | `number` | `6` | The maximum number of bats this spawner will manage at one time. |
-| spawntime | `table` or `number` | `TUNING.BIRD_SPAWN_DELAY` | The delay between bat spawn attempts. |
-| battypes | `table` | `{"bat"}` | A list of bat prefab names that can be spawned. |
+|----------|------|---------------|-------------|
+| `bats` | table | `{}` | Dictionary mapping spawned bat entities to cleanup functions. |
+| `timetospawn` | number | `0` | Internal timer; used externally for scheduling spawns. |
+| `batcap` | number | `6` | Maximum number of bats allowed. |
+| `spawntime` | number | `TUNING.BIRD_SPAWN_DELAY` | Delay (in seconds) between bat spawns. |
 
-## Main Functions
+## Main functions
 ### `GetDebugString()`
-* **Description:** Returns a formatted string showing the current number of active bats versus the maximum capacity. Useful for debugging.
+* **Description:** Returns a human-readable string for debugging, showing current and maximum bat count.
 * **Parameters:** None.
+* **Returns:** `string` — formatted as `"Bats: X/Y"`.
 
 ### `SetSpawnTimes(times)`
-* **Description:** Sets the time delay between bat spawns.
-* **Parameters:**
-    * `times` (`number` or `table`): The new spawn time value.
+* **Description:** Updates the interval between bat spawns.
+* **Parameters:** `times` (number) — new spawn delay in seconds.
+* **Returns:** Nothing.
 
 ### `SetMaxBats(max)`
-* **Description:** Sets the maximum number of bats this spawner can have active at once.
-* **Parameters:**
-    * `max` (`number`): The new maximum bat capacity.
+* **Description:** Sets the maximum number of bats this spawner is allowed to maintain.
+* **Parameters:** `max` (number) — new bat capacity limit.
+* **Returns:** Nothing.
 
 ### `StartTracking(inst)`
-* **Description:** Adds a newly spawned bat to the tracking table. It also marks the bat as non-persistent, meaning it will not be saved, and sets up a listener to remove the bat if it ever enters a "sleep" state.
-* **Parameters:**
-    * `inst` (`EntityScript`): The bat entity instance to begin tracking.
+* **Description:** Registers a spawned bat for automatic removal when the spawner’s owner goes to sleep. Also disables persistence (`inst.persists = false`) on the bat.
+* **Parameters:** `inst` (Entity) — the bat entity to track.
+* **Returns:** Nothing.
 
 ### `GetSpawnPoint(pt)`
-* **Description:** Finds a valid point on the ground near a given location to spawn a bat. The search is performed in a circular fan pattern. A valid point must be passable and not covered by Ground Creep.
-* **Parameters:**
-    * `pt` (`Vector3`): The central point to search around for a spawn location.
+* **Description:** Computes a valid spawn point for a bat within a fan-shaped region around position `pt`, avoiding impassable terrain and creep.
+* **Parameters:** `pt` (Vector3) — center position for the spawn fan.
+* **Returns:** `Vector3?` — the adjusted spawn point, or `nil` if no valid position found.
+* **Error states:** May return `nil` if `FindValidPositionByFan` fails to locate a suitable location.
 
-## Events & Listeners
-* **Listens To:**
-    * `"entitysleep"` on a spawned bat: When a tracked bat goes into its sleep state (e.g., becomes inactive because a player is far away), this listener triggers a function to remove the bat entity from the world. This helps manage entity counts and prevents inactive bats from persisting.
+## Events & listeners
+- **Listens to:** `entitysleep` — triggers cleanup of all tracked bats via the listener registered in `StartTracking`.

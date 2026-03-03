@@ -1,55 +1,52 @@
 ---
 id: pointsofinterest
 title: Pointsofinterest
-description: Defines collections of predefined map layouts used as Points of Interest (PoIs) for different world biomes and categories in DST.
-tags: [world, map, layout]
-sidebar_position: 1
+description: Provides a centralized registry of static map layouts used as points of interest in sandbox mode world generation.
+tags: [map, generation, static]
+sidebar_position: 100
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: map
-system_scope: world
 source_hash: c4b89638
+system_scope: world
 ---
 
 # Pointsofinterest
 
-This module serves as a registry for preconfigured static map layouts intended to be used as Points of Interest (PoIs) within the game world. It does not implement a traditional ECS component, but rather returns structured data containing categorized layout definitions. It leverages `StaticLayout.Get()` to load and instantiate layout assets from disk, and organizes them by biome type (e.g., forest, swamp, cave), rarity (e.g., Rare), or other logical groupings (e.g., Winter, Any). These layout collections are typically consumed by world generation logic to place thematic structures or content markers.
+> Based on game build **714014** | Last updated: 2026-03-03
+
+## Overview
+`Pointsofinterest` is a utility module—not an Entity Component System component—that aggregates predefined static map layouts by biome and thematic category for use in sandbox mode world generation. It loads layouts via `StaticLayout.Get()` from `map/static_layout.lua`, organizes them into structured tables, and exposes them for worldgen tasks to select appropriate points of interest based on terrain type, season, or rarity.
 
 ## Usage example
-
 ```lua
 local PointsofInterest = require("map/pointsofinterest")
+local layouts = PointsofInterest.Layouts
+local biome_layouts = PointsofInterest.Sandbox[WORLD_TILES.DIRT]
 
--- Access all registered layouts by name
-local all_layouts = PointsofInterest.Layouts
-
--- Access biome-specific layouts
-local forest_layouts = PointsofInterest.Sandbox[FOREST]
-
--- Use a layout to place content during worldgen
-local layout = all_layouts["skeleton_lumberjack"]
-if layout then
-    -- Assume some worldgen helper places the layout
-    layout:Place(x, y, z)
-end
+-- Example: retrieve a specific layout
+local miner_layout = layouts.skeleton_miner
 ```
 
 ## Dependencies & tags
-**Components used:** None. This is a data-only module.
-**Tags:** None identified.
+**Components used:** None  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `Sandbox` | `table` |见源码| A nested table mapping category keys (e.g., `"Rare"`, `WORLD_TILES.DIRT`) to tables of layout definitions. Used for sandbox-mode and worldgen inclusion logic. |
-| `Layouts` | `table` |见源码| A flat table mapping unique layout names (e.g., `"skeleton_wizard_ice"`) to their corresponding `StaticLayout` instances. Provides quick lookup by name across all categories. |
+| `Sandbox` | table | (see below) | Hierarchical mapping of biome/category keys to tables of named layouts. |
+| `Layouts` | table | (see below) | Flattened mapping of layout names to loaded `StaticLayout` objects. |
+
+### `Sandbox` structure
+- **Biome keys** (e.g., `WORLD_TILES.FOREST`, `WORLD_TILES.MUD`) map to tables containing profession-specific skeleton layouts.
+- **Special keys**: `"Rare"` and `"Any"` provide cross-biome or high-tier layouts.
+- **Notable exclusions**: `"Winter"` is commented out and currently unused.
 
 ## Main functions
-No public functions are exported directly. The module’s purpose is to expose static data tables (`Sandbox` and `Layouts`) constructed at load time. Layouts themselves are created using `StaticLayout.Get()`, whose behavior is defined in `map/static_layout.lua`.
+*This module returns a table and does not define public instance methods.* The primary interface is data access via the returned `Sandbox` and `Layouts` tables.
 
 ## Events & listeners
-This module does not register or fire events. It is a passive data provider.
-
----
+None identified

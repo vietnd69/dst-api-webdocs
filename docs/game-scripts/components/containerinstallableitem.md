@@ -1,84 +1,101 @@
 ---
 id: containerinstallableitem
 title: Containerinstallableitem
-description: This component manages items that can be installed into specific containers, handling entry and exit logic and custom callbacks.
+description: Manages installation and uninstallation behavior for items that can be placed into containers or wielded by entities.
+tags: [inventory, container, installable]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: inventory
+category_type: components
 source_hash: fc1a1aa9
+system_scope: inventory
 ---
 
 # Containerinstallableitem
 
-## Overview
-This component allows an entity to be "installed" into specific containers or inventory slots. It provides a framework for defining custom validation logic for target containers and custom callback functions that execute when the item is installed into or uninstalled from a container. It also handles various scenarios where an item enters or leaves a container, such as being placed in inventory, dropped, or swapped.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-This component implicitly relies on the `inventoryitem` component to determine if an item is held by an owner.
-No specific tags are added or removed by this component.
+## Overview
+`ContainerInstallableItem` manages the lifecycle of items that may be installed into containers or held by entities, such as parts or tools. It tracks ownership via `self._owner`, triggers installation/uninstallation callbacks, and listens to inventory-related events (`onputininventory`, `ondropped`, `exitlimbo`) to coordinate state transitions. It integrates with the `inventoryitem` component to verify whether an item is held by its owner.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("containerinstallableitem")
+
+-- Define which containers can hold this item
+inst.components.containerinstallableitem:SetValidContainerFn(function(item, container)
+    return container:HasTag("workbench")
+end)
+
+-- Optionally define custom callbacks for install/uninstall
+inst.components.containerinstallableitem:SetInstalledFn(function(item, target)
+    print(item .. " installed in " .. target)
+end)
+inst.components.containerinstallableitem:SetUninstalledFn(function(item, target)
+    print(item .. " uninstalled from " .. target)
+end)
+```
+
+## Dependencies & tags
+**Components used:** `inventoryitem` (via `inst.components.inventoryitem:IsHeldBy(...)`)
+**Tags:** None identified.
 
 ## Properties
-| Property                 | Type      | Default Value | Description                                                                                             |
-| :----------------------- | :-------- | :------------ | :------------------------------------------------------------------------------------------------------ |
-| `inst`                   | `Entity`  | `self`        | A reference to the entity this component is attached to.                                                |
-| `ismastersim`            | `boolean` | `true`        | Indicates if the component is running on the master simulation.                                         |
-| `validcontainerfn`       | `function`| `nil`         | An optional callback function `(inst, containerinst)` used to determine if a container is valid for installation. |
-| `oninstalledfn`          | `function`| `nil`         | An optional callback function `(inst, target)` to execute when the item is installed into a target.      |
-| `onuninstalledfn`        | `function`| `nil`         | An optional callback function `(inst, target)` to execute when the item is uninstalled from a target.    |
-| `_owner`                 | `Entity`  | `nil`         | The entity that currently "owns" or contains this item (e.g., a container or inventory).                |
-| `usedeferreduninstall`   | `boolean` | `nil`         | If `true`, the `exitlimbo` event handler is disabled, deferring uninstall logic.                        |
-| `ignoreuninstall`        | `boolean` | `nil`         | If `true`, temporarily disables the uninstall logic from triggering.                                    |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | — | The entity instance owning this component. |
+| `ismastersim` | boolean | `TheWorld.ismastersim` | Indicates whether this is the master simulation instance. |
+| `validcontainerfn` | function or nil | `nil` | Custom predicate function used by `IsValidContainer`. |
+| `_owner` | `Entity` or nil | `nil` | The entity currently holding or installing this item. |
+| `oninstalledfn` | function or nil | `nil` | Optional custom callback for installation. |
+| `onuninstalledfn` | function or nil | `nil` | Optional custom callback for uninstallation. |
+| `usedeferreduninstall` | boolean or nil | `nil` | Controls whether uninstallation is deferred (typically used for item swapping). |
+| `ignoreuninstall` | boolean or nil | `nil` | If true, skips uninstallation events (e.g., during certain drops). |
 
-## Main Functions
+## Main functions
 ### `SetValidContainerFn(fn)`
-* **Description:** Sets a custom function to validate if a given container is suitable for this item.
-* **Parameters:**
-    * `fn`: A function `(inst, containerinst)` that should return `true` if `containerinst` is a valid container for `inst`, or `false` otherwise. If `nil`, any container is considered valid.
+* **Description:** Sets a custom function to determine whether a given container is valid for installation.
+* **Parameters:** `fn` (function) — a function `(item: Entity, container: Entity) => boolean`.
+* **Returns:** Nothing.
 
 ### `IsValidContainer(containerinst)`
-* **Description:** Checks if a given container entity is considered valid for this item, either by the custom `validcontainerfn` or by default if no custom function is set.
-* **Parameters:**
-    * `containerinst`: The container entity to validate.
+* **Description:** Returns true if `containerinst` satisfies the installed valid-container predicate.
+* **Parameters:** `containerinst` (`Entity`) — candidate container entity.
+* **Returns:** `boolean`.
 
 ### `GetValidOpenContainer(doer)`
-* **Description:** Searches for an open container within the `doer`'s inventory that is also a valid container for this item according to `IsValidContainer`.
-* **Parameters:**
-    * `doer`: The entity whose inventory should be checked for open containers.
+* **Description:** Finds the first open container on `doer` that this item can be installed into, excluding read-only containers.
+* **Parameters:** `doer` (`Entity`) — the entity whose containers are scanned.
+* **Returns:** `Entity` or `nil` — the first valid open container, or `nil` if none found.
 
 ### `SetInstalledFn(fn)`
-* **Description:** Sets the callback function to be invoked when this item is installed into a container.
-* **Parameters:**
-    * `fn`: A function `(inst, target)` to call when the item is installed. `inst` is the item itself, `target` is the container it's installed into.
+* **Description:** Registers a server-side callback executed when the item is installed.
+* **Parameters:** `fn` (function) — `(item: Entity, target: Entity) => nil`.
+* **Returns:** Nothing.
 
 ### `SetUninstalledFn(fn)`
-* **Description:** Sets the callback function to be invoked when this item is uninstalled from a container.
-* **Parameters:**
-    * `fn`: A function `(inst, target)` to call when the item is uninstalled. `inst` is the item itself, `target` is the container it was uninstalled from.
+* **Description:** Registers a server-side callback executed when the item is uninstalled.
+* **Parameters:** `fn` (function) — `(item: Entity, target: Entity) => nil`.
+* **Returns:** Nothing.
 
 ### `SetUseDeferredUninstall(enable)`
-* **Description:** Controls whether the `exitlimbo` event listener is enabled. Enabling this defers uninstall logic, which can be useful when swapping items.
-* **Parameters:**
-    * `enable`: A boolean. If `true`, the `exitlimbo` listener is removed. If `false`, it is added back.
+* **Description:** Enables or disables deferred uninstallation, altering event handling during item swaps.
+* **Parameters:** `enable` (boolean) — if true, registers for deferred uninstall logic; if false, restores immediate `exitlimbo` handling.
+* **Returns:** Nothing.
 
 ### `OnInstalled(target)`
-* **Description:** Triggers the installation logic, calling the `oninstalledfn` if set, and pushing the `containerinstalleditem` event.
-* **Parameters:**
-    * `target`: The entity (container) that this item is being installed into.
+* **Description:** Performs installation logic: invokes the installed callback (if set) and pushes `containerinstalleditem` event on the target.
+* **Parameters:** `target` (`Entity`) — the entity into which this item was installed.
+* **Returns:** Nothing.
 
 ### `OnUninstalled(target)`
-* **Description:** Triggers the uninstallation logic, calling the `onuninstalledfn` if set, and pushing the `containeruninstalleditem` event.
-* **Parameters:**
-    * `target`: The entity (container) that this item is being uninstalled from.
+* **Description:** Performs uninstallation logic: invokes the uninstalled callback (if set) and pushes `containeruninstalleditem` event on the target.
+* **Parameters:** `target` (`Entity`) — the entity from which this item was uninstalled.
+* **Returns:** Nothing.
 
-## Events & Listeners
-*   **Listens for:**
-    *   `"onputininventory"`: Triggered when the item is placed into any inventory slot. Calls `topocket` to handle installation logic.
-    *   `"ondropped"`: Triggered when the item is dropped to the ground. Calls `toground` to handle uninstallation logic.
-    *   `"exitlimbo"`: Triggered when an item is removed from an inventory slot but not necessarily dropped (e.g., during a swap). Calls `onexitlimbo` to handle uninstallation logic, unless deferred uninstall is enabled.
-*   **Pushes:**
-    *   `"containerinstalleditem"`: Pushed to the `target` entity when `OnInstalled` is called, with `self.inst` as the event data.
-    *   `"containeruninstalleditem"`: Pushed to the `target` entity when `OnUninstalled` is called, with `self.inst` as the event data.
+## Events & listeners
+- **Listens to:** `onputininventory`, `ondropped`, `exitlimbo — triggers internal owner management and uninstall/install transitions.
+- **Pushes:** `containerinstalleditem`, `containeruninstalleditem — fired on the target entity during `OnInstalled`/`OnUninstalled`.

@@ -1,113 +1,65 @@
 ---
 id: wintersurprisespawner
 title: Wintersurprisespawner
-description: Manages the spawning of winter surprise trees (Leif trees with gift loot) during winter in Don't Starve Together, based on world state and setup constraints.
+description: Manages the spawning of winter surprise trees during winter seasons, based on world state and player positioning rules.
+tags: [winter, spawning, event, environment, seasonal]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 1035c689
+system_scope: world
 ---
 
 # Wintersurprisespawner
 
-## Overview
-This component orchestrates the timed, conditional spawning of `winter_tree` entities (known as "surprise trees") during the winter season. It coordinates with other systems to validate spawn locations, avoid conflicts (e.g., Klaus Sack proximity, existing Leif trees), and populate each tree with randomized real or fake gift loot based on world escalation levels. It tracks how many trees have spawned this winter and respawns new ones until the seasonal limit is reached.
+> Based on game build **714001** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Requires**: `TheWorld.ismastersim` — throws an assertion if instantiated on client.
-- **Tags used internally**:
-  - `INLIMBO_TAGS = { "INLIMBO" }`
-  - `WINTER_TREE_TAGS = { "winter_tree" }`
-  - `STRUCTURES_ONEOF_TAGS = { "structure", "klaussacklock" }`
-- **Listens to**:
-  - `"ms_registerdeerspawningground"` — registers spawner points via `OnRegisterSurpriseSpawningPt`.
-  - `"onremove"` — on registered spawner removal via `OnRemoveSpawner`.
-- **Watches world state**:
-  - `"iswinter"` — triggers spawning logic on winter onset/exit.
-- **Uses**:
-  - `TheWorld.components.klaussackspawner`
-  - `TheWorld.components.hounded`
-  - `TheWorld.components.worldsettingstimer`
+## Overview
+`Wintersurprisespawner` is a world-level component responsible for triggering the spawning of special "winter surprise" trees (`winter_tree` prefabs) during the winter season. It coordinates with the `worldsettingstimer` to schedule spawns, respects proximity constraints (e.g., avoiding existing structures and players), and leverages the `klaussackspawner`, `hounded`, and `growable` components to ensure correct placement and configuration. This component is server-only (`mastersim` only) and persists spawn counts across sessions via save/load.
+
+## Usage example
+```lua
+-- The component is automatically added to the world (not manually attached by modders).
+-- Example of internal usage within DST's codebase:
+TheWorld:AddComponent("wintersurprisespawner")
+TheWorld.components.wintersurprisespawner:OnPostInit() -- Triggered automatically during world init
+```
+
+## Dependencies & tags
+**Components used:** `worldsettingstimer`, `klaussackspawner`, `hounded`, `growable`, `container`, `stackable`, `unwrappable`  
+**Tags:** Adds `winter_tree`; checks `INLIMBO`, `structure`, `klaussacklock`, `winter_tree`
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (passed to constructor) | The component’s owning entity instance. |
-| `_spawners` | `table` | `{}` | List of registered spawner points (e.g., Deer Spawning Grounds). |
-| `_spawnsthiswinter` | `number` | `0` | Counter tracking how many surprise trees have spawned this winter. |
-| `WINTERSURPRISE_TIMERNAME` | `string` | `"wintersurprise_spawntimer"` | Internal name for timer used by `worldsettingstimer`. |
+No public properties. All state is kept in private local variables.
 
-> Note: No additional public instance properties are exposed beyond `self.inst`.
-
-## Main Functions
-### `ConfigureWinterSurprise(tree)`
-* **Description:** Modifies a newly spawned `winter_tree` entity to act as a surprise tree: sets it as Leif-type (`is_leif = true`), maxes growth stage, fills its container with ornaments, and spawns a randomized number of real or fake gifts around it. Real gifts contain bonus loot; fake gifts contain junk and a surprise entity (e.g., hound).
-* **Parameters:**  
-  - `tree` (`Entity`) — The `winter_tree` prefab instance to configure.
-
-### `SpawnWinterSurprise()`
-* **Description:** Attempts to spawn one surprise tree by selecting a valid spawner point, finding a walkable location that satisfies proximity, terrain, and occupancy rules, and then instantiating/configuring the tree. If successful, triggers `ConfigureWinterSurprise`.
-* **Parameters:**  
-  - None.
-
-### `OnRespawnWinterSurpriseTimer()`
-* **Description:** Timer callback executed when the respawn delay expires. Calls `SpawnWinterSurprise()`, increments `_spawnsthiswinter`, and reschedules the timer if more spawns are allowed this winter.
-* **Parameters:**  
-  - None.
-
-### `StartWinterSurpriseSpawnTimer()`
-* **Description:** Starts the respawn timer with a randomized delay based on `TUNING.WINTERSURPRISE_SPAWN_DELAY` and `_VARIANCE`.
-* **Parameters:**  
-  - None.
-
-### `OnIsWinter(self, iswinter)`
-* **Description:** Handles transitions into/out of winter. Starts or stops spawning logic depending on season state and remaining spawn capacity.
-* **Parameters:**  
-  - `self` (`Component`) — Component instance.  
-  - `iswinter` (`boolean`) — Whether the current season is winter.
-
-### `OnRegisterSurpriseSpawningPt(inst, spawner)`
-* **Description:** Registers a new spawner point (e.g., Deer Spawning Ground), adds it to `_spawners`, and listens for its removal to auto-deregister.
-* **Parameters:**  
-  - `inst` (`Entity`) — Ignored.  
-  - `spawner` (`Entity`) — The spawner entity to register.
-
-### `OnRemoveSpawner(spawner)`
-* **Description:** Removes a spawner from `_spawners` when it is removed from the world.
-* **Parameters:**  
-  - `spawner` (`Entity`) — The spawner to remove.
-
-### `IsValidSpawner(x, y, z)`
-* **Description:** Validates whether a given world coordinate is eligible for spawning a surprise tree. Checks: proximity to Klaus Sack, overlap with existing Leif trees, terrain passability, and tile centering.
-* **Parameters:**  
-  - `x`, `y`, `z` (`number`) — World coordinates.
-
-### `IsValidSpawnOffset(pos)`
-* **Description:** Confirms a candidate offset position is usable (no limbo entities, no blockers within radius).
-* **Parameters:**  
-  - `pos` (`Vector3`) — Candidate position.
+## Main functions
+### `OnPostInit()`
+* **Description:** Initializes the component after the instance is fully constructed. Registers the winter season watcher and schedules the first respawn timer.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** None.
 
 ### `OnSave()`
-* **Description:** Returns a table containing persistent state (`spawnsthiswinter`) for savegame serialization.
-* **Parameters:**  
-  - None.
+* **Description:** Returns the current state for serialization.
+* **Parameters:** None.
+* **Returns:** `{ spawnsthiswinter = number }` — a table with the count of winter surprise trees spawned in the current winter.
 
 ### `OnLoad(data)`
-* **Description:** Restores `_spawnsthiswinter` from saved data during load.
-* **Parameters:**  
-  - `data` (`table`) — Saved component data.
+* **Description:** Restores state from saved data.
+* **Parameters:** `data` (table) — containing `spawnsthiswinter` (number).
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a debug-formatted string indicating how many trees spawned this winter.
-* **Parameters:**  
-  - None.
+* **Description:** Returns a human-readable debug string for UI display.
+* **Parameters:** None.
+* **Returns:** `string` — e.g., `"spawns for this winter: 2"`.
 
-## Events & Listeners
-- Listens for `"ms_registerdeerspawningground"` → calls `OnRegisterSurpriseSpawningPt`.
-- Listens for `"onremove"` on registered spawner entities → calls `OnRemoveSpawner`.
-- Watches world state `"iswinter"` → calls `OnIsWinter`.
-- Internal use of `TheWorld.components.worldsettingstimer`: timer callback `OnRespawnWinterSurpriseTimer`.
+## Events & listeners
+- **Listens to:**  
+  - `ms_registerdeerspawningground` — triggers `OnRegisterSurpriseSpawningPt` to register spawner locations.  
+  - `onremove` — triggers `OnRemoveSpawner` when a registered spawner is removed.  
+  - `iswinter` — triggers `OnIsWinter` to start/stop spawns based on season state.
+- **Pushes:** None.

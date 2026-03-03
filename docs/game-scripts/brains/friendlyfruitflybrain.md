@@ -1,41 +1,47 @@
 ---
 id: friendlyfruitflybrain
 title: Friendlyfruitflybrain
-description: Controls the behavior of friendly fruit flies by coordinating movement, following a leader, facing the leader, and foraging for farm plants using a behavior tree.
+description: Controls the AI behavior of friendly fruit fly entities, managing tasks like following a leader, wandering, and interacting with farm plants.
+tags: [ai, locomotion, behavior, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 231d928d
+system_scope: brain
 ---
 
 # Friendlyfruitflybrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-This brain component defines the behavioral logic for friendly fruit flies in the game. It constructs and runs a behavior tree (`BT`) that prioritizes responses to danger (panic triggers), foraging for farm plants, following their leader within defined distance bounds, maintaining orientation toward the leader, and wandering when no higher-priority task is active. It relies on common behavior types from the `behaviours/` directory and integrates with the `follower` component to determine the current leader via `GetLeader()`.
+`FriendlyFruitFlyBrain` defines the behavior tree for friendly fruit fly entities. It inherits from `Brain` and orchestrates high-level behaviors such as following a leader (via the `follower` component), wandering within a radius, facing the leader, and seeking out farm plants to interact with. It relies on reusable behavior nodes from `behaviours/` and common AI utilities from `brains/braincommon.lua`.
 
-## Dependencies & Tags
-- **Components used:** `follower` (accessed via `inst.components.follower:GetLeader()`)
-- **Tags:** None identified.
+## Usage example
+```lua
+local inst = CreateEntity()
+-- Ensure 'follower' component is present for leader tracking
+inst:AddComponent("follower")
+inst:AddBrain("friendlyfruitflybrain")
+```
+
+## Dependencies & tags
+**Components used:** `follower`
+**Tags:** None identified.
 
 ## Properties
-No public properties are initialized directly in the constructor. The component inherits from `Brain` and initializes a private behavior tree (`self.bt`) during `OnStart()`.
+No public properties.
 
-## Main Functions
-### `FriendlyFruitFlyBrain:OnStart()`
-* **Description:** Initializes and starts the behavior tree. This method is called automatically when the brain component begins managing the entity. It sets up a priority-based behavior tree with the following tasks, evaluated in order:
-  1. `PanicTrigger` and `ElectricFencePanicTrigger`: Immediate reaction to danger.
-  2. `FindFarmPlant`: Forages for interactable farm plants using `GetFollowPos` as the reference position.
-  3. `Follow`: Moves toward the leader to maintain a target distance range of 0–10 units, with a preferred distance of 5.
-  4. `FaceEntity`: Rotates the entity to face the leader.
-  5. `Wander`: Moves randomly within a 20-unit radius around the leader's position.
-* **Parameters:** None.
-* **Returns:** None.
+## Main functions
+### `OnStart()`
+*   **Description:** Initializes the behavior tree root node, defining the priority-ordered behavior sequence for the entity.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** May behave unpredictably if required components (e.g., `follower`) are absent; `GetLeader()` returns `nil` in such cases, causing fallback behavior.
 
-## Events & Listeners
-None. This component does not register or fire any events directly.
+## Events & listeners
+- **Listens to:** None identified.
+- **Pushes:** None identified.

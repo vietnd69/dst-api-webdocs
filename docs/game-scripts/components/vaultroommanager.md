@@ -1,177 +1,180 @@
 ---
 id: vaultroommanager
 title: Vaultroommanager
-description: Manages the vault’s room layout, teleporter setup, player tracking, and dynamic room transitions during gameplay.
+description: Manages the layout, state, and teleportation logic for the Vault dungeon, including room connections, marker registration, player tracking, and randomization.
+tags: [vault, mapping, teleport, world]
 sidebar_position: 1
-
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 6f35ae33
+system_scope: world
 ---
-
 # Vaultroommanager
 
-## Overview
-The `VaultRoomManager` is a world-scoped component responsible for managing the structure and state of the Vault—a procedurally shuffled network of interconnected rooms. It handles layout generation (V1 and V2), teleporter creation and state (broken/repaired), room loading/unloading, player entry/exit tracking, and seasonal reset logic. It operates exclusively on the master simulation and coordinates with vault markers, teleporters, and lobby/exit entities to enable seamless transitions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- The component is attached to an entity that has world-scoped `TheWorld` access (`TheWorld` must be the master).
-- Asserts presence on the server: `assert(_world.ismastersim, ...)`.
-- Registers for vault-related events (`ms_register_vault_marker`, `ms_vault_teleporter_channel_start`, etc.) via `inst:ListenForEvent`.
-- Uses the `obj_layout` module for static layout placement.
-- Relies on the following components on other entities:
-  - `vaultroom` (on center markers)
-  - `vault_teleporter` (on teleporter prefabs)
-  - `vaultcollision` (spawned for lobby/vault zones)
-  - `drownable`, `leader`, `inventory`, `inventoryitem`, `follower` (used during teleportation)
+## Overview
+`Vaultroommanager` is a world-scoped component responsible for orchestrating the entire Vault dungeon system. It handles the dynamic layout generation (including directional shuffling), room loading/unloading, teleporter configuration and repair/break states, player entry/exit tracking, and synchronization of the Vault's visual state with the game world. It interacts closely with `vault_teleporter`, `vaultroom`, and `archivemanager` components to manage transitions and persistence.
+
+## Usage example
+```lua
+-- Typically added to TheWorld in the world initialization script
+TheWorld:AddComponent("vaultroommanager")
+
+-- Example: Teleport to a specific room
+TheWorld.components.vaultroommanager:SetRoom("teleport1")
+
+-- Example: Get current room index
+local currentRoomIndex = TheWorld.components.vaultroommanager.roomindex
+```
+
+## Dependencies & tags
+**Components used:** `archivemanager`, `channelable`, `drownable`, `follower`, `inventory`, `inventoryitem`, `leader`, `vault_teleporter`, `vaultroom`  
+**Tags:** Adds `vaultroommanager` to `TheWorld`; checks and removes no explicit tags.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `rooms` | `table` | `{}` | Map of room data by ID or index. Each room stores `roomid`, `roomindex`, `links`, and optionally `vaultroomdata`. |
-| `roomindex` | `number` | `0` | Current room index the player(s) are in. |
-| `maxroomindex` | `number` | `0` | Highest assigned room index (used for deterministic layout generation). |
-| `markers` | `table` | `{}` | Map of vault marker prefabs (e.g., `"vaultmarker_vault_center"`) to their entity instances. |
-| `teleporters` | `table` | `{}` | Map of directions (1–4 or `"lobby"`) to instantiated `vault_teleporter` entities. |
-| `repairedlinks` | `table` | `{}` | Tracks which links in each room have been repaired (keyed by `roomid` → `{direction = true}`). |
-| `players` | `table` | `{}` | Set of players currently inside the vault. |
-| `playersinvault` | `number` | `0` | Count of players currently in the vault. |
-| `UPDATE_TICK_TIME` | `number` | `1` | Minimum seconds between updates in `OnUpdate`. |
-| `UPDATE_ROTATE_ROOMS_COOLDOWN_TICKS_COUNT` | `number` | `10` | Duration (in ticks) before attempting room rotation when no players are in vault. |
-| `updaterotatecooldownticks` | `number` | `10` | Remaining ticks before next room rotation attempt (when vault is empty). |
-| `archivemanager` | `?` | `nil` | Reference to archive power state (controlled via `arhivepoweron/off` events). |
-| `lobbyexit` | `?` | `nil` | Lobby exit entity (`vaultlobbyexit`), if present. |
-| `lobbyexittarget` | `?` | `nil` | Lobby exit target entity (e.g., Archive Portal), if present. |
-| `seed` | `number` | Hashed session ID | Random seed for deterministic PRNG-based layout shuffling. |
-| `PRNG` | `PRNG_Uniform` | Instance | Pseudo-random number generator used to shuffle room directions. |
-| `version` | `number` | `2` | Layout version currently in use (V1 or V2). |
-| `resetting` | `?` | `nil` | Flag indicating a vault reset is in progress. |
-| `_needsreloaded` | `?` | `nil` | Flag indicating the current room should be reloaded when empty. |
-| `_pendingtp` | `?` | `nil` | Table of players waiting to teleport (used during coordinated multi-player teleport sequences). |
+| `rooms` | table | `{}` | A lookup table mapping both `roomid` (string) and `roomindex` (number) to room metadata. |
+| `roomindex` | number | `0` | Current room index (integer) the Vault is set to. `0` indicates no room (e.g., lobby only). |
+| `maxroomindex` | number | `0` | Highest declared room index in the current layout (used for deterministic shuffling). |
+| `markers` | table | `{}` | Stores registered vault marker entities keyed by prefab name (e.g., `"vaultmarker_vault_center"`). |
+| `teleporters` | table | `{}` | Stores active `vault_teleporter` prefabs keyed by direction (`"lobby"`, `1`–`4`). |
+| `repairedlinks` | table | `{}` | Tracks which links in which rooms have been repaired (map of `{roomid = {direction = true}}`). |
+| `players` | table | `{}` | Tracks players currently inside the Vault room (`{[player] = true}`). |
+| `playersinvault` | number | `0` | Count of players currently inside the Vault room. |
+| `version` | number | `2` | Layout version used (V1 or V2). |
+| `seed` | number | `INITIAL_SEED` | Seed used for the PRNG that drives directional shuffling. |
+| `archivespowered` | boolean? | `nil` | Whether the Archives are powered (controls lobby teleporter state). |
 
-## Main Functions
-
+## Main functions
 ### `DeclareRoom(roomid, roomindex)`
-* **Description:** Registers a new room with a unique ID and sequential index. Stores metadata for layout/teleportation. Requires unique, increasing `roomindex` for deterministic layout generation.
-* **Parameters:**
-  - `roomid` (`string`): Unique identifier for the room (e.g., `"mask1"`, `"teleport1"`).
-  - `roomindex` (`number`): Sequential, unique integer identifier.
+*   **Description:** Registers a room with a unique `roomindex`. Required before linking rooms to maintain deterministic PRNG behavior.  
+*   **Parameters:**  
+    - `roomid` (string): Unique room identifier.  
+    - `roomindex` (number): Unique sequential index (starting from 1). Must equal `maxroomindex + 1` at declaration time.  
+*   **Returns:** Nothing.
 
 ### `LinkRooms(roomid, direction, linkedroom, linkeddirection)`
-* **Description:** Creates a bidirectional link between two rooms. Ensures that linking to `"lobby"` is only allowed from the south direction. Marks the link as rigid if linked to lobby.
-* **Parameters:**
-  - `roomid` (`string`): Source room ID.
-  - `direction` (`number`): Direction index (1=N, 2=E, 3=S, 4=W) from `roomid`.
-  - `linkedroom` (`string`): Target room ID (e.g., `"lobby"`, `"teleport1"`).
-  - `linkeddirection` (`number` or `nil`): Reverse direction index into `linkedroom`. Required except for `"lobby"`.
-
-### `LinkRoomsBroken(roomid, direction, linkedroom, linkeddirection)`
-* **Description:** Creates a broken link between rooms. The teleporter will not function until repaired.
-* **Parameters:** Same as `LinkRooms`.
-
-### `MakeLinkRigid(roomid, direction)`
-* **Description:** Marks a link as rigid—meaning its direction cannot be shuffled by the PRNG during layout randomization.
-* **Parameters:**
-  - `roomid` (`string`)
-  - `direction` (`number`)
-
-### `MakeLinkUnderConstruction(roomid, direction)`
-* **Description:** Marks a link as under construction (teleporter will be marked accordingly).
-* **Parameters:**
-  - `roomid` (`string`)
-  - `direction` (`number`)
-
-### `CreateLayoutV1()`, `CreateLayoutV2()`
-* **Description:** Builds static room layouts (V1 and V2) by declaring rooms and linking them. V2 introduces `"puzzle2"` and modifies connections compared to V1.
-* **Parameters:** None.
+*   **Description:** Creates a bidirectional link between two rooms. Automatically marks links to `"lobby"` as rigid.  
+*   **Parameters:**  
+    - `roomid` (string): Source room ID.  
+    - `direction` (number): Index into `DIRECTIONS_INDEX` (1=N, 2=E, 3=S, 4=W).  
+    - `linkedroom` (string): Target room ID (e.g., `"lobby"`).  
+    - `linkeddirection` (number? or `nil`): Target room's opposite direction (if any).  
+*   **Returns:** `link` (table) — Metadata about the connection.  
+*   **Error states:** Throws an assertion if `roomid` or `linkedroom` is not declared, or if linking to `"lobby"` in a direction other than South.
 
 ### `CreateLayout(version)`
-* **Description:** Clears current layout and builds the requested version (1 or 2).
-* **Parameters:**
-  - `version` (`number`): Layout version to generate.
+*   **Description:** Initializes the Vault layout by calling `DeleteLayout()` and then generating either `CreateLayoutV1()` or `CreateLayoutV2()`.  
+*   **Parameters:**  
+    - `version` (number): `1` or `2`.  
+*   **Returns:** Nothing.
+
+### `HideRoom()`
+*   **Description:** Unloads the current Vault room (preserving its data in memory) and clears all teleporter exits.  
+*   **Parameters:** None.  
+*   **Returns:** Nothing.
+
+### `ShowRoom()`
+*   **Description:** Reloads the current Vault room (if saved data exists) and configures all teleporter exits. Teleports pending entities to the center marker.  
+*   **Parameters:** None.  
+*   **Returns:** Nothing.
 
 ### `SetRoom(roomindexorid)`
-* **Description:** Transitions the vault to a new room. Unloads the current room (if any), then loads and configures the new room, including setting up teleporter exits.
-* **Parameters:**
-  - `roomindexorid` (`number` or `string`): Room index or ID to switch to. `nil` clears the room.
+*   **Description:** Transitions the Vault to a new room (by index or ID). Handles full hide → show sequence.  
+*   **Parameters:**  
+    - `roomindexorid` (string or number): Room ID or index. `nil` transitions to the default (lobby-only) state.  
+*   **Returns:** Nothing.
 
-### `TeleportEntities(entities, targetteleportmarkername)`
-* **Description:** Teleports a list of entities to a specific vault marker. Calculates a spread position around the marker to avoid stacking.
-* **Parameters:**
-  - `entities` (`table`): List of entities to teleport.
-  - `targetteleportmarkername` (`string`): Marker prefab name (e.g., `"vaultmarker_vault_north"`).
+### `OnRegisterVaultMarker(ent)`
+*   **Description:** Registers a vault marker entity (e.g., `"vaultmarker_vault_center"`) and validates that all required markers are present to start/continue operation.  
+*   **Parameters:**  
+    - `ent` (Entity): The marker entity.  
+*   **Returns:** Nothing.
 
-### `GetToOrFromVaultTeleportTargetsFor(doer)`
-* **Description:** Collects all entities to teleport alongside a primary actor, including followers (e.g., followers of the player or carried leaders), while respecting `noleashing` and inventory constraints.
-* **Parameters:**
-  - `doer` (`Entity`): The primary teleporting entity.
+### `OnUnregisterVaultMarker(ent)`
+*   **Description:** Removes a vault marker and triggers re-validation.  
+*   **Parameters:**  
+    - `ent` (Entity): The marker entity being removed.  
+*   **Returns:** Nothing.
 
-### `TryToSpawnStaticLayouts()`
-* **Description:** Spawns static layouts for the vault lobby and vault interior if the lobby exit target (Archive Portal) exists.
-* **Parameters:** None.
+### `TrackPlayer(player)`
+*   **Description:** Adds a player to the set of players currently in the Vault, incrementing `playersinvault`.  
+*   **Parameters:**  
+    - `player` (Entity): Player entity.  
+*   **Returns:** Nothing.
 
-### `OnRegisterVaultMarker(ent)`, `OnUnregisterVaultMarker(ent)`
-* **Description:** Registers or unregisters vault markers and triggers validation of required markers.
-* **Parameters:**
-  - `ent` (`Entity`): The marker entity.
+### `StopTrackingPlayer(player)`
+*   **Description:** Removes a player from the Vault player set. If count reaches zero, marks the Vault for auto-rotation or reload.  
+*   **Parameters:**  
+    - `player` (Entity): Player entity.  
+*   **Returns:** Nothing.
+
+### `TeleportEntities(toteleportents, targetteleportmarkername)`
+*   **Description:** Moves a list of entities to positions around the target marker (random circular distribution). Handles physics-based teleportation and updates drownable teleport points.  
+*   **Parameters:**  
+    - `toteleportents` (table): List of entities to teleport.  
+    - `targetteleportmarkername` (string): Marker prefab name (e.g., `"vaultmarker_vault_north"`).  
+*   **Returns:** Nothing.
 
 ### `OnVaultTeleporterChannelStart(teleporter, doer)`
-* **Description:** Handles player-initiated teleport attempts. If all players are ready and the link is not broken, triggers coordinated teleportation. Handles special case for lobby teleporter.
-* **Parameters:**
-  - `teleporter` (`Entity`)
-  - `doer` (`Entity`, usually player)
+*   **Description:** Handles the start of a channeling event at a teleporter. Manages player count accumulation and initiates the teleport sequence when all players are ready.  
+*   **Parameters:**  
+    - `teleporter` (Entity): The `vault_teleporter` entity.  
+    - `doer` (Entity): The player/channeling actor.  
+*   **Returns:** Nothing.
 
-### `OnVaultTeleporterChannelStop(teleporter, doer)`
-* **Description:** Removes the channeling counter for the player when teleport channel is cancelled or completes.
-* **Parameters:**
-  - `teleporter` (`Entity`)
-  - `doer` (`Entity`)
+### `TryStartTeleportSequence(teleporter, roomid, targetteleportmarkername)`
+*   **Description:** Begins the synchronized teleport sequence for all players. Establishes a pending state and triggers `vault_teleport` events.  
+*   **Parameters:**  
+    - `teleporter` (Entity): The teleporter involved.  
+    - `roomid` (string): Target room ID.  
+    - `targetteleportmarkername` (string): Target marker name.  
+*   **Returns:** `true` if the sequence was started, `false` if another sequence is already pending.
 
-### `OnVaultTeleporterRepaired(teleporter, doer)`, `OnVaultTeleporterBroken(teleporter, doer)`
-* **Description:** Marks a link as repaired or broken (adds/removes from `repairedlinks` map).
-* **Parameters:**
-  - `teleporter` (`Entity`)
-  - `doer` (`Entity`)
+### `GetLobbyToVaultTeleporter()`
+*   **Description:** Returns (and lazily creates) the dedicated teleporter for lobby ↔ vault transitions.  
+*   **Parameters:** None.  
+*   **Returns:** `vault_teleporter` entity.
 
 ### `OnUpdate(dt)`
-* **Description:** Core loop handling:
-  - Player position tracking (vault vs. outside).
-  - Auto-room rotation when empty (cooled down).
-  - Room reload or reset logic.
-  - Teleport pt synchronization for drowning.
-* **Parameters:**
-  - `dt` (`number`): Delta time since last frame.
+*   **Description:** Main logic loop (runs at 1-second intervals). Handles player tracking, auto-rotation of rooms when empty, resetting the Vault, and updating teleporter states.  
+*   **Parameters:**  
+    - `dt` (number): Delta time in seconds.  
+*   **Returns:** Nothing.
 
-### `OnSave()`, `OnLoad(data)`
-* **Description:** Save/load logic for persistent state: room data, repaired links, seed, layout version, and resetting state.
-* **Parameters (for `OnLoad`):**
-  - `data` (`table`): Saved data table.
+### `OnSave()`
+*   **Description:** Serializes the Vault’s state (layout, room data, repaired links, PRNG seed) for world saving.  
+*   **Parameters:** None.  
+*   **Returns:** `data` (table) — Serializable state object.
 
-### `GetDebugString()`
-* **Description:** Returns a short debug string identifying the current room (e.g., `"Room:mask1/1"`).
-* **Parameters:** None.
+### `OnLoad(data)`
+*   **Description:** Restores Vault state from world save. Handles layout version upgrades and PRNG state restoration.  
+*   **Parameters:**  
+    - `data` (table): Deserialized save data.  
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- Listens to:
-  - `"ms_register_vault_marker"` → `self:OnRegisterVaultMarker`
-  - `"ms_unregister_vault_marker"` → `self:OnUnregisterVaultMarker`
-  - `"ms_vault_teleporter_channel_start"` → `self:OnVaultTeleporterChannelStart`
-  - `"ms_vault_teleporter_channel_stop"` → `self:OnVaultTeleporterChannelStop`
-  - `"ms_vault_teleporter_repair"` → `self:OnVaultTeleporterRepaired`
-  - `"ms_vault_teleporter_break"` → `self:OnVaultTeleporterBroken`
-  - `"ms_register_vault_lobby_exit"` → `self:OnVaultLobbyExitCreated`
-  - `"ms_register_vault_lobby_exit_target"` → `self:OnVaultLobbyExitTargetCreated`
-  - `"arhivepoweron"` → `self:OnArchivesPowered(true)`
-  - `"arhivepoweroff"` → `self:OnArchivesPowered(false)`
-  - `"resetruins"` → `self:ResetVault()`
-  - `"ms_playerjoined"` → `self.OnPlayerJoined`
-- Pushes:
-  - `"vault_teleporter_does_nothing"` (on broken/unlinked teleporter attempts)
-  - `"vault_teleport"` (on teleportation requests)
-  - `"ms_vaultroom_vault_playerentered"` (on player entry)
-  - `"ms_vaultroom_vault_playerleft"` (on player exit)
-  - `"vault_teleport_does_nothing"` (for invalid state)
+### `OnPostInit()`
+*   **Description:** Ensures static layouts (e.g., `Vault_Lobby`, `Vault_Vault`) are placed exactly once per world creation.  
+*   **Parameters:** None.  
+*   **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:**  
+    - `"ms_register_vault_marker"` — Registers a vault marker entity.  
+    - `"ms_unregister_vault_marker"` — Removes a vault marker entity.  
+    - `"ms_vault_teleporter_channel_start"` — Begins teleporter channeling.  
+    - `"ms_vault_teleporter_channel_stop"` — Stops teleporter channeling.  
+    - `"ms_vault_teleporter_repair"` / `"ms_vault_teleporter_break"` — Updates link states.  
+    - `"ms_register_vault_lobby_exit"` / `"ms_register_vault_lobby_exit_target"` — Sets up lobby exit portal linking.  
+    - `"arhivepoweron"` / `"arhivepoweroff"` — Controls lobby teleporter power state.  
+    - `"resetruins"` — Triggers full Vault reset.  
+    - `"ms_playerjoined"` — Tracks new players entering the world.  
+
+- **Pushes:**  
+    - `"ms_vaultroom_vault_playerentered"` — Fired when a player enters the Vault.  
+    - `"ms_vaultroom_vault_playerleft"` — Fired when a player leaves the Vault.  
+    - `"newvaultteleporterroomid"` — Fired via `vault_teleporter` when its target room ID changes.

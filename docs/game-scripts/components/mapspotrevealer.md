@@ -1,59 +1,78 @@
 ---
 id: mapspotrevealer
 title: Mapspotrevealer
-description: This component enables an entity to reveal map spots on the player's minimap by triggering area revelations at specified coordinates, optionally opening the map UI upon reveal.
+description: Adds functionality to an entity to reveal map areas at specified locations, supporting pre-reveal hooks and conditional map opening.
+tags: [map, reveal, interaction]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: dcf858ae
+system_scope: entity
 ---
 
 # Mapspotrevealer
 
-## Overview
-The `Mapspotrevealer` component allows an entity to programmatically reveal map areas on the minimap. It integrates with the player's `MapExplorer` system to reveal terrain around a specified world position, and can optionally open the full map UI when a reveal occurs. It supports custom logic for target determination and pre-reveal validation via callback functions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds the `"mapspotrevealer"` tag to the entity on construction.
-- Removes the `"mapspotrevealer"` tag when the component is removed from the entity.
-- Requires the entity's associated player to have the `player_classified` component and a `MapExplorer` sub-component for map revelation to succeed.
-- Relies on the `FRAMES` constant (used for static task scheduling).
+## Overview
+`MapSpotRevealer` enables an entity to reveal specific map locations upon an action, such as activating an item or completing a task. It is typically attached to items (e.g., maps, compasses) or interactable objects that grant map exploration progress. The component manages validation of reveal permissions via optional callback functions, coordinates map revealing logic, and fires events before and after the reveal. It also optionally triggers the in-game map UI to open automatically.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("mapspotrevealer")
+
+-- Set the function that returns the world coordinates to reveal
+inst.components.mapspotrevealer:SetGetTargetFn(function(entity, doer)
+    return Vector3(100, 0, -200)  -- target map position
+end)
+
+-- Optionally set a pre-reveal gate (e.g., check condition)
+inst.components.mapspotrevealer:SetPreRevealFn(function(entity, doer)
+    return doer.components.inventory ~= nil  -- only if doer has inventory
+end)
+
+-- Perform the reveal
+inst.components.mapspotrevealer:RevealMap(doer)
+```
+
+## Dependencies & tags
+**Components used:** None identified.  
+**Tags:** Adds and removes the `mapspotrevealer` tag.  
+**Replica usage:** Interacts with `doer.player_classified.revealmapspot_worldx`, `revealmapspot_worldz`, `revealmapspotevent`, and `MapExplorer:RevealArea(...)`, indicating integration with the player's replicated classified component.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `gettargetfn` | function | `nil` | A callback function that returns the target `(x, y, z)` position to reveal. Expected signature: `function(inst, doer) --> position, reason`. |
-| `prerevealfn` | function | `nil` | A callback function run before revealing; if it returns `false`, the reveal is aborted. Expected signature: `function(inst, doer) --> allow_mapreveal`. |
-| `open_map_on_reveal` | boolean | `true` | Determines whether the full map UI should be opened upon successful revelation. |
+| `gettargetfn` | function\|nil | `nil` | Callback `fn(entity, doer) → Vector3\|nil, string?` that returns the world position to reveal. |
+| `prerevealfn` | function\|nil | `nil` | Optional gate callback `fn(entity, doer) → boolean` that returns `false` to abort reveal. |
+| `open_map_on_reveal` | boolean | `true` | Whether to open the map UI after revealing the spot. |
 
-## Main Functions
+## Main functions
 ### `SetGetTargetFn(fn)`
-* **Description:** Assigns a callback function used to determine the world position to reveal. This function is invoked during `RevealMap`.
-* **Parameters:**  
-  - `fn` *(function)*: A callable that accepts `(inst, doer)` and returns a table `{x, y, z}` (or `nil` + reason string on failure).
+* **Description:** Sets the callback function used to determine the map coordinates to reveal. The function is invoked during `RevealMap`.
+* **Parameters:** `fn` (function) – signature: `fn(entity: Entity, doer: Entity) → (Vector3 \| nil, reason?: string)`.
+* **Returns:** Nothing.
 
 ### `SetPreRevealFn(fn)`
-* **Description:** Assigns a pre-reveal validation callback. If the callback returns `false`, the reveal is cancelled.
-* **Parameters:**  
-  - `fn` *(function)*: A callable that accepts `(inst, doer)` and returns a boolean indicating whether to proceed.
+* **Description:** Sets an optional pre-reveal validation callback. If this function returns `false`, the reveal is cancelled.
+* **Parameters:** `fn` (function) – signature: `fn(entity: Entity, doer: Entity) → boolean`.
+* **Returns:** Nothing.
 
 ### `RevealMap(doer)`
-* **Description:** Executes the map reveal logic. Validates preconditions, runs the pre-reveal callback, retrieves the target position, fires events, and reveals the map area. Optionally opens the map UI.
-* **Parameters:**  
-  - `doer` *(Entity)*: The entity performing the reveal, typically a player. Must have the `player_classified` component and a `MapExplorer` member.  
-* **Returns:**  
-  - `true` on success.  
-  - `false, reason` on failure, where `reason` is an error string (e.g., `"NO_TARGET"`, `"NO_MAP"`).  
-* **Notes:**  
-  - Fires `"on_reveal_map_spot_pre"` and `"on_reveal_map_spot_pst"` events.  
-  - Uses a 4-frame delay (via `DoStaticTaskInTime`) to reveal the area, ensuring UI responsiveness.
+* **Description:** Initiates the map reveal sequence for the current target position. Executes pre-reveal checks, fires events, updates the doer's map state, and optionally opens the map.
+* **Parameters:** `doer` (Entity) – the entity triggering the reveal (typically the player).
+* **Returns:** `true` on success, or `{false, reason}` (e.g., `"NO_TARGET"`, `"NO_MAP"`) on failure.
+* **Error states:**
+  - Returns `{false, "NO_TARGET"}` if `gettargetfn` is `nil` or returns `nil`/invalid position.
+  - Returns `{false, "NO_MAP"}` if `doer` lacks `player_classified`.
+  - Returns `true` early (without further action) if `prerevealfn` explicitly returns `false`.
 
-## Events & Listeners
-- **Listens for:** None (no `inst:ListenForEvent` calls).
-- **Emits:**
-  - `"on_reveal_map_spot_pre", targetpos`: Fired immediately before the area reveal begins (passed to listeners as an event argument).
-  - `"on_reveal_map_spot_pst", targetpos`: Fired after the area reveal logic completes (passed to listeners as an event argument).
+## Events & listeners
+- **Listens to:** None identified.
+- **Pushes:**
+  - `on_reveal_map_spot_pre` – fired just before map reveal logic; payload: `targetpos` (Vector3).
+  - `on_reveal_map_spot_pst` – fired after map reveal completes; payload: `targetpos` (Vector3).

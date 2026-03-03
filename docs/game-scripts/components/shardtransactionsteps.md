@@ -1,92 +1,110 @@
 ---
 id: shardtransactionsteps
 title: Shardtransactionsteps
-description: Manages the reliable, state-machine-based exchange of data payloads between game shards during world transitions.
+description: Manages multi-step shard-to-shard transaction lifecycle to safely transfer data and items between game shards and save states.
+tags: [network, shard, save, transaction]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: components
 source_hash: 7be30c23
+system_scope: network
 ---
-
 # Shardtransactionsteps
 
-## Overview
-This component implements a robust transaction protocol for transferring data between shards in Don't Starve Together. It coordinates a multi-step handshake—initiation → acceptance → finalization—to ensure safe and consistent state migration across distributed worlds, particularly during world portal usage. It maintains per-shard transaction queues with unique IDs and tracks progress via status fields (`INITIATE`, `ACCEPTED`, `FINALIZED`).
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires `inst.ismastersim == true` (asserted in constructor).
-- No external component additions or entity tags.
-- Relies on external globals:
-  - `TheShard` for shard identification and RPC dispatch.
-  - `SendRPCToShard` and `SHARD_RPC.ShardTransactionSteps` for inter-shard communication.
-  - `SHARDTRANSACTIONSTEPS` enum constants (`INITIATE`, `ACCEPTED`, `FINALIZED`).
-  - `SHARDTRANSACTIONTYPES` for transaction type dispatch.
-  - `GetMigrationPortalFromMigrationData`, `GetMigrationPortalLocation`, `SpawnPrefab`, and `GetMigrationPortalLocation`.
+## Overview
+`ShardTransactionSteps` coordinates reliable, ordered, and idempotent data transfers between game shards (e.g., overworld ↔ caves). It implements a 7-step acknowledgment protocol to ensure data integrity during cross-shard migrations (e.g., portal item transfers), including handling of retries, replays, and pruning of completed transactions. This component is strictly server-side and must be attached only to the mastersim instance.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("shardtransactionsteps")
+
+-- Initiate a transaction to another shard
+inst.components.shardtransactionsteps:CreateTransaction(
+    "other_shard_id",
+    SHARDTRANSACTIONTYPES.TRANSFERINVENTORYITEM,
+    { item = my_item, migrationdata = portal_data }
+)
+```
+
+## Dependencies & tags
+**Components used:** `itemstore` (via `portal.components.itemstore:AddItemRecordAndMigrationData`)
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *None (injected)* | The entity this component is attached to; must be master-simulated. |
-| `transactions` | `table` | `{}` | Per-shard transaction storage. Keys are `shardid`; values are tables containing numeric transaction IDs as keys and payload tables as values. Each payload table includes `status`, `uniqueid`, and transaction-specific data. Also stores per-shard metadata: `uniqueid` (next ID to assign) and `finalizedid` (highest finalized ID). |
-| `OnShardTransactionSteps_Bridge` | `function` | *Closure* | Internal rescheduling wrapper for failed transactions; resets `rescheduling` flag before re-invoking `OnShardTransactionSteps`. |
+| `transactions` | table | `{}` | Nested table mapping `shardid → {uniqueid, finalizedid, [id] = payload}` storing in-flight and finalized transactions per shard. |
 
-## Main Functions
-### `OnShardTransactionSteps(shardpayload)`
-* **Description:** Core event handler that processes incoming transaction payloads. Implements the full transaction lifecycle: sending transactions from the origin shard, receiving and applying payloads on the target shard, and managing state transitions and cleanup. Handles reordering (via ID comparison) and duplicate detection.
-* **Parameters:**
-  - `shardpayload` (*table*): Payload object containing fields: `transactiontype`, `originshardid`, `receivershardid`, `data`, `uniqueid`, `status`, and optionally `rescheduling`.
-
+## Main functions
 ### `CreateTransaction(shardid, transactiontype, data)`
-* **Description:** Initiates a new transaction by generating a unique ID, constructing the payload, applying initialization logic, and dispatching it. Automatically enqueues the payload if the target shard is currently reachable.
-* **Parameters:**
-  - `shardid` (*string*): Target shard identifier (must differ from the local shard).
-  - `transactiontype` (*string*): Constants like `SHARDTRANSACTIONTYPES.TRANSFERINVENTORYITEM`.
-  - `data` (*table*): Transaction-specific data (e.g., item record, migration coordinates).
+*   **Description:** Initiates a new cross-shard transaction. Assigns a unique ID, constructs the payload, performs transaction-type initialization (e.g., serializing an item), sets status to `INITIATE`, and dispatches the payload if the target shard is available.
+*   **Parameters:**  
+    `shardid` (string) – Destination shard ID (must differ from the local shard).  
+    `transactiontype` (string) – Constant from `SHARDTRANSACTIONTYPES` indicating the operation type (e.g., `TRANSFERINVENTORYITEM`).  
+    `data` (table) – Transaction-specific payload data.
+*   **Returns:** Nothing.
+
+### `OnShardTransactionSteps(shardpayload)`
+*   **Description:** Core event handler processing incoming transaction payloads based on status and role (sender or receiver). Implements the full transaction flow: initiation → acceptance → finalization, including deduplication of replayed payloads and rescheduling of transient failures.
+*   **Parameters:**  
+    `shardpayload` (table) – Sharded transaction payload containing `status`, `uniqueid`, `originshardid`, `receivershardid`, `transactiontype`, `data`, and optional `rescheduling`.
+*   **Returns:** Nothing.
 
 ### `HandleTransactionFinalization(shardpayload)`
-* **Description:** Applies the transaction on the receiving shard—specifically for item transfers, this spawns the item at the correct destination and teleports it. Returns `true` on success or `false` if the target location is invalid (requiring rescheduling).
-* **Parameters:**
-  - `shardpayload` (*table*): Payload object with `data.item_record` and `data.migrationdata` for item recreation.
-
-### `GetShardTransactions(shardid)`
-* **Description:** Returns the per-shard transaction table, initializing it with default values (`uniqueid=1`, `finalizedid=0`) if it does not exist.
-* **Parameters:**
-  - `shardid` (*string*): Target shard identifier.
-
-### `OnPruneShardTransactionSteps(shardid, newfinalizedid)`
-* **Description:** Frees memory by removing finalized transactions up to `newfinalizedid` and updates the per-shard `finalizedid` counter. Warns on invalid transaction counts (e.g., finalized >= unique).
-* **Parameters:**
-  - `shardid` (*string*): Target shard identifier.
-  - `newfinalizedid` (*number*): Highest finalized transaction ID to retain.
+*   **Description:** Executes final steps of a received transaction (e.g., item deserialization and placement in the destination world). Used when the receiving shard processes an `INITIATE` payload.
+*   **Parameters:**  
+    `shardpayload` (table) – Transaction payload (with `transactiontype` and `data`).
+*   **Returns:** `true` if successful; `false` if finalization failed (e.g., missing portal and invalid position data).
+*   **Error states:** Returns `false` if `portal` is nil and `migrationdata` lacks valid `dest_x`, `dest_y`, or `dest_z`.
 
 ### `HandleTransactionInitialization(shardpayload)`
-* **Description:** Prepares the payload for transfer by serializing objects into records—e.g., extracts and removes an inventory item’s save data to form `item_record`. Called before sending from the origin shard.
-* **Parameters:**
-  - `shardpayload` (*table*): Payload object (modified in place).
+*   **Description:** Prepares payload data *before* sending (e.g., replaces an active `item` object with its save record). Called by `CreateTransaction` on the origin shard.
+*   **Parameters:**  
+    `shardpayload` (table) – Transaction payload (modified in place).
+*   **Returns:** Nothing.
 
-### `ClearFields(shardpayload)`
-* **Description:** Clears sensitive or redundant fields (`transactiontype`, `originshardid`, `receivershardid`, `data`) from the payload after finalization to reduce memory usage. Preserves `uniqueid`.
-* **Parameters:**
-  - `shardpayload` (*table*): Payload object (modified in place).
+### `GetShardTransactions(shardid)`
+*   **Description:** Returns the transaction metadata table for a given shard, initializing it with `uniqueid = 1` and `finalizedid = 0` if absent.
+*   **Parameters:**  
+    `shardid` (string) – Shard identifier.
+*   **Returns:** `table` – Transaction state table containing `uniqueid`, `finalizedid`, and transaction records by ID.
+
+### `OnPruneShardTransactionSteps(shardid, newfinalizedid)`
+*   **Description:** Prunes finalized transactions from memory after all prior IDs have been finalized, and updates the `finalizedid` counter.
+*   **Parameters:**  
+    `shardid` (string) – Target shard ID.  
+    `newfinalizedid` (number) – New finalized ID boundary.
+*   **Returns:** Nothing.
 
 ### `OnShardConnected(shardid)`
-* **Description:** Re-sends any pending `INITIATE` transactions to a newly connected shard to ensure delivery after temporary disconnections.
-* **Parameters:**
-  - `shardid` (*string*): Shard that has reconnected.
+*   **Description:** Re-sends un-finalized transactions to a shard upon reconnection to recover from disconnection mid-transaction.
+*   **Parameters:**  
+    `shardid` (string) – Reconnected shard ID.
+*   **Returns:** Nothing.
 
-### `OnSave()` / `OnLoad(data)`
-* **Description:** Persist/resume the transaction queues and metadata across save/load cycles to maintain transaction state across world reloads.
-* **Parameters:**
-  - `OnLoad(data)`: `data.transactions` (*table*) is merged into `self.transactions`.
+### `OnSave()`
+*   **Description:** Serializes pending and in-progress transactions for world save persistence.
+*   **Parameters:** None.
+*   **Returns:** `table` – `{ transactions = self.transactions }`, or `nil` if no transactions exist.
 
-## Events & Listeners
-- Listens for:  
-  - `SHARDTRANSACTIONSTEPS` via the RPC bridge (`OnShardTransactionSteps_Bridge` → `OnShardTransactionSteps`).  
-- Triggers:  
-  - `SendRPCToShard(SHARD_RPC.ShardTransactionSteps, ...)` for all shard communications.  
-  - `SendRPCToShard(SHARD_RPC.PruneShardTransactionSteps, ...)` to request the receiving shard to clean up finalized transactions.  
-- Internal rescheduling logic uses `DoTaskInTime(0, ...)` for deferred retry.
+### `OnLoad(data)`
+*   **Description:** Restores transaction state from saved data.
+*   **Parameters:**  
+    `data` (table? | nil) – Data returned from `OnSave`.
+*   **Returns:** Nothing.
+
+### `ClearFields(shardpayload)`
+*   **Description:** Removes transient fields (e.g., `transactiontype`, `originshardid`, `data`) from a payload after finalization to reduce saved data size. Does *not* clear `uniqueid`.
+*   **Parameters:**  
+    `shardpayload` (table) – Transaction payload (modified in place).
+*   **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:** No events registered via `inst:ListenForEvent`.
+- **Pushes:**  
+  - `itemstore_changedcount` – Indirectly via `itemstore:AddItemRecordAndMigrationData` when a transferred item is stored in a portal’s item store.

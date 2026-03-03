@@ -1,54 +1,78 @@
 ---
 id: firebug
 title: Firebug
-description: Periodically spawns a fire prefab and triggers a talker announcement at randomized intervals after a delay, optionally skipping activation based on sanity thresholds.
+description: Triggers periodic announcements and spawns a prefab when an entity's fire timer expires, optionally subject to sanity thresholds.
+tags: [component, sanity, announcement, spawn]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: a55dcb73
+system_scope: entity
 ---
 
 # Firebug
 
-## Overview
-This component controls a periodic behavior where the entity spawns a fire prefab at its location and emits a predefined sound/announcement after an initial delay, then repeats at randomized intervals. It supports disabling via a sanity threshold and manages its own update loop lifecycle.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires components: `talker`, `transform`, and optionally `sanity`
-- No tags are added or removed
-- Uses global functions: `GetString`, `SpawnPrefab`, `math.random`
+## Overview
+`Firebug` is a periodic behavior component that triggers timed events on its owner entity. It updates each frame via `OnUpdate`, tracks a countdown timer (`time_to_fire`), and at intervals (`time_interval ± time_variance`) executes two actions: (1) causes the entity to speak a localized string (`ANNOUNCE_LIGHTFIRE`) via the `talker` component, and (2) spawns a prefab (if configured) at the entity’s position. It optionally respects sanity state — if `sanity_threshold` is set, it skips the action when the entity is in Insanity Mode and has sanity at or above the threshold.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("firebug")
+
+-- Configure firing behavior
+inst.components.firebug.time_interval = 90
+inst.components.firebug.time_variance = 30
+inst.components.firebug.prefab = "firebug_fx"
+inst.components.firebug.sanity_threshold = 0.4
+
+-- Enable (starts timer)
+inst.components.firebug:Enable()
+```
+
+## Dependencies & tags
+**Components used:** `sanity`, `talker`
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `time_to_fire` | `number` | `60` | Time (in seconds) remaining until the next fire event. |
-| `time_interval` | `number` | `120` | Base interval (in seconds) between fire events. |
-| `time_variance` | `number` | `120` | Maximum random variance (in seconds) added to `time_interval` to compute next fire time. |
-| `sanity_threshold` | `number?` | `nil` | If set, the behavior is skipped while sanity is *at or above* this threshold during insanity mode. |
-| `prefab` | `string?` | `nil` | Prefab name of the fire to spawn; if `nil`, no fire is spawned. |
-| `enabled` | `boolean` | `false` (initially) | Whether the component is active and updating. Set to `true` on construction. |
+| `time_to_fire` | number | `60` | Remaining time (in seconds) before the next trigger. Decremented each frame; reset after firing. |
+| `time_interval` | number | `120` | Base interval (in seconds) between triggers. |
+| `time_variance` | number | `120` | Random variance added to `time_interval`; actual delay = `time_interval + time_variance * math.random()`. |
+| `sanity_threshold` | number or `nil` | `nil` | If set, skips triggers when entity is in Insanity Mode *and* has sanity percentage ≥ this value. |
+| `prefab` | string or `nil` | `nil` | Name of the prefab to spawn at the entity's location on trigger. |
+| `enabled` | boolean | `true` (initially) | Whether the component is active and receiving `OnUpdate` calls. |
 
-## Main Functions
+## Main functions
 ### `Enable(enable)`
-* **Description:** Enables the component. If not already enabled, starts the update loop via `StartUpdatingComponent`.
-* **Parameters:** `enable` — Optional boolean (unused in current implementation; method always enables if called).
+*   **Description:** Activates the component. If called with no argument (or `true`), it enables updating and sets `enabled = true`. If called with `false`, it acts as `Disable()`.
+*   **Parameters:** `enable` (boolean, optional) — If provided and `false`, disables the component.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if `enabled` is already `true`.
 
 ### `Disable()`
-* **Description:** Disables the component. Stops the update loop via `StopUpdatingComponent` if currently active.
-* **Parameters:** None.
+*   **Description:** Deactivates the component. Stops updates and sets `enabled = false`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if `enabled` is already `false`.
 
 ### `OnUpdate(dt)`
-* **Description:** Core logic invoked each frame. Decrements `time_to_fire` until it expires, then triggers a talker announcement and optionally spawns a fire prefab. Resets `time_to_fire` with a randomized interval.
-* **Parameters:** `dt` — Time (in seconds) since last frame.
+*   **Description:** Called each frame while `enabled`. Decrements `time_to_fire`; when it reaches zero, triggers the announcement and optional spawn, then resets `time_to_fire`.
+*   **Parameters:** `dt` (number) — Delta time in seconds since last frame.
+*   **Returns:** Nothing.
+*   **Error states:** Early return occurs if `sanity_threshold` is set *and* the entity is in Insanity Mode with `sanity:GetPercent() >= sanity_threshold`. Also, if `time_to_fire > dt`, only decrements the timer.
 
 ### `GetDebugString()`
-* **Description:** Returns a human-readable debug string showing current state.
-* **Parameters:** None.
+*   **Description:** Returns a formatted string for debugging, showing current state.
+*   **Parameters:** None.
+*   **Returns:** string — e.g., `"enabled=true, time_to_fire=45.23"`.
 
-## Events & Listeners
-- Listens to component update (via `StartUpdatingComponent`/`StopUpdatingComponent`) but no explicit `ListenForEvent` calls.
-- Does not push or trigger any events.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** None.

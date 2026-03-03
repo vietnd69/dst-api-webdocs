@@ -1,76 +1,93 @@
 ---
 id: hunter
 title: Hunter
-description: Manages the world-level hunting mechanic that tracks and spawns game animals based on player activity and environmental conditions.
+description: Manages dynamic monster hunting sequences triggered by players investigating dirt piles, including track generation, beast selection, and spawn logic based on world state and active shrines.
+tags: [world, combat, quest]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 2ae3722c
+system_scope: world
 ---
 
 # Hunter
 
-## Overview
-The `Hunter` component orchestrates the world-scoped hunting system in *Don't Starve Together*, which dynamically spawns animal tracks, lairs, and hunted beasts (e.g., koalefants, wargs) in response to player presence and actions. It coordinates dirt pile and track spawning, validates player eligibility, manages hunt cooldowns and state transitions, and respects modifiers such as Warg and Snake Shrines and seasonal/event-specific behaviors.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies**: None explicitly added via `AddComponent`. Requires `TheWorld.components.lunarriftmutationsmanager` and `TheWorld.components.riftspawner` for conditional logic.
-- **Tags Used**: Checks for `"nohunt"` and `"moonhunt"` tags via `components.areaaware`.
-- **Listeners**: Responds to world events: `ms_playerjoined`, `ms_playerleft`, `wargshrineactivated`, `wargshrinedeactivated`, `ms_snakeshrineactivated`, `ms_snakeshrinedeactivated`.
+## Overview
+The `hunter` component orchestrates the game's monster-hunting mechanic, which activates when players investigate dirt piles. It maintains a pool of active hunts, tracks player availability, spawns animal tracks, determines beast types (e.g., koalefant, warg, claywarg), and handles spawn logic. The component monitors player presence, shrines (`wargshrine`, `snakeshrine`), lunar rift mutations, and seasonal events to dynamically adjust hunt difficulty and outcomes. It runs exclusively on the master simulation (`TheWorld.ismastersim`).
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("hunter")
+-- hunts are automatically started when players join the world
+-- to debug, force a hunt:
+inst.components.hunter:DebugForceHunt()
+-- inspect hunt state for debugging:
+print(inst.components.hunter:GetDebugString())
+```
+
+## Dependencies & tags
+**Components used:** `areaaware` (via `TheWorld` context), `lunarriftmutationsmanager`, `riftspawner`  
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (passed in constructor) | The owning entity (typically the World root). |
-| `_activeplayers` | `table` | `{}` | List of currently active players in the world. |
-| `_activehunts` | `table` | `{}` | List of active hunt instances. Each hunt is a table containing internal state (see `CreateNewHunt`). |
-| `_wargshrines` | `SourceModifierList` | `SourceModifierList(inst, false, SourceModifierList.boolean)` | Tracks active Warg Shrines and their effect on hunting behavior. |
-| `_snakeshrines` | `SourceModifierList` | `SourceModifierList(inst, false, SourceModifierList.boolean)` | Tracks active Snake Shrines and their effect on hunting behavior. |
+| `inst` | `Entity` | `nil` (assigned in constructor) | Reference to the entity (typically `TheWorld`) that owns this component. |
+| `_activeplayers` | `table` | `{}` | List of player entities eligible for hunts. |
+| `_activehunts` | `table` | `{}` | List of active hunt objects (see `CreateNewHunt`). |
+| `_wargshrines` | `SourceModifierList` | — | Tracks active warg shrines (via `wargshrineactivated`/`deactivated` events). |
+| `_snakeshrines` | `SourceModifierList` | — | Tracks active snake shrines (via `ms_snakeshrineactivated`/`deactivated` events). |
 
-No additional public properties are initialized in `_ctor` or elsewhere.
-
-## Main Functions
-
+## Main functions
 ### `OnDirtInvestigated(pt, doer)`
-* **Description:** Called when a player investigates a dirt pile (track). Triggers the next step in the hunt: spawns the next track segment, dirt pile, or hunted beast. Handles hunt progression, scoring, and transitions to cooldown or reset.
-* **Parameters:**
-  - `pt`: `Vector3` — Position of the investigated dirt pile.
-  - `doer`: `Entity` — The player entity investigating the dirt pile.
+* **Description:** Called when a player investigates a dirt pile. If the pile belongs to an active hunt, it spawns the next track, may spawn the next dirt pile, or spawns the hunted beast if all tracks are done.
+* **Parameters:**  
+  `pt` (`Vector3`): World position of the investigated dirt pile.  
+  `doer` (`Entity`): The player entity investigating the dirt pile.
+* **Returns:** Nothing.
+* **Error states:** No matching hunt found for the dirt pile → returns silently. Spawn failures (e.g., invalid position) → triggers `ResetHunt`.
 
 ### `IsWargShrineActive()`
-* **Description:** Returns `true` if the Warg Shrine is currently active *and* the YOTV (Year of the Warg) special event is active.
-* **Returns:** `boolean`
+* **Description:** Returns whether warg shrines are active *and* the YOTV event is enabled.
+* **Parameters:** None.
+* **Returns:** `boolean`.
 
 ### `IsSnakeShrineActive()`
-* **Description:** Returns `true` if the Snake Shrine is currently active *and* the YOTS (Year of the Snake) special event is active.
-* **Returns:** `boolean`
+* **Description:** Returns whether snake shrines are active *and* the YOTS event is enabled.
+* **Parameters:** None.
+* **Returns:** `boolean`.
 
 ### `LongUpdate(dt)`
-* **Description:** Adjusts active hunt cooldown timers during world time scaling (e.g., paused or fast-forwarded time). Recalibrates scheduled tasks for cooldown completion.
-* **Parameters:**
-  - `dt`: `number` — Delta time since the last update.
+* **Description:** Adjusts cooldown timers when physics time is altered (e.g., fast-forwarding). Updates cooldown tasks to reflect elapsed time.
+* **Parameters:** `dt` (`number`) — Delta time (positive or negative) to apply to active hunt cooldowns.
+* **Returns:** Nothing.
 
 ### `DebugForceHunt()`
-* **Description:** Forces a new hunt to begin immediately by clearing any existing hunt slots and starting a hunt with a 0.1s cooldown.
-* **Side Effect:** May remove an existing hunt if the maximum hunt count is already reached.
+* **Description:** Skips cooldown and forces a new hunt to start immediately. Used for debugging.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted string with debug information for all active hunts (cooldown remaining, track progress, monster/ambush markers, and final score).
-* **Returns:** `string`
+* **Description:** Returns a formatted string describing the state of all active hunts (cooldown time remaining, track progress, monster ambush info, score). Useful for debugging.
+* **Parameters:** None.
+* **Returns:** `string`.
 
-## Events & Listeners
-- **Listens for:**
-  - `"ms_playerjoined"` → triggers `OnPlayerJoined`
-  - `"ms_playerleft"` → triggers `OnPlayerLeft`
-  - `"wargshrineactivated"` → triggers `OnWargShrineActivated`
-  - `"wargshrinedeactivated"` → triggers `OnWargShrineDeactivated`
-  - `"ms_snakeshrineactivated"` → triggers `OnSnakeShrineActivated`
-  - `"ms_snakeshrinedeactivated"` → triggers `OnSnakeShrineDeactivated`
-- **Pushes events:**
-  - Players receive `"huntlosttrail"`, `"huntstartfork"`, `"huntwrongfork"`, `"huntbeastnearby"`, and `"huntsuccessfulfork"` via `doer:PushEvent(...)`.
-  - Spawned beasts receive `"spawnedforhunt"` with metadata (`{beast, pt, action, score}`).
-  - Dirt piles register `"onremove"` callback (handled internally) to reset hunts when dirt is removed.
+## Events & listeners
+- **Listens to:**  
+  `ms_playerjoined` — Adds new player to `_activeplayers` and starts a hunt if slots are available.  
+  `ms_playerleft` — Removes player from `_activeplayers`.  
+  `wargshrineactivated` — Marks a warg shrine as active.  
+  `wargshrinedeactivated` — Deactivates warg shrine tracking.  
+  `ms_snakeshrineactivated` — Marks a snake shrine as active.  
+  `ms_snakeshrinedeactivated` — Deactivates snake shrine tracking.  
+  `onremove` (on `dirtpile`) — Clears `lastdirt` reference and triggers `ResetHunt` when a dirt pile is removed.
+
+- **Pushes:**  
+  On player: `huntlosttrail`, `huntstartfork`, `huntwrongfork`, `huntbeastnearby`, `huntsuccessfulfork`  
+  On beast: `spawnedforhunt` (with `beast`, `pt`, `action`, `score`)

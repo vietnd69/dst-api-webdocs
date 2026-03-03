@@ -1,88 +1,112 @@
 ---
 id: colouradder
 title: Colouradder
-description: This component manages and applies additive color effects to an entity by combining contributions from multiple sources and propagating the resulting color to its children.
+description: Manages additive colour blending stacks for an entity and propagates colour updates to child entities and render systems.
+tags: [rendering, colour, entity, network]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 9b8dfab5
+system_scope: rendering
 ---
 
 # Colouradder
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The Colouradder component is responsible for managing a stack of additive color contributions from various sources. It calculates a combined additive color based on these contributions and applies it to the entity's `AnimState` or propagates it to attached child entities that also have a `Colouradder` or `ColouradderSync` component. This allows for dynamic, layered visual effects where multiple game elements can contribute to an entity's coloration.
+`Colouradder` implements a stack-based additive colour system for entities. It accumulates colour contributions from multiple sources (e.g., environmental effects, equipment, or abilities), computes the total additive colour, and applies it to the entity's rendering via `AnimState:SetAddColour` or replicated updates via `ColourAdderSync`. It also propagates its current colour to attached child entities that have their own `colouradder` or `colouraddersync` components, enabling hierarchical colour inheritance.
 
-## Dependencies & Tags
-This component interacts with the following:
-*   **`AnimState`**: If present on the host entity or its children, the calculated additive color is directly applied using `AnimState:SetAddColour()`.
-*   **`colouraddersync`**: If present on the host entity or its children, the calculated additive color is synced using `colouraddersync:SyncColour()`.
-*   **`colouradder`**: Child entities can also have this component, allowing for nested color propagation.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("colouradder")
 
-No specific tags are added or removed by this component.
+-- Apply a red tint from a source
+local source = someEntity
+inst.components.colouradder:PushColour(source, 1, 0, 0, 0.5)
+
+-- Update or replace the source's colour
+inst.components.colouradder:PushColour(source, 0.8, 0.2, 0.2, 0.6)
+
+-- Remove the source's contribution
+inst.components.colouradder:PopColour(source)
+```
+
+## Dependencies & tags
+**Components used:** `colouraddersync`, `AnimState`  
+**Tags:** None identified.
 
 ## Properties
-| Property            | Type      | Default Value | Description                                                                                             |
-| :------------------ | :-------- | :------------ | :------------------------------------------------------------------------------------------------------ |
-| `inst`              | `Entity`  | (passed in)   | The entity instance this component is attached to.                                                      |
-| `colourstack`       | `table`   | `{}`          | A table storing active additive color contributions, indexed by their source entity or object. Each value is an RGBA table `{r, g, b, a}`. |
-| `children`          | `table`   | `{}`          | A table storing child entities that this component propagates its current color to, indexed by the child entity. |
-| `colour`            | `table`   | `{ 0, 0, 0, 0 }` | The currently calculated and applied aggregate additive color (RGBA values from 0-1).                     |
-| `_onremovesource`   | `function`| (function ref) | An internal callback function used to automatically `PopColour` when a source entity is removed.          |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `colourstack` | table | `{}` | Maps source entities/keys to `{r, g, b, a}` colour contribution tables. |
+| `children` | table | `{}` | Maps child entities to cleanup callbacks for `onremove` event handling. |
+| `colour` | table | `{0, 0, 0, 0}` | Stores the most recently computed and applied additive colour `{r, g, b, a}`. |
+| `_onremovesource` | function | See constructor | Callback registered for source entities' `onremove` events to auto-pop their contributions. |
 
-## Main Functions
+## Main functions
 ### `OnRemoveFromEntity()`
-*   **Description:** Called when the component is removed from its entity. It cleans up all registered "onremove" event callbacks for color sources and children, and ensures that children that received color from this component have that contribution removed.
-*   **Parameters:** None.
+*   **Description:** Cleans up all event listeners and child relationships when the component is removed from its entity.  
+*   **Parameters:** None.  
+*   **Returns:** Nothing.  
+*   **Error states:** Safely handles cases where sources or children have already been removed.
 
 ### `AttachChild(child)`
-*   **Description:** Adds a child entity to which this component will propagate its current additive color. The child will have its colour updated immediately, and will also remove itself from the parent's children list if it is removed from the world.
-*   **Parameters:**
-    *   `child`: (`Entity`) The entity to attach as a child.
+*   **Description:** Registers a child entity to inherit the parent's current additive colour. Applies the colour immediately and listens for the child’s removal to auto-detach.  
+*   **Parameters:**  
+    * `child` (Entity) - The child entity to attach.  
+*   **Returns:** Nothing.  
+*   **Error states:** No-op if child is already attached. Applies colour via `colouradder`, `colouraddersync`, or `AnimState` in that priority order.
 
 ### `DetachChild(child)`
-*   **Description:** Removes a child entity from this component's propagation list. If the child has its own `colouradder` component, this component's contribution will be removed from the child's color stack.
-*   **Parameters:**
-    *   `child`: (`Entity`) The entity to detach.
+*   **Description:** Removes a child from the inheritance list and triggers the child to remove the parent's colour contribution.  
+*   **Parameters:**  
+    * `child` (Entity) - The child entity to detach.  
+*   **Returns:** Nothing.  
+*   **Error states:** No-op if child is not attached. Only notifies `colouradder` on the child.
 
 ### `GetCurrentColour()`
-*   **Description:** Returns the current aggregate additive color (RGBA) that is applied to the entity.
-*   **Parameters:** None.
+*   **Description:** Returns the currently applied additive colour without recalculating.  
+*   **Parameters:** None.  
+*   **Returns:** `r, g, b, a` (all numbers in `[0, 1]`) — the additive colour values.  
 
 ### `CalculateCurrentColour()`
-*   **Description:** Recalculates the aggregate additive color by summing up all contributions currently present in the `colourstack`. The resulting RGBA values are clamped between 0 and 1.
-*   **Parameters:** None.
+*   **Description:** Sums all contributions in `colourstack` and clamps each channel to `[0, 1]`.  
+*   **Parameters:** None.  
+*   **Returns:** `r, g, b, a` (all numbers in `[0, 1]`) — the computed additive colour.  
 
 ### `OnSetColour(r, g, b, a)`
-*   **Description:** Sets the internal `colour` property to the specified RGBA values, then applies this color to the entity's `AnimState` (if present) or `colouraddersync` component (if present). It also propagates this new color to all attached children.
-*   **Parameters:**
-    *   `r`: (`number`) The red component (0-1).
-    *   `g`: (`number`) The green component (0-1).
-    *   `b`: (`number`) The blue component (0-1).
-    *   `a`: (`number`) The alpha component (0-1).
+*   **Description:** Updates the stored and applied colour, notifying the network/animation layer and all attached children.  
+*   **Parameters:**  
+    * `r, g, b, a` (numbers in `[0, 1]`) — the new additive colour values.  
+*   **Returns:** Nothing.  
 
 ### `PushColour(source, r, g, b, a)`
-*   **Description:** Adds or updates an additive color contribution from a specific `source`. If the source already exists, its color is updated. If the color is `(0,0,0,0)`, it's treated as a `PopColour` call. If the source is an entity, the component will automatically listen for its "onremove" event to clear its contribution. After pushing, the total aggregate color is recalculated and applied.
-*   **Parameters:**
-    *   `source`: (`any`) The unique identifier for the color contribution (often an `Entity`).
-    *   `r`: (`number`) The red component (0-1).
-    *   `g`: (`number`) The green component (0-1).
-    *   `b`: (`number`) The blue component (0-1).
-    *   `a`: (`number`) The alpha component (0-1).
+*   **Description:** Adds or updates a colour contribution from a specific source to the stack. Handles zero-alpha/zero-colour inputs by calling `PopColour`. Triggers recalculation and propagation only if the colour changes.  
+*   **Parameters:**  
+    * `source` (Entity or any hashable key) - Identifier for the colour source (used to remove it later).  
+    * `r, g, b, a` (numbers in `[0, 1]`) — colour contribution. `a` defaults to 0 if omitted.  
+*   **Returns:** Nothing.  
+*   **Error states:** No-op if all parameters are `nil` or if `r=g=b=a=0` (which triggers `PopColour` instead). Registers `onremove` listener for entity-type sources.
 
 ### `PopColour(source)`
-*   **Description:** Removes a specific additive color contribution from the `colourstack`. If the source was an entity, its "onremove" event listener is removed. After popping, the total aggregate color is recalculated and applied.
-*   **Parameters:**
-    *   `source`: (`any`) The unique identifier of the color contribution to remove.
+*   **Description:** Removes a colour contribution from the stack and recalculates the net additive colour.  
+*   **Parameters:**  
+    * `source` (Entity or any hashable key) - The colour source to remove.  
+*   **Returns:** Nothing.  
+*   **Error states:** No-op if source has no entry in `colourstack`.
 
 ### `GetDebugString()`
-*   **Description:** Generates a formatted string containing the current aggregate color and a list of all individual color contributions in the `colourstack`, useful for debugging.
-*   **Parameters:** None.
+*   **Description:** Returns a human-readable multi-line string summarizing the current colour and all stack entries. Useful for debugging.  
+*   **Parameters:** None.  
+*   **Returns:** `str` (string) — formatted like `"Current Colour: (0.50, 0.50, 0.50, 0.80)\n\t[Entity]: (0.25, 0.25, 0.25, 0.50)"`.  
 
-## Events & Listeners
-*   `inst:ListenForEvent("onremove", self._onremovesource, source)`: Listens for the `onremove` event on specific color `source` entities to automatically remove their additive color contribution from the `colourstack` when the source is removed from the world.
-*   `inst:ListenForEvent("onremove", self.children[child], child)`: Listens for the `onremove` event on `child` entities to automatically remove them from the `children` list when they are removed from the world.
+## Events & listeners
+- **Listens to:**  
+  - `"onremove"` on source entities (via `ListenForEvent`) — triggers auto-pop of that source’s colour contribution.  
+  - `"onremove"` on child entities — triggers child cleanup callback which removes child from `self.children`.  
+- **Pushes:** None.  

@@ -1,41 +1,54 @@
 ---
 id: tacklesketch
 title: Tacklesketch
-description: A component that grants a specific tackle recipe to a player when used, then removes itself from the game.
+description: Provides a prototype for teaching a tackle sketch recipe to a crafting station when consumed or applied.
+tags: [crafting, item, recipe]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: crafting
+category_type: components
 source_hash: aee4ad16
+system_scope: crafting
 ---
 
 # Tacklesketch
 
-## Overview
-This component is attached to an entity (typically ausable item like a "Tackle Sketch") and enables players to learn a predefined tackle recipe by calling the `Teach` method. It tags the entity with `"tacklesketch"` for identification and cleans up the tag upon removal.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-* **Tags added:** `"tacklesketch"` (during initialization)
-* **Tags removed:** `"tacklesketch"` (in `OnRemoveFromEntity`)
-* **Component dependencies:** Relies on the target entity having a `craftingstation` component (used to learn the recipe) and the source entity supporting `GetSpecificSketchPrefab()` and `GetRecipeName()` methods.
+## Overview
+`Tacklesketch` is a simple component attached to sketch items that represent tackle designs (e.g., fish trap or net sketches). When used, it transfers a specific recipe to the target's `craftingstation` component and removes itself from the entity. It ensures the associated recipe is only added once via `LearnItem`, and notifies the target that a new tackle sketch has been learned.
+
+## Usage example
+```lua
+local inst = Prefab("tackle_sketch_fancy_net")
+inst:AddComponent("tacklesketch")
+
+-- Later, when teaching the recipe:
+local target = GetPlayer()
+inst.components.tacklesketch:Teach(target)
+```
+
+## Dependencies & tags
+**Components used:** `craftingstation` (via `target.components.craftingstation`)
+**Tags:** Adds `"tacklesketch"` on initialization; removes it on entity removal.
 
 ## Properties
-No public properties are explicitly initialized in the constructor or initialization logic. Only the `inst` reference is stored.
+No public properties.
 
-## Main Functions
+## Main functions
 ### `OnRemoveFromEntity()`
-* **Description:** Cleans up the `"tacklesketch"` tag when the component is removed from its entity (e.g., when the item is destroyed or consumed).
+* **Description:** Removes the `"tacklesketch"` tag when the component is removed from the entity.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `Teach(target)`
-* **Description:** Grants the player (or other target) the tackle recipe associated with this sketch, triggers a `"onlearnednewtacklesketch"` event on the target, and removes the sketch entity entirely.
+* **Description:** Teaches the recipe associated with this sketch to the target entity's `craftingstation`. It uses the sketch's specific prefab and recipe name to register the recipe, pushes a `"onlearnednewtacklesketch"` event on the target, and removes the sketch entity.
 * **Parameters:**  
-  * `target` (Entity): The entity (usually a player) that will learn the recipe. Must have a `craftingstation` component.
+  `target` (Entity) – The entity whose `craftingstation` should learn the recipe.
+* **Returns:** Nothing.
+* **Error states:** Assumes `target.components.craftingstation` exists. If missing, this will raise a runtime error.
 
-## Events & Listeners
-* **Listens for:** None.
-* **Triggers:**  
-  * `onlearnednewtacklesketch` — pushed on the `target` entity after the recipe is learned.
+## Events & listeners
+- **Pushes:** `"onlearnednewtacklesketch"` on the `target` entity after successfully teaching the recipe.

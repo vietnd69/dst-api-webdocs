@@ -1,72 +1,93 @@
 ---
 id: herdmember
 title: Herdmember
-description: Manages an entity's membership in a herd, including herd creation, joining, and departure logic.
+description: Tracks herd membership for an entity and manages herd creation or rejoining when enabled.
+tags: [herd, entity, group, ai, locomotion]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: fdcac55f
+system_scope: world
 ---
 
 # Herdmember
 
-## Overview
-This component tracks and manages an entity's association with a herd. It handles automatic herd creation or reassignment, tag management, and membership lifecycle events such as leaving or rejoining a herd.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Dependencies**:  
-  - `health` component (used to prevent herd creation for dead entities)  
-- **Tags added/removed**:  
-  - Adds `"herdmember"` tag when enabled  
-  - Removes `"herdmember"` tag when disabled or component removed  
+## Overview
+`Herdmember` is a lightweight component attached to entities (typically mobs like Beefalo or Pigs) to manage their association with a `Herd`. It tracks which herd the entity belongs to, enables/disables herd participation (via a tag), and can spawn or reassign a herd instance when the member is enabled or leaves. It works closely with the `herd` and `health` components — particularly ensuring only alive, non-dead members can join or form herds.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("herdmember")
+inst.components.herdmember:SetHerdPrefab("beefaloherd") -- optional override
+inst.components.herdmember:CreateHerd() -- immediately create/join a herd
+inst.components.herdmember:Leave() -- remove from current herd
+```
+
+## Dependencies & tags
+**Components used:** `health`, `herd` (via external calls), `knownlocations` (via herd, indirectly).
+**Tags:** Adds `"herdmember"` when enabled; removes `"herdmember"` when disabled or on removal.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `enabled` | `boolean` | `true` | Controls whether the entity actively participates in herd behavior (e.g., herd creation, membership). |
-| `herd` | `GODATA?` | `nil` | Reference to the `herd` entity this member belongs to (may be invalid or `nil`). |
-| `herdprefab` | `string` | `"beefaloherd"` | Prefab name of the herd to spawn if no herd exists. |
-| `task` | `GDTASK?` | `nil` | Delayed task reference used for deferred herd initialization. |
+| `enabled` | boolean | `true` | Controls whether the entity is considered part of a herd (adds/removes `"herdmember"` tag). |
+| `herd` | Herd instance or `nil` | `nil` | Reference to the herd this member belongs to. |
+| `herdprefab` | string | `"beefaloherd"` | Prefab name used to spawn a new herd when needed. |
+| `task` | ScheduleTask or `nil` | `nil` | Delayed task used to reinitialize herd membership after leaving. |
 
-## Main Functions
-
+## Main functions
 ### `SetHerd(herd)`
-* **Description:** Assigns the given `herd` entity as this member’s current herd.
-* **Parameters:**  
-  - `herd` (`GODATA?`): The herd entity to associate with.
+* **Description:** Assigns a herd instance to this member. Does *not* automatically add the member to the herd; it merely sets the reference.
+* **Parameters:** `herd` (Herd instance or `nil`) — the herd this member will belong to.
+* **Returns:** Nothing.
 
 ### `SetHerdPrefab(prefab)`
-* **Description:** Updates the prefab name used when creating a new herd.
-* **Parameters:**  
-  - `prefab` (`string`): The new prefab name (e.g., `"beefaloherd"`).
+* **Description:** Updates the prefab name used when spawning a new herd.
+* **Parameters:** `prefab` (string) — the prefab name, e.g., `"beefaloherd"`.
+* **Returns:** Nothing.
 
 ### `GetHerd()`
-* **Description:** Returns the current herd reference.
-* **Returns:** `GODATA?` — The currently assigned herd entity.
+* **Description:** Returns the currently assigned herd instance.
+* **Parameters:** None.
+* **Returns:** Herd instance or `nil`.
 
 ### `CreateHerd()`
-* **Description:** Spawns a new herd entity (using `herdprefab`) at the member’s current position and triggers herd-wide gathering if the herd has a `herd` component. Only runs if enabled, no valid herd exists, and the member is alive.
+* **Description:** Spawns a new herd prefab at the member’s current location and calls `GatherNearbyMembers()` on the herd. Only executes if the member is enabled, not currently in a valid herd, and (if the `health` component exists) is not dead.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No effect if `enabled` is `false`, `health:IsDead()` is `true`, or spawning fails.
 
 ### `Leave()`
-* **Description:** Removes this entity from its current herd (if valid) and schedules a respawn of a new herd after a 5-second delay, provided the component remains enabled.
+* **Description:** Removes this member from its current herd (if valid), and schedules re-initialization after a 5-second delay (unless disabled).
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No effect if `self.herd` is `nil` or invalid.
 
 ### `Enable(enabled)`
-* **Description:** Enables or disables the component. Disabling removes the member from its herd; enabling without a valid herd schedules herd creation after 5 seconds.
-* **Parameters:**  
-  - `enabled` (`boolean`): Whether to enable participation in herd behavior.
+* **Description:** Toggles herd participation. If disabling and in a herd, immediately removes from herd; if enabling and no valid herd, schedules herd initialization.
+* **Parameters:** `enabled` (boolean) — whether to enable herd membership.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a debug string containing the current herd reference and whether the component is disabled.
-* **Returns:** `string` — e.g., `"herd:beefaloherd:123 disabled"` or `"herd:nil"`.
+* **Description:** Returns a string useful for debugging, indicating the herd reference and whether the member is disabled.
+* **Parameters:** None.
+* **Returns:** string — format: `"herd:<herd_ref> disabled"` or `"herd:<herd_ref>"`.
 
-## Events & Listeners
-- **Listens for**:  
-  - `enabled` event (via setter in class definition) → triggers `onenabled(self, enabled)` to add/remove `"herdmember"` tag  
-- **Pushes/Triggers**:  
-  - None directly (relies on herd component methods like `RemoveMember` for side effects)
+### `OnRemoveFromEntity()`
+* **Description:** Cleanup function called when the component is removed from its entity. Cancels pending task and removes `"herdmember"` tag.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** None.
+
+### Constructor notes
+- The constructor schedules `OnInit` to run after `8.1` seconds (`self.inst:DoTaskInTime(8.1, OnInit)`). This delay ensures the herd system’s sampling rate (documented as `HERDSAMPLER823`) is not violated. `OnInit` in turn calls `CreateHerd()`.
+- `enabled` is handled as a property with an observer (`onenabled`) to automatically add/remove the `"herdmember"` tag.

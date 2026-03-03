@@ -1,54 +1,53 @@
 ---
 id: birchnutdrakebrain
 title: Birchnutdrakebrain
-description: Implements AI behavior for the Birchnutdrake entity by defining its behavior tree, including panic responses, leash mechanics, combat, and home position tracking.
+description: Implements the behavior tree for the Birch Nut Drake, governing its movement, panic responses, combat engagement, and leash behavior.
+tags: [ai, combat, boss, navigation]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 96e3aff6
+system_scope: brain
 ---
 
 # Birchnutdrakebrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-This component implements the behavior tree for the Birchnutdrake entity, an AI-controlled character in Don't Starve Together. It defines how the entity responds to threats (panic), navigates within a leashed range from its spawn point, pursues and attacks targets, and manages idle states. The component relies on common behavior utilities and integrates with the `knownlocations` component to track the entity's home position.
+`BirchNutDrakeBrain` defines the decision-making logic for the Birch Nut Drake entity through a behavior tree. It integrates panic responses, ranged combat engagement (`ChaseAndAttack`), and a leash mechanism that restricts movement within a bounded radius of its spawn point. This component relies on the `knownlocations` component to store and retrieve the spawn position used for leash calculations.
 
-## Dependencies & Tags
-- **Components used:** `knownlocations` (used via `inst.components.knownlocations` for `GetLocation` and `RememberLocation`)
-- **Tags:** None identified
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("knownlocations")
+inst:AddComponent("brain")
+inst.components.brain:SetBrain("birchnutdrakebrain")
+```
+
+## Dependencies & tags
+**Components used:** `knownlocations`  
+**Tags:** None identified.
 
 ## Properties
-No public properties are initialized in the constructor. All state is encapsulated within the class methods.
+No public properties.
 
-## Main Functions
-### `BirchNutDrakeBrain:OnStart()`
-* **Description:** Initializes and assigns the entity's behavior tree. The behavior tree root is built using a priority sequence of behaviors: panic triggers (electric fence, general panic), leash logic, chase and attack, and a final fallback action to exit combat/idle.
-* **Parameters:** None
-* **Returns:** None
+## Main functions
+### `OnStart()`
+* **Description:** Initializes the behavior tree root node, which evaluates high-priority behaviors in order: panic triggers (general and electric fence), leash enforcement, combat engagement (chase and attack with ranges 12–21), and finally a fallback action to exit and play idle animation.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** None documented.
 
-### `BirchNutDrakeBrain:OnInitializationComplete()`
-* **Description:** Records the entity's current position as the "spawnpoint" home location using the `knownlocations` component. This position is used later by the leashed behavior to determine how far the entity may wander.
-* **Parameters:** None
-* **Returns:** None
+### `OnInitializationComplete()`
+* **Description:** Records the entity's current position as the `"spawnpoint"` location in the `knownlocations` component, which is used later for leash calculations.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** None documented.
 
-### `GetHomePos(inst)`
-* **Description:** Helper function used by the leashed behavior to retrieve the stored spawn point location. Used to compute distance for leash enforcement.
-* **Parameters:**
-  * `inst` — The entity instance. Expected to have a `knownlocations` component.
-* **Returns:** `Vector3` — The position stored under the key `"spawnpoint"`.
-
-## Events & Listeners
-- **Listens to:** None
-- **Pushes:**
-  - `"exit"` — Fired in the fallback action node of the behavior tree (used to signal the entity should stop active behaviors and enter an idle state). Payload includes `{ force = true, idleanim = true }`.
-
-## Notes
-- Uses `PriorityNode` with timeout `0.25` for behavior evaluation.
-- The `ChaseAndAttack` behavior is configured with attack ranges `12` and `21`.
-- The `Leash` behavior allows wandering up to `20` units from home before pulling the entity back within `5` units.
+## Events & listeners
+- **Listens to:** None identified.
+- **Pushes:** `exit` — fired with `{ force = true, idleanim = true }` when no higher-priority behavior triggers, prompting the entity to stop current actions and transition to idle animation.

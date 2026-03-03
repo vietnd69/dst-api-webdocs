@@ -4,7 +4,6 @@ title: Bats
 description: Defines cave room templates used to generate bat-infested underground areas in the world.
 tags: [cave, room, generation]
 sidebar_position: 1
-
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: cdcadacb
 ---
-
 # Bats
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -57,4 +55,3 @@ This file does not define any functions itself—it only constructs configuratio
 ## Events & listeners
 No event listeners or event pushes are present in this file.
 
----

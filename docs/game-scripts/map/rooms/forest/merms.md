@@ -4,7 +4,6 @@ title: Merms
 description: Defines the MermTown room template for forest worlds, specifying tile type, visual color, and spawn rules for merm-related structures and entities.
 tags: [map, room, spawning]
 sidebar_position: 1
-
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: environment
 source_hash: dc2741cc
 ---
-
 # Merms
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -36,4 +34,3 @@ No main functions — this script executes top-level registration logic.
 ## Events & listeners
 No events or listeners — this script does not register or emit events.
 
----

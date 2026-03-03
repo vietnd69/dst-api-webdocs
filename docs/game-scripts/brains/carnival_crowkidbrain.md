@@ -1,145 +1,134 @@
 ---
 id: carnival_crowkidbrain
 title: Carnival Crowkidbrain
-description: Controls the behavior tree and AI logic for the Carnival Crowkid entity, handling interactions with minigames, campfires, carnival decorations, home seeking, and ambient chatter.
+description: Controls the AI behavior of the carnival crow kid, managing movement, minigame spectating, decor interaction, campfire watching, and vocalizations based on game state and environment.
+tags: [ai, minigame, npc, environment, locomotion]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 902b1780
+system_scope: brain
 ---
 
 # Carnival Crowkidbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
+`CrowKidBrain` is a behavior tree controller for the carnival crow kid entity. It orchestrates a hierarchy of actions including wandering near home, watching campfires at night, interacting with carnival decorations, facing nearby players, spectating minigames, and fleeing from threats or when the carnival home is invalid or damaged. It interacts closely with the `homeseeker`, `minigame_spectator`, `burnable`, `fueled`, and `carnivaldecorranker` components to adapt behavior dynamically.
 
-The `carnival_crowkidbrain` component implements the behavior tree for the Carnival Crowkid entity, orchestrating its AI decisions in response to game state, nearby entities, and environmental conditions. It dynamically selects behaviors such as watching minigames, stoking campfires, activating carnival decorations, chatting with players, wandering near its home, or fleeing danger via flight behavior. This component relies heavily on the `behaviour` system and integrates with several components (`homeseeker`, `minigame_spectator`, `minigame`, `burnable`, `fueled`, `carnivaldecorranker`) to coordinate decision-making.
+## Usage example
+```lua
+-- Automatically assigned to the carnival_crowkid prefab via its brain definition.
+-- No manual usage is required in most modding scenarios.
+-- To customize behavior, override the brain in the prefab's OnPostInit or via prefabs override.
+```
 
-## Dependencies & Tags
+## Dependencies & tags
+**Components used:**  
+- `homeseeker` (for home position and validity checks)  
+- `burnable` (to detect if the home is burning)  
+- `fueled` (to check campfire fuel levels)  
+- `carnivaldecorranker` (to determine chatter lines based on decor rank)  
+- `minigame` (via `minigame_spectator` for minigame state)  
+- `minigame_spectator` (to access current minigame and outcomes)
 
-- **Components used:**
-  - `homeseeker` — for home position tracking and homelessness detection.
-  - `minigame_spectator` — to access the current minigame and determine intro/outro states.
-  - `minigame` — accessed via `minigame_spectator`, used to read minigame type, state, and distance parameters.
-  - `burnable` — to check if a campfire or home is burning (prevents engagement with burning targets).
-  - `fueled` — used to determine if a campfire needs fuel via `GetPercent()`.
-  - `carnivaldecorranker` — to determine decor rank and select appropriate chatter strings.
-
-- **Tags:**
-  - Checks tags: `notarget`, `INLIMBO`, `hostile`, `inactive`, `carnivaldecor`, `campfire`, `fire`, `burnt`.
-  - Does not add or remove tags itself (only reads them for decision logic).
+**Tags:**  
+- Checks tags: `notarget`, `INLIMBO`, `hostile`, `inactive`, `carnivaldecor`, `campfire`, `fire`, `burnt`  
+- No tags are added or removed by this brain.
 
 ## Properties
+No public properties are defined in the constructor or behavior logic.
 
-No public instance properties are explicitly initialized in the constructor. All persistent state is stored as keys on `inst`, such as `inst.next_activate_time`, `inst._watch_campfire`, and `inst.ShouldFlyAway`.
-
-## Main Functions
-
+## Main functions
 ### `HasValidHome(inst)`
-* **Description:** Determines if the entity has a valid, non-burning home that is still registered and not burnt.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `true` if the home exists, is valid, not burnt, and not currently burning; otherwise `false`.
+*   **Description:** Verifies whether the entity has a valid, unburned home entity.
+*   **Parameters:** `inst` (The crow kid entity instance).
+*   **Returns:** `true` if `inst.components.homeseeker.home` exists, is valid, is not burning, and is not tagged `burnt`; otherwise `false`.
+*   **Error states:** Returns `false` if any component check fails or returns `nil`.
 
 ### `GetHomePos(inst)`
-* **Description:** Returns the 3D world position of the entity’s home if it exists and is valid.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `{x, y, z}` position table or `nil` if home is invalid.
+*   **Description:** Returns the world position of the valid home if one exists.
+*   **Parameters:** `inst` (The crow kid entity instance).
+*   **Returns:** `Vector3` position of the home if `HasValidHome(inst)` is `true`, otherwise `nil`.
 
 ### `GetFaceTargetFn(inst)`
-* **Description:** Finds the nearest player within a 3-tile radius who is not on cooldown for chatter; if found, triggers a talk cooldown and returns the player as a face target.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** Player entity if conditions met, otherwise `nil`.
+*   **Description:** Determines whether a nearby player should be faced (e.g., for interaction).
+*   **Parameters:** `inst` (The crow kid entity instance).
+*   **Returns:** Player entity if within `3` units (squared distance `<= 9`) and cooldown has expired; otherwise `nil`.
 
 ### `KeepFaceTargetFn(inst, target)`
-* **Description:** Verifies the current face target is still valid (same player, within 3-tile radius).
-* **Parameters:** `inst`, `target` — the previously selected player entity.
-* **Returns:** `true` if target is still valid; `false` otherwise.
+*   **Description:** Verifies that the current face target remains valid.
+*   **Parameters:** `inst` (entity), `target` (the target entity to keep facing).
+*   **Returns:** `true` if `target` is still the nearest player and within `3` units; otherwise `false`.
 
 ### `IsHomeless(inst)`
-* **Description:** Determines if the entity lacks a `homeseeker` component or has no home set.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `true` if no `homeseeker` component or no home assigned; `false` otherwise.
+*   **Description:** Returns whether the crow kid has no `homeseeker` component.
+*   **Parameters:** `inst` (entity).
+*   **Returns:** `true` if `inst.components.homeseeker == nil`; otherwise `false`.
 
 ### `ShouldFlyAway(inst)`
-* **Description:** Evaluates whether the entity should flee (e.g., during lunar hailing, if in danger, or not currently occupied by state tags like `sleeping`, `busy`, `flight`).
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `true` if conditions for flight are met (e.g., nearby hostile entities or special world states), `false` otherwise.
+*   **Description:** Determines if the entity should flee due to danger or lunar hailing.
+*   **Parameters:** `inst` (entity).
+*   **Returns:** `true` if: lunar hailing is active; or the entity is not `sleeping`, `busy`, or `flight`; and there is a hostile or `notarget` entity within `8` units; otherwise `false`.
 
 ### `FlyHome(inst)`
-* **Description:** If `ShouldFlyAway` is `true`, triggers a `GOHOME` action toward the entity’s home.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `BufferedAction` result or `nil`.
+*   **Description:** Initiates a `GOHOME` buffered action if `ShouldFlyAway(inst)` is `true`.
+*   **Parameters:** `inst` (entity).
+*   **Returns:** A `BufferedAction` to `ACTIONS.GOHOME`, or `nil` if conditions are not met.
 
 ### `ActivateDecor(inst)`
-* **Description:** Attempts to activate or stoke a nearby carnival decoration or campfire (if fuel is low). Has chain-delay logic to prevent spam activation.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `BufferedAction` result (e.g., `ADDFUEL` or `ACTIVATE`) or `nil`.
+*   **Description:** Attempts to activate nearby carnival decorations or stoke a campfire, with chain delays and cooldowns.
+*   **Parameters:** `inst` (entity).
+*   **Returns:** A `BufferedAction` to `ACTIONS.ACTIVATE` or `ACTIONS.ADDFUEL`, or `nil` if no valid target found or on cooldown.
 
 ### `WatchCampfireFn(inst)`
-* **Description:** Locates a nearby campfire at night and stores it as `_watch_campfire`. Verifies if the stored campfire is still valid and burning.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `true` if a valid, burning campfire is found and watched; `false` otherwise.
+*   **Description:** Checks for and selects a nearby campfire during night time.
+*   **Parameters:** `inst` (entity).
+*   **Returns:** `true` if a valid campfire is found and stored in `inst._watch_campfire`; otherwise `false`.
 
 ### `GetCurrentCampfirePos(inst)`
-* **Description:** Returns the world position of the currently watched campfire if valid.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `{x, y, z}` position table or `nil`.
+*   **Description:** Returns the current campfire’s position if valid.
+*   **Parameters:** `inst` (entity).
+*   **Returns:** `Vector3` of the campfire position, or `nil`.
+
+### `GetCampfireChatterLines(inst)`
+*   **Description:** Returns a random campfire-related dialogue line.
+*   **Parameters:** `inst` (entity).
+*   **Returns:** A string from `STRINGS.CARNIVAL_CROWKID_CAMPFIRE`.
 
 ### `WatchingMinigame(inst)`
-* **Description:** Returns the current minigame this entity is spectating via its `minigame_spectator` component.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** Minigame entity or `nil`.
+*   **Description:** Returns the current minigame the entity is spectating.
+*   **Parameters:** `inst` (entity).
+*   **Returns:** Minigame entity, or `nil`.
 
 ### `IsWatchingMinigameIntro(inst)`
-* **Description:** Checks if the current minigame is in its intro phase.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `true` if minigame intro is active; `false` otherwise.
+*   **Description:** Returns `true` if the watched minigame is in its intro phase.
+*   **Parameters:** `inst` (entity).
+*   **Returns:** `true` if `minigame.components.minigame:GetIsIntro()` is `true`; otherwise `false`.
 
 ### `WatchingMinigame_MinDist(inst)`
-* **Description:** Returns the `watchdist_min` parameter of the current minigame.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** Numeric distance threshold (from `minigame.watchdist_min`).
-
 ### `WatchingMinigame_TargetDist(inst)`
-* **Description:** Returns the `watchdist_target` parameter of the current minigame.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** Numeric distance threshold (from `minigame.watchdist_target`).
-
 ### `WatchingMinigame_MaxDist(inst)`
-* **Description:** Returns the `watchdist_max` parameter of the current minigame.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** Numeric distance threshold (from `minigame.watchdist_max`).
+*   **Description:** Return minigame-specific movement distances for following/spectating.
+*   **Parameters:** `inst` (entity).
+*   **Returns:** Number from `minigame.components.minigame.watchdist_min/target/max`.
 
 ### `IsWatchingMinigameOutro(inst)`
-* **Description:** Checks if the current minigame is in its outro phase.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `true` if minigame outro is active; `false` otherwise.
-
-### `DoTossReward(inst)`
-* **Description:** Spawns a `carnival_prizeticket` and launches it toward the minigame location.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `nil` (side-effect only).
-
-### `GetMinigameParticipantsLuckChance(inst)`
-* **Description:** Calculates reward chance for the crowkid based on participant luck and scores.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** Numeric probability (increased by luck factor).
+*   **Description:** Returns `true` if the watched minigame is in its outro phase.
+*   **Parameters:** `inst` (entity).
+*   **Returns:** `true` if `minigame.components.minigame:GetIsOutro()` is `true`; otherwise `false`.
 
 ### `OnEndOfGame(inst)`
-* **Description:** Handles post-minigame logic: evaluates success, sets `_good_ending`, pushes `minigame_spectator_start_outro`, and optionally schedules a reward toss if score or luck thresholds are met.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `nil` (side-effect only).
+*   **Description:** Handles post-game behavior: triggers minigame outro, evaluates reward eligibility, and schedules reward toss if conditions met.
+*   **Parameters:** `inst` (entity).
+*   **Returns:** Nothing.
+*   **Error states:** No error states documented; may produce no action if score thresholds or luck checks fail.
 
-## Events & Listeners
-
-- **Pushes:**
-  - `"minigame_spectator_start_outro"` — pushed by `OnEndOfGame()` when minigame ends.
-
-- **Listens to:** None (no `inst:ListenForEvent` calls are present).
-
----
+## Events & listeners
+- **Listens to:** None directly.
+- **Pushes:**  
+  - `minigame_spectator_start_outro` — triggered in `OnEndOfGame` to signal outro phase.

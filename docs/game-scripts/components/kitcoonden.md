@@ -1,63 +1,84 @@
 ---
 id: kitcoonden
 title: Kitcoonden
-description: Manages a collection of kitcoon entities associated with an entity, tracking their presence and responding to their removal.
+description: Manages a collection of kitcoons associated with an entity, tracking their presence and responding to their removal.
+tags: [creature, collection, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 035b93bc
+system_scope: entity
 ---
 
 # Kitcoonden
 
-## Overview
-The `KitcoonDen` component maintains a registry of "kitcoon" entities attached to a host entity, ensuring proper tracking and cleanup when kitcoons are added or removed. It listens for the `"onremove"` event on individual kitcoons to automatically deregister them and notify external callbacks, if defined.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Uses `inst:ListenForEvent` and `inst:RemoveEventCallback` for event management.
-- Does not add or require specific tags.
-- No other components are directly added or required by this component.
+## Overview
+`KitcoonDen` is an entity component that maintains a dynamic collection of kitcoon entities. It provides methods to add, remove, and query the number of kitcoons attached to its owner entity. It listens for the `onremove` event on each kitcoon to automatically track when they are removed from the world, updating internal state and triggering optional callbacks (`OnAddKitcoon`, `OnRemoveKitcoon`). This component is typically used on structures or objects that host or regulate kitcoons (e.g., a den or nest).
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("kitcoonden")
+
+inst.components.kitcoonden.OnAddKitcoon = function(den_inst, kitcoon, doer)
+    print("Kitcoon added to den")
+end
+
+inst.components.kitcoonden.OnRemoveKitcoon = function(den_inst, kitcoon)
+    print("Kitcoon removed from den")
+end
+
+inst.components.kitcoonden:AddKitcoon(some_kitcoon, some_doer)
+print(inst.components.kitcoonden:GetDebugString())
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity this component is attached to. |
-| `kitcoons` | `table` | `{}` | Dictionary mapping kitcoon entities to themselves (used as a set). |
-| `num_kitcoons` | `number` | `0` | Current count of kitcoons in the den. |
-| `OnAddKitcoon` | `function?` | `nil` | Optional callback invoked after a kitcoon is added. Signature: `func(inst, kitcoon, doer)`. |
-| `OnRemoveKitcoon` | `function?` | `nil` | Optional callback invoked after a kitcoon is removed. Signature: `func(inst, kitcoon)`. |
+| `kitcoons` | table | `{}` | Map of kitcoon entities currently in the den (key and value are the entity instance). |
+| `num_kitcoons` | number | `0` | Total count of kitcoons in the den. |
+| `OnAddKitcoon` | function | `nil` | Optional callback fired when a kitcoon is added: `function(den_inst, kitcoon, doer)`. |
+| `OnRemoveKitcoon` | function | `nil` | Optional callback fired when a kitcoon is removed: `function(den_inst, kitcoon)`. |
+| `onremove_kitcoon` | function | *(internal)* | Private handler for `onremove` event on individual kitcoons. |
 
-## Main Functions
-
+## Main functions
 ### `AddKitcoon(kitcoon, doer)`
-* **Description:** Adds a kitcoon entity to the den if not already present. Registers an `"onremove"` listener on the kitcoon to trigger automatic removal. Invokes `OnAddKitcoon` callback if defined.
-* **Parameters:**
-  * `kitcoon`: The entity representing the kitcoon to add.
-  * `doer`: The entity responsible for adding the kitcoon (passed to the callback).
+* **Description:** Adds a kitcoon to the den’s collection. Registers an `onremove` event listener on the kitcoon to auto-remove it later. Does nothing if the kitcoon is already present.
+* **Parameters:**  
+  `kitcoon` (entity) — The kitcoon entity to add.  
+  `doer` (entity or `nil`) — The entity responsible for adding the kitcoon (passed to the `OnAddKitcoon` callback if set).
+* **Returns:** Nothing.
 
 ### `RemoveKitcoon(kitcoon)`
-* **Description:** Removes a specific kitcoon from the den, invoking cleanup logic (including removing its `"onremove"` listener and decrementing the count). Triggers `OnRemoveKitcoon` callback if defined.
-* **Parameters:**
-  * `kitcoon`: The kitcoon entity to remove.
+* **Description:** Removes a specific kitcoon from the den, decrementing the count and unregistering its `onremove` listener.
+* **Parameters:**  
+  `kitcoon` (entity) — The kitcoon entity to remove.
+* **Returns:** Nothing.
 
 ### `RemoveAllKitcoons()`
-* **Description:** Removes all kitcoons currently in the den, running cleanup for each one.
+* **Description:** Removes all kitcoons from the den, invoking removal logic for each.
 * **Parameters:** None.
-
-### `OnRemoveFromEntity()`
-* **Description:** Cleanup method called when the component is removed from its entity. Removes all kitcoons and their associated event listeners.
-* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a string for debugging purposes showing the current kitcoon count.
+* **Description:** Returns a human-readable debug string showing the current number of kitcoons.
 * **Parameters:** None.
-* **Returns:** `string` — e.g., `"Count:2"`.
+* **Returns:**  
+  `string` — Format: `"Count:"` followed by the number of kitcoons (e.g., `"Count:3"`).
 
-## Events & Listeners
-- Listens for `"onremove"` events on each kitcoon entity and triggers `onremove_kitcoon` callback when fired.
-- If `OnAddKitcoon` is set, it is invoked during `AddKitcoon`.
-- If `OnRemoveKitcoon` is set, it is invoked during internal removal (via `onremove_kitcoon`).
+### `OnRemoveFromEntity()`
+* **Description:** Cleanup method called when the component is removed from its entity. Ensures all kitcoons are properly untracked.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:** `onremove` — On each added kitcoon, to trigger automatic removal from the den when the kitcoon is destroyed or removed from the world.

@@ -1,39 +1,65 @@
 ---
 id: emitter
 title: Emitter
-description: Manages the continuous emission of particles from an entity, coordinating with either the VFXEffect or ParticleEmitter components.
+description: Manages particle emission for an entity by scheduling and dispatching particles over time using a custom update loop.
+tags: [fx, particle, world]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 031585d1
+system_scope: fx
 ---
 
 # Emitter
 
-## Overview
-The Emitter component is responsible for orchestrating the continuous generation and emission of particles from an entity. It acts as a wrapper, abstracting away the specifics of whether the entity uses the modern `VFXEffect` component or the legacy `ParticleEmitter` component for particle rendering. It defines parameters like particle lifetime, emission rate, and starting position, and interfaces with a global `EmitterManager` to manage ongoing particle updates.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-This component implicitly relies on the entity having either a `VFXEffect` or `ParticleEmitter` component attached to perform actual particle rendering. It also depends on the global `EmitterManager` for scheduling its update logic.
-None identified.
+## Overview
+`Emitter` is a lightweight component responsible for emitting particles from an entity over time. It supports both legacy `ParticleEmitter` and modern `VFXEffect` systems, selecting the appropriate one based on what is attached to the entity. The component calculates particle production rates based on tick time and manages particle count limits using configurable density and lifetime factors. It integrates with the global `EmitterManager` system to schedule periodic updates.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("emitter")
+
+inst.components.emitter.max_lifetime = 2.0
+inst.components.emitter.ground_height = 0.5
+inst.components.emitter.density_factor = 1.5
+inst.components.emitter.config = { max_num_particles = 100 }
+
+inst.components.emitter.area_emitter = function()
+    return 0, 0, 0  -- center emission point
+end
+
+inst.components.emitter:Emit()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified  
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :------- | :--- | :------------ | :---------- |
-| `inst` | `table` | `nil` | A reference to the entity this component is attached to. |
-| `area_emitter` | `function` | `function() print("no emitter") end` | A function that, when called, should return the `x` and `z` coordinates for a particle's spawn position. |
-| `config` | `table` | `{}` | A table intended to hold configuration parameters, such as `max_num_particles`, used by the particle system. |
-| `max_lifetime` | `number` | `1` | The base maximum lifetime for emitted particles, in seconds. Actual lifetime varies slightly. |
-| `ground_height` | `number` | `1` | The default `y` (height) coordinate for emitted particles. |
-| `particles_per_tick` | `number` | `1` | The number of particles to add to the `num_particles_to_emit` counter each simulation tick. |
-| `num_particles_to_emit` | `number` | `1` | A counter tracking the number of particles that are currently queued to be emitted. |
-| `density_factor` | `number` | `1` | A multiplier applied to the number of particles and desired particles per second, effectively controlling the particle density. |
+|----------|------|---------------|-------------|
+| `inst` | Entity | `nil` (assigned in constructor) | The entity instance this component is attached to. |
+| `area_emitter` | function | `function() print("no emitter") end` | Callback that returns `(x, z)` coordinates for particle spawn position. |
+| `config` | table | `{}` | Configuration table, expected to contain `max_num_particles`. |
+| `max_lifetime` | number | `1` | Maximum lifetime (in seconds) for emitted particles. Actual lifetime is randomized within ±10% of this value. |
+| `ground_height` | number | `1` | Vertical (`y`) position where particles are emitted. |
+| `particles_per_tick` | number | `1` | Estimated number of particles to emit per tick (derived from desired rate and tick duration). |
+| `num_particles_to_emit` | number | `1` | Current accumulated particle count scheduled for emission. |
+| `density_factor` | number | `1` | Multiplier applied to particle counts and lifetimes for scaling emission intensity. |
 
-## Main Functions
+## Main functions
 ### `Emit()`
-*   **Description:** Initiates the particle emission process for the entity. It configures the attached `VFXEffect` or `ParticleEmitter` component and registers a continuous update function with the `EmitterManager` to regularly spawn new particles based on the component's properties.
-*   **Parameters:** None.
+* **Description:** Starts the particle emission process by registering an update function with `EmitterManager`. It calculates per-tick emission rates and configures particle limits for both legacy and modern VFX systems. Does not emit particles immediately — it schedules periodic emission updates.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** If neither `VFXEffect` nor `ParticleEmitter` is present on `self.inst`, the component will silently fail to emit (no particles added, but no error thrown).
+
+## Events & listeners
+- **Listens to:** None identified  
+- **Pushes:** None identified  

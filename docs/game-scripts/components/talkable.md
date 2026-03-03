@@ -1,34 +1,45 @@
 ---
 id: talkable
 title: Talkable
-description: Manages conversation state for an entity, including tracking the current conversation and dialogue index.
+description: Manages the conversation state for an entity, including tracking the current conversation and dialogue index.
+tags: [dialogue, npc, ai]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: c22ae7d5
+system_scope: entity
 ---
 
 # Talkable
 
-## Overview
-This component tracks conversation state for an entity, storing the active conversation data (`conversation`) and the current index into the dialogue sequence (`conv_index`). It is typically attached to entities capable of speaking or participating in dialogues (e.g., NPCs, creatures with speech capabilities).
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Talkable` is a simple component that holds state for an entity involved in a conversation. It stores the active `conversation` (a data structure defining dialogue flow) and the current `conv_index`, which tracks the position within that conversation. It is typically added to NPCs or interactive entities that participate in scripted dialogues.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("talkable")
+inst.components.talkable.conversation = my_conversation_data
+inst.components.talkable.conv_index = 1
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (set automatically) | Reference to the entity instance this component is attached to. |
-| `conversation` | `table?` | `nil` | Stores the active conversation data (e.g., list of dialogue lines or script objects). `nil` if no conversation is in progress. |
-| `conv_index` | `number` | `1` | Current position in the conversation dialogue sequence (1-based index). |
+| `conversation` | table? | `nil` | The current conversation data structure (e.g., a table of dialogue lines or nodes). |
+| `conv_index` | number | `1` | The current index into the conversation, indicating the next dialogue segment to display. |
 
-## Main Functions
-No public functional methods are defined beyond the constructor. This component currently serves only as a state holder.
+## Main functions
+None identified — this component only stores state and does not expose public methods beyond its constructor.
 
-## Events & Listeners
-No events or listeners are registered by this component.
+## Events & listeners
+None identified.

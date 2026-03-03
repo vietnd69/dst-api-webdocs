@@ -1,81 +1,87 @@
 ---
 id: klaussackspawner
 title: Klaussackspawner
-description: Manages the spawning, respawning, and state tracking of Klaus Sacks during winter or the Winters Feast event.
+description: Manages spawning and respawning of Klaus sacks in winter, tracking spawn counts and coordinating with world timers and spawner locations.
+tags: [klaus, winter, spawner, event]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 9da92d3d
+system_scope: world
 ---
 
 # Klaussackspawner
 
-## Overview
-This component oversees the lifecycle of Klaus Sacks in the game world—including registering valid spawner locations, spawning sacks during winter (or during Winters Feast), tracking respawn timers, and handling save/load data and debug output. It operates exclusively on the server (master) and ensures sacks spawn only under appropriate conditions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component dependencies:** None explicitly added via `AddComponent`.
-- **Tags used:** `"structure"` (for entity searches when clearing spawn area).
-- **Events listened for:** `"ms_registerdeerspawningground"`, `"ms_registerklaussack"`, `"ms_restoreklaussackkey"`.
-- **World state watched:** `"iswinter"` (via `WatchWorldState`).
+## Overview
+`KlausSackSpawner` manages the lifecycle of Klaus sacks in winter, including initial spawning, respawn timing, and respawn logic after sack removal. It integrates with `worldsettingstimer` to handle scheduled spawns and validates potential spawn locations to ensure safety and distance from players and structures. This component is restricted to the master simulation and is typically attached to the world entity.
+
+## Usage example
+```lua
+-- Typically added automatically to the world instance during startup.
+-- Example interaction for external management (e.g., debug or event override):
+TheWorld.components.klaussackspawner:GetKlausSack() -- Returns the active Klaus sack instance if valid
+```
+
+## Dependencies & tags
+**Components used:** `worldsettingstimer`, `workable` (via external `Destroy` call during spawn)
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The owning entity instance (passed to constructor). |
-| `_worldsettingstimer` | `WorldSettingsTimer` | `TheWorld.components.worldsettingstimer` | Internal reference to the world settings timer service. |
-| `_spawners` | `table` | `{}` | List of registered Klaus spawner entities (e.g., deer spawning grounds). |
-| `_sack` | `Entity?` | `nil` | Reference to the currently active Klaus Sack prefab instance. |
-| `_spawnsthiswinter` | `number` | `0` | Count of Klaus Sacks spawned in the current winter season. |
-| `_spawnedthiswinter` | `boolean` | `false` | Flag indicating whether a sack has been spawned this winter (used for reload恢复 logic). |
+| `inst` | `Entity` | *none* | The world entity instance that owns this component. |
 
-## Main Functions
+*Note:* No other public properties are initialized directly in the constructor.
 
-### `self:GetKlausSack()`
-* **Description:** Returns the current valid Klaus Sack entity, if one exists.
+## Main functions
+### `GetKlausSack()`
+* **Description:** Returns the currently active Klaus sack entity if it exists and is valid; otherwise returns `nil`.
 * **Parameters:** None.
-* **Returns:** `Entity?` — The sack entity, or `nil` if none is valid.
+* **Returns:** `Entity?` — the Klaus sack instance, or `nil` if no valid sack is present.
 
-### `self:OnPostInit()`
-* **Description:** Initializes timers, event listeners, and respawn logic after the component is attached. Behavior differs based on whether Winters Feast is active.
+### `OnPostInit()`
+* **Description:** Initializes timer-based spawning logic upon world load. Handles both standard winter mode and the Winters Feast event mode, including respawning delays, spawn counts, and timer setup.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `self:OnSave()`
-* **Description:** Returns data to persist across sessions (currently only `_spawnsthiswinter`).
+### `OnSave()`
+* **Description:** Serializes component state for saving, specifically tracking how many sacks have spawned this winter.
 * **Parameters:** None.
-* **Returns:** `table` — `{ spawnsthiswinter = _spawnsthiswinter }`.
+* **Returns:** `{ spawnsthiswinter = number }` — a table containing the current spawn count.
 
-### `self:OnLoad(data)`
-* **Description:** Restores state from saved data, re-initializing timers and counters as needed.
-* **Parameters:**
-  - `data` (`table`) — Save data containing optional keys: `timetorespawn`, `spawnsthiswinter`.
+### `OnLoad(data)`
+* **Description:** Restores component state from saved data. Handles respawn timer restoration, spawn count restoration, and flag setting for post-load initialization.
+* **Parameters:** `data` (table) — the loaded state data, including optional `timetorespawn` and `spawnsthiswinter` fields.
+* **Returns:** Nothing.
 
-### `self:GetDebugString()`
-* **Description:** Returns a human-readable string describing the current state (e.g., “Klaus Sack is in the world.”, or “Spawning in 123.45 (0.51 days)”). Used for in-game debugging.
+### `GetDebugString()`
+* **Description:** Returns a debug-friendly status string indicating either "Klaus Sack is in the world" or the remaining time until next spawn.
 * **Parameters:** None.
-* **Returns:** `string` — Debug status line.
+* **Returns:** `string` — human-readable status.
 
-## Events & Listeners
+## Events & listeners
+- **Listens to:**
+  - `ms_registerdeerspawningground` — registers a location as a potential Klaus sack spawner point.
+  - `ms_registerklaussack` — registers a newly spawned Klaus sack instance.
+  - `ms_restoreklaussackkey` — restores the sack’s key component when a key is dropped.
+- **Pushes:** None.
 
-- **Listens for `"ms_registerdeerspawningground"`** → `OnRegisterSackSpawningPt`  
-  Registers a new spawner location (e.g., a deer spawning ground) and sets up its removal listener.
+### Internal event handlers
+- `OnRemoveSpawner(spawner)` — removes a spawner point from the internal list.
+- `OnRegisterSackSpawningPt(inst, spawner)` — adds a spawner point and sets up a listener for its removal.
+- `OnRemoveSack(sack)` — triggers respawn logic after a sack is removed.
+- `RegisterKlausSack(inst, sack)` — stores the sack instance and registers its removal listener.
+- `RestoreKlausSackKey(inst, key)` — forwards key restoration to the sack.
+- `OnIsWinter(self, iswinter)` — adjusts spawn behavior based on entering or exiting winter (non-event mode).
+- `OnIsWinterEvent(self, iswinter)` — adjusts spawn behavior during Winters Feast event.
 
-- **Listens for `"ms_registerklaussack"`** → `RegisterKlausSack`  
-  Registers a newly spawned Klaus Sack and attaches an `"onremove"` listener to trigger respawn.
-
-- **Listens for `"ms_restoreklaussackkey"`** → `RestoreKlausSackKey`  
-  Restores a dropped key to the sack upon request (e.g., from inventory drop handling).
-
-- **Listens for `"onremove"` on spawner** → `OnRemoveSpawner`  
-  Removes a spawner from `_spawners` when deleted.
-
-- **Listens for `"onremove"` on sack** → `OnRemoveSack`  
-  Triggers respawn scheduling when the sack is destroyed.
-
-- **Listens for world state change `"iswinter"`** → `OnIsWinter` (or `OnIsWinterEvent` during Winters Feast)  
-  Handles winter onset/offset: starts/stop respawning and resets counters.
+## Notes
+- This component is **not loaded on clients** (`TheWorld.ismastersim` must be true).
+- Spawning logic prioritizes locations with few or no adjacent structures and at least 35 units away from all players.
+- During Winters Feast, spawns occur faster and are not limited by winter state beyond initial date.
+- The `workable:Destroy` method is called on structures within 5 units at spawn time; if a structure lacks a `workable` component, it is removed entirely.

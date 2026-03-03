@@ -3,8 +3,7 @@ id: stack
 title: Stack
 description: A utility class implementing a generic LIFO stack data structure for storing and retrieving ordered values.
 tags: [utility, data-structure, helper]
-sidebar_position: 1
-
+sidebar_position: 100
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: utility
 source_hash: a8ef4d4d
 ---
-
 # Stack
 
 > Based on game build **714014** | Last updated: 2026-02-27

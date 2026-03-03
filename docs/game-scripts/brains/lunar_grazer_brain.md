@@ -1,85 +1,50 @@
 ---
 id: lunar_grazer_brain
 title: Lunar Grazer Brain
-description: Implements the AI decision logic for the Lunar Grazer entity, handling combat engagement, stealth stalking, and patrol behavior based on target state and entity condition.
+description: Implements the AI behavior tree for the Lunar Grazer entity, managing combat, movement, and despawn logic based on target status and entity state.
+tags: [ai, combat, behavior-tree]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: brain
-system_scope: brain
+category_type: map
 source_hash: 9afee4b5
+system_scope: brain
 ---
 
 # Lunar Grazer Brain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
+`LunarGrazerBrain` defines the behavior tree for the Lunar Grazer entity in DST. It orchestrates combat engagement, strafing movement, and despawn mechanics using a hierarchical behavior tree (`BT`). The brain integrates with several components — `combat`, `health`, `grogginess`, `sleeper`, and `knownlocations` — to adapt its behavior based on the target’s state (e.g., sleeping/knocked out) and the entity’s own condition. It is added automatically to the Lunar Grazer prefab and is not intended for manual instantiation.
 
-This brain component defines the behavior tree logic for the Lunar Grazer entity, a hostile mob in Don't Starve Together. It dynamically selects behaviors depending on combat readiness (cooldown), target state (sleeping vs awake), and entity condition (e.g., debris protection). It orchestrates core behaviors like `ChaseAndAttack`, `Leash` (for stalling/stalking), `Wander`, and conditional despawn logic. The brain integrates with several components—`combat`, `health`, `grogginess`, `sleeper`, and `knownlocations`—to determine state transitions and act accordingly.
+## Usage example
+This component is attached internally to the Lunar Grazer prefab and does not require manual setup. The behavior tree is initialized on entity spawn via `OnStart()`.
 
-## Dependencies & Tags
+## Dependencies & tags
+**Components used:**
+- `combat` — `HasTarget()`, `InCooldown()`, `target`
+- `health` — `IsHurt()`
+- `grogginess` — `IsKnockedOut()`
+- `sleeper` — `IsAsleep()`
+- `knownlocations` — `GetLocation()`
 
-- **Components used:**
-  - `combat`: accesses `HasTarget()`, `InCooldown()`, and `target` property.
-  - `health`: accesses `IsHurt()`.
-  - `grogginess`: accesses `IsKnockedOut()` (via `SleepCheck` helper).
-  - `sleeper`: accesses `IsAsleep()` (via `SleepCheck` helper).
-  - `knownlocations`: accesses `GetLocation("spawnpoint")`.
-
-- **Tags checked via stategraph (`inst.sg`):**
-  - `"debris"`: triggers respawn behavior.
-  - `"invisible"`: skips awake behavior.
-  - `"knockout"`: indirectly checked via `IsKnockedOut()` (used for sleeping target detection).
+**Tags:** Uses `debris` and `invisible` via `sg:HasStateTag()`; checks `dismounting` state tag.
 
 ## Properties
+No public properties exposed for external modification.
 
-No public properties are explicitly initialized in the constructor. Behavior configuration is embedded in the behavior tree construction within `OnStart()`.
-
-## Main Functions
-
-### `LunarGrazerBrain:OnStart()`
-* **Description:** Constructs and assigns the root behavior tree for the Lunar Grazer. This function is called automatically by the brain framework when the entity spawns or the brain is initialized.
+## Main functions
+### `OnStart()`
+* **Description:** Constructs and initializes the behavior tree for the Lunar Grazer. Sets up a hierarchical state machine handling debris recovery, combat engagement (including strafing behavior and sleep-aware attacks), loitering while waiting for a target, and wandering near home. If no target appears after loitering, the entity triggers a `lunar_grazer_despawn` event.
 * **Parameters:** None.
-* **Returns:** `nil` (sets `self.bt` internally).
+* **Returns:** Nothing.
+* **Error states:** Does not return errors; relies on behavioral node composition for state transitions.
 
-### `IsSleeper(target)`
-* **Description:** Helper function used internally to determine whether a potential target is capable of sleeping or being knocked out. Used to decide between aggressive vs stalking attack patterns.
-* **Parameters:**
-  - `target` (`Entity`): The target entity to inspect.
-* **Returns:** `boolean` — `true` if the target has either a `grogginess` or `sleeper` component; otherwise `false`.
-
-### `SleepCheck(target)`
-* **Description:** Checks whether the target is currently in a sleeping or knocked-out state. Excludes entities in the `"dismounting"` state when using grogginess. Used to prioritize stealth engagement.
-* **Parameters:**
-  - `target` (`Entity`): The target entity to inspect.
-* **Returns:** `boolean` — `true` if the target is knocked out or asleep; otherwise `false`.
-
-### `DoStalking(inst)`
-* **Description:** Computes a target position that positions the Lunar Grazer to the side of its target (strafing motion) when in combat. Used by the `Leash` behavior to maintain ranged combat positioning.
-* **Parameters:**
-  - `inst` (`Entity`): The Lunar Grazer entity instance.
-* **Returns:** `Vector3` — A world position (x, 0, z) at which the Lunar Grazer should move to maintain stalker-like positioning. Returns `nil` if there is no current combat target.
-
-### `GetTargetPos(inst)`
-* **Description:** Helper function to retrieve the current world position of the combat target.
-* **Parameters:**
-  - `inst` (`Entity`): The Lunar Grazer entity instance.
-* **Returns:** `Vector3` — The position of `self.inst.components.combat.target`.
-
-### `GetHome(inst)`
-* **Description:** Retrieves the spawn point location (used for patrol/despawn logic).
-* **Parameters:**
-  - `inst` (`Entity`): The Lunar Grazer entity instance.
-* **Returns:** `Vector3?` — The stored "spawnpoint" location from `knownlocations`, or `nil` if unset.
-
-## Events & Listeners
-
-- **Listens to:** None (no explicit `inst:ListenForEvent` calls).
+## Events & listeners
+- **Listens to:** None directly — but pushes events via `inst:PushEvent(...)`.
 - **Pushes:**
-  - `"lunar_grazer_respawn"` — Pushed when in debris state and not hurt, to trigger respawn logic.
-  - `"lunar_grazer_despawn"` — Pushed when loitering at spawn point for too long without target found.
-
-Note: Event dispatch is handled through `inst:PushEvent(...)` inside the behavior tree; no additional event handlers are defined in this file.
+  - `lunar_grazer_respawn` — fired when debris state ends and entity should re-engage.
+  - `lunar_grazer_despawn` — fired if the entity loiters without acquiring a target near its home location.

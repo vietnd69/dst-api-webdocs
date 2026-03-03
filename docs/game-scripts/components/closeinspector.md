@@ -1,57 +1,84 @@
 ---
 id: closeinspector
 title: Closeinspector
-description: Manages custom inspection logic for an entity, allowing other components to define how it responds to inspection attempts on targets or points.
+description: Adds a tag to an entity and provides hooks for custom inspect target and inspect point validation logic, typically used to restrict or customize inspector interactions.
+tags: [inspector, validation, utility]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: f218a4b6
+system_scope: entity
 ---
 
 # Closeinspector
 
-## Overview
-This component provides a mechanism for an entity to define and execute custom logic when it is "inspected" in close proximity, either by targeting another entity or a specific point. It acts as a configurable interface for defining contextual close-range interactions, typically beyond standard combat or interaction components, allowing other systems to query and trigger these custom behaviors.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-*   **Dependencies**: None identified.
-*   **Tags Added**: `closeinspector` (on initialization and removed on removal).
+## Overview
+`Closeinspector` is a utility component that attaches to an entity and ensures it carries the `closeinspector` tag. It enables optional custom validation logic for inspector-related actions (e.g., inspecting a specific target or inspecting a point in space) by allowing external code to register callbacks via `SetInspectTargetFn` and `SetInspectPointFn`. When removed from an entity, it automatically removes the tag. This component is typically used on prefabs where strict control over inspector behavior is needed.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("closeinspector")
+
+inst.components.closeinspector:SetInspectTargetFn(function(owner, doer, target)
+    if target:HasTag("monster") then
+        return false, "Cannot inspect monsters."
+    end
+    return true
+end)
+
+inst.components.closeinspector:SetInspectPointFn(function(owner, doer, pt)
+    if pt.y < 0 then
+        return false, "Point below ground."
+    end
+    return true
+end)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `closeinspector` in constructor; removes `closeinspector` on removal.
 
 ## Properties
-| Property          | Type     | Default Value | Description                                                                                             |
-| :---------------- | :------- | :------------ | :------------------------------------------------------------------------------------------------------ |
-| `inspecttargetfn` | function | `nil`         | A callback function invoked when `CloseInspectTarget` is called. Expected to return `success` (boolean) and an optional `reason` (string). |
-| `inspectpointfn`  | function | `nil`         | A callback function invoked when `CloseInspectPoint` is called. Expected to return `success` (boolean) and an optional `reason` (string).  |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inspecttargetfn` | function or `nil` | `nil` | Optional callback for validating inspect target actions. Signature: `(owner, doer, target) → (success: boolean, reason?: string)`. |
+| `inspectpointfn` | function or `nil` | `nil` | Optional callback for validating inspect point actions. Signature: `(owner, doer, pt) → (success: boolean, reason?: string)`. |
 
-## Main Functions
+## Main functions
 ### `OnRemoveFromEntity()`
-*   **Description:** Called automatically when this component is removed from its owning entity. It ensures the `closeinspector` tag is removed from the entity.
-*   **Parameters:** None.
+* **Description:** Automatically called when the component is removed from its entity. Removes the `closeinspector` tag to keep entity state consistent.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SetInspectTargetFn(fn)`
-*   **Description:** Sets the custom callback function that will be executed when an entity attempts to "close inspect" another target. This function defines the specific logic for target inspection.
-*   **Parameters:**
-    *   `fn`: (`function`) The callback function to set. It is expected to take `(inst, doer, target)` as arguments (where `inst` is the component's owner, `doer` is the inspecting entity, and `target` is the entity being inspected) and should return `success` (boolean) and an optional `reason` (string).
+* **Description:** Sets the callback function used to validate attempts to inspect a specific entity target.
+* **Parameters:** `fn` (function or `nil`) – if non-`nil`, the function must accept `(owner, doer, target)` and return two values: a boolean `success` and optionally a string `reason` explaining failure.
+* **Returns:** Nothing.
 
 ### `SetInspectPointFn(fn)`
-*   **Description:** Sets the custom callback function that will be executed when an entity attempts to "close inspect" a specific point in the world. This function defines the specific logic for point inspection.
-*   **Parameters:**
-    *   `fn`: (`function`) The callback function to set. It is expected to take `(inst, doer, pt)` as arguments (where `inst` is the component's owner, `doer` is the inspecting entity, and `pt` is a `Vector3` representing the inspected point) and should return `success` (boolean) and an optional `reason` (string).
+* **Description:** Sets the callback function used to validate attempts to inspect a specific point in space.
+* **Parameters:** `fn` (function or `nil`) – if non-`nil`, the function must accept `(owner, doer, pt)` and return two values: a boolean `success` and optionally a string `reason` explaining failure.
+* **Returns:** Nothing.
 
 ### `CloseInspectTarget(doer, target)`
-*   **Description:** Triggers the custom inspection logic for a target if a callback function (`inspecttargetfn`) has been previously set using `SetInspectTargetFn`.
-*   **Parameters:**
-    *   `doer`: (`Entity`) The entity initiating the inspection.
-    *   `target`: (`Entity`) The entity being inspected.
-*   **Returns:** The results (`success`, `reason`) from the `inspecttargetfn` callback if it exists, otherwise `nil`.
+* **Description:** Invokes the inspect target callback (if set) and returns its result.
+* **Parameters:** 
+  * `doer` – the entity performing the inspect action.
+  * `target` – the entity being inspected.
+* **Returns:** The result of `inspecttargetfn(owner, doer, target)`, i.e., `(success: boolean, reason?: string)`. Returns `nil` if no callback is set.
 
 ### `CloseInspectPoint(doer, pt)`
-*   **Description:** Triggers the custom inspection logic for a specific point if a callback function (`inspectpointfn`) has been previously set using `SetInspectPointFn`.
-*   **Parameters:**
-    *   `doer`: (`Entity`) The entity initiating the inspection.
-    *   `pt`: (`Vector3`) The point (coordinates) in the world being inspected.
-*   **Returns:** The results (`success`, `reason`) from the `inspectpointfn` callback if it exists, otherwise `nil`.
+* **Description:** Invokes the inspect point callback (if set) and returns its result.
+* **Parameters:** 
+  * `doer` – the entity performing the inspect action.
+  * `pt` – the point (`Vector3` or similar) being inspected.
+* **Returns:** The result of `inspectpointfn(owner, doer, pt)`, i.e., `(success: boolean, reason?: string)`. Returns `nil` if no callback is set.
+
+## Events & listeners
+Not applicable.

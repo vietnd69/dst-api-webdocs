@@ -1,63 +1,80 @@
 ---
 id: searchable
 title: Searchable
-description: Adds search interaction capabilities to an entity, allowing players or other entities to search it and optionally receive items or trigger custom logic.
+description: Provides search interaction logic for entities, including tagging, search callbacks, and removal behavior.
+tags: [interaction, entity, component]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: e49918d7
+system_scope: entity
 ---
 
 # Searchable
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Searchable` component enables an entity to be searched by players or other entities. It manages the conditions under which the entity can be searched (`canbesearched` and `caninteractwith`), supports optional removal after a successful search, and provides hooks for custom search behavior via a user-defined callback function (`onsearchfn`). It also handles associated tags (`searchable`, `quicksearch`, `jostlesearch`) to integrate with the game's interaction and UI systems.
+`Searchable` enables an entity to respond to player-initiated search actions (e.g., clicking on an object in-world). It manages state flags that determine whether the entity can be searched (`canbesearched`, `caninteractwith`), whether the search is instant (`quicksearch` or `jostlesearch`), and how the entity behaves after being searched (e.g., removal). It integrates with the entity's tag system to signal interactivity to the UI and input systems.
 
-## Dependencies & Tags
-**Tags managed by this component:**
-- `searchable`: Added when both `canbesearched` and `caninteractwith` are true; removed otherwise.
-- `quicksearch`: Added/removed based on the `quicksearch` property.
-- `jostlesearch`: Added/removed based on the `jostlesearch` property.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("searchable")
+inst.components.searchable.canbesearched = true
+inst.components.searchable.caninteractwith = true
+inst.components.searchable.quicksearch = true
+inst.components.searchable.remove_when_searched = true
+inst.components.searchable.onsearchfn = function(inst, searcher)
+    -- Custom logic on search, e.g., spawn loot
+    return true
+end
+```
 
-**No other components are required** for this component to function.
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds/removes `searchable`, `quicksearch`, `jostlesearch` based on state.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `caninteractwith` | `boolean` | `true` | Indicates whether the entity can currently be interacted with (e.g., by a player). Affects `searchable` tag. |
-| `remove_when_searched` | `boolean` | `false` | If true, the entity is automatically removed after a successful search. |
-| `quicksearch` | `boolean` | `false` | Controls the `quicksearch` tag; used for UI/input handling of quick-search behaviors. |
-| `jostlesearch` | `boolean` | `false` | Controls the `jostlesearch` tag; used for jostle-based searching (e.g., in crowns or tight spaces). |
-| `canbesearched` | `boolean?` | `nil` | Indicates whether the entity is in a state where it can be searched (e.g., not blocked). Affects `searchable` tag. |
-| `onsearchfn` | `function?` | `nil` | Optional callback function called during `Search()`. Takes `(entity, searcher)` and returns `(success: boolean, reason?: string)`. |
+| `caninteractwith` | boolean | `true` | Whether the entity can be interacted with (searched). Affects the `searchable` tag. |
+| `remove_when_searched` | boolean | `false` | Whether the entity should be automatically removed after a successful search. |
+| `quicksearch` | boolean | `false` | Whether the search is instant (e.g., does not require a dwell time). Affects the `quicksearch` tag. |
+| `jostlesearch` | boolean | `false` | Whether the search is triggered by jostling (e.g., bumping into it). Affects the `jostlesearch` tag. |
+| `canbesearched` | boolean or nil | `nil` | Whether the entity is *allowed* to be searched (e.g., not blocked by inventory, world state). Affects the `searchable` tag. |
+| `onsearchfn` | function or nil | `nil` | Optional callback function `(inst, searcher)` that executes on search and returns `(success, reason)`. |
 
-## Main Functions
+## Main functions
 ### `Search(searcher)`
-* **Description:** Attempts to search the entity. If `canbesearched` and `caninteractwith` are true, executes the optional `onsearchfn` callback, pushes a `"searched"` event, and removes the entity if `remove_when_searched` is true. Returns the result of the search.
-* **Parameters:**
-  - `searcher`: The entity performing the search (e.g., a player).
+* **Description:** Initiates a search on the entity. Checks `canbesearched` and `caninteractwith`; if both pass, executes `onsearchfn` (if present), pushes `"searched"` event, and conditionally removes the entity.
+* **Parameters:** `searcher` (entity) — the entity performing the search.
+* **Returns:** `true, nil` on success, or `false, reason` (from `onsearchfn`) if search fails.
+* **Error states:** Returns `false` early if `canbesearched` or `caninteractwith` is `false`.
 
 ### `OnRemoveEntity()`
-* **Description:** Removes the `searchable`, `quicksearch`, and `jostlesearch` tags when the entity is removed from the world.
+* **Description:** Cleanup function called when the entity is removed from the world. Removes all search-related tags from the entity.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Returns a serializable table containing non-default save data (`{caninteractwith = true}` if true). Returns `nil` otherwise.
-* **Returns:** `table?` — Serializable data, or `nil`.
+* **Description:** Returns serialized state for network sync or save game.
+* **Parameters:** None.
+* **Returns:** `{caninteractwith = true}` if `caninteractwith` is `true`, otherwise `nil`.
 
 ### `OnLoad(data)`
-* **Description:** Restores the `caninteractwith` property from saved data.
-* **Parameters:**
-  - `data`: The saved state table passed by the game’s save system.
+* **Description:** Restores saved state on load.
+* **Parameters:** `data` (table) — typically contains `caninteractwith`.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a human-readable debug string summarizing relevant internal state for diagnostics in the debug overlay.
-* **Returns:** `string` — A semicolon-separated list of active conditions (e.g., `"can interact with; can be searched;"`).
+* **Description:** Returns a human-readable debug string summarizing current searchable state.
+* **Parameters:** None.
+* **Returns:** String — e.g., `"can interact with; can be searched;"`.
 
-## Events & Listeners
-- **Listens for:** None.
-- **Triggers:**
-  - `searched` (when a search succeeds): Emitted with `(searcher)` as the event payload.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** `"searched"` — fired on successful search with `searcher` as the event data.

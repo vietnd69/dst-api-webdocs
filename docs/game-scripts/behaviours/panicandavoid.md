@@ -1,58 +1,71 @@
 ---
 id: panicandavoid
 title: Panicandavoid
-description: Causes an entity to panic and randomly change direction while attempting to avoid a nearby target object when it is within a specified distance.
+description: Triggers panicked movement in a random direction while avoiding nearby threats when a specified avoidance condition is met.
+tags: [ai, locomotion, combat]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: behaviour
-system_scope: entity
+category_type: behaviours
 source_hash: 382f8197
+system_scope: locomotion
 ---
 
 # Panicandavoid
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `PanicAndAvoid` behaviour is a stateful node used in decision-making systems (typically in AI brains) to simulate panicked movement. When active, it directs the entity to run in a randomized direction and periodically re-evaluates whether to change course. If a target object is nearby (within `avoid_dist`), it attempts to steer the entity away from the target—not directly opposite, but at a ~45° offset to maintain dynamic, evasive motion.
+`PanicAndAvoid` is a behaviour node used in DST's AI state machines to implement panic-based evasive movement. It extends `BehaviourNode`, and when visited, causes the entity to move in a randomized direction. If a valid avoidance target (e.g., a threat) is within proximity, it adjusts the movement direction to avoid that target using angular offset calculations. This behaviour integrates with the `locomotor` component to drive actual movement.
 
-It inherits from `BehaviourNode` and integrates with the `Locomotor` component to execute movement via `RunInDirection`. This node is typically used for reactive, short-term evasion during threats (e.g., fleeing from fire, electric fences, or predators), and reverts to normal AI control when completed.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("behaviourtree")
+inst:AddComponent("locomotor")
 
-## Dependencies & Tags
-- **Components used:**  
-  - `locomotor` — accessed via `self.inst.components.locomotor:RunInDirection(...)`
-- **Tags:** None identified.
+local find_threat_fn = function(ent) return ent.components.combat ~= nil and ent.components.combat:GetEnemy() end
+
+inst.components.behaviourtree:AddNode("panicandavoid", PanicAndAvoid, find_threat_fn, 6)
+
+-- In a stategraph:
+-- bt:PushNode("panicandavoid")
+```
+
+## Dependencies & tags
+**Components used:** `locomotor`
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity instance this behaviour operates on. |
-| `waittime` | `number` | `0` | Timestamp (via `GetTime()`) indicating when the next direction change is allowed. Used to avoid erratic micro-updates. |
-| `findavoidanceobjectfn` | `function(inst): Entity?` | — | Callback function that returns the target object to avoid, or `nil` if none exists. |
-| `avoid_dist` | `number` | — | Distance threshold (in world units) at which avoidance logic activates. |
-| `avoidtarget` | `Entity?` | `nil` | Cached reference to the target object to avoid; updated only when `status == READY`. |
-| `status` | `BehaviourStatus` | `READY` | Inherited from `BehaviourNode`; tracks node state (`READY`, `RUNNING`, `SUCCESS`, `FAILURE`). |
+| `inst` | `Entity` | — | The entity instance the behaviour operates on. |
+| `waittime` | number | `0` | Timestamp used to determine when to re-evaluate direction. |
+| `findavoidanceobjectfn` | function or `nil` | — | Optional callback that returns the current threat/target to avoid. |
+| `avoid_dist` | number | — | Distance threshold used to determine if avoidance response should be triggered. |
+| `avoidtarget` | `Entity` or `nil` | `nil` | Computed target to avoid during movement (set at runtime). |
 
-## Main Functions
-
-### `PanicAndAvoid:Visit()`
-* **Description:** The primary entry point for behaviour evaluation. On first invocation (`status == READY`), it resolves the avoidance target (if `findavoidanceobjectfn` is defined), picks a new random direction, and sets `status` to `RUNNING`. On subsequent invocations, if the cooldown (`waittime`) has elapsed, it chooses a new direction; otherwise, it attempts to run toward the computed current direction—adjusting rotation only if needed to avoid overshooting or oscillation.
+## Main functions
+### `Visit()`
+* **Description:** Executes the behaviour logic. If the status is `READY`, initializes the `avoidtarget` and picks a new movement direction. If `RUNNING`, either picks a new direction after the wait time expires, or continues moving with optional avoidance adjustment.
 * **Parameters:** None.
-* **Returns:** `nil` (as part of the behaviour tree protocol, success/failure state is inferred via `self.status`, though not explicitly set in this method).
+* **Returns:** Nothing.
+* **Error states:** Does not return errors, but no movement occurs if `locomotor:RunInDirection()` is blocked (e.g., by state tags or missing component).
 
-### `PanicAndAvoid:PickNewDirection()`
-* **Description:** Immediately sets the entity to run in a new random direction (0°–360°) and schedules the next direction update (0.25–0.50 seconds later). This creates a jittery, panic-like movement pattern.
+### `PickNewDirection()`
+* **Description:** Initiates immediate movement in a randomly chosen direction (`0°–360°`) and sets `waittime` to ~0.25–0.5 seconds in the future, after which the next random direction is chosen.
 * **Parameters:** None.
-* **Returns:** `nil`.
+* **Returns:** Nothing.
+* **Error states:** No explicit failure conditions; relies on `locomotor:RunInDirection()` for movement execution.
 
-### `PanicAndAvoid:ResolveDirection(rot)`
-* **Description:** Determines the optimal movement direction given a base rotation `rot`. If `avoidtarget` is valid and within `2 * avoid_dist`, and the target lies within ±45° of the desired heading, it computes a safe offset direction (left or right by ~45°) to strafe away while avoiding sharp 180° turns. Otherwise, it returns `rot` unchanged.
-* **Parameters:**  
-  - `rot` (`number`) — Desired rotation in degrees (typically from `PickNewDirection` or `Visit`).  
-* **Returns:**  
-  - `number` — Updated rotation (in degrees) to use for movement. May be equal to `rot` if no avoidance is needed or safe.
+### `ResolveDirection(rot)`
+* **Description:** Adjusts the given rotation (`rot`) to steer away from `avoidtarget` if the target is within `avoid_dist * 2` distance and the current heading is within ±45° of the target. Otherwise, returns `rot` unchanged.
+* **Parameters:** `rot` (number) — current rotation angle in degrees.
+* **Returns:** number — adjusted rotation (in degrees), or original `rot` if avoidance not needed.
+* **Error states:** Returns `rot` unchanged if `avoidtarget` is `nil`, invalid, or too far away. Misalignment handling assumes 2D plane (Y-axis ignored in point comparison).
 
-## Events & Listeners
-None. This component does not register or fire any events.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** None.

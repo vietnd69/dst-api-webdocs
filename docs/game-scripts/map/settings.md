@@ -3,8 +3,7 @@ id: settings
 title: Settings
 description: Defines a data structure for world generation presets with metadata, overrides, and display properties used in the game's frontend and world creation system.
 tags: [world, config, ui]
-sidebar_position: 1
-
+sidebar_position: 100
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: 956e42c7
 ---
-
 # Settings
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -97,4 +95,3 @@ local myPreset = SettingsPreset({
 ## Events & listeners
 
 None
----

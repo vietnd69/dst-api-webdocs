@@ -1,52 +1,48 @@
 ---
 id: antlionbrain
 title: Antlionbrain
-description: Implements the behavior tree logic for the antlion entity, managing attack behavior, rock-eating recovery, and post-combat cooldowns.
+description: Controls the decision-making logic for the antlion boss using a behavior tree to manage combat, rock-eating recovery, and post-combat calm periods.
+tags: [ai, combat, boss]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 5d485f9a
+system_scope: brain
 ---
 
 # Antlionbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-`AntlionBrain` is a behavior tree-based brain component for the antlion entity. It orchestrates high-priority rock-eating during healing, fallback low-priority rock-eating, combat engagement via `StandAndAttack`, and a post-combat cooldown sequence. It relies on the `combat`, `health`, and `worldsettingstimer` components to make decisions and control behavior timing.
+`AntlionBrain` implements the AI for the antlion boss entity using a behavior tree (`BT`). It coordinates high-priority rock-eating during health recovery, standard combat via `StandAndAttack`, and a post-fight calm phase where attack speed is reduced before resuming normal aggression. It relies on the `health`, `combat`, and `worldsettingstimer` components to make state-aware decisions.
 
-## Dependencies & Tags
-- **Components used:**
-  - `health` (`IsHurt()`)
-  - `combat` (`GetLastAttackedTime()`, `SetAttackPeriod()`)
-  - `worldsettingstimer` (`ActiveTimerExists("wall_cd")`)
-- **Tags:** None identified.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("antlionbrain")
+-- The brain is automatically initialized when added
+-- It will evaluate behaviors and trigger events like "eatrocks" and "antlionstopfighting"
+```
+
+## Dependencies & tags
+**Components used:** `health`, `combat`, `worldsettingstimer`
+**Tags:** None identified.
 
 ## Properties
-No public properties are defined in the constructor. The component initializes only the behavior tree internally via `self.bt`.
+No public properties.
 
-## Main Functions
-### `AntlionBrain:OnStart()`
-* **Description:** Initializes the behavior tree root node. Constructs a priority-based behavior sequence: highest priority is rock-eating under specific high-need conditions, followed by `StandAndAttack`, then low-priority rock-eating, and finally a post-combat cooldown sequence that resets attack period and pauses combat.
+## Main functions
+### `OnStart()`
+* **Description:** Initializes the behavior tree with a priority-based root node that sequences rock-eating (high-priority if recently attacked during a wall cooldown), standard combat, low-priority rock-eating, and a post-combat calm sequence. This function is automatically called when the brain is attached to an entity and starts running.
 * **Parameters:** None.
-* **Returns:** None.
+* **Returns:** Nothing.
 
-### `ShouldEatRocksHighPrio(inst)`
-* **Description:** Returns `true` if the antlion should eat rocks with high priority — i.e., it is hurt *and* the `"wall_cd"` timer is active *and* the last attack occurred more than 6 seconds ago (suggesting the antlion is behind cover and safe to eat).
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `boolean`.
-
-### `ShouldEatRocksLowPrio(inst)`
-* **Description:** Returns `true` if the antlion should eat rocks with low priority — i.e., it is hurt but does not meet the stricter high-priority conditions.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `boolean`.
-
-## Events & Listeners
-- **Listens to:** None.
-- **Pushes:**
-  - `"eatrocks"` — when rock-eating actions are triggered.
-  - `"antlionstopfighting"` — at the end of the post-combat cooldown sequence.
+## Events & listeners
+- **Listens to:** None identified (the brain itself does not register listeners directly; it triggers events via `inst:PushEvent`).
+- **Pushes:** 
+  - `"eatrocks"` — when the antlion begins eating rocks to heal (high or low priority).
+  - `"antlionstopfighting"` — to signal the end of the calm period and transition back to active combat behavior.

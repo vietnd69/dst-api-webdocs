@@ -1,43 +1,53 @@
 ---
 id: lavaarenamusic
 title: Lavaarenamusic
-description: Manages background music playback for the Lava Arena based on the active player and current arena level.
+description: Manages background music playback for the Lava Arena event based on the currently activated player and level state.
+tags: [audio, event, lavaarena]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: audio
+category_type: map
 source_hash: c6ff688c
+system_scope: audio
 ---
 
 # Lavaarenamusic
 
-## Overview
-This audio component dynamically controls background music in the Lava Arena by playing tracks when a player enters the arena and stopping when they exit. It listens for player activation/deactivation events, manages network synchronization of the arena level, and plays the appropriate music track (`fight_1`) when the level changes.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on `TheWorld.SoundEmitter` for sound playback (`TheFocalPoint.SoundEmitter`).
-- Requires the `playeractivated` and `playerdeactivated` events on `TheWorld`.
-- Uses `TheWorld.ismastersim` to determine server-side initialization logic.
-- Registers a network variable via `net_tinybyte` tied to `inst.GUID`.
-- Calls `event_server_data("lavaarena", "components/lavaarenamusic").master_postinit(...)` on the master sim only.
+## Overview
+`Lavaarenamusic` is a component that controls background music (BGM) for the Lava Arena event in *Don't Starve Together*. It responds to player activation/deactivation events to manage music playback dynamically. When a player enters the arena, the component initializes audio playback for the arena's level music and updates playback if the arena level changes. It is designed to run only on the master simulation (`ismastersim`) and relies on network replication to sync music level changes.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("lavaarenamusic")
+-- Component automatically activates on player events; no manual setup required
+```
+
+## Dependencies & tags
+**Components used:** `SoundEmitter` (via `TheFocalPoint.SoundEmitter`), network variables (`net_tinybyte`)  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `inst` (constructor param) | The entity this component is attached to. |
-| `_world` | `World` | `TheWorld` | Reference to the current world instance. |
-| `_soundemitter` | `SoundEmitter` or `nil` | `nil` | Active sound emitter used to play/kill music; assigned when a player activates. |
-| `_activatedplayer` | `Entity` or `nil` | `nil` | Cache of the currently active arena player; used only for activation/deactivation tracking. |
-| `_levelplaying` | `number` or `nil` | `nil` | Tracks the last music level that was played to detect changes. |
-| `_netvars.level` | `net_tinybyte` | `net_tinybyte(inst.GUID, "lavaarenamusic._netvars.level", "leveldirty")` | Network variable reflecting the arena's current level (value sourced from `leveldirty` events). |
+| `inst` | `TheMiniEntity` | — | The entity instance this component is attached to. |
+| `_activatedplayer` | `entity` or `nil` | `nil` | The currently active player who triggered music playback. |
+| `_levelplaying` | `number` or `nil` | `nil` | The currently playing music level index. |
+| `_netvars.level` | `net_tinybyte` | — | Network-replicated variable tracking the arena level; triggers music updates on change. |
 
-## Main Functions
-No public methods are exposed by this component — all functionality is event-driven and internal.
+## Main functions
+### `Class(function(self, inst) ... end)`
+*   **Description:** Constructor for the `Lavaarenamusic` component. Initializes event listeners, sets up network variables, and prepares the component to respond to player and level changes. Does not return a value.
+*   **Parameters:** `inst` (`TheMiniEntity`) — the entity instance this component is attached to.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens for `"playeractivated"` on `TheWorld`** → Triggers `OnPlayerActivated(src, player)`.
-- **Listens for `"playerdeactivated"` on `TheWorld`** → Triggers `OnPlayerDeactivated(src, player)`.
-- **Listens for `"leveldirty"` on `inst`** (only when a player is active) → Triggers `OnLevelDirty(inst)` to reload music if the level changed.
+## Events & listeners
+- **Listens to:**
+  - `playeractivated` — triggers music startup for the newly activated player.
+  - `playerdeactivated` — stops music playback when the player leaves the arena.
+  - `leveldirty` — triggers music restart when the arena level changes (e.g., a new arena wave starts).
+- **Pushes:** None identified

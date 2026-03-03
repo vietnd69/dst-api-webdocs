@@ -4,7 +4,6 @@ title: Bluemush
 description: Defines cave-level blue mushroom biome room types and their content distributions for world generation.
 tags: [world, generation, environment, biome]
 sidebar_position: 1
-
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: d8e731c5
 ---
-
 # Bluemush
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -60,4 +58,3 @@ This script does not define a component with public methods. It contains only to
 ## Events & listeners
 None — this script does not use events or listeners, as it executes during map generation before gameplay begins.
 
----

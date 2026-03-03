@@ -4,7 +4,6 @@ title: Greenmush
 description: Registers multiple cave-specific room templates for green mushroom biomes in the world generation system.
 tags: [world, generation, biome]
 sidebar_position: 1
-
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: b7e43b2f
 ---
-
 # Greenmush
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -59,4 +57,3 @@ This file does not define or expose any reusable property objects or component-l
 ## Events & listeners
 None.
 
----

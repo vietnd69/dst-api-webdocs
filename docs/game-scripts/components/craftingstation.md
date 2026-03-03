@@ -1,95 +1,127 @@
 ---
 id: craftingstation
 title: Craftingstation
-description: Manages learned crafting items, recipes, and their associated crafting limits for an entity.
+description: Tracks which items and recipes a crafting station has learned and manages per-recipe crafting limits.
+tags: [crafting, progression, inventory]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: crafting
+category_type: components
 source_hash: f4ef8672
+system_scope: crafting
 ---
 
 # Craftingstation
 
-## Overview
-The `Craftingstation` component is responsible for tracking an entity's knowledge of craftable items and recipes. It maintains lists of learned items and their corresponding recipes, and can also enforce crafting limits for specific recipes, forgetting them once the limit is reached. This component also handles saving and loading its learned state.
+> Based on game build **7140014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified. This component interacts with a `builder` component on other entities (`doer.components.builder`) but does not directly depend on other components on its `inst`.
+## Overview
+`CraftingStation` manages the list of items and recipes known to a crafting entity (e.g., a workbench or forge). It stores learned items and their corresponding recipes, tracks per-recipe crafting limits, and handles serialization for save/load. When a recipe reaches its crafting limit and is crafted again, it automatically forgets the recipe and triggers technology tree evaluation on the doer(s) via the `builder` component.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("craftingstation")
+
+inst.components.craftingstation:LearnItem("carving_knife", "carving_knife_recipe")
+inst.components.craftingstation:SetRecipeCraftingLimit("carving_knife_recipe", 1)
+
+-- Craft the recipe once (reaches limit and is forgotten)
+inst.components.craftingstation:RecipeCraftingLimit({char = true}, "carving_knife_recipe")
+```
+
+## Dependencies & tags
+**Components used:** `builder` — accessed via `doer.components.builder:EvaluateTechTrees()` when a recipe with a crafting limit expires.
+**Tags:** None identified.
 
 ## Properties
-| Property                  | Type    | Default Value | Description                                                                    |
-| :------------------------ | :------ | :------------ | :----------------------------------------------------------------------------- |
-| `self.inst`               | Entity  | `inst`        | A reference to the parent entity that owns this component.                     |
-| `self.items`              | table   | `{}`          | A numerical table storing the names of all items the entity knows how to craft. |
-| `self.recipes`            | table   | `{}`          | A numerical table storing the names of recipes, corresponding by index to `self.items`. |
-| `self.recipecraftinglimit`| table   | `{}`          | A key-value table mapping recipe names to their remaining craftable amounts. |
-| `self.nosave`             | boolean | `false`       | A flag indicating whether the component's state should be saved and loaded. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `items` | table (array of strings) | `{}` | List of item names known by this station. |
+| `recipes` | table (array of strings) | `{}` | List of recipe names known, aligned 1:1 with `items`. |
+| `recipecraftinglimit` | table (string → number) | `{}` | Maps recipe names to remaining allowed crafts. |
+| `nosave` | boolean or nil | `false` | If true, save/load data is bypassed; internal use only. |
 
-## Main Functions
+## Main functions
 ### `LearnItem(itemname, recipetouse)`
-*   **Description:** Adds a new item and its associated recipe to the entity's crafting knowledge if it isn't already known.
-*   **Parameters:**
-    *   `itemname`: `string` - The name of the item being learned.
-    *   `recipetouse`: `string` - The name of the recipe associated with `itemname`.
+* **Description:** Adds a new item and its corresponding recipe to the learned list if not already known.
+* **Parameters:**  
+  `itemname` (string) — name of the item to learn.  
+  `recipetouse` (string) — name of the associated recipe.
+* **Returns:** Nothing.
 
 ### `KnowsItem(itemname)`
-*   **Description:** Checks if the entity knows how to craft a specific item.
-*   **Parameters:**
-    *   `itemname`: `string` - The name of the item to check.
+* **Description:** Checks whether the station has learned a specific item.
+* **Parameters:**  
+  `itemname` (string) — item name to check.
+* **Returns:** `true` if known, otherwise `false`.
 
 ### `KnowsRecipe(recipename)`
-*   **Description:** Checks if the entity knows a specific recipe.
-*   **Parameters:**
-    *   `recipename`: `string` - The name of the recipe to check.
+* **Description:** Checks whether the station has learned a specific recipe.
+* **Parameters:**  
+  `recipename` (string) — recipe name to check.
+* **Returns:** `true` if known, otherwise `false`.
 
 ### `GetItems()`
-*   **Description:** Returns the numerical table of all item names currently known by the entity.
-*   **Parameters:** None.
+* **Description:** Returns the full list of learned item names.
+* **Parameters:** None.
+* **Returns:** table (array of strings) — list of item names.
 
 ### `GetRecipes()`
-*   **Description:** Returns the numerical table of all recipe names currently known by the entity.
-*   **Parameters:** None.
+* **Description:** Returns the full list of learned recipe names.
+* **Parameters:** None.
+* **Returns:** table (array of strings) — list of recipe names.
 
 ### `GetRecipeCraftingLimit(recipename)`
-*   **Description:** Retrieves the current crafting limit for a specified recipe. Returns `nil` if no limit is set.
-*   **Parameters:**
-    *   `recipename`: `string` - The name of the recipe.
+* **Description:** Returns the remaining crafting limit for a recipe.
+* **Parameters:**  
+  `recipename` (string) — recipe name.
+* **Returns:** number or `nil` — remaining allowed crafts, or `nil` if unlimited.
 
 ### `SetRecipeCraftingLimit(recipename, amount)`
-*   **Description:** Sets or updates the crafting limit for a specified recipe.
-*   **Parameters:**
-    *   `recipename`: `string` - The name of the recipe.
-    *   `amount`: `number` - The new crafting limit for the recipe.
+* **Description:** Sets the maximum number of times a recipe may be crafted.
+* **Parameters:**  
+  `recipename` (string) — recipe name.  
+  `amount` (number) — non-negative limit; a value of `0` effectively disables crafting.
+* **Returns:** Nothing.
 
 ### `RecipeCrafted(doers, recipename)`
-*   **Description:** Decrements the crafting limit for a given recipe. If the limit drops to zero or below, the recipe is forgotten, and `builder` components of the `doers` are prompted to re-evaluate their tech trees.
-*   **Parameters:**
-    *   `doers`: `table` - A table of entities (`doer`) who performed the crafting, usually used to update their tech trees.
-    *   `recipename`: `string` - The name of the recipe that was crafted.
+* **Description:** Decrements the crafting limit for the given recipe. If the limit reaches `0`, forgets the recipe and calls `EvaluateTechTrees` on each doer’s `builder` component.
+* **Parameters:**  
+  `doers` (table) — map (usually `{[entity] = true}`) of entities performing the craft.  
+  `recipename` (string) — recipe being crafted.
+* **Returns:** Nothing.
+* **Error states:** If `recipename` is not in `recipecraftinglimit`, no action is taken.
 
 ### `ForgetItem(itemname)`
-*   **Description:** Removes a specific item and its associated recipe and crafting limit from the entity's knowledge.
-*   **Parameters:**
-    *   `itemname`: `string` - The name of the item to forget.
+* **Description:** Removes a specific item and its corresponding recipe from all tracking tables.
+* **Parameters:**  
+  `itemname` (string) — item to forget.
+* **Returns:** Nothing.
 
 ### `ForgetRecipe(recipename)`
-*   **Description:** Removes a specific recipe and its associated item and crafting limit from the entity's knowledge.
-*   **Parameters:**
-    *   `recipename`: `string` - The name of the recipe to forget.
+* **Description:** Removes a specific recipe (and its corresponding item) from all tracking tables.
+* **Parameters:**  
+  `recipename` (string) — recipe to forget.
+* **Returns:** Nothing.
 
 ### `ForgetAllItems()`
-*   **Description:** Clears all learned items, recipes, and crafting limits, making the entity forget everything it knows how to craft.
-*   **Parameters:** None.
+* **Description:** Clears all learned items, recipes, and recipe limits.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-*   **Description:** Serializes the component's current state (learned items, recipes, and crafting limits) for persistence. Data is only returned if `self.nosave` is `false`.
-*   **Parameters:** None.
+* **Description:** Returns serializable state for saving, or `nil` if `nosave` is true.
+* **Parameters:** None.
+* **Returns:** table or `nil` — state with keys `items`, `recipes`, and `recipecraftinglimit`.
 
 ### `OnLoad(data)`
-*   **Description:** Deserializes and restores the component's state from saved `data`. Includes a check to reset knowledge if `self.items` and `self.recipes` array lengths do not match, preventing corrupted data. This operation is skipped if `self.nosave` is `true`.
-*   **Parameters:**
-    *   `data`: `table` - The table containing the saved component data.
+* **Description:** Restores saved state. Validates that `items` and `recipes` arrays are same length; if not, clears all data.
+* **Parameters:**  
+  `data` (table) — state returned from a prior `OnSave()` call.
+* **Returns:** Nothing.
+
+## Events & listeners
+None identified.

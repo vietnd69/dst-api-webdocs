@@ -1,71 +1,82 @@
 ---
 id: touchstonetracker
 title: Touchstonetracker
-description: Tracks which touchstones have been used by the player in the current and other shards.
+description: Tracks which touchstones have been used by the player and persists this data across sessions and shards.
+tags: [touchstone, save, network, world]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: a63507ee
+system_scope: world
 ---
 
 # Touchstonetracker
 
-## Overview
-This component maintains a record of used touchstones for the current shard (`self.used`) and persistently stores data for foreign shards (`self.used_foreign`) across save/load cycles. It listens for the `"usedtouchstone"` event to update its state and synchronizes this data with the player's classified data via `player_classified`.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependency:** Relies on `inst.player_classified` (only if present) to propagate used touchstone IDs.
-- **Event Listener:** Registers for the `"usedtouchstone"` event on its instance.
-- **Tags:** None explicitly added or removed.
+## Overview
+`TouchStoneTracker` maintains a record of touchstones used by the player entity within the current game shard, and preserves usage data from previous shards for cross-session continuity. It listens for `usedtouchstone` events, updates the networked `player_classified` component with the list of used touchstones, and handles saving/loading of usage data via session identifiers.
+
+## Usage example
+```lua
+local inst = ThePlayer
+inst:AddComponent("touchstonetracker")
+-- Automatically activated by the game on player spawn.
+-- When a touchstone is used, the game calls:
+inst:PushEvent("usedtouchstone", { touchstone = some_touchstone_prefab })
+-- Later, check if a touchstone was used:
+if not inst.components.touchstonetracker:IsUsed(some_touchstone) then
+    -- perform logic
+end
+```
+
+## Dependencies & tags
+**Components used:** `player_classified`
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (assigned via constructor) | The entity this component belongs to. |
-| `used` | `table (map)` | `{}` | Tracks used touchstone IDs for the current shard. Keys are integer IDs; values are `true`. |
-| `used_foreign` | `table (map)` | `{}` | Stores used touchstone IDs from other shards (session-persistent). Keys are session identifiers; values are arrays of IDs. |
+| `used` | table | `{}` | A map of touchstone IDs (number) → `true` for touchstones used in the current session/shard. |
+| `used_foreign` | table | `{}` | A map of session IDs (string) → array of touchstone IDs used in previous sessions. |
 
-## Main Functions
-### `OnUsedTouchStoneID(id)`
-* **Description:** Marks a touchstone ID as used in the current shard, and optionally updates `player_classified` with the updated list. Does nothing if `id <= 0`.
-* **Parameters:**
-  * `id` (integer): The unique touchstone ID to mark as used.
+## Main functions
+### `GetDebugString()`
+*   **Description:** Returns a human-readable string listing all used touchstone IDs in the current session.
+*   **Parameters:** None.
+*   **Returns:** string — formatted as `"Used: id1, id2, id3"` where IDs are space-separated.
+*   **Error states:** Returns empty string if no touchstones have been used.
 
 ### `IsUsed(touchstone)`
-* **Description:** Returns whether the given touchstone entity has been used in the current shard.
-* **Parameters:**
-  * `touchstone` (Entity): A touchstone entity. Must implement `:GetTouchStoneID()`.
+*   **Description:** Checks whether the given touchstone prefab has been used in the current session.
+*   **Parameters:** `touchstone` (entity) — a touchstone entity with a `GetTouchStoneID()` method.
+*   **Returns:** boolean — `true` if the touchstone's ID is in `self.used`, otherwise `false`.
 
 ### `OnSave()`
-* **Description:** Aggregates used touchstone IDs into a save data structure, distinguishing between the current shard and foreign shards. Required for world save persistence.
-* **Parameters:** None.
-* **Returns:** Table of the form `{ usedinsessions = { [session_id] = { id1, id2, ... }, ... } }`.
+*   **Description:** Serializes the used touchstone data for persistence. Includes both current session data and foreign (previously saved) session data.
+*   **Parameters:** None.
+*   **Returns:** table — `{ usedinsessions = { [session_id] = {id1, id2, ...}, ... } }`.
 
 ### `OnLoad(data)`
-* **Description:** Restores used touchstone state from save data. Updates `self.used` for the current shard and `self.used_foreign` for other sessions.
-* **Parameters:**
-  * `data` (table?): Save data containing `usedinsessions`.
+*   **Description:** Loads previously saved touchstone usage data. Separates data by session ID: current session data populates `self.used`, while other sessions populate `self.used_foreign`.
+*   **Parameters:** `data` (table or nil) — serialized data returned by `OnSave()`.
+*   **Returns:** Nothing.
+*   **Error states:** Silently ignores malformed or missing data (e.g., `data == nil` or `data.usedinsessions == nil`).
 
 ### `OnRemoveFromEntity()`
-* **Description:** Cleans up on component removal: clears `player_classified` used list and unregisters the event listener.
-* **Parameters:** None.
+*   **Description:** Cleans up before component removal. Clears `player_classified`'s used touchstones and unregisters the `usedtouchstone` listener.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `TransferComponent(newinst)`
-* **Description:** Transfers all tracked used touchstone data (current + foreign) to a new component instance, typically used during entity re-spawning or world transfer.
-* **Parameters:**
-  * `newinst` (Entity): The destination entity with a `touchstonetracker` component.
+*   **Description:** Copies all used touchstone data (current and foreign) from this component instance to a new component on a different entity (e.g., during character transfer).
+*   **Parameters:** `newinst` (entity) — the destination entity whose `touchstonetracker` component will receive the data.
+*   **Returns:** Nothing.
+*   **Error states:** Assumes `newinst.components.touchstonetracker` exists and is valid.
 
-### `GetDebugString()`
-* **Description:** Returns a comma-separated string listing all used touchstone IDs in the current shard, for debugging purposes.
-* **Parameters:** None.
-* **Returns:** `string`
-
-## Events & Listeners
-- **Listens to:**
-  - `"usedtouchstone"` → Calls `OnUsedTouchStone`, which in turn calls `OnUsedTouchStoneID`.
-- **Triggers:**
-  - Indirectly via `player_classified:SetUsedTouchStones(used)` when `used` list changes (no event itself).
+## Events & listeners
+- **Listens to:** `usedtouchstone` — triggers `OnUsedTouchStone`, which in turn calls `OnUsedTouchStoneID` to record the touchstone as used.
+- **Pushes:** None.

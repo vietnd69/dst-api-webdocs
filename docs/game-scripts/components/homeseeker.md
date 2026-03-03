@@ -1,67 +1,87 @@
 ---
 id: homeseeker
 title: Homeseeker
-description: Manages an entity's association with a home structure and facilitates movement toward it.
+description: Tracks and provides navigation logic to a designated home entity for an actor.
+tags: [navigation, ai, home]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 8da11099
+system_scope: locomotion
 ---
 
 # Homeseeker
 
-## Overview
-The `homeseeker` component allows an entity to designate, track, and move toward a designated home structure. It manages the relationship between the entity and its home, listens for home removal events, and provides utilities for pathfinding and travel-time estimation.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on `self.inst` having a `Transform` component (via `GetWorldPosition()`).
-- Relies on `self.inst.components.locomotor` (optional, used in `GoHome` and `GetHomeDirectTravelTime`).
-- If `self.home` is provided, it must support the `"onremove"` event (typically structures with a `destroyable` or `burnable` component).
-- Adds no tags itself; does not add or remove components during initialization.
+## Overview
+`HomeSeeker` manages an entity's association with a designated home entity (e.g., a structure, bed, or spawn point). It enables the actor to seek its home using buffered movement actions and provides utilities to query home presence, position, and travel time. It automatically cleans up when the home entity is removed and can optionally remove itself from the actor in that case.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("homeseeker")
+
+local home = TheWorld.components.homekeeper:GetPreferredHome(inst)
+if home then
+    inst.components.homeseeker:SetHome(home)
+    inst.components.homeseeker:GoHome(false)  -- walk, not run
+end
+
+-- Later, to check if home is still valid:
+if inst.components.homeseeker:HasHome() then
+    print("Home is safe and accessible.")
+else
+    print("Home is missing or burning.")
+end
+```
+
+## Dependencies & tags
+**Components used:** `burnable`, `locomotor`  
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *(passed to constructor)* | Reference to the entity the component is attached to. |
-| `removecomponent` | `boolean` | `true` | If `true`, the `homeseeker` component is automatically removed from `inst` when the current home is destroyed. |
-| `onhomeremoved` | `function(home)` | *(lambda defined in constructor)* | Callback invoked when the home entity is removed; sets `self.home = nil` and optionally removes the component. |
-| `home` | `Entity?` | `nil` | The entity currently designated as the home structure. |
+| `inst` | `Entity` | — | The entity instance this component is attached to. |
+| `removecomponent` | boolean | `true` | Controls whether this component is automatically removed when its home is removed. |
+| `home` | `Entity?` | `nil` | The currently assigned home entity. |
 
-## Main Functions
+## Main functions
 ### `HasHome()`
-* **Description:** Returns whether the entity currently has a valid home. A home is considered invalid if it is `nil` or currently burning (per its `burnable` component).
+* **Description:** Determines if the actor currently has a valid, non-burning home. Returns `false` if no home is set or if the home exists but is burning.
 * **Parameters:** None.
-
-### `GetDebugString()`
-* **Description:** Returns a debug-friendly string representation of the current home state.
-* **Parameters:** None.
+* **Returns:** `boolean` — `true` if `self.home` is non-nil and not burning; otherwise `false`.
 
 ### `GetHome()`
-* **Description:** Returns the current home entity (may be `nil`).
+* **Description:** Returns the currently assigned home entity.
 * **Parameters:** None.
+* **Returns:** `Entity?` — The home entity, or `nil` if none is set.
 
 ### `SetHome(home)`
-* **Description:** Assigns a new home entity. If a previous home existed, the `"onremove"` event listener is removed. If the new home is non-`nil`, a listener is added to detect its removal.
-* **Parameters:**  
-  `home` (`Entity?`) — The entity to set as the home.
+* **Description:** Assigns a new home entity and sets up a listener to clean up when that home is removed.
+* **Parameters:** `home` (`Entity?`) — The new home entity, or `nil` to unset it.
+* **Returns:** Nothing.
 
 ### `GoHome(shouldrun)`
-* **Description:** Initiates movement toward the home using a `GOHOME` action. If a `locomotor` component exists, it pushes the action at the specified speed; otherwise, the action is queued directly.
-* **Parameters:**  
-  `shouldrun` (`boolean`) — Whether the entity should run (if supported by `locomotor`) instead of walk.
+* **Description:** Initiates a buffered `ACTIONS.GOHOME` action toward the assigned home. Uses the locomotor component if present to perform movement; otherwise falls back to direct buffered action dispatch.
+* **Parameters:** `shouldrun` (`boolean`) — If `true`, prioritizes running speed when computing travel time and movement behavior.
+* **Returns:** Nothing.
 
 ### `GetHomePos()`
-* **Description:** Returns the world position (`x, y, z`) of the current home, or `nil` if no home exists.
+* **Description:** Retrieves the world position of the home entity.
 * **Parameters:** None.
+* **Returns:** `Vector3?` — The home’s world position (`x, y, z`) as returned by `home:GetPosition()`, or `nil` if no home is set.
 
 ### `GetHomeDirectTravelTime()`
-* **Description:** Estimates the time (in seconds) it would take the entity to walk directly to its home, assuming no obstacles. Uses Euclidean distance and the entity's walk speed (or higher of default/walk speed if `locomotor` is present).
+* **Description:** Computes an estimated time (in seconds) to walk directly to the home if the path were unobstructed, using Euclidean distance and current movement speed.
 * **Parameters:** None.
+* **Returns:** `number?` — Travel time estimate; `nil` if no home is assigned or the home has no transform.
+* **Error states:** May return `nil` if `TUNING.WILSON_WALK_SPEED` is unavailable or the home has no valid transform.
 
-## Events & Listeners
-- Listens for `"onremove"` on `self.home` (if set), triggering `onhomeremoved(home)`.  
-  *(This callback resets `self.home` to `nil` and optionally removes the `homeseeker` component.)*
+## Events & listeners
+- **Listens to:** `onremove` — Registered on the home entity; fires `self.onhomeremoved(home)` when the home is removed. Resets `self.home` and optionally removes the `homeseeker` component itself.
+- **Pushes:** None identified.

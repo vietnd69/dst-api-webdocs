@@ -1,137 +1,145 @@
 ---
 id: heavyobstaclephysics
 title: Heavyobstaclephysics
-description: Manages the physics behavior of heavy obstacles—including dynamic radius adjustment, state transitions (ITEM, OBSTACLE, FALLING), and responsiveness to character proximity and interaction events.
-
+description: Manages dynamic physics behavior for large in-game obstacles that transition between solid, falling, and pushed states based on proximity and interactions.
+tags: [physics, environment, obstacle]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 83c8c121
+system_scope: physics
 ---
 
 # Heavyobstaclephysics
 
-## Overview
-This component governs the physics state and collision behavior of heavy in-world obstacles (e.g., boulders, large rocks) by dynamically adjusting their physical radius based on nearby character proximity, transitioning between states (ITEM, OBSTACLE, FALLING), and responding to gameplay events such as being held, dropped, pushed, or falling. It ensures obstacles behave as static colliders when idle, shrink to allow passage when characters are nearby, and revert to solid obstacles when not in use—while maintaining compatibility with gravity and physics interactions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Required Components:**
-  - `Physics`
-  - `Transform`
-- **Event Listeners:** The component registers callbacks for:
-  - `"onputininventory"` → changes to `ITEM` state
-  - `"ondropped"` → changes to `OBSTACLE` state
-  - `"startfalling"` / `"stopfalling"` (optional via `AddFallingStates()`) → enters/exits `FALLING` state
-  - `"startpushing"` / `"stoppushing"` (optional via `AddPushingStates()`) → temporarily enters `ITEM` state while being pushed
-- **Tags:** None added or removed by this component.
+## Overview
+`HeavyObstaclePhysics` governs how large static obstacles in the world behave under various physical and gameplay conditions. It enables dynamic radius adjustment based on nearby characters, transitions between solid obstacle, item (falling/loose), and pushing states, and handles gravity-based falling. It is designed to be used in conjunction with `MakeHeavyObstaclePhysics`prefab helper and typically attaches to large environmental props like rocks, pillars, or moveable structures. The component coordinates collision groups, damping, mass, and periodic tasks to maintain realistic physical behavior.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+-- ... (entity setup)
+inst:AddComponent("heavyobstaclephysics")
+inst.components.heavyobstaclephysics:SetRadius(2.5)
+inst.components.heavyobstaclephysics:AddFallingStates()
+inst.components.heavyobstaclephysics:AddPushingStates()
+inst.components.heavyobstaclephysics:SetOnPhysicsStateChangedFn(function(inst, state) print("State:", state) end)
+```
+
+## Dependencies & tags
+**Components used:** `inventoryitem` (checked via `IsHeld()`), `physics`, `transform` (for position and teleportation).
+**Tags:** Checks characters with tags `"character"` and `"locomotor"`, excludes those with `"INLIMBO"`, `"NOCLICK"`, `"flying"`, `"ghost"`. Does not modify tags directly.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `maxradius` | `number` | `nil` | Maximum radius (capsule width) used when obstacle is fully solid. Set via `SetRadius(radius)`. |
-| `currentradius` | `number` | `nil` | Current active radius; dynamically adjusted (0 to `maxradius`) based on nearby characters. |
-| `physicsstate` | `number` (`PHYSICS_STATE`) | `nil` | Numeric state constant: `1=ITEM`, `2=OBSTACLE`, `3=FALLING`. |
-| `issmall` | `boolean` | `nil` | If `true`, obstacle uses `SMALLOBSTACLES` group and collision mask; set via `MakeSmallObstacle()`. |
-| `task` | `Task` | `nil` | Periodic task used to update obstacle radius during `OBSTACLE` state. |
-| `ischaracterpassthrough` | `boolean` | `nil` | Tracks whether characters currently pass through the obstacle (used to toggle collision once). |
-| `onphysicsstatechangedfn` | `function` | `nil` | Callback fired when `physicsstate` changes. Arguments: `(inst, stateName)`. |
-| `onchangetoitemfn` | `function` | `nil` | Callback fired when transitioning to `ITEM` state. Argument: `(inst)`. |
-| `onchangetoobstaclefn` | `function` | `nil` | Callback fired when transitioning to `OBSTACLE` state. Argument: `(inst)`. |
-| `onstartfallingfn` | `function` | `nil` | Callback fired when falling begins. Argument: `(inst)`. |
-| `onstopfallingfn` | `function` | `nil` | Callback fired when falling ends. Argument: `(inst)`. |
-| `onstartpushingfn` | `function` | `nil` | Callback fired when pushing begins. Argument: `(inst)`. |
-| `onstoppushingfn` | `function` | `nil` | Callback fired when pushing ends. Argument: `(inst)`. |
-| `deprecated_floating_exploit` | `boolean` | `nil` | Internal flag used to preserve legacy floating behavior (for backward compatibility only). |
+| `maxradius` | number | `nil` | The maximum radius this obstacle can occupy when solid. |
+| `currentradius` | number | `nil` | The current capsule radius used for physics, dynamically adjusted. |
+| `physicsstate` | number (`PHYSICS_STATE`) | `nil` | Current state index: 1 = ITEM, 2 = OBSTACLE, 3 = FALLING. |
+| `ischaracterpassthrough` | boolean or nil | `nil` | Indicates whether characters can currently pass through; toggled when shrinking. |
+| `issmall` | boolean or nil | `nil` | If true, obstacle uses `SMALLOBSTACLES` collision group instead of `OBSTACLES`. |
+| `task` | Task or nil | `nil` | Periodic task reference for radius updates during obstacle state. |
+| `onphysicsstatechangedfn` | function or nil | `nil` | Callback fired when `physicsstate` changes. |
+| `onchangetoitemfn` | function or nil | `nil` | Callback fired before transitioning to ITEM state. |
+| `onchangetoobstaclefn` | function or nil | `nil` | Callback fired before transitioning to OBSTACLE state. |
+| `onstartfallingfn` | function or nil | `nil` | Callback fired before transitioning to FALLING state. |
+| `onstopfallingfn` | function or nil | `nil` | Callback fired before transitioning from FALLING to OBSTACLE. |
+| `onstartpushingfn` | function or nil | `nil` | Callback fired when the object begins being pushed by a character. |
+| `onstoppushingfn` | function or nil | `nil` | Callback fired when the object stops being pushed. |
+| `deprecated_floating_exploit` | boolean or nil | `nil` | Legacy flag used to prevent auto-dropping when floating; internal use. |
 
-## Main Functions
+## Main functions
+### `SetRadius(radius)`
+* **Description:** Initializes the obstacle’s maximum physical radius and registers listeners for inventory events to control state transitions. Must be called once during setup.
+* **Parameters:** `radius` (number) – the maximum radius the obstacle can occupy when acting as a solid obstacle.
+* **Returns:** Nothing.
 
-### `SetCurrentRadius(self, radius)`
-* **Description:** Updates the obstacle's physical capsule radius and applies it to the `Physics` component. Only acts if the new radius differs from the current one.
-* **Parameters:**
-  * `radius` (number): Desired radius (0 to `maxradius`).
-
-### `SetPhysicsState(self, state)`
-* **Description:** Updates the internal `physicsstate` and triggers the `onphysicsstatechangedfn` callback (if set) with the human-readable state name.
-* **Parameters:**
-  * `state` (number): Numeric state (`PHYSICS_STATE.ITEM`, `OBSTACLE`, or `FALLING`).
-
-### `ChangeToItem(inst)`
-* **Description:** Transitions the obstacle to `ITEM` state (static, pickable). Sets radius to `maxradius`, mass to `1`, collision group to `ITEMS`, and collision mask to `WORLD`, `OBSTACLES`, `SMALLOBSTACLES`.
-* **Parameters:**
-  * `inst` (Entity): The entity instance.
-
-### `OnUpdateObstacleSize(inst, self)`
-* **Description:** Periodically computes the smallest distance to any nearby character (excluding ghosts/flying/non-locomotors) and shrinks the obstacle’s radius accordingly. If the radius becomes `maxradius`, cancels the periodic task. Also manages character passthrough collision toggling.
-* **Parameters:**
-  * `inst` (Entity): The obstacle entity.
-  * `self` (HeavyObstaclePhysics): Component instance.
-
-### `OnChangeToObstacle(inst, self)`
-* **Description:** Asynchronously transitions the obstacle to `OBSTACLE` state (static, solid). Sets mass to `0`, configures collision group/mask based on `issmall`, and starts a periodic radius-update task.
-* **Parameters:**
-  * `inst` (Entity): The obstacle entity.
-  * `self` (HeavyObstaclePhysics): Component instance.
-
-### `ChangeToObstacle(inst)`
-* **Description:** Public wrapper that schedules `OnChangeToObstacle` with a 0.5s delay (to prevent race conditions). Cancels any pending radius-update task first.
-* **Parameters:**
-  * `inst` (Entity): The obstacle entity.
-
-### `OnStartFalling(inst)`
-* **Description:** Transitions the obstacle to `FALLING` state. Resets radius to `maxradius`, sets mass to `1`, and clears the collision mask so it can fall through obstacles.
-* **Parameters:**
-  * `inst` (Entity): The obstacle entity.
-
-### `OnStopFalling(inst)`
-* **Description:** Handles transition from `FALLING` to `OBSTACLE` state upon landing. Triggers `onstopfallingfn` callback and calls `OnChangeToObstacle`.
-* **Parameters:**
-  * `inst` (Entity): The obstacle entity.
-
-### `OnStartPushing(inst)`
-* **Description:** Temporarily switches the obstacle to `ITEM` state (e.g., when player pushes it with a tool).
-* **Parameters:**
-  * `inst` (Entity): The obstacle entity.
-
-### `OnStopPushing(inst)`
-* **Description:** Returns the obstacle to `OBSTACLE` state after pushing ends—*unless* it is currently held in an inventory.
-* **Parameters:**
-  * `inst` (Entity): The obstacle entity.
-
-### `HeavyObstaclePhysics:OnEntityWake()`
-* **Description:** On entity wake, checks if the obstacle is floating above ground without being held. If so, forces it to fall (`ForceDropPhysics`).
+### `MakeSmallObstacle()`
+* **Description:** Marks the obstacle as “small”, causing it to use the `SMALLOBSTACLES` collision group instead of `OBSTACLES` when solid.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `HeavyObstaclePhysics:SetRadius(radius)`
-* **Description:** Initializes `maxradius`, sets initial state to `OBSTACLE`, and registers callbacks for `"onputininventory"` and `"ondropped"`.
-* **Parameters:**
-  * `radius` (number): Maximum capsule radius.
-
-### `HeavyObstaclePhysics:MakeSmallObstacle()`
-* **Description:** Marks the obstacle as small, affecting its collision group/mask (`SMALLOBSTACLES` instead of `OBSTACLES`).
+### `AddFallingStates()`
+* **Description:** Registers listeners for `"startfalling"` and `"stopfalling"` events to enable gravity-based falling and recovery.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `HeavyObstaclePhysics:AddFallingStates()`
-* **Description:** Registers callbacks for `"startfalling"` and `"stopfalling"` events.
+### `AddPushingStates()`
+* **Description:** Registers listeners for `"startpushing"` and `"stoppushing"` events to manage behavior when characters push the object.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `HeavyObstaclePhysics:AddPushingStates()`
-* **Description:** Registers callbacks for `"startpushing"` and `"stoppushing"` events.
+### `GetPhysicsState()`
+* **Description:** Returns a string name of the current physics state.
 * **Parameters:** None.
+* **Returns:** string – one of `"ITEM"`, `"OBSTACLE"`, or `"FALLING"`.
 
-### `HeavyObstaclePhysics:ForceDropPhysics()`
-* **Description:** Immediately transitions through `ITEM` → `OBSTACLE` to trigger falling physics (e.g., for spawns). Used when obstacles need to "wake up" and fall instantly.
+### `IsItem()`
+* **Description:** Returns whether the obstacle is currently in the ITEM state.
 * **Parameters:** None.
+* **Returns:** boolean – `true` if `physicsstate == ITEM`.
 
-## Events & Listeners
-- **Listens for:**
-  - `"onputininventory"` → triggers `ChangeToItem`
-  - `"ondropped"` → triggers `ChangeToObstacle`
-  - `"startfalling"` → triggers `OnStartFalling` (added via `AddFallingStates`)
-  - `"stopfalling"` → triggers `OnStopFalling` (added via `AddFallingStates`)
-  - `"startpushing"` → triggers `OnStartPushing` (added via `AddPushingStates`)
-  - `"stoppushing"` → triggers `OnStopPushing` (added via `AddPushingStates`)
-- **Pushes no events.**
+### `IsObstacle()`
+* **Description:** Returns whether the obstacle is currently in the OBSTACLE state.
+* **Parameters:** None.
+* **Returns:** boolean – `true` if `physicsstate == OBSTACLE`.
+
+### `IsFalling()`
+* **Description:** Returns whether the obstacle is currently falling (ITEM state with no gravity constraints).
+* **Parameters:** None.
+* **Returns:** boolean – `true` if `physicsstate == FALLING`.
+
+### `ForceDropPhysics()`
+* **Description:** Immediately drops the object from a spawned state (e.g., after loot drop) by forcing transitions through ITEM and OBSTACLE states without delay. Useful for prefabs spawned programmatically.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `SetOnPhysicsStateChangedFn(fn)`
+* **Description:** Sets the callback invoked when the obstacle’s physics state changes.
+* **Parameters:** `fn` (function) – signature: `function(inst, stateName)` where `stateName` is `"ITEM"`, `"OBSTACLE"`, or `"FALLING"`.
+* **Returns:** Nothing.
+
+### `SetOnChangeToItemFn(fn)`
+* **Description:** Sets the callback invoked before transitioning to ITEM state.
+* **Parameters:** `fn` (function) – signature: `function(inst)`.
+* **Returns:** Nothing.
+
+### `SetOnChangeToObstacleFn(fn)`
+* **Description:** Sets the callback invoked before transitioning to OBSTACLE state.
+* **Parameters:** `fn` (function) – signature: `function(inst)`.
+* **Returns:** Nothing.
+
+### `SetOnStartFallingFn(fn)`
+* **Description:** Sets the callback invoked before the obstacle begins falling.
+* **Parameters:** `fn` (function) – signature: `function(inst)`.
+* **Returns:** Nothing.
+
+### `SetOnStopFallingFn(fn)`
+* **Description:** Sets the callback invoked before falling ends and the obstacle becomes solid again.
+* **Parameters:** `fn` (function) – signature: `function(inst)`.
+* **Returns:** Nothing.
+
+### `Setonstartpushingfn(fn)`
+* **Description:** Sets the callback invoked when a character starts pushing the object (switches to ITEM state).
+* **Parameters:** `fn` (function) – signature: `function(inst)`.
+* **Returns:** Nothing.
+
+### `Setonstoppushingfn(fn)`
+* **Description:** Sets the callback invoked when pushing ends (resumes obstacle behavior unless held).
+* **Parameters:** `fn` (function) – signature: `function(inst)`.
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:** `onputininventory` – triggers transition to ITEM state.
+- **Listens to:** `ondropped` – triggers transition to OBSTACLE state.
+- **Listens to:** `startfalling` – triggers falling logic (ITEM state with cleared collision masks).
+- **Listens to:** `stopfalling` – transitions back to OBSTACLE state.
+- **Listens to:** `startpushing` – forces transition to ITEM state (loose/weightless).
+- **Listens to:** `stoppushing` – reverts to OBSTACLE state unless currently held.
+- **Pushes:** None directly (callbacks may fire side effects).
+- **Removes event callbacks on removal:** All events listed above are unregistered in `OnRemoveFromEntity()`.

@@ -1,73 +1,87 @@
 ---
 id: lunarsupernovablocker
 title: Lunarsupernovablocker
-description: This component manages visual and logical blocking of lunar supernovae effects for an entity by tracking valid sources and rendering corresponding effects.
+description: Manages visual and gameplay effects for the Lunar Supernova ability by tracking blocking sources and updating related FX and colour properties.
+tags: [boss, combat, visual, world, lavaarena]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: eeb1d0fc
+system_scope: world
 ---
 
 # Lunarsupernovablocker
 
-## Overview
-This component acts as a dynamic filter for lunar supernovae effects: it tracks one or more potential supernova sources, spawns and updates visual effect proxies (e.g., rotating "robot leg" FX), applies flickering colour modulation, and ensures effects are removed when sources become invalid, leave the arena, or exceed the allowed distance. It also maintains a `"lunarsupernovablocker"` tag on its entity and integrates with the `colouradder` component for visual effects.
+> Based on game build **7140114** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds tag: `"lunarsupernovablocker"` (on creation)
-- Removes tag: `"lunarsupernovablocker"` (on removal)
-- Relies on components: `Transform`, `colouradder`
-- Uses external prefabs: `"wagboss_robot_leg_fx"`
-- Uses utility modules: `easing`, `prefabs/wagboss_util`
+## Overview
+`LunarSupernovaBlocker` tracks entities that are blocking the Lunar Supernova attack, spawns associated visual FX (robot leg effects), manages colour flickering via `colouradder`, and ensures the blocking entity remains within valid arena constraints. It is primarily used in the WagPunk arena context to visually and functionally represent supernova shielding effects.
+
+The component integrates with:
+- `colouradder`: To dynamically set and remove a flickering white tint.
+- `easing`: To calculate flicker intensity using `inOutQuad`.
+- `WagBossUtil`: To validate distance limits in non-arena zones.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("lunarsupernovablocker")
+inst.components.lunarsupernovablocker:AddSource(supernova_burning_entity)
+inst.components.lunarsupernovablocker:SetOnStopBlockingFn(function(inst)
+    print("Supernova blocking ended")
+end)
+```
+
+## Dependencies & tags
+**Components used:** `colouradder`  
+**Tags:** Adds `lunarsupernovablocker` to the owning entity on initialization.
 
 ## Properties
+No public properties.
 
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the owning entity passed to the constructor. |
-| `sources` | `table` | `{}` | Dictionary mapping valid supernova source entities to their corresponding FX instances. |
-| `onstartblockingfn` | `function?` | `nil` | Optional callback executed when the first source is added (triggers blocking mode). |
-| `onstopblockingfn` | `function?` | `nil` | Optional callback executed when the last source is removed (triggers unblocking mode). |
-| `flickerdelay` | `boolean` | `nil` (initialized in `AddSource`) | Controls timing of flicker updates—toggled each frame until `UpdateFlicker()` triggers colour change. |
-
-## Main Functions
-
+## Main functions
 ### `AddSource(source)`
-* **Description:** Registers a new supernova source, spawns an associated FX entity, and starts periodic updates if this is the first source. Ensures no duplicate sources are added.
-* **Parameters:**
-  - `source` (`Entity`): A valid entity representing a supernova source; must have a `Transform` and possibly `sg` (state graph) components.
+*   **Description:** Registers an entity as a source blocking the Lunar Supernova, spawns and positions a related FX entity (`wagboss_robot_leg_fx`), and begins updates if this is the first source.
+*   **Parameters:** `source` (Entity) — the entity blocking the supernova; must have a valid `Transform` component.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `source` is already registered.
 
 ### `RemoveSource(source)`
-* **Description:** Unregisters a source, destroys its associated FX, stops component updates if no sources remain, and pops the colour modifier from `colouradder`.
-* **Parameters:**
-  - `source` (`Entity`): The source entity to remove.
+*   **Description:** Unregisters a blocking source, removes its associated FX, and stops updates if no sources remain. Also removes the `lunarsupernovablocker` colour contribution.
+*   **Parameters:** `source` (Entity) — previously added blocking source.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `source` is not currently registered.
 
 ### `SetOnStartBlockingFn(fn)`
-* **Description:** Sets the optional callback triggered when the first source is successfully added.
-* **Parameters:**
-  - `fn` (`function`): A function that receives `self.inst` (the blocker entity) as argument.
+*   **Description:** Sets a callback that fires when the first source begins blocking (i.e., when `AddSource` transitions the blocker from inactive to active).
+*   **Parameters:** `fn` (function) — a function that takes the blocking entity as its only argument.
+*   **Returns:** Nothing.
 
 ### `SetOnStopBlockingFn(fn)`
-* **Description:** Sets the optional callback triggered when the last source is removed.
-* **Parameters:**
-  - `fn` (`function`): A function that receives `self.inst` (the blocker entity) as argument.
+*   **Description:** Sets a callback that fires when the last source stops blocking (i.e., when `RemoveSource` deactivates the blocker).
+*   **Parameters:** `fn` (function) — a function that takes the blocking entity as its only argument.
+*   **Returns:** Nothing.
 
 ### `UpdateFlicker()`
-* **Description:** Toggles flicker state and, on alternating ticks, applies a dynamically computed RGBA alpha modifier to the entity via `colouradder`, using `easing.inOutQuad` with randomized brightness.
-* **Parameters:** None.
+*   **Description:** Toggles the flicker state and updates the `colouradder` with a randomized white tint using `inOutQuad` easing to modulate opacity. Only applies effect on every other call.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early without modification if `flickerdelay` is `true`.
 
 ### `OnUpdate(dt)`
-* **Description:** Main update loop called periodically while sources exist. Performs:
-  - Flicker effect update
-  - Validation of all registered sources (checks validity, `"supernovaburning"` state tag)
-  - Arena and distance checks (using world coordinates)
-  - FX positioning and visibility updates (hides FX if source is at same XZ position; otherwise rotates it toward the source).
-* **Parameters:**
-  - `dt` (`number`): Delta time since last frame.
+*   **Description:** Periodically updates blocking sources: validates their continued eligibility (e.g., state, location, arena bounds), updates FX visibility and rotation, and calls `UpdateFlicker()`.
+*   **Parameters:** `dt` (number) — time since last update.
+*   **Returns:** Nothing.
+*   **Error states:** Removes invalid sources if they lack `supernovaburning` state tag, are no longer valid, or violate arena or distance constraints.
 
-## Events & Listeners
-None identified (this component does not register for or dispatch any events via `inst:ListenForEvent` or `inst:PushEvent`).
+## Events & listeners
+- **Listens to:** `onremove` — handled implicitly via `colouradder` when registered sources are removed (via `PushColour`).
+- **Pushes:** None directly; does not fire custom events.
+
+## Components and internal state
+- `self.sources`: A dictionary mapping each source entity to its spawned FX instance.
+- `self.flickerdelay`: Boolean toggle used to limit flicker update frequency.
+- `self.onstartblockingfn` / `self.onstopblockingfn`: Optional callbacks for start/stop lifecycle hooks (disabled by default; uncommented in constructor but used externally via setters).

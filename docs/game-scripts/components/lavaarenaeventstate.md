@@ -1,65 +1,76 @@
 ---
 id: lavaarenaeventstate
 title: Lavaarenaeventstate
-description: Manages the state of the Lava Arena event including current round, victory status, and player quest progress across the network in Don't Starve Together.
+description: Manages the state and progression of the Lava Arena event, including round tracking, victory condition reporting, and player quest data for network synchronization.
+tags: [event, boss, combat, network, world]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: map
 source_hash: d46ba4a1
+system_scope: world
 ---
 
 # Lavaarenaeventstate
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component tracks and synchronizes the Lava Arena event's state—such as the current round, match outcome (playing/victory/defeat), progression data, and per-player quest status—over the network in Don't Starve Together. It is attached to the world entity and coordinates between server-side logic and client-side UI updates.
+`Lavaarenaeventstate` is a network-synchronized component that tracks and exposes the current state of the Lava Arena event. It stores and broadcasts round number, victory/defeat state, server-wide progression JSON, and per-player quest JSON across the network. It is attached to the world entity and only activates logic on the server (`ismastersim`) while providing read-only query interfaces for clients.
 
-## Dependencies & Tags
-- Uses `TheNet:GetServerMaxPlayers()` for dynamic player slot allocation.
-- Attaches network variables to the world instance (`inst.GUID`).
-- Triggers the server-side post-initialization via `event_server_data("lavaarena", "components/lavaarenaeventstate").master_postinit(...)`.
-- Registers for community progression updates via `Lavaarena_CommunityProgression:RegisterForWorld()`.
+## Usage example
+```lua
+-- Accessing the lava arena event state from the world entity
+if TheWorld.components.lavaarenaeventstate then
+    local round = TheWorld.components.lavaarenaeventstate:GetCurrentRound()
+    local progression_json = TheWorld.components.lavaarenaeventstate:GetServerProgressionJson()
+    local player_quest = TheWorld.components.lavaarenaeventstate:GetServerPlayerQuestJson(1)
+end
+```
 
-No explicit components or tags are added/removed on the entity.
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified  
 
 ## Properties
-The following properties are initialized in the constructor, primarily as network variable containers.
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | passed-in | Reference to the host entity (typically `TheWorld`). |
-| `_world` | `World` | `TheWorld` | Local reference to the current world instance. |
-| `_ismastersim` | `boolean` | `_world.ismastersim` | Indicates if this instance is on the master simulation (server). |
-| `_netvars.round` | `net_smallbyte` | N/A | Network variable for the current round number (client-viewable, 1+). |
-| `_netvars.victorystate` | `net_tinybyte` | N/A | Network variable encoding match state: 0=Playing, 1=Victory, 2=Defeat. |
-| `_netvars.progression_json` | `net_string` | N/A | JSON string storing server-side Lava Arena progression data. |
-| `_netvars.player_quest_json[i]` | `net_string` (array) | N/A | Array of network strings (indexed 1–max players), each storing per-player quest status. |
+| `inst` | `Entity` | — | Reference to the entity (typically the world) that owns this component. |
+| `_netvars.round` | `net_smallbyte` | — | Network variable holding the current arena round number. |
+| `_netvars.victorystate` | `net_tinybyte` | — | Network variable indicating current match state (`Playing`, `Victory`, `Defeat`). |
+| `_netvars.progression_json` | `net_string` | — | Network variable containing JSON string for server-level progression. |
+| `_netvars.player_quest_json[i]` | `net_string` (array) | — | Per-player quest JSON strings, indexed by player slot (1-based). |
 
-## Main Functions
-
+## Main functions
 ### `GetServerProgressionJson()`
-* **Description:** Returns the current server-held Lava Arena progression data as a JSON string.
+* **Description:** Returns the current server-wide progression state as a JSON string.
 * **Parameters:** None.
+* **Returns:** `string` — JSON-encoded progression data.
+* **Error states:** Returns an empty string if no data has been set.
 
 ### `GetCurrentRound()`
-* **Description:** Returns the current round number, clamped to at least 1 (used for UI display and logic).
+* **Description:** Returns the current arena round number, clamped to at least `1`.
 * **Parameters:** None.
+* **Returns:** `number` — the current round (always `>= 1`).
+* **Error states:** None.
 
 ### `GetServerPlayerQuestJson(quest_slot)`
-* **Description:** Returns the JSON string representing the current player quest status for a given quest slot index (1-indexed).
-* **Parameters:**  
-  - `quest_slot` (number): Index of the quest slot (expected 1 to `TheNet:GetServerMaxPlayers()`).
+* **Description:** Returns the quest JSON string for a specific player slot.
+* **Parameters:** `quest_slot` (number) — the 1-based index of the player slot.
+* **Returns:** `string` — JSON-encoded quest data for that player; empty string if unset.
+* **Error states:** Index out of bounds (e.g., `quest_slot <= 0` or `> maxplayers`) may yield invalid network variable access.
 
 ### `GetDebugString()`
-* **Description:** Returns a placeholder debug string (currently `"?"`); no active debug data is formatted.
+* **Description:** Returns a placeholder debug string for debugging purposes.
 * **Parameters:** None.
+* **Returns:** `string` — currently always `"?"`.
 
-## Events & Listeners
-
-- Listens for `"victorystatedirty"` and `"playeractivated"` events on the world instance:
-  - On receipt, triggers `OnVictoryStateDirty`, which—on non-dedicated clients with a valid `ThePlayer`—pushes `"endofmatch"` with `{ victory = true/false }` depending on the new victory state.
-- Server-side: calls `master_postinit(...)` during initialization to perform server-specific setup.
-- Registers for community progression updates via `Lavaarena_CommunityProgression:RegisterForWorld()` (external hook; not an event * emitted * by this component).
+## Events & listeners
+- **Listens to:**  
+  - `victorystatedirty` — triggers match-end logic on the client when the victory state changes.  
+  - `playeractivated` — same handler as above, used when a player joins the world.  
+- **Pushes:**  
+  - `endofmatch` — fired on the client when the match ends, with payload `{ victory = true/false }`.  
+  - (Server-side) events are expected to be fired by other systems (e.g., `victorystatedirty`) to notify this component of changes.

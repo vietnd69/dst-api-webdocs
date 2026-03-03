@@ -1,69 +1,81 @@
 ---
 id: hunger_replica
 title: Hunger Replica
-description: This component provides a network-synchronized replica of a character's hunger state, delegating to a classified data object for reliable replication between server and client.
+description: Provides network-replicated access to hunger state (current, max, and starvation status) for entities on client or non-master simulation instances.
+tags: [network, hunger, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: components
 source_hash: b82c6329
+system_scope: network
 ---
 
 # Hunger Replica
 
-## Overview
-The `Hunger` component acts as a lightweight, network-safe wrapper for hunger data, primarily used on clients or non-master simulations. It retrieves or attaches to a `player_classified` or `pet_hunger_classified` object to mirror the authoritative hunger state (current/max values, starvation status) from the server without directly accessing the master-holding `hunger` component.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependency:** Relies on the presence of either `inst.components.hunger` (master simulation) or a `classified` object (e.g., `player_classified`, `pet_hunger_classified`) on the entity for replication.
-- **Event Listeners:** Attaches an `"onremove"` event listener to the classified object to clean up references on removal.
-- **Tags:** None identified.
+## Overview
+`HungerReplica` is a network-aware component that exposes hunger data from the authoritative `hunger` component (running on the master simulation) to clients and non-master instances. It acts as a client-side or slave-side proxy, reading hunger values from a remote `classified` object (typically provided by the server via `player_classified` or `pet_hunger_classified`). It does not manage hunger logic itself — it only reflects the state managed by the master-side `hunger` component.
+
+## Usage example
+```lua
+-- Typically added automatically to player entities on non-master instances
+-- e.g., via the player's network setup; manual usage is rare.
+local inst = ThePlayer
+if inst.replica.hunger then
+    local percent = inst.replica.hunger:GetPercent()
+    if inst.replica.hunger:IsStarving() then
+        print("Player is starving!")
+    end
+end
+```
+
+## Dependencies & tags
+**Components used:** `hunger` (for authoritative values on master sim), `classified` objects (`player_classified` or `pet_hunger_classified`)
+**Tags:** None identified.
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `inst` | `Entity` | (none) | Reference to the owning entity. |
-| `classified` | `Classified?` | `nil` | Reference to the `player_classified` or `pet_hunger_classified` object used for data replication. |
+No public properties are initialized in the constructor.
 
-## Main Functions
-### `AttachClassified(classified)`
-* **Description:** Attaches to a classified object and registers an `"onremove"` event listener to detect when the classified object is removed, ensuring proper cleanup. Stores a local callback to avoid closure issues.
-* **Parameters:**
-  * `classified` (`Classified`): The classified object to attach to (typically contains `currenthunger` and `maxhunger` fields).
-
-### `DetachClassified()`
-* **Description:** Detaches from the classified object by clearing internal references and removing the `"onremove"` listener. Should be called automatically via the event system.
-* **Parameters:** None.
-
+## Main functions
 ### `SetCurrent(current)`
-* **Description:** Updates the `"currenthunger"` value in the attached classified object. Intended for use on the server to push hunger updates to clients.
-* **Parameters:**
-  * `current` (`number`): The new current hunger value.
+* **Description:** Sets the current hunger value on the authoritative `classified` object (only valid if running on master simulation).  
+* **Parameters:** `current` (number) — the new current hunger value.
+* **Returns:** Nothing.
+* **Error states:** No-op if `self.classified` is `nil`.
 
 ### `SetMax(max)`
-* **Description:** Updates the `"maxhunger"` value in the attached classified object. Used to propagate maximum hunger changes (e.g., due to effects or items).
-* **Parameters:**
-  * `max` (`number`): The new maximum hunger value.
+* **Description:** Sets the maximum hunger value on the authoritative `classified` object (only valid if running on master simulation).  
+* **Parameters:** `max` (number) — the new maximum hunger value.
+* **Returns:** Nothing.
+* **Error states:** No-op if `self.classified` is `nil`.
 
 ### `Max()`
-* **Description:** Returns the current maximum hunger value. Prioritizes the local `hunger` component (master) if present; otherwise, reads from `classified`, and defaults to `100` if neither is available.
+* **Description:** Returns the maximum hunger value. Prioritizes local authoritative source (`inst.components.hunger.max`) if present (master sim), otherwise reads from `classified`. Falls back to `100` if neither is available.
 * **Parameters:** None.
+* **Returns:** number — current maximum hunger.
+* **Error states:** Returns `100` as a safe default if no source is available (e.g., before network sync completes).
 
 ### `GetPercent()`
-* **Description:** Returns the hunger level as a normalized value between `0` and `1`. Delegates to `hunger:GetPercent()` if available, otherwise computes from classified values; defaults to `1` if no hunger data exists.
+* **Description:** Returns the current hunger as a decimal percentage (`current / max`). Prioritizes authoritative `hunger` component on master sim, otherwise reads from `classified`, and defaults to `1` if neither is available.
 * **Parameters:** None.
+* **Returns:** number — hunger percentage in range `[0.0, 1.0]`.
+* **Error states:** Returns `1` if both `hunger` component and `classified` are unavailable.
 
 ### `GetCurrent()`
-* **Description:** Returns the current hunger value. Uses the local `hunger` component on the master, or falls back to the classified object, or `100` if unavailable.
+* **Description:** Returns the current hunger value. Prioritizes authoritative `hunger.current` on master sim, otherwise reads from `classified.currenthunger`, and defaults to `100` if neither is available.
 * **Parameters:** None.
+* **Returns:** number — current hunger amount.
+* **Error states:** Returns `100` if both sources are unavailable.
 
 ### `IsStarving()`
-* **Description:** Returns `true` if the character is starving. Delegates to `hunger:IsStarving()` on master; otherwise, checks if `currenthunger` in classified is `≤ 0`.
+* **Description:** Returns `true` if the entity is currently starving (`current <= 0`). Uses authoritative `hunger:IsStarving()` on master sim; otherwise checks `classified.currenthunger <= 0`.
 * **Parameters:** None.
+* **Returns:** boolean — `true` if starving, `false` otherwise.
+* **Error states:** Returns `false` if `classified` is `nil` (no data available).
 
-## Events & Listeners
-- **Listens for:** `"onremove"` event on the attached `classified` object. Triggers `DetachClassified()` when fired to prevent stale references.
-- **Does not push or trigger any custom events.**
+## Events & listeners
+- **Listens to:** `onremove` — fires `self.ondetachclassified` callback to cleanly detach from `classified` object when the entity is removed.

@@ -1,45 +1,59 @@
 ---
 id: houndedtarget
 title: Houndedtarget
-description: Manages weighted targeting modifiers and hound thief status for an entity.
+description: Manages weighting for entity selection as a hound target and tracks sources that qualify it as a hound thief.
+tags: [ai, combat, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: f37a9309
+system_scope: entity
 ---
 
 # Houndedtarget
 
-## Overview
-This component tracks and aggregates modifiers affecting an entity's target weight (influence on AI targeting priority) and determines whether the entity qualifies as a "hound thief" target, primarily used by the Hounded event logic in *Don't Starve Together*.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Depends on `SourceModifierList` utility class for managing additive and boolean modifiers.
-- Does not add or remove tags on its own.
-- Relies on the host entity (`inst`) to be a valid component host (e.g.,拥有 `inst:AddComponent` support).
+## Overview
+`Houndedtarget` is a lightweight component that enables an entity to be evaluated as a target for hounds during hound attacks. It maintains two key values: a target weight multiplier (used to influence how likely the entity is to be chosen by hounds) and a list of sources that make the entity a hound thief. The component uses `SourceModifierList` to aggregate weighted contributions and supports backward compatibility with a legacy boolean flag (`hound_thief`).
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("houndedtarget")
+inst.components.houndedtarget:AddTargetWeight(1.5)
+inst.components.houndedtarget:AddHoundThiefSource("player", true)
+local weight = inst.components.houndedtarget:GetTargetWeight()
+local is_thief = inst.components.houndedtarget:IsHoundThief()
+```
+
+## Dependencies & tags
+**Components used:** None (uses `SourceModifierList` utility but does not require it as a component).
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (injected) | Reference to the entity this component is attached to. |
-| `target_weight_mult` | `SourceModifierList` | `SourceModifierList(inst)` | Tracks numerical modifiers that scale the entity's base target weight. |
-| `hound_thief_sources` | `SourceModifierList` | `SourceModifierList(inst, false, SourceModifierList.boolean)` | Tracks boolean flags indicating if the entity should be treated as a hound thief target. |
-| `hound_thief` | `boolean` | `false` | *Deprecated* legacy flag; retained for backward compatibility but should not be used. |
+| `target_weight_mult` | `SourceModifierList` | `new SourceModifierList(inst)` | Aggregates modifiers affecting how strongly the entity is targeted by hounds. |
+| `hound_thief_sources` | `SourceModifierList` | `new SourceModifierList(inst, false, SourceModifierList.boolean)` | Tracks sources that mark the entity as a hound thief; uses boolean mode (any source enables thief status). |
+| `hound_thief` | boolean | `false` | Legacy flag for backward compatibility; deprecated. |
 
-## Main Functions
-
+## Main functions
 ### `GetTargetWeight()`
-* **Description:** Returns the current aggregate target weight modifier applied to the entity. This value is used by targeting AI (e.g., Hounded hounds) to prioritize entities.
-* **Parameters:** None.
+*   **Description:** Returns the current cumulative target weight multiplier for this entity.
+*   **Parameters:** None.
+*   **Returns:** `number` — The weighted multiplier value; used by the hound AI to probabilistically select targets.
+*   **Error states:** Returns `0` if no modifiers have been added.
 
 ### `IsHoundThief()`
-* **Description:** Returns `true` if the entity is considered a hound thief target, either via active `hound_thief_sources` or the legacy `hound_thief` flag.
-* **Parameters:** None.
+*   **Description:** Determines whether the entity should be treated as a hound thief.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if *any* source in `hound_thief_sources` is active or if the deprecated `hound_thief` flag is `true`.
+*   **Error states:** Returns `false` if no thief sources are active and `hound_thief` is `false`.
 
-## Events & Listeners
-None. This component does not listen for or push events directly.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** None.

@@ -1,68 +1,52 @@
 ---
 id: glommerbrain
 title: Glommerbrain
-description: Defines the behavior tree for Glommer, governing movement, following, wandering, and panic responses in Don't Starve Together.
+description: Controls the AI behavior for Glommer, an entity that follows its leader while avoiding danger and wandering within proximity limits.
+tags: [ai, brain, follower, wander, panic]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: f320cd79
+system_scope: brain
 ---
 
 # Glommerbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
+`GlommerBrain` is an AI brain component that implements behavior for Glommer, a follower entity in DST. It defines a behavior tree (`BT`) that prioritizes panic responses (e.g., electric fences or proximity-based triggers), then handles roaming, following, facing, and wandering behaviors. It relies on the `follower` component to identify the leader and uses `follow`, `wander`, and `faceentity` behavior modules to govern movement and orientation.
 
-The `glommerbrain` component implements the decision-making logic for the Glommer entity in Don't Starve Together. It defines a behavior tree (`BT`) that orchestrates core movement and reaction behaviors: following its leader, wandering when no leader is present or conditions permit, facing its leader, and responding to panic-inducing stimuli such as proximity to electric fences or other threats. The brain inherits from `Brain` and uses shared utilities (`BrainCommon`) and custom helper functions to determine targets and positions.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("follower")
+inst:AddBrain("glommerbrain")
+-- When a leader is assigned via inst.components.follower:SetLeader(target),
+-- Glommer will automatically follow, wander, and respond to threats.
+```
 
-This component interacts directly with the `follower` component to resolve the current leader and relies on behavior classes (`Follow`, `Wander`, `FaceEntity`) to execute specific movement patterns.
-
-## Dependencies & Tags
-
-- **Components used:**
-  - `follower` (used via `inst.components.follower:GetLeader()`)
-- **Tags:** None identified.
+## Dependencies & tags
+**Components used:** `follower` (via `GetLeader` helper), `behaviour` system (`follow`, `wander`, `faceentity`), and `braincommon` utilities (`PanicTrigger`, `ElectricFencePanicTrigger`, `DoAction`)
+**Tags:** None identified.
 
 ## Properties
+No public properties.
 
-No explicit public properties are defined in the constructor. The component stores its behavior tree in `self.bt` during initialization but does not declare additional state beyond inherited `Brain` fields.
-
-## Main Functions
-
+## Main functions
 ### `GlommerBrain:OnStart()`
-* **Description:** Initializes the behavior tree root node. This method is called automatically when the brain component starts and sets up a priority-based behavior tree (`PriorityNode`) with six decision branches evaluated in order. Execution falls through from high-priority behaviors (e.g., panic) to lower-priority ones (e.g., wandering) based on triggering conditions.
+* **Description:** Initializes the behavior tree root node. Constructs a priority-based tree that executes panic responses first, followed by custom actions (e.g., leaving the world), then movement behaviors (follow, face, wander).
 * **Parameters:** None.
-* **Returns:** None.
+* **Returns:** Nothing.
+* **Error states:** Assumes all required behaviors (`Follow`, `Wander`, `FaceEntity`) are constructed with valid function arguments and that `BrainCommon` helpers return correct node types.
 
-#### Behavior Tree Structure (Internal)
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** None.
 
-The `root` node is constructed as a `PriorityNode` with the following ordered sub-nodes:
-
-1. **`BrainCommon.PanicTrigger(self.inst)`**  
-   Triggers panic behavior (e.g., fleeing) under threat conditions.
-
-2. **`BrainCommon.ElectricFencePanicTrigger(self.inst)`**  
-   Triggers panic specifically when Glommer approaches an active electric fence.
-
-3. **`DoAction(self.inst, WanderOff)`**  
-   Executes the `WanderOff` action, which issues a `GOHOME` action if `inst.ShouldLeaveWorld` is true.
-
-4. **`Follow(...)`**  
-   Activates follow behavior: moves Glommer toward its leader, maintaining a target distance of 4 units, with minimum and maximum follow distances of 0 and 6 respectively.
-
-5. **`FaceEntity(...)`**  
-   Ensures Glommer always faces its leader. Uses `GetFaceTargetFn` to resolve the target and `KeepFaceTargetFn` to verify the target hasn't changed.
-
-6. **`Wander(...)`**  
-   If no higher-priority behavior executes, initiates wandering within a radius of 10 units around the leader’s position.
-
-All behaviors are evaluated every tick, with the highest-priority enabled branch taking precedence.
-
-## Events & Listeners
-
-None identified. The brain does not register any event listeners or push custom events directly. Its logic is driven entirely by behavior tree evaluation and component interaction (`follower` component state changes implicitly affect behavior via helper functions).
+## Notes
+- This brain does not expose public methods beyond `OnStart`, as behavior is fully encapsulated in its behavior tree.
+- Distance constants (`MIN_FOLLOW_DIST`, `MAX_FOLLOW_DIST`, `TARGET_FOLLOW_DIST`, `MAX_WANDER_DIST`) are hardcoded and affect all Glommer entities globally.

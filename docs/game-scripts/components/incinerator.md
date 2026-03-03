@@ -1,66 +1,80 @@
 ---
 id: incinerator
 title: Incinerator
-description: Manages the logic and execution of incinerating items contained within an entity's container, including callback hooks, sound playback, and event dispatching.
+description: Handles the destruction of items inside a container when triggered, including optional sound playback, event dispatching, and kill/murder event propagation for living items.
+tags: [inventory, destruction, combat, sound]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 3997c3ce
+system_scope: inventory
 ---
 
 # Incinerator
 
-## Overview
-The `Incinerator` component enables an entity to incinerate all or selectively filtered items in its container. It supports customizable incineration criteria via function callbacks, handles sound playback upon destruction (including live entity sounds), and dispatches events such as `onincinerated`, `murdered`, and `killed` to notify other systems.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies:** Relies on the entity having a `container` component to access and destroy contents.
-- **Entity Interaction:** May interact with items possessing `stackable`, `health`, `murderable`, and `murderable` (sic) components to determine behavior and sound.
-- **Tags:** None explicitly added or removed by this component.
+## Overview
+The `Incinerator` component enables an entity to incinerate (destroy) items in its associated `container` component when invoked. It supports custom filtering of which items to destroy, custom sound playback (prioritizing item-specific sounds over `health.murdersound` or `murderable.murdersound`), and firing game events—including `onincinerated` on the item and `murdered`/`killed` on the doer for living items. This component is typically attached to entities like firepits, fireplaces, or trash cans.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("container")
+inst:AddComponent("incinerator")
+
+inst.components.incinerator:SetShouldIncinerateItemFn(function(_, item)
+    return item:HasTag("organic") or item:HasTag("trash")
+end)
+
+inst.components.incinerator:SetOnIncinerateFn(function(inst)
+    inst.SoundEmitter:PlaySound("dontstarve/common/sounds/fire_small")
+    -- Visual FX or other logic here
+end)
+
+-- Later, when incineration is triggered:
+inst.components.incinerator:Incinerate(player)
+```
+
+## Dependencies & tags
+**Components used:** `container`, `health`, `murderable`, `stackable`, `combat`  
+**Tags:** None added or removed directly.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `onincineratefn` | `function?` | `nil` | Optional callback invoked *after* incineration completes. Receives `inst` (the incinerator entity) as the sole argument. |
-| `shouldincinerateitemfn` | `function?` | `nil` | Optional predicate function used to determine if an item should be incinerated. Receives `(incinerator_inst, item)` and returns `true`/`false`. |
-| `incinerate_doer` | `entity or nil` | `nil` (temporary) | Internal reference to the entity performing the incineration, set during `Incinerate()` and cleared afterward. Used for event context. |
+| `onincineratefn` | function | `nil` | Optional callback invoked once per incineration operation after container contents are destroyed. |
+| `shouldincinerateitemfn` | function | `nil` | Optional predicate function `(inst, item) → boolean` to determine whether a given item should be destroyed. Defaults to `true` if unset. |
+| `incinerate_doer` | Entity instance | `nil` (temporary) | Internal reference to the entity performing the incineration during the `Incinerate()` call. Set only for the duration of the operation. |
 
-> **Note:** The component itself is initialized in its constructor with no explicit public properties beyond the two function callback fields. `incinerate_doer` is transiently set during incineration and is not exposed via a public setter.
-
-## Main Functions
-
+## Main functions
 ### `SetOnIncinerateFn(fn)`
-* **Description:** Sets the callback function to execute once incineration is fully completed.
-* **Parameters:**
-  * `fn` (`function`): A function accepting one argument — the incinerator entity (`inst`). May be `nil` to remove the callback.
+* **Description:** Sets a callback function to run after all qualifying items have been destroyed. Typically used for FX, sounds, or state changes on the incinerator entity itself.
+* **Parameters:** `fn` (function) — receives the incinerator entity (`inst`) as its only argument.
+* **Returns:** Nothing.
 
 ### `SetShouldIncinerateItemFn(fn)`
-* **Description:** Sets the predicate function used to decide whether a specific item should be incinerated during `Incinerate()`.
-* **Parameters:**
-  * `fn` (`function`): A function accepting `(incinerator_inst, item)` and returning `true` to incinerate the item or `false` to skip it. May be `nil`, in which case all items are incinerated.
+* **Description:** Sets a predicate function used to decide whether a given item should be incinerated. If `nil`, all items in the container are incinerated.
+* **Parameters:** `fn` (function) — function with signature `(entity_inst, item_inst) → boolean`.
+* **Returns:** Nothing.
 
 ### `Incinerate(doer)`
-* **Description:** Initiates incineration of all items in the container that pass the `shouldincinerateitemfn` filter (or all items if no filter is set). Triggers associated sounds and events per item.
-* **Parameters:**
-  * `doer` (`entity`): The entity performing the incineration. Used to emit `murdered` and `killed` events for living items.
-* **Returns:** `true` if the incineration process was started (container present), `false` otherwise.
+* **Description:** Destroys all items in the container that pass the `shouldincinerateitemfn` filter. Plays associated sounds and fires relevant events for each item. Reports success/failure depending on presence of a `container` component.
+* **Parameters:** `doer` (Entity instance) — the entity performing the incineration; used for `murdered`/`killed` event data.
+* **Returns:** `true` if the container existed and destruction began; `false` if no `container` component was present.
+* **Error states:** Returns `false` if the entity lacks a `container` component; otherwise proceeds silently even if no items were destroyed.
 
 ### `ShouldIncinerateItem(item)`
-* **Description:** Checks whether a given item satisfies the incineration criteria using the configured `shouldincinerateitemfn`.
-* **Parameters:**
-  * `item` (`entity`): The candidate item to be incinerated.
-* **Returns:** `true` if the item should be incinerated, `false` otherwise.
+* **Description:** Evaluates whether a specific item should be incinerated, using the configured predicate or defaulting to `true`.
+* **Parameters:** `item` (Entity instance) — the item to evaluate.
+* **Returns:** `true` if the item should be incinerated; `false` otherwise.
 
-## Events & Listeners
-
-- **Events Emitted:**
-  - `onincinerated` — pushed on each incinerated item, with payload `{ incinerator = inst, doer = doer }`.
-  - `murdered` — pushed on the `doer` entity for incinerated items that have `health` or `murderable` components, with payload `{ victim = item, stackmult = stacksize, incinerated = true }`.
-  - `killed` — pushed on the `doer` *only* if the item also has a `combat` component, with the same payload as `murdered`.
-
-- **Event Listeners:** None — the component does not subscribe to any external events directly.
+## Events & listeners
+- **Listens to:** None (does not register event listeners).
+- **Pushes:**
+  - `onincinerated` — fired on each destroyed item; payload: `{incinerator = inst, doer = doer}`.
+  - `murdered` — fired on the `doer` when incinerating an item with `health` or `murderable` components; payload: `{victim = item, stackmult = stacksize, incinerated = true}`.
+  - `killed` — fired on the `doer` if the victim also has a `combat` component; payload: `{victim = item, stackmult = stacksize, incinerated = true}`.

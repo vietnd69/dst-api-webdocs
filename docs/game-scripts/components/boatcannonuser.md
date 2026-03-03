@@ -1,75 +1,99 @@
 ---
 id: boatcannonuser
 title: Boatcannonuser
-description: Manages a player's interaction with a boat cannon, including the aiming state and associated visual effects.
+description: Manages the state and synchronization of boat cannon aiming for a player entity, handling client-side aiming visuals and server-side cannon assignment.
+tags: [boat, combat, aiming, network]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: c5cb98d1
+system_scope: entity
 ---
 
 # Boatcannonuser
 
-## Overview
-The `boatcannonuser` component is attached to player entities and manages their ability to aim and use a boat cannon. It handles both server-side state management (which cannon is being used) and client-side visual feedback (such as the aiming reticule and range indicator). This component works in tandem with the `boatcannon` component on the cannon entity itself.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified. This component interacts with an entity's `stategraph` and expects cannon entities to have `boatcannon` and `reticule` components, but it does not add any components or tags to its own entity.
+## Overview
+`BoatCannonUser` is an entity component that manages the aiming state and visual feedback for a player using a boat cannon. It synchronizes the currently aimed cannon between server and client, updates aiming reticles and range indicators, and coordinates transitions between aiming and non-aiming states. It relies on the `boatcannon` component for cannon operation and the `reticule` component for targeting visuals. It is typically attached to player entities.
+
+## Usage example
+```lua
+local inst = ThePlayer
+inst:AddComponent("boatcannonuser")
+
+-- Assign a boat cannon (server-only)
+local cannon = GetSomeBoatCannon()
+inst.components.boatcannonuser:SetCannon(cannon)
+
+-- Retrieve current aimed cannon (safe on both client and server)
+local current_cannon = inst.components.boatcannonuser:GetCannon()
+```
+
+## Dependencies & tags
+**Components used:** `boatcannon`, `reticule`, `player_classified`
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
-|---|---|---|---|
-| `inst` | entity | `inst` | The entity instance this component is attached to. |
-| `ismastersim` | boolean | `TheWorld.ismastersim` | A cached boolean indicating if the code is running on the master simulation (server). |
-| `aim_range_fx` | entity | `nil` | **Client-only.** A reference to the spawned `cannon_aoe_range_fx` prefab used for aiming visuals. |
-| `aiming_cannon` | entity | `nil` | **Client-only.** A reference to the cannon entity the player is currently aiming. |
-| `task` | task | `nil` | **Client-only.** A handle for a delayed task, used to correctly initialize the aiming visuals. |
-| `cannon_remove_callback` | function | `function` | **Server-only.** A callback function to handle the removal of the cannon being used, ensuring the player stops aiming. |
-| `classified`| classified | `nil` | The network-replicated object that holds shared data, primarily the reference to the current cannon. |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | — | The entity instance that owns this component. |
+| `ismastersim` | `boolean` | `TheWorld.ismastersim` | Whether this component is running on the master simulation (server). |
+| `aimingcannon` | `Entity?` | `nil` | The currently aimed boat cannon entity (client-side tracking). |
+| `aim_range_fx` | `Prefab?` | `nil` | The AOE range effect prefab instance used for visual aiming feedback. |
+| `task` | `Task?` | `nil` | A task handle for deferred aiming logic (client-side). |
+| `classified` | `Classified?` | `nil` | Reference to the player's `player_classified` component for observing the `cannon` property (client-side). |
 
-## Main Functions
+## Main functions
 ### `GetCannon()`
-* **Description:** Returns the cannon entity that the player is currently using.
+* **Description:** Returns the currently assigned boat cannon entity from the player's classified component (server-authoritative).
 * **Parameters:** None.
+* **Returns:** `Entity?` — The cannon entity if assigned and classified is available; otherwise `nil`.
+* **Error states:** Returns `nil` if `self.classified` is `nil` or if `self.classified.cannon:value()` is `nil`.
 
 ### `GetAimPos()`
-* **Description:** Returns the world position the cannon is currently aimed at. This is retrieved from the cannon's `reticule` component.
+* **Description:** Returns the current aiming position from the reticle of the aiming cannon.
 * **Parameters:** None.
+* **Returns:** `Vector3?` — The `targetpos` of the cannon's reticle if aiming is active and reticle exists; otherwise `nil`.
 
 ### `GetReticule()`
-* **Description:** Returns the `reticule` component from the cannon entity the player is currently aiming.
+* **Description:** Returns the `reticule` component of the currently aimed cannon.
 * **Parameters:** None.
-
-### `OnCannonChanged(cannon)`
-* **Description:** **Client-only.** This function is the primary handler for updating the client's visual state when the player starts or stops aiming a cannon. It spawns or destroys the aiming range effect and the cannon's reticule.
-* **Parameters:**
-    * `cannon` (entity): The cannon entity that is now being aimed. Can be `nil` if the player stops aiming.
-
-### `SetClassified(classified)`
-* **Description:** **Server-only.** Assigns the player's network-replicated `classified` object to this component.
-* **Parameters:**
-    * `classified` (classified): The classified object instance.
+* **Returns:** `Reticule?` — The reticle component if `aimingcannon` and its reticle exist; otherwise `nil`.
 
 ### `SetCannon(cannon)`
-* **Description:** **Server-only.** Sets the cannon that the player will begin aiming. This function updates the networked `classified` variable, tells the `boatcannon` component on the cannon to enter its aiming state, and sets up listeners to handle the cannon being removed from the world. It also calculates and sets the cannon's initial rotation based on the player's position.
-* **Parameters:**
-    * `cannon` (entity): The cannon entity to start aiming, or `nil` to stop.
+* **Description:** (Server-only) Assigns a new cannon for the player to aim, updating classification, event listeners, and initiating aiming on the cannon component.
+* **Parameters:** `cannon` (`Entity?`) — The cannon entity to assign, or `nil` to stop aiming.
+* **Returns:** Nothing.
+* **Error states:** Asserts `ismastersim`; throws if called on client. Handles switching cannons: stops aiming on previous cannon, starts aiming on new cannon (if present), sets cannon orientation, and triggers client-side `OnCannonChanged`.
+
+### `OnCannonChanged(cannon)`
+* **Description:** (Client + server) Updates client-side aiming visuals and state when the assigned cannon changes.
+* **Parameters:** `cannon` (`Entity?`) — The newly assigned cannon entity or `nil`.
+* **Returns:** Nothing.
+* **Error states:** Only updates visuals if `self.inst == ThePlayer`. Destroys existing reticle and range FX before setting up new ones.
 
 ### `CancelAimingStateInternal()`
-* **Description:** **Server-only.** Forces the player's stategraph to exit the cannon aiming state by transitioning to `aim_cannon_pst`. This is used to gracefully stop the aiming action.
+* **Description:** (Server-only) Exits the `is_using_cannon` state if active, transitioning to `aim_cannon_pst`.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Asserts `ismastersim`.
 
-## Events & Listeners
-* **`inst:ListenForEvent("aimingcannonchanged", ...)`**
-  * **Side:** Client
-  * **Description:** Listens for the networked `cannon` variable to change. When it does, it calls `OnCannonChanged` to update the aiming visuals for the local player.
-* **`inst:ListenForEvent("onremove", ...)`**
-  * **Side:** Client & Server
-  * **Description:** This component sets up two different listeners for the `"onremove"` event:
-    * **Client:** Listens for the removal of the `classified` object to ensure a clean detachment.
-    * **Server:** Listens for the removal of the cannon entity itself, triggering `cannon_remove_callback` to stop the aiming process.
+## Events & listeners
+- **Listens to:** `onremove` — On the player entity to detach the `classified` component, and on the cannon entity to clear it if removed.
+- **Pushes:** None.
+- **External event callback:** `aimingcannonchanged` — Triggers `OnCannonChanged(cannon)` via `OnAimingCannonChanged`.
+
+### Client-only event handler:
+- **`OnAimingCannonChanged(inst, cannon)`** — Top-level helper that delegates `cannon` changes to `self:OnCannonChanged(cannon)`.
+
+### Server-only callback:
+- **`cannon_remove_callback`** — Removes the cannon reference from `classified.cannon` and cancels aiming state if the cannon entity is removed.
+
+## Notes
+- Client-side functions (`GetAimPos`, `GetReticule`, `OnCannonChanged`) rely on `aimingcannon` being set via server-initiated `SetCannon` and synchronization through the `player_classified` component.
+- The `aim_range_fx` prefab is spawned client-side and attached to the cannon’s platform for movement synchronization.
+- Internal comments warn that `aim_range_fx` and `task` are local aiming variables and must not be used in server-only code paths.

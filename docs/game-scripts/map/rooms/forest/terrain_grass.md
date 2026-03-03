@@ -1,64 +1,42 @@
 ---
 id: terrain_grass
 title: Terrain Grass
-description: Defines several forest-themed terrain room templates for procedural world generation, specifying tile type, visual tint, spawn tags, and content distribution rules for flora and objects.
-tags: [world, procedural, room, terrain, generation]
+description: Defines forest floor terrain room templates for procedural world generation, including grassland variants with randomized vegetation and structures.
+tags: [world, procedural, map, generation]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: map
-system_scope: world
 source_hash: 5ea35030
+system_scope: world
 ---
 
 # Terrain Grass
 
-This file registers five forest terrain room templates used by the world generation system to populate the Forest biome. Each room defines a grass tile type (`WORLD_TILES.GRASS`) with a specific RGBA colour tint and sets of tags that control where and how the room can be used (e.g., as an exit piece or for event spawners). The `contents` field dictates what prefabs are procedurally spawned inside the room, using either `distributepercent` + `distributeprefabs` or `countprefabs` mechanisms.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-No Component class is defined in this file. Instead, the file is a declarative configuration used by `AddRoom` (a worldgen utility) to populate the `WORLDMAP.rooms` registry.
+## Overview
+This file registers five distinct forest floor terrain room templates using `AddRoom`. Each template defines a room with specific visual appearance, tile value, tags, and spawn rules for flora and small structures. These rooms are used by the world generation system to populate forest areas with natural ground cover and minor environmental features. The component has no associated ECS component class; it solely serves as a data definition for map room layouts.
 
 ## Usage example
-
-This file is not used directly by modders in typical modding workflows. However, to replicate its functionality for a custom terrain room, you could do:
-
+This file is loaded during world generation initialization and is not meant for manual instantiation. Example usage occurs internally in DST's map generation system:
 ```lua
-AddRoom("MyCustomGrassPatch", {
-    colour = {r = 0.4, g = 0.9, b = 0.4, a = 0.5},
-    value = WORLD_TILES.GRASS,
-    tags = {"ExitPiece", "CustomTag"},
-    contents = {
-        distributepercent = 0.15,
-        distributeprefabs = {
-            flower = 1.0,
-            grass = 0.5,
-            smallmammal = {weight = 0.02, prefabs = {"rabbithole"}},
-        }
-    }
-})
+-- The following is illustrative of how the engine consumes these definitions
+local room = GetRoomTemplate("BGGrass")
+room:PlaceAt(x, y)
 ```
 
 ## Dependencies & tags
-**Components used:** None — this file does not define or use any ECS components.
-**Tags:** The following tags are used across room definitions:
-- `ExitPiece`
-- `Chester_Eyebone`
-- `Astral_1`
-- `Astral_2`
-- `StagehandGarden`
-- `StatueHarp_HedgeSpawner`
-- `CharlieStage_Spawner`
-
-These tags likely indicate compatibility or usage constraints with specific game systems (e.g., boss arenas, quest triggers, or procedural spawners).
+**Components used:** None identified  
+**Tags:** Adds room-level tags including `ExitPiece`, `Chester_Eyebone`, `Astral_1`, `Astral_2`, `StagehandGarden`, `StatueHarp_HedgeSpawner`, and `CharlieStage_Spawner`, depending on the room type.
 
 ## Properties
-No component or entity-level properties are defined in this file.
+No public properties. This file defines room templates via `AddRoom` calls, which register static data structures used by the world generator.
 
 ## Main functions
-This file does not define any Lua functions or methods. It solely invokes the `AddRoom` utility for each terrain template.
+This file contains no standalone functions; it is a declarative configuration script.
 
 ## Events & listeners
-No events or listeners are registered in this file.
-
----
+None identified

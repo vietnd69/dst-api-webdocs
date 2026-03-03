@@ -1,167 +1,172 @@
 ---
 id: sleeper
 title: Sleeper
-description: Manages an entity's sleep/wake cycle by evaluating environmental and internal conditions to transition between awake and sleeping states.
+description: Manages sleep/wake cycles for entities based on environmental conditions, sleepiness accumulation, and custom test functions.
+tags: [ai, sleep, state, boss]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: ce76371b
+system_scope: entity
 ---
-
 # Sleeper
 
-## Overview
-The `Sleeper` component implements an entity's sleep behavior, dynamically switching between awake and sleeping states based on customizable test functions, time-based checks, and external triggers (e.g., combat, fire, freezing). It integrates with the entity’s brain, locomotion, and combat systems to suppress activity while asleep and supports persistent sleepiness buildup (e.g., from sedatives). Entities gain the `"sleeper"` tag upon initialization.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds the `"sleeper"` tag to the entity in `_ctor`.
-- Listens to events: `"onignite"`, `"firedamage"`, `"attacked"`, `"newcombattarget"`.
-- Relies on the following components (conditional on presence): `combat`, `burnable`, `freezable`, `health`, `locomotor`, `homeseeker`, `teamattacker`.
-- No explicit component dependencies in `AddComponent` calls, but behavior assumes these components exist where relevant.
+## Overview
+The `Sleeper` component enables entities to enter and exit sleep states based on configurable conditions. It is commonly used for bosses and passive creatures to implement fatigue-based sleep or natural circadian behavior. The component periodically evaluates sleep/wake test functions and manages transitions, sleepiness accumulation, and resistance. It interacts closely with `combat`, `health`, `locomotor`, `burnable`, `freezable`, and `homeseeker` components to respect gameplay constraints (e.g., no sleeping while burning or engaged in combat).
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("sleeper")
+inst.components.sleeper:SetDefaultTests()
+inst.components.sleeper:SetResistance(5) -- Must accumulate 5 "sleepiness" units to sleep
+inst.components.sleeper:AddSleepiness(2) -- Increases sleepiness; may trigger sleep
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `health`, `locomotor`, `burnable`, `freezable`, `homeseeker`, `teamattacker`  
+**Tags:** Adds `sleeper`; checks `cavedweller`, `busy`, `nosleep`
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the owning entity. |
-| `isasleep` | `boolean` | `false` | Whether the entity is currently sleeping. |
-| `testperiod` | `number` | `4` | Base interval (in seconds) between sleep/wake condition checks. |
-| `lasttransitiontime` | `number` | `GetTime()` at init | Unix timestamp of the last sleep/wake transition. |
-| `lasttesttime` | `number` | `GetTime()` at init | Timestamp of the last condition test. |
-| `sleeptestfn` | `function` | `DefaultSleepTest` | Function returning `true` if the entity *should* fall asleep. |
-| `waketestfn` | `function` | `DefaultWakeTest` | Function returning `true` if the entity *should* wake up. |
-| `resistance` | `number` | `1` | Sleepiness threshold needed to trigger sleep (higher = harder to sleep). |
-| `sleepiness` | `number` | `0` | Current accumulated sleep pressure (increases via `AddSleepiness`). |
-| `wearofftime` | `number` | `10` | Interval (in seconds) for periodic `WearOff` decay of `sleepiness`. |
-| `hibernate` | `boolean` | `false` | If `true`, stops testing conditions when asleep (used for permanent sleep states). |
-| `watchlight` | `boolean` | `false` | If `true`, entity ignores darkness in caves (treated as having a light source). |
-| `testtask` | `Task` | `nil` | Handle to the repeating task that runs `sleeptestfn`/`waketestfn`. |
-| `wearofftask` | `Task` | `nil` | Handle to the periodic task for sleepiness decay. |
-| `diminishingtask` | `Task` | `nil` | Handle to the periodic task for `extraresist` decay (for bosses/unique entities). |
-| `extraresist` | `number` | `0` | Additional resistance added via `SetExtraResist` (decays over time). |
-| `diminishingreturns` | `boolean` | `nil` | Optional flag enabling extra resistance on first sleep (uncommented by default). |
+| `inst` | `Entity` | `nil` | Reference to the entity that owns this component. |
+| `isasleep` | boolean | `false` | Whether the entity is currently sleeping. |
+| `testperiod` | number | `4` | Base interval (seconds) between sleep/wake checks. |
+| `lasttransitiontime` | number | `GetTime()` | Timestamp of last sleep/wake transition. |
+| `lasttesttime` | number | `GetTime()` | Timestamp of the last test function execution. |
+| `sleeptestfn` | function | `DefaultSleepTest` | Function determining if the entity *should* sleep. |
+| `waketestfn` | function | `DefaultWakeTest` | Function determining if the entity *should* wake. |
+| `resistance` | number | `1` | Amount of `sleepiness` required to initiate sleep. |
+| `sleepiness` | number | `0` | Current accumulated sleepiness. |
+| `wearofftime` | number | `10` | Interval (seconds) for `sleepiness` decay when not at peak resistance. |
+| `hibernate` | boolean | `false` | If true, disables wake tests after waking from deep sleep. |
+| `watchlight` | boolean | `false` | If true, enables light-awareness logic for sleep/wake conditions. |
+| `extraresist` | number? | `nil` | Additional sleep resistance (used for boss fatigue diminishing returns). |
+| `diminishingreturns` | boolean? | `nil` | If true, applies diminishing sleep resistance via `extraresist`. |
+| `diminishingtask` | `Task`? | `nil` | Task handling `extraresist` decay. |
 
-## Main Functions
+## Main functions
 ### `SetDefaultTests()`
-* **Description:** Resets sleep/wake test functions to the default global functions (`DefaultSleepTest`, `DefaultWakeTest`).
+* **Description:** Resets sleep/wake test functions to the standard day/night-based defaults.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `StopTesting()`
-* **Description:** Cancels the active test task (`testtask`) to halt condition checks.
+* **Description:** Cancels the periodic test task. Typically called when entering deep sleep or when no longer active.
 * **Parameters:** None.
-
-### `SetNocturnal(b)`
-* **Description:** Switches sleep/wake logic to nocturnal mode: sleep during the day (overworld or cave day), wake at night.
-* **Parameters:**  
-  - `b` (`boolean`): If `true`, enable nocturnal mode; otherwise revert to diurnal (default) mode.
+* **Returns:** Nothing.
 
 ### `SetWakeTest(fn, time)`
-* **Description:** Updates the wake test function and immediately starts testing (typically used during wake-up events).
+* **Description:** Sets a custom wake test function and restarts the test cycle. Used to override wake conditions (e.g., with a timeout for scheduled wake-ups).
 * **Parameters:**  
-  - `fn` (`function`): A function returning `true` if the entity should wake.  
-  - `time` (`number`, optional): Delay (in seconds) for the next wake test cycle.
+  - `fn` (function) – wake condition function.  
+  - `time` (number?) – optional time delay before wake test triggers.  
+* **Returns:** Nothing.
 
 ### `SetSleepTest(fn)`
-* **Description:** Updates the sleep test function and restarts testing (typically used when transitioning to awake state).
+* **Description:** Sets a custom sleep test function and restarts the test cycle.
 * **Parameters:**  
-  - `fn` (`function`): A function returning `true` if the entity should sleep.
+  - `fn` (function) – sleep condition function.  
+* **Returns:** Nothing.
 
 ### `OnEntitySleep()`
-* **Description:** Called when the entity enters a sleep state (e.g., via stategraph); stops further condition testing.
+* **Description:** Called when the entity enters the sleep state; cancels active test tasks.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnEntityWake()`
-* **Description:** Called when the entity enters an awake state; restarts condition testing.
+* **Description:** Called when the entity wakes; resumes test tasks.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SetResistance(resist)`
-* **Description:** Sets the `resistance` value, raising the sleepiness threshold required to initiate sleep.
+* **Description:** Updates the amount of `sleepiness` required to fall asleep.
 * **Parameters:**  
-  - `resist` (`number`): New resistance value.
+  - `resist` (number) – new sleep resistance value.  
+* **Returns:** Nothing.
 
 ### `StartTesting(time)`
-* **Description:** Starts the periodic condition-testing task using the appropriate function (`ShouldSleep` or `ShouldWakeUp`) based on `isasleep` status.
+* **Description:** Starts or restarts the sleep/wake test cycle. If sleeping, uses wake test; otherwise, uses sleep test.
 * **Parameters:**  
-  - `time` (`number`, optional): Delay (in seconds) for the first wake test; ignored for sleep tests.
+  - `time` (number?) – optional delay before first wake test (only used if already asleep).  
+* **Returns:** Nothing.
 
 ### `IsAsleep()`
 * **Description:** Returns whether the entity is currently sleeping.
-* **Parameters:** None.  
-* **Returns:** `boolean`.
+* **Parameters:** None.
+* **Returns:** `boolean` – `true` if sleeping, `false` otherwise.
 
 ### `IsHibernating()`
-* **Description:** Returns whether hibernation mode is active (sleeping indefinitely without auto-wake checks).
-* **Parameters:** None.  
-* **Returns:** `boolean`.
+* **Description:** Returns whether hibernation mode is active (prevents automatic waking).
+* **Parameters:** None.
+* **Returns:** `boolean` – `true` if hibernating.
 
 ### `IsInDeepSleep()`
-* **Description:** Returns `true` if the entity is asleep *and* has non-zero `sleepiness` (indicating it cannot wake for combat due to sedation).
-* **Parameters:** None.  
-* **Returns:** `boolean`.
+* **Description:** Returns whether the entity is sleeping *and* has non-zero `sleepiness` (indicating it was drugged or exhausted).
+* **Parameters:** None.
+* **Returns:** `boolean` – `true` if in deep sleep.
 
 ### `GetTimeAwake()`
-* **Description:** Returns time (in seconds) elapsed since last waking.
-* **Parameters:** None.  
-* **Returns:** `number`.
+* **Description:** Returns the duration (in seconds) since the entity last woke up, or `0` if currently sleeping.
+* **Parameters:** None.
+* **Returns:** `number` – time spent awake (seconds).
 
 ### `GetTimeAsleep()`
-* **Description:** Returns time (in seconds) elapsed since last sleeping.
-* **Parameters:** None.  
-* **Returns:** `number`.
+* **Description:** Returns the duration (in seconds) since the entity last fell asleep, or `0` if currently awake.
+* **Parameters:** None.
+* **Returns:** `number` – time spent asleep (seconds).
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted debug string summarizing sleep status, duration, test timers, sleepiness, resistance, and decay info.
-* **Parameters:** None.  
-* **Returns:** `string`.
+* **Description:** Returns a formatted debug string describing current sleep state, timing, sleepiness, and resistance.
+* **Parameters:** None.
+* **Returns:** `string` – formatted status string.
 
 ### `AddSleepiness(sleepiness, sleeptime)`
-* **Description:** Increases the entity’s `sleepiness` level. May immediately trigger sleep if `sleepiness ≥ resistance`, or schedule it via `OnGoToSleep`. Starts periodic `WearOff` task if needed.
+* **Description:** Adds to the entity's `sleepiness`. Triggers sleep if `sleepiness` exceeds `resistance`. Manages decay task and delayed sleep onset if at resistance threshold.
 * **Parameters:**  
-  - `sleepiness` (`number`): Amount to increase sleep pressure.  
-  - `sleeptime` (`number`, optional): Duration (in seconds) to sleep if triggered.
+  - `sleepiness` (number) – amount to add to current `sleepiness`.  
+  - `sleeptime` (number?) – duration of sleep (seconds), if triggered.  
+* **Returns:** Nothing.
 
 ### `SetExtraResist(resist)`
-* **Description:** Sets additional sleep resistance (for long-lived entities like bosses); triggers a decay task to gradually reduce `extraresist`.
+* **Description:** Sets additional resistance (for boss fatigue mechanics) and manages decay task. Value is clamped to `[0, wearofftime]`.
 * **Parameters:**  
-  - `resist` (`number`): Extra resistance value (clamped to `[0, wearofftime]`).
+  - `resist` (number) – extra resistance to add.  
+* **Returns:** Nothing.
 
 ### `GetSleepTimeMultiplier()`
-* **Description:** Returns a multiplier (≥ 0.2) to reduce `sleeptime` based on accumulated `extraresist` (used in `GoToSleep`).
-* **Parameters:** None.  
-* **Returns:** `number`.
+* **Description:** Returns a multiplier applied to sleep duration when `extraresist` is active (decreases as resistance increases).
+* **Parameters:** None.
+* **Returns:** `number` – multiplier (e.g., `0.8`), minimum `0.2`.
 
 ### `GoToSleep(sleeptime)`
-* **Description:** Transitions the entity into sleep state: halts brain/locomotion, clears combat target, pushes `"gotosleep"` event, and schedules wake test. Skips if dead or invisible.
+* **Description:** Initiates sleep state. Cancels combat/target, stops movement, clears wake test, and sets wake timer if `sleeptime` provided. Pushes `gotosleep` event once per transition.
 * **Parameters:**  
-  - `sleeptime` (`number`, optional): Duration (in seconds) for the next wake test (scaled by `GetSleepTimeMultiplier()`).
+  - `sleeptime` (number?) – duration of sleep (seconds).  
+* **Returns:** Nothing.
 
 ### `WakeUp()`
-* **Description:** Wakes the entity from sleep: restarts brain, resets `sleepiness`, pushes `"onwakeup"` event, and schedules sleep test. Skips if dead.
+* **Description:** Ends sleep state, resets `sleepiness`, and reactivates sleep test cycle. Pushes `onwakeup` event. Cannot wake if dead.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `OnSave()`
-* **Description:** Serializes `extraresist` for persistence if positive.
-* **Parameters:** None.  
-* **Returns:** `table` or `nil`.
-
-### `OnLoad(data)`
-* **Description:** Restores `extraresist` from saved data.
+### `SetNocturnal(b)`
+* **Description:** Enables or disables nocturnal sleep behavior (sleeps during day, wakes at night).
 * **Parameters:**  
-  - `data` (`table`): Contains `extraresist` if saved.
+  - `b` (boolean) – `true` to use nocturnal tests.  
+* **Returns:** Nothing.
 
-### `SetTest(fn, time)`
-* **Description:** Helper to start/replace the periodic condition-testing task with a custom function.
-* **Parameters:**  
-  - `fn` (`function`): The function to run periodically (e.g., `ShouldWakeUp`).  
-  - `time` (`number`, optional): Initial delay before running `fn`.
-
-## Events & Listeners
-- Listens for `"onignite"` → triggers `WakeUp()` via `onattacked`.
-- Listens for `"firedamage"` → triggers `WakeUp()` via `onattacked`.
-- Listens for `"attacked"` → triggers `WakeUp()` via `onattacked`.
-- Listens for `"newcombattarget"` → triggers `StartTesting()` via `onnewcombattarget`.
-- Pushes `"gotosleep"` on successful transition to sleep.
-- Pushes `"onwakeup"` on successful transition to awake state.
+## Events & listeners
+- **Listens to:**  
+  - `onignite` – triggers `WakeUp()` if attacked by fire.  
+  - `firedamage` – triggers `WakeUp()` during fire damage.  
+  - `attacked` – triggers `WakeUp()` on physical attack.  
+  - `newcombattarget` – triggers `StartTesting()` if a combat target is assigned.  
+- **Pushes:**  
+  - `gotosleep` – fired once when entering sleep.  
+  - `onwakeup` – fired once when exiting sleep.  

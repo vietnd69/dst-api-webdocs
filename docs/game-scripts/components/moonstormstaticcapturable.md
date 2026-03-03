@@ -1,83 +1,104 @@
 ---
 id: moonstormstaticcapturable
 title: Moonstormstaticcapturable
-description: This component enables an entity to be tracked as a static target for moonstorm capture mechanisms, supporting targeted and caught state notifications via callbacks and events.
+description: Tracks whether an entity is being targeted by moonstormstaticcatcher components and manages callbacks and events for targeting and catching interactions.
+tags: [moonstorm, target, event, boss]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 1f5d4e0d
+system_scope: entity
 ---
 
 # Moonstormstaticcapturable
 
-## Overview
-This component provides the core logic for marking an entity as a static capturable target within the Moonstorm system. It tracks which objects are currently "targeting" it (via `moonstormstaticcatcher` components), manages transitions between targeted and untargeted states, and notifies registered callbacks or events when capture-related milestones occur (targeting, untargeting, or successful capture).
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds/Removes the `"moonstormstaticcapturable"` tag on entity enablement and removal (via `AddOrRemoveTag`/`RemoveTag`)
-- Assumes coexistence with `moonstormstaticcatcher` components that call its `OnTargeted`, `OnUntargeted`, and `OnCaught` methods
+## Overview
+`MoonstormStaticCapturable` is a lightweight component that enables an entity to be tracked as a target for moonstormstaticcatcher components (e.g., during boss phase mechanics). It maintains a set of active targeters, fires callbacks when targeting state changes, and notifies other systems via events when it is first targeted, no longer targeted, or caught. It is designed to work in conjunction with the `moonstormstaticcatcher` component.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("moonstormstaticcapturable")
+inst.components.moonstormstaticcapturable:SetOnTargetedFn(function(entity)
+    print("Entity is now being targeted!")
+end)
+inst.components.moonstormstaticcapturable:SetOnCaughtFn(function(entity, targeter, doer)
+    print("Entity was caught!")
+end)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds/removes `moonstormstaticcapturable` tag based on enabled state.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `enabled` | `boolean` | `true` | Controls whether the entity currently registers as a capturable target (affects tag presence) |
-| `targeters` | `table` | `{}` | Map of targeting objects (keys are entity instances), used to track active targets |
-| `ontargetedfn` | `function?` | `nil` | Optional callback invoked when the first targeter is added |
-| `onuntargetedfn` | `function?` | `nil` | Optional callback invoked when the last targeter is removed |
-| `oncaughtfn` | `function?` | `nil` | Optional callback invoked on successful capture (`(inst, targeter, doer)`) |
+| `enabled` | boolean | `true` | Whether the capturable state is active; controls presence of the `moonstormstaticcapturable` tag. |
+| `targeters` | table | `{}` | Internal map of objects that are currently targeting this entity. |
+| `ontargetedfn` | function? | `nil` | Optional callback invoked when the entity transitions from untargeted to targeted. |
+| `onuntargetedfn` | function? | `nil` | Optional callback invoked when the entity transitions from targeted to untargeted. |
+| `oncaughtfn` | function? | `nil` | Optional callback invoked when the entity is caught (typically by a moonstormstaticcatcher). |
 
-## Main Functions
+## Main functions
 ### `SetEnabled(enabled)`
-* **Description:** Enables or disables the capturable behavior by adding or removing the `"moonstormstaticcapturable"` tag from the entity.
-* **Parameters:**  
-  `enabled` (boolean): Whether the capturable state should be active.
+*   **Description:** Enables or disables the capturable state. When disabled, the `moonstormstaticcapturable` tag is removed; when enabled, the tag is added.
+*   **Parameters:** `enabled` (boolean) – whether to enable the component.
+*   **Returns:** Nothing.
+*   **Error states:** None.
 
 ### `IsEnabled()`
-* **Description:** Returns the current enabled state.
-* **Parameters:** None
+*   **Description:** Returns whether the component is currently enabled.
+*   **Parameters:** None.
+*   **Returns:** boolean – `true` if enabled, `false` otherwise.
 
 ### `SetOnTargetedFn(fn)`
-* **Description:** Registers a callback to execute when the entity transitions to a targeted state (i.e., when the first targeter is added).
-* **Parameters:**  
-  `fn` (function): A callback accepting the entity instance as its sole argument.
+*   **Description:** Sets a callback function to be invoked when the entity transitions from untargeted to targeted.
+*   **Parameters:** `fn` (function(entity) or `nil`) – callback that receives the entity instance.
+*   **Returns:** Nothing.
 
 ### `SetOnUntargetedFn(fn)`
-* **Description:** Registers a callback to execute when the entity transitions to an untargeted state (i.e., when the last targeter is removed).
-* **Parameters:**  
-  `fn` (function): A callback accepting the entity instance as its sole argument.
+*   **Description:** Sets a callback function to be invoked when the entity transitions from targeted to untargeted.
+*   **Parameters:** `fn` (function(entity) or `nil`) – callback that receives the entity instance.
+*   **Returns:** Nothing.
 
 ### `SetOnCaughtFn(fn)`
-* **Description:** Registers a callback to execute when the entity is successfully captured.
-* **Parameters:**  
-  `fn` (function): A callback accepting `(inst, targeter_obj, doer_obj)` arguments.
+*   **Description:** Sets a callback function to be invoked when the entity is caught.
+*   **Parameters:** `fn` (function(entity, targeter, doer) or `nil`) – callback with entity, the object that was targeting it, and the object performing the catch.
+*   **Returns:** Nothing.
 
 ### `IsTargeted()`
-* **Description:** Returns `true` if at least one object is currently targeting this entity.
-* **Parameters:** None
+*   **Description:** Returns whether the entity is currently being targeted.
+*   **Parameters:** None.
+*   **Returns:** boolean – `true` if at least one targeter is registered, `false` otherwise.
 
 ### `OnTargeted(obj)`
-* **Description:** Records a new targeter (`obj`), triggers the `"moonstormstaticcapturable_targeted"` event and `ontargetedfn` if this was the first targeter.
-* **Parameters:**  
-  `obj` (Entity): The object (typically a `moonstormstaticcatcher`) initiating targeting.
+*   **Description:** Called by `moonstormstaticcatcher` to register a new targeter. Triggers the `moonstormstaticcapturable_targeted` event if this is the first targeter.
+*   **Parameters:** `obj` (entity/table) – the object that is now targeting this entity.
+*   **Returns:** Nothing.
+*   **Error states:** Ignores duplicate targeters (idempotent behavior).
 
 ### `OnUntargeted(obj)`
-* **Description:** Removes a targeter (`obj`), triggers the `"moonstormstaticcapturable_untargeted"` event and `onuntargetedfn` if this was the last targeter.
-* **Parameters:**  
-  `obj` (Entity): The object ceasing to target this entity.
+*   **Description:** Called by `moonstormstaticcatcher` to unregister a targeter. Triggers the `moonstormstaticcapturable_untargeted` event if no targeters remain.
+*   **Parameters:** `obj` (entity/table) – the object that is no longer targeting this entity.
+*   **Returns:** Nothing.
+*   **Error states:** Safely handles removal of non-registered targeters.
 
 ### `OnCaught(obj, doer)`
-* **Description:** Handles successful capture: invokes `oncaughtfn` and pushes a `"moonstormstatic_caught"` event on the `doer`.
-* **Parameters:**  
-  `obj` (Entity): The targeter that performed the capture.  
-  `doer` (Entity?): The entity responsible for executing the capture (e.g., a player or AI).
+*   **Description:** Called by `moonstormstaticcatcher` when the entity is successfully caught. Fires a `moonstormstatic_caught` event on the `doer` (if provided) and invokes the `oncaughtfn` callback.
+*   **Parameters:**  
+  `obj` (entity/table) – the targeter object.  
+  `doer` (entity or `nil`) – the entity performing the catch.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens for `"onremove"` on targeters:** Cleans up internal tracking when a targeter entity is removed from the world.
-- **Pushes events:**
-  - `"moonstormstaticcapturable_targeted"`: Emitted when the first targeter is added (only once per targeting session).
-  - `"moonstormstaticcapturable_untargeted"`: Emitted when the last targeter is removed (only once per untargeting session).
-  - `"moonstormstatic_caught"`: Pushed on the `doer` when capture completes.
+## Events & listeners
+- **Listens to:** `onremove` event on targeter objects (via `inst:ListenForEvent("onremove", ...)`), to automatically untarget when a targeter is removed.
+- **Pushes:**  
+  - `moonstormstaticcapturable_targeted` – when the first targeter is added.  
+  - `moonstormstaticcapturable_untargeted` – when the last targeter is removed.  
+  - `moonstormstatic_caught` (on the `doer` entity) – when caught (via `doer:PushEvent`).

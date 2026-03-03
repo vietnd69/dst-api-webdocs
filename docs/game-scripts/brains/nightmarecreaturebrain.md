@@ -1,91 +1,53 @@
 ---
 id: nightmarecreaturebrain
 title: Nightmarecreaturebrain
-description: Manages the AI behavior tree for nightmare creatures, prioritizing submission to shadow-dominant targets while harassing otherwise weak or distant targets via wander-and-chase tactics with battle cries.
-tags: [ai, boss, combat, shadow]
+description: AI brain component for Nightmare Creatures that manages combat, harassment, and loiter behaviors, including conditional battle cries and shadow dominance submissions.
+tags: [ai, combat, boss]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: d433bfcb
+system_scope: brain
 ---
 
 # Nightmarecreaturebrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-
-This brain component implements the behavior tree for nightmare creatures, such as the Shadow Creature variants. It orchestrates high-priority interactions with shadow-dominant entities, enemy targeting, harassment via ranged movement and battle cries, and default wandering behavior. It integrates closely with the `combat`, `locomotor`, `knownlocations`, and `shadowsubmissive` components to determine target eligibility, movement speed, and harassment conditions. The brain dynamically switches between states like `ChaseAndHarass`, `Harass`, `LoiterAndHarass`, and default `Wander`, using priority-based evaluation in the behavior tree root node.
+`NightmareCreatureBrain` implements the behavior tree logic for Nightmare Creatures, enabling dynamic combat responses including enemy submission to shadow-dominant targets, harassment with battle cries, and loitering patterns. It integrates with the `combat`, `shadowsubmissive`, `locomotor`, `knownlocations`, and `behaviour` systems to orchestrate attack, chase, taunt, and wander actions.
 
 ## Usage example
-
-This brain is typically assigned automatically via the entity prefab definition (e.g., in a `prefabs/` file). The component does not require manual instantiation or direct method calls in most cases.
-
 ```lua
--- Example instantiation inside a prefab definition (e.g., nightmARE_creature.lua)
-inst:AddBrain("brains/nightmarecreaturebrain")
+local inst = CreateEntity()
+inst:AddTag("nightmarecreature")
+inst:AddComponent("combat")
+inst:AddComponent("shadowsubmissive")
+inst:AddComponent("locomotor")
+inst:AddComponent("knownlocations")
+inst:AddComponent("talker")
+inst.brain = NightmareCreatureBrain(inst)
+inst.brain:OnStart()
 ```
 
-The brain activates automatically on `OnStart()`, initializing its behavior tree. No explicit setup is required by external scripts.
-
 ## Dependencies & tags
-
-**Components used:**
-- `combat` – for `target`, `nextbattlecrytime`, and `BattleCry()` function.
-- `knownlocations` – for retrieving home locations (`GetLocation("war_home")` and `GetLocation("home")`).
-- `locomotor` – for checking `walkspeed`.
-- `shadowsubmissive` – for determining if the creature should submit to a target (`ShouldSubmitToTarget`).
-
-**Tags:** None added, removed, or explicitly checked. The brain reads the `"shadowdominance"` tag on targets via the `shadowsubmissive` component, but does not manage tags itself.
+**Components used:** `combat`, `shadowsubmissive`, `locomotor`, `knownlocations`, `talker`, `behaviour`
+**Tags:** Checks `shadowdominance` (via `shadowsubmissive:ShouldSubmitToTarget`)
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `_harasstarget` | `Entity` or `nil` | `nil` | Cached reference to the currently targeted entity for harassment behavior. Set when `ShouldAttack` returns `false` (i.e., when the current target has `shadowdominance`). Cleared otherwise. |
+| `_harasstarget` | `Entity` or `nil` | `nil` | Stores the target for harassment (set when shadow submission occurs). |
 
 ## Main functions
-
-### `ShouldAttack(self)`
-* **Description:** Determines whether the creature should attack its current combat target. If the target has the `"shadowdominance"` tag (checked via `shadowsubmissive:ShouldSubmitToTarget`), submission occurs and `_harasstarget` is set to that target; otherwise, the target is treated as valid for attack.
-* **Parameters:**
-  - `self`: The brain instance.
-* **Returns:** `true` if the target is not shadow-dominant (i.e., attack proceed); `false` otherwise (submission/harassment path).
-* **Error states:** None. Relies on `combat.target` validity, which is handled by the `combat` component.
-
-### `ShouldHarass(self)`
-* **Description:** Checks if the creature should enter the harassment sub-tree, which involves playing a battle cry and possibly facing the harassment target.
-* **Parameters:**
-  - `self`: The brain instance.
-* **Returns:** `true` if `_harasstarget` is set and the `nextbattlecrytime` cooldown has expired (or is `nil`). Otherwise `false`.
-* **Error states:** Returns `nil` if `nextbattlecrytime` comparison is evaluated before `GetTime()` returns (rare), but logic is protected by `or` short-circuit evaluation.
-
-### `ShouldChaseAndHarass(self)`
-* **Description:** Determines whether the creature should actively chase the harassment target or loiter while engaging harassment behaviors.
-* **Parameters:**
-  - `self`: The brain instance.
-* **Returns:** `true` if `walkspeed < 5` (i.e., slower than standard), or if the harassment target is not within `HARASS_MED` (4) units and is valid. Otherwise `false`.
-* **Error states:** Returns `false` if `_harasstarget` is `nil` or invalid, or if distance check is not met.
-
-### `GetHarassWanderDir(self)`
-* **Description:** Calculates a randomized angular direction offset ±60 degrees from the angle to the harassment target, used during loiter/harass movement.
-* **Parameters:**
-  - `self`: The brain instance.
-* **Returns:** Angle in radians (`math.deg` to `rad` conversion is implicit via `* DEGREES`).
-* **Error states:** None. Requires `_harasstarget` to be valid at call time; if `nil`, behavior will not use this function (due to `WhileNode` guard condition).
-
-### `NightmareCreatureBrain:OnStart()`
-* **Description:** Initializes the behavior tree (`self.bt`) by constructing a priority-weighted root node. This is called automatically when the entity is spawned and the brain component starts.
+### `OnStart()`
+* **Description:** Initializes the behavior tree for the Nightmare Creature with priority-ordered branches: panic, attack, harass, loiter, and basic wander.
 * **Parameters:** None.
-* **Returns:** `nil`.
-* **Error states:** None. Assumes required components (`combat`, `knownlocations`, `locomotor`, `shadowsubmissive`) are attached to `self.inst`. Behavior tree construction may fail if dependencies are missing.
+* **Returns:** Nothing.
+* **Error states:** Requires the `combat`, `shadowsubmissive`, `locomotor`, and `knownlocations` components to be present on `self.inst`; otherwise the conditional checks may fail or return incorrect results.
 
 ## Events & listeners
-
-None. This brain component does not register or push any events directly.
-
----
+*None identified.*

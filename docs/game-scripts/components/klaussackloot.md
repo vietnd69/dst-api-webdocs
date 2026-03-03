@@ -1,61 +1,70 @@
 ---
 id: klaussackloot
 title: Klaussackloot
-description: Generates and manages loot tables for Klaus-related sacks, supporting both regular and Winters' Feast event loot with save/load persistence.
+description: Generates and manages loot tables for Klaus boss encounters, including seasonal (Winters' Feast) and standard loot pools.
+tags: [loot, boss, event, component]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: inventory
+category_type: components
 source_hash: 60f2e9af
+system_scope: world
 ---
 
 # Klaussackloot
 
-## Overview
-The `KlausSackLoot` component handles dynamic generation of loot containers for Klaus (and related entities like Krampus, No-Eye, etc.) in Don't Starve Together. It precomputes loot sets—both standard and event-specific (Winters' Feast)—during initialization and provides a `GetLoot()` method to return the current loot configuration. Loot tables are regenerated after retrieval to support multiple uses while ensuring randomness on each call.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Uses global functions: `GetRandomFancyWinterOrnament()`, `GetRandomLightWinterOrnament()`, `GetRandomBasicWinterOrnament()`
-- Uses global array: `boss_ornaments`
-- Uses global constant: `SPECIAL_EVENTS.WINTERS_FEAST`
-- Uses global utility: `IsSpecialEventActive(...)`
-- Uses global helper: `FillItems(...)`
-- Does not require any specific component on `inst`
-- Does not add/remove tags
+## Overview
+`KlausSackLoot` is a component that prepares and stores loot rewards for Klaus boss defeats. It handles two distinct loot pools: a seasonal `wintersfeast_loot` (active only during Winters' Feast) and a standard `loot` pool. The component generates deterministic loot sets upon initialization and exposes them via `GetLoot()`, which also triggers a fresh roll for subsequent uses. It supports persistence via `OnSave()`/`OnLoad()` for save/load synchronization.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("klaussackloot")
+
+-- Trigger loot generation
+local loot = inst.components.klaussackloot:GetLoot()
+-- loot is a table of subtables; each subtable represents one "slot"
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Checks `SPECIAL_EVENTS.WINTERS_FEAST` (via `IsSpecialEventActive`) but does not modify tags.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity instance this component is attached to (passed to constructor) |
-| `wintersfeast_loot` | `table` | `{}` | Loot array specific to Winters' Feast event (populated on construction) |
-| `loot` | `table` | `{}` | Standard loot array (populated on construction) |
+| `wintersfeast_loot` | table of tables | `{}` (initialized on first roll) | Seasonal loot generated during Winters' Feast event; each inner table is a loot slot. |
+| `loot` | table of tables | `{}` (initialized on first roll) | Standard loot pool; each inner table is a loot slot. |
 
-> Note: `wintersfeast_loot` and `loot` are populated during `:RollKlausLoot()` in the constructor. They are persisted via `OnSave`/`OnLoad`.
+## Main functions
+### `RollKlausLoot()`
+*   **Description:** Generates both the `wintersfeast_loot` and `loot` tables based on hardcoded logic and randomization. Called automatically in the constructor and after each `GetLoot()` call.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** None identified — always populates both loot tables.
 
-## Main Functions
+### `GetLoot()`
+*   **Description:** Returns the currently computed loot pool. If Winters' Feast is active, includes seasonal loot at the beginning. Immediately triggers a fresh `RollKlausLoot()` call after returning, so results are non-persistent across calls unless saved.
+*   **Parameters:** None.
+*   **Returns:** `loot` (table of tables) — a flat list of loot slots. Each slot is a table that may contain:
+    *   a string (single prefab name), or
+    *   a table with `{prefab, count}` (for quantity-based items), or
+    *   nested tables (if `FillItems` was used).
+*   **Error states:** None identified — always returns a non-empty table.
 
-### `:RollKlausLoot()`
-* **Description:** Generates two sets of loot tables: `wintersfeast_loot` (for Winters’ Feast event) and `loot` (standard loot). Runs during construction and after every `:GetLoot()` call.
-* **Parameters:** None
+### `OnSave()`
+*   **Description:** Serializes the current state of both loot tables for saving.
+*   **Parameters:** None.
+*   **Returns:** `table` with keys `wintersfeast_loot` and `loot`, each containing the respective loot tables.
 
-### `:GetLoot()`
-* **Description:** Returns a flattened copy of the currently generated loot (including event loot if Winters' Feast is active), then *re-roll*s the loot for next use.
-* **Parameters:** None  
-* **Returns:** `table` — Array of loot entries; each entry is either a string (prefab name) or a table (e.g., `{"prefab", count}`).
+### `OnLoad(data)`
+*   **Description:** Restores loot state from saved data. Does nothing if `data` is `nil`.
+*   **Parameters:** `data` (table) — expected shape: `{ wintersfeast_loot = ..., loot = ... }`.
+*   **Returns:** Nothing.
 
-### `:OnSave()`
-* **Description:** Serializes current loot tables for persistence across sessions (e.g., when the sack is in a world save).
-* **Parameters:** None  
-* **Returns:** `table` — `{ wintersfeast_loot = ..., loot = ... }`
-
-### `:OnLoad(data)`
-* **Description:** Restores loot state from saved data if present (e.g., when loading a world with a pre-generated sack).
-* **Parameters:**  
-  - `data` (`table?`) — Optional saved state containing `wintersfeast_loot` and `loot`.
-
-## Events & Listeners
+## Events & listeners
 None identified.

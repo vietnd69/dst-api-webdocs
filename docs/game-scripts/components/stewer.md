@@ -1,128 +1,139 @@
 ---
 id: stewer
 title: Stewer
-description: Manages cooking, spoilage, and harvesting logic for pot-like entities in Don't Starve Together.
+description: Manages cooking and spoilage timers for stew pot entities, handling cooking progression, product generation, and spoilage logic.
+tags: [cooking, inventory, timer, perishable]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: ce1c3ba5
+system_scope: crafting
 ---
 
 # Stewer
 
-## Overview
-The `Stewer` component implements the core cooking mechanics for stew pot entities. It handles ingredient validation, cooking progress, spoilage tracking, and item harvesting—including recipe learning for cookbooks and spoilage state preservation. It coordinates with container and perishable systems to manage state transitions (empty → cooking → done/spoiled) and persists its state across saves.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies**: Relies on the presence of `container` component on the same entity; uses `perishable` component on ingredients (for spoilage calculation).
-- **Tags Added/Removed**: 
-  - Adds `"stewer"` to the entity during initialization.
-  - Manages `"readytocook"` (entity is full and container is closed) and `"donecooking"` (cooking is complete) tags, primarily for scene/interaction logic.
-- **Events Listened**:
-  - `"itemget"` → `oncheckready`
-  - `"onclose"` → `oncheckready`
-  - `"itemlose"` → `onnotready`
-  - `"onopen"` → `onnotready`
+## Overview
+The `stewer` component manages the cooking lifecycle of stew pot entities, including tracking cooking progress, spoilage after cooking completes, and product harvest. It integrates with `container` to monitor ingredient state, `perishable` to manage spoil timers, and `stackable` to set product stack sizes. The component automatically adds/removes tags (`stewer`, `readytocook`, `donecooking`) and handles persistent state via `OnSave`/`OnLoad` for cross-session cooking.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("stewer")
+-- Populate container with ingredients, then:
+if inst.components.stewer:CanCook() then
+    inst.components.stewer:StartCooking(doer)
+end
+-- After cooking finishes, harvest the product:
+inst.components.stewer:Harvest(harvester)
+```
+
+## Dependencies & tags
+**Components used:** `container`, `perishable`, `stackable`, `inventory`, `physics`, `playeractionpicker` (indirect via events)  
+**Tags added:** `stewer`, `readytocook` (temporary), `donecooking` (temporary)
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *(injected)* | Reference to the owning entity. |
-| `done` | `boolean?` | `nil` | Indicates if cooking has completed (`true`) or is in progress (`false`/`nil`). |
-| `targettime` | `number?` | `nil` | Global time at which cooking or spoilage should complete. |
-| `task` | `Task?` | `nil` | Scheduled task for cooking/spoilage completion callback. |
-| `product` | `string?` | `nil` | Prefab name of the cooked item. |
-| `product_spoilage` | `number?` | `nil` | Initial spoilage factor (0–1) applied to the resulting item. |
-| `spoiledproduct` | `string` | `"spoiled_food"` | Prefab name of the spoiled output. |
-| `spoiltime` | `number?` | `nil` | Total spoilage duration (seconds). |
-| `cooktimemult` | `number` | `1` | Multiplier applied to base cooking time. |
-| `chef_id` | `string?` | `nil` | User ID of the player who started cooking (for recipe learning). |
-| `ingredient_prefabs` | `table?` | `nil` | List of ingredient prefab names used in the current recipe. |
+| `done` | boolean or `nil` | `nil` | Whether cooking has completed (`true`), is in progress (`nil`), or not started (`nil`). |
+| `targettime` | number or `nil` | `nil` | Absolute game time when cooking/spoil finishes. |
+| `product` | string or `nil` | `nil` | Prefab name of the cooked product. |
+| `product_spoilage` | number or `nil` | `nil` | Multiplier applied to final product spoilage. |
+| `spoiltime` | number or `nil` | `nil` | Total spoil time for the product (seconds). |
+| `spoiledproduct` | string | `"spoiled_food"` | Prefab name used for spoiled products. |
+| `cooktimemult` | number | `1` | Multiplier applied to base cooking time. |
+| `chef_id` | string or `nil` | `nil` | User ID of the chef who started cooking. |
+| `ingredient_prefabs` | table or `nil` | `nil` | List of ingredient prefab names used. |
+| `task` | task or `nil` | `nil` | Scheduled task for cooking/spoil timer. |
 
-## Main Functions
-
+## Main functions
 ### `IsDone()`
-* **Description:** Returns whether cooking has completed (i.e., product is ready or spoiled).
-* **Parameters:** None  
-* **Returns:** `boolean`
+* **Description:** Checks if cooking has completed (product generated, regardless of spoilage state).
+* **Parameters:** None.
+* **Returns:** `boolean` – `true` if cooking finished, `false` otherwise.
 
 ### `IsSpoiling()`
-* **Description:** Returns whether the stew is currently in the spoilage phase (i.e., cooked but past its shelf life).
-* **Parameters:** None  
-* **Returns:** `boolean`
+* **Description:** Checks if the stew is in the spoilage phase (cooking done, but product hasn't been harvested and spoilage timer is active).
+* **Parameters:** None.
+* **Returns:** `boolean` – `true` if spoiling, `false` otherwise.
 
 ### `IsCooking()`
-* **Description:** Returns whether the stew is currently cooking (i.e., ingredients added, not done, and timer active).
-* **Parameters:** None  
-* **Returns:** `boolean`
+* **Description:** Checks if the stew is actively cooking (cooking timer running).
+* **Parameters:** None.
+* **Returns:** `boolean` – `true` if cooking, `false` otherwise.
 
 ### `GetTimeToCook()`
-* **Description:** Returns the remaining time (in seconds) until cooking finishes, or `0` if not cooking.
-* **Parameters:** None  
-* **Returns:** `number`
+* **Description:** Returns remaining time until cooking finishes.
+* **Parameters:** None.
+* **Returns:** `number` – Seconds until cooking completes (`0` if not cooking).
 
 ### `GetTimeToSpoil()`
-* **Description:** Returns the remaining time (in seconds) until the cooked item spoils, or `0` if not spoiling.
-* **Parameters:** None  
-* **Returns:** `number`
+* **Description:** Returns remaining time until the cooked product spoils.
+* **Parameters:** None.
+* **Returns:** `number` – Seconds until spoilage (`0` if not spoiling).
 
 ### `CanCook()`
-* **Description:** Checks if the pot is eligible to start cooking—specifically, if the container exists and is fully occupied.
-* **Parameters:** None  
-* **Returns:** `boolean`
-
-### `GetRecipeForProduct()`
-* **Description:** Retrieves the cooking recipe table for the current product.
-* **Parameters:** None  
-* **Returns:** `table?` — Recipe data, or `nil` if no product.
+* **Description:** Checks if the pot is full and closed, and thus can begin cooking.
+* **Parameters:** None.
+* **Returns:** `boolean` – `true` if conditions are met.
 
 ### `StartCooking(doer)`
-* **Description:** Initiates the cooking process. Validates ingredients, computes product and spoilage, sets timers, and destroys the container contents. Closes and locks the container.
-* **Parameters:**
-  - `doer` (`Player?`) — The player triggering cooking; used for `chef_id` and recipe learning.
+* **Description:** Begins the cooking process using ingredients in the container, calculates product and spoilage, and schedules cooking completion.
+* **Parameters:** `doer` (entity) – Player or entity initiating cooking; used to assign chef ID and learn cookbook recipes.
+* **Returns:** Nothing.
+* **Error states:** Does nothing if `targettime` is already set (cooking already in progress).
 
 ### `StopCooking(reason)`
-* **Description:** Cancels ongoing cooking/spoilage, optionally spawning a product (if interrupted by fire) and resetting internal state.
-* **Parameters:**
-  - `reason` (`string`) — Context for stopping (e.g., `"fire"` triggers product spawn).
+* **Description:** Cancels active cooking/spoil timers and resets internal state.
+* **Parameters:** `reason` (string) – e.g., `"fire"` triggers product spawn on fire-out.
+* **Returns:** Nothing.
 
 ### `Harvest(harvester)`
-* **Description:** Transfers the cooked item to the harvester, applies spoilage to the item, triggers recipe learning (for the original chef), and resets the stewer state.
-* **Parameters:**
-  - `harvester` (`Entity?`) — The entity receiving the item.
+* **Description:** Transfers the cooked product to the harvester, applies spoilage percentage, and triggers recipe learning if applicable.
+* **Parameters:** `harvester` (entity) – Entity receiving the product.
+* **Returns:** `boolean` – `true` if product was harvested successfully.
 
 ### `LongUpdate(dt)`
-* **Description:** Adjusts cooking/spoilage timers in response to game time deltas (e.g., due to fast-forward). Maintains accurate progress after time jumps.
-* **Parameters:**
-  - `dt` (`number`) — Delta time to apply.
-
-### `OnSave()`
-* **Description:** Returns a table of state data for persistence, including remaining time and metadata for recipe learning.
-* **Parameters:** None  
-* **Returns:** `table` — Serializable state data.
-
-### `OnLoad(data)`
-* **Description:** Restores the stewer state from saved data, re-scheduling timers and re-tagging the entity.
-* **Parameters:**
-  - `data` (`table`) — Data returned from `OnSave()`.
+* **Description:** Adjusts timers for frame-rate lag or pause; reschedules `dostew`/`dospoil` tasks to maintain accuracy across updates.
+* **Parameters:** `dt` (number) – Time delta in seconds.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Generates a human-readable debug status string for the stewer (e.g., `"cooked_stew FULL timetocook: 0.00 timetospoil: 120.00 productspoilage: 0.75"`).
-* **Parameters:** None  
-* **Returns:** `string`
+* **Description:** Returns a formatted string for debugging (e.g., product name, status, timers, spoilage).
+* **Parameters:** None.
+* **Returns:** `string` – Human-readable status description.
 
-## Events & Listeners
-- Listens to `"itemget"` and `"onclose"` → Adds `"readytocook"` tag (via `oncheckready`).
-- Listens to `"itemlose"` and `"onopen"` → Removes `"readytocook"` tag (via `onnotready`).
-- Triggers custom events via callbacks:
-  - `self.onstartcooking(self.inst)`
-  - `self.ondonecooking(self.inst)`
-  - `self.onspoil(self.inst)`
-  - `self.oncontinuedone(self.inst)` (load-only)
-  - `self.oncontinuecooking(self.inst)` (load-only)
-  - `self.onharvest(self.inst)` (via `Harvest`)
-- Emits `"learncookbookrecipe"` event on the `harvester` player (in `Harvest`), including product and ingredients, if all criteria are met.
+### `GetRecipeForProduct()`
+* **Description:** Returns the cooking recipe associated with the current product.
+* **Parameters:** None.
+* **Returns:** `table` – Recipe data from `cooking.lua`, or `nil`.
+
+### `OnRemoveFromEntity()`
+* **Description:** Cleans up tags and state when the component is removed from an entity.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `OnSave()`
+* **Description:** Captures current state for world persistence.
+* **Parameters:** None.
+* **Returns:** `table` – State data including product, timers, chef info, and remaining time.
+
+### `OnLoad(data)`
+* **Description:** Restores state from saved data.
+* **Parameters:** `data` (table) – State data from `OnSave`.
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:**  
+  - `itemget` – Triggers tag check (`readytocook`).  
+  - `onclose` – Triggers tag check (`readytocook`).  
+  - `itemlose` – Removes `readytocook` tag.  
+  - `onopen` – Removes `readytocook` tag.  
+- **Pushes:**  
+  - `perishchange` (indirectly via `perishable:SetPercent`)  
+  - `stacksizechange` (indirectly via `stackable:SetStackSize`)  
+  - `learncookbookrecipe` (if chef harvests their own dish and recipe is in cookbook)

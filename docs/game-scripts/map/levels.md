@@ -3,8 +3,7 @@ id: levels
 title: Levels
 description: Central registry and manager for level configurations, settings presets, and world generation definitions in Don't Starve Together.
 tags: [world, level, settings, worldgen, map]
-sidebar_position: 1
-
+sidebar_position: 100
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: 3b6578d7
 ---
-
 # Levels
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -167,4 +165,3 @@ No instance-based properties are defined in this module. It uses global mutable 
 ## Events & listeners
 This module defines no components, so it does not register or emit events.
 
----

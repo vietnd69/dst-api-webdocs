@@ -1,30 +1,42 @@
 ---
 id: snowmandecor
 title: Snowmandecor
-description: A minimal placeholder component that serves as a marker or hook for external action definitions in componentactions.lua.
+description: Marks an entity as a decorated snowman, likely for cosmetic or gameplay identification purposes.
+tags: [visual, entity, decorative]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: 063ac314
+system_scope: entity
 ---
 
 # Snowmandecor
 
-## Overview
-`Snowmandecor` is a lightweight, marker-style component that attaches to an entity and holds no internal state or logic. Its sole purpose is to exist as a dependency or identifier for action registration in `componentactions.lua`, enabling context-sensitive interactions (e.g., decoration or interaction triggers) without modifying the core entity behavior.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Snowmandecor` is a minimal component that serves as a tagging mechanism for entities representing decorated snowmen. It does not implement any logic beyond initialization and primarily exists to enable identification and potential action registration via external systems (e.g., `componentactions.lua`). It integrates with DST's ECS by being attached to relevant prefabs via `inst:AddComponent("snowmandecor")`.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("snowmandecor")
+-- The component is now attached; actions may be registered elsewhere
+-- (e.g., in componentactions.lua) based on the presence of this component.
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-No public properties were clearly identified from the source. The constructor (`_ctor`) only assigns the `inst` reference and does not define or initialize any additional fields.
+No public properties
 
-## Main Functions
-No main functional methods are defined. This component contains no public methods beyond its constructor.
+## Main functions
+No documented main functions beyond the constructor.
 
-## Events & Listeners
-None. This component does not register event listeners or push events.
+## Events & listeners
+Not applicable

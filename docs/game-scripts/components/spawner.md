@@ -1,161 +1,154 @@
 ---
 id: spawner
 title: Spawner
-description: Manages a single persistent entity (e.g., a named pigman) by spawning it after a delay, taking/returning ownership, and tracking spawn state—including queuing, offscreen spawning, and save/load compatibility.
+description: Manages a single persistent entity (e.g., a named NPC) by spawning, housing, and releasing it according to configured timing and occupancy rules.
+tags: [spawn, entity, persistence, ai]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: af2df356
+system_scope: entity
 ---
 
 # Spawner
 
-## Overview
-The `Spawner` component manages a *single persistent entity*—unlike `ChildSpawner`, which dynamically creates and destroys generic entities on demand. It controls when and where the entity is spawned, returned to or released from the spawner, and handles state such as occupancy, pending spawns, and persistence across saves. Entities managed by this component maintain their identity (e.g., named characters, unique items), and can be queued for respawn after vacating or death.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds component: `"homeseeker"` to managed child entities if missing (see `TakeOwnership`).
-- Uses listeners on `"entitysleep"` event only when `spawnoffscreen` is enabled.
-- No specific entity tags are set or removed.
+## Overview
+`Spawner` manages a single persistent entity instance (e.g., a specific named pigman with unique state) as opposed to `ChildSpawner`, which manages multiple transient, generic entities (e.g., spiders). It handles spawning the entity after a delay, tracking ownership, relocating it in/out of the spawner (home), and reacting to life-cycle events (death, detachment, etc.). It integrates closely with `health`, `burnable`, `locomotor`, `homeseeker`, and `knownlocations` components on the managed child entity.
+
+## Usage example
+```lua
+local spawner = inst:AddComponent("spawner")
+spawner:Configure("pigman", 10) -- spawn a pigman after 10 seconds
+spawner:SetOnOccupiedFn(function(inst, child) print("Child inside") end)
+spawner:SetOnVacateFn(function(inst, child) print("Child released") end)
+spawner:SetOnSpawnedFn(function(inst, child) child.components.inventory:EquipItem("hat_pig") end)
+```
+
+## Dependencies & tags
+**Components used:** `health`, `burnable`, `locomotor`, `homeseeker`, `knownlocations`
+**Tags:** None added, removed, or checked directly by `spawner`.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity this component is attached to (the spawner). |
-| `child` | `Entity?` | `nil` | The currently owned/managed entity. May be `nil` if not occupied. |
-| `delay` | `number` | `0` | Time (in seconds) to wait before respawning after the child is released or killed. |
-| `onoccupied` | `function?` | `nil` | Callback invoked when the child enters the spawner (via `GoHome`). |
-| `onvacate` | `function?` | `nil` | Callback invoked when the child leaves the spawner (in `ReleaseChild`). |
-| `onspawnedfn` | `function?` | `nil` | Callback invoked after a new child is spawned and taken ownership of. |
-| `onkilledfn` | `function?` | `nil` | Callback invoked when the child is killed. |
-| `spawnoffscreen` | `boolean?` | `nil` | If `true`, spawning only occurs when the spawner is asleep (offscreen). |
-| `useexternaltimer` | `boolean` | `false` | If `true`, external timing callbacks (`starttimerfn`, `stoptimerfn`, `timertestfn`) are used instead of internal `DoTaskInTime`. |
-| `nextspawntime` | `number?` | `nil` | Timestamp (from `GetTime()`) for the next scheduled spawn. Used when `useexternaltimer` is `false`. |
-| `queue_spawn` | `boolean?` | `nil` | If `true`, a new spawn is queued immediately after releasing the child. |
-| `retryperiod` | `number?` | `nil` | Delay (in seconds) for queued spawns. Used only if `queue_spawn` is `true`. |
-| `task` | `Task?` | `nil` | The internal timer task (`DoTaskInTime`), or `nil` if not active. |
-| `childname` | `string?` | `nil` | Prefab name of the child to spawn. May be overridden by `childfn`. |
-| `childfn` | `function?` | `nil` | Optional function `(inst) → string` returning a dynamic child prefab name. |
+| `inst` | `Entity` | (none) | Owner entity of this component. |
+| `child` | `Entity` or `nil` | `nil` | The currently owned child entity. |
+| `delay` | number | `0` | Default delay (seconds) between releases. |
+| `onoccupied` | function or `nil` | `nil` | Callback when child enters spawner (child `GoHome`). |
+| `onvacate` | function or `nil` | `nil` | Callback when child is released. |
+| `onspawnedfn` | function or `nil` | `nil` | Callback after child is spawned. |
+| `onkilledfn` | function or `nil` | `nil` | Callback when child is killed. |
+| `spawnoffscreen` | boolean or `nil` | `nil` | If `true`, listens for `entitysleep` to release children offscreen. |
+| `useexternaltimer` | boolean | `false` | If `true`, defers spawn timing logic to external handlers. |
+| `task` | `Task` or `nil` | `nil` | Active scheduled task for delayed spawning. |
+| `nextspawntime` | number or `nil` | `nil` | World time at which the next spawn should occur. |
+| `queue_spawn` | boolean or `nil` | `nil` | If `true`, re-queue a spawn after releasing child. |
+| `retryperiod` | number or `nil` | `nil` | Delay before re-spawning when `queue_spawn` is enabled. |
+| `childname` | string or `nil` | `nil` | Prefab name to spawn when releasing. |
+| `spawn_in_water` | boolean or `nil` | `nil` | Override for water spawning (set via `SetWaterSpawning`). |
+| `spawn_on_boats` | boolean or `nil` | `nil` | Override for boat spawning (set via `SetWaterSpawning`). |
 
-*Note: Optional fields like `spawn_in_water`, `spawn_on_boats`, `externaltimerfinished`, and various timer callbacks (`starttimerfn`, etc.) are declared but not initialized in `_ctor` and depend on external configuration.*
-
-## Main Functions
-
-### `OnRemoveFromEntity()`
-* **Description:** Cleans up the component when removed from the spawner entity: removes event listeners, cancels pending spawns, and releases tracked child entity callbacks.
-* **Parameters:** None.
-
-### `GetDebugString()`
-* **Description:** Returns a string summarizing the spawner’s current state for debugging (e.g., child presence, occupancy, queued/spawn timers).
-* **Parameters:** None.
-
-### `SetOnSpawnedFn(fn)`
-* **Description:** Registers a callback to run when a new child is successfully spawned.
-* **Parameters:**  
-  `fn` — A function `(spawner_inst, child)`.
-
-### `SetOnKilledFn(fn)`
-* **Description:** Registers a callback to run when the child entity is killed.
-* **Parameters:**  
-  `fn` — A function `(spawner_inst, child)`.
-
-### `SetOnOccupiedFn(fn)`
-* **Description:** Registers a callback to run when the child enters the spawner (becomes occupied).
-* **Parameters:**  
-  `fn` — A function `(spawner_inst, child)`.
-
-### `SetOnVacateFn(fn)`
-* **Description:** Registers a callback to run when the child leaves the spawner (is released).
-* **Parameters:**  
-  `fn` — A function `(spawner_inst, child)`.
-
-### `SetWaterSpawning(spawn_in_water, spawn_on_boats)`
-* **Description:** Configures whether the child can be spawned in water or on boats during release.
-* **Parameters:**  
-  `spawn_in_water` — `boolean` — Allow spawning in water.  
-  `spawn_on_boats` — `boolean` — Allow spawning on boats.
-
-### `SetOnlySpawnOffscreen(offscreen)`
-* **Description:** Enables/disables offscreen-only spawning: if `true`, spawning is deferred until the spawner is asleep (via `"entitysleep"` event).
-* **Parameters:**  
-  `offscreen` — `boolean`.
-
+## Main functions
 ### `Configure(childname, delay, startdelay)`
-* **Description:** Sets the child prefab name, respawn delay, and starts the initial spawn with optional delay.
-* **Parameters:**  
-  `childname` — `string` — Prefab name to spawn.  
-  `delay` — `number` — Time between respawn attempts after release.  
-  `startdelay` — `number?` — Optional initial delay before first spawn.
+* **Description:** Sets up the spawner to manage a specific prefab type and spawn delay, then starts an initial spawn timer.
+* **Parameters:** `childname` (string) prefab name; `delay` (number) seconds between releases; `startdelay` (number, optional) initial delay before first spawn (defaults to `0`).
+* **Returns:** Nothing.
 
 ### `SpawnWithDelay(delay)`
-* **Description:** Starts or restarts the spawn timer. If `useexternaltimer` is `false`, uses `DoTaskInTime`; otherwise, delegates to external timer callbacks.
-* **Parameters:**  
-  `delay` — `number` — Seconds to wait before spawning.
+* **Description:** Schedules the next spawn after `delay` seconds. Uses either a local timer (`DoTaskInTime`) or external timer based on `useexternaltimer`.
+* **Parameters:** `delay` (number) seconds until spawn.
+* **Returns:** Nothing.
 
 ### `IsSpawnPending()`
-* **Description:** Returns `true` if a spawn is pending (i.e., timer is active).
+* **Description:** Checks whether a spawn is currently scheduled.
 * **Parameters:** None.
-
-### `SetQueueSpawning(queued, retryperiod)`
-* **Description:** Enables or disables spawn queuing: when enabled, releasing the child triggers a new spawn after `retryperiod`.
-* **Parameters:**  
-  `queued` — `boolean` — Enable/disable queuing.  
-  `retryperiod` — `number` — Delay before queued spawn (if `queued` is `true`).
+* **Returns:** `true` if a spawn task is pending or external timer indicates pending, otherwise `false`.
 
 ### `CancelSpawning()`
-* **Description:** Cancels any pending spawn timer and resets spawn-time tracking.
+* **Description:** Cancels any pending spawn task and clears spawn time tracking.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `OnSave()`
-* **Description:** Serializes the spawner’s state (child presence, timers, queued flags) for persistence.
-* **Parameters:** None.  
-* **Returns:** `{ data: table, refs: table? }` — Save data and optional GUID references.
-
-### `OnLoad(data, newents)`
-* **Description:** Restores spawner state from save data, including loading a child prefab, rescheduling spawns, or handling external timers.
-* **Parameters:**  
-  `data` — `table` — Deserialized save data.  
-  `newents` — `table` — Map of loaded entity GUIDs.
-
-### `LoadPostPass(newents, savedata)`
-* **Description:** Ensures post-load linking: retrieves the child entity by GUID and reassigns ownership if needed.
-* **Parameters:**  
-  `newents` — `table` — GUID-to-entity map.  
-  `savedata` — `table` — Original save record for this spawner.
+### `SetQueueSpawning(queued, retryperiod)`
+* **Description:** Configures whether released children trigger an immediate re-spawn after a `retryperiod`.
+* **Parameters:** `queued` (boolean) enable/disable queuing; `retryperiod` (number, optional) delay before next spawn (only used when `queued` is `true`).
+* **Returns:** Nothing.
 
 ### `TakeOwnership(child)`
-* **Description:** Establishes or updates ownership of a child entity: sets up callbacks, assigns home location, and adds `homeseeker` if missing.
-* **Parameters:**  
-  `child` — `Entity` — The child entity to manage.
-
-### `ReleaseChild()`
-* **Description:** Releases the child from the spawner: removes it as a child, teleports it to a nearby valid location (using obstacle-aware offset), and optionally queues a new spawn. Returns `true` if child was successfully released.
-* **Parameters:** None.
+* **Description:** Registers the given child entity as the spawner’s owned entity, sets up event listeners for its death/detachment, and configures it to track home at the spawner’s position. Adds `homeseeker` component if missing.
+* **Parameters:** `child` (`Entity`) the entity to own.
+* **Returns:** Nothing.
 
 ### `GoHome(child)`
-* **Description:** Moves the child *into* the spawner: adds as child, positions at origin, removes from scene, extinguishes fire, removes `homeseeker`, and triggers `onoccupied` callback. Returns `true` on success.
-* **Parameters:**  
-  `child` — `Entity` — The child entity to place at home.
+* **Description:** Returns the child to the spawner (adds as child, sets local position `0,0,0`, removes from scene, stops movement, extinguishes fire if burning, removes `homeseeker`). Fires `onoccupied` callback if set.
+* **Parameters:** `child` (`Entity`) the entity to house.
+* **Returns:** `true` if successful, otherwise `false` (child is not owned or spawner is already occupied) and fires `gohomefailed` event on child.
+
+### `ReleaseChild()`
+* **Description:** Releases the child entity to the world at a safe location adjacent to the spawner, or spawns a new child if none exists. Uses `FindWalkableOffset` (with custom `NoHoles` predicate) to find a valid spawn point, or falls back to manual placement. Fires `onvacate` callback if set.
+* **Parameters:** None.
+* **Returns:** `true` if the child was successfully released; `nil` otherwise (e.g., queued spawn deferred).
 
 ### `OnChildKilled(child)`
-* **Description:** Handles child death: triggers `onkilledfn` callback, clears child reference, and schedules a respawn after `delay`.
-* **Parameters:**  
-  `child` — `Entity` — The killed child entity.
+* **Description:** Callback invoked when the tracked child is killed. Triggers `onkilledfn` if set, nullifies child, and restarts the spawn timer.
+* **Parameters:** `child` (`Entity`) the killed child.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens for `"entitysleep"`**: Triggers `OnEntitySleep` when the spawner is offscreen and `spawnoffscreen` is enabled.  
-- **Listens on child entity (via `TakeOwnership`):**  
-  - `"ontrapped"` → triggers `self._onchildkilled`  
-  - `"death"` → triggers `self._onchildkilled`  
-  - `"detachchild"` → triggers `self._onchildkilled`  
-  - `"onremove"` → triggers `self._onchildkilled`  
-- **Pushes `"gohomefailed"`**: Sent to the child if `GoHome` fails (e.g., mismatched child reference).  
-- **Triggers callbacks:**  
-  - `onspawnedfn(self.inst, child)`  
-  - `onvacate(self.inst, child)`  
-  - `onoccupied(self.inst, child)`  
-  - `onkilledfn(self.inst, child)`
+### `GetDebugString()`
+* **Description:** Returns a debug string summarizing current state (child, occupied, queued, and next spawn time).
+* **Parameters:** None.
+* **Returns:** `string` human-readable status.
+
+### `SetOnSpawnedFn(fn)`
+* **Description:** Sets the callback function invoked when a child is spawned (after `TakeOwnership` and `GoHome`/release).
+* **Parameters:** `fn` (function) takes `(spawner_inst, child)`.
+* **Returns:** Nothing.
+
+### `SetOnKilledFn(fn)`
+* **Description:** Sets the callback function invoked when the child is killed.
+* **Parameters:** `fn` (function) takes `(spawner_inst, child)`.
+* **Returns:** Nothing.
+
+### `SetOnOccupiedFn(fn)`
+* **Description:** Sets the callback function invoked when the child is moved into the spawner (`GoHome`).
+* **Parameters:** `fn` (function) takes `(spawner_inst, child)`.
+* **Returns:** Nothing.
+
+### `SetOnVacateFn(fn)`
+* **Description:** Sets the callback function invoked when the child is released from the spawner.
+* **Parameters:** `fn` (function) takes `(spawner_inst, child)`.
+* **Returns:** Nothing.
+
+### `SetWaterSpawning(spawn_in_water, spawn_on_boats)`
+* **Description:** Configures whether spawned children may be placed in water or on boats.
+* **Parameters:** `spawn_in_water` (boolean); `spawn_on_boats` (boolean).
+* **Returns:** Nothing.
+
+### `SetOnlySpawnOffscreen(offscreen)`
+* **Description:** Enables spawning only when the spawner goes to sleep (`entitysleep` event). Uses `OnEntitySleep` logic.
+* **Parameters:** `offscreen` (boolean).
+* **Returns:** Nothing.
+
+### `OnSave()`
+* **Description:** Serializes the spawner’s state (e.g., child presence, pending spawns, external timer flags).
+* **Parameters:** None.
+* **Returns:** `data` (table) and `refs` (array of GUIDs, optional) for world save.
+
+### `OnLoad(data, newents)`
+* **Description:** Restores spawner state from save data, including child reference by GUID or full save record.
+* **Parameters:** `data` (table) from `OnSave`; `newents` (table) entity map.
+* **Returns:** Nothing.
+
+### `LoadPostPass(newents, savedata)`
+* **Description:** Resolves child entity GUID to object reference after initial load.
+* **Parameters:** `newents` (table); `savedata` (table).
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:** `ontrapped` (child) — triggers `OnChildKilled`; `death` (child) — triggers `OnChildKilled`; `detachchild` (child) — triggers `OnChildKilled`; `onremove` (child) — triggers `OnChildKilled`; `entitysleep` (spawner, when `spawnoffscreen` is true) — triggers conditional `ReleaseChild`.
+- **Pushes:** `gohomefailed` (child) — fired when `GoHome` fails (e.g., child not owned or spawner occupied); `onextinguish` (child) — via `burnable:Extinguish` call.

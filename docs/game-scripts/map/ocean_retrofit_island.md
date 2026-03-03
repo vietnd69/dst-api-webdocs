@@ -3,8 +3,7 @@ id: ocean_retrofit_island
 title: Ocean Retrofit Island
 description: A map-generation utility module that inserts ocean-based setpieces (moon islands, hermit islands, crab kings, waterlog biomes, monkey islands) into an existing world by validating terrain constraints and adding topology nodes.
 tags: [map, worldgen, ocean, setpiece]
-sidebar_position: 1
-
+sidebar_position: 100
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: 4efae2a0
 ---
-
 # Ocean Retrofit Island
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -86,4 +84,3 @@ No properties are defined. This module exports only functions.
 ## Events & listeners
 None. This module performs synchronous, side-effect-only operations and does not register or dispatch events.
 
----

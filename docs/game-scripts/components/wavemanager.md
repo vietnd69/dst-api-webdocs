@@ -1,63 +1,79 @@
 ---
 id: wavemanager
 title: Wavemanager
-description: Manages procedural spawning of ocean wave visual effects (shimmer, shore) based on tile type, player position, and camera distance.
+description: Manages procedural spawning of ocean wave visual effects (shimmers and shore waves) near the player based on terrain type and distance from the camera.
+tags: [environment, fx, ocean, world]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: cec24cbb
+system_scope: environment
 ---
 
 # Wavemanager
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component dynamically spawns water surface visual effects (wave shimmer, shore waves) across the ocean floor tiles near the player. It runs on an update loop, spawning wave entities based on tile types, player proximity, and camera distance—scaling density and radius dynamically.
+`WaveManager` is a dynamic environmental component responsible for spawning and animating ocean surface visual effects, such as shimmering water ripples and shore-breaking waves, in response to the player's location and the underlying terrain. It operates as a periodic updater that samples nearby tiles on the world map, spawning appropriate prefabs (`wave_shimmer`, `wave_shore`, `wave_shimmer_med`, `wave_shimmer_deep`) depending on tile type and surrounding water conditions. It is typically attached to a world-level entity (e.g., `TheWorld`) to manage ocean visuals globally.
 
-## Dependencies & Tags
-- Requires `TheWorld.Map` to be available (world map interface).
-- Relies on `ThePlayer` and `TheCamera` global objects.
-- Calls `SpawnPrefab` to instantiate prefabs (`wave_shimmer`, `wave_shore`, `wave_shimmer_med`, `wave_shimmer_deep`).
-- Registers itself for periodic updates via `inst:StartUpdatingComponent(self)` and may stop via `inst:StopUpdatingComponent(self)`.
+## Usage example
+```lua
+-- Attaching to the world root (conceptual example)
+local inst = CreateEntity()
+inst:AddComponent("wavemanager")
 
-No explicit component tags or additive/removals are observed.
+-- Modifying global shimmer spawn rate
+if inst.components.wavemanager then
+    inst.components.wavemanager.shimmer_per_sec_mod = 0.5
+end
+
+-- Registering a blocker (e.g., a structure preventing wave spawning nearby)
+inst:AddComponent("physicsblocker")
+inst.components.physicsblocker:SetBlockerRadius(5)
+inst:ListenForEvent("onregister", function(inst)
+    TheWorld.components.wavemanager:RegisterBlocker(inst, 5)
+end)
+```
+
+## Dependencies & tags
+**Components used:** `None identified`  
+**Tags:** Does not directly manage tags on the owner entity, but spawns prefabs with their own internal logic and tags.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (assigned in constructor) | Reference to the owning entity (typically a world-level container). |
-| `shimmer` | `table` | `nil` | Configuration map of wave spawning rules per tile type; keys are `WORLD_TILES.*` enum values, values include `per_sec`, `spawn_rate`, and `tryspawn` function. |
-| `ripple_per_sec` | `number` | `10` | Target rate for ripple effects (currently unused in logic). |
-| `ripple_idle_time` | `number` | `5` | Idle timeout before stopping ripples (currently unused in logic). |
-| `shimmer_per_sec_mod` | `number` | `1.0` | Global multiplier scaling shimmer spawn rates; set to `≤0` triggers update loop termination. |
-| `blockers` | `table` | `{}` | Map of blockers (`[entity] = distance`); wave spawning is prevented within this distance. |
+| `shimmer` | table | see constructor | Maps `WORLD_TILES.*` constants to spawn configuration tables containing `per_sec`, `spawn_rate`, and `tryspawn` functions. |
+| `ripple_per_sec` | number | `10` | Base rate for ripple effects (not currently used in `OnUpdate`). |
+| `ripple_idle_time` | number | `5` | Time before ripple logic idles (not currently used in `OnUpdate`). |
+| `shimmer_per_sec_mod` | number | `1.0` | Global multiplier applied to shimmer spawn rates; set to `0` to disable spawning and stop updates. |
+| `blockers` | table | `{}` | Dictionary of entities (keys) and blocking distances (values); prevents wave spawning within radius of these entities. |
 
-## Main Functions
-
+## Main functions
 ### `RegisterBlocker(inst, dist)`
-* **Description:** Registers an entity as a blocker; no wave effects will spawn within `dist` units of this entity.
-* **Parameters:**
-  * `inst` (`Entity`): The entity acting as a blocker (e.g., a campfire,structure).
-  * `dist` (`number`): Radius in units around the blocker where spawning is suppressed.
+*   **Description:** Registers an entity as a blocker, preventing shimmer/wave spawning within a radius of `dist` units from its position.
+*   **Parameters:** `inst` (Entity) — the blocker entity; `dist` (number) — blocking radius in world units.
+*   **Returns:** Nothing.
 
 ### `UnregisterBlocker(inst)`
-* **Description:** Removes an entity from the blocker list, restoring normal wave spawning in its vicinity.
-* **Parameters:**
-  * `inst` (`Entity`): The previously registered blocker entity.
+*   **Description:** Removes an entity from the blocker list, restoring normal shimmer/wave spawning near it.
+*   **Parameters:** `inst` (Entity) — the blocker entity to remove.
+*   **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-* **Description:** Core update loop. For each configured tile type, accumulates spawn probability over time (`spawn_rate += rate * dt`), and at each full unit of `spawn_rate`, attempts to spawn a wave at a random position within the shimmer radius around the player. Respects blockers and tile type constraints.
-* **Parameters:**
-  * `dt` (`number`): Delta time since last frame.
+*   **Description:** Called periodically to attempt spawning shimmer effects based on tile type and proximity to the player. Iterates through configured shimmer types, accumulates spawn rates over time, and spawns prefabs if `canSpawn` returns true.
+*   **Parameters:** `dt` (number) — delta time in seconds since last update.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if `ThePlayer` or `TheWorld.Map` is `nil`. If `shimmer_per_sec_mod <= 0.0`, stops updating the component.
 
 ### `GetDebugString()`
-* **Description:** Returns a debug-friendly string showing current shimmer radius and spawn rate multiplier (used for debugging/overlay).
-* **Parameters:** None.
+*   **Description:** Returns a debug string containing the current shimmer spawn radius and camera-based spawn rate multiplier for debugging purposes.
+*   **Parameters:** None.
+*   **Returns:** `string` — formatted as `"Shimmer: <radius>, Mult: <mult>"`.
 
-## Events & Listeners
-None. This component does not register for or emit any events.
-
-> **Note:** While the component periodically spawns prefabs, it does so via direct calls to `SpawnPrefab` rather than event dispatching; no `inst:PushEvent` or `inst:ListenForEvent` calls are present in the code.
+## Events & listeners
+- **Listens to:** None (relies on `StartUpdatingComponent` for periodic `OnUpdate` calls).
+- **Pushes:** None.

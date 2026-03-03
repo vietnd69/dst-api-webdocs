@@ -1,49 +1,61 @@
 ---
 id: toggleableitem
 title: Toggleableitem
-description: Provides a basic toggle state and callback mechanism for items that can be turned on or off.
+description: Manages the toggle state (on/off) of an item and executes a user-defined callback when toggled.
+tags: [inventory, utility]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: inventory
+category_type: components
 source_hash: 967dd1e3
+system_scope: entity
 ---
 
 # Toggleableitem
 
-## Overview
-This component implements a simple on/off toggle state for an entity—typically used for handheld items like lanterns or tools—and optionally invokes a user-defined callback function when the state changes.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`ToggleableItem` is a simple utility component that tracks whether an item is in an "on" or "off" state and triggers a customizable callback function whenever the state changes. It is designed to be attached to prefabs that need a binary toggle behavior (e.g., lanterns, lighters, or wearable items with active/passive modes). It does not directly interact with other components but relies on external logic to call `ToggleItem()` (e.g., via `onaction` or `inventoryitem` usage events).
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("toggleableitem")
+inst.components.toggleableitem:SetOnToggleFn(function(item, is_on)
+    if is_on then
+        item.components.light:Enable(true)
+    else
+        item.components.light:Enable(false)
+    end
+end)
+inst.components.toggleableitem:ToggleItem() -- toggles state and triggers callback
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | Reference to the entity the component is attached to. |
-| `onusefn` | `function?` | `nil` | Optional callback function invoked when the item is toggled; signature: `function(inst, is_on)`. |
-| `onstopusefn` | `function?` | `nil` | Reserved placeholder; not initialized or used in the current implementation. |
-| `on` | `boolean` | `false` | Current toggle state (`true` = on, `false` = off). |
-| `stopuseevents` | `table?` | `nil` | Reserved placeholder; not initialized or used in the current implementation. |
+| `on` | boolean | `false` | Current toggle state (`true` = on, `false` = off). |
+| `onusefn` | function or `nil` | `nil` | Callback function executed on toggle; receives `(item_inst, is_on)` as arguments. |
+| `stopuseevents` | table or `nil` | `nil` | Reserved field (unused in current implementation). |
+| `inst` | Entity | `nil` | Reference to the entity owning this component. |
 
-## Main Functions
-
+## Main functions
 ### `SetOnToggleFn(fn)`
-* **Description:** Assigns a callback function to be executed whenever `ToggleItem()` is called. The callback receives the entity instance and the new toggle state.
-* **Parameters:**  
-  - `fn` (`function?`): A function to call on toggle, with signature `function(inst, is_on)`.
-
-### `CanInteract(doer)`
-* **Description:** Determines whether the given entity (`doer`) can interact with this item. Currently always returns `true`, indicating unrestricted access.
-* **Parameters:**  
-  - `doer` (`Entity`): The entity attempting interaction.
+* **Description:** Sets the callback function that is executed whenever `ToggleItem()` is called. The function is invoked *after* the `on` state is updated.
+* **Parameters:** `fn` (function or `nil`) — A function that takes two arguments: `item_inst` (the entity), and `is_on` (boolean indicating the new state). Passing `nil` disables the callback.
+* **Returns:** Nothing.
 
 ### `ToggleItem()`
-* **Description:** Inverts the current toggle state (`on`), and if `onusefn` is set, invokes it with the entity and new state as arguments.
+* **Description:** Toggles the `on` state and executes the callback function (if set).
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified

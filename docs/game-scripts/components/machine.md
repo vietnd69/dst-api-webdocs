@@ -1,106 +1,105 @@
 ---
 id: machine
 title: Machine
-description: Manages machine state including on/off status, cooldown, and ground-only behavior within the Entity Component System.
+description: Manages machine state including power (on/off), cooldowns, and interaction permissions.
+tags: [machine, state, cooldown, interaction]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: b4b044b6
+system_scope: entity
 ---
 
 # Machine
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Machine` component provides core logic for entity-based machines—tracking whether the machine is active (`ison`), managing cooldown periods after activation/deactivation, supporting optional ground-only placement, and emitting events when turned on/off. It integrates with tags and tasks to synchronize state with the game world and other systems.
+`Machine` is an entity component that manages core operational states for in-game machines: power (`ison`), cooldown (`oncooldown`), availability (`enabled`), and ground-only restrictions (`groundonly`). It supports save/load persistence, provides turn-on/turn-off hooks via callbacks, and emits events on state changes. It does not manage fuel, cooling, or complex logic—those responsibilities belong to other components or prefabs.
 
-## Dependencies & Tags
-**Tags added/removed dynamically by component behavior:**
-- `"turnedon"` — added when `ison = true`, removed when `ison = false`.
-- `"cooldown"` — added when `oncooldown = true`, removed when `oncooldown = false`.
-- `"enabled"` — added when `enabled = true`, removed when `enabled = false`.
-- `"groundonlymachine"` — added when `groundonly = true`, removed otherwise.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("machine")
+inst.components.machine.turnonfn = function(entity) -- do something when turned on end
+inst.components.machine.turnofffn = function(entity) -- do something when turned off end
+inst.components.machine:TurnOn()
+inst.components.machine:TurnOff()
+```
 
-**Other dependencies:**
-- Relies on `inst:DoTaskInTime()` for cooldown timers.
-- Uses `inst:PushEvent()` to broadcast `"machineturnedon"` and `"machineturnedoff"`.
-
-**Note:** No components are explicitly added via `AddComponent()` in this file.
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds/removes `turnedon`, `cooldown`, `enabled`, `groundonlymachine` via `AddOrRemoveTag`. On removal, also removes `turnedon`, `cooldown`, and `groundonlymachine`.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed in constructor) | Reference to the parent entity instance. |
-| `turnonfn` | `function?` | `nil` | Optional callback function invoked when `TurnOn()` is called. |
-| `turnofffn` | `function?` | `nil` | Optional callback function invoked when `TurnOff()` is called. |
-| `ison` | `boolean` | `false` | Indicates if the machine is currently on. |
-| `cooldowntime` | `number` | `3` | Duration (in seconds) of the post-action cooldown period. |
-| `oncooldown` | `boolean` | `false` | Indicates if the machine is currently in a cooldown state. |
-| `enabled` | `boolean` | `true` | If `false`, the machine cannot interact with players or be used. |
-| `groundonly` | `boolean` | `false` | If `true`, the machine is restricted to ground-only placement (used via `SetGroundOnlyMachine`). |
-| `cooldowntask` | `Task?` | `nil` | Internal task handle for the cooldown timer; only created if `cooldowntime > 0`. |
+| `turnonfn` | function or `nil` | `nil` | Callback invoked when `TurnOn()` is called. Receives `inst` as argument. |
+| `turnofffn` | function or `nil` | `nil` | Callback invoked when `TurnOff()` is called. Receives `inst` as argument. |
+| `ison` | boolean | `false` | Whether the machine is currently powered on. |
+| `cooldowntime` | number | `3` | Duration in seconds of the cooldown period after turning on/off. |
+| `oncooldown` | boolean | `false` | Whether the machine is currently in cooldown (prevents further actions). |
+| `enabled` | boolean | `true` | Whether the machine is enabled for interaction. |
+| `groundonly` | boolean | `false` | Whether the machine must be placed on ground (no effect beyond tag; callers should enforce placement rules). |
+| `cooldowntask` | Task or `nil` | `nil` | Internal task tracking cooldown duration. Not part of public API. |
 
-## Main Functions
+## Main functions
+### `TurnOn()`
+* **Description:** Attempts to power the machine on. Initiates a cooldown period, invokes `turnonfn` if defined, and sets `ison = true`.  
+* **Parameters:** None.  
+* **Returns:** Nothing.  
+* **Error states:** Does not prevent overriding cooldown logic—`CanInteract()` should be checked externally before calling.
 
-### `Machine:OnRemoveFromEntity()`
-* **Description:** Cleans up state upon removal from an entity—removes all relevant tags and cancels pending cooldown task.
-* **Parameters:** None.
+### `TurnOff()`
+* **Description:** Attempts to power the machine off. Initiates a cooldown period, invokes `turnofffn` if defined, and sets `ison = false`.  
+* **Parameters:** None.  
+* **Returns:** Nothing.  
+* **Error states:** Same as `TurnOn()`.
 
-### `Machine:SetGroundOnlyMachine(groundonly)`
-* **Description:** Sets whether the machine is ground-only and updates the `"groundonlymachine"` tag accordingly.
-* **Parameters:**
-  - `groundonly` (`boolean`): Flag indicating if the machine must be placed on the ground.
+### `StartCooldown()`
+* **Description:** Begins the cooldown timer using `cooldowntime` seconds. Cancels any existing cooldown task before starting a new one.  
+* **Parameters:** None.  
+* **Returns:** Nothing.
 
-### `Machine:OnSave()`
-* **Description:** Serializes the machine’s state for saving—currently only the `ison` property.
-* **Parameters:** None.
-* **Returns:** `table` with `{ ison = self.ison }`.
+### `StopCooldown()`
+* **Description:** Immediately cancels and resets the cooldown. Sets `oncooldown = false`.  
+* **Parameters:** None.  
+* **Returns:** Nothing.
 
-### `Machine:OnLoad(data)`
-* **Description:** Restores machine state from saved data and ensures tags/callbacks reflect the loaded status.
-* **Parameters:**
-  - `data` (`table?`): Saved state, expected to contain `data.ison`. If present, re-applies `TurnOn()` or `TurnOff()` to ensure consistency.
+### `CanInteract()`
+* **Description:** Determines if the machine is currently eligible for player interaction. Checks fuel, equipment state, and `enabled` flag.  
+* **Parameters:** None.  
+* **Returns:** `true` if interaction is allowed; `false` otherwise.  
+* **Error states:** Expects `equippable` and `inventoryitem` replicas to be present if applicable; returns `true` if replicas are absent.
 
-### `Machine:StartCooldown()`
-* **Description:** Initiates a cooldown timer; sets `oncooldown = true` and schedules a delayed task to reset it. Does nothing if `cooldowntime <= 0`.
-* **Parameters:** None.
+### `IsOn()`
+* **Description:** Returns whether the machine is currently on.  
+* **Parameters:** None.  
+* **Returns:** `true` if `ison` is `true`; otherwise `false`.
 
-### `Machine:StopCooldown()`
-* **Description:** Cancels any pending cooldown task and immediately ends cooldown state.
-* **Parameters:** None.
+### `SetGroundOnlyMachine(groundonly)`
+* **Description:** Sets the `groundonly` flag and updates the `groundonlymachine` tag.  
+* **Parameters:** `groundonly` (boolean) – whether the machine must be placed on the ground.  
+* **Returns:** Nothing.
 
-### `Machine:TurnOn()`
-* **Description:** Activates the machine: starts cooldown, invokes `turnonfn` (if set), sets `ison = true`, and emits `"machineturnedon"` event.
-* **Parameters:** None.
+### `OnSave()`
+* **Description:** Serializes component state for saving.  
+* **Parameters:** None.  
+* **Returns:** Table `{ ison = boolean }`.
 
-### `Machine:TurnOff()`
-* **Description:** Deactivates the machine: starts cooldown, invokes `turnofffn` (if set), sets `ison = false`, and emits `"machineturnedoff"` event.
-* **Parameters:** None.
+### `OnLoad(data)`
+* **Description:** Restores component state after loading. Restarts current power state via `TurnOn()` or `TurnOff()`.  
+* **Parameters:** `data` (table or `nil`) – save data as returned by `OnSave()`.  
+* **Returns:** Nothing.
 
-### `Machine:IsOn()`
-* **Description:** Returns the current on/off state.
-* **Parameters:** None.
-* **Returns:** `boolean` (`true` if `ison == true`).
+### `GetDebugString()`
+* **Description:** Returns a compact debug representation of internal state.  
+* **Parameters:** None.  
+* **Returns:** String in the format `"on={bool}, cooldowntime={float}, oncooldown={bool}"`.
 
-### `Machine:CanInteract()`
-* **Description:** Checks if the machine is ready for player interaction. Considers fuel status, item equipment state, and enabled flag.
-* **Parameters:** None.
-* **Returns:** `boolean` (`true` if no `"fueldepleted"` tag, not unequipped and held, and `enabled == true`).
-
-### `Machine:GetDebugString()`
-* **Description:** Generates a formatted debug string for inspection (e.g., in console or logs).
-* **Parameters:** None.
-* **Returns:** `string` — e.g., `"on=true, cooldowntime=3.00, oncooldown=false"`.
-
-## Events & Listeners
-- Listens to internal state changes via setter callbacks:
-  - `ison` → triggers `onison()` → adds/removes `"turnedon"` tag.
-  - `oncooldown` → triggers `ononcooldown()` → adds/removes `"cooldown"` tag.
-  - `enabled` → triggers `onenabled()` → adds/removes `"enabled"` tag.
-  - `groundonly` → triggers `ongroundonly()` → adds/removes `"groundonlymachine"` tag.
-- Emits events:
-  - `"machineturnedon"` — pushed in `TurnOn()`.
-  - `"machineturnedoff"` — pushed in `TurnOff()`.
+## Events & listeners
+- **Listens to:** None identified  
+- **Pushes:** `machineturnedon` (when `TurnOn()` completes), `machineturnedoff` (when `TurnOff()` completes)

@@ -4,7 +4,6 @@ title: Beefalo
 description: Defines a forest room template named "BeefalowPlain" that procedurally populates the world with grass and beefalo entities during map generation.
 tags: [world, room, spawn, generation]
 sidebar_position: 1
-
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: 1bfad8b2
 ---
-
 # Beefalo
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -36,4 +34,3 @@ No functions are defined in this file. It is a top-level script that registers a
 ## Events & listeners
 No events or listeners are defined in this file.
 
----

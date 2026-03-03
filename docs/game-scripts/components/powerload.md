@@ -1,46 +1,61 @@
 ---
 id: powerload
 title: Powerload
-description: Manages the electrical load and idle state for entities that consume or supply power in Don't Starve Together.
+description: Stores and manages a numeric power load value and idle state for an entity.
+tags: [power, state, storage]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: e9c6d378
+system_scope: entity
 ---
 
 # Powerload
 
-## Overview
-The `PowerLoad` component tracks and exposes the electrical load (power consumption or generation) and idle state of an entity within the game's power grid system. It serves as a simple data container for power-related attributes, used by power-generating and power-consuming devices like generators, batteries, and wiring components.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified
+## Overview
+`Powerload` is a simple utility component that tracks a numeric `load` value (defaulting to `1`) and a boolean `isidle` flag. It provides methods to read, update, and inspect these values. It is designed to be lightweight and is typically attached to entities requiring power-level tracking.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("powerload")
+inst.components.powerload:SetLoad(0.75, true)
+print(inst.components.powerload:GetLoad()) -- 0.75
+print(inst.components.powerload:IsIdle())  -- true
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity this component is attached to. |
-| `load` | `number` | `1` | The magnitude of electrical load (positive for consumption, negative for generation). |
-| `isidle` | `boolean` | `false` | Indicates whether the entity is in an idle state (e.g., inactive or off). |
+| Property | Type   | Default Value | Description                     |
+|----------|--------|---------------|---------------------------------|
+| `load`   | number | `1`           | Current power load value.       |
+| `isidle` | boolean| `false`       | Whether the power load is idle. |
 
-## Main Functions
+## Main functions
 ### `SetLoad(_load, idle)`
-* **Description:** Updates the electrical load value and idle state.
+* **Description:** Updates the power load value and optionally sets the idle state.
 * **Parameters:**
-  * `_load` (`number`): The new load value.
-  * `idle` (`boolean?`): If `true`, sets the entity to idle state; otherwise remains unchanged unless explicitly set.
+  * `_load` (number) — the new power load value.
+  * `idle` (boolean, optional) — if `true`, marks the load as idle; defaults to `false` if omitted or not `true`.
+* **Returns:** Nothing.
 
 ### `GetLoad()`
-* **Description:** Returns the current electrical load value.
+* **Description:** Returns the current power load value.
 * **Parameters:** None.
+* **Returns:** `number` — the stored `load` value.
 
 ### `IsIdle()`
-* **Description:** Returns whether the entity is currently in an idle state.
+* **Description:** Returns whether the power load is currently marked as idle.
 * **Parameters:** None.
+* **Returns:** `boolean` — `true` if `isidle` is set; otherwise `false`.
 
-## Events & Listeners
+## Events & listeners
 None identified

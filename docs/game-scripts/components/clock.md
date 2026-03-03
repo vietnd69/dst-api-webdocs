@@ -1,88 +1,111 @@
 ---
 id: clock
 title: Clock
-description: This component manages the game world's day/dusk/night cycle, moon phases, and overall time progression.
+description: Manages game time, day/night cycles, and moon phase progression for the world.
+tags: [world, time, cycle, moon]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: b5560eee
+system_scope: world
 ---
 
 # Clock
 
-## Overview
-The Clock component is a fundamental system responsible for tracking and managing the game's temporal progression. It governs the day, dusk, and night phases, advances game cycles, handles the moon's waxing and waning, and provides mechanisms for other game systems to query and react to time-based events. It synchronizes time across network clients and saves/loads its state for persistent worlds.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Clock` is a core world-level component responsible for tracking and synchronizing time progression, including day/night phases, cycle counts, and lunar phases. It handles time discretization into segments (`segs`), maintains phase durations, and manages moon waxing/waning cycles. The component operates differently on master simulation (server), secondary shards, and clients, ensuring consistent state across networked instances. It emits events on time changes and supports save/load functionality for persistent world state.
+
+## Usage example
+```lua
+-- On an entity (typically TheWorld or a world controller instance)
+inst:AddComponent("clock")
+
+-- Query time until a specific phase
+local time_until_dusk = inst.components.clock:GetTimeUntilPhase("dusk")
+
+-- Force a phase change (on master simulation)
+inst.components.clock.inst:PushEvent("ms_setphase", "night")
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `clock` tag to `inst`. No explicit tag operations are performed beyond entity ownership.
 
 ## Properties
-No public properties were clearly identified from the source. The component's state is primarily managed through internal network variables and exposed via events or specific getter functions.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | — | The entity instance owning this component (typically `TheWorld`). |
+| `_segs` | Array of `net_smallbyte` | `[TUNING.DAY_SEGS_DEFAULT, TUNING.DUSK_SEGS_DEFAULT, TUNING.NIGHT_SEGS_DEFAULT]` | Networked segment counts per phase (day/dusk/night). |
+| `_cycles` | `net_ushortint` | `0` | Total world cycles elapsed (full moon cycles). |
+| `_phase` | `net_tinybyte` | `PHASES.day` (i.e., `1`) | Current phase index (`1=day`, `2=dusk`, `3=night`). |
+| `_moonphase` | `net_tinybyte` | `1` (new moon) | Current moon phase index (`1..5`: new, quarter, half, threequarter, full). |
+| `_mooniswaxing` | `net_bool` | `true` | Whether the current moon cycle is waxing (`true`) or waning (`false`). |
+| `_totaltimeinphase` | `net_float` | `segs[phase] * TUNING.SEG_TIME` | Total duration (in seconds) of the current phase. |
+| `_remainingtimeinphase` | `net_float` | `totaltimeinphase` | Remaining time (in seconds) in the current phase. |
+| `_moonphasestyle` | `net_tinybyte` | `0` (default) | Current visual style index for moon phases. |
 
-## Main Functions
+## Main functions
 ### `GetTimeUntilPhase(phase)`
-*   **Description:** Calculates the remaining time in seconds until a specified phase of the day (day, dusk, or night) is reached.
-*   **Parameters:**
-    *   `phase`: (string) The name of the target phase (e.g., "day", "dusk", "night").
+*   **Description:** Computes the remaining time (in seconds) until the game transitions to the specified phase.  
+*   **Parameters:** `phase` (string) — Target phase name: `"day"`, `"dusk"`, or `"night"`.  
+*   **Returns:** `number` — Time in seconds until the target phase begins. Returns `0` if the target is invalid or matches the current phase.  
+*   **Error states:** Returns `0` if `phase` does not match a known phase name.
 
 ### `AddMoonPhaseStyle(style)`
-*   **Description:** Adds a new moon phase style name to the list of available styles. This allows for custom visual representations of moon phases.
-*   **Parameters:**
-    *   `style`: (string) The name of the new moon phase style to add.
+*   **Description:** Registers a new moon phase visual style (for UI or rendering). Modifies the global `MOON_PHASE_STYLE_NAMES` and `MOON_PHASE_STYLES` arrays.  
+*   **Parameters:** `style` (string) — Unique identifier for the new style (e.g., `"glassed_alter_active"`).  
+*   **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-*   **Description:** The primary update function called every frame to advance the clock. It manages the reduction of remaining time in the current phase, transitions between phases and cycles, and triggers events for time-related changes. On the master shard, it advances the game's internal clock and moon phase. On clients and secondary shards, it mostly simulates local time and awaits server synchronization for phase/cycle changes.
-*   **Parameters:**
-    *   `dt`: (number) The delta time since the last update, in seconds.
-
-### `OnSave()`
-*   **Description:** Serializes the current state of the clock component for saving the game. This function is only executed on the master simulation.
-*   **Parameters:** None.
-
-### `OnLoad(data)`
-*   **Description:** Deserializes and restores the state of the clock component from saved game data. This function is only executed on the master simulation. It handles compatibility for older save data regarding moon phase cycles.
-*   **Parameters:**
-    *   `data`: (table) The table containing the saved clock data.
+*   **Description:** Core time-advancement logic. Runs on master simulation, shards, and clients. Advances `_remainingtimeinphase` based on `dt`, handles phase transitions, moon cycle progression, and emits change events.  
+*   **Parameters:** `dt` (number) — Delta time in seconds since the last update.  
+*   **Returns:** Nothing.  
+*   **Error states:** None.
 
 ### `Dump()`
-*   **Description:** Prints various internal clock states and debug information to the console. Useful for debugging time-related issues.
-*   **Parameters:** None.
+*   **Description:** Prints current clock state (segs, cycles, phase, moon phase, timing) to the console for debugging.  
+*   **Parameters:** None.  
+*   **Returns:** Nothing.
 
 ### `GetDebugString()`
-*   **Description:** Returns a formatted string containing summary debug information about the current clock state, including cycle, phase, remaining time, and moon phase cycle.
-*   **Parameters:** None.
+*   **Description:** Returns a compact formatted string summarizing the current clock state.  
+*   **Parameters:** None.  
+*   **Returns:** `string` — e.g., `"4 day: 59.80 : 120.00 (moon cycle: 1)"`.
 
-## Events & Listeners
-This component listens for and pushes several events, both for internal synchronization and for other game systems to react to time changes.
+### `OnSave()`
+*   **Description:** Serializes clock state for saving. Only active on master simulation.  
+*   **Parameters:** None.  
+*   **Returns:** `table` — Save data containing `segs`, `cycles`, `phase` (as string), `mooomphasecycle`, `totaltimeinphase`, `remainingtimeinphase`.
 
-**Listeners:**
-*   `segsdirty`: Triggered when the `_segs` network variable is updated, indicating a change in the length of day, dusk, or night segments.
-*   `cyclesdirty`: Triggered when the `_cycles` network variable is updated, indicating a change in the current day cycle count.
-*   `phasedirty`: Triggered when the `_phase` network variable is updated, indicating a change in the current phase (day, dusk, night).
-*   `moonphasedirty`: Triggered when the `_moonphase` or `_mooniswaxing` network variables are updated, indicating a change in the moon's phase or waxing/waning state.
-*   `moonphasestyledirty`: Triggered when the `_moonphasestyle` network variable is updated, indicating a change in the active moon phase visual style.
-*   `playeractivated` (from `_world`): Forces all internal dirty flags to `true`, ensuring a full sync of clock information to newly active players.
-*   `ms_setclocksegs` (from `_world`, master sim only): Used by the master simulation to explicitly set the lengths of the day, dusk, and night segments.
-*   `ms_setphase` (from `_world`, master sim only): Used by the master simulation to explicitly set the current time of day phase.
-*   `ms_nextphase` (from `_world`, master sim only): Advances the clock immediately to the next phase.
-*   `ms_nextcycle` (from `_world`, master sim only): Advances the clock immediately to the next cycle (new day).
-*   `ms_setmoonphase` (from `_world`, master sim only): Used by the master simulation to explicitly set the current moon phase.
-*   `ms_lockmoonphase` (from `_world`, master sim only): Locks or unlocks the moon phase, preventing it from automatically advancing.
-*   `ms_setmoonphasestyle` (from `_world`, master sim only): Used by the master simulation to explicitly set the current moon phase visual style.
-*   `ms_simunpaused` (from `_world`, master sim only): Forces a resync of the `_remainingtimeinphase` network variable, correcting client-side simulation drift after a pause.
-*   `secondary_clockupdate` (from `_world`, master sim and not master shard only): Receives clock updates from a master shard to keep a secondary shard synchronized.
+### `OnLoad(data)`
+*   **Description:** Restores clock state from save data. Only active on master simulation. Includes fallbacks for legacy save files.  
+*   **Parameters:** `data` (table) — Save data from `OnSave()`.  
+*   **Returns:** Nothing.
 
-**Pushed Events:**
-*   `ms_cyclecomplete` (to `_world`, master shard only): Triggered when a new day cycle begins, providing the new cycle number.
-*   `clocksegschanged` (to `_world`): Triggered when the day/dusk/night segment lengths change, providing a table of new segment values.
-*   `cycleschanged` (to `_world`): Triggered when the current day cycle count changes, providing the new cycle number.
-*   `phasechanged` (to `_world`): Triggered when the current time of day phase changes (day, dusk, night).
-*   `moonphasechanged` (to `_world`): (Deprecated) Triggered when the moon phase changes, providing the new moon phase name.
-*   `moonphasechanged2` (to `_world`): Triggered when the moon phase changes, providing a table with the new moon phase name and whether it is waxing.
-*   `moonphasestylechanged` (to `_world`): Triggered when the moon phase visual style changes, providing the new style name.
-*   `clocktick` (to `_world`, every `OnUpdate`): Provides detailed current time information including the phase name, normalized time within the phase, and overall normalized time within a full day.
-*   `master_clockupdate` (to `_world`, master shard only): Sends comprehensive clock data (segs, cycles, phases, times) to secondary shards for synchronization.
+## Events & listeners
+- **Listens to:**  
+  - `"segsdirty"`, `"cyclesdirty"`, `"phasedirty"`, `"moonphasedirty"`, `"moonphasestyledirty"` — Internal flags reset on sync.  
+  - `"playeractivated"` (on `TheWorld`) — Marks all dirty flags true.  
+  - `"ms_setclocksegs"` (master) — Updates segment counts.  
+  - `"ms_setphase"` (master) — Forces a phase change.  
+  - `"ms_nextphase"` (master) — Advances to the next phase.  
+  - `"ms_nextcycle"` (master) — Advances to the next cycle (sets phase to `night`).  
+  - `"ms_setmoonphase"` (master) — Sets moon phase and waxing state.  
+  - `"ms_lockmoonphase"` (master) — Locks/unlocks moon progression.  
+  - `"ms_setmoonphasestyle"` (master) — Sets the moon visual style.  
+  - `"ms_simunpaused"` (master) — Forces resync of remaining time.  
+  - `"secondary_clockupdate"` (non-shard masters) — Syncs clock state from shard.  
+- **Pushes:**  
+  - `"clocksegschanged"` — When segment counts change.  
+  - `"cycleschanged"` — When cycle count increments.  
+  - `"phasechanged"` — When phase transitions (deprecated name `"moonphasechanged"` also pushed).  
+  - `"moonphasechanged2"` — When moon phase/waxing state changes.  
+  - `"moonphasestylechanged"` — When moon visual style changes.  
+  - `"clocktick"` — Every frame — provides normalized time data: `{ phase, timeinphase, time }`.  
+  - `"ms_cyclecomplete"` (master) — When a full moon cycle completes.  
+  - `"master_clockupdate"` (shards) — Broadcasts full clock state to non-shard masters.

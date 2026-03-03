@@ -1,74 +1,73 @@
 ---
 id: worldtemperature
 title: Worldtemperature
-description: Computes and manages world temperature by combining seasonal, phase, noise, and modifier factors, while driving seasonal visual bloom effects.
+description: Calculates and broadcasts the current world temperature based on season, phase, noise, and global modifiers, while managing summer bloom visual effects.
+tags: [temperature, environment, seasonal, network, fx]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 29f04e55
+system_scope: world
 ---
 
 # Worldtemperature
 
-## Overview
-This component calculates and broadcast the current world temperature in real time, incorporating seasonal progression, day/night cycles, noise-based variation, and global modifiers. It also drives seasonal bloom effects during summer days and synchronizes temperature data across networked clients and the server.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- `TheWorld` (global reference)
-- Listens for events: `"seasontick"`, `"clocktick"`, `"phasechanged"` (from `TheWorld`), and `"ms_simunpaused"` (server only).
-- Pushes events: `"temperaturetick"` (with calculated temperature), `"overridecolourmodifier"` (summer bloom effect).
-- Adds network variable: `_noisetime` (float, GUID-bound) for deterministic noise synchronization.
+## Overview
+`Worldtemperature` is a world-level component responsible for computing and distributing the current ambient temperature throughout the game world. It combines seasonal progression, day/night phase, Perlin noise for local variation, and global modifiers to determine a real-time temperature value. On the master simulation (server), it also drives summer bloom visual effects by pushing `overridecolourmodifier` events and periodically syncs state to clients via networked noise time. The component is attached to `TheWorld` and acts as the authoritative source for temperature-related data.
+
+## Usage example
+```lua
+-- Access the component attached to TheWorld
+local worldtemp = TheWorld.components.worldtemperature
+
+-- Apply a global temperature modifier (e.g., from a global weather event)
+worldtemp:SetTemperatureMod(1.2, -5)
+
+-- Temperature is updated automatically and broadcast via "temperaturetick" events
+```
+
+## Dependencies & tags
+**Components used:** None identified.  
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity the component is attached to (typically the world). |
-| `_world` | `TheWorld` | `TheWorld` | Global world instance reference (private). |
-| `_ismastersim` | `boolean` | `TheWorld.ismastersim` | Whether this instance is the master simulation (private). |
-| `_noisetime` | `net_float` | `0` | Networked noise time counter, used for deterministic temperature noise (private). |
-| `_seasontemperature` | `number` | Calculated at init | Current temperature contribution from the season (private). |
-| `_phasetemperature` | `number` | `0` | Current temperature contribution from day/night phase (private). |
-| `_globaltemperaturemult` | `number` | `1` | Global multiplier applied to final temperature (public via `SetTemperatureMod`) (private). |
-| `_globaltemperaturelocus` | `number` | `0` | Global temperature offset/locus applied to final temperature (public via `SetTemperatureMod`) (private). |
-| `_season` | `string` | `"autumn"` | Current season name (private). |
-| `_daylight` | `boolean` | `true` | Whether the current phase is daylight (private). |
+| `inst` | entity reference | `inst` (constructor parameter) | The entity (typically `TheWorld`) to which this component is attached. |
+| `_noisetime` | `net_float` | `0` | Networked value tracking accumulated elapsed time for temperature noise, synced every `NOISE_SYNC_PERIOD` (30s). |
 
-## Main Functions
+*Note: All other member variables are private (prefixed with `_`) and not intended for external access.*
 
+## Main functions
 ### `SetTemperatureMod(multiplier, locus)`
-* **Description:** Applies a global temperature modifier (multiplier and locus offset) to the final temperature calculation and immediately pushes a new temperature update. Used for effects like global warming, special biomes, or events.
-* **Parameters:**
-  - `multiplier` (`number`): Scaling factor applied to the temperature delta (default `1`).
-  - `locus` (`number`): Constant offset applied before scaling (default `0`).
+* **Description:** Applies a global temperature modifier by scaling variation around a new reference point (`locus`). Used for seasonal shifts, global events, or mod effects. Immediately triggers a temperature update and broadcast.
+* **Parameters:**  
+  - `multiplier` (number) — scaling factor applied to the raw temperature sum (typically `1.0` under normal conditions).  
+  - `locus` (number) — baseline offset added before applying the multiplier (e.g., `-10` cools the baseline).  
+* **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-* **Description:** Periodically updates the noise time, recalculates summer bloom, and pushes the current temperature to listeners. Runs on both client and server (server handles authoritative syncing; client simulates and adjusts based on server syncs).
-* **Parameters:**
-  - `dt` (`number`): Delta time in seconds since the last update.
+* **Description:** Called each frame on both master and client to advance noise time, update summer bloom visuals, and push the latest temperature. On the master simulation, it also enforces periodic network sync of `_noisetime`.
+* **Parameters:**  
+  - `dt` (number) — delta time in seconds since the last update.  
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted string for debugging tools, showing the current calculated temperature along with active modifiers.
-* **Returns:** `string` — e.g., `"23.45C mult: 1.10 locus 2.0"`
+* **Description:** Returns a formatted debug string for debugging tools, showing the current computed temperature and modifier parameters.
+* **Parameters:** None.  
+* **Returns:** `string` — e.g., `"22.50C mult: 1.20 locus -5.0"`.
 
-### `OnSave()`
-* **Description:** (Server only) Serializes core state for save file compatibility.
-* **Returns:** `table` — containing `daylight`, `season`, `seasontemperature`, `phasetemperature`, and `noisetime`.
-
-### `OnLoad(data)`
-* **Description:** (Server only) Restores component state from a saved data table upon world load.
-* **Parameters:**
-  - `data` (`table`): Serialized component state from `OnSave()`.
-
-## Events & Listeners
-- **Listens:**
-  - `"seasontick"` (from `TheWorld`) → updates `_seasontemperature` and season tracking
-  - `"clocktick"` (from `TheWorld`) → updates `_phasetemperature` based on time-of-day phase
-  - `"phasechanged"` (from `TheWorld`) → updates `_daylight` flag
-  - `"ms_simunpaused"` (server only) → forces resync of networked noise time
-- **Triggers:**
-  - `"temperaturetick"` (to `TheWorld`) — carries the newly calculated temperature value
-  - `"overridecolourmodifier"` (to `TheWorld`) — carries summer bloom intensity value (only active in summer daylight)
+## Events & listeners
+- **Listens to:**  
+  - `seasontick` (from `TheWorld`) — updates `_seasontemperature` using seasonal progression.  
+  - `clocktick` (from `TheWorld`) — updates `_phasetemperature` using time-of-day phase.  
+  - `phasechanged` (from `TheWorld`) — updates `_daylight` flag (`true` for day, `false` for night/dusk).  
+  - `ms_simunpaused` (from `TheWorld`, master-only) — forces resync of `_noisetime` after unpausing.  
+- **Pushes:**  
+  - `temperaturetick` (to `TheWorld`) — every update, carries the current computed temperature (number).  
+  - `overridecolourmodifier` (to `TheWorld`) — during summer days, carries the bloom intensity multiplier used for colour grading.

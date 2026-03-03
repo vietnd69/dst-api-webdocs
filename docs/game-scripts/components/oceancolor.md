@@ -1,65 +1,75 @@
 ---
 id: oceancolor
 title: Oceancolor
-description: This component dynamically adjusts the ocean floor color and texture blending over time in response to world phase changes (e.g., dusk, night).
+description: Manages dynamic color and texture blending for the ocean floor and sky based on time of day phases (day, dusk, night, no_ocean).
+tags: [environment, world, map, rendering]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: bf74ed65
+system_scope: environment
 ---
 
 # Oceancolor
 
-## Overview
-The `Oceancolor` component manages real-time color interpolation and ocean texture blending for the game world's ocean floor. It responds to phase changes (e.g., day, dusk, night) by smoothly transitioning between predefined color states and updating the world's clear color and ocean texture blend amount via the map rendering system.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependency:** Relies on the entity (`inst`) supporting `StartUpdatingComponent`, `StartWallUpdatingComponent`, and `ListenForEvent`.
-- **Tags Added:** None.
-- **Tags Removed:** None.
-- **Uses:** `TheWorld.Map` (global), `COLORS` table (local constant), and standard math helpers (`Lerp`, `shallowcopy`).
+## Overview
+`OceanColor` is a world-level component responsible for smoothly transitioning the ocean's visual appearance (including clear color and texture blend) in response to time-of-day phase changes (`phasechanged` events). It integrates with `TheWorld.Map` to update rendering parameters in real time. The component operates on the client-side (via wall updates) and interpolates between predefined color/blend states for `default`, `dusk`, `night`, and `no_ocean` phases.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("oceancolor")
+inst.components.oceancolor:Initialize(true) -- enables ocean rendering
+inst.components.oceancolor:OnPostInit()     -- fixes potential client-side initialization bug
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified  
 
 ## Properties
 | Property | Type | Default Value | Description |
-|---|---|---|---|
-| `inst` | `Entity` | `nil` (assigned in constructor) | Reference to the owner entity (typically `TheWorld`) |
-| `start_color` | `array[4]` of `number` (RGBA) | Copy of `COLORS.default.color` | RGBA values for the starting color in the current blend |
-| `current_color` | `array[4]` of `number` (RGBA) | Copy of `COLORS.default.color` | Current interpolated RGBA color (updated every `OnWallUpdate`) |
-| `end_color` | `array[4]` of `number` (RGBA) | Copy of `COLORS.default.color` | Target RGBA color for the current blend |
-| `start_ocean_texture_blend` | `number` | `COLORS.default.ocean_texture_blend` | Starting texture blend amount |
-| `current_ocean_texture_blend` | `number` | `COLORS.default.ocean_texture_blend` | Current interpolated texture blend amount |
-| `end_ocean_texture_blend` | `number` | `COLORS.default.ocean_texture_blend` | Target texture blend amount |
-| `lerp` | `number` | `1` | Interpolation progress (0–1) between start and end values |
-| `lerp_delay` | `number` | `0` | Accumulated delay before lerp begins (increases up to `blend_delay`) |
-| `blend_delay` | `number` | `COLORS.default.blend_delay` | Delay (seconds) before interpolation starts after a phase change |
-| `blend_speed` | `number` | `COLORS.default.blend_speed` | Rate of interpolation per second (higher = faster transition) |
+|----------|------|---------------|-------------|
+| `start_color` | array of 4 numbers | `shallowcopy(COLORS.default.color)` | RGBA color at the beginning of a transition. |
+| `current_color` | array of 4 numbers | `shallowcopy(COLORS.default.color)` | Current interpolated RGBA color. |
+| `end_color` | array of 4 numbers | `shallowcopy(COLORS.default.color)` | Target RGBA color for the transition. |
+| `start_ocean_texture_blend` | number | `COLORS.default.ocean_texture_blend` | Starting texture blend amount (0 = no texture, 1 = full texture). |
+| `current_ocean_texture_blend` | number | `COLORS.default.ocean_texture_blend` | Current interpolated blend amount. |
+| `end_ocean_texture_blend` | number | `COLORS.default.ocean_texture_blend` | Target blend amount. |
+| `lerp` | number | `1` | Normalized interpolation progress (`0` to `1`). |
+| `lerp_delay` | number | `0` | Delay (in seconds) before interpolation starts. |
+| `blend_delay` | number | `COLORS.default.blend_delay` | Delay duration (seconds) per transition phase. |
+| `blend_speed` | number | `COLORS.default.blend_speed` | Speed factor for interpolation (higher = faster). |
 
-## Main Functions
-
+## Main functions
 ### `Initialize(has_ocean)`
-* **Description:** Initializes the ocean color state. If `has_ocean` is true, starts wall-updating and sets the world clear color to default; otherwise, sets it to `no_ocean` color.
-* **Parameters:**  
-  - `has_ocean` (`boolean`): Indicates whether ocean rendering should be active.
+* **Description:** Initializes the component and sets the initial clear color and wall update state. Should be called once after the component is added to an entity.
+* **Parameters:** `has_ocean` (boolean) – If `true`, enables wall updates and sets the default ocean clear color; otherwise, sets `no_ocean` clear color and disables wall updates.
+* **Returns:** Nothing.
 
 ### `OnPostInit()`
-* **Description:** Applies a workaround to force immediate texture blend updates on clients during load, preventing stuck blend states at daybreak. Sets the ocean texture blend to `1`, then immediately back to the current value to trigger a dirty state.
+* **Description:** Applies a client-side workaround to ensure ocean texture blending is correctly updated after loading, preventing stale values (e.g., `blend = 0`) at initial load.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnWallUpdate(dt)`
-* **Description:** Performs per-frame interpolation of color and texture blend values once the delay has elapsed. Updates the world clear color and ocean texture blend amount via `TheWorld.Map`.
-* **Parameters:**  
-  - `dt` (`number`): Delta time in seconds since the last frame.
+* **Description:** Called every frame during wall updates. Handles linear interpolation (`Lerp`) of color and texture blend, then updates `TheWorld.Map` with the new values.
+* **Parameters:** `dt` (number) – Time in seconds since the last update.
+* **Returns:** Nothing.
+* **Error states:** Returns early if `lerp >= 1`, i.e., interpolation is complete.
 
 ### `OnPhaseChanged(src, phase)`
-* **Description:** Handles phase-change events (e.g., `"dusk"`, `"night"`). Updates the target (`end_color`, `end_ocean_texture_blend`) and timing parameters (`blend_delay`, `blend_speed`) based on the new phase. Resets the lerp state to begin interpolation.
+* **Description:** Callback triggered on `"phasechanged"` events. Prepares the next interpolation by capturing the current state as `start_*`, updating `end_*` to the new phase’s settings, and resetting interpolation.
 * **Parameters:**  
-  - `src` (`Entity` or `nil`): The source of the event (typically `nil` for global phase changes).  
-  - `phase` (`string`): The new world phase (e.g., `"default"`, `"dusk"`, `"night"`, `"no_ocean"`). If unrecognized, defaults to `"default"`.
+  * `src` – Event source (unused in logic).  
+  * `phase` (string) – Phase name (e.g., `"default"`, `"dusk"`, `"night"`, `"no_ocean"`). If invalid, defaults to `"default"`.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- Listens for event `"phasechanged"` via `inst:ListenForEvent("phasechanged", ...)`, which triggers `OnPhaseChanged(src, phase)`.
-- Does **not** push or emit any events itself.
+## Events & listeners
+- **Listens to:** `phasechanged` – Triggers `OnPhaseChanged` to handle transitions.
+- **Pushes:** None identified.

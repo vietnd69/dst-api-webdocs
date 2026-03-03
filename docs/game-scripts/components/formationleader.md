@@ -1,115 +1,142 @@
 ---
 id: formationleader
 title: Formationleader
-description: Manages the behavior and coordination of a group of entities (formations) that move together in patterns relative to a leader entity.
+description: Manages a group of followers arranged in a dynamic formation around a target entity, handling formation membership, positioning, and disbanding.
+tags: [formation, ai, movement, group]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 71d0fefd
+system_scope: entity
 ---
 
 # Formationleader
 
-## Overview
-The `FormationLeader` component enables an entity to act as the leader of a dynamic formation—managing the inclusion, positioning, and coordination of follower entities in geometric arrangements, while responding to formation changes, disbanding, size limits, and target validity.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds/removes tags based on `formation_type`: `formationleader_<type>` (e.g., `formationleader_monster`) on the leader entity.
-- Assumes the following components exist on the leader and/or members:
-  - `health` (to check for death)
-  - `formationfollower` (on member entities)
-  - `combat` (to drop target)
-  - `follower` (optional; to sync leader with target)
-- Listens to entity events: `"death"`, `"onremove"`, `"onenterlimbo"` on members.
-- Uses `TheSim:FindEntities` to locate nearby formation leaders targeting the same entity.
+## Overview
+`FormationLeader` is a component that orchestrates a formation of followers around a designated target entity (e.g., a boss or player). It tracks participating entities, computes and updates relative positional offsets based on angular spacing and rotation, and manages lifecycle events such as formation fullness, member loss (e.g., death), and disbanding. It integrates with `combat`, `follower`, and `formationfollower` components to synchronize state and behavior across group members.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("formationleader")
+
+-- Initialize the leader with a target and first member
+inst.components.formationleader:SetUp(target_entity, first_follower)
+
+-- Start the update loop (handled automatically on add)
+inst.components.formationleader.onupdatefn = function(leader_inst)
+    print("Formation age:", leader_inst.components.formationleader.age)
+end
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `follower`, `formationfollower`, `health`  
+**Tags:** Adds `formationleader_<type>` (e.g., `formationleader_monster`) when formation type is set; checks `formation_<type>` on potential members.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `formation_type` | string | `"monster"` | Category/type of the formation, determines tagging and member eligibility. |
-| `max_formation_size` | number | `6` | Maximum number of members allowed in the formation. |
-| `formation` | table | `{}` | Map of member entities in the formation (keyed by entity reference). |
-| `target` | entity/`nil` | `nil` | The entity the formation is following/defending. |
-| `searchradius` | number | `50` | Radius used to find other formations during `OrganizeFormations`. |
-| `theta` | number | `math.random() * TWOPI` | Current angular offset (radians) for position calculation. |
-| `thetaincrement` | number | `1` | Angular step size per second for formation rotation. |
-| `radius` | number | `5` | Radial distance from leader for first member position. |
-| `reverse` | boolean | `false` | If `true`, rotation direction is inverted. |
-| `makeotherformationssecondaryfn` | function | `DefaultMakeOtherFormationsSecondary` | Callback to propagate formation parameters to other formations. |
-| `age` | number | `0` | Accumulated update time used for formation priority sorting. |
-| `ondisbandfn` | function (optional) | `nil` | Callback triggered on formation disband (commented out in source). |
-| `onupdatefn` | function (optional) | `nil` | Custom update hook (commented out in source). |
+| `formation_type` | string | `"monster"` | Identifier used in tag generation (e.g., `formationleader_monster`, `formation_monster`). |
+| `max_formation_size` | number | `6` | Maximum number of followers allowed in the formation. |
+| `formation` | table | `{}` | Table of active member entities in the formation. |
+| `target` | entity | `nil` | The entity the formation is arranged around (usually the leader’s target). |
+| `searchradius` | number | `50` | Radius used when searching for other formations with `OrganizeFormations`. |
+| `theta` | number | `math.random() * TWOPI` | Current angular offset for position calculation (radians). |
+| `thetaincrement` | number | `1` | Angular speed increment per second. |
+| `radius` | number | `5` | Radial distance of followers from the target. |
+| `reverse` | boolean | `false` | Whether the formation rotates clockwise (`true`) or counterclockwise (`false`). |
+| `makeotherformationssecondaryfn` | function | `DefaultMakeOtherFormationsSecondary` | Callback invoked when this leader is the oldest formation; configures other formations. |
+| `age` | number | `0` | Accumulated simulation time since formation creation (updated each `OnUpdate`). |
 
-## Main Functions
-
-### `GetFormationSize()`
-* **Description:** Returns the current count of valid, non-leader members in the formation.
-* **Parameters:** None.
-
+## Main functions
 ### `SetUp(target, first_member)`
-* **Description:** Initializes the leader with a target and first member; infers formation type from the first member and adds them.
-* **Parameters:**
-  - `target`: The entity to follow/defend (e.g., a player or structure).
-  - `first_member`: The first entity to join the formation; its `formationfollower.formation_type` sets the leader’s type.
-
-### `OrganizeFormations()`
-* **Description:** Scans for nearby leaders with the same target, sorts them by age (oldest wins), and if this leader is the oldest, calls `makeotherformationssecondaryfn` to adjust other formations’ parameters (e.g., radius, size).
-* **Parameters:** None.
-
-### `IsFormationFull()`
-* **Description:** Returns `true` if the current formation size has reached or exceeded `max_formation_size`.
-* **Parameters:** None.
-
-### `ValidMember(member)`
-* **Description:** Validates whether an entity qualifies to join the formation (alive, not in limbo, correct tags, no existing leader, etc.).
-* **Parameters:**
-  - `member`: The candidate entity to evaluate.
-
-### `DisbandFormation()`
-* **Description:** Clears the formation, notifies all members via their leave callbacks, unregisters event listeners, resets state, and removes the component.
-* **Parameters:** None.
-
-### `FormationSizeControl()`
-* **Description:** Truncates the formation to `max_formation_size` by removing excess members one-by-one.
-* **Parameters:** None.
+* **Description:** Initializes the formation with a target entity and adds the first member. Sets the formation type based on the first member’s `formationfollower` component.
+* **Parameters:**  
+  - `target` (entity) — the entity the formation orbits around (e.g., a boss or player).  
+  - `first_member` (entity) — the first follower to join; must have a `formationfollower` component.  
+* **Returns:** Nothing.
+* **Error states:** Does nothing if `first_member` lacks a `formationfollower` component.
 
 ### `NewFormationMember(member)`
-* **Description:** Adds a validated member to the formation, subscribes to its death/removal events, updates its follower state, and optionally syncs its follower leader.
-* **Parameters:**
-  - `member`: The entity to add to the formation.
+* **Description:** Adds a valid entity to the formation. Hooks into member’s death/remove events and updates their `formationfollower` state.
+* **Parameters:**  
+  - `member` (entity) — entity to add to the formation.  
+* **Returns:** Nothing.
+* **Error states:** Does nothing if `member` fails `ValidMember` checks (invalid, in limbo, dead, already in a formation, or missing the `formation_<type>` tag).
 
 ### `OnLostFormationMember(member)`
-* **Description:** Removes a member from the formation, fires leave callbacks, unsubscribes events, clears leader references, drops combat target, and stops following if applicable.
-* **Parameters:**
-  - `member`: The entity being removed.
+* **Description:** Removes a member from the formation, cleaning up callbacks and resetting their `formationfollower` state and loyalties.
+* **Parameters:**  
+  - `member` (entity) — entity to remove.  
+* **Returns:** Nothing.
 
 ### `GetFormationPositions()`
-* **Description:** Computes and assigns circular formation positions for all members relative to the leader’s current position and orientation.
-* **Parameters:** None.
+* **Description:** Computes and assigns `formationpos` to each member’s `formationfollower` component based on current angular position and radius.
+* **Parameters:** None.  
+* **Returns:** Nothing.
 
-### `IsFormationEmpty()`
-* **Description:** Returns `true` if the formation contains no members.
-* **Parameters:** None.
+### `IsFormationFull()`
+* **Description:** Checks if the formation has reached its maximum allowed size.
+* **Parameters:** None.  
+* **Returns:** `true` if the formation size is at least `max_formation_size`, otherwise `nil`.
 
-### `GetTheta(dt)`
-* **Description:** Calculates the next angular position (`theta`) based on rotation direction and delta time.
-* **Parameters:**
-  - `dt`: Delta time in seconds.
-
-### `ValidateFormation()`
-* **Description:** Ensures all members in the formation are still valid; removes any that are not (e.g., destroyed, removed).
-* **Parameters:** None.
+### `DisbandFormation()`
+* **Description:** Disbands the entire formation: calls optional `ondisbandfn`, removes all members, and destroys the component instance.
+* **Parameters:** None.  
+* **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-* **Description:** Core update loop: validates members, updates age, organizes cross-formation hierarchy, enforces size limits, rotates positions, and disbands if empty or target is lost.
-* **Parameters:**
-  - `dt`: Delta time in seconds.
+* **Description:** Main update function called each frame. Handles formation validation, size control, rotation, position updates, and disbanding if the formation is empty or target is invalid.
+* **Parameters:**  
+  - `dt` (number) — delta time in seconds.  
+* **Returns:** Nothing.
 
-## Events & Listeners
-- Listens to `"death"`, `"onremove"`, `"onenterlimbo"` on each member entity and triggers `OnLostFormationMember`.
-- Calls `DefaultMakeOtherFormationsSecondary` during `OrganizeFormations` to propagate settings; custom `makeotherformationssecondaryfn` may push logic or side effects, but no explicit events are emitted by this component.
+### `OrganizeFormations()`
+* **Description:** Finds nearby formations with the same target, sorts them by `age`, and promotes the oldest as the primary formation. Invokes `makeotherformationssecondaryfn` on other formations.
+* **Parameters:** None.  
+* **Returns:** Nothing.
+* **Error states:** Does nothing if this instance is not the oldest formation (returns early).
+
+### `ValidMember(member)`
+* **Description:** Validates whether an entity is eligible to join the formation.
+* **Parameters:**  
+  - `member` (entity) — entity to validate.  
+* **Returns:** `true` if valid, otherwise `nil`.
+
+### `GetFormationSize()`
+* **Description:** Returns the current number of non-leader members in the formation.
+* **Parameters:** None.  
+* **Returns:** `number` — count of active members.
+
+### `IsFormationEmpty()`
+* **Description:** Checks whether the formation has any members.
+* **Parameters:** None.  
+* **Returns:** `true` if empty, otherwise `false`.
+
+### `GetTheta(dt)`
+* **Description:** Computes the updated angular position (`theta`) based on rotation direction (`reverse`) and delta time.
+* **Parameters:**  
+  - `dt` (number) — delta time in seconds.  
+* **Returns:** `number` — updated theta value (radians).
+
+### `ValidateFormation()`
+* **Description:** Removes invalid (e.g., deleted) members from the formation.
+* **Parameters:** None.  
+* **Returns:** Nothing.
+
+### `FormationSizeControl()`
+* **Description:** Reduces the formation to `max_formation_size` by disbanding excess members.
+* **Parameters:** None.  
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:**  
+  - `death` (on members) — triggers `OnLostFormationMember`.  
+  - `onremove` (on members) — triggers `OnLostFormationMember`.  
+  - `onenterlimbo` (on members) — triggers `OnLostFormationMember`.  
+- **Pushes:** Events are pushed by callers of this component (e.g., `follower:SetLeader` fires `leaderchanged`), but this component itself does not push events directly.

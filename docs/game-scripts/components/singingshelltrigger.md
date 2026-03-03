@@ -1,54 +1,64 @@
 ---
 id: singingshelltrigger
 title: Singingshelltrigger
-description: Triggers activation logic on nearby singing shells when the entity (e.g., a player or builder) enters their detection range, and deactivates upon death.
+description: Triggers activation callbacks for nearby singing shell entities when the owner is alive, based on a configurable range.
+tags: [audio, entity, trigger]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 5a5b5d46
+system_scope: entity
 ---
 
 # Singingshelltrigger
 
-## Overview  
-This component monitors the entity's surroundings for nearby entities tagged with `"singingshell"` (and not `"INLIMBO"`) within a fixed range, and invokes a custom `_activatefn` callback on each newly detected shell. It automatically starts/stops its update loop in response to death and resurrection events, ensuring activation logic only runs while the entity is alive.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags  
-- **Component Requirements**: None (uses only built-in engine APIs like `TheSim:FindEntities` and component update infrastructure).
-- **Tags Added**: `"singingshelltrigger"`  
-- **Tags Removed on Remove**: `"singingshelltrigger"`  
-- **Listened Events**: `"death"`, `"respawnfromghost"`  
-- **External Dependency Check**: Verifies existence of `TheWorld.components.singingshellmanager` before starting updates.
+## Overview
+`Singingshelltrigger` is a passive component that monitors for nearby entities tagged `singingshell` within a defined range and invokes their activation function when they come into contact. It automatically starts updating only if a `singingshellmanager` component exists in the world. The component is typically attached to entities that act as activation sources for singing shells — for example, a musical instrument or a controller entity. It manages update lifecycle and overlapping state to ensure each shell is activated once per entry, and respects entity death/resurrection events.
 
-## Properties  
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("singingshelltrigger")
+inst.components.singingshelltrigger:SetTriggerRange(6)
+-- Note: The component only begins updating if TheWorld.components.singingshellmanager exists
+```
+
+## Dependencies & tags
+**Components used:** `singingshellmanager` (checked via `TheWorld.components.singingshellmanager`)
+**Tags:** Adds `singingshelltrigger`; listens for `death` and `respawnfromghost` events.
+
+## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `trigger_range` | number | `4` | Radius (in units) within which to scan for singing shells. |
-| `findentitiesfn` | function | `findentities` (local closure) | Function used to locate entities matching shell criteria. |
-| `updating` | boolean | `false` | Tracks whether the component’s `OnUpdate` is currently scheduled. |
-| `overlapping` | table | `{}` | Tracks which entities are currently overlapping; keys are entity instances, values are `true` (first frame) or `false` (subsequent frames). |
+| `trigger_range` | number | `4` | Maximum distance (in game units) within which to detect singing shell entities. |
+| `findentitiesfn` | function | `findentities` | Function used to locate nearby entities; accepts `(inst, range)` and returns a list of entities. |
+| `updating` | boolean | `false` | Whether the component is currently in the update loop. |
+| `overlapping` | table | `{}` | Tracks overlapping singing shells: keys are entity instances, values are booleans (`true` = just entered or in range; `false` = still in range but not newly entered). |
 
-## Main Functions  
-### `StartUpdating()`  
-* **Description:** Begins invoking `OnUpdate` each game tick by registering the component with the entity’s update manager. Ensures idempotency by only starting if not already updating.  
-* **Parameters:** None.  
+## Main functions
+### `StartUpdating()`
+* **Description:** Begins calling `OnUpdate` each tick for this component. Has no effect if already updating.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `StopUpdating()`  
-* **Description:** Halts the `OnUpdate` loop by unregistering the component from the entity’s update manager. Prevents unnecessary processing when inactive (e.g., on death).  
-* **Parameters:** None.  
+### `StopUpdating()`
+* **Description:** Halts the update loop for this component. Has no effect if not currently updating.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `OnUpdate()`  
-* **Description:** Executes each tick while `updating` is `true`. Clears stale overlap tracking, then scans for nearby singing shells and invokes `_activatefn(v, self.inst)` on newly detected shells. Maintains overlap state to differentiate first-frame detection from continued presence.  
-* **Parameters:** None.  
+### `OnUpdate()`
+* **Description:** Core update logic that scans for nearby singing shells, invokes their activation function on entry, and maintains state to prevent repeated activation per overlap cycle. Also clears stale entries.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** None.
 
-### `OnRemoveFromEntity()`  
-* **Description:** Cleans up upon component removal: removes the `"singingshelltrigger"` tag, and unregisters death/resurrection event callbacks.  
-* **Parameters:** None.  
-
-## Events & Listeners  
-- Listens to `"death"` → invokes `ondeath(inst)`, which calls `StopUpdating()`.  
-- Listens to `"respawnfromghost"` → invokes `onresurrect(inst)`, which calls `StartUpdating()`.
+## Events & listeners
+- **Listens to:**
+  - `death` – calls `StopUpdating()` when the owner dies.
+  - `respawnfromghost` – calls `StartUpdating()` when the owner respawns from ghost form.
+- **Pushes:** None.

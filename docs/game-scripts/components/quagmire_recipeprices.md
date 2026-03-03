@@ -1,57 +1,61 @@
 ---
 id: quagmire_recipeprices
 title: Quagmire Recipeprices
-description: Manages the queuing, syncing, and local display of recipe appraisal results in Quagmire multiplayer sessions.
+description: Manages the cooking recipe appraisal queue and network synchronization of recipe prices, dish types, and craving matches for Quagmire mode.
+tags: [quagmire, crafting, network, queue]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: crafting
+category_type: components
 source_hash: 48b2c48c
+system_scope: crafting
 ---
 
 # Quagmire Recipeprices
 
-## Overview
-This component handles the asynchronous appraisal of recipes in Quagmire mode. It queues recipe appraisal requests on the master simulation and synchronizes the results to all clients via networked variables, while also triggering local UI updates and asset loading on non-master instances.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependency**: Requires `inst` to support network variable sync (`net_string`, `net_tinybyte`, `net_bool`, `net_smallbyte`) and event system (`inst:ListenForEvent`, `inst:DoTaskInTime`).
-- **Tags/Constants**: Uses internal Quagmire constants (`CRAVING_NAMES`, `DISH_NAMES`, `NUM_COIN_TYPES`, `QUEUE_DELAY`) and `_ismastersim` to determine runtime behavior.
-- **No explicit tags** added or removed from the entity.
+## Overview
+`QuagmireRecipeprices` handles the queuing and replication of cooking recipe appraisal results in Quagmire mode. It is attached to the `quagmire_klumprecipe` entity and maintains a priority queue (`_queue`) of recipe appraisals on the master simulation. It synchronizes appraisal data (recipe name, dish type, coin values, matched craving, etc.) to clients via network variables and triggers the client-side rendering and logging of appraisal results. This component acts as a centralized channel for Recipe Appraisal event propagation within the Quagmire recipe workflow.
+
+## Usage example
+```lua
+-- Typically attached to the klump recipe entity automatically.
+-- No direct manual use is required; however, the master sim triggers appraisals:
+inst:PushEvent("ms_quagmirerecipeappraised", {
+    product = "cheese",
+    dish = "bowl",
+    silverdish = false,
+    maxvalue = true,
+    matchedcraving = "cheese",
+    snackpenalty = false,
+    coins = {1, 0, 2, 0},
+})
+```
+
+## Dependencies & tags
+**Components used:** None identified.  
+**Tags:** Adds `quagmire_klumprecipe` (via `inst:AddTag("quagmire_klumprecipe")` elsewhere in the prefab).  
+**Network variables:** Uses `net_string`, `net_tinybyte`, `net_bool`, `net_smallbyte` for replication.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity the component is attached to (typically the recipe appraiser). |
-| `_queue` (master only) | `table` | `{}` | Queue of pending recipe appraisal records on the master simulation. |
-| `_secrets` (master only) | `table` | `event_server_data("quagmire", "klump_secrets")` | Map of recipe names to klump cipher keys, sourced from server-side event data. |
-| `_task` | `Task?` | `nil` | Reference to the delayed task driving the queue on master or clearing stale recipes on clients. |
-| `_recipename` | `net_string` | `""` | Networked variable storing the name of the current appraised recipe. |
-| `_klumpkey` | `net_string` | `""` | Networked variable for the klump cipher key used in asset loading. |
-| `_dish` | `net_tinybyte` | `0` | Networked index into `DISH_NAMES` (0 = none). |
-| `_silverdish` | `net_bool` | `false` | Whether the appraisal used a silver dish. |
-| `_maxvalue` | `net_bool` | `true` | Whether the appraisal achieved maximum value. |
-| `_matchedcraving` | `net_smallbyte` | `0` | Index into `CRAVING_NAMES` (0 = none). |
-| `_snackpenalty` | `net_bool` | `false` | Whether the snack penalty applied to the appraisal. |
-| `_coins` | `array of net_smallbyte` | `{0,0,0,0}` | Array of 4 coin type values (coin types 1–4). |
+| `inst` | `GUID`-owned entity | `inst` passed to constructor | Reference to the entity this component is attached to. |
 
-## Main Functions
-### `OnRecipeDirty()`
-* **Description:** Processes a received recipe appraisal on non-master clients. Prints appraisal details, loads klump assets if enabled, and broadcasts a `"quagmire_recipeappraised"` event with full appraisal metadata.
-* **Parameters:** None (called as a network variable listener when `_recipename` changes).
+*Note:* All other member variables are private and prefixed with `_`.
 
-### `ProcessQueue()`
-* **Description:** On the master simulation, dequeues and applies the next recipe appraisal record to the network variables and triggers `OnRecipeDirty()` to propagate changes. Recursively schedules itself until the queue is empty.
-* **Parameters:** None.
+## Main functions
+No public functions are exposed. This component is entirely internal and event-driven.
 
-### `ClearRecipe()`
-* **Description:** On non-master clients, clears the local `_recipename` after a delay (`QUEUE_DELAY = 3` seconds) if no new appraisal is received. Ensures stale appraisals are cleared in the UI.
-* **Parameters:** None.
+## Events & listeners
+- **Listens to:**
+  - `ms_quagmirerecipeappraised` *(only on master simulation)*: Triggers queuing of a recipe appraisal. Called by `quagmire_klumprecipe` when a player completes an appraisal action. Data includes `product`, `dish`, `coins`, `matchedcraving`, etc.
+  - `recipedirty` *(only on clients)*: Fired internally via `inst:PushEvent("recipedirty")` when a recipe entry is fully synchronized, prompting client-side logging and `quagmire_recipeappraised` event propagation.
 
-## Events & Listeners
-- **Listens for `"ms_quagmirerecipeappraised"` (on master only):** Triggers `OnRecipeAppraised` to queue a new appraisal record from event data.
-- **Listens for `"recipedirty"` (on non-master only):** Triggers `OnRecipeDirty` when networked recipe data is synced.
-- **Triggers `"quagmire_recipeappraised"` (on non-master only, inside `OnRecipeDirty`):** Broadcasts full appraisal data (recipe name, dish, coins, etc.) to subscribed listeners (e.g., UI).
+- **Pushes:**
+  - `quagmire_recipeappraised` *(only on clients)*: Broadcasts with the fully resolved appraisal data: `product`, `dish`, `silverdish`, `maxvalue`, `matchedcraving`, `snackpenalty`, and `coins`. Used by UI and analytics systems.
+
+*Note:* `_queue` and `_secrets` are master-only and never replicated. `_recipename`, `_klumpkey`, `_dish`, `_silverdish`, `_maxvalue`, `_matchedcraving`, `_snackpenalty`, and `_coins` are replicated net-variables.

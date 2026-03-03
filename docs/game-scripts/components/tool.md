@@ -1,74 +1,84 @@
 ---
 id: tool
 title: Tool
-description: Manages tool-specific behavior including action capabilities, effectiveness, and breakage notification when usage drops to zero.
+description: Tracks which actions a tool can perform and their effectiveness, managing tag-based action identification and breaking behavior.
+tags: [inventory, combat, tools]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 598d2919
+system_scope: inventory
 ---
 
 # Tool
 
-## Overview
-The `Tool` component provides core tool functionality for entities in the Entity Component System. It enables an entity to declare which actions it can perform and with what effectiveness, manages a "tough work" capability, and automatically triggers a `"toolbroke"` event on its owner when its usage percentage reaches zero—unless the entity is rechargeable.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies:** Relies on `inventoryitem` and optionally `rechargeable` being present on the same entity.
-- **Tags Added:**
-  - `"tool"`: Added unconditionally on construction.
-  - `"ACTIONID_tool"`: Added per action type when `SetAction` is called (e.g., `"chop_tool"`).
-- **Tags Removed:** All `"tool"` and `"ACTIONID_tool"` tags are removed when the component is removed from the entity.
+## Overview
+The `Tool` component enables an entity to perform specific actions (e.g., chopping, mining, digging) with defined effectiveness. It automatically adds the `tool` tag to the entity and dynamically adds action-specific tags (e.g., `chop_tool`, `mine_tool`) when actions are registered. The component also monitors `percentusedchange` events to detect when a tool breaks (reaches 0% usage) and notifies the owner via a custom `toolbroke` event—unless a `rechargeable` component is present.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("tool")
+inst:AddComponent("inventoryitem")
+inst:AddComponent("rechargeable")  -- Optional: prevents toolbroke event on break
+
+local chopAction = { id = "chop" }
+inst.components.tool:SetAction(chopAction, 2.0)  -- 2x effectiveness for chopping
+
+print(inst.components.tool:GetEffectiveness("chop"))  -- outputs: 2.0
+print(inst.components.tool:CanDoAction("chop"))       -- outputs: true
+```
+
+## Dependencies & tags
+**Components used:** `inventoryitem` (to notify owner on break), `rechargeable` (suppresses break notification when present).  
+**Tags:** Adds `tool` unconditionally; adds `<action_id>_tool` for each registered action (e.g., `chop_tool`). Removes `tool` and all `<action_id>_tool` tags on removal.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `actions` | `table` | `{}` | Maps action objects to their numeric effectiveness values (default: `1`). |
-| `tough` | `boolean?` | `false` | Indicates whether the tool can perform tough work; controlled via `EnableToughWork` and queried via `CanDoToughWork`. |
+| `inst` | Entity | `nil` | Reference to the owning entity instance (set in constructor). |
+| `actions` | table | `{}` | Dictionary mapping action objects (e.g., `{ id = "chop" }`) to numeric effectiveness values. |
+| `tough` | boolean or nil | `nil` | Whether the tool is capable of performing "tough" work (e.g., breaking rock walls). |
 
-*Note:* No explicit `_ctor` is defined beyond the `Class` wrapper. All properties are initialized directly in the constructor function.
-
-## Main Functions
+## Main functions
+### `OnRemoveFromEntity()`
+* **Description:** Cleans up the component’s state when removed from an entity. Removes the `tool` and all action-specific tags, and unregisters the `percentusedchange` listener.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `EnableToughWork(tough)`
-* **Description:** Enables or disables the tool’s ability to perform tough work.
-* **Parameters:**
-  - `tough` (`boolean`): If `true`, the tool is marked as capable of tough work. If `false` or omitted, tough work is disabled.
+* **Description:** Enables or disables the tool’s ability to perform tough work. By default, `tough` is `true` if omitted or `true`; explicitly pass `false` to disable.
+* **Parameters:** `tough` (boolean) — whether the tool supports tough work.
+* **Returns:** Nothing.
 
 ### `CanDoToughWork()`
-* **Description:** Returns whether the tool is currently enabled for tough work.
-* **Returns:** `boolean` — `true` if `tough == true`, otherwise `false`.
+* **Description:** Reports whether the tool can perform tough work.
+* **Parameters:** None.
+* **Returns:** `true` if `self.tough == true`, otherwise `false`.
 
 ### `GetEffectiveness(action)`
-* **Description:** Retrieves the effectiveness value for a given action.
-* **Parameters:**
-  - `action` (`string` or `action object`): The action to query.
-* **Returns:** `number` — Effectiveness value if the action is registered, otherwise `0`.
+* **Description:** Returns the effectiveness multiplier for a given action string or object.
+* **Parameters:** `action` (string or table) — the action identifier (e.g., `"chop"` or `{ id = "chop" }`).
+* **Returns:** A number (the effectiveness value), or `0` if the action is not registered.
 
 ### `SetAction(action, effectiveness)`
-* **Description:** Registers an action and its effectiveness with this tool, and adds the corresponding `_tool` tag.
-* **Parameters:**
-  - `action` (`string` or `action object`): The action to register; must be a valid entry in `TOOLACTIONS`.
-  - `effectiveness` (`number?`): Optional effectiveness value (default: `1`).
-* **Throws:** `assert` error if `action.id` is not a valid `TOOLACTIONS` key.
+* **Description:** Registers an action for this tool and assigns its effectiveness. Automatically adds a tag `<action.id>_tool` to the entity.
+* **Parameters:**  
+  `action` (table) — an action object with an `id` field (e.g., `{ id = "mine" }`).  
+  `effectiveness` (number, optional) — effectiveness multiplier; defaults to `1`.
+* **Returns:** Nothing.
+* **Error states:** Asserts if `TOOLACTIONS[action.id]` is not defined (i.e., the action ID is invalid).
 
 ### `CanDoAction(action)`
-* **Description:** Checks whether the tool supports a given action.
-* **Parameters:**
-  - `action` (`string` or `action object`): The action to check.
-* **Returns:** `boolean` — `true` if the action is registered in `self.actions`, otherwise `false`.
+* **Description:** Checks if the tool supports the specified action.
+* **Parameters:** `action` (string or table) — the action identifier.
+* **Returns:** `true` if the action is registered, otherwise `false`.
 
-### `OnRemoveFromEntity()`
-* **Description:** Cleanup handler invoked when the component is removed from the entity. Removes all event listeners and tags associated with the tool.
-
-## Events & Listeners
-- **Listens to:**
-  - `"percentusedchange"`: Triggers `PercentChanged` when the entity’s usage percentage changes.
-- **Triggers:**
-  - `"toolbroke"`: Pushed on the tool’s owner when usage reaches `0%`, provided the tool is not rechargeable and has an owner with an `inventoryitem` component.
-
-*Note:* The `PercentChanged` function is a local event handler, not a method of the `Tool` class.
+## Events & listeners
+- **Listens to:** `percentusedchange` — triggers the internal `PercentChanged` callback when usage percentage changes; fires `toolbroke` on the owner when usage reaches `0`, unless `rechargeable` is present.
+- **Pushes:** none directly. However, the callback `PercentChanged` calls `owner:PushEvent("toolbroke", { tool = inst })` when the tool breaks.

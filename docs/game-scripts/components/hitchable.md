@@ -1,60 +1,73 @@
 ---
 id: hitchable
 title: Hitchable
-description: Enables an entity to be hitched to or un-hitched from another entity, managing tag states, sound effects, and combat-target relationships.
+description: Manages the hitched state of an entity, allowing it to be attached to or detached from another entity via a hitching mechanic.
+tags: [locomotion, interaction, state]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: aa144e47
+system_scope: entity
 ---
 
 # Hitchable
 
-## Overview
-The `Hitchable` component allows an entity to be hitched (attached) to a target entity (typically a hitching post or animal), preventing the entity from being considered "hitched" by adding the `"hitched"` tag when hitched, and vice versa. It manages hitch/unhitch logic, including sound playback, event listening for new combat targets, and synchronization with the target's hitch state.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Uses `SoundEmitter` component to play hitching/unhitching sounds.
-- Adds/removes the `"hitched"` tag on the entity depending on `canbehitched` state.
-- Listens for the `"newcombattarget"` event to automatically unhitch when a new combat target is assigned.
+## Overview
+`Hitchable` enables an entity to be hitched to another entity (e.g., a horse to a hitching post). It tracks whether the entity is currently hitched (`self.hitched`) and whether it can be hitched (`self.canbehitched`). The component coordinates sound playback, event listening (for combat target changes), and synchronization with the `hitcher` component on the target entity to ensure consistent hitching behavior on both ends.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("hitchable")
+-- Later, to hitch this entity to a target:
+if target and target.components.hitcher and target.components.hitcher:canbehitched() then
+    inst.components.hitchable:SetHitched(target)
+end
+-- To unhitch:
+inst.components.hitchable:Unhitch()
+```
+
+## Dependencies & tags
+**Components used:** `hitcher` (via `target.components.hitcher`)
+**Tags:** Adds/removes `hitched` tag on the entity based on hitch state.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `GameObject` | (from constructor) | The entity instance the component is attached to. |
-| `hitched` | `GameObject?` | `nil` | Reference to the entity this entity is currently hitched to. |
-| `canbehitched` | `boolean` | `true` | Controls whether the entity is currently hitched (`false` = hitched, `"hitched"` tag applied). |
+| `hitched` | `Entity` or `nil` | `nil` | Reference to the entity this entity is currently hitched to. |
+| `canbehitched` | boolean | `true` | Whether the entity is currently available to be hitched. |
 
-## Main Functions
-
+## Main functions
 ### `SetHitched(target)`
-* **Description:** Hitch the entity to the specified `target` entity. Plays a hitching sound, sets `canbehitched` to `false`, and begins listening for the `"newcombattarget"` event.  
-* **Parameters:**  
-  - `target` (`GameObject`): The entity to hitch to.
+*   **Description:** Hitch this entity to the given target entity. Plays the hitching sound, sets `canbehitched` to `false`, and begins listening for the `newcombattarget` event.
+*   **Parameters:** `target` (`Entity`) – the entity to hitch to. Must have a `hitcher` component.
+*   **Returns:** Nothing.
 
 ### `Unhitch()`
-* **Description:** Unhitch the entity from its current target. Plays an unhitching sound, removes the `"newcombattarget"` listener, sets `canbehitched` to `true`, and (if applicable) unhitches the target entity if it is itself hitched and its `canbehitched` flag becomes false.  
-* **Parameters:** None.
+*   **Description:** Unhitch this entity from its current target. Plays the unhitching sound, stops listening for `newcombattarget`, resets `canbehitched` to `true`, and also unhitches the target entity if it is not manually unhitched.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `GetHitch()`
-* **Description:** Returns the current hitched target, if any.  
-* **Parameters:** None.  
-* **Returns:** `GameObject?` — the entity this entity is hitched to, or `nil`.
+*   **Description:** Returns the entity this entity is currently hitched to.
+*   **Parameters:** None.
+*   **Returns:** `Entity` or `nil` – the hitched target, or `nil` if not hitched.
 
 ### `OnSave()`
-* **Description:** preparing data for save serialization. Currently returns an empty table (no persistent state).  
-* **Parameters:** None.  
-* **Returns:** `{}` — empty table.
+*   **Description:** Prepares data for saving the component state. Currently returns an empty table; no persistent state is saved.
+*   **Parameters:** None.
+*   **Returns:** `table` – an empty table `{}`.
 
 ### `OnLoad(data)`
-* **Description:** Restore state from saved data. Currently a no-op (no persistent state).  
-* **Parameters:**  
-  - `data` (`table`) — unused.
+*   **Description:** Restores component state after loading. Currently does nothing; no persistent state is restored.
+*   **Parameters:** `data` (`table`) – save data from `OnSave()`.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- Listens for `"newcombattarget"` (on `self.inst`) → triggers `onnewtarget`, which calls `Unhitch()`.
-- No events are explicitly pushed by this component.
+## Events & listeners
+- **Listens to:** `newcombattarget` – triggers `Unhitch()` when the entity gains a new combat target, ensuring hitching doesn’t interfere with movement or combat.
+- **Pushes:** None directly (events like `unhitched` are emitted by the `hitcher` component on the *other* entity when this component calls `hitcher:Unhitch()`).

@@ -1,52 +1,73 @@
 ---
 id: lunarhailmanager
 title: Lunarhailmanager
-description: Manages spawning, physics, and impact behavior of lunar hail debris during a lunar hail storm in Don't Starve Together.
+description: Manages spawning, physics, and impact behavior of falling debris during lunar hail storms, including damage application, shelter detection, and interaction with the world topology.
+tags: [weather, damage, world, events]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: environment
+category_type: map
 source_hash: 907e2dd4
+system_scope: environment
 ---
-
 # Lunarhailmanager
 
-## Overview
-This component handles the lifecycle of lunar hail debris—its spawning, fall physics, ground detection, damage application, and destruction—during active lunar hail storms. It operates exclusively on the master simulation side and coordinates with the world state (`islunarhailing`) to dynamically trigger and manage debris events around players, respecting sheltering mechanics and region-specific debris drop tables.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Usage:** Relies on `combat`, `sheltered`, `inventory`, `inventoryitem`, `farmplantstress`, `farmplanttendable`, `growable`, `lighttweener` components via `HasComponent()` checks on targets.
-- **Tags Used:** Applies `"lunarhailprotection"` check on players, and `"lunarhaildebris"` internally; uses `"shadecanopy"`, `"shadecanopysmall"`, `"player"`, `"INLIMBO"`, `"playerghost"`, `"invisible"`, `"epic"`, `"lunar_aligned"`, `"wall"`, `"hive"`, `"houndmound"`, `"farmplantstress"` for filtering and logic.
-- **Notable Tags Added:** None—does not mutate tags on entities.
+## Overview
+`Lunarhailmanager` is a component responsible for orchestrating the lunar hail event: it spawns falling debris (moonglass chunks) at random locations, simulates their physics as they fall, detects ground impact and target collision, applies damage or effects to players and plants, and manages shelter/coverage logic. It runs exclusively on the master simulation (`ismastersim`) and responds to world state changes and player lifecycle events. The component integrates with multiple others to enforce protection rules (`sheltered`, `inventory`, `combat`) and plant stress mechanics (`farmplantstress`, `farmplanttendable`, `growable`).
+
+## Usage example
+```lua
+-- Component is automatically added to TheWorld and activated by the lunar hail weather event.
+-- Modders typically interact indirectly by:
+-- - Setting custom debris via SetDebris()
+-- - Defining per-tile debris via SetTagDebris()
+-- - Enabling/disabling the lunar hail weather state.
+
+TheWorld.components.lunarhailmanager:SetDebris({
+    { weight = 3, loot = { "moonglass" } },
+    { weight = 1, loot = { "moonglass_charged" } },
+})
+
+TheWorld.components.lunarhailmanager:SetTagDebris("forest", {
+    { weight = 2, loot = { "twigs" } },
+})
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `farmplantstress`, `farmplanttendable`, `growable`, `inventory`, `inventoryitem`, `lighttweener`, `sheltered`  
+**Tags:** Checks tags like `"player"`, `"lunarhailprotection"`, `"INLIMBO"`, `"playerghost"`, `"invisible"`, `"epic"`, `"lunar_aligned"`, `"wall"`, `"hive"`, `"houndmound"`, `"lunarhaildebris"`, `"shadecanopy"`, `"shadecanopysmall"`, and `"player"` via `HasTag`. Adds `"lunarhaildebris"` to spawned debris prefabs internally.
 
 ## Properties
-No public instance properties are initialized directly on `self`. All state is held in local closure variables (e.g., `_enabled`, `_activeplayers`). The only property directly assigned on `self` is `self.inst`, which holds the component host entity (typically `TheWorld`).
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `GObject` | `nil` | Reference to the entity instance (always `TheWorld`) this component is attached to. |
 
-## Main Functions
+No additional public properties are exposed.
 
+## Main functions
 ### `SetDebris(data)`
-* **Description:** Sets the global default debris drop table for lunar hail events. Replaces `_debris` with `data` on the master side.
-* **Parameters:**
-  * `data` (table): An array of debris drop entries, each with `weight` and `loot` keys.
+* **Description:** Replaces the global fallback debris loot table used when a tile has no specific tag mapping. Must be called on the master simulation only.
+* **Parameters:** `data` (table) — An array of tables, each with `weight` (number) and `loot` (array of strings). Example: `{ { weight = 1, loot = { "moonglass" } } }`.
+* **Returns:** Nothing.
 
 ### `SetTagDebris(tile, data)`
-* **Description:** Assigns a custom debris drop table for a specific tile/tag (e.g., a terrain type or terrain tag). Stored in `_tagdebris[tile]`.
+* **Description:** Assigns a custom debris loot table for a specific world topology tile name (e.g., `"forest"`, `"cave"`). Must be called on the master simulation only.
 * **Parameters:**
-  * `tile` (string): The tag or identifier to associate the drop table with.
-  * `data` (table): A debris drop table with the same structure as used in `SetDebris`.
+  * `tile` (string) — The topology tile name.
+  * `data` (table) — Debris loot table with same structure as `SetDebris` input.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens:**
-  - `"ms_playerjoined"` on `TheWorld` — triggers `OnPlayerJoined`.
-  - `"ms_playerleft"` on `TheWorld` — triggers `OnPlayerLeft`.
-  - World state `"islunarhailing"` — triggers `ToggleLunarHail`.
-  - `"onremove"` on debris's `warningshadow` — triggers `OnRemoveDebris`.
-  - `"enterlimbo"` on debris — triggers `_DebrisOnEnterLimbo`.
-- **Triggers:**
-  - `"startfalling"` on debris when falling logic begins.
-  - `"stopfalling"` on debris when it lands and stabilizes or is exempted from further physics updates.
-  - `"GetAttacked"` call on valid targets via `combat:GetAttacked()` (not an event push, but part of impact logic).
-  - `PushEvent("startfalling")`, `PushEvent("stopfalling")` — used to notify other systems of debris state changes.
+## Events & listeners
+- **Listens to:**
+  * `ms_playerjoined` — Triggered when a new player joins the world; begins scheduling debris drops for that player if the event is active.
+  * `ms_playerleft` — Triggered when a player leaves; cancels pending drops and removes the player from the active list.
+  * `islunarhailing` (world state) — Watching this state triggers `ToggleLunarHail` when the lunar hail event starts or ends.
+  * `enterlimbo` (on spawned debris) — Handles cleanup when debris enters limbo.
+  * `onremove` (on shadow prefab) — Cleans up the shadow when debris is removed.
+- **Pushes:**
+  * `startfalling` — Fired on debris when falling begins.
+  * `stopfalling` — Fired on debris when it lands and stops bouncing.
+

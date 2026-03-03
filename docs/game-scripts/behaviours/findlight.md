@@ -1,57 +1,62 @@
 ---
 id: findlight
 title: Findlight
-description: A behaviour node that guides an entity toward the nearest valid light source within range, maintaining a safe distance once reached.
+description: A behavior tree node that moves an entity toward the nearest valid light source and maintains a safe distance within it.
+tags: [ai, behavior, light, navigation]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: behaviour
-system_scope: entity
+category_type: behaviours
 source_hash: da09eb43
+system_scope: locomotion
 ---
 
 # Findlight
 
-## Overview
-The `FindLight` component is a behaviour node used within DST's AI behaviour tree system. Its primary responsibility is to direct an entity (e.g., a mob or creature) to locate and approach the nearest light source (a GameObject with the `"lightsource"` tag) within a specified radius (`see_dist`), and then move to a safe distance (defined by `safe_dist`) from that source. It periodically re-evaluates the target and adjusts locomotion using the `locomotor` component. This behaviour is commonly used by light-averse or light-seeking entities in the game.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components used:**  
-  - `locomotor`: Calls `GoToPoint()` and `Stop()` to control entity movement.
-- **Tags:**  
-  - `"lightsource"`: Checked on candidate targets and the active target to confirm validity.
+## Overview
+`Findlight` is a behavior tree node responsible for directing an entity toward the nearest valid light source (an entity with the `"lightsource"` tag) and guiding it to move within a safe distance of that light. It periodically scans for nearby lights, selects the closest one within range, and uses the `locomotor` component to move toward and maintain proximity to the target. This node is typically used for entities that require illumination—for example, to avoid darkness-related mechanics or penalties.
+
+## Usage example
+```lua
+-- Typical usage inside a behavior tree for an AI
+local findlight = FindLight(entity, 20, 5)
+entity.brain:AppendNode(findlight)
+```
+
+## Dependencies & tags
+**Components used:** `locomotor`
+**Tags:** Checks for `"lightsource"` tag on potential targets. No tags are added/removed on `self.inst`.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity instance this behaviour belongs to. |
-| `targ` | `Entity?` | `nil` | The currently selected light source target. |
-| `see_dist` | `number` | — | Maximum radius to search for light sources. |
-| `safe_dist` | `number | function` | — | Desired minimum distance from the light source (resolved via `FunctionOrValue`). |
-| `lastchecktime` | `number` | `0` | Timestamp of the last target re-evaluation. |
-| `lastfollowchecktime` | `number` | `0` | Timestamp of the last follow/adjustment check. |
+| `inst` | `Entity` | — | The entity instance this behavior operates on. |
+| `targ` | `Entity?` | `nil` | The current target light source (or `nil` if none found). |
+| `see_dist` | number | — | Maximum search radius (distance) for finding light sources. |
+| `safe_dist` | number or function | — | Target safe distance from light source. May be a static number or a function `(inst, light) => number`. |
+| `lastchecktime` | number | `0` | Timestamp (via `GetTime()`) of the last full target scan. |
+| `lastfollowchecktime` | number | `0` | Timestamp of the last proximity/follow check. |
 
-## Main Functions
-
-### `FindLight:DBString()`
-* **Description:** Returns a human-readable string for debugging purposes, indicating the current light source target.
-* **Parameters:** None.
-* **Returns:**  
-  `string` – e.g., `"Stay near light abigail"` or `"Stay near light nil"`.
-
+## Main functions
 ### `FindLight:Visit()`
-* **Description:** The core tick method of the behaviour node. Called each frame by the behaviour tree scheduler. Handles target selection (initial and periodic), movement execution, and status updates (`READY`, `RUNNING`, `SUCCESS`, `FAILED`).
+* **Description:** Executes the behavior logic. On `READY`, picks a target light. On `RUNNING`, periodically re-scans for targets and continuously checks whether the entity is near enough to the light. Stops locomotion if successfully near the light; otherwise commands movement toward it. Fails or succeeds based on light validity and proximity.
 * **Parameters:** None.
-* **Returns:** `nil`.
+* **Returns:** Nothing (sets `self.status` to `SUCCESS`, `FAILED`, or leaves as `RUNNING` internally).
+* **Error states:** May fail if no valid light source is found within `see_dist`, or if the current light becomes invalid/non-lightsource before succeeding.
 
 ### `FindLight:PickTarget()`
-* **Description:** Locates the nearest entity within `see_dist` that has the `"lightsource"` tag and stores it as the current target. Updates `lastchecktime`.
+* **Description:** Scans for the closest entity with the `"lightsource"` tag within `see_dist` and updates `self.targ`. Resets `lastchecktime` to current time.
 * **Parameters:** None.
-* **Returns:** `nil`.
+* **Returns:** Nothing.
 
-## Events & Listeners
-None.
+### `FindLight:DBString()`
+* **Description:** Returns a debug-friendly string describing the current target.
+* **Parameters:** None.
+* **Returns:** `string` — e.g., `"Stay near light abigail"`.
 
----
+## Events & listeners
+None identified.

@@ -1,72 +1,78 @@
 ---
 id: activatable
 title: Activatable
-description: Controls when and how an entity can be activated, using tags and callbacks to implement custom activation behavior.
+description: Manages activation state and behavior for entities, including activation conditions, state tags, and callback execution.
+tags: [activation, state, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: f0588a20
+system_scope: entity
 ---
 
-# activatable
+# Activatable
+
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The `activatable` component manages the "activatable" state of an entity, determining when and how a player can interact with it through an activation action (e.g., clicking on it). It controls various activation modifiers such as forced right-click, quick actions, and standing actions by adding or removing specific tags on the entity. It provides hooks for custom activation logic and triggers an event upon successful activation.
+The `Activatable` component controls whether an entity can be activated (e.g., via interaction or input) and tracks its activation-related state. It exposes flags that determine activation behavior (e.g., whether activation is currently disabled, requires standing, or is force-enabled) and maps these flags to entity tags. It also supports custom activation logic via callbacks (`OnActivate`, `CanActivateFn`) and notifies the system when activation occurs.
 
-## Dependencies & Tags
-**Dependencies:**
-None identified. This component primarily interacts with the entity's tag system.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("activatable")
 
-**Tags Added/Removed by this Component:**
-*   `inactive`: Added when `self.inactive` is `true`, removed when `false`. Typically prevents general interaction.
-*   `standingactivation`: Added when `self.standingaction` is `true`, removed when `false`. Suggests the entity requires the player to be standing to activate.
-*   `quickactivation`: Added when `self.quickaction` is `true`, removed when `false`. Implies a quicker or more immediate activation context.
-*   `activatable_forceright`: Added when `self.forcerightclickaction` is `true`, removed when `false`. Forces activation via right-click interaction.
-*   `activatable_forcenopickup`: Added when `self.forcenopickupaction` is `true`, removed when `false`. Prevents pickup when the entity is activatable.
+inst.components.activatable.OnActivate = function(inst, doer)
+    -- custom activation logic here
+    print(inst.prefab .. " was activated by " .. doer.prefab)
+    return true
+end
+
+inst.components.activatable.CanActivateFn = function(inst, doer)
+    return not doer:HasTag("sleeping"), "cannot activate while sleeping"
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds/removes `inactive`, `quickactivation`, `standingactivation`, `activatable_forceright`, `activatable_forcenopickup`.
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :------------------------- | :--------- | :------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `inst` | `Entity` | `nil` | A reference to the entity this component is attached to. |
-| `OnActivate` | `function` | `nil` | A callback function `(inst, doer)` that is executed when `DoActivate` is called. It should return `success, msg`. |
-| `inactive` | `boolean` | `true` | When `true`, the entity is considered inactive and cannot be activated. This property automatically adds/removes the `inactive` tag. |
-| `standingaction` | `boolean` | `false` | When `true`, this component adds the `standingactivation` tag to the entity. |
-| `quickaction` | `boolean` | `false` | When `true`, this component adds the `quickactivation` tag to the entity. |
-| `forcerightclickaction` | `boolean` | `false` | When `true`, this component adds the `activatable_forceright` tag to the entity, suggesting it should be activated via right-click. |
-| `forcenopickupaction` | `boolean` | `false` | When `true`, this component adds the `activatable_forcenopickup` tag to the entity, indicating it cannot be picked up while activatable. |
-| `CanActivateFn` | `function` | `nil` | An optional callback function `(inst, doer)` that can be set externally. If present, its return value (`success, msg`) will override or extend the default `CanActivate` logic. |
+|----------|------|---------------|-------------|
+| `OnActivate` | function | `nil` | Callback executed when `DoActivate()` is called successfully. Signature: `fn(inst, doer) → success, msg`. |
+| `CanActivateFn` | function | `nil` | Optional predicate to override `CanActivate()` logic. Signature: `fn(inst, doer) → success, msg`. |
+| `inactive` | boolean | `true` | Whether the entity is currently inactive (activation disabled). |
+| `standingaction` | boolean | `false` | Whether the entity requires the actor to be standing to activate. |
+| `quickaction` | boolean | `false` | Whether the entity supports quick activation (e.g., skip animations). |
+| `forcerightclickaction` | boolean | `false` | Whether right-click activation is forced on this entity. |
+| `forcenopickupaction` | boolean | `false` | Whether pickup is forbidden during activation. |
 
-## Main Functions
+## Main functions
+### `CanActivate(doer)`
+*   **Description:** Determines whether the entity can be activated by the specified actor. Defaults to returning `not self.inactive`, but delegates to `CanActivateFn` if present.
+*   **Parameters:** `doer` (entity instance) - the entity attempting activation.
+*   **Returns:** `success` (boolean) and optional `msg` (string) explaining why activation failed.
+*   **Error states:** None.
 
-### `Activatable:OnRemoveFromEntity()`
-*   **Description:** This function is automatically called when the component is removed from its parent entity. It ensures that all tags added by this component (e.g., `inactive`, `quickactivation`) are properly cleaned up and removed from the entity to prevent lingering side effects.
+### `DoActivate(doer)`
+*   **Description:** Attempts to execute the activation callback. Sets `inactive` to `false`, invokes `OnActivate`, and pushes an `onactivated` event if successful.
+*   **Parameters:** `doer` (entity instance) - the entity performing activation.
+*   **Returns:** `success` (boolean) and optional `msg` (string) from `OnActivate`, or `nil` if `OnActivate` is not set.
+*   **Error states:** Returns `nil` immediately if `self.OnActivate` is `nil`.
+
+### `GetDebugString()`
+*   **Description:** Returns a simple debug representation of the `inactive` state.
 *   **Parameters:** None.
+*   **Returns:** `string` — `"true"` if `inactive` is `true`, `"false"` otherwise.
 
-### `Activatable:CanActivate(doer)`
-*   **Description:** Determines if the entity can currently be activated by a specific `doer`. By default, it returns `true` if `self.inactive` is `false`. If a custom `self.CanActivateFn` has been set, that function's return value will be used instead, allowing for complex activation conditions.
-*   **Parameters:**
-    *   `doer`: The `Entity` attempting to activate this component.
-*   **Returns:** `success (boolean), msg (string, optional)`:
-    *   `success`: `true` if the entity can be activated, `false` otherwise.
-    *   `msg`: An optional string message providing a reason if activation is not possible.
-
-### `Activatable:DoActivate(doer)`
-*   **Description:** Initiates the activation process. It first checks if `self.OnActivate` is defined. If so, it sets `self.inactive` to `false` (making the entity non-inactive), calls the `self.OnActivate` callback with the entity and the doer, and then pushes an `"onactivated"` event if the callback returns `true` for success.
-*   **Parameters:**
-    *   `doer`: The `Entity` performing the activation.
-*   **Returns:** `success (boolean, optional), msg (string, optional)`:
-    *   The return values from the `self.OnActivate` callback. If `self.OnActivate` is `nil`, it returns `nil`.
-
-### `Activatable:GetDebugString()`
-*   **Description:** Returns a string representation of the component's current `inactive` state, primarily for debugging purposes.
+### `OnRemoveFromEntity()`
+*   **Description:** Cleanup method called when the component is removed from an entity. Removes all activation-related tags.
 *   **Parameters:** None.
-*   **Returns:** `string`: The string representation of `self.inactive` (e.g., `"true"` or `"false"`).
+*   **Returns:** Nothing.
 
-## Events & Listeners
-*   **Pushes:**
-    *   `"onactivated"`: Triggered by `Activatable:DoActivate(doer)` if the `self.OnActivate` callback returns `true` for success.
-        *   **Payload:** `{doer = doer_entity}`
+## Events & listeners
+- **Pushes:** `onactivated` — fired when `DoActivate()` succeeds. Data payload: `{doer = doer}` (entity that activated).

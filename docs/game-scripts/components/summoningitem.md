@@ -1,30 +1,41 @@
 ---
 id: summoningitem
 title: Summoningitem
-description: A minimal placeholder component that stores a reference to its host entity and provides no additional functionality.
+description: A placeholder component with no functional behavior, intended for future extension or as a stub in the component registry.
+tags: [stub]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-04
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 1fac26b9
+system_scope: entity
 ---
 
 # Summoningitem
 
-## Overview
-This is a trivial component that serves as a structural placeholder in the Entity Component System. It initializes with a reference to the host entity (`inst`) and provides no state, logic, event handling, or behavioral functionality beyond basic instantiation.
+> Based on game build **714014** | Last updated: 2026-03-04
 
-## Dependencies & Tags
-None identified.
+## Overview
+`SummoningItem` is a minimal stub component that exists solely to register a component name in the game's component system. It initializes only with a reference to its owning entity (`self.inst`) and provides no additional logic, properties, or event handling. This component likely serves as a placeholder for future functionality related to summoning mechanics, or as a marker tag for inventory or gameplay items that are meant to be identified as "summoning items" without yet implementing behavior.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("summoningitem")
+-- No further interaction is possible with this component in the current implementation.
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-No public properties are clearly identified from the source. The component only assigns `self.inst`, which is not a public property by conventional API design.
+No public properties
 
-## Main Functions
-No public functional methods are defined beyond the constructor. The class contains only the constructor `_ctor` (implemented as `function(self, inst)`) which initializes `self.inst`.
+## Main functions
+No public functions
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified

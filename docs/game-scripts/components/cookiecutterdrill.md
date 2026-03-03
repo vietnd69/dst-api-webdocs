@@ -1,67 +1,86 @@
 ---
 id: cookiecutterdrill
-title: Cookiecutterdrill
-description: This component manages the progress of a drilling operation, typically by a Cookie Cutter entity, to inflict damage and create a leak on a boat.
+title: CookieCutterDrill
+description: Manages the drilling progression for a cookie-cutter boat leak repair mechanism, handling animation state and damage application upon completion.
+tags: [boat, repair, damage, environment]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 6407c4f4
+system_scope: world
 ---
 
-# Cookiecutterdrill
+# CookieCutterDrill
+
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-This component is responsible for managing the state and progress of a drilling action performed by an entity, such as a Cookie Cutter. It tracks drilling progress over time, determines when the drilling is complete, and upon completion, triggers damage to a boat's hull and spawns a new boat leak at the drill's position. It also manages the sound associated with the drilling action.
+`CookieCutterDrill` is a state-driven component that tracks progress for a repair action—specifically, the "drilling" animation used to patch leaks in boats (e.g., during the Leech event or related gameplay). It manages the accumulation of drill time, updates progress, and triggers a leak repair with optional hull damage upon completion. The component is tightly integrated with the `eater` and `hullhealth`/`health` components of boats and interacts with the game's physics/world through position and event systems.
 
-## Dependencies & Tags
-This component interacts with the following other components:
-*   `boat.components.hullhealth`: When drilling is finished, it may apply damage to the `hullhealth` component of the boat entity.
-*   `self.inst.components.eater`: When drilling is finished, it may update the `lasteattime` property of the drill's own `eater` component.
-None identified.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("cookiecutterdrill")
+inst.components.cookiecutterdrill:SetDrillDuration(15)  -- optional override
+inst.components.cookiecutterdrill:ResumeDrilling()
+-- ... when drill completes ...
+inst.components.cookiecutterdrill:FinishDrilling()
+```
+
+## Dependencies & tags
+**Components used:** `eater`, `hullhealth`, `health`  
+**Tags:** None added or checked by this component.
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :------- | :--- | :------------ | :---------- |
-| `drill_progress` | `number` | `0` | The current accumulated progress of the drilling operation, measured in seconds. |
-| `drill_duration` | `number` | `10` | The total time, in seconds, required for the drilling operation to be considered complete. |
-| `leak_type` | `string` | `"med_leak"` | A string identifier for the type of leak that will be spawned on the boat upon successful drilling. |
-| `leak_damage` | `number` or `nil` | `nil` | The amount of damage to inflict on the boat's `hullhealth` component when drilling finishes. If `nil`, no damage is applied. |
-| `sound` | `string` | `"turnoftides/common/together/boat/damage"` | The sound path to be played when the drilling operation finishes. |
-| `sound_intensity` | `number` | `0.8` | The intensity or volume at which the `sound` will be played. |
+|----------|------|---------------|-------------|
+| `drill_progress` | number | `0` | Current drill time accumulated. |
+| `drill_duration` | number | `10` | Total time (in seconds) required to complete the drill. |
+| `leak_type` | string | `"med_leak"` | Type identifier for the leak being repaired (used in event data). |
+| `leak_damage` | number or `nil` | `nil` | Optional damage applied to the boat's hull upon drill completion. |
+| `sound` | string | `"turnoftides/common/together/boat/damage"` | Sound path used for leak events. |
+| `sound_intensity` | number | `0.8` | Intensity multiplier for the leak sound effect. |
 
-## Main Functions
-### `OnEntitySleep()`
-*   **Description:** Called when the entity that owns this component goes to sleep. It stops the component from updating its internal state.
-*   **Parameters:** None.
-
+## Main functions
 ### `GetIsDoneDrilling()`
-*   **Description:** Checks if the current drilling progress has met or exceeded the required duration.
-*   **Parameters:** None.
+* **Description:** Checks whether the drill has completed (i.e., `drill_progress >= drill_duration`).
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if drilling is complete, `false` otherwise.
 
 ### `ResetDrilling()`
-*   **Description:** Resets the `drill_progress` back to zero, effectively restarting the drilling process.
-*   **Parameters:** None.
+* **Description:** Resets the drill progress to zero, preparing the component for a new drill cycle.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `ResumeDrilling()`
-*   **Description:** Starts or resumes the component's update cycle, allowing `drill_progress` to increase.
-*   **Parameters:** None.
+* **Description:** Resumes the drill update loop by starting component updates (triggering `OnUpdate(dt)` each frame).
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `PauseDrilling()`
-*   **Description:** Stops the component's update cycle, pausing the `drill_progress`.
-*   **Parameters:** None.
+* **Description:** Pauses the drill update loop by stopping component updates.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `FinishDrilling()`
-*   **Description:** Completes the drilling operation. It stops the component from updating, resets progress, damages the boat's hull (if `leak_damage` is set), and triggers the creation of a new boat leak. It also updates the last eat time of the drill's `eater` component if present.
-*   **Parameters:** None.
+* **Description:** Finalizes the drilling process: stops updates, resets progress, retrieves the current boat entity, updates eater state, optionally applies hull damage, and emits a `spawnnewboatleak` event to fix the leak.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** If `self.leak_damage` is `nil` or the boat has no `hullhealth` component, no damage is applied.
 
 ### `OnUpdate(dt)`
-*   **Description:** This function is called every frame when the component is updating. It increments the `drill_progress` by the elapsed delta time.
-*   **Parameters:**
-    *   `dt`: (`number`) The time elapsed since the last frame.
+* **Description:** Increments `drill_progress` by `dt` each frame while the component is active (started via `ResumeDrilling()`).
+* **Parameters:** `dt` (number) — Time elapsed since the last frame.
+* **Returns:** Nothing.
 
-## Events & Listeners
-*   **Pushes Event:** `spawnnewboatleak` on the `boat` entity when `FinishDrilling()` is called. This event includes the position (`pt`), leak size (`leak_size`), and a flag to play sound effects (`playsoundfx`).
+### `OnEntitySleep()`
+* **Description:** Stops the update loop when the entity enters sleep (e.g., when despawned or hidden), conserving resources.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:** None (no explicit `inst:ListenForEvent` calls).
+- **Pushes:** `spawnnewboatleak` — emitted on the boat entity with `{ pt = position, leak_size = leak_type, playsoundfx = true }` during `FinishDrilling()`.

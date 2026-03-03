@@ -1,79 +1,92 @@
 ---
 id: formationfollower
 title: Formationfollower
-description: Manages an entity's participation in a formation by tracking leader relationships, positioning updates, and activation state.
+description: Manages an entity's participation in a formation, including leader detection, positioning updates, and sleep/wake lifecycle handling.
+tags: [formation, ai, locomotion, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 1b54b6a2
+system_scope: locomotion
 ---
 
 # Formationfollower
 
-## Overview
-This component enables an entity to join, maintain, and leave formations as a follower. It coordinates with a `formationleader` component to determine positioning, handles state changes related to formation type and activity, and updates the entity’s position according to its leader’s instructions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on `formationleader` component being present on potential leaders (accessed via `components.formationleader`).
-- Dynamically adds/removes tags: `formation_<type>` (e.g., `formation_monster`).
-- Maintains `formationsearchtags` (e.g., `{"formationleader_monster"}`) for entity searches.
-- Starts/stops its own updating via `inst:StartUpdatingComponent(self)` / `inst:StopUpdatingComponent(self)`.
+## Overview
+`FormationFollower` enables an entity to join and maintain a position within a formation led by another entity. It coordinates with the `formationleader` component to enter/leave formations, track position updates, and respond to entity lifecycle events such as entering sleep or being placed in an inventory. This component is typically added to followers (e.g., minions or companions) and works alongside the `follower` component to update leader references dynamically.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("formationfollower")
+inst.components.formationfollower.formation_type = "monster"
+inst.components.formationfollower.active = true
+inst.components.formationfollower:StartUpdating()
+```
+
+## Dependencies & tags
+**Components used:** `formationleader`, `inventoryitem`, `follower`  
+**Tags:** Adds/Removes `"formation_"..formation_type` (e.g., `formation_monster`) dynamically; sets internal `formationsearchtags` to `"formationleader_"..formation_type`.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the owning entity instance. |
-| `in_formation` | `boolean` | `false` | Whether the entity is currently in a formation. |
-| `formationleader` | `Entity?` | `nil` | Reference to the entity acting as formation leader. |
-| `formationpos` | `Vector3?` | `nil` | Target position relative to the leader (set by leader). |
-| `searchradius` | `number` | `50` | Radius within which to search for a formation leader. |
-| `leashdistance` | `number` | `70` | Distance threshold beyond which the follower may be considered out of range (not actively used in current code). |
-| `formation_type` | `string` | `"monster"` | Type identifier used to match follower and leader formations (e.g., `"monster"`). |
-| `active` | `boolean` | `false` | Whether the component’s update loop is active. |
-| `onupdatefn` | `function?` | `nil` | Optional callback invoked during `OnUpdate` to apply position updates. |
-| `formationsearchtags` | `table?` | `nil` | Tags used for searching leaders (e.g., `{"formationleader_monster"}`). Set by `onformationtype` callback. |
+| `in_formation` | boolean | `false` | Whether the entity is currently part of a formation. |
+| `formationleader` | Entity | `nil` | Reference to the entity acting as formation leader. |
+| `formationpos` | Vector3 | `nil` | Target position for this follower in the formation. |
+| `searchradius` | number | `50` | Radius around the entity used to search for a formation leader. |
+| `leashdistance` | number | `70` | Distance beyond which the entity may break formation (currently unused in code). |
+| `formation_type` | string | `"monster"` | String used to generate tags and formation search filters. |
+| `active` | boolean | `false` | Whether the follower is actively updating its formation position. |
 
-## Main Functions
+## Main functions
+### `GetDebugString()`
+* **Description:** Returns a formatted string for debugging the current state.
+* **Parameters:** None.
+* **Returns:** `string` — formatted as `"In Formation true/false, active: true/false"`.
 
 ### `StartUpdating()`
-* **Description:** Begins the component’s update loop by calling `StartUpdatingComponent` on the owning entity.
+* **Description:** Begins periodic updates for the component by calling `StartUpdatingComponent`.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `StopUpdating()`
-* **Description:** Stops the component’s update loop by calling `StopUpdatingComponent` on the owning entity.
+* **Description:** Stops periodic updates for the component by calling `StopUpdatingComponent`.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SearchForFormation(override_find_entities)`
-* **Description:** Searches nearby entities for a compatible formation leader. If found, adds this entity as a new formation member via the leader’s `NewFormationMember` method.
-* **Parameters:**
-  * `override_find_entities` (`table?`, optional): Precomputed list of entities to search instead of performing a new search.
+* **Description:** Scans the local area for a formation leader and attempts to join one that has capacity. Only the first eligible leader is joined.
+* **Parameters:** `override_find_entities` (table or `nil`) — optional pre-computed entity list to search; if omitted, `TheSim:FindEntities()` is used.
+* **Returns:** `boolean` — `true` if a leader successfully accepts the entity, `false` otherwise.
+* **Error states:** Returns `nil` implicitly if no leaders found or all leaders are full.
 
 ### `OnEntitySleep()`
-* **Description:** Called when the entity goes to sleep (e.g., is stored in a container). Notifies the current leader of departure and stops the update loop.
+* **Description:** Handles entity entering sleep state (e.g., sleep animation, inventory placement). Removes from current formation and stops updates.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnEntityWake()`
-* **Description:** Called when the entity wakes (e.g., is removed from a container). Restarts the update loop unless the entity is inside an inventory (checked via `inventoryitem`).
+* **Description:** Restarts updates upon waking. Skips update resumption if the entity is currently inside a container (checked via `inventoryitem:GetContainer()`).
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `LeaveFormation()`
-* **Description:** Informs the current leader (if any) that this entity is leaving the formation, without modifying internal state beyond nullifying the leader reference on the leader’s side.
+* **Description:** Initiates departure from the current formation by notifying the leader.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-* **Description:** Executes the follower’s update callback (`onupdatefn`) if active and leader/position data is available. Used to apply formation-specific movement logic.
-* **Parameters:**
-  * `dt` (`number`): Delta time since the last frame.
+* **Description:** Periodically invoked while `active` and `onupdatefn` is set. Calls `onupdatefn` with the entity and stored formation position.
+* **Parameters:** `dt` (number) — delta time in seconds.
+* **Returns:** Nothing.
+* **Error states:** Returns early if `onupdatefn` is `nil` or if `formationleader`/`formationpos` is missing (though no explicit error is raised).
 
-### `GetDebugString()`
-* **Description:** Returns a formatted debug string summarizing the follower’s formation status and activity state.
-* **Parameters:** None.
-
-## Events & Listeners
-- Listens to property changes on `formation_type` and `active` via custom setters (`onformationtype`, `onactive`) registered in the class table.
-- No `inst:ListenForEvent` calls are present in this script.
-- Does not push events directly.
+## Events & listeners
+- **Listens to:** `death`, `onremove`, `onenterlimbo` (registered on the leader via `inst:ListenForEvent` when entering formation).
+- **Pushes:** None.

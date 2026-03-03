@@ -1,50 +1,73 @@
 ---
 id: teleportedoverride
 title: Teleportedoverride
-description: A lightweight utility component that allows an entity to override its teleport destination by specifying either a target entity or a position via callback functions.
+description: Stores custom destination functions for teleportation overrides on an entity.
+tags: [teleport, override, utility]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: e01f5772
+system_scope: utility
 ---
-
 # Teleportedoverride
 
-## Overview  
-This component enables an entity to customize its teleport destination by storing optional callback functions that determine either the target entity or the absolute position to which the entity should teleport. It does not perform teleportation itself, but serves as a data container for teleport override logic used elsewhere (e.g., by teleport logic in the `Teleporter` or `Wormhole` systems).
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags  
-None identified.
+## Overview
+`TeleportedOverride` is a lightweight component that allows an entity to define custom destination logic for teleportation. It provides two pairs of functions: one for specifying a destination entity (`target_fn`) and another for specifying an exact position (`pos_fn`). These functions are evaluated at teleport time, enabling dynamic teleport targets or locations based on the entity's current state.
 
-## Properties  
+This component does not perform teleportation itself; it serves as a configuration container for external systems (e.g., teleport actions or stategraph transitions) that read these functions when deciding where to move the entity.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("teleportedoverride")
+
+-- Override destination to always be the player
+inst.components.teleportedoverride:SetDestTargetFn(function(self_inst)
+    return ThePlayer
+end)
+
+-- Override destination to a fixed world position
+inst.components.teleportedoverride:SetDestPositionFn(function(self_inst)
+    return Vector3(100, 0, -200)
+end)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
+
+## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (assigned via constructor) | Reference to the owner entity, passed during construction and stored as `self.inst`. |
-| `target_fn` | `function?` | `nil` | Optional callback that returns the target entity for teleportation (takes `inst` as argument). |
-| `pos_fn` | `function?` | `nil` | Optional callback that returns a `Vector3` position for teleportation (takes `inst` as argument). |
+| `target_fn` | function or `nil` | `nil` | Callback returning the destination entity for teleportation. |
+| `pos_fn` | function or `nil` | `nil` | Callback returning the destination `Vector3` position for teleportation. |
 
-## Main Functions  
+## Main functions
 ### `GetDestTarget()`
-* **Description:** Returns the teleport target entity by invoking the stored `target_fn` (if present); otherwise returns `nil`.  
-* **Parameters:** None.  
+*   **Description:** Returns the destination entity if a target function has been set; otherwise returns `nil`.
+*   **Parameters:** None.
+*   **Returns:** The entity returned by `target_fn(self.inst)`, or `nil` if no function is set.
+*   **Error states:** Returns `nil` if `target_fn` is `nil`.
 
 ### `SetDestTargetFn(fn)`
-* **Description:** Sets the callback function used to determine the teleport target entity. The function should accept the owner entity (`inst`) as its sole argument and return either an entity or `nil`.  
-* **Parameters:**  
-  * `fn` (`function?`) — Callback function for computing the teleport target.  
+*   **Description:** Sets the callback function used to determine the teleport destination entity.
+*   **Parameters:** `fn` (function or `nil`) — a function that takes `self.inst` as argument and returns an entity or `nil`.
+*   **Returns:** Nothing.
 
 ### `GetDestPosition()`
-* **Description:** Returns the teleport position by invoking the stored `pos_fn` (if present); otherwise returns `nil`.  
-* **Parameters:** None.  
+*   **Description:** Returns the destination position if a position function has been set; otherwise returns `nil`.
+*   **Parameters:** None.
+*   **Returns:** The `Vector3` returned by `pos_fn(self.inst)`, or `nil` if no function is set.
+*   **Error states:** Returns `nil` if `pos_fn` is `nil`.
 
 ### `SetDestPositionFn(fn)`
-* **Description:** Sets the callback function used to determine the teleport position. The function should accept the owner entity (`inst`) as its sole argument and return a `Vector3` or `nil`.  
-* **Parameters:**  
-  * `fn` (`function?`) — Callback function for computing the teleport position.  
+*   **Description:** Sets the callback function used to determine the teleport destination position.
+*   **Parameters:** `fn` (function or `nil`) — a function that takes `self.inst` as argument and returns a `Vector3` or `nil`.
+*   **Returns:** Nothing.
 
-## Events & Listeners  
-None.
+## Events & listeners
+None identified

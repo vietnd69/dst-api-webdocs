@@ -1,164 +1,160 @@
 ---
 id: growable
 title: Growable
-description: Manages timed plant growth across configurable growth stages, including pausing, resuming, off-screen progression, and save/load support.
+description: Manages staged growth progress for entities, supporting timed, paused, and sleep-aware growth with stage transitions and save/load persistence.
+tags: [growth, stages, save-load, animation]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 03f366c3
+system_scope: entity
 ---
 
 # Growable
 
-## Overview
-The `Growable` component enables entities to progress through a sequence of growth stages over time. It supports pausing/resuming, time multipliers, off-screen growth, and integrates with the game’s sleep/wake system to handle entity state transitions. Growth is driven by internal timers, stage metadata, and optional callback functions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component usage:** Relies on `inst:DoTaskInTime()` for scheduling growth steps and `inst:IsAsleep()`/`inst:IsValid()` for state checks.
-- **No explicit components added or tags assigned.**  
-- **Event listeners (see Events & Listeners):** None defined directly — but reacts to entity lifecycle events via `OnEntitySleep`, `OnEntityWake`, and `OnRemoveFromEntity`.
+## Overview
+`Growable` manages entity growth through discrete stages over time. It tracks growth progress with timed tasks, supports pausing and resuming (including sleep-aware time handling), and notifies the entity via stage-specific callbacks. The component integrates with DST’s save/load system to persist growth state and supports both screen-space and off-screen growth via `growoffscreen`. It is typically attached to prefabs like trees, crops, or seasonal structures that progress through visual and functional stages.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("growable")
+
+inst.components.growable.stages = {
+    { fn = function() inst.AnimState:PlayAnimation("stage1") end },
+    { fn = function() inst.AnimState:PlayAnimation("stage2") end },
+    { fn = function() inst.AnimState:PlayAnimation("stage3") end },
+}
+
+inst.components.growable.stage = 1
+inst.components.growable:StartGrowing(20) -- Grow to next stage in 20 seconds
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None added, removed, or checked.
 
 ## Properties
-The component does not define properties in `_ctor`, but the following internal state variables are initialized or used:
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | Reference to the entity the component is attached to (set in constructor). |
-| `stages` | `table` | `nil` | Array of stage definitions — each entry is a table with optional keys: `fn`, `time`, `growfn`, `pregrowfn`, `multiplier`. |
-| `stage` | `number` | `1` | Current stage index (1-based). |
-| `targettime` | `number?` | `nil` | Global game time at which current stage completion is scheduled. |
-| `pausedremaining` | `number?` | `nil` | Remaining time (in seconds) when growth is paused. |
-| `task` | `Task?` | `nil` | Scheduled task handle for the next growth step. |
-| `pausereasons` | `table` | `{}` | Map of string reasons → boolean; tracks why growth is paused. |
-| `sleeptime` | `number?` | `nil` | Timestamp when entity last went to sleep (for off-screen time tracking). |
-| `growonly` | `boolean` | `false` *(uninitialized)* | If `true`, skip changing stage visuals/logic, only run `growfn`s. |
-| `springgrowth` | `boolean` | `false` *(uninitialized)* | If `true`, apply seasonal growth modifiers. |
-| `growoffscreen` | `boolean` | `false` *(uninitialized)* | If `true`, allow growth while entity is asleep/hidden. |
-| `loopstages` | `boolean` | `false` *(uninitialized)* | If `true`, loop back to start after final stage. |
-| `loopstages_start` | `number` | `1` *(uninitialized)* | Stage index to loop back to (used only if `loopstages` is `true`). |
-| `usetimemultiplier` | `boolean` | `false` *(uninitialized)* | Whether to scale growth time using stage multipliers during `OnLoad`. |
-| `domagicgrowthfn` | `function?` | `nil` *(uninitialized)* | Optional callback for immediate growth (e.g., via magic). |
+| `inst` | entity instance | — | Reference to the entity that owns this component. |
+| `stages` | table or `nil` | `nil` | Array of stage data tables, each optionally containing `fn`, `time`, `multiplier`, `pregrowfn`, and `growfn` callbacks. |
+| `stage` | number | `1` | Current stage index (1-based). |
+| `pausereasons` | table | `{}` | Map of active pause reasons (keyed by string or truthy value). |
+| `targettime` | number or `nil` | `nil` | Absolute game time when current growth step should complete. |
+| `pausedremaining` | number or `nil` | `nil` | Remaining growth time when paused (in seconds). |
+| `task` | DoTaskInTime task or `nil` | `nil` | Active growth timer task. |
+| `sleeptime` | number or `nil` | `nil` | Game time when the entity last went to sleep (for catch-up calculations). |
+| `usetimemultiplier` | boolean | `false` | Whether the current growth uses stage-specific time multiplier. |
+| `growoffscreen` | boolean | `false` *(commented out)* | If true, growth continues while entity is asleep/off-screen. |
 
-> **Note:** Boolean flags like `growonly`, `springgrowth`, `growoffscreen`, etc., are commented out in `_ctor` and remain unassigned by default. They must be explicitly set by consuming code to take effect.
-
-## Main Functions
-
+## Main functions
 ### `StartGrowingTask(time)`
-* **Description:** Schedules the next growth tick at a future time (in seconds). Automatically cancels any existing task. Only proceeds if `growoffscreen` is `true` or the entity is not asleep.
-* **Parameters:**
-  * `time` (`number`): Time in seconds from now to trigger growth.
+* **Description:** Schedules a growth completion callback (`OnGrow`) to run after `time` seconds. Skips scheduling if the entity is asleep and `growoffscreen` is false.
+* **Parameters:** `time` (number) — time in seconds until growth completes.
+* **Returns:** Nothing.
 
 ### `StartGrowing(time)`
-* **Description:** Starts (or restarts) the growth process. Uses `time` if provided; otherwise, consults `stages[self.stage].time` and applies fallback. Supports `springgrowth` and `usetimemultiplier`.
-* **Parameters:**
-  * `time` (`number?`): Optional explicit growth time (seconds). If `nil`, derived from stage metadata.
+* **Description:** Initiates or restarts growth to the next stage. If `time` is omitted, reads duration from `self.stages[self.stage].time` or uses a fallback of 10 seconds. Handles `springgrowth` and stage-specific multipliers. Clears any existing growth task first.
+* **Parameters:** `time` (number, optional) — custom growth duration in seconds.
+* **Returns:** Nothing.
+* **Error states:** Prints a warning and returns early if `self.stages` is empty. Returns early if `self.stage > #self.stages`.
 
 ### `StopGrowing()`
-* **Description:** Cancels scheduled growth, resets timing fields (`targettime`, `pausedremaining`), and clears the task.
+* **Description:** Cancels any active growth task and clears `targettime` and `pausedremaining`.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `GetNextStage()`
-* **Description:** Returns the next stage index, respecting `loopstages` and `loopstages_start`.
-* **Returns:**
-  * `number`: Next stage index (1-based), or final stage if looping is disabled.
+* **Description:** Returns the stage index that would follow the current stage, respecting looping behavior if enabled (`loopstages`).
+* **Parameters:** None.
+* **Returns:** number — next stage index (e.g., `self.stage + 1` or `1` if looping).
 
 ### `GetStage()`
-* **Description:** Returns current stage index.
-* **Returns:**
-  * `number`
+* **Description:** Returns the current stage index.
+* **Parameters:** None.
+* **Returns:** number — current stage index (1-based).
 
 ### `GetCurrentStageData()`
-* **Description:** Returns the metadata table for the current stage (i.e., `stages[stage]`).
-* **Returns:**
-  * `table?`
+* **Description:** Returns the stage data table for the current stage.
+* **Parameters:** None.
+* **Returns:** table or `nil` — stage data, e.g., `{ fn = ... }`, or `nil` if out of bounds.
 
 ### `IsGrowing()`
-* **Description:** Checks whether growth is currently scheduled.
-* **Returns:**
-  * `boolean`: `true` if `targettime` is non-`nil`.
+* **Description:** Checks if growth is actively in progress (i.e., a target time is set).
+* **Parameters:** None.
+* **Returns:** boolean — `true` if `self.targettime ~= nil`.
 
 ### `DoMagicGrowth(doer)`
-* **Description:** Triggers immediate growth (skipping timers) via a configurable callback (`domagicgrowthfn`).
-* **Parameters:**
-  * `doer` (`Entity?`): Optional entity performing the growth (e.g., player or tool).
-* **Returns:**
-  * `boolean?`: `true` if `domagicgrowthfn` exists and executed; `nil` otherwise.
+* **Description:** Invokes a custom magic growth callback if defined (`domagicgrowthfn`), allowing manual stage completion (e.g., via item use). Typical for magical or player-triggered growth.
+* **Parameters:** `doer` (entity) — entity performing the action.
+* **Returns:** boolean — result of `domagicgrowthfn`, or `false` if not defined.
 
 ### `DoGrowth(skipgrownfn)`
-* **Description:** Advances growth by one stage. Handles `pregrowfn`, `growfn`, and may restart growth if not complete.
-* **Parameters:**
-  * `skipgrownfn` (`boolean`): If `true`, skips calling `growfn` for the new stage (used for bulk processing).
-* **Returns:**
-  * `boolean`: `true` if advancement occurred; `false` if already finished and not paused.
+* **Description:** Advances growth to the next stage, calls `pregrowfn`, updates `stage`, invokes `growfn`, and optionally schedules next growth. Skips advancement if `growonly` is true.
+* **Parameters:** `skipgrownfn` (boolean, optional) — if true, skips calling the stage’s `growfn`.
+* **Returns:** boolean — `true` if growth advanced; `false` if already complete or inactive.
 
 ### `Pause(reason)`
-* **Description:** Pauses ongoing growth. Saves remaining time to `pausedremaining`, cancels task, and records `reason`.
-* **Parameters:**
-  * `reason` (`string?`): Optional identifier for the pause source (e.g., `"winter"`, `"held"`).
+* **Description:** Pauses growth, preserving remaining time and performing time catch-up if the entity was sleeping. Stores `reason` as a key in `pausereasons`.
+* **Parameters:** `reason` (any, optional) — identifier for why growth is paused (e.g., `"hibernation"`).
+* **Returns:** Nothing.
 
 ### `Resume(reason)`
-* **Description:** Removes a pause reason; if no reasons remain, reschedules growth using stored `pausedremaining`.
-* **Parameters:**
-  * `reason` (`string?`): Pause reason to remove.
-* **Returns:**
-  * `boolean`: `true` if resumed successfully (i.e., resumed from a full pause).
+* **Description:** Removes `reason` from pause tracking. If no active reasons remain, restarts growth using `pausedremaining`.
+* **Parameters:** `reason` (any, optional) — pause reason to clear.
+* **Returns:** boolean — `true` if growth restarted; `false` if still paused.
 
 ### `IsPaused()`
-* **Description:** Checks whether growth is currently paused.
-* **Returns:**
-  * `boolean`: `true` if `pausedremaining` is non-`nil`.
+* **Description:** Checks if growth is currently paused.
+* **Parameters:** None.
+* **Returns:** boolean — `true` if `pausedremaining ~= nil`.
 
 ### `ExtendGrowTime(extra_time)`
-* **Description:** Adds time to either the remaining `pausedremaining` or active `targettime`.
-* **Parameters:**
-  * `extra_time` (`number`): Seconds to add.
+* **Description:** Increases remaining growth time by `extra_time`, updating either the active task or `pausedremaining`.
+* **Parameters:** `extra_time` (number) — seconds to add to growth time.
+* **Returns:** Nothing.
 
 ### `SetStage(stage)`
-* **Description:** Forces stage to a specific index (clamped to max). Runs the stage’s `fn` callback if present.
-* **Parameters:**
-  * `stage` (`number`): Target stage index.
+* **Description:** Directly sets the current stage, clamps to bounds, and invokes the stage’s `fn` callback. Does not modify growth state.
+* **Parameters:** `stage` (number) — target stage index.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Serializes growth state for save files.
-* **Returns:**
-  * `table?`: Contains `stage`, `time`, `sleeptime`, `usetimemultiplier`. `nil` if nothing to serialize.
+* **Description:** Serializes growth state for saving. Includes `stage`, remaining time (scaled by multiplier), sleep duration, and multiplier flag.
+* **Parameters:** None.
+* **Returns:** table or `nil` — save data, or `nil` if empty.
 
 ### `OnLoad(data)`
-* **Description:** Restores growth state from saved data. Handles stage restoration, sleeper clock offset, and scheduled time resumption.
-* **Parameters:**
-  * `data` (`table?`): Saved state dictionary.
+* **Description:** Restores growth state from save data. Handles stage, time (unscaled by multiplier), and sleep delta.
+* **Parameters:** `data` (table) — save data previously returned by `OnSave()`.
+* **Returns:** Nothing.
 
 ### `LongUpdate(dt)`
-* **Description:** Processes elapsed simulation time (e.g., wake-up catch-up, bulk growth). Used when entity wakes or catches up after being offline.
-* **Parameters:**
-  * `dt` (`number`): Delta time (seconds) to advance.
+* **Description:** Processes elapsed time `dt` for growth, handling catches-up after sleep and advancing stages as needed. Used when waking up or during large time steps.
+* **Parameters:** `dt` (number) — elapsed time in seconds.
+* **Returns:** Nothing.
 
 ### `OnEntitySleep()`
-* **Description:** Cancels scheduled task and records sleep start time for off-screen calculation.
+* **Description:** Cancels active growth task and records when sleep began (for later catch-up). Growth resumes from sleep via `OnEntityWake`.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnEntityWake()`
-* **Description:** Handles entity waking: applies sleep-time delta via `LongUpdate` or reschedules task.
+* **Description:** Resumes growth after wake-up, replaying elapsed time via `LongUpdate` if necessary.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a human-readable debug string describing growth status.
-* **Returns:**
-  * `string`: Status like `"Growing! Stage: 2  |  Timeleft: 3.45s"` or `"Paused! Stage: 1,  |  Timeleft: 10s"`.
+* **Description:** Returns a human-readable debug string summarizing growth state (e.g., `"Growing! Stage: 2  |  Timeleft: 4.52s"`).
+* **Parameters:** None.
+* **Returns:** string — descriptive status string.
 
-## Events & Listeners
-This component does **not** register any event listeners via `inst:ListenForEvent`.  
-It does **not** push custom events via `inst:PushEvent`.  
-
-However, it provides lifecycle hooks (`OnSave`, `OnLoad`, `OnEntitySleep`, `OnEntityWake`, `Growable.OnRemoveFromEntity`) intended to be bound by the consuming entity’s event system.
-
-## Notes
-- `stage` indices are **1-based**.
-- Stage metadata entries support optional functions: `fn` (on-stage-set), `pregrowfn` (pre-stage-advance), `growfn` (post-stage-advance), and `time` (growth duration calculation).
-- Growth time scaling via `multiplier` is applied during `StartGrowing` and `OnLoad`.
-- Sleep/wake logic ensures entities only grow while awake unless `growoffscreen` is enabled.
-- `growonly` mode is intended for cases where stage progression should be hidden (e.g., for decorative or background entities) — growth callbacks run, but `SetStage` is skipped.
-- Time values are stored and computed in *game time seconds*, not wall-clock time.
+## Events & listeners
+- **Listens to:** None identified  
+- **Pushes:** `OnRemoveFromEntity` — assigned to `StopGrowing()` for cleanup on component removal.

@@ -1,121 +1,129 @@
 ---
 id: trader
 title: Trader
-description: Enables an entity to receive and process item gifts from players, with configurable acceptance logic and custom callbacks for trade events.
+description: Manages trade logic and acceptance conditions for an entity acting as a merchant or trade partner.
+tags: [inventory, trade, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: fce9cd18
+system_scope: entity
 ---
 
 # Trader
 
-## Overview
-The `Trader` component allows an entity (typically a NPC) to accept items from players via the `GIVE`, `GIVETOPLAYER`, and `GIVEALLTOPLAYER` actions. It provides fine-grained control over when and what items may be accepted, including physical restrictions (e.g., dead, busy, sleeping), internal desire logic (e.g., item preferences), and custom behavior hooks such as callbacks and tests. It also manages entity tags (`trader`, `alltrader`) based on its enabled state and acceptance configuration.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Tags Added/Removed:**  
-  - `"trader"` — added when `enabled = true`, removed otherwise.  
-  - `"alltrader"` — added when `acceptnontradable = true` and `enabled = true`, otherwise removed.
-- **Dependencies (components used by logic):**  
-  - `inventoryitem` (checked for ownership)  
-  - `health` (checks `IsDead()`)  
-  - `sleeper` (checks `IsAsleep()`)  
-  - `inventory` (used when not deleting items)  
-- **Note:** Component does *not* auto-add itself to the entity; must be added explicitly via `inst:AddComponent("trader")`.
+## Overview
+The `Trader` component enables an entity to participate in trade interactions by defining conditions under which it will accept gifts from other entities. It validates physical eligibility (e.g., not dead, not sleeping), checks for visual preference (via custom test callbacks), and handles item transfer. It automatically manages the `trader` and `alltrader` tags on the entity based on its `enabled` and `acceptnontradable` properties.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("trader")
+inst.components.trader:SetAcceptTest(function(trader, item, giver, count)
+    return item:HasTag("coin")
+end)
+inst.components.trader:SetOnAccept(function(trader, giver, item, count)
+    -- Handle successful trade logic
+end)
+```
+
+## Dependencies & tags
+**Components used:** `health`, `inventory`, `inventoryitem`, `itemmimic`, `playercontroller`, `sleeper`, `stackable`  
+**Tags:** Adds `trader`, and conditionally adds `alltrader` when `acceptnontradable` is true and `enabled` is true.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `enabled` | `boolean` | `true` | Controls whether the trader is currently active and accepting items. Affects tag `"trader"`. |
-| `acceptnontradable` | `boolean` | `false` | If true, adds tag `"alltrader"`, enabling acceptance of non-tradeable items. |
-| `deleteitemonaccept` | `boolean` | `true` | If true, accepted items are removed instead of added to the trader's inventory. |
-| `acceptstacks` | `boolean` | `nil` | If non-`nil` (set via `SetAcceptStacks()`), allows accepting partial stacks; otherwise may restrict or deny. |
-| `test` | `function` | `nil` | Custom callback (`fn(inst, item, giver, count) -> boolean`) used in `WantsToAccept()` to determine *desire*. |
-| `abletoaccepttest` | `function` | `nil` | Custom override for `AbleToAccept()` (e.g., for custom failure reasons). |
-| `onaccept` | `function` | `nil` | Callback (`fn(inst, giver, item, count)`) invoked on successful acceptance. |
-| `onrefuse` | `function` | `nil` | Callback (`fn(inst, giver, item)`) invoked when the trader *desires not* to accept. |
-| `acceptsmimics` | `boolean` | `nil` (implicit `false`) | If `nil` (default), mimics (`item.components.itemmimic`) are rejected. Not exposed via setter — likely unused or reserved. |
+| `enabled` | boolean | `true` | Whether the trader is active and able to accept items. |
+| `deleteitemonaccept` | boolean | `true` | Whether the accepted item is destroyed (`true`) or moved into the trader’s inventory (`false`). |
+| `acceptnontradable` | boolean | `false` | Whether the trader accepts items that lack the `tradable` tag (triggers `alltrader` tag if enabled). |
+| `acceptstacks` | boolean or nil | `nil` | Whether the trader accepts partial stacks; when set, `stackable:Get(count)` is used instead of removing the whole stack. |
+| `test` | function or nil | `nil` | Callback used in `WantsToAccept` to determine if the item is *wanted*. |
+| `abletoaccepttest` | function or nil | `nil` | Callback used in `AbleToAccept` to override the default physical eligibility check. |
+| `onaccept` | function or nil | `nil` | Callback invoked when a trade is successfully completed. |
+| `onrefuse` | function or nil | `nil` | Callback invoked when a trade is refused (e.g., item unwanted). |
 
-## Main Functions
-
+## Main functions
 ### `IsTryingToTradeWithMe(inst)`
-* **Description:** Determines whether the given entity (`inst`) is attempting to trade *with* this trader (i.e., performing a `GIVE`/`GIVETOPLAYER` action directed at this trader).  
-* **Parameters:**  
-  - `inst`: The potential giver (usually a `player`).
+*   **Description:** Determines whether the given entity `inst` is attempting to trade with this trader (via buffered action or remote interaction).  
+*   **Parameters:** `inst` (Entity) - The candidate trading partner.  
+*   **Returns:** `true` if `inst` has an active `GIVE`, `GIVEALLTOPLAYER`, or `GIVETOPLAYER` action targeting this trader; otherwise `false`.  
 
 ### `IsAcceptingStacks()`
-* **Description:** Returns the current state of the `acceptstacks` flag.  
-* **Parameters:** None.  
-* **Returns:** `boolean?` — `nil` if unset, or the boolean value set by `SetAcceptStacks()`.
+*   **Description:** Reports whether partial-stack trades are accepted.  
+*   **Parameters:** None.  
+*   **Returns:** Value of `self.acceptstacks`; `nil` if unset.  
 
 ### `Enable()`
-* **Description:** Enables the trader (sets `enabled = true`) and adds the `"trader"` tag.  
-* **Parameters:** None.
+*   **Description:** Enables the trader and ensures the `trader` tag is present.  
+*   **Parameters:** None.  
+*   **Returns:** Nothing.  
 
 ### `Disable()`
-* **Description:** Disables the trader (sets `enabled = false`) and removes the `"trader"` tag.  
-* **Parameters:** None.
+*   **Description:** Disables the trader and removes the `trader` tag.  
+*   **Parameters:** None.  
+*   **Returns:** Nothing.  
 
 ### `SetAcceptTest(fn)`
-* **Description:** Sets the `test` function used to determine *desire* (i.e., whether the trader wants the item). Invoked in `WantsToAccept()`.  
-* **Parameters:**  
-  - `fn`: A function with signature `(inst, item, giver, count) -> boolean`.
+*   **Description:** Sets a callback function used to decide whether the trader *wants* the item (i.e., is not disgusted by it). This is checked *after* `AbleToAccept`.  
+*   **Parameters:** `fn` (function) - Signature: `function(trader, item, giver, count) return should_accept end`.  
+*   **Returns:** Nothing.  
+*   **Error states:** Does *not* trigger action failure or reasons; use `SetAbleToAcceptTest` for such behavior.  
 
 ### `SetAbleToAcceptTest(fn)`
-* **Description:** Overrides the `AbleToAccept()` logic entirely; used to trigger custom failure reasons via `action.fail`.  
-* **Parameters:**  
-  - `fn`: A function with signature `(inst, item, giver, count) -> boolean, string?`.
+*   **Description:** Sets a callback to override the default *physical eligibility* check in `AbleToAccept`. Useful for custom failure reasons.  
+*   **Parameters:** `fn` (function) - Signature: `function(trader, item, giver, count) return boolean, reason end`.  
+*   **Returns:** Nothing.  
 
 ### `SetOnAccept(fn)`
-* **Description:** Sets the callback invoked after a successful gift acceptance.  
-* **Parameters:**  
-  - `fn`: A function with signature `(inst, giver, item, count)`.
+*   **Description:** Registers a callback invoked when an item is successfully accepted.  
+*   **Parameters:** `fn` (function) - Signature: `function(trader, giver, item, count)`.  
+*   **Returns:** Nothing.  
 
 ### `SetOnRefuse(fn)`
-* **Description:** Sets the callback invoked when the trader refuses the gift (e.g., due to `test` returning `false`).  
-* **Parameters:**  
-  - `fn`: A function with signature `(inst, giver, item)`.
+*   **Description:** Registers a callback invoked when an item is refused (e.g., not wanted).  
+*   **Parameters:** `fn` (function) - Signature: `function(trader, giver, item)`.  
+*   **Returns:** Nothing.  
 
 ### `SetAcceptStacks()`
-* **Description:** Enables stack-acceptance mode by setting `acceptstacks = true`.  
-* **Parameters:** None.
+*   **Description:** Enables partial-stack trades (sets `acceptstacks` to `true`).  
+*   **Parameters:** None.  
+*   **Returns:** Nothing.  
 
 ### `AbleToAccept(item, giver, count)`
-* **Description:** Checks whether the trader is *physically able* to accept an item (ignores preference). Returns `false` and a reason string for failure (e.g., `"DEAD"`, `"SLEEPING"`).  
-* **Parameters:**  
-  - `item`: The item being offered.  
-  - `giver`: The entity giving the item (optional).  
-  - `count`: Number of items being offered (optional).  
-* **Returns:** `boolean, string?` — First value indicates ability; second is failure reason if applicable.
+*   **Description:** Checks whether the trader is *physically capable* of accepting the item.  
+*   **Parameters:**  
+  - `item` (Entity or nil) - The item being traded.  
+  - `giver` (Entity or nil) - The entity giving the item.  
+  - `count` (number or nil) - Number of items in the stack intended for trade.  
+*   **Returns:** `true` if the trader can accept; otherwise `false, "REASON"` (e.g., `"DEAD"`, `"SLEEPING"`, `"BUSY"`, `"ITEMMIMIC"`).  
+*   **Error states:** Returns `false` if `enabled` is false, `item` is `nil`, or `abletoaccepttest` returns `false`. Mimic items are rejected unless `acceptsmimics` is true (currently commented out).  
 
 ### `WantsToAccept(item, giver, count)`
-* **Description:** Checks whether the trader *wants* to accept the item (preference/logic). May invoke custom `test` function. Does not trigger failure actions.  
-* **Parameters:** Same as `AbleToAccept`.  
-* **Returns:** `boolean`.
+*   **Description:** Checks whether the trader *wants* the item (subjective preference). Called after `AbleToAccept`.  
+*   **Parameters:** Same as `AbleToAccept`.  
+*   **Returns:** `true` if `enabled` and (no `test` function or `test()` returns `true`); otherwise `false`.  
+*   **Error states:** Never returns a reason string—this is handled separately by `onrefuse`.  
 
 ### `AcceptGift(giver, item, count)`
-* **Description:** Processes a gift offer. Validates via `AbleToAccept()` and `WantsToAccept()`, then executes item transfer, optional removal, inventory addition, and callbacks. Emits `"trade"` event on success.  
-* **Parameters:**  
-  - `giver`: The entity giving the item.  
-  - `item`: The item instance.  
-  - `count`: Number of items to accept. Defaults to `1`.  
-* **Returns:** `boolean` — `true` if accepted, `false` otherwise.
+*   **Description:** Attempts to accept the gift, performing all checks, item transfer, and side effects.  
+*   **Parameters:**  
+  - `giver` (Entity or nil) - The entity giving the item.  
+  - `item` (Entity) - The item being given.  
+  - `count` (number or nil) - Number of items to accept. Defaults to `1`.  
+*   **Returns:** `true` if accepted; `false` if refused or ineligible.  
+*   **Error states:** Returns `false` immediately if `AbleToAccept` fails; if `WantsToAccept` fails, triggers `onrefuse` and returns `false`. If accepted and `deleteitemonaccept` is `true`, the item is removed; otherwise it is added to the trader’s inventory. The `trade` event is pushed after processing.  
 
 ### `GetDebugString()`
-* **Description:** Returns `"true"` if enabled, `"false"` otherwise — useful for debugging.  
-* **Parameters:** None.  
-* **Returns:** `string`.
+*   **Description:** Returns a debug-friendly string representation of the `enabled` state.  
+*   **Parameters:** None.  
+*   **Returns:** `"true"` if `enabled`; otherwise `"false"`.  
 
-## Events & Listeners
-- **Events emitted by component:**  
-  - `"trade"` — triggered in `AcceptGift()` after successful item transfer.  
-    - Payload: `{ giver = giver, item = item }`
-- **Listeners:**  
-  - None — the component does *not* register listeners for external events via `inst:ListenForEvent`.  
-- **Tag updates:**  
-  - `"trader"` and `"alltrader"` tags are added/removed in `onenabled()` and `onacceptnontradable()` callbacks, triggered by property changes.
+## Events & listeners
+- **Listens to:** `enabled` and `acceptnontradable` property changes (via `Class` property hooks `onenabled` and `onacceptnontradable`) to update `trader`/`alltrader` tags.
+- **Pushes:** `trade` - fired after a successful trade with payload `{ giver = giver, item = item }`.

@@ -4,7 +4,6 @@ title: Dlcrooms
 description: Registers forest biome-specific room templates with unique entity distribution and static layouts for procedural world generation.
 tags: [world, map, procedural, dlc, room]
 sidebar_position: 1
-
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: d47f0139
 ---
-
 # Dlcrooms
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -53,4 +51,3 @@ This file does not define any internal functions. All functionality is delegated
 ## Events & listeners
 None identified. This file performs static registration during load-time and does not register or listen to any game events.
 
----

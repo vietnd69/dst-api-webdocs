@@ -4,7 +4,6 @@ title: Forest
 description: Defines preset configurations for the forest level in Don't Starve Together, including world generation overrides and playstyle settings.
 tags: [world, level, preset]
 sidebar_position: 1
-
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: b4d9df82
 ---
-
 # Forest
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -62,4 +60,3 @@ This file does not define any functions. It executes only top-level registration
 
 This file does not define any event listeners or push any events. It operates synchronously during world generation initialization.
 
----

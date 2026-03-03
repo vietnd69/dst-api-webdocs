@@ -1,92 +1,59 @@
 ---
 id: bunnymanbrain
 title: Bunnymanbrain
-description: Controls the decision-making and behavior tree for the Bunnyman entity, enabling fleeing, chasing, trading, and home-seeking behaviors in response to threats, hunger, and player interactions.
+description: AI controller that manages autonomous behavior for bunnyman entities, including combat, fleeing, foraging, home-seeking, and trading interactions.
+tags: [ai, entity, combat, foraging, home]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 0eb14219
+system_scope: brain
 ---
 
 # Bunnymanbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **7140014** | Last updated: 2026-03-03
 
 ## Overview
-This brain component implements the behavior tree for the Bunnyman entity (`prefabs/bunnyman.lua`). It orchestrates high-level decision-making using a priority-based behavior tree (`BT`) that dynamically responds to environmental and combat stimuli. Key behaviors include fleeing from burning homes or perceived scarers (e.g., King Spear), seeking food, returning to home when no leader is present, attempting to trade with players, and wandering when idle. The brain integrates several components—`health`, `combat`, `eater`, `follower`, `hauntable`, `burnable`, `homeseeker`, `inventory`, and `trader`—to evaluate states and execute context-sensitive actions.
+`BunnymanBrain` is a behavior tree-based AI controller for bunnyman entities. It implements a priority-based decision system that handles fleeing (from threats, fire, acid rain, low health), pursuing and attacking targets (including scarers), seeking food, trading with players, following a leader, and returning to a home when appropriate. It relies heavily on common DST components like `health`, `combat`, `eater`, `homeseeker`, `follower`, and `trader`, and uses a prioritized behavior tree to coordinate actions.
 
-## Dependencies & Tags
-- **Components used:** `health`, `combat`, `eater`, `edible`, `inventory`, `inventoryitem`, `equippable`, `follower`, `hauntable`, `burnable`, `homeseeker`, `trader`, `playercontroller`
-- **Tags:** 
-  - Checked: `"manrabbitscarer"`, `"INLIMBO"`, `"outofreach"`, `"NOCLICK"`, `"burnt"`
-  - Used in conditionals: `busy`, `"RABBIT_PANICBOSS"`, `"RABBIT_PANICHAUNT"`, `"RABBIT_PANICFIRE"`, `"RABBIT_PANICELECTRICITY"`, `"RABBIT_RETREAT"`, `"RABBIT_PANICHOUSEFIRE"`
-- **Behaviors referenced:** `wander`, `follow`, `faceentity`, `chaseandattack`, `runaway`, `doaction`, `findlight`, `panic`, `chattynode`, `leash`
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddTag("bunnyman")
+inst:AddComponent("health")
+inst:AddComponent("combat")
+inst:AddComponent("eater")
+inst:AddComponent("homeseeker")
+inst:AddComponent("follower")
+inst:AddComponent("trader")
+inst:AddComponent("hauntable")
+inst:AddComponent("burnable")
+-- ... (initialize home and leader if needed)
+inst.brain = BunnymanBrain(inst)
+inst.brain:OnStart()
+```
+
+## Dependencies & tags
+**Components used:** `health`, `combat`, `eater`, `edible`, `equippable`, `follower`, `trader`, `hauntable`, `burnable`, `inventory`, `inventoryitem`, `homeseeker`, `playercontroller`.  
+**Tags:** Checks `"manrabbitscarer"`, `"INLIMBO"`, `"outofreach"`, `"NOCLICK"`, `"burnt"`; adds no tags itself.
 
 ## Properties
-No public properties are initialized directly in the constructor; this brain relies on properties defined in shared `Brain` and behavior modules.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | *assigned at construction* | Reference to the entity instance the brain controls. |
+| `bt` | `BehaviorTree` | `nil` (set in `OnStart`) | The root behavior tree, initialized and assigned during `OnStart`. |
 
-## Main Functions
-
-### `BunnymanBrain:OnStart()`
-* **Description:** Initializes and attaches the behavior tree root node to the instance. Constructs a `PriorityNode` hierarchy that defines action priorities and evaluates state-based conditions (e.g., panic, low health, fire, acid rain). Assigns the constructed behavior tree to `self.bt`.
+## Main functions
+### `OnStart()`
+* **Description:** Constructs and initializes the behavior tree using a priority-ordered sequence of conditionally activated nodes. It sets up a behavior tree that evaluates high-priority threats (panic triggers) first, then falls back to combat, trading, foraging, following, home-seeking, and wandering.
 * **Parameters:** None.
-* **Returns:** None.
+* **Returns:** Nothing.
+* **Error states:** Requires that `inst.components` has all necessary components (`health`, `combat`, `eater`, `homeseeker`, `follower`, `trader`, `hauntable`, `burnable`, `inventory`, `inventoryitem`) attached before calling; otherwise node execution may fail.
 
-### Helper Functions (used internally in the behavior tree)
-
-#### `GetTraderFn(inst)`
-* **Description:** Scans for players within `TRADE_DIST` (`20`) units who are actively attempting to trade with this Bunnyman. Returns the first matching player or `nil`.
-* **Parameters:** `inst` (`Entity`). The Bunnyman entity instance.
-* **Returns:** `Entity?` — the player attempting to trade, or `nil`.
-
-#### `KeepTraderFn(inst, target)`
-* **Description:** Checks whether the given `target` player is still attempting to trade with this Bunnyman.
-* **Parameters:** `inst` (`Entity`), `target` (`Entity`). The Bunnyman and the player entity.
-* **Returns:** `boolean` — `true` if `target` is trying to trade, otherwise `false`.
-
-#### `FindFoodAction(inst)`
-* **Description:** Prioritizes food in the Bunnyman's inventory, then falls back to searching for food within range (`SEE_FOOD_DIST = 10`). Respects hunger duration: avoids vegetables unless the Bunnyman is long since last eaten (`TimeSinceLastEating() > 4 * PIG_MIN_POOP_PERIOD`). Skips entities with `"INLIMBO"` or `"outofreach"` tags or those not on passable terrain. Returns a buffered `EAT` action.
-* **Parameters:** `inst` (`Entity`).
-* **Returns:** `BufferedAction?` — action to execute, or `nil`.
-
-#### `HasValidHome(inst)`
-* **Description:** Verifies the Bunnyman has a non-`nil`, valid, non-burned, and non-burnt `homeseeker.home` entity.
-* **Parameters:** `inst` (`Entity`).
-* **Returns:** `boolean`.
-
-#### `GetLeader(inst)`
-* **Description:** Delegates to `components.follower:GetLeader()` to retrieve the leader entity, if any.
-* **Parameters:** `inst` (`Entity`).
-* **Returns:** `Entity?`.
-
-#### `GoHomeAction(inst)`
-* **Description:** Returns a buffered `GOHOME` action toward `homeseeker.home` only if the Bunnyman has no leader, no combat target, and a valid home.
-* **Parameters:** `inst` (`Entity`).
-* **Returns:** `BufferedAction?`.
-
-#### `IsHomeOnFire(inst)`
-* **Description:** Checks whether the home entity is within `20` units and is currently burning (`burnable:IsBurning()`).
-* **Parameters:** `inst` (`Entity`).
-* **Returns:** `boolean`.
-
-#### `GetHomePos(inst)`
-* **Description:** Returns the world position of a valid home via `homeseeker:GetHomePos()`, or `nil` if home is invalid.
-* **Parameters:** `inst` (`Entity`).
-* **Returns:** `Vector3?`.
-
-#### `GetNoLeaderHomePos(inst)`
-* **Description:** Returns the home position only if the Bunnyman has no leader; otherwise returns `nil`.
-* **Parameters:** `inst` (`Entity`).
-* **Returns:** `Vector3?`.
-
-#### `FindNearbyScarer(inst)`
-* **Description:** Locates the nearest entity tagged `"manrabbitscarer"` within `TUNING.RABBITKINGSPEAR_SCARE_RADIUS`. Skips equipped scarers held by anyone other than the Bunnyman's leader. Returns the first matching entity or `nil`.
-* **Parameters:** `inst` (`Entity`).
-* **Returns:** `Entity?`.
-
-## Events & Listeners
-This brain does not register any `inst:ListenForEvent` listeners. It relies on real-time state evaluation within the behavior tree nodes (e.g., `WhileNode`, `ChattyNode`) and does not fire custom events itself.
+## Events & listeners
+* **Listens to:** None — this brain uses a reactive behavior tree evaluated each tick rather than event-driven scheduling.
+* **Pushes:** None — the brain itself does not fire events, though its sub-behaviours (e.g., `Panic`, `RunAway`) may.

@@ -1,47 +1,62 @@
 ---
 id: boatrace_proximitybeacon
 title: Boatrace Proximitybeacon
-description: Enables an entity to act as a beacon in the boat race system, executing callbacks when a race starts or finishes.
+description: Registers event callbacks for boat race start and finish events on an entity, enabling custom logic when a boat race begins or ends.
+tags: [event, race, callback]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 22d5291b
+system_scope: entity
 ---
 
 # Boatrace Proximitybeacon
 
-## Overview
-This component marks an entity as a "beacon" for the boat race system. Its primary responsibility is to listen for global `boatrace_start` and `boatrace_finish` events and execute specific callback functions when those events occur. It is designed to be used in conjunction with a `boatrace_proximitychecker` to identify when the beacon is within a certain range of a checker entity.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Tags:** Adds the `boatrace_proximitybeacon` tag to the entity upon initialization. This tag is removed when the component is removed.
+## Overview
+`BoatRace_ProximityBeacon` is a lightweight component attached to entities that participate in or monitor boat races. It acts as a callback handler for `boatrace_start` and `boatrace_finish` events. The component does not determine proximity or run game logic itself — instead, it provides hooks to respond when a boat race event occurs, typically in coordination with a `boatrace_proximitychecker` component or similar system.
+
+## Usage example
+```lua
+local beacon = CreateEntity()
+beacon:AddComponent("boatrace_proximitybeacon")
+beacon.components.boatrace_proximitybeacon:SetBoatraceStartedFn(function(inst, data)
+    print("Boat race started!")
+end)
+beacon.components.boatrace_proximitybeacon:SetBoatraceFinishedFn(function(inst, start, winner)
+    print("Boat race finished. Winner:", winner)
+end)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `boatrace_proximitybeacon` to the entity.
 
 ## Properties
+No public properties
 
-| Property | Type | Default Value | Description |
-|---|---|---|---|
-| `boatrace_started_fn` | function | `nil` | The callback function to execute when the `boatrace_start` event is received. |
-| `boatrace_finished_fn` | function | `nil` | The callback function to execute when the `boatrace_finish` event is received. |
-
-## Main Functions
-### `OnRemoveFromEntity()`
-* **Description:** A lifecycle method called when the component is removed from the entity. It cleans up by removing the `boatrace_proximitybeacon` tag and unregistering the event listeners.
-* **Parameters:** None.
-
+## Main functions
 ### `SetBoatraceStartedFn(fn)`
-* **Description:** Sets the callback function that will be invoked when a boat race starts.
-* **Parameters:**
-    * `fn` (function): The function to call. It will receive the instance (`inst`) and event data (`data`) as arguments.
+*   **Description:** Sets the callback function invoked when the `boatrace_start` event is fired.  
+*   **Parameters:** `fn` (function) — a function accepting two arguments: `inst` (the beacon entity) and `data` (event data table).
+*   **Returns:** Nothing.
 
 ### `SetBoatraceFinishedFn(fn)`
-* **Description:** Sets the callback function that will be invoked when a boat race finishes.
-* **Parameters:**
-    * `fn` (function): The function to call. It will receive the instance (`inst`), the race start beacon (`data.start`), and the winning player (`data.winner`) as arguments.
+*   **Description:** Sets the callback function invoked when the `boatrace_finish` event is fired.  
+*   **Parameters:** `fn` (function) — a function accepting three arguments: `inst` (the beacon entity), `start` (start position data), and `winner` (winner identifier).
+*   **Returns:** Nothing.
 
-## Events & Listeners
-* **`boatrace_start`**: Listens for this global event. When triggered, it executes the function assigned via `SetBoatraceStartedFn`.
-* **`boatrace_finish`**: Listens for this global event. When triggered, it executes the function assigned via `SetBoatraceFinishedFn`.
+### `OnRemoveFromEntity()`
+*   **Description:** Cleans up the component upon removal: removes the `boatrace_proximitybeacon` tag and unregisters all event listeners.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:**  
+  - `boatrace_start` — triggers `self.boatrace_started_fn`, if set.  
+  - `boatrace_finish` — triggers `self.boatrace_finished_fn`, if set.  
+- **Pushes:** None identified

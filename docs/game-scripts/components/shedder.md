@@ -1,54 +1,72 @@
 ---
 id: shedder
 title: Shedder
-description: A component that periodically spawns items (e.g., shedded parts) at a fixed height above the entity and optionally applies outward physics velocity.
+description: Manages periodic or burst shedding of items from an entity at a specified height.
+tags: [loot, environment, spawn]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 8598794c
+system_scope: entity
 ---
 
 # Shedder
 
-## Overview
-The `Shedder` component manages periodic or one-time spawning of items (e.g., shedded body parts) from an entity. It supports both single and batch shedding, optionally applying physics velocity to spawned items to simulate scattering. This is typically used for creatures like Bearger that shed physical objects (e.g., fur, chitin) during seasonal transitions or other game events.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on the presence of `Transform` and `Physics` components on the parent entity (`self.inst`) for position and velocity operations.
-- Automatically registers a cleanup handler via `Shedder.OnRemoveFromEntity = Shedder.StopShedding`, ensuring shedding stops when the component is removed from the entity.
+## Overview
+`Shedder` is a component that enables an entity to drop (shed) items into the world either periodically or in bursts. It is typically used for seasonal or behavioral loot mechanics — for example, Bearger shedding meat at intervals. The component handles spawning prefabs at a configurable height above the entity and optionally applies initial velocity to shed items.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("shedder")
+inst.components.shedder.shedItemPrefab = "meat"
+inst.components.shedder.shedHeight = 6.5
+inst.components.shedder:StartShedding(60)  -- shed every 60 seconds
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (assigned by constructor) | Reference to the host entity. |
-| `shedItemPrefab` | `string?` | `nil` | Prefab name of the item to spawn when shedding occurs. |
-| `shedHeight` | `number` | `6.5` | Vertical (Y-axis) position offset where shed items appear. |
-| `shedTask` | `GorillaTask?` | `nil` | Reference to the recurring periodic task; `nil` if shedding is inactive. |
+| `shedItemPrefab` | string? | `nil` | Prefab name of the item to shed. If `nil`, no item spawns. |
+| `shedHeight` | number | `6.5` | Vertical (Y) offset above the entity’s position where items are spawned. |
+| `shedTask` | Task? | `nil` | Internal periodic task handle for scheduled shedding. |
 
-## Main Functions
-
+## Main functions
 ### `StartShedding(interval)`
-* **Description:** Starts a recurring task that triggers shedding at a fixed time interval. Cancels any existing shedding task first.
-* **Parameters:**
-  - `interval` (`number?`, optional): Time in seconds between sheds. Defaults to `60`.
+* **Description:** Starts a periodic shedding task that triggers item shedding at regular intervals. Cancels any existing shedding task first.
+* **Parameters:** `interval` (number?, optional) — time in seconds between sheds. Defaults to `60` if not provided.
+* **Returns:** Nothing.
+* **Error states:** Does not error; silently cancels prior shed task if already running.
 
 ### `StopShedding()`
-* **Description:** Cancels any active periodic shedding task and clears the task reference.
+* **Description:** Cancels the periodic shedding task, stopping further automatic shedding.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No-op if no shed task is active.
 
 ### `DoSingleShed()`
-* **Description:** Spawns a single item at the entity’s current position, offset vertically by `shedHeight` and horizontally by a small random amount (±0.5 units). Returns the spawned item instance or `nil` if no item could be spawned.
+* **Description:** Spawns a single item based on `shedItemPrefab` at a randomized horizontal position around the entity, at the configured `shedHeight`. Returns the spawned item instance.
 * **Parameters:** None.
+* **Returns:** `item` (GObject? or `nil`) — the spawned item, or `nil` if `shedItemPrefab` is `nil` or spawning failed.
+* **Error states:** Returns `nil` if `SpawnPrefab` fails or if `shedItemPrefab` is `nil`. Position jitter is applied within ±0.5 world units in X and Z.
 
 ### `DoMultiShed(max, random)`
-* **Description:** Spawns multiple items (`max` count or `random` count if `random` is `true`) using `DoSingleShed`, then applies outward physics velocity to each spawned item to scatter them radially.
+* **Description:** Spawns multiple items in quick succession, applying outward radial velocity to each. Ideal for "burst" shedding effects (e.g., explosion-style dispersal).
 * **Parameters:**
-  - `max` (`number`): Maximum number of items to shed.
-  - `random` (`boolean`): If `true`, the actual number of items shed is a random integer between 1 and `max`.
+  * `max` (number) — number of items to shed (or upper bound if `random` is `true`).
+  * `random` (boolean) — if `true`, actual count is randomized between `1` and `max`.
+* **Returns:** Nothing.
+* **Error states:** Skips velocity application if an item lacks `Physics` or if physics is inactive. Velocity magnitude is fixed at `4` units/second.
 
-## Events & Listeners
-- Listens to entity removal via `Shedder.OnRemoveFromEntity`, which is set to `Shedder.StopShedding` to ensure cleanup when the component is removed.
+## Events & listeners
+- **Listens to:** `onremove` — triggers `StopShedding` via `Shedder.OnRemoveFromEntity` when the component is removed from its entity.
+- **Pushes:** None.

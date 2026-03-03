@@ -1,83 +1,84 @@
 ---
 id: fumarolelocaltemperature
 title: Fumarolelocaltemperature
-description: Manages dynamic local temperature calculations for fumarole areas using seasonal, noise-based, and global modifiers.
+description: Calculates and provides local temperature values near fumaroles based on seasonal cycles, noise, and multipliers, for use by the temperature override system.
+tags: [temperature, environment, map, network, simulation]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: environment
+category_type: components
 source_hash: 1a503ac4
+system_scope: environment
 ---
 
 # Fumarolelocaltemperature
 
-## Overview
-This component computes and provides real-time temperature values for fumarole-affected areas in the world. It combines seasonal temperature cycles, Perlin noise, global temperature modifiers (multiplier and locus), and local spatial interpolation to determine temperature at specific coordinates. The `TemperatureOverrider` component (which consumes this component via `GetTemperatureAtXZ`) uses its public interface to override default tile temperatures in zones tagged `"fumarolearea"`.
+> Based on game build **714004** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component dependency:** Requires `temperatureoverrider` to be loaded (via `require("components/temperatureoverrider")`).  
-- **Entity tag usage:** Uses `inst:ListenForEvent("seasontick", ...)` and listens for `"ms_simunpaused"` (master sim only).  
-- **Map tags used:** Reads `"fumarolearea"` tag from tile nodes (via `_map:NodeAtTileHasTag(...)`).  
-- **No entity tags added or removed** by this component itself.
+## Overview
+`Fumarolelocaltemperature` manages dynamic local temperature computation for entities representing fumaroles (geothermal vents). It computes per-tile temperature contributions using seasonal data, noise functions, and optional global modifiers. This component integrates with `TemperatureOverrider`, which calls its `GetTemperatureAtXZ` method to determine effective temperature at a given world location. It runs on both server and client but defers authoritative updates to the master simulation.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("fumarolelocaltemperature")
+inst:AddTag("fumarole")
+inst.Transform:SetPosition(x, 0, z)
+inst.components.fumarolelocaltemperature:SetTemperatureMod(1.2, 5)
+local temp = inst.components.fumarolelocaltemperature:GetTemperature()
+```
+
+## Dependencies & tags
+**Components used:** `temperatureoverrider` (via `require`)
+**Tags:** None added or removed by this component itself.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `GEntity` | — | Reference to the owning entity instance. |
-| `_world` | `World` (local) | `TheWorld` | Internal reference to the world instance. |
-| `_map` | `Map` (local) | `_world.Map` | Internal map reference used for tile/coordinate operations. |
-| `_state` | `State` (local) | `_world.state` | Reference to the current world state, including base temperature. |
-| `_ismastersim` | `boolean` (local) | `_world.ismastersim` | `true` if the entity is running in master simulation (server). |
-| `_noisetime` | `net_float` (local) | `net_float(inst.GUID, "..._noisetime")` | Networked float tracking time for noise evolution (updated per `NOISE_SYNC_PERIOD = 30` seconds). |
-| `_venting` | `net_bool` (local) | *(commented out in code)* | Not active; commented out during initialization. |
+| `inst` | entity instance | `inst` | Reference to the owning entity. |
+| `_noisetime` | `net_float` | `0` | Networked accumulator for noise time progression, synced every 30 seconds. |
+| `_venting` | not implemented | — | Commented-out network variable; previously intended for manual override. |
 
-*Note:* While `_globaltemperaturemult`, `_globaltemperaturelocus`, `_seasontemperature`, `_currenttemperature`, `_cachetemperature`, and `_season` are used internally, they are not exposed as public properties but are initialized/managed in constructor or event handlers.
+## Main functions
+### `SetTemperatureMod(multiplier, locus)`
+* **Description:** Applies a global temperature multiplier and offset (locus) used in all subsequent temperature calculations.
+* **Parameters:** 
+  * `multiplier` (number) — scaling factor for temperature deviation.
+  * `locus` (number) — base temperature offset.
+* **Returns:** Nothing.
 
-## Main Functions
+### `GetTemperature()`
+* **Description:** Returns the *current global* fumarole temperature (not tile-specific), derived from noise and seasonal model.
+* **Parameters:** None.
+* **Returns:** `number` — the computed temperature in degrees Celsius.
+* **Error states:** None; always returns a valid temperature.
 
-### `self:SetTemperatureMod(multiplier, locus)`
-* **Description:** Sets global temperature modifier parameters used in the temperature calculation formula (`multiplier` scales deviation from `locus`).  
-* **Parameters:**  
-  - `multiplier` (`number`): Multiplicative factor applied to the temperature deviation (e.g., 1.0 for default).  
-  - `locus` (`number`): Offset (base reference) temperature around which deviations occur.
+### `GetTemperatureAtXZ(x, z)`
+* **Description:** Computes the *local* temperature at a given world position `(x, z)` by blending base world temperature with the fumarole's global temperature, weighted by how many fumarole tiles surround the target tile.
+* **Parameters:** 
+  * `x`, `z` (number) — world coordinates.
+* **Returns:** `number` or `nil` — interpolated temperature if the tile has any fumarole influence; otherwise `nil`.
+* **Error states:** Returns `nil` if the queried tile has zero fumarole coverage (`temp_perc == 0`).
 
-### `self:GetTemperature()`
-* **Description:** Returns the *current global fumarole temperature* (a single value per entity), computed from season, noise, and modifiers. This is distinct from `GetTemperatureAtXZ`, which returns *tile-specific interpolated values*.  
-* **Parameters:** None.  
-* **Returns:** `number` — the computed temperature (°C).
+### `OnUpdate(dt)`
+* **Description:** Called periodically to advance internal state: updates noise time, recomputes temperature, and handles network sync.
+* **Parameters:** `dt` (number) — time delta in seconds.
+* **Returns:** Nothing.
 
-### `self:GetTemperatureAtXZ(x, z)`
-* **Description:** Computes the effective temperature at world coordinates (x, z), interpolating between base world temperature and the global fumarole temperature based on the density of `"fumarolearea"` tiles within a local search window (±4 tiles). Returns `nil` if no fumarole influence is detected.  
-* **Parameters:**  
-  - `x` (`number`): World X coordinate.  
-  - `z` (`number`): World Z coordinate.  
-* **Returns:** `number?` — Interpolated temperature at (x, z), or `nil` if outside fumarole-affected area.
+### `GetDebugString()`
+* **Description:** Returns a formatted string for debugging, showing current calculated temperature and active modifiers.
+* **Parameters:** None.
+* **Returns:** `string` — e.g., `"85.23C mult: 1.20 locus 5.0"`.
 
-### `self:OnUpdate(dt)`
-* **Description:** Updates noise time and recalculates the global fumarole temperature each frame. Clients update locally; server enforces periodic network sync (every 30 seconds) via `SetWithPeriodicSync`.  
-* **Parameters:**  
-  - `dt` (`number`): Delta time in seconds.
+## Events & listeners
+- **Listens to:** 
+  - `"seasontick"` (from `TheWorld`) — updates internal seasonal temperature and season name.
+  - `"ms_simunpaused"` (from `TheWorld`, master-only) — triggers a forced resync of `_noisetime`.
+- **Pushes:** None.
 
-### `self:GetDebugString()`
-* **Description:** Returns a formatted debug string showing current temperature and modifier values.  
-* **Parameters:** None.  
-* **Returns:** `string` — e.g., `"105.42C mult: 1.00 locus 0.0"`.
-
-### `self:OnSave()`
-* **Description:** (Master sim only) Returns a table containing critical persistent state for saving (season, season temperature, noise time).  
-* **Parameters:** None.  
-* **Returns:** `{ season: string, seasontemperature: number, noisetime: number }`
-
-### `self:OnLoad(data)`
-* **Description:** (Master sim only) Restores state from saved data on load.  
-* **Parameters:**  
-  - `data` (`table`) — Contains `season`, `seasontemperature`, and `noisetime`.
-
-## Events & Listeners
-- **Listens for `"seasontick"`** on `TheWorld`: Triggers `OnSeasonTick` to update `_seasontemperature` and `_season`.
-- **Listens for `"ms_simunpaused"`** on `TheWorld` *(master sim only)*: Triggers `OnSimUnpaused` to force resync of networked values.
-- **No events are pushed** by this component.
+## Initialization notes
+- `InitializeDataGrids()` creates a `DataGrid` (`_cachetemperature`) to cache per-tile fumarole coverage ratios.
+- `OnSave`/`OnLoad` only operate on the master simulation; they serialize season and `_noisetime`.
+- `LongUpdate = self.OnUpdate` ensures the component updates during long updates (e.g., slow ticking).

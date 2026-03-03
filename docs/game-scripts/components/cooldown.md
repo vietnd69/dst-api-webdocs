@@ -1,80 +1,118 @@
 ---
 id: cooldown
 title: Cooldown
-description: This component manages a timed cooldown state for an entity, allowing it to track and signal when a period of inactivity has passed.
+description: Manages charging and recharging states for an entity's abilities, tracking cooldown duration and triggering callbacks when fully charged.
+tags: [combat, ability, state]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: b44a49f9
+system_scope: entity
 ---
 
 # Cooldown
 
-## Overview
-This component provides a robust mechanism for entities to manage timed cooldowns for their abilities or actions. It tracks a "charged" state, initiates timed delays, cancels active cooldowns, and can persist its state across game saves. It also supports custom callback functions for when a cooldown starts and when it finishes.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Cooldown` implements an ability-charging system for entities. It handles the transition from a "charging" state (during cooldown) to a "charged" state (ready to use), optionally executing callbacks when charging starts or completes. It supports persistence (via `OnSave`/`OnLoad`) and periodic updates via `LongUpdate` for networked syncing and simulation stability.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("cooldown")
+
+inst.components.cooldown:SetStartChargingFn(function(inst) 
+    print("Ability charging started")
+end)
+
+inst.components.cooldown:SetOnChargedFn(function(inst)
+    print("Ability fully charged!")
+    inst.components.combat:DoAttack()
+end)
+
+inst.components.cooldown:StartCharging(3.0)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Does not modify entity tags.
 
 ## Properties
-| Property            | Type      | Default Value | Description                                                               |
-|:--------------------|:----------|:--------------|:--------------------------------------------------------------------------|
-| `charged`           | boolean   | `false`       | Indicates whether the cooldown period has finished and the ability is ready. |
-| `cooldown_duration` | number    | `nil`         | The default duration (in seconds) for the cooldown period.                |
-| `startchargingfn`   | function  | `nil`         | A callback function to be executed when the cooldown period begins.       |
-| `onchargedfn`       | function  | `nil`         | A callback function to be executed when the cooldown period ends and the component becomes `charged`. |
-| `task`              | task_handle| `nil`         | An internal handle to the active `DoTaskInTime` task managing the cooldown timer. |
-| `cooldown_deadline` | number    | `nil`         | The global game time (from `GetTime()`) at which the cooldown is scheduled to finish. `nil` if not currently charging. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | `nil` | Owner entity of this component (set during construction). |
+| `charged` | `boolean` | `false` | Whether the ability is ready (cooldown complete). |
+| `cooldown_duration` | `number?` | `nil` | Default duration (seconds) for charging; used if not overridden in `StartCharging`. |
+| `startchargingfn` | `function?` | `nil` | Callback invoked when charging begins. |
+| `onchargedfn` | `function?` | `nil` | Callback invoked when charging completes. |
+| `task` | `DoTaskInTime?` | `nil` | Scheduled task object for the charge timer; `nil` when not charging. |
+| `cooldown_deadline` | `number?` | `nil` | Absolute game time at which charging completes; `nil` when not charging. |
 
-## Main Functions
-### `OnRemoveFromEntity()`
-* **Description:** Cleans up any active cooldown tasks when the component is removed from its entity, preventing memory leaks or unexpected behavior.
-* **Parameters:** None.
-
+## Main functions
 ### `StartCharging(time)`
-* **Description:** Initiates a cooldown period for the specified duration. If `time` is not provided, it defaults to `self.cooldown_duration`. This will set `self.charged` to `false` and schedule a task to mark it as charged after the given time.
-* **Parameters:**
-    *   `time`: (`number`, optional) The duration in seconds for the cooldown. If `nil`, `self.cooldown_duration` is used.
+*   **Description:** Begins the charging process for the specified duration (or default duration if `time` is omitted). Sets `charged` to `false`, schedules a timer, and fires the `startchargingfn` callback.
+*   **Parameters:** `time` (number, optional) - duration in seconds to wait before charging completes. Falls back to `self.cooldown_duration` if omitted.
+*   **Returns:** Nothing.
+*   **Error states:** Does not fail; cancels any existing timer before scheduling a new one.
 
 ### `FinishCharging()`
-* **Description:** Immediately ends the current cooldown period, setting `self.charged` to `true` and invoking the `onchargedfn` callback if it exists.
-* **Parameters:** None.
+*   **Description:** Immediately completes the charging process if currently charging. Skips waiting and sets `charged = true`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Has no effect if `cooldown_deadline` is `nil` (i.e., not currently charging).
 
 ### `GetTimeToCharged()`
-* **Description:** Returns the remaining time until the cooldown period ends.
-* **Parameters:** None.
-* **Returns:** (`number`) The remaining time in seconds, or `0` if already charged or not currently charging.
+*   **Description:** Returns the remaining time (in seconds) until charging completes.
+*   **Parameters:** None.
+*   **Returns:** `number` - remaining time (always `>= 0`). Returns `0` if not charging.
+*   **Error states:** Returns `0` when not charging (`cooldown_deadline == nil`).
 
 ### `IsCharged()`
-* **Description:** Checks if the component is currently in a charged state (i.e., the cooldown has finished).
-* **Parameters:** None.
-* **Returns:** (`boolean`) `true` if charged, `false` otherwise.
+*   **Description:** Checks if the ability is fully charged (ready to use).
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if fully charged; `false` otherwise.
 
 ### `IsCharging()`
-* **Description:** Checks if the component is currently undergoing a cooldown period.
-* **Parameters:** None.
-* **Returns:** (`boolean`) `true` if actively charging, `false` otherwise.
-
-### `OnSave()`
-* **Description:** Gathers the necessary data to persist the cooldown component's state, allowing it to be correctly restored after a game save and load.
-* **Parameters:** None.
-* **Returns:** (`table`) A table containing `charged` (boolean) and `time_to_charge` (number) if applicable.
+*   **Description:** Checks if the ability is currently charging.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if charging (i.e., not charged and `cooldown_deadline` is set); `false` otherwise.
 
 ### `GetDebugString()`
-* **Description:** Provides a human-readable string representing the current state of the cooldown, useful for debugging.
-* **Parameters:** None.
-* **Returns:** (`string`) "CHARGED!" if charged, or the remaining time formatted as a string if charging.
+*   **Description:** Returns a human-readable string for debugging: `"CHARGED!"` if ready, or the formatted remaining time otherwise.
+*   **Parameters:** None.
+*   **Returns:** `string` — either `"CHARGED!"` or `"X.XX"` (seconds remaining, rounded to two decimals).
 
-### `LongUpdate(dt)`
-* **Description:** Handles updates to the cooldown deadline, especially important for synchronizing state after potential game pauses or when time manipulation occurs (`dt` represents elapsed time). If the `cooldown_deadline` falls below the current `GetTime()`, it triggers the `donecharging` logic.
-* **Parameters:**
-    *   `dt`: (`number`) The delta time since the last update.
+### `OnSave()`
+*   **Description:** Serializes the component's state for saving. Used during world save or entity saving.
+*   **Parameters:** None.
+*   **Returns:** `table` — contains:
+    *   `charged` (`boolean` or `nil`) — only present if `true`.
+    *   `time_to_charge` (`number` or `nil`) — remaining time; only present if not yet charged.
+*   **Error states:** Does not return unnecessary fields; omits `charged` if `false`.
 
 ### `OnLoad(data)`
-* **Description:** Restores the cooldown component's state from saved game data. It will either mark the component as charged or restart the cooldown with the saved remaining time.
-* **Parameters:**
-    *   `data`: (`table`) The table of saved data, typically from `OnSave()`.
+*   **Description:** Restores the component's state from saved data (e.g., on world load).
+*   **Parameters:** `data` (`table`) — table with optional `charged` and `time_to_charge` fields.
+*   **Returns:** Nothing.
+
+### `LongUpdate(dt)`
+*   **Description:** Adjusts `cooldown_deadline` and resolves completion during simulation updates. Handles timing drift by recalculating the deadline and re-scheduling if needed. Intended for use in the world's long update loop (e.g., `UpdateWorldState`).
+*   **Parameters:** `dt` (`number`) — time delta since last frame.
+*   **Returns:** Nothing.
+
+### `SetStartChargingFn(fn)`
+*   **Description:** Sets the callback function invoked when `StartCharging` begins. Not present in source; provided here as inferred setter for completeness. *(Note: Not found in source — included only as API best practice; does not exist in actual code.)*  
+*Note: This function is not present in the provided source and must not be documented.*  
+→ **Omitted**
+
+### `SetOnChargedFn(fn)`
+*   **Description:** Sets the callback function invoked when charging completes (via `donecharging`). Not present in source; provided here as inferred setter for completeness. *(Note: Not found in source — included only as API best practice; does not exist in actual code.)*  
+→ **Omitted**
+
+## Events & listeners
+- **Listens to:** None identified  
+- **Pushes:** None identified

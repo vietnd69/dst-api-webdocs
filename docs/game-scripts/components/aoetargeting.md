@@ -1,126 +1,134 @@
 ---
 id: aoetargeting
 title: Aoetargeting
-description: Manages visual targeting reticules, validation, and FX for area-of-effect abilities or items.
+description: Manages AOE (area-of-effect) targeting state and visual feedback for deployable items, including reticule management, range validation, and FX spawning.
+tags: [combat, targeting, aoe, inventory]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: acb57aeb
+system_scope: inventory
 ---
 
-# aoetargeting
+# Aoetargeting
+
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The `aoetargeting` component is designed to manage the visual targeting reticule and associated feedback for Area of Effect (AOE) abilities or items. It provides functionalities to enable and disable a visual reticule, configure its appearance and behavior, set targeting range and validity conditions, and spawn visual effects at the target location. This component typically works in conjunction with a player's `playercontroller` to display and interact with the targeting system.
+The `aoetargeting` component controls the targeting lifecycle for deployable AOE items (e.g., placeable lamps, turrets, or traps). It handles activation/deactivation of the visual reticule, validates placement constraints (e.g., water or riding), and manages FX spawn points. It integrates with `playercontroller` and `reticule` to update reticule visuals when the item is equipped or when enabled state changes.
 
-## Dependencies & Tags
-This component manages the lifecycle of another component and interacts with several others:
-*   **`reticule` component**: The `aoetargeting` component dynamically adds the `reticule` component to its `inst` when targeting starts and removes it when targeting stops. It configures the `reticule` component's properties.
-*   **`playercontroller` component**: It interacts with `ThePlayer.components.playercontroller` to refresh the player's reticule display.
-*   **`inventoryitem` replica**: It checks `self.inst.replica.inventoryitem` to determine if the `inst` is owned by the player, ensuring the reticule is displayed only for items the player controls.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("inventoryitem")
+inst:AddComponent("aoetargeting")
+inst:AddComponent("reticule") -- typically added automatically via StartTargeting
 
-No specific tags are added or removed by this component.
+inst.components.aoetargeting:SetRange(10)
+inst.components.aoetargeting:SetTargetFX("aoe_marker")
+inst.components.aoetargeting:StartTargeting()
+inst.components.aoetargeting:SetEnabled(false)
+```
+
+## Dependencies & tags
+**Components used:** `inventoryitem`, `reticule`, `playercontroller`  
+**Tags:** None identified
 
 ## Properties
-| Property            | Type             | Default Value                                | Description                                                                                              |
-| :------------------ | :--------------- | :------------------------------------------- | :------------------------------------------------------------------------------------------------------- |
-| `inst`              | `Entity`         | (Set at instantiation)                       | The entity this component is attached to.                                                                |
-| `reticule.ease`     | `boolean`        | `false`                                      | Determines if the reticule's movement should be eased.                                                   |
-| `reticule.smoothing`| `number`         | `6.66`                                       | Controls the smoothing factor for reticule movement.                                                     |
-| `reticule.targetfn` | `function`       | `nil`                                        | An optional function used by the reticule to determine its target position.                              |
-| `reticule.reticuleprefab` | `string`   | `"reticule"`                                 | The prefab name for the reticule entity itself.                                                          |
-| `reticule.validcolour`| `table` (RGBA) | `{ 204 / 255, 131 / 255, 57 / 255, 1 }`      | The color of the reticule when the target location is valid.                                             |
-| `reticule.invalidcolour`| `table` (RGBA) | `{ 1, 0, 0, 1 }`                             | The color of the reticule when the target location is invalid.                                           |
-| `reticule.mouseenabled`| `boolean`     | `false`                                      | Determines if the reticule should respond to mouse input.                                                |
-| `reticule.twinstickmode`| `boolean`/`nil`| `nil`                                       | Specifies if the reticule should operate in twin-stick control mode.                                     |
-| `reticule.twinstickrange`| `number`/`nil`| `nil`                                       | The range for twin-stick control mode.                                                                   |
-| `reticule.pingprefab` | `string`/`nil` | `nil`                                        | A prefab to be spawned as a "ping" effect.                                                               |
-| `targetprefab`      | `string`         | `nil`                                        | The prefab to spawn as a visual effect at the final target location.                                     |
-| `alwaysvalid`       | `boolean`        | `false`                                      | If `true`, bypasses all target validation checks, always considering the target location valid.          |
-| `allowwater`        | `boolean`        | `false`                                      | If `true`, permits targeting locations on water.                                                         |
-| `allowriding`       | `boolean`        | `true`                                       | If `true`, allows the player to target while riding a mount.                                             |
-| `deployradius`      | `number`         | `0`                                          | A radius related to deployment, potentially for visual or functional purposes.                           |
-| `range`             | `number`         | `8`                                          | The maximum range from the player within which targeting is allowed.                                     |
-| `shouldrepeatcastfn`| `function`       | `nil`                                        | An optional custom function that determines if an ability associated with this targeting should repeat cast. |
-| `enabled`           | `net_bool`       | `true`                                       | A network-synchronized boolean indicating whether the AOE targeting system is currently active.          |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `reticule` | table | (see constructor) | Configuration table for the reticule visual (colours, smoothing, etc.) |
+| `targetprefab` | string or nil | `nil` | Prefab name to spawn at target position |
+| `alwaysvalid` | boolean | `false` | If true, bypasses placement validation (e.g., terrain checks) |
+| `allowwater` | boolean | `false` | Whether target can be placed on water |
+| `allowriding` | boolean | `true` | Whether target can be placed while riding (e.g., beefalo) |
+| `deployradius` | number | `0` | Radius around target point for placement alignment |
+| `range` | number | `8` | Max distance from owner to valid target point |
+| `shouldrepeatcastfn` | function or nil | `nil` | Optional function returning bool to allow repeated casts |
+| `enabled` | net_bool | `true` | Networked boolean for targeting activation state |
 
-## Main Functions
+## Main functions
+### `IsEnabled()`
+* **Description:** Returns whether targeting is currently enabled.
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if targeting is active, `false` otherwise.
 
-### `AOETargeting:IsEnabled()`
-*   **Description:** Checks if the AOE targeting component is currently enabled.
-*   **Parameters:** None.
+### `SetEnabled(enabled)`
+* **Description:** Sets the targeting enabled state (server-side only).
+* **Parameters:** `enabled` (boolean) — desired state.
+* **Returns:** Nothing.
+* **Error states:** No effect if called on the client; state change triggers `enableddirty` and may stop targeting.
 
-### `AOETargeting:SetEnabled(enabled)`
-*   **Description:** Sets the enabled state of the AOE targeting component. This will trigger the `OnEnabledDirty` logic on the server and propagate the change to clients. If disabled, it will stop targeting.
-*   **Parameters:**
-    *   `enabled` (`boolean`): The new enabled state (`true` to enable, `false` to disable).
+### `SetTargetFX(prefab)`
+* **Description:** Configures the FX prefab to spawn when a target is placed.
+* **Parameters:** `prefab` (string) — name of the FX prefab to instantiate.
+* **Returns:** Nothing.
 
-### `AOETargeting:SetTargetFX(prefab)`
-*   **Description:** Sets the prefab to be spawned as a visual effect at the targeted location.
-*   **Parameters:**
-    *   `prefab` (`string`): The name of the prefab to use for the target visual effect.
+### `SetAlwaysValid(val)`
+* **Description:** Overrides normal placement validation (e.g., ground checks).
+* **Parameters:** `val` (boolean) — if non-`false`, targets are always considered valid.
+* **Returns:** Nothing.
 
-### `AOETargeting:SetAlwaysValid(val)`
-*   **Description:** Configures whether the targeting system should always consider any target location valid, bypassing normal validation checks.
-*   **Parameters:**
-    *   `val` (`boolean`): Set to `true` to make all targets valid, `false` otherwise.
+### `SetAllowWater(val)`
+* **Description:** Allows or disallows targeting on water surfaces.
+* **Parameters:** `val` (boolean) — if non-`false`, water placement is permitted.
+* **Returns:** Nothing.
 
-### `AOETargeting:SetAllowWater(val)`
-*   **Description:** Configures whether targeting is permitted on water tiles.
-*   **Parameters:**
-    *   `val` (`boolean`): Set to `true` to allow targeting on water, `false` otherwise.
+### `SetAllowRiding(val)`
+* **Description:** Allows or disallows targeting while riding a mount.
+* **Parameters:** `val` (boolean) — if non-`false`, targeting while riding is permitted.
+* **Returns:** Nothing.
 
-### `AOETargeting:SetAllowRiding(val)`
-*   **Description:** Configures whether targeting is permitted while the player is riding a mount.
-*   **Parameters:**
-    *   `val` (`boolean`): Set to `true` to allow targeting while riding, `false` otherwise.
+### `SetRange(range)`
+* **Description:** Sets the maximum distance from the owner to a valid target point.
+* **Parameters:** `range` (number) — maximum range in world units.
+* **Returns:** Nothing.
 
-### `AOETargeting:SetRange(range)`
-*   **Description:** Sets the maximum range within which a target location can be selected.
-*   **Parameters:**
-    *   `range` (`number`): The maximum targeting range.
+### `GetRange()`
+* **Description:** Returns the currently configured targeting range.
+* **Parameters:** None.
+* **Returns:** `number` — the max targeting range.
 
-### `AOETargeting:GetRange()`
-*   **Description:** Returns the currently configured maximum targeting range.
-*   **Parameters:** None.
+### `SetDeployRadius(radius)`
+* **Description:** Sets the radius used for aligning placement to tiles or platforms.
+* **Parameters:** `radius` (number) — alignment radius in world units.
+* **Returns:** Nothing.
 
-### `AOETargeting:SetDeployRadius(radius)`
-*   **Description:** Sets a radius value, typically used for visual representation or functional logic related to deployment.
-*   **Parameters:**
-    *   `radius` (`number`): The deployment radius.
+### `SetShouldRepeatCastFn(fn)`
+* **Description:** Assigns a callback function to determine if repeated casting is allowed (e.g., for toggled AOE effects).
+* **Parameters:** `fn` (function) — function with signature `(self.inst, doer) → boolean`.
+* **Returns:** Nothing.
 
-### `AOETargeting:SetShouldRepeatCastFn(fn)`
-*   **Description:** Sets a custom function that will be called to determine if an associated ability or action should repeat its cast.
-*   **Parameters:**
-    *   `fn` (`function`): A function that takes `inst` (the entity with this component) and `doer` (the entity performing the action) as arguments and returns `true` if the cast should repeat, `false` otherwise.
+### `CanRepeatCast()`
+* **Description:** Checks whether a repeat-cast callback is configured.
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if `shouldrepeatcastfn` is not `nil`.
 
-### `AOETargeting:CanRepeatCast()`
-*   **Description:** Checks if a `shouldrepeatcastfn` has been assigned to this component.
-*   **Parameters:** None.
+### `ShouldRepeatCast(doer)`
+* **Description:** Invokes the repeat-cast callback, if present, to decide if another cast should proceed.
+* **Parameters:** `doer` (Entity) — the entity triggering the cast (typically the player).
+* **Returns:** `boolean` — result of `shouldrepeatcastfn(inst, doer)` or `false`.
 
-### `AOETargeting:ShouldRepeatCast(doer)`
-*   **Description:** Calls the custom `shouldrepeatcastfn` if it exists, passing the component's `inst` and the `doer` as arguments.
-*   **Parameters:**
-    *   `doer` (`Entity`): The entity performing the action that might repeat cast.
+### `StartTargeting()`
+* **Description:** Initializes the reticule component for this item if the item is owned by `ThePlayer`, and refreshes the player's reticule.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** silently does nothing if the item is not owned by the current player or if `playercontroller` is unavailable.
 
-### `AOETargeting:StartTargeting()`
-*   **Description:** Initializes the targeting process. If not already present, it adds the `reticule` component to the `inst`, copies its internal `self.reticule` properties to the newly added component, and instructs the player controller to refresh the reticule display. This is typically called when an item or ability starts its targeting phase.
-*   **Parameters:** None.
+### `StopTargeting()`
+* **Description:** Removes the reticule component and refreshes the player's reticule to update visual state.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `AOETargeting:StopTargeting()`
-*   **Description:** Ends the targeting process. If a `reticule` component is present on the `inst`, it removes it and then instructs the player controller to refresh its reticule display (effectively hiding the old one). This is typically called when an item or ability finishes or cancels its targeting phase.
-*   **Parameters:** None.
+### `SpawnTargetFXAt(pos)`
+* **Description:** Spawns and positions the configured `targetprefab` at the specified world position, handling parented platforms (e.g., moving vehicles).
+* **Parameters:** `pos` (Vector or DynamicPosition) — target location in world space.
+* **Returns:** `Entity` (the spawned FX) or `nil` if `targetprefab` is `nil`, `pos` is `nil`, or platform is invalid.
+* **Error states:** Returns `nil` if `targetprefab` is unset, position is invalid, or the FX fails to spawn.
 
-### `AOETargeting:SpawnTargetFXAt(pos)`
-*   **Description:** Spawns the `targetprefab` at a specified position. It handles cases where the position might be a `DynamicPosition` or associated with a platform, ensuring the FX is correctly parented and positioned.
-*   **Parameters:**
-    *   `pos` (`Vector3` or `DynamicPosition`): The world position where the target effect should be spawned.
-*   **Returns:** The spawned `fx` entity if successful, otherwise `nil`.
-
-## Events & Listeners
-*   **Listens For:**
-    *   `"enableddirty"`: This event is triggered internally by the `net_bool` `self.enabled` when its value changes, but only on client machines (`if not TheWorld.ismastersim`). When received, it calls `OnEnabledDirty`, which stops targeting if the component is disabled and refreshes the player's reticule if the `inst` is owned by `ThePlayer`.
+## Events & listeners
+- **Listens to:** `enableddirty` — triggers `OnEnabledDirty` (stops targeting when disabled and refreshes reticule).
+- **Pushes:** `enableddirty` — fired by the `net_bool` when enabled state changes (on client); triggers local reticule cleanup.

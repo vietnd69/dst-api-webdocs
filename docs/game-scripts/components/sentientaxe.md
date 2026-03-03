@@ -1,106 +1,114 @@
 ---
 id: sentientaxe
 title: Sentientaxe
-description: This component enables an axe to dynamically speak to its owner based on gameplay events such as equipping, chopping, building, and Werebeaver transformation states.
+description: Manages sentient behavior and speech for the Lucy (Woodie's axe) entity, including owner interaction, transformation alerts, and conversational triggers.
+tags: [combat, npc, inventory, ai, player]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: b623b817
+system_scope: entity
 ---
 
 # Sentientaxe
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `sentientaxe` component imparts personality and contextual awareness to an axe (typically the Woodie Axe), enabling it to vocalize reactions and commentary via the `lucy_classified` component when equipped by or associated with a player. It tracks ownership, schedules periodic conversational prompts, and responds to player actions and state changes (e.g., chopping, carving,Werebeaver transformation).
+`Sentientaxe` enables Lucy, Woodie's sentient axe, to react dynamically to gameplay events such as owner changes, chopping actions, carving recipes, and Werebeaver transformations. It manages speech delivery via `lucy_classified` (if present), schedules timed conversations, and responds to proximity-based triggers when the axe is held, equipped, or on the ground. The component relies heavily on the `equippable`, `health`, and `inventoryitem` components to assess context for its behavior.
 
-## Dependencies & Tags
-**Component Dependencies:**
-- `inst.components.equippable` (for equip/hold status checks)
-- `inst.components.inventoryitem` (for ownership, held status, and container placement)
-- `inst.components.health` (indirectly, to check if owner is dead)
-- `inst.lucy_classified` (assumed to be the speech component, used via `.Say()`)
-- `inst.sg` (stategraph, used to check transformation state tags)
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("sentientaxe")
+-- Once assigned an owner (e.g., via `axepossessedbyplayer` event):
+inst.components.sentientaxe:SetOwner(player)
+-- Conversations and contextual lines are scheduled automatically.
+```
 
-**Tags:**
-- No new tags are added or removed by this component itself.
+## Dependencies & tags
+**Components used:** `equippable`, `health`, `inventoryitem`, `lucy_classified` (optional, used conditionally)
+**Tags:** Checks `wereplayer`, `playerghost`; uses `transform` state tag via owner's stategraph.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the axe entity this component is attached to. |
-| `owner` | `Entity?` | `nil` | The current player who owns this axe (set via `SetOwner`). |
-| `convo_task` | `DoLaterTask?` | `nil` | Scheduled task for next spontaneous conversation. |
-| `say_task` | `DoLaterTask?` | `nil` | Scheduled speech task (used for delayed or queued speech). |
-| `warnlevel` | `number` | `0` | Unused in current logic (historical or reserved). |
-| `waslow` | `boolean` | `false` | Unused in current logic (historical or reserved). |
-| `_lastcarvingtalks` | `table<string, number>` | `{}` | Tracks last time each carving action triggered speech, keyed by `"carve_<recipe>"`. |
+| `owner` | `Entity` or `nil` | `nil` | The current owner of the axe (typically a player). |
+| `convo_task` | `Task` or `nil` | `nil` | Scheduled task for the next conversation. |
+| `say_task` | `Task` or `nil` | `nil` | Scheduled task for the next speech line. |
+| `warnlevel` | number | `0` | Unused in current implementation. |
+| `waslow` | boolean | `false` | Unused in current implementation. |
+| `_lastcarvingtalks` | table | `{}` | Tracks cooldown timestamps for carving-related speech entries. |
 
-## Main Functions
-
+## Main functions
 ### `SetOwner(owner)`
-* **Description:** Assigns a new owner to the axe. Removes event listeners from the previous owner and attaches corresponding listeners to the new owner. Resets internal state (e.g., cooldowns, conversation tasks). If a new owner is assigned, it schedules an immediate or delayed conversation based on state.
-* **Parameters:**
-  - `owner` (`Entity?`): The player entity becoming the new owner. If `nil`, the axe becomes unowned and stops listening for owner-specific events.
-
-### `OnBuildItem(recipename)`
-* **Description:** Triggers a contextual remark when the axe’s owner completes crafting a recipe. Only triggers if the recipe has a defined comment string (in `STRINGS.LUCY["carve_<recipe>"]`) and the cooldown (defined by `TUNING.LUCY_CARVING_TALK_COOLDOWN`) has elapsed.
-* **Parameters:**
-  - `recipename` (`string?`): Name of the recipe just crafted (e.g., "loggy"). Returns early if `nil`.
-
-### `OnFinishedWork(target, action)`
-* **Description:** Triggers a comment when the axe finishes a work action. Specifically triggers on `ACTIONS.CHOP` if the axe is currently equipped and has an owner.
-* **Parameters:**
-  - `target` (`Entity?`): Target entity of the work action (unused in logic).
-  - `action` (`string`): Action type (e.g., `"chop"`).
-
-### `OnWereEaterChanged(old, new, istransforming)`
-* **Description:** Issues warnings based on Woodie’s werebeaver hunger level (from `wereeater` component). Skips if transforming or if level didn’t decrease. Offers two levels of warnings (early/late) only when the axe is held.
-* **Parameters:**
-  - `old` (`number`): Previous hunger level.
-  - `new` (`number`): New hunger level.
-  - `istransforming` (`boolean`): Whether the transformation is currently in progress.
-
-### `OnBecomeHuman()`
-* **Description:** Speaks when Woodie reverts to human form (near owner only). Cancels pending speech if not near.
-* **Parameters:** None.
-
-### `OnBecomeWere()`
-* **Description:** Speaks when Woodie transforms into a werebeaver (near owner only). Cancels pending speech if not near.
-* **Parameters:** None.
+* **Description:** Assigns a new owner to the axe, updating internal state and attaching/detaching event callbacks based on the previous and new owner. Resets conversation/speech scheduling and clears tracking tables.
+* **Parameters:** `owner` (`Entity` or `nil`) – the new owner entity, or `nil` to unset.
+* **Returns:** Nothing.
+* **Error states:** No operation occurs if the new owner is identical to the current one.
 
 ### `Say(list, sound_override, delay)`
-* **Description:** Plays a random line from `list` (array of strings) using `lucy_classified:Say()`, optionally with a custom sound override. Supports delayed speech via `delay`. Cancels any pending speech first. Resets conversation scheduling timer after speech (if owner exists).
-* **Parameters:**
-  - `list` (`string[]`): List of possible speech lines to choose from.
-  - `sound_override` (`string?`): Optional custom sound path.
-  - `delay` (`number?`): Optional delay (in seconds or ticks) before speaking.
+* **Description:** Triggers speech delivery using the `lucy_classified` component (if present) and schedules a follow-up conversation if an owner is assigned.
+* **Parameters:**  
+  - `list` (table of strings) – array of possible speech lines to choose from.  
+  - `sound_override` (string or `nil`) – optional custom sound path.  
+  - `delay` (number or `nil`) – optional delay (in seconds) before speaking; if provided, scheduling is deferred.
+* **Returns:** Nothing.
+* **Error states:** If `say_task` is already active, it is cancelled before scheduling a new one.
 
-### `ScheduleConversation(delay)`
-* **Description:** Schedules a future spontaneous conversation (e.g., quoting current item state). Cancels any existing conversation task.
-* **Parameters:**
-  - `delay` (`number?`): Time until next conversation. Defaults to `10 + random(0–5)` if omitted.
+### `OnBuildItem(recipename)`
+* **Description:** Triggers a carving-specific speech line when the owner completes a recipe that matches a configured `STRINGS.LUCY.carve_...` entry, respecting a cooldown defined in `TUNING.LUCY_CARVING_TALK_COOLDOWN`.
+* **Parameters:** `recipename` (string or `nil`) – name of the recipe just built; returns early if `nil`.
+* **Returns:** Nothing.
 
-### `MakeConversation()`
-* **Description:** Evaluates the axe’s current state and owner proximity to select and speak a contextual phrase: ground, equipped, or in container. Always reschedules the next conversation afterward.
+### `OnFinishedWork(target, action)`
+* **Description:** Triggers speech when the axe (if currently equipped) finishes a work action. Only fires for `ACTIONS.CHOP` actions.
+* **Parameters:**  
+  - `target` (`Entity`) – the work target.  
+  - `action` (`Action`) – the completed action type.
+* **Returns:** Nothing.
+
+### `OnWereEaterChanged(old, new, istransforming)`
+* **Description:** Alerts the owner when their Werebeaver transformation progress changes (earlier than full transformation). Only speaks on decremented levels and when the axe is held.
+* **Parameters:**  
+  - `old` (number) – previous werebeaver level.  
+  - `new` (number) – current werebeaver level.  
+  - `istransforming` (boolean) – whether currently mid-transformation.
+* **Returns:** Nothing.
+* **Error states:** Returns early if `istransforming`, `new <= old`, or the axe is not held (`inventoryitem:IsHeld()` returns false).
+
+### `OnBecomeHuman()` and `OnBecomeWere()`
+* **Description:** Triggers transformation-specific speech when the owner transitions between human and Werebeaver forms, but only if the owner is nearby (`TALK_TO_OWNER_DISTANCE = 15`). Cancels pending speech if the owner is out of range.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `ShouldMakeConversation()`
-* **Description:** Helper that determines if the axe *should* speak at this moment. Returns `false` if owner is dead, transforming, or a were/beaver ghost.
+* **Description:** Determines whether a conversation line can be safely spoken—e.g., the owner exists and is alive, not transforming, not a ghost.
 * **Parameters:** None.
+* **Returns:** `boolean` – `true` if conversation is allowed; otherwise `false`.
 
-## Events & Listeners
-- Listens for `"axepossessedbyplayer"` → calls `OnAxePossessedByPlayer`.
-- Listens for `"axerejectedowner"` → calls `OnAxeRejectedOwner`.
-- Listens for `"axerejectedotheraxe"` → calls `OnAxeRejectedOtherAxe`.
-- While owned, listens to:
-  - `"ondropped"` → calls `toground`.
-  - `"equipped"` → calls `onequipped`.
-  - `"builditem"` (on owner) → calls `OnBuildItem`.
-  - `"finishedwork"` (on owner) → calls `OnFinishedWork`.
-  - `"wereeaterchanged"` (on owner) → calls `OnWereEaterChanged`.
-  - `"startwereplayer"` (on owner) → calls `OnBecomeHuman`.
-  - `"stopwereplayer"` (on owner) → calls `OnBecomeWere`.
+### `ScheduleConversation(delay)`
+* **Description:** Schedules the next generic conversation line (e.g., talking about being in backpack, equipped, or on the ground) after a randomized interval.
+* **Parameters:** `delay` (number or `nil`) – optional override delay in seconds; defaults to `10 + random * 5`.
+* **Returns:** Nothing.
+
+### `MakeConversation()`
+* **Description:** Chooses and speaks a context-aware line based on the axe's current state (grounded, equipped, or in container), then reschedules the next conversation.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:**  
+  - `"axepossessedbyplayer"` – triggers `SetOwner(player)` via external handler.  
+  - `"axerejectedowner"` – triggers `Say(STRINGS.LUCY.other_owner)`.  
+  - `"axerejectedotheraxe"` – triggers speech and cancels pending speech on the conflicting axe.  
+  - `"ondropped"` – triggers ground-based speech.  
+  - `"equipped"` – triggers speech upon pickup *if* the owner matches.  
+  - `"builditem"` (on owner) – reports carving actions.  
+  - `"finishedwork"` (on owner) – reports chopping actions.  
+  - `"wereeaterchanged"` (on owner) – warns about transformation progression.  
+  - `"startwereplayer"` / `"stopwereplayer"` (on owner) – reports transformation transitions.
+- **Pushes:** None directly (uses internal tasks for scheduling; events are dispatched via `inst:PushEvent(...)` only in related handlers outside this component).

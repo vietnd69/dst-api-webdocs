@@ -1,58 +1,70 @@
 ---
 id: vaultmusiclistener
 title: Vaultmusiclistener
-description: Monitors world region transitions to automatically trigger and stop vault-themed music when the player enters or leaves a vault area.
+description: Triggers a one-time vault event when the entity remains stationary inside a vault area for 3.5 seconds without entering another vault.
+tags: [audio, environment, vault]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 179bad17
+system_scope: environment
 ---
 
 # Vaultmusiclistener
 
-## Overview
-This component listens for area changes (e.g., player movement between zones) and manages the playback of vault-specific ambient music by responding to transitions into and out of vault-map regions. It uses a delayed trigger mechanism to ensure music only starts after confirming stable presence in a vault.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-* **Event Listened:** `changearea`
-* **Event Pushed:** `triggeredevent` (with `{ name = "vault", duration = 5 }`)
-* **Updates Managed:** Begins/stops component update loop via `StartUpdatingComponent`/`StopUpdatingComponent`
-* **No other components or tags are added or required.**
+## Overview
+`Vaultmusiclistener` is an environment-aware component that detects when an entity is inside a vault area and remains there long enough to trigger a vault-specific event. It listens for map area changes, tracks time spent in vault zones, and fires a `triggeredevent` with the name `"vault"` after a short grace period. It stops activity upon leaving vault zones or if music is not required.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("vaultmusiclistener")
+-- The component activates automatically on `changearea` events,
+-- no manual interaction required after addition.
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *(not assigned)* | Reference to the entity the component is attached to (typically the player). Set once during construction. |
-| `delay` | `number?` | `nil` | Countdown timer used to defer music trigger until the player is confirmed inside the vault. Non-`nil` indicates a pending music start. |
+| `delay` | number? | `nil` | Countdown timer in seconds. Non-`nil` indicates active countdown; `nil` indicates stopped. |
 
-## Main Functions
+## Main functions
+### `IsMusicPlaying()`
+* **Description:** Returns whether the component is currently in an active countdown state (i.e., waiting to trigger the vault event).
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if `self.delay` is not `nil`, otherwise `false`.
 
 ### `StartVaultMusic()`
-* **Description:** Initiates the delayed vault music trigger. If no music is currently pending, sets the countdown delay to 3.5 seconds, starts the component update loop, and schedules the first update.
+* **Description:** Begins the 3.5-second countdown to trigger the vault event, starting entity updates for the component.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No-op if already active (`self.delay` is non-`nil`).
 
 ### `StopVaultMusic()`
-* **Description:** Cancels any pending vault music trigger by clearing the delay and stopping the update loop.
+* **Description:** Cancels any ongoing countdown and stops entity updates for the component.
 * **Parameters:** None.
-
-### `IsMusicPlaying()`
-* **Description:** Returns whether vault music is currently playing (i.e., the delay countdown is active).
-* **Parameters:** None.
-* **Returns:** `boolean` — `true` if `self.delay` is non-`nil`, otherwise `false`.
+* **Returns:** Nothing.
+* **Error states:** No-op if not active (`self.delay` is `nil`).
 
 ### `OnUpdate(dt)`
-* **Description:** Handles timed updates during the delay countdown. If the countdown completes (`dt >= delay`), emits a `triggeredevent` with `name = "vault"` and `duration = 5`, and resets the delay to 1 second for continued playback. Otherwise, decrements the remaining delay.
-* **Parameters:**
-  * `dt` (`number`) — Time elapsed since the last update.
+* **Description:** Callback invoked each frame during active countdown. Decrements the internal timer and fires the vault event when elapsed.
+* **Parameters:** `dt` (number) — time elapsed since last frame in seconds.
+* **Returns:** Nothing.
+* **Error states:** After the initial countdown (`3.5` seconds) elapses, the component sets `self.delay = 1` and pushes the event; it does not stop updating automatically here, relying on external logic to re-check area changes.
 
-## Events & Listeners
-* **Listens to:**
-  * `"changearea"` — Triggers `OnChangeArea` on world region transitions (e.g., moving between map zones).
-* **Triggers:**
-  * `"triggeredevent"` with payload `{ name = "vault", duration = 5 }` — Sent when the delay completes, indicating vault music should begin.
-* **Internal cleanup:**
-  * `"changearea"` callback is removed on component removal via `OnRemoveFromEntity`.
+## Events & listeners
+- **Listens to:** `changearea` — invokes `OnChangeArea` on map region changes to start/stop vault detection.
+- **Pushes:** `triggeredevent` — fires with payload `{ name = "vault", duration = 5 }` after remaining in a vault for ~3.5 seconds.
+
+## Notes
+- This component relies on the `TheWorld.Map:IsPointInAnyVault(position)` check for precise zone determination, and uses `"Vault_Vault"` area ID detection as a secondary heuristic.
+- It does not manage music playback itself; the name `vaultmusiclistener` is conventional—its actual purpose is to signal event triggering for *other* systems to act upon.

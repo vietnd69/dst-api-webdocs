@@ -1,47 +1,59 @@
 ---
 id: wax
 title: Wax
-description: Manages whether an entity functions as a wax spray by toggling the "waxspray" tag.
+description: Controls whether an entity functions as a wax spray, applying or removing the `waxspray` tag accordingly.
+tags: [wax, item, tag]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 8fc10d1c
+system_scope: entity
 ---
 
 # Wax
 
-## Overview
-This component tracks and controls whether an entity behaves as a wax spray. It maintains an `is_spray` state and ensures the entity's "waxspray" tag is correctly added or removed based on that state.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Tags used:**  
-  - Adds `"waxspray"` tag when `is_spray` is `true`.  
-  - Removes `"waxspray"` tag when `is_spray` is `false`.  
-- **No external component dependencies** are explicitly declared or inferred.
+## Overview
+`Wax` is a simple component that manages the `waxspray` tag on an entity based on its `is_spray` state. It is typically attached to wax-related items to indicate whether they are currently in "spray" mode. The component provides a clear API to toggle and query this mode, automatically synchronizing the entity's tags.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("wax")
+
+-- Activate spray mode
+inst.components.wax:SetIsSpray()
+
+-- Check current mode
+if inst.components.wax:GetIsSpray() then
+    -- Perform spray-specific logic
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `waxspray` when `is_spray` is true; removes it when false.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `is_spray` | `boolean` | `false` | Indicates whether the entity is currently acting as a wax spray. |
+| `is_spray` | boolean | `false` | Indicates whether the entity is acting as a wax spray. |
 
-## Main Functions
-### `Wax:SetIsSpray()`
-* **Description:** Sets the `is_spray` state to `true`, which triggers addition of the `"waxspray"` tag to the entity.
+## Main functions
+### `SetIsSpray()`
+* **Description:** Sets the `is_spray` state to `true` and adds the `waxspray` tag to the entity.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `Wax:GetIsSpray()`
-* **Description:** Returns the current value of the `is_spray` flag.
+### `GetIsSpray()`
+* **Description:** Returns the current `is_spray` state.
 * **Parameters:** None.
+* **Returns:** `boolean` — `true` if the entity is in spray mode, `false` otherwise.
 
-### `OnIsSprayFn(self, is_spray)`
-* **Description:** Internal callback used when `is_spray` is set (via metatable assignment); updates the entity's `"waxspray"` tag accordingly.
-* **Parameters:**  
-  - `self`: The `Wax` component instance.  
-  - `is_spray`: Boolean indicating the desired spray state.
-
-## Events & Listeners
-None.
+## Events & listeners
+- **Listens to:** `is_spray` — an internal function `OnIsSprayFn` is bound to this property name in the class metatable and triggers tag updates when the property is set.
+- **Pushes:** None identified

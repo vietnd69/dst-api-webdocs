@@ -1,121 +1,135 @@
 ---
 id: abysspillargroup
 title: Abysspillargroup
-description: Manages spawning, tracking, collapsing, and persistence of a group of pillar entities attached to a parent entity.
+description: Manages a group of abyss pillars, tracking their lifecycle, spawn points, and synchronization during save/load operations.
+tags: [boss, environment, map, persistence]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: 1bdaa252
+system_scope: environment
 ---
 
-# abysspillargroup
+# Abysspillargroup
+
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The `abysspillargroup` component is responsible for managing a collection of "pillar" entities associated with a parent entity. It provides functionality to spawn, track, collapse, and persist these pillars, acting as a centralized manager for a group of dynamic environmental objects. It allows for custom functions to define how pillars are spawned and collapsed, and provides callbacks for when pillars are added or removed from its tracking list.
+`AbyssPillarGroup` is a component that coordinates a dynamic set of abyss pillars within the game world. It handles tracking active pillars, recording spawn points, and managing deferred respawning. It supports event-driven callback hooks for adding/removing or collapsing pillars, and implements save/load logic to persist spawn point state and pillar references across sessions. This component is typically attached to environment entities (e.g., boss arena anchors) and used during high-stakes encounters like the Dragonfly or Shadow contests.
 
-## Dependencies & Tags
-None identified. This component primarily interacts with the `Entity` instances it manages and relies on the entity's standard "onremove" event.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("abysspillargroup")
+
+inst.components.abysspillargroup:SetSpawnAtXZFn(function(parent, x, z, instant)
+    return SpawnPrefab("abysspillar")(x, 0, z)
+end)
+
+inst.components.abysspillargroup:AddPillarSpawnPointXZ(10, 0)
+inst.components.abysspillargroup:RespawnAllPillars()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Checks `onremove` event on tracked pillar entities; does not add or remove tags.
 
 ## Properties
-| Property                 | Type      | Default Value | Description                                                                                                                                                                    |
-| :----------------------- | :-------- | :------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `self.inst`              | `Entity`  | -             | A reference to the entity that owns this component.                                                                                                                            |
-| `self.spawnfn`           | `Function`| `nil`         | A user-defined function `(parent_inst, x, z, instant)` called when a new pillar needs to be spawned. Expected to return the newly created pillar `Entity`.                   |
-| `self.collapsefn`        | `Function`| `nil`         | A user-defined function `(parent_inst, pillar)` called when a tracked pillar needs to be collapsed.                                                                            |
-| `self.onaddpillarfn`     | `Function`| `nil`         | A user-defined function `(parent_inst, pillar)` called whenever a pillar is added to the group's tracking list (either newly spawned or loaded from save).                  |
-| `self.onremovepillarfn`  | `Function`| `nil`         | A user-defined function `(parent_inst, pillar)` called whenever a pillar is removed from the group's tracking list (e.g., when it collapses or is untracked manually).        |
-| `self.pillars`           | `Table`   | `{}`          | A table used as a set to track all currently active pillar entities managed by this group. Keys are the pillar entities, values are `true`.                                  |
-| `self.spawnpts`          | `Table`   | `{}`          | A flattened list of X and Z coordinates `[x1, z1, x2, z2, ...]` representing locations where pillars should be spawned or have previously existed, used for `RespawnAllPillars`. |
-| `self._onpillarcollapsed`| `Function`| -             | An internal callback function (`pillar`) assigned during construction, triggered when a tracked pillar is removed (destroyed). It handles untracking the pillar.               |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `spawnfn` | function | `nil` | Callback that creates and returns a new pillar entity at `(x, z)`; called by `SpawnPillarAtXZ`. |
+| `collapsefn` | function | `nil` | Callback invoked when `CollapseAllPillars` is called, passing `(parent, pillar)`. |
+| `onaddpillarfn` | function | `nil` | Optional callback fired after a pillar is added, `(parent, pillar)`. |
+| `onremovepillarfn` | function | `nil` | Optional callback fired after a pillar is removed, `(parent, pillar)`. |
+| `pillars` | table | `{}` | Dictionary mapping pillar instances to `true`, representing active pillars. |
+| `spawnpts` | table | `{}` | Flat array of x,z coordinate pairs representing recorded spawn points. |
 
-## Main Functions
+## Main functions
 ### `SetSpawnAtXZFn(fn)`
-*   **Description:** Sets the function that will be called to spawn new pillar entities. This function should create and return a pillar entity at the given coordinates.
-*   **Parameters:**
-    *   `fn`: (`Function`) A function with the signature `function(parent_inst, x, z, instant)` that returns the spawned pillar `Entity`.
+*   **Description:** Assigns the function used to instantiate new pillars when `SpawnPillarAtXZ` is called.
+*   **Parameters:** `fn` (function) — a callback with signature `(parent: Entity, x: number, z: number, instant: boolean?): Entity?`.
+*   **Returns:** Nothing.
 
 ### `SetCollapseFn(fn)`
-*   **Description:** Sets the function that will be called to collapse (or destroy) existing pillar entities.
-*   **Parameters:**
-    *   `fn`: (`Function`) A function with the signature `function(parent_inst, pillar)` that handles the collapsing logic for the given `pillar`.
-
-### `SetOnAddPillarFn(fn)`
-*   **Description:** Sets a callback function to be invoked when a pillar is added to the tracking list of this group.
-*   **Parameters:**
-    *   `fn`: (`Function`) A function with the signature `function(parent_inst, pillar)`.
-
-### `SetOnRemovePillarFn(fn)`
-*   **Description:** Sets a callback function to be invoked when a pillar is removed from the tracking list of this group.
-*   **Parameters:**
-    *   `fn`: (`Function`) A function with the signature `function(parent_inst, pillar)`.
+*   **Description:** Sets the callback executed for each pillar during `CollapseAllPillars`.
+*   **Parameters:** `fn` (function) — signature `(parent: Entity, pillar: Entity)`.
+*   **Returns:** Nothing.
 
 ### `StartTrackingPillar(pillar)`
-*   **Description:** Begins tracking a given pillar entity. This marks the pillar as part of this group, attaches an internal reference (`_abysspillargroup`), and sets up event listeners for its removal. If an `onaddpillarfn` is set, it will be called.
-*   **Parameters:**
-    *   `pillar`: (`Entity`) The pillar entity to start tracking.
+*   **Description:** Begins tracking a pillar instance, registers a death listener, and invokes `onaddpillarfn` if set.
+*   **Parameters:** `pillar` (Entity) — the pillar entity to track.
+*   **Returns:** Nothing.
+*   **Error states:** Asserts if `pillar._abysspillargroup` is already assigned to another group.
 
 ### `StopTrackingPillar(pillar)`
-*   **Description:** Stops tracking a given pillar entity. This removes the internal reference, detaches event listeners, and removes it from the `self.pillars` table. If an `onremovepillarfn` is set, it will be called.
-*   **Parameters:**
-    *   `pillar`: (`Entity`) The pillar entity to stop tracking.
+*   **Description:** Stops tracking a pillar, removes the death listener, clears its internal reference, and invokes `onremovepillarfn` if set.
+*   **Parameters:** `pillar` (Entity) — the pillar entity to stop tracking.
+*   **Returns:** Nothing.
+*   **Error states:** Asserts if `pillar._abysspillargroup` is not `self`.
 
 ### `SpawnPillarAtXZ(x, z, instant)`
-*   **Description:** Calls the `spawnfn` to create a new pillar at the specified coordinates and immediately starts tracking it.
-*   **Parameters:**
-    *   `x`: (`Number`) The X-coordinate for the new pillar.
-    *   `z`: (`Number`) The Z-coordinate for the new pillar.
-    *   `instant`: (`Boolean`, optional) An optional parameter passed directly to the `spawnfn`, often used to control spawn animations or instant creation.
+*   **Description:** Invokes the configured `spawnfn` at the given world coordinates and begins tracking the resulting pillar.
+*   **Parameters:**  
+    * `x` (number) — X coordinate for spawn.  
+    * `z` (number) — Z coordinate for spawn.  
+    * `instant` (boolean?, optional) — passed to `spawnfn` to indicate immediate vs deferred creation.
+*   **Returns:** Nothing.
+*   **Error states:** Does nothing if `spawnfn` is `nil`.
 
 ### `AddPillarSpawnPointXZ(x, z)`
-*   **Description:** Adds the given X and Z coordinates to the `self.spawnpts` list, which can later be used to respawn pillars.
-*   **Parameters:**
-    *   `x`: (`Number`) The X-coordinate to add.
-    *   `z`: (`Number`) The Z-coordinate to add.
+*   **Description:** Appends a spawn point `(x, z)` to the internal list; used to record where pillars should be respawned later.
+*   **Parameters:**  
+    * `x` (number) — X coordinate.  
+    * `z` (number) — Z coordinate.
+*   **Returns:** Nothing.
 
 ### `RespawnAllPillars()`
-*   **Description:** Iterates through all stored spawn points in `self.spawnpts`, spawning a new pillar at each location using `SpawnPillarAtXZ`, and then clears the `self.spawnpts` list.
+*   **Description:** Iterates over all recorded spawn points and spawns pillars at each, in FIFO order.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `CollapseAllPillars()`
-*   **Description:** Iterates through all currently tracked pillars in `self.pillars` and calls the `collapsefn` for each one.
+*   **Description:** Invokes the configured `collapsefn` for each tracked pillar, without removing it from tracking.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `Clear()`
-*   **Description:** Clears all stored spawn points and stops tracking all currently managed pillars. It also removes the pillar entities from the world.
+*   **Description:** Removes all tracked pillars (including calling `Remove` on them) and clears spawn points.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `HasPillars()`
-*   **Description:** Checks if there are any pillars currently being tracked by this component.
+*   **Description:** Reports whether any pillars are currently tracked.
 *   **Parameters:** None.
-*   **Returns:** (`Boolean`) `true` if any pillars are tracked, `false` otherwise.
+*   **Returns:** `boolean` — `true` if `pillars` is non-empty, otherwise `false`.
 
 ### `HasSpawnPoints()`
-*   **Description:** Checks if there are any pillar spawn points stored in `self.spawnpts`.
+*   **Description:** Reports whether any spawn points have been recorded.
 *   **Parameters:** None.
-*   **Returns:** (`Boolean`) `true` if any spawn points exist, `false` otherwise.
+*   **Returns:** `boolean` — `true` if `spawnpts` is non-empty, otherwise `false`.
 
 ### `OnSave()`
-*   **Description:** Gathers data for persistence. It saves the `self.spawnpts` and the GUIDs of all currently tracked pillars.
+*   **Description:** Serializes the group state for world saving. Returns a table containing saved spawn points and a list of pillar GUIDs.
 *   **Parameters:** None.
-*   **Returns:**
-    *   `data`: (`Table`) A table containing `pts` (the spawn points) and `ents` (a list of pillar GUIDs) if any data exists, otherwise `nil`.
-    *   `refs`: (`Table`) A table of pillar GUIDs, used by the game's persistence system to resolve entity references.
+*   **Returns:**  
+    * `data` (table|nil) — contains `{ pts = shallowcopy(spawnpts) }` and optionally `{ ents = { guid1, guid2, ... } }`.  
+    * `refs` (table|nil) — identical to `data.ents` if present, otherwise `nil`. (This appears to be a duplicate return for convenience in DST’s save system.)
 
 ### `OnLoad(data)`
-*   **Description:** Loads saved spawn points for the component.
-*   **Parameters:**
-    *   `data`: (`Table`) A table containing `pts` (saved spawn points).
+*   **Description:** Restores the recorded spawn points during world load.
+*   **Parameters:** `data` (table) — containing `{ pts = {...} }`.
+*   **Returns:** Nothing.
 
 ### `LoadPostPass(ents, data)`
-*   **Description:** After entities have been loaded, this function resolves the GUIDs of previously tracked pillars to their actual entity references and starts tracking them again.
-*   **Parameters:**
-    *   `ents`: (`Table`) A mapping from GUIDs to loaded entity references (possibly wrappers).
-    *   `data`: (`Table`) The full saved data for this component, expected to contain `ents` (a list of pillar GUIDs).
+*   **Description:** Re-establishes pillar tracking after world entities are resolved during load. Retrieves each pillar by GUID and calls `StartTrackingPillar`.
+*   **Parameters:**  
+    * `ents` (table) — GUID → entity map provided by DST’s loader.  
+    * `data` (table) — the deserialized save data, expected to contain `data.ents`.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-*   Listens for `inst:ListenForEvent("onremove", self._onpillarcollapsed, pillar)` on each tracked pillar entity.
-    *   **Description:** When a tracked `pillar` entity is removed from the world (e.g., destroyed, despawned), the `self._onpillarcollapsed` function is invoked. This function then untracks the pillar, adds its last known world position to `self.spawnpts` for potential future respawning, and triggers the `onremovepillarfn` callback if set.
+## Events & listeners
+- **Listens to:** `onremove` — registered per-tracked pillar to detect when a pillar is destroyed, which triggers removal from `pillars`, respawning of its spawn point, and optional callbacks.  
+- **Pushes:** No events directly; relies on external callbacks and DST’s entity lifecycle.

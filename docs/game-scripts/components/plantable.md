@@ -1,36 +1,45 @@
 ---
 id: plantable
 title: Plantable
-description: Provides basic growth timing and product data for entities that can be planted and grown in the world.
+description: Initializes core growth parameters for plants, such as grow time and final product.
+tags: [plant, growth, environment]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 166b1cdf
+system_scope: environment
 ---
 
 # Plantable
 
-## Overview
-The `Plantable` component stores foundational data for entities that can be planted and later grow into a new entity or produce a harvestable item. It defines the growth duration and identifies the resulting product entity, but does not implement the actual planting, growing, or harvesting logic—those responsibilities are handled by other components (e.g., `grower`, `harvestable`, or `producer`).
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Plantable` is a minimal component that stores initial growth configuration for plant prefabs. It defines how long a plant takes to mature (`growtime`) and what item it produces when fully grown (`product`). This component does not implement growth logic itself but serves as a data container for higher-level systems (e.g., `grower`, `farmplot`, or custom worldgen logic) to read and act upon.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("plantable")
+inst.components.plantable.growtime = 180
+inst.components.plantable.product = "turnip_seeds"
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `growtime` | `number` | `120` | The default time (in seconds) required for the entity to mature after planting. |
-| `product` | `string?` | `nil` | The name of the prefab to spawn when this plantable grows; if `nil`, no product is automatically generated. |
+| `growtime` | number | `120` | Time in seconds required for the plant to fully grow. |
+| `product` | string or nil | `nil` | Prefab name of the item produced upon maturation. |
 
-## Main Functions
-### `Plantable(inst)`
-* **Description:** Constructor for the component. Initializes the component instance with the given entity (`inst`) and sets up default growth time and product values.
-* **Parameters:**  
-  - `inst`: The `Entity` to attach this component to.
+## Main functions
+Not applicable.
 
-## Events & Listeners
+## Events & listeners
 None identified.

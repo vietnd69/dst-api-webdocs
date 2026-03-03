@@ -1,56 +1,76 @@
 ---
 id: constructionplans
 title: Constructionplans
-description: This component manages the transformation of specific prefabs into designated construction prefabs.
+description: Manages blueprint mappings for construction sites, enabling conversion of target prefabs into their corresponding construction site prefabs.
+tags: [crafting, world, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 2c9b6308
+system_scope: crafting
 ---
 
 # Constructionplans
 
-## Overview
-This component allows an entity to define and manage a set of "construction plans," specifying which source prefabs can be transformed into particular construction prefabs. It facilitates the in-game process of initiating construction on a target entity, removing the original, and spawning a new construction site. It also handles associated tagging for the parent entity.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
-This component adds tags of the format `[prefab]_plans` to its parent entity for each registered `prefab` in `targetprefabs`. These tags are removed upon unregistering a prefab or when the component is removed from the entity.
+## Overview
+`ConstructionPlans` maintains a mapping between target prefabs and their associated construction site prefabs. When a construction action is initiated, this component looks up the target prefab and spawns the corresponding construction site, replacing the original entity. It is typically attached to player entities or handheld items (e.g., blueprints) and works in conjunction with the `constructionsite` component.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("constructionplans")
+inst.components.constructionplans:AddTargetPrefab("campfire", "campfire_fire")
+inst.components.constructionplans:AddTargetPrefab("foundation", "foundation_plans")
+-- Later, when targeting an existing campfire:
+inst.components.constructionplans:StartConstruction(target_entity)
+```
+
+## Dependencies & tags
+**Components used:** `constructionsite` (via `target.components.constructionsite` check)
+**Tags:** Dynamically adds/removes `<prefab>_plans` tags (e.g., `campfire_plans`) to track known blueprint mappings.
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :------- | :--- | :------------ | :---------- |
-| `inst` | `Entity` | `self` | A reference to the entity this component is attached to. |
-| `targetprefabs` | `table` | `{}` | A table mapping target prefab names (string) to their corresponding construction prefab names (string). |
+|----------|------|---------------|-------------|
+| `targetprefabs` | table | `{}` | Maps source prefab names (string) to their corresponding construction site prefab names (string). |
 
-## Main Functions
+## Main functions
 ### `AddTargetPrefab(prefab, constructionprefab)`
-*   **Description:** Registers a new target prefab and its corresponding construction prefab. If the `prefab` is new, it also adds a tag in the format `[prefab]_plans` to the component's parent entity.
-*   **Parameters:**
-    *   `prefab` (string): The name of the prefab that can be transformed.
-    *   `constructionprefab` (string): The name of the prefab that should be spawned as the construction site.
+* **Description:** Registers a mapping from a target prefab (e.g., `"campfire"`) to its construction site prefab (e.g., `"campfire_fire"`). Adds a tag `<prefab>_plans` if not already present.
+* **Parameters:**  
+  `prefab` (string) – name of the existing entity prefab that can be replaced.  
+  `constructionprefab` (string) – name of the construction site prefab to spawn in its place.
+* **Returns:** Nothing.
+* **Error states:** None. Duplicate registrations for the same `prefab` are silently overwritten.
 
 ### `RemoveTargetPrefab(prefab)`
-*   **Description:** Unregisters a target prefab. If the `prefab` was registered, it removes the associated `[prefab]_plans` tag from the component's parent entity.
-*   **Parameters:**
-    *   `prefab` (string): The name of the prefab to unregister.
+* **Description:** Removes the mapping for a given prefab and removes its associated `<prefab>_plans` tag.
+* **Parameters:**  
+  `prefab` (string) – name of the prefab whose mapping should be removed.
+* **Returns:** Nothing.
+* **Error states:** No effect if the prefab has no mapping.
 
 ### `StartConstruction(target)`
-*   **Description:** Initiates the construction process by transforming a `target` entity into its designated construction prefab. It first checks if the target is valid and does not already have a `constructionsite` component. If a valid `constructionprefab` is found for the target's prefab, it spawns the construction product at the target's world position, removes the original `target` entity, and pushes an "onstartconstruction" event on the new product.
-*   **Parameters:**
-    *   `target` (Entity): The entity to be transformed into a construction site.
-*   **Returns:**
-    *   `product` (Entity): The newly spawned construction prefab, or `nil` if the process failed.
-    *   `"MISMATCH"` (string): If the target's prefab is not registered within this component's `targetprefabs`.
+* **Description:** Attempts to spawn a construction site in place of the given `target` entity, based on the registered mapping for `target.prefab`. Removes the original entity and notifies the new site of construction start.
+* **Parameters:**  
+  `target` (entity) – the existing entity to be replaced by a construction site.
+* **Returns:**  
+  `product` (entity or `nil`) – the newly spawned construction site, or `nil` if construction fails.  
+* **Error states:**  
+  - Returns `nil, "MISMATCH"` if no mapping exists for `target.prefab`.  
+  - Returns `nil` if the target already has a `constructionsite` component (prevents double-construction).  
+  - Returns `nil` silently if `SpawnPrefab` fails.
 
 ### `OnRemoveFromEntity()`
-*   **Description:** This callback is invoked when the `ConstructionPlans` component is removed from its parent entity. It iterates through all registered target prefabs and removes their corresponding `[prefab]_plans` tags from the parent entity to ensure proper cleanup.
-*   **Parameters:** None.
+* **Description:** Cleanup callback invoked when the component is removed from its entity. Removes all `<prefab>_plans` tags added by `AddTargetPrefab`.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-*   **Pushes:**
-    *   `"onstartconstruction"`: Triggered on the newly spawned construction product after a successful `StartConstruction` call.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** The component itself does not push events; however, `StartConstruction` calls `product:PushEvent("onstartconstruction")` on the spawned construction site entity.

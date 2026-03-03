@@ -1,119 +1,145 @@
 ---
 id: mood
 title: Mood
-description: Manages timed and seasonal mood states for entities, including transitions triggered by day cycles and season changes.
+description: Manages timed and seasonal mood states for entities, such as mating behavior in beefalo, by tracking mood duration, season-based activation, and world settings multipliers.
+tags: [entity, ai, season, behavior, world]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 8100a657
+system_scope: entity
 ---
 
 # Mood
 
-## Overview
-This component implements mood logic for entities, enabling transitions between "in mood" and "not in mood" states based on elapsed day cycles and seasonal triggers. It supports persistent state saving/loading, configurable timing for mood durations, seasonal activation, and custom callback functions for entering/leaving mood states.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Uses `inst:WatchWorldState("cycles", ...)` to listen for day completion events.
-- Uses `inst:WatchWorldState("season", ...)` conditionally when mood seasons are configured.
-- Does not add or remove entity tags.
-- Does not declare other component dependencies explicitly in code (e.g., no `AddComponent` calls).
+## Overview
+`Mood` is a component that controls whether an entity is in a specific behavioral "mood" — for example, breeding readiness in beefalo — based on day counts, seasonal conditions, and configurable world settings. It integrates with the world state to listen for day completions and season changes, and supports persistence via `OnSave`/`OnLoad`. The component does not modify the entity directly but provides state and callback hooks for consuming systems (e.g., `beefalo` AI/behaviour logic) to respond to mood transitions.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("mood")
+
+-- Configure mood timing and season triggers
+inst.components.mood:SetMoodTimeInDays(10, 5, false) -- 10 days in mood, 5 days wait
+inst.components.mood:SetMoodSeason("spring")
+
+-- Define callbacks for mood state changes
+inst.components.mood:SetInMoodFn(function(ent) print(ent .. " entered mood") end)
+inst.components.mood:SetLeaveMoodFn(function(ent) print(ent .. " left mood") end)
+
+-- Manually trigger mood validation (e.g., at world load)
+inst.components.mood:ValidateMood()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `enabled` | boolean | `true` | Whether the mood system is active. Disabling prevents state changes. |
+| `moodtimeindays.length` | number | `nil` | Duration (in days) the entity stays in mood once activated. |
+| `moodtimeindays.wait` | number | `nil` | Duration (in days) the entity waits before re-entering mood. |
+| `forcemood` | boolean | `false` | If true, mood state toggles forcibly on timer expiry; otherwise, it toggles only if currently not in mood. |
+| `isinmood` | boolean | `false` | Current mood state (`true` = in mood). |
+| `daystomoodchange` | number | `nil` | Remaining days until the mood state should change. |
+| `onentermood` | function | `nil` | Callback invoked when the entity enters mood. |
+| `onleavemood` | function | `nil` | Callback invoked when the entity leaves mood. |
+| `moodseasons` | table | `{}` | List of season names (strings) during which the entity can enter mood. |
+| `firstseasonadded` | boolean | `false` | Internal flag indicating whether season listener is active. |
+| `worldsettingsmultiplier_inmood` | number | `1` | Multiplier applied to day counts while in mood (for world settings). |
+| `worldsettingsmultiplier_outmood` | number | `1` | Multiplier applied to day counts while not in mood (for world settings). |
+| `worldsettingsenabled` | boolean | `true` | Whether world settings affect mood timing. |
+| `seasonmood` | boolean | `false` | Internal flag indicating whether the current mood state is season-locked. |
 
-| Property                         | Type      | Default Value                          | Description |
-|----------------------------------|-----------|----------------------------------------|-------------|
-| `enabled`                        | boolean   | `true`                                 | Whether mood logic is active. |
-| `moodtimeindays.length`          | number    | `nil`                                  | Duration (in days) an entity stays *in* mood during an active mood period. |
-| `moodtimeindays.wait`            | number    | `nil`                                  | Duration (in days) before next mood period begins after leaving mood. |
-| `forcemood`                      | boolean   | `false`                                | If `true`, forces entry into mood on cycle reset instead of toggling. |
-| `isinmood`                       | boolean   | `false`                                | Current mood state: `true` if entity is currently in mood. |
-| `daystomoodchange`               | number    | `nil`                                  | Countdown (in days) until next mood transition. |
-| `onentermood`                    | function  | `nil`                                  | Callback function executed when entering mood. |
-| `onleavemood`                    | function  | `nil`                                  | Callback function executed when leaving mood. |
-| `moodseasons`                    | table     | `{}`                                   | List of season names during which mood should activate automatically. |
-| `firstseasonadded`               | boolean   | `false`                                | Internal flag indicating if the season watch listener has been added. |
-| `worldsettingsmultiplier_inmood` | number    | `1`                                    | Multiplier applied to day count while in mood (used in saving/loading). |
-| `worldsettingsmultiplier_outmood`| number    | `1`                                    | Multiplier applied to day count while not in mood (used in saving/loading). |
-| `worldsettingsenabled`           | boolean   | `true`                                 | Whether world settings (including mood multipliers) are respected. |
-| `seasonmood`                     | boolean   | `false` (not initialized in `_ctor`, set dynamically) | Whether the current mood state is season-driven (entire season). |
-
-## Main Functions
+## Main functions
+### `GetDebugString()`
+* **Description:** Returns a human-readable summary of the mood state for debugging purposes (e.g., in dev tools or logs).
+* **Parameters:** None.
+* **Returns:** `string` — Formatted debug string showing mood status, days until change, and season dependency.
 
 ### `Enable(enabled)`
-* **Description:** Enables or disables mood logic. Disabling also forces the entity out of mood.
-* **Parameters:**
-  * `enabled` (boolean): Whether to enable mood.
+* **Description:** Enables or disables the mood component. Disabling immediately resets mood state and prevents future state changes.
+* **Parameters:** `enabled` (boolean) — `true` to enable, `false` to disable.
+* **Returns:** Nothing.
 
 ### `SetMoodTimeInDays(length, wait, forcemood, worldsettingsmultiplier_inmood, worldsettingsmultiplier_outmood, worldsettingsenabled)`
-* **Description:** Configures the timing and behavior for mood transitions.
+* **Description:** Configures the core timing parameters for mood cycles. Resets internal counters and sets initial mood state to not-in-mood.
 * **Parameters:**
-  * `length` (number): Days to remain *in* mood.
-  * `wait` (number): Days to wait before *next* mood starts.
-  * `forcemood` (boolean): If `true`, entry into mood is forced rather than toggled.
-  * `worldsettingsmultiplier_inmood` (number, optional): Multiplier for day countdown while in mood.
-  * `worldsettingsmultiplier_outmood` (number, optional): Multiplier for day countdown while not in mood.
-  * `worldsettingsenabled` (boolean, optional): Whether world settings apply.
-
-### `CheckForMoodChange()`
-* **Description:** Checks if `daystomoodchange` has elapsed and triggers a mood transition if so.
-* **Parameters:** None.
+  * `length` (number) — Days the entity remains in mood.
+  * `wait` (number) — Days the entity waits before re-entering mood.
+  * `forcemood` (boolean) — If `true`, toggles mood state unconditionally on timer expiry.
+  * `worldsettingsmultiplier_inmood` (number, optional) — Multiplier for day countdown while in mood (e.g., from world settings). Defaults to `1`.
+  * `worldsettingsmultiplier_outmood` (number, optional) — Multiplier for day countdown while out of mood. Defaults to `1`.
+  * `worldsettingsenabled` (boolean, optional) — If `false`, disables world-settings timing modifications. Defaults to `true`.
+* **Returns:** Nothing.
 
 ### `SetMoodSeason(activeseason)`
-* **Description:** Adds a season to the list of seasons that automatically trigger mood activation. Registers the season watch listener if this is the first season added.
-* **Parameters:**
-  * `activeseason` (string): Name of the season (e.g., `"spring"`).
+* **Description:** Adds a season to the list of seasons that can trigger mood. Automatically registers the season-change listener on first call.
+* **Parameters:** `activeseason` (string) — Season name (e.g., `"spring"`, `"summer"`).
+* **Returns:** Nothing.
 
 ### `ValidateMood()`
-* **Description:** Ensures correct mood state based on the *current* season. Typically used at world start to ensure proper behavior during initial season.
+* **Description:** Recalculates current mood state based on the active season and configured `moodseasons`. Used to ensure correct initial mood at world load or season start.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `SetIsInMood(inmood, entireseason)`
-* **Description:** Directly sets the mood state. Handles time tracking, season flags, and callback execution.
-* **Parameters:**
-  * `inmood` (boolean): Target mood state.
-  * `entireseason` (boolean): If `true`, mood lasts for the full current season.
-
-### `ResetMood()`
-* **Description:** Resets mood state to *not in mood* and reinitializes `daystomoodchange` to the `wait` interval (only if season-driven mood was active).
+### `CheckForMoodChange()`
+* **Description:** Evaluates whether the mood state should toggle based on the `daystomoodchange` counter. Called automatically when days complete (if `worldsettingsenabled` is `true`).
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SetInMoodFn(fn)`
 * **Description:** Sets the callback function invoked when the entity enters mood.
-* **Parameters:**
-  * `fn` (function): Callback function taking `inst` as the argument.
+* **Parameters:** `fn` (function) — Function that receives `inst` as its sole argument.
+* **Returns:** Nothing.
 
 ### `SetLeaveMoodFn(fn)`
 * **Description:** Sets the callback function invoked when the entity leaves mood.
+* **Parameters:** `fn` (function) — Function that receives `inst` as its sole argument.
+* **Returns:** Nothing.
+
+### `ResetMood()`
+* **Description:** Exits mood state if active *and* if it was triggered by season (i.e., `seasonmood` is `true`). Resets the countdown to the `wait` period.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `SetIsInMood(inmood, entireseason)`
+* **Description:** Explicitly sets the mood state. Handles logic for seasonal vs. timed mood entry/exit, countdown updates, and callback invocation.
 * **Parameters:**
-  * `fn` (function): Callback function taking `inst` as the argument.
+  * `inmood` (boolean) — Target mood state.
+  * `entireseason` (boolean) — If `true`, mood is locked for the *entire* current season; `daystomoodchange` is set to season length instead of `length`.
+* **Returns:** Nothing.
+* **Error states:** No-op if `inmood` is `true` but either `enabled` or `worldsettingsenabled` is `false`.
 
 ### `IsInMood()`
 * **Description:** Returns the current mood state.
 * **Parameters:** None.
-* **Returns:** `boolean` — `true` if entity is in mood.
-
-### `GetDebugString()`
-* **Description:** Returns a human-readable debug string summarizing mood state.
-* **Parameters:** None.
-* **Returns:** `string` — e.g., `"inmood:true, days till change:5 SEASONMOOD"`.
+* **Returns:** `boolean` — `true` if currently in mood.
 
 ### `OnSave()`
-* **Description:** Serializes mood state for world save.
+* **Description:** Serializes mood state for world persistence. Includes mood status, adjusted day count (scaled by world settings), season list, and version.
 * **Parameters:** None.
-* **Returns:** `table` — containing `inmood`, `daysleft`, `moodseasons`, and `version`.
+* **Returns:** `table` — Save data:
+  * `inmood` (boolean)
+  * `daysleft` (number)
+  * `moodseasons` (table)
+  * `version` (number) — Always `2`.
 
 ### `OnLoad(data)`
-* **Description:** Restores mood state from saved data. Handles versioned loading (v1 and v2).
-* **Parameters:**
-  * `data` (table): Saved mood data from `OnSave()`.
+* **Description:** Restores mood state from persisted data. Handles version compatibility (`version == 2` vs. legacy).
+* **Parameters:** `data` (table) — Saved state from `OnSave()`.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens for:**
-  - `"cycles"` → triggers `OnDayComplete` (handled internally via `WatchWorldState`)
-  - `"season"` → triggers `OnSeasonChange` (handled internally via `WatchWorldState` after first season is added)
-- **Triggers (via `inst:PushEvent` not present)** — does *not* push any events itself. (Callback functions like `onentermood` and `onleavemood` are invoked directly, but no `PushEvent` calls are used.)
+## Events & listeners
+- **Listens to:**  
+  - `cycles` — Triggers `OnDayComplete` at the end of each day.  
+  - `season` — Triggers `OnSeasonChange` when the active season changes (added after `SetMoodSeason` is called once).  
+- **Pushes:** None identified.

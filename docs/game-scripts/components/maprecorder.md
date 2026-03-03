@@ -1,103 +1,131 @@
 ---
 id: maprecorder
 title: Maprecorder
-description: Records, teaches, and manages structured map exploration data for entities (specifically maps) in Don't Starve Together.
+description: Stores and manages recorded map data for teaching exploration progress between players.
+tags: [map, teaching, player, data, persistence]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 5971661b
+system_scope: player
 ---
 
 # Maprecorder
 
-## Overview
-The `MapRecorder` component stores and manages recorded map data (e.g., explored tiles) associated with a specific world session and author. It enables recording new map data from an explorer (a player), verifying compatibility, teaching the map to another explorer, querying tile visibility, and persisting/loading state via `OnSave`/`OnLoad`. It is primarily used by map-related entities (e.g., the "Map" item) to interact with the `MapExplorer` component on players.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires target entities to have a `MapExplorer` component (accessed via `target.player_classified.MapExplorer`).  
-- No components are added/removed on the host entity (`inst`).  
-- No tags are added/removed.
+## Overview
+`MapRecorder` is a component that captures and persists map exploration data from one player (the source) so it can be taught to another player. It holds a serialized map representation (`mapdata`), associated metadata (author, session, world type, day), and provides methods to record, teach, check tile visibility, and persist/load state. The component is typically attached to an item (e.g., a map scroll) that facilitates sharing exploration progress.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("maprecorder")
+
+-- Set callbacks for external reactions to data changes
+inst.components.maprecorder:SetOnTeachFn(function(inst, target)
+    -- Handle successful teach, e.g., show feedback
+end)
+inst.components.maprecorder:SetOnDataChangedFn(function(inst)
+    -- Update UI when map data changes
+end)
+
+-- Record map from a player
+local success, reason = inst.components.maprecorder:RecordMap(some_player)
+
+-- Teach the recorded map to another player
+local taught, reason = inst.components.maprecorder:TeachMap(another_player)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** No tags are added, removed, or checked.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `mapdata` | `string?` | `nil` | Base64-encoded serialized map data from a recording session. |
-| `mapsession` | `string?` | `nil` | Session identifier of the world where the map was recorded. |
-| `maplocation` | `string` | `TheWorld.worldprefab` | World prefab name (e.g., "forest", "cave") where the map was recorded. |
-| `mapauthor` | `string?` | `nil` | Name of the player who recorded the map. |
-| `mapday` | `number?` | `nil` | Day number (1-indexed, based on `TheWorld.state.cycles + 1`) when the map was recorded. |
-| `onteachfn` | `function?` | `nil` | Optional callback invoked after successfully teaching the map data to a target. |
-| `ondatachangedfn` | `function?` | `nil` | Optional callback invoked when map data is cleared, set, or loaded (e.g., after `ClearMap`, `RecordMap`, `OnLoad`). |
+| `mapdata` | string or nil | `nil` | Serialized string representing recorded map tiles and exploration state. |
+| `mapsession` | string or nil | `nil` | Session identifier of the world where the map was recorded. |
+| `maplocation` | string | `TheWorld.worldprefab` | Name of the world prefab (e.g., `"forest"`, `"caves"`). |
+| `mapauthor` | string or nil | `nil` | Name of the player who originally explored and recorded the map. |
+| `mapday` | number or nil | `nil` | In-game day number when the map was recorded (1-indexed). |
+| `onteachfn` | function or nil | `nil` | Optional callback invoked on successful `TeachMap()`. |
+| `ondatachangedfn` | function or nil | `nil` | Optional callback invoked after `ClearMap()`, `RecordMap()`, or `OnLoad()` when data changes. |
 
-## Main Functions
-
+## Main functions
 ### `SetOnTeachFn(fn)`
-* **Description:** Sets the optional callback function executed after successfully teaching the map to a target.  
-* **Parameters:**  
-  - `fn`: Function expecting `(maprecorder_inst, target)` as arguments.
+* **Description:** Sets a callback function that is executed when a map is successfully taught to a target player.
+* **Parameters:** `fn` (function) — Function of signature `(inst: Entity, target: Entity) → nil`.
+* **Returns:** Nothing.
 
 ### `SetOnDataChangedFn(fn)`
-* **Description:** Sets the optional callback function executed whenever map data changes (e.g., cleared, recorded, or loaded).  
-* **Parameters:**  
-  - `fn`: Function expecting `(maprecorder_inst)` as argument.
+* **Description:** Sets a callback function invoked whenever the recorded map data is cleared, recorded, or reloaded.
+* **Parameters:** `fn` (function) — Function of signature `(inst: Entity) → nil`.
+* **Returns:** Nothing.
 
 ### `HasData()`
-* **Description:** Returns `true` if `mapdata` is non-empty; otherwise `false`.  
-* **Parameters:** None.  
-* **Returns:** `boolean`
+* **Description:** Checks whether valid map data has been recorded.
+* **Parameters:** None.
+* **Returns:** `true` if `mapdata` is non-`nil` and has length > `0`; otherwise `false`.
 
 ### `IsCurrentWorld()`
-* **Description:** Checks whether the recorded map session matches the current world’s session identifier.  
-* **Parameters:** None.  
-* **Returns:** `boolean`
+* **Description:** Verifies the recorded map session belongs to the current world session.
+* **Parameters:** None.
+* **Returns:** `true` if `mapsession` equals `TheWorld.meta.session_identifier`; otherwise `false`.
 
 ### `ClearMap()`
-* **Description:** Clears all recorded map data and metadata (`mapdata`, `mapsession`, `mapauthor`, `mapday`), and invokes `ondatachangedfn` if defined.  
+* **Description:** Resets all recorded map data and metadata to `nil`.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Side effects:** Invokes `ondatachangedfn`, if set.
 
 ### `RecordMap(target)`
-* **Description:** Records current exploration state from a player (target) and stores it in this component. Returns success/failure and an error code.  
-* **Parameters:**  
-  - `target`: Entity expected to have a `MapExplorer` component (typically a player).  
-* **Returns:**  
-  - On success: `true`  
-  - On failure: `false, "NOEXPLORER"` (no `MapExplorer` component), `false, "BLANK"` (failed to generate data), or `false, "WRONGWORLD"` (invalid check; *note: logic uses `IsCurrentWorld()` only during teaching*).
+* **Description:** Records the exploration state of the given player into `mapdata`. Requires the target to be a valid player with `player_classified.MapExplorer` component.
+* **Parameters:** `target` (Entity) — Player whose map exploration is to be recorded.
+* **Returns:** 
+  * `true` — On successful recording (and `mapdata` is non-empty).
+  * `false`, `"NOEXPLORER"` — If target lacks required component.
+  * `false`, `"BLANK"` — If recording produced empty data.
+* **Side effects:** Updates `mapsession`, `maplocation`, `mapauthor`, and `mapday`. Invokes `ondatachangedfn` if valid data is stored.
 
 ### `TeachMap(target)`
-* **Description:** Attempts to teach (apply) the recorded map data to a target player. Removes the entity after successful teaching.  
-* **Parameters:**  
-  - `target`: Entity expected to have a `MapExplorer` component.  
-* **Returns:**  
-  - On success: `true`  
-  - On failure: `false, "BLANK"` (no data), `false, "WRONGWORLD"` (session mismatch), or `false, "NOEXPLORER"` (missing `MapExplorer`).
+* **Description:** Attempts to teach the recorded map data to the target player.
+* **Parameters:** `target` (Entity) — Player who should learn the map.
+* **Returns:** 
+  * `true` — On success; removes the component from `self.inst` after teaching.
+  * `false`, `"BLANK"` — If no recorded data exists (and component is removed).
+  * `false`, `"WRONGWORLD"` — If the recorded map was from a different world.
+  * `false`, `"NOEXPLORER"` — If target lacks required component.
+  * `false` — If `MapExplorer:LearnRecordedMap()` fails.
+* **Side effects:** May remove `self.inst` on success or blank data. Invokes `onteachfn`, if set.
 
 ### `IsTileSeeableInRecordedMap(target, tx, ty)`
-* **Description:** Checks if a specific tile (`tx`, `ty`) is visible in the recorded map data for a given target.  
-* **Parameters:**  
-  - `target`: Entity with `MapExplorer` component.  
-  - `tx`, `ty`: Integer world tile coordinates.  
-* **Returns:** `boolean`
+* **Description:** Checks whether a specific world tile (`tx`, `ty`) is visible (explored) in the recorded map for the given player.
+* **Parameters:** 
+  * `target` (Entity) — Player whose explorer component must be used.
+  * `tx`, `ty` (number) — World tile coordinates.
+* **Returns:** `true` if tile is visible in recorded data; `false` otherwise (including if no data or explorer is missing).
+* **Note:** Documentation comment warns this is expensive; use sparingly or refactor for batch checks.
 
 ### `TransferComponent(newinst)`
-* **Description:** Copies the map data and metadata to another entity’s `maprecorder` component (used when duplicating or transferring map items). Invokes `ondatachangedfn` if new data is valid.  
-* **Parameters:**  
-  - `newinst`: The destination entity instance.
+* **Description:** Transfers all recorded map data and metadata to the `maprecorder` component of another entity.
+* **Parameters:** `newinst` (Entity) — Entity that will receive the component data.
+* **Returns:** Nothing.
+* **Side effects:** Updates `newinst.components.maprecorder` fields and calls its `ondatachangedfn`, if set.
 
 ### `OnSave()`
-* **Description:** Returns a table containing all serializable map data for world save persistence.  
-* **Parameters:** None.  
-* **Returns:** `{mapdata, mapsession, maplocation, mapauthor, mapday}`
+* **Description:** Returns a serializable table of all persistent fields for save/load.
+* **Parameters:** None.
+* **Returns:** Table with keys: `mapdata`, `mapsession`, `maplocation`, `mapauthor`, `mapday`.
 
 ### `OnLoad(data)`
-* **Description:** Restores map data from a saved table. Triggers `ondatachangedfn` only if data fields are loaded or `maplocation` changes.  
-* **Parameters:**  
-  - `data`: Saved state table (from `OnSave`).  
-* **Returns:** None.
+* **Description:** Restores component state from saved data during world load.
+* **Parameters:** `data` (table or nil) — Saved map data as returned by `OnSave()`.
+* **Returns:** Nothing.
+* **Side effects:** Updates internal fields and calls `ondatachangedfn` if any field was updated or if `maplocation` changed.
 
-## Events & Listeners
-None. This component does not register or dispatch any events via `inst:ListenForEvent` or `inst:PushEvent`. Callbacks (`onteachfn`, `ondatachangedfn`) are invoked directly.
+## Events & listeners
+None identified

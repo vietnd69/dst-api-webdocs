@@ -1,48 +1,73 @@
 ---
 id: damagereflect
 title: Damagereflect
-description: This component allows an entity to reflect damage back to an attacker, optionally using a custom damage calculation function.
+description: Provides a callback-based mechanism for reflecting damage back to attackers, typically used by the combat component.
+tags: [combat, callback, damage]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: combat
+category_type: components
 source_hash: 79afb2ef
+system_scope: combat
 ---
 
 # Damagereflect
 
-## Overview
-This component provides the functionality for an entity to reflect damage back to its attacker. It can be configured with a default amount of damage to reflect, or with a custom function that calculates the reflected damage based on the specifics of the incoming attack (attacker, damage amount, weapon, etc.).
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Damagereflect` is a lightweight component that enables entities to reflect a portion of incoming damage back to the attacker. It is designed to work in conjunction with the `combat` component and uses a configurable callback function (`reflectdamagefn`) to determine how much damage is reflected and whether special damage (e.g., fire, cold) is applied. If no custom callback is set, it defaults to reflecting a fixed amount of physical damage.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("damagereflect")
+
+-- Set a custom reflection function
+inst.components.damagereflect:SetReflectDamageFn(function(inst, attacker, damage, weapon, stimuli, spdamage)
+    return damage * 0.5, spdamage or 0  -- reflect 50% of damage
+end)
+
+-- Optionally adjust the default reflected damage value
+inst.components.damagereflect:SetDefaultDamage(20)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-| Property         | Type       | Default Value | Description                                                                                                                                                                                                                                                                                                                                 |
-| :--------------- | :--------- | :------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `reflectdamagefn`| `function` | `nil`         | A custom function used to calculate reflected damage. If set, this function will be called by `GetReflectedDamage`. It should accept `(inst, attacker, damage, weapon, stimuli, spdamage)` as arguments and return `(reflected_damage, sp_damage)`. If the function returns `nil` for `reflected_damage`, `defaultdamage` will be used instead. |
-| `defaultdamage`  | `number`   | `10`          | The default damage value to reflect if `reflectdamagefn` is not set, or if `reflectdamagefn` returns `nil` for the reflected damage value.                                                                                                                                                                                                       |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `reflectdamagefn` | function or nil | `nil` | Optional callback used to compute reflected damage. Signature: `(inst, attacker, damage, weapon, stimuli, spdamage) → (reflected_damage, reflected_spdamage)`. |
+| `defaultdamage` | number | `10` | Fallback damage value used when no callback is defined or callback returns `nil` for damage. |
 
-## Main Functions
+## Main functions
 ### `SetReflectDamageFn(fn)`
-*   **Description:** Sets a custom function to be used for calculating reflected damage.
-*   **Parameters:**
-    *   `fn` (`function`): The function to set. It should accept `(self.inst, attacker, damage, weapon, stimuli, spdamage)` and return `(reflected_damage, sp_damage)`.
+* **Description:** Sets the callback function responsible for computing reflected damage.  
+* **Parameters:** `fn` (function or nil) – A function with signature `(inst, attacker, damage, weapon, stimuli, spdamage) → (damage, spdamage)`, or `nil` to disable custom reflection.  
+* **Returns:** Nothing.  
+* **Error states:** None.
 
 ### `SetDefaultDamage(value)`
-*   **Description:** Sets the default damage value that will be reflected if no custom damage function is specified or if the custom function returns `nil` for the damage value.
-*   **Parameters:**
-    *   `value` (`number`): The new default damage value.
+* **Description:** Changes the default reflected damage value used when no callback is active or when the callback returns `nil` for damage.  
+* **Parameters:** `value` (number) – The new default damage amount to reflect.  
+* **Returns:** Nothing.  
 
 ### `GetReflectedDamage(attacker, damage, weapon, stimuli, spdamage)`
-*   **Description:** Calculates and returns the damage to be reflected to an attacker. If a custom `reflectdamagefn` is set, it uses that function to determine the reflected damage. Otherwise, it returns the `defaultdamage`.
-*   **Parameters:**
-    *   `attacker` (`entity`): The entity that attacked the owner of this component.
-    *   `damage` (`number`): The incoming damage value before any reflection calculation.
-    *   `weapon` (`entity`): The weapon entity used by the attacker, if any.
-    *   `stimuli` (`string`): A string describing the type of attack stimuli (e.g., "melee", "projectile").
-    *   `spdamage` (`number`): Special damage value (e.g., sanity damage) that might also be reflected.
-*   **Returns:** `(number, number)`: The calculated reflected damage and the special reflected damage, respectively.
+* **Description:** Computes and returns the amount of damage to reflect back to the attacker. Calls the reflection callback if set, otherwise uses `defaultdamage`.  
+* **Parameters:**  
+  - `attacker` (Entity or nil) – The entity dealing the original damage.  
+  - `damage` (number) – The amount of base damage dealt.  
+  - `weapon` (Entity or nil) – The weapon used in the attack, if any.  
+  - `stimuli` (string or nil) – Type of damage stimulus (e.g., `"physical"`, `"fire"`).  
+  - `spdamage` (number or nil) – Special damage amount, if any.  
+* **Returns:**  
+  - `reflected_damage` (number) – The damage amount reflected; falls back to `defaultdamage` if callback returns `nil`.  
+  - `reflected_spdamage` (number or nil) – Special damage reflected, returned directly from the callback if provided.  
+* **Error states:** If `reflectdamagefn` returns `nil` for damage, `defaultdamage` is used instead. If no callback is set, only `defaultdamage` is returned (no special damage).
+
+## Events & listeners
+Not applicable

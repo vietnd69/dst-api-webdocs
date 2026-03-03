@@ -1,87 +1,60 @@
 ---
 id: krampusbrain
 title: Krampusbrain
-description: Controls the AI behavior of the Krampus entity, managing aggression, item stealing, chest looting, player avoidance, and departure logic.
+description: Implements the decision-making logic for the Krampus character, handling stealing, chest-emptying, aggression, fleeing, and departure behaviors.
+tags: [ai, combat, inventory, stealth, boss]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 3f047681
+system_scope: brain
 ---
 
 # Krampusbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-`krampusbrain.lua` defines the behavior tree for the Krampus entity in Don't Starve Together. It orchestrates Krampus's core behaviors: stealing items from players, opening treasure chests when inventory is not full, fleeing from electric fences and players under certain conditions, chasing and attacking when provoked, and exiting the world after accumulating a greed threshold of items. It integrates with standard behavior tree utilities (`behaviours/`) and brain infrastructure (`BrainCommon`) to execute complex, context-aware decision-making.
+`KrampusBrain` is a behavior tree-based AI controller for the Krampus entity. It manages Krampus’s core behaviors: identifying and stealing eligible inventory items, emptied treasure chests when possible, chasing and attacking nearby players, fleeing when provoked, and eventually departing after accumulating enough stolen items (`greed`). It extends `Brain` and integrates with DST’s behavior system via `PriorityNode`, `DoAction`, `ChaseAndAttack`, `RunAway`, `Follow`, and `Wander`. It relies on the `inventory` component to track possession and make decisions, and interacts with the `inventoryitem` and `container` components to validate targets.
 
-The brain relies on the `inventory` component to track carried items and make stealing/chest-looting decisions, and uses `FindEntity` to locate valid targets within perception distance.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("brain")
+inst.components.brain:SetClass("krampusbrain")
+inst.components.brain:OnStart()
+```
 
-## Dependencies & Tags
-- **Components used:** `inventory`, `container`, `inventoryitem`
-- **Tags used for filtering targets:**
-  - For stealing: Must have tag `"_inventoryitem"`, must not have tags `"INLIMBO"`, `"catchable"`, `"fire"`, `"irreplaceable"`, `"heavy"`, `"prey"`, `"bird"`, `"outofreach"`, `"_container"`.
-  - For chest looting: Must have tags `"structure"`, `"_container"`, `"HAMMER_workable"`.
+## Dependencies & tags
+**Components used:** `inventory`, `container`, `inventoryitem`  
+**Tags checked:** `INLIMBO`, `catchable`, `fire`, `irreplaceable`, `heavy`, `prey`, `bird`, `outofreach`, `_container`, `structure`, `HAMMER_workable`, `_inventoryitem`  
+**Tags added:** None identified
 
 ## Properties
-| Property     | Type    | Default Value | Description |
-|--------------|---------|---------------|-------------|
-| `mytarget`   | Entity  | `nil`         | The current target entity Krampus is following or avoiding. Used primarily for player tracking. |
-| `greed`      | Number  | Random (2–5)  | The number of items Krampus must collect before departing. Initialized once on construction. |
-| `listenerfunc` | Function | `nil`     | Callback used to clear `mytarget` when the target entity is removed. Initialized lazily in `SetTarget`. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `mytarget` | entity or `nil` | `nil` | The current target entity (typically a player) to follow. |
+| `greed` | number | `2 + math.random(4)` | The number of items Krampus must collect before transitioning to the departure state. |
 
-## Main Functions
+## Main functions
+### `SetTarget(target)`
+*   **Description:** Sets the current target (e.g., a player) for Krampus to follow. Registers a listener to clear `mytarget` if the target entity is removed.
+*   **Parameters:** `target` (entity or `nil`) — entity to target, or `nil` to clear the current target.
+*   **Returns:** Nothing.
 
-### `CanSteal(item)`
-* **Description:** Predicate function used to determine whether a given item is a valid target for Krampus to steal. The item must be pick-up-able, not near a player, and on valid ground.
-* **Parameters:**
-  - `item` (Entity): The candidate item entity.
-* **Returns:**
-  - `true` if Krampus can steal the item, otherwise `false`.
+### `OnStop()`
+*   **Description:** Cleans up when the brain is stopped. Clears the current target (`mytarget`).
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `StealAction(inst)`
-* **Description:** Returns a buffered steal action (pickup) if Krampus's inventory is not full and a valid item exists within sight range. Otherwise, returns `nil`.
-* **Parameters:**
-  - `inst` (Entity): The Krampus entity instance.
-* **Returns:**
-  - `BufferedAction` instance if a target exists, otherwise `nil`.
+### `OnStart()`
+*   **Description:** Initializes and starts the behavior tree. Sets the initial target to `inst.spawnedforplayer`, constructs a behavior tree with priority-ordered behaviors (panic triggers, stealing, chasing, fleeing, following, wandering), and assigns it to `self.bt`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `CanHammer(item)`
-* **Description:** Predicate function to determine if a given entity is a valid treasure chest that Krampus can open. Must be a treasure chest, contain items, not be near a player, and be on valid ground.
-* **Parameters:**
-  - `item` (Entity): The candidate chest entity.
-* **Returns:**
-  - `true` if the chest is valid for looting, otherwise `false`.
-
-### `EmptyChest(inst)`
-* **Description:** Returns a buffered hammer action to open a treasure chest if Krampus's inventory is not full and a valid chest is found. Otherwise, returns `nil`.
-* **Parameters:**
-  - `inst` (Entity): The Krampus entity instance.
-* **Returns:**
-  - `BufferedAction` instance if a chest is found, otherwise `nil`.
-
-### `KrampusBrain:SetTarget(target)`
-* **Description:** Updates the current tracking target (typically a player). Manages removal and re-addition of the `onremove` event callback for proper cleanup when the target leaves the world. Prevents duplicate assignments.
-* **Parameters:**
-  - `target` (Entity or `nil`): The entity to track, or `nil` to clear the target.
-* **Returns:**
-  - `nil`
-
-### `KrampusBrain:OnStop()`
-* **Description:** Called when the behavior tree stops. Clears the current tracking target.
-* **Parameters:** None
-* **Returns:** `nil`
-
-### `KrampusBrain:OnStart()`
-* **Description:** Called when the behavior tree starts. Initializes the brain: sets initial tracking target to the player that spawned Krampus (`spawnedforplayer`), and constructs the behavior tree's root node.
-* **Parameters:** None
-* **Returns:** `nil`
-
-## Events & Listeners
-- **Listens to:**
-  - `"onremove"`: Registered on the current `mytarget` entity to clear the reference when the target is removed from the world.
-- **Pushes:** None (this brain does not directly fire custom events).
+## Events & listeners
+- **Listens to:** `onremove` — registered dynamically on the current `mytarget` entity to clear `mytarget` when it is removed.
+- **Pushes:** No events are directly pushed by this component. Behavior changes are reflected via stategraph transitions (e.g., `"exit"` state).

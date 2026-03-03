@@ -1,102 +1,141 @@
 ---
 id: birdspawner
 title: Birdspawner
-description: Manages the ambient spawning of birds and bird corpses near players based on world conditions like tile type, weather, and special events.
+description: Manages the spawning and behavior of birds in the game world, including timed spawning for players, lunar hail event responses, and dynamic environmental adjustments.
+tags: [environment, spawning, weather, ai]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 98229fed
+system_scope: environment
 ---
 
 # Birdspawner
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The Birdspawner is a world-level component responsible for dynamically spawning birds and bird corpses in the environment around active players. It operates exclusively on the master simulation. The component adjusts its spawning behavior based on various factors, including the time of day, ground tile type, weather conditions (rain), and special events like Lunar Hail storms. During a Lunar Hail, it shifts from spawning live birds to dropping bird corpses, some of which may mutate.
+`Birdspawner` orchestrates the spawning of birds and bird corpses across the world based on player presence, tile type, weather, and game state. It supports dynamic spawn timing, environmental modifiers (e.g., rain, post-hail), and special lunar hail events that suspend normal bird spawns in favor of corpse drops and mutations. The component is **server-only** (`ismastersim` required) and integrates with player-specific scheduling, sound managers, and time-scale modifiers.
 
-## Dependencies & Tags
-**Dependencies:**
-- `timer`: The component uses timers to schedule spawn events and manage states related to Lunar Hail.
+Key interactions include:
+- Listening to world state changes (`islunarhailing`, `israining`, `isnight`)
+- Coordinating lunar hail event timers and announcements
+- Adjusting spawn behavior via bird attractors and modifiers
+- Supporting corpse fade/gestalt timers and mutation logic
 
-**Tags:**
-- None identified.
+## Usage example
+```lua
+-- Typically added automatically to `TheWorld` instance
+-- Manual usage in a mod world generator:
+inst:AddComponent("birdspawner")
+inst.components.birdspawner:ToggleUpdate() -- Force re-evaluation of spawn state
+
+-- For modders: customize bird types per tile
+inst.components.birdspawner:SetBirdTypesForTile(WORLD_TILES.GRASS, {"robin", "canary"})
+inst.components.birdspawner:SetTimeScaleModifier(0.5, "customfactor")
+```
+
+## Dependencies & tags
+**Components used:** `lunarhailbirdsoundmanager`, `moonstorms`, `eater`, `inventoryitem`, `floater`, `trap`, `bait`, `timer`, `talker`  
+**Tags:** Checks `birdcorpse`, `bird`, `scarecrow`, `scarytoprey`, `birdblocker`, `INLIMBO`, `outofreach`, `carnivaldecor`, `carnivaldecor_ranker`, `bird`  
+**Tags added:** None (only reads)
 
 ## Properties
-While this component does not have a formal `_ctor` function, its properties are initialized within the main class constructor.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | — | The owning entity instance (`TheWorld`). Public for convenience. |
+| `_activeplayers` | array of `Entity` | `{}` | List of active players to schedule spawns for. Private. |
+| `_scheduledtasks` | table | `{}` | Tracks pending task handles keyed by player. Private. |
+| `_birds` | table | `{}` | Tracks tracked birds (keys = entity references). Private. |
+| `_maxbirds` | number | `TUNING.BIRD_SPAWN_MAX` | Max birds allowed per player range. |
+| `_minspawndelay`, `_maxspawndelay` | number | `TUNING.BIRD_SPAWN_DELAY` | Base spawn delay range (seconds). |
+| `_ishailing` | boolean | `false` | Whether a lunar hail is active. |
+| `_timescale_modifiers` | `SourceModifierList` | — | Aggregates modifiers affecting spawn rate scaling. |
 
-| Property | Type   | Default Value | Description                                  |
-|----------|--------|---------------|----------------------------------------------|
-| `inst`   | entity | `inst`        | A reference to the entity instance this component is attached to. |
-
-## Main Functions
-
-### `OnPostInit()`
-* **Description:** This is a lifecycle function called after the component and its entity are fully initialized. It synchronizes the spawner's state with the current world conditions (e.g., rain, lunar hail) and initiates the spawning loop.
-* **Parameters:** None.
-
+## Main functions
 ### `GetSpawnPoint(pt, is_corpse)`
-* **Description:** Finds a valid spawn location in a circular area around a given point. The check ensures the point is on a passable tile, not inside a Wagstaff arena, and not near a `birdblocker`. It also checks for ground creep unless spawning a corpse.
-* **Parameters:**
-    * `pt` (vector3): The center point to search around.
-    * `is_corpse` (boolean): If true, relaxes some spawning rules (e.g., allows spawning on ground creep).
+* **Description:** Finds a valid spawn position near `pt` using a fan search, respecting passability, creeps, moonstorms, and bird blockers. Used by `SpawnBird` and `SpawnCorpse`.
+* **Parameters:**  
+  - `pt` (`Vector3`) — Base position (typically a player’s location).  
+  - `is_corpse` (`boolean`) — If `true`, ignores moonstorms and creep (corpses are not subject to these restrictions).
+* **Returns:** `Vector3` or `nil` — Valid spawn position or `nil` if none found.
+* **Error states:** Returns `nil` if no valid point found within search radius or if `TheWorld.Map:IsPointInWagPunkArenaAndBarrierIsUp` is true.
 
 ### `SpawnBird(spawnpoint, ignorebait)`
-* **Description:** Spawns a specific bird prefab at the given spawn point. The type of bird is determined by the tile type and other factors like nearby scarecrows. The bird may be attracted to nearby bait unless `ignorebait` is true.
-* **Parameters:**
-    * `spawnpoint` (vector3): The location where the bird will spawn.
-    * `ignorebait` (boolean): If true, the bird will not be attracted to any nearby bait upon spawning.
-
-### `SpawnBirdCorpse(spawnpoint)`
-* **Description:** Spawns a `birdcorpse` prefab at the given location. The appearance of the corpse (e.g., crow, robin) is chosen based on the tile type. The corpse is spawned at a height of 15 units and enters its falling state.
-* **Parameters:**
-    * `spawnpoint` (vector3): The location where the corpse will spawn.
-
-### `StartTracking(target)`
-* **Description:** Begins tracking a bird entity, making it non-persistent. This allows the game to automatically remove the bird when it goes off-screen and is asleep, helping to manage entity counts.
-* **Parameters:**
-    * `target` (entity): The bird entity to start tracking.
-
-### `StopTracking(target)`
-* **Description:** Stops tracking a bird entity, restoring its original persistence value.
-* **Parameters:**
-    * `target` (entity): The bird entity to stop tracking.
-
-### `SetBirdTypesForTile(tile_id, bird_list)`
-* **Description:** A utility function primarily for modding. It allows overriding the list of bird prefabs that can spawn on a specific world tile.
-* **Parameters:**
-    * `tile_id` (number): The `WORLD_TILES` enum value for the tile.
-    * `bird_list` (table): A list of bird prefab names (strings).
-
-### `SetTimeScaleModifier(factor, key)`
-* **Description:** A utility function for modding. Adds or updates a multiplier that affects the delay between bird spawns.
-* **Parameters:**
-    * `factor` (number): The multiplicative factor to apply.
-    * `key` (string): A unique identifier for this modifier.
-
-### `RemoveTimeScaleModifier(key)`
-* **Description:** A utility function for modding. Removes a previously set time scale modifier.
-* **Parameters:**
-    * `key` (string): The unique identifier of the modifier to remove.
+* **Description:** Spawns a randomly selected bird prefab at `spawnpoint`, considering bait/trap proximity and danger avoidance. Returns the spawned entity.
+* **Parameters:**  
+  - `spawnpoint` (`Vector3`) — Spawn coordinates.  
+  - `ignorebait` (`boolean`) — If `true`, ignores bait and trap interactions.
+* **Returns:** `Entity` (the spawned bird prefab) or `nil`.
+* **Behavior:**  
+  - Calls `PickBird` to select a prefab based on tile, event, and mutation chance.  
+  - Attempts to relocate spawn to nearby bait (if eatable and safe) or traps (if set and eligible).  
+  - Teleports bird to final position (sets `y` to `15` if `bird` tag present).
 
 ### `SpawnCorpseForPlayer(player)`
-* **Description:** Immediately attempts to spawn a bird corpse near the specified player. This is used by external systems, such as Wickerbottom's "On Tentacles" book.
-* **Parameters:**
-    * `player` (entity): The player entity to spawn a corpse near.
+* **Description:** Attempts to spawn a bird corpse for a given player, respecting max corpse limit and spawn point validity. Used internally and exposed for tools/mods.
+* **Parameters:**  
+  - `player` (`Entity`) — Player who may be affected by the event.
+* **Returns:** `Entity` (corpse) or `nil`.
+* **Behavior:**  
+  - Checks for existing nearby corpses (within `64` range, tag `birdcorpse`) vs `_maxcorpses`.  
+  - If below limit, spawns corpse via `SpawnBirdCorpse`, then applies fade or mutation timers.
 
-### `GetPostHailEasingMult()`
-* **Description:** Returns a multiplier from 0.0 to 1.0 that represents the progression of the post-lunar-hail recovery period. A value of 0 means the period has just started (high chance of mutated birds), while 1 means it has ended.
-* **Parameters:** None.
+### `ToggleUpdate(force)`
+* **Description:** Enables or disables bird spawning based on current conditions (`isnight`, `_maxbirds > 0`, lunar hail state). Forces rescheduling if `force = true`.
+* **Parameters:** `force` (`boolean`) — Whether to cancel and reschedule all pending tasks.
+* **Returns:** Nothing.
 
-## Events & Listeners
-The component listens for several world-level and entity-specific events to manage its state.
+### `SetBirdTypesForTile(tile_id, bird_list)`
+* **Description:** **Mod API** — Overrides the default list of birds for a given tile type.
+* **Parameters:**  
+  - `tile_id` (`number`) — Tile constant (e.g., `WORLD_TILES.GRASS`).  
+  - `bird_list` (`table` of strings) — List of prefab names (e.g., `{"robin", "canary"}`).
+* **Returns:** Nothing.
 
-*   **`islunarhailing` (World State):** Triggers `OnIsLunarHailing` to manage timers and sound levels related to the lunar hail bird event, and switches between spawning live birds and corpses.
-*   **`israining` (World State):** Triggers `OnIsRaining` to apply a modifier that increases the bird spawn rate.
-*   **`isnight` (World State):** Triggers `ToggleUpdate` to halt bird spawning during the night.
-*   **`ms_playerjoined` (on TheWorld):** Adds the new player to the list of active players for whom birds should be spawned.
-*   **`ms_playerleft` (on TheWorld):** Removes the departing player from the active list and cancels any scheduled spawns for them.
-*   **`timerdone` (on TheWorld):** Handles the completion of internal timers, primarily used to trigger different phases of the Lunar Hail bird event (e.g., start sounds, drop corpses, restore normal ambient sounds).
-*   **`entitysleep` (on tracked birds):** When a tracked bird falls asleep, this event triggers its removal to manage performance.
+### `SetTimeScaleModifier(factor, key)`
+* **Description:** **Mod API** — Adds a time-scale modifier (e.g., for world settings) using multiplicative factor. Modifiers accumulate via `_timescale_modifiers`.
+* **Parameters:**  
+  - `factor` (`number`) — Multiplier applied to spawn delays.  
+  - `key` (`string`) — Unique identifier for the modifier.
+* **Returns:** Nothing.
+
+### `RemoveTimeScaleModifier(key)`
+* **Description:** **Mod API** — Removes a previously added time-scale modifier.
+* **Parameters:** `key` (`string`) — The modifier identifier.
+* **Returns:** Nothing.
+
+### `StartTracking(target)`
+* **Description:** Begins tracking a bird entity (e.g., to auto-remove if asleep). Stores whether the entity should persist before temporarily disabling persistence.
+* **Parameters:** `target` (`Entity`) — Bird entity to track.
+* **Returns:** Nothing.
+
+### `StopTracking(target)`
+* **Description:** Reverses `StartTracking`, restoring the entity’s persistence state.
+* **Parameters:** `target` (`Entity`) — Bird entity to untrack.
+* **Returns:** Nothing.
+
+### `GetDebugString()`
+* **Description:** Returns a formatted debug string with bird count, time-scale multiplier, and post-hail easing multiplier.
+* **Returns:** `string` — Example: `"birds:3/10, time scale modifier:1.20, post hail easing mult: 0.250"`
+
+## Events & listeners
+- **Listens to:**  
+  - `ms_playerjoined` — Adds new player to active list and schedules initial spawn.  
+  - `ms_playerleft` — Cancels scheduled tasks for leaving player.  
+  - `"timerdone"` (via `TheWorld`) — Handles lunar hail event phases (`SOUNDS`, `CORPSES`, `RETURN_BIRD_AMBIENCE`).  
+  - `"entitysleep"` — Removes sleeping tracked birds.
+- **Pushes:** None (does not fire custom events).
+- **World state watchers:**  
+  - `islunarhailing` — Triggers lunar hail event timers, updates spawn state.  
+  - `israining` — Applies rain spawn penalty.  
+  - `isnight` — Toggles update behavior (no spawns at night).
+
+### Key timers used (via `inst.components.timer`)
+- `prelunarhailbird`: Plays caws/sounds before event (`0.75 * event_time`)
+- `lunarhailbird`: Drops corpses at `event_time`
+- `posthailbird`: Post-event recovery phase (`_posthail_time`)
+- `returnbirdambience`: Restores ambient bird sounds after recovery (`5/6 * _posthail_time`)

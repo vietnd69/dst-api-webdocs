@@ -1,85 +1,112 @@
 ---
 id: debuff
 title: Debuff
-description: This component manages the lifecycle and behavior of a single debuff instance attached to an entity.
+description: Manages the attachment, detachment, extension, and symbol-following behavior of a debuff applied to a target entity.
+tags: [combat, effect, network]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 87626945
+system_scope: entity
 ---
 
 # Debuff
 
-## Overview
-The `Debuff` component is a flexible utility class designed to represent and manage a single debuff effect applied to an entity. It holds references to the debuff's name, its target entity, and a series of optional callback functions that define its behavior during attachment, detachment, extension, and visual updates. This component is typically instantiated and managed by a `debuffable` component on a target entity, allowing for dynamic and custom debuff effects.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-This component itself does not directly add other components or tags to its `inst`. It is designed to be utilized and managed by another component, specifically the `debuffable` component, which is responsible for applying and removing `Debuff` instances from a target entity.
+## Overview
+The `Debuff` component provides a standardized interface for managing the lifecycle and behavior of debuffs applied to entities. It is designed to be attached to debuff prefabs (e.g., a fire effect, poison cloud, or binding rope) and works in conjunction with a `debuffable` component on the target entity. The component stores callback functions that are invoked at key lifecycle events: attachment, detachment, extension, and follow-symbol changes. It does not store or manage state such as timers or tick rates—those responsibilities belong to the host prefab or the `debuffable` component.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("debuff")
+
+inst.components.debuff:SetAttachedFn(function(self_debuff, target, followsymbol, followoffset, data, buffer)
+    -- logic to run when debuff attaches to target
+end)
+
+inst.components.debuff:SetDetachedFn(function(self_debuff, target)
+    -- logic to run when debuff is removed from target
+end)
+
+inst.components.debuff:AttachTo("fire", target_entity, "torso", Vector3(0, 1, 0), nil, nil)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :------------------------- | :------- | :------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `inst` | `Entity` | N/A | The entity instance that this `Debuff` object is conceptually attached to. In practice, this often refers to a separate visual or effect entity that represents the debuff, rather than the `target` entity itself. |
-| `name` | `string` | `nil` | The unique identifier string for this debuff instance. |
-| `target` | `Entity` | `nil` | The entity currently affected by this debuff. |
-| `onattachedfn` | `function` | `nil` | A callback function executed when the debuff is first attached to the `target` entity. It typically receives `(debuff_inst, target, followsymbol, followoffset, data, buffer)`. |
-| `ondetachedfn` | `function` | `nil` | A callback function executed when the debuff is removed from the `target` entity. It typically receives `(debuff_inst, target)`. |
-| `onextendedfn` | `function` | `nil` | A callback function executed when the debuff's duration or effect is extended on the `target` entity. It typically receives `(debuff_inst, target, followsymbol, followoffset, data, buffer)`. |
-| `onchangefollowsymbolfn` | `function` | `nil` | A callback function executed when the debuff's visual attachment point (follow symbol) on the `target` entity needs to change. It typically receives `(debuff_inst, target, followsymbol, followoffset)`. |
+|----------|------|---------------|-------------|
+| `name` | string or `nil` | `nil` | The identifier of the debuff (e.g., `"fire"`), set during `AttachTo`. |
+| `target` | entity instance or `nil` | `nil` | The entity to which this debuff is attached. |
+| `onattachedfn` | function or `nil` | `nil` | Callback invoked on attachment; signature: `fn(inst, target, followsymbol, followoffset, data, buffer)`. |
+| `ondetachedfn` | function or `nil` | `nil` | Callback invoked on detachment; signature: `fn(inst, target)`. |
+| `onextendedfn` | function or `nil` | `nil` | Callback invoked on extension; signature: `fn(inst, target, followsymbol, followoffset, data, buffer)`. |
+| `onchangefollowsymbolfn` | function or `nil` | `nil` | Callback invoked when the follow symbol changes; signature: `fn(inst, target, followsymbol, followoffset)`. |
 
-## Main Functions
+## Main functions
 ### `SetAttachedFn(fn)`
-*   **Description:** Sets the callback function that will be invoked when this debuff is initially attached to a target.
-*   **Parameters:**
-    *   `fn`: `function` - The function to be called. It should accept parameters like `(debuff_inst, target, followsymbol, followoffset, data, buffer)`.
+* **Description:** Sets the callback function invoked when the debuff is attached to a target entity. Called by the `debuffable` component during `AddDebuff`.
+* **Parameters:** `fn` (function) – callback with parameters `(debuff_inst, target_inst, followsymbol, followoffset, data, buffer)`.
+* **Returns:** Nothing.
 
 ### `SetDetachedFn(fn)`
-*   **Description:** Sets the callback function that will be invoked when this debuff is detached from its target.
-*   **Parameters:**
-    *   `fn`: `function` - The function to be called. It should accept parameters like `(debuff_inst, target)`.
+* **Description:** Sets the callback function invoked when the debuff is detached from a target. Called by the `debuffable` component during `RemoveDebuff`.
+* **Parameters:** `fn` (function) – callback with parameters `(debuff_inst, target_inst)`.
+* **Returns:** Nothing.
 
 ### `SetExtendedFn(fn)`
-*   **Description:** Sets the callback function that will be invoked when this debuff is extended on its target.
-*   **Parameters:**
-    *   `fn`: `function` - The function to be called. It should accept parameters like `(debuff_inst, target, followsymbol, followoffset, data, buffer)`.
+* **Description:** Sets the callback function invoked when the debuff's duration is extended on the target (e.g., reapplying a stackable debuff).
+* **Parameters:** `fn` (function) – callback with parameters `(debuff_inst, target_inst, followsymbol, followoffset, data, buffer)`.
+* **Returns:** Nothing.
 
 ### `SetChangeFollowSymbolFn(fn)`
-*   **Description:** Sets the callback function that will be invoked when the visual follow symbol of this debuff on its target needs to change.
-*   **Parameters:**
-    *   `fn`: `function` - The function to be called. It should accept parameters like `(debuff_inst, target, followsymbol, followoffset)`.
+* **Description:** Sets the callback function invoked when the debuff’s visual or gameplay anchor point on the target changes (e.g., switching from `"torso"` to `"head"`).
+* **Parameters:** `fn` (function) – callback with parameters `(debuff_inst, target_inst, followsymbol, followoffset)`.
+* **Returns:** Nothing.
 
 ### `Stop()`
-*   **Description:** Initiates the removal of this debuff from its target entity. This is achieved by calling `RemoveDebuff` on the `target` entity's `debuffable` component (presuming the target has one).
-*   **Parameters:** None.
+* **Description:** Attempts to remove this debuff from its current target by calling `target:RemoveDebuff(self.name)`. Safe to call even if the debuff is not currently attached.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No-op if `target` is `nil`.
 
 ### `AttachTo(name, target, followsymbol, followoffset, data, buffer)`
-*   **Description:** Attaches this `Debuff` instance to a specified target entity, setting its identifier and target reference. It then executes the `onattachedfn` callback if one has been defined. This function is typically called by the `debuffable` component.
-*   **Parameters:**
-    *   `name`: `string` - The unique identifier for this debuff.
-    *   `target`: `Entity` - The entity to which the debuff is being attached.
-    *   `followsymbol`: `string` - (Optional) The name of a symbol on the target entity's anim state to follow for visual effects.
-    *   `followoffset`: `Vector3` - (Optional) An offset from the `followsymbol` for visual effects.
-    *   `data`: `table` - (Optional) Arbitrary data specific to this debuff instance.
-    *   `buffer`: `number` - (Optional) A numeric value, often representing duration or intensity.
+* **Description:** Initializes the debuff with a name and target, and triggers the `onattachedfn` callback. Intended to be called only by the `debuffable` component.
+* **Parameters:**  
+  * `name` (string) – unique identifier for this debuff instance on the target.  
+  * `target` (entity instance) – entity to attach to.  
+  * `followsymbol` (string) – target bone/symbol name (e.g., `"torso"`) for visual anchoring.  
+  * `followoffset` (Vector3) – positional offset relative to the follow symbol.  
+  * `data` (table or `nil`) – optional metadata passed to the attachment callback.  
+  * `buffer` (table or `nil`) – optional buffer reference for network replication or sync.  
+* **Returns:** Nothing.
+* **Error states:** No-op if `onattachedfn` is `nil`.
 
 ### `OnDetach()`
-*   **Description:** Clears the debuff's name and target references, then executes the `ondetachedfn` callback if one has been defined. This function is typically called by the `debuffable` component when the debuff is being removed.
-*   **Parameters:** None.
+* **Description:** Resets internal state (`name`, `target`) and triggers the `ondetachedfn` callback. Intended to be called only by the `debuffable` component.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `Extend(followsymbol, followoffset, data, buffer)`
-*   **Description:** Executes the `onextendedfn` callback if one has been defined. This function is used to refresh or update an existing debuff, often extending its duration or modifying its effects.
-*   **Parameters:**
-    *   `followsymbol`: `string` - (Optional) The name of a symbol on the target entity's anim state to follow for visual effects.
-    *   `followoffset`: `Vector3` - (Optional) An offset from the `followsymbol` for visual effects.
-    *   `data`: `table` - (Optional) Arbitrary data specific to this debuff instance.
-    *   `buffer`: `number` - (Optional) A numeric value, often representing duration or intensity.
+* **Description:** Triggers the `onextendedfn` callback to update debuff state or duration extension logic.
+* **Parameters:** Same as `AttachTo`.
+* **Returns:** Nothing.
+* **Error states:** No-op if `onextendedfn` is `nil` or `target` is `nil`.
 
 ### `ChangeFollowSymbol(followsymbol, followoffset)`
-*   **Description:** Executes the `onchangefollowsymbolfn` callback if one has been defined. This function is used to adjust the visual attachment point of the debuff on its target. This function is typically called by the `debuffable` component.
-*   **Parameters:**
-    *   `followsymbol`: `string` - The new name of the symbol on the target entity's anim state to follow.
-    *   `followoffset`: `Vector3` - The new offset from the `followsymbol`.
+* **Description:** Triggers the `onchangefollowsymbolfn` callback when the visual anchor point on the target changes.
+* **Parameters:**  
+  * `followsymbol` (string) – new symbol to follow.  
+  * `followoffset` (Vector3) – new offset.  
+* **Returns:** Nothing.
+* **Error states:** No-op if `onchangefollowsymbolfn` is `nil` or `target` is `nil`.
+
+## Events & listeners
+None identified

@@ -1,80 +1,100 @@
 ---
 id: cursable
 title: Cursable
-description: This component enables an entity to receive, manage, and remove various curses, often originating from cursed items in its inventory.
+description: Manages application, removal, and state tracking of curses on an entity, primarily by interacting with cursed items and inventory.
+tags: [inventory, combat, debuff, network]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 5b6e9495
+system_scope: entity
 ---
 
 # Cursable
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The Cursable component allows an entity to be affected by various curses, typically originating from cursed items. It manages the application, removal, and current stack count of curses on the entity, and triggers specific curse-related behaviors, such as those associated with "MONKEY" curses, by interacting with the `curse_monkey_util` module. It also includes logic for handling cursed items within the entity's inventory and ensuring proper item management when curses are applied or removed.
+`Cursable` is a component that tracks curses applied to an entity and manages their lifecycle through interactions with `curseditem` components. It provides methods to apply or remove curses (typically via cursed items), check if an entity can be cursed (`IsCursable`), and handle cleanup upon death (e.g., dropping cursed items). The component integrates closely with `inventory`, `debuffable`, and `stackable`, and delegates special handling for the `MONKEY` curse to `curse_monkey_util`.
 
-## Dependencies & Tags
-This component relies on the following other components and utility modules:
-*   `health` component (checked for entity's life status)
-*   `inventory` component (heavily used for item management, finding, consuming, and dropping items)
-*   `debuffable` component (checked for "spawnprotectionbuff" debuff)
-*   `curseditem` component (present on items that apply curses)
-*   `stackable` component (present on items that can be stacked, used to determine curse quantity)
-*   `inventoryitem` component (present on items handled by inventory)
-*   `curse_monkey_util` module (for specific "MONKEY" curse effects)
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("cursable")
 
-Tags involved in its logic:
-*   `applied_curse` (added to items upon applying a curse)
-*   `ghost` (checked on the owning entity)
-*   `monkey_token` (searched for on items when removing "MONKEY" curses)
-*   `nosteal` (checked on items when determining inventory space or items to drop)
-*   `INLIMBO` (checked on items during `ForceOntoOwner` to determine position)
+-- Apply a curse from a cursed item
+local item = SpawnPrefab("cursed_object")
+item:AddTag("cursed")
+if item.components.curseditem then
+    item.components.curseditem.curse = "DEAFENING"
+    item.components.curseditem.cursed_target = inst
+end
+inst.components.cursable:ApplyCurse(item)
+
+-- Check if entity can accept more curses
+if inst.components.cursable:IsCursable(some_item) then
+    -- proceed with curse application
+end
+```
+
+## Dependencies & tags
+**Components used:** `inventory`, `debuffable`, `stackable`, `health`, `inventoryitem`, `curseditem`.  
+**Tags:** Checks tags `ghost`, `nosteal`, `monkey_token`, `applied_curse`, `INLIMBO`. Adds tag `applied_curse` to items during `ApplyCurse`.
 
 ## Properties
-| Property   | Type    | Default Value | Description                                                    |
-| :--------- | :------ | :------------ | :------------------------------------------------------------- |
-| `inst`     | `Entity`| `N/A`         | A reference to the entity this component is attached to.       |
-| `curses`   | `table` | `{}`          | A table mapping curse names (string) to their current stack count (number) on the entity. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | `nil` | The entity instance that owns this component (set in constructor). |
+| `curses` | table | `{}` | A map from curse name (string) to numeric count (e.g., number of cursed items applied). |
 
-## Main Functions
+## Main functions
 ### `ApplyCurse(item, curse)`
-*   **Description:** Applies a curse to the entity. If an `item` is provided, the curse type and stack size are extracted from the item's `curseditem` and `stackable` components, and the item is tagged with `applied_curse`. The curse count for the specified type is incremented. Special handling exists for "MONKEY" curses, invoking `curse_monkey.docurse`.
-*   **Parameters:**
-    *   `item`: (`Entity`, optional) The cursed item initiating the curse. If provided, its `curseditem` component determines the curse type.
-    *   `curse`: (`string`, optional) The name of the curse to apply. This parameter is used if `item` is not provided.
+*   **Description:** Applies a curse (by name or from a `curseditem` component) to the entity. Updates internal curse count and triggers special behavior for `MONKEY` curse.
+*   **Parameters:**  
+    - `item` (Entity or `nil`) — the cursed item to apply; if provided, its `curseditem.curse` value is used and the item is marked with the `applied_curse` tag.  
+    - `curse` (string or `nil`) — the curse name; if `item` is provided, this is ignored and overwritten.
+*   **Returns:** Nothing.
+*   **Error states:** No explicit failure mode. Curse count increments; `item` must be valid for `curseditem`/`stackable` lookups to succeed.
 
 ### `RemoveCurse(curse, numofitems, dropitems)`
-*   **Description:** Removes a specified quantity of a curse from the entity. For "MONKEY" curses, it attempts to find and remove `monkey_token` items from the entity's inventory, optionally dropping them into the world. The curse count for the specified type is decremented, and special handling exists for "MONKEY" curses, invoking `curse_monkey.uncurse`.
-*   **Parameters:**
-    *   `curse`: (`string`) The name of the curse to remove (e.g., "MONKEY").
-    *   `numofitems`: (`number`) The number of curse stacks or contributing items to remove.
-    *   `dropitems`: (`boolean`) If `true`, and the curse is "MONKEY", any removed `monkey_token` items will be spawned into the world.
+*   **Description:** Removes up to `numofitems` of a given curse, optionally dropping matching items (e.g., monkey tokens) into the world.
+*   **Parameters:**  
+    - `curse` (string) — name of the curse to remove.  
+    - `numofitems` (number) — how many curse instances to remove.  
+    - `dropitems` (boolean) — if `true`, spawns and drops corresponding items (for curable curses like `MONKEY`).
+*   **Returns:** Nothing.
+*   **Error states:** Only `MONKEY` curse currently uses `dropitems` (via the `monkey_token` tag). Count is clamped to `>= 0`. No effect if curse name has no associated item tag.
 
 ### `IsCursable(item)`
-*   **Description:** Checks if the entity can currently receive a cursed item or curse. It verifies the entity is not a ghost, doesn't have "spawnprotectionbuff", and has available inventory space (either an empty slot or a stackable slot for the given `item`).
-*   **Parameters:**
-    *   `item`: (`Entity`) The item that is attempting to be cursed onto the entity.
-*   **Returns:** `boolean` `true` if the entity can receive the curse/item; `false` if it cannot (e.g., has spawn protection); `nil` if the entity is a "ghost".
+*   **Description:** Checks whether this entity can accept the given `item` as a curse (e.g., not a ghost, not in spawn protection, inventory space available or room for stacking).
+*   **Parameters:**  
+    - `item` (Entity) — the item being tested for curse application.
+*   **Returns:** `true` if the item can be cursed onto this entity, `false` otherwise.
+*   **Error states:** Returns `nil` (falsy) if the entity is a `ghost`. Returns `false` if `debuffable:HasDebuff("spawnprotectionbuff")` is active. Space checks rely on `inventory:IsFull()` and stackable slot availability.
 
 ### `ForceOntoOwner(item)`
-*   **Description:** Forces a given item into the entity's inventory, ensuring there is space by first attempting to stack the item, and if inventory is full and stacking is not possible, dropping another non-`nosteal` item from the inventory.
-*   **Parameters:**
-    *   `item`: (`Entity`) The item to be placed into the entity's inventory.
+*   **Description:** Forces a cursed item onto the entity's inventory, evicting non-protected items (excluding `nosteal` and active slot) if necessary. Designed to prevent overflow and allow stacking.
+*   **Parameters:**  
+    - `item` (Entity) — the item to be forced onto the owner's inventory.
+*   **Returns:** Nothing.
+*   **Error states:** Does nothing if `inst` is invalid, dead (`health:IsDead()`), or `nil`. Note: The code comment indicates incomplete handling for incomplete stacks (only checks for stacking space but does not insert into it before dropping).
 
 ### `Died()`
-*   **Description:** This function is intended to be called when the entity dies. It iterates through all cursed items in the entity's inventory and removes their corresponding curses, dropping the items into the world.
+*   **Description:** Cleans up all cursed items on death by removing their curses and dropping them.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Iterates through `inventory:FindItems()` for all items with `curseditem` component, removes curse count, and drops the items.
 
-### `OnSave()`
-*   **Description:** A placeholder function for saving the component's state. Currently, it returns an empty table, indicating that no component-specific data (like active curses) is saved. The commented-out code suggests `self.curses` could be saved in the future.
-*   **Parameters:** None.
-*   **Returns:** `table` An empty table.
+### `OnSave()` and `OnLoad(data)`
+*   **Description:** Stub save/load hooks. Currently unimplemented — `OnSave` returns an empty table; `OnLoad` contains commented-out logic.
+*   **Parameters:**  
+    - `data` (table or `nil`) — payload for loading (unused in current version).
+*   **Returns:** `OnSave` → `{}` (table); `OnLoad` → nothing.
 
-### `OnLoad(data)`
-*   **Description:** A placeholder function for loading the component's state. It currently does nothing. The commented-out code suggests it could load saved curses and re-apply them.
-*   **Parameters:**
-    *   `data`: (`table`) The saved data for this component.
+## Events & listeners
+- **Listens to:** None identified.
+- **Pushes:** `ondropped` (via `inventoryitem:OnDropped()`) when forced items are dropped during `ForceOntoOwner` or `Died`.  
+  *(Note: No explicit `inst:PushEvent()` calls are present in this component’s core logic.)*

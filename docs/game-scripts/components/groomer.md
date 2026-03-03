@@ -1,142 +1,135 @@
 ---
 id: groomer
 title: Groomer
-description: This component manages interactive wardrobe or grooming stations that allow players to change appearances and outfits, handling user access, state transitions, and skin/appearance application logic.
+description: Manages clothing and grooming interactions for dressable entities, handling entering/exiting the grooming state, skin changes, and shared/single-user access.
+tags: [clothing, dressing, interaction, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: f026d4e3
+system_scope: entity
 ---
 
 # Groomer
 
-## Overview
-The Groomer component enables an entity (typically a wardrobe or grooming station) to serve as an interactive dressing station for players. It tracks active users (changers), manages entry/exit states (e.g., `openwardrobe`, `dressupwardrobe`, `skin_change`), enforces sharing and range constraints, and coordinates the application of appearance changes (skins) via customizable callbacks. It dynamically adds/removes the `"groomer"` and `"dressable"` tags based on usage and dressing capability.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Adds tags conditionally**: `"groomer"` (when `canuseaction` is true), `"dressable"` (when `canbedressed` is true).
-- **Events listened to**:
-  - `"onremove"` → `onclosegroomer`
-  - `"ms_closepopup"` → `onclosepopup`
-  - `"unhitched"` → `oncloseallgroomer`
-  - `"onignite"` → `OnIgnite` (only when `canbeshared` is false).
-- **No required components** are added via `AddComponent`; it assumes the owner `inst` has an appropriate state graph and necessary callbacks.
+## Overview
+`Groomer` enables an entity to function as a dressing station (e.g., wardrobe or grooming rack), allowing other entities to enter a special "openwardrobe" state, change skins (clothing/appearance), and exit cleanly. It manages multi-user support, range-based auto-closing, fire safety (prevents use while burning), and state transitions using the stategraph system. The component also dynamically adds/removes the `groomer` and `dressable` tags based on usability.
+
+It depends on and integrates with the `burnable` and `talker` components for safety announcements and state validation.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("groomer")
+inst:AddComponent("dressable")
+inst:AddTag("wardrobe")
+
+inst.components.groomer:SetCanBeShared(true)
+inst.components.groomer:SetRange(5)
+inst.components.groomer:SetCanBeDressed(true)
+inst.components.groomer:SetCanUseAction(true)
+```
+
+## Dependencies & tags
+**Components used:** `burnable`, `talker`
+**Tags:** Adds `groomer` and `dressable` conditionally; removes both on removal from entity.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *(none)* | Reference to the owning entity. |
-| `changers` | `table` | `{}` | Dictionary mapping doer entities currently using the groomer to `true`. |
-| `enabled` | `boolean` | `true` | Whether the groomer is currently active. |
-| `canuseaction` | `boolean` | `true` | Whether the groomer should be included in action selection (adds `"groomer"` tag when true). |
-| `canbeshared` | `boolean or nil` | `nil` | Whether multiple players can use the groomer simultaneously. |
-| `canbedressed` | `boolean or nil` | `nil` | Whether the groomer supports outfit/skin changes (adds `"dressable"` tag when true). |
-| `range` | `number` | `3` | Maximum distance (in units) for auto-disconnection if user moves too far. |
-| `changeindelay` | `number` | `0` | Delay before applying changes (configured but not used in provided code). |
-| `onchangeinfn` | `function or nil` | `nil` | Callback invoked during change-in transition. |
-| `onopenfn` | `function or nil` | `nil` | Callback invoked when the groomer is first opened (first user enters). |
-| `onclosefn` | `function or nil` | `nil` | Callback invoked when the last user exits. |
-| `occupant` | `Entity or nil` | `nil` | The entity whose appearance is being changed (often the player, but may differ). |
-| `occupantisself` | *(implicit in `GetOccupant`)* | — | Not stored explicitly; `GetOccupant()` returns `self.inst` if `occupantisself`, else `self.occupant`. |
-| `canbeginchangingfn` | `function or nil` | `nil` | Custom validation callback before allowing a user to begin changing. |
-| `canactivatechangingfn` | `function or nil` | `nil` | Custom validation callback before finalizing a change. |
-| `applytargetskinsfn` | `function or nil` | `nil` | Callback responsible for applying the selected skins to the target. |
-| `changefn` | `function or nil` | `nil` | Callback invoked when the change is initiated. |
-| `beginchangingfn` | `function or nil` | `nil` | Callback invoked when a user begins using the groomer. |
+| `changers` | table | `{}` | Map of `doer` entities currently in the `openwardrobe` state. |
+| `enabled` | boolean | `true` | Whether the grooming functionality is active. |
+| `canuseaction` | boolean | `true` | Whether this groomer appears in the player's action list (e.g., via mouseover or radial menu). |
+| `canbedressed` | boolean | `nil` | Whether this groomer supports dressing (i.e., skin changes). |
+| `canbeshared` | boolean | `false` | Whether multiple entities can use the groomer simultaneously. |
+| `range` | number | `3` | Distance threshold for auto-closing the grooming session. |
+| `changeindelay` | number | `0` | Delay before starting skin change after activation. |
+| `occupant` | entity or `nil` | `nil` | Optional entity that this groomer acts as (e.g., reference to the wardrobe itself for skin application context). |
+| `occupantisself` | boolean | `nil` | Used internally by `GetOccupant()`. |
 
-## Main Functions
+*Note: Some fields (`occupantisself`, `canbeginchangingfn`, `canactivatechangingfn`, `changefn`, `onopenfn`, `onclosefn`, `applytargetskinsfn`, `onclosepopupfn`) are hook functions—settable via metaprogramming or extension—but are not initialized in the constructor.*
 
-### `Groomer:SetOccupant(occupant)`
-* **Description:** Sets the entity whose appearance will be modified when a player uses this groomer (e.g., for NPC or player dressing).  
-* **Parameters:**  
-  - `occupant` (`Entity`): The entity that will be the subject of appearance changes.
+## Main functions
+### `SetCanUseAction(canuseaction)`
+*   **Description:** Controls whether the groomer appears in player action collections (e.g., radial menus or proximity prompts). Also triggers the `canuseaction` callback to add/remove the `groomer` tag.
+*   **Parameters:** `canuseaction` (boolean) – enables or disables use.
+*   **Returns:** Nothing.
 
-### `Groomer:SetCanUseAction(canuseaction)`
-* **Description:** Controls whether the groomer appears in the player’s action list (e.g., right-click interaction); sets the `canuseaction` flag and updates the `"groomer"` tag accordingly.  
-* **Parameters:**  
-  - `canuseaction` (`boolean`): Whether the action should be available.
+### `SetCanBeDressed(canbedressed)`
+*   **Description:** Sets whether the groomer supports dressing (i.e., enables skin/appearance changes). Triggers the `canbedressed` callback to manage the `dressable` tag.
+*   **Parameters:** `canbedressed` (boolean) – enables or disables dressing.
+*   **Returns:** Nothing.
 
-### `Groomer:SetCanBeDressed(canbedressed)`
-* **Description:** Sets whether the groomer supports outfit/skin changes; updates the `"dressable"` tag based on this flag.  
-* **Parameters:**  
-  - `canbedressed` (`boolean`): Whether dressing/skin changes are allowed.
+### `Enable(enable)`
+*   **Description:** Globally enables or disables the grooming functionality. When disabled, `CanBeginChanging` will return `false` with reason `"INUSE"`.
+*   **Parameters:** `enable` (boolean, optional) – defaults to `true`.
+*   **Returns:** Nothing.
 
-### `Groomer:Enable(enable)`
-* **Description:** Enables or disables the groomer. When disabled, attempts to begin changing are rejected.  
-* **Parameters:**  
-  - `enable` (`boolean`): If omitted or `true`, enables the component.
+### `SetCanBeShared(canbeshared)`
+*   **Description:** Enables or disables shared usage (multiple users). When `true`, removes the fire-safety listener to avoid blocking use during fire; when `false`, adds the listener to deny use while burning.
+*   **Parameters:** `canbeshared` (boolean) – whether multiple entities can use simultaneously.
+*   **Returns:** Nothing.
 
-### `Groomer:SetCanBeShared(canbeshared)`
-* **Description:** Configures whether multiple players can use the groomer simultaneously. When sharing is disabled, listens for `"onignite"` to warn users mid-dress.  
-* **Parameters:**  
-  - `canbeshared` (`boolean`): If `true`, concurrency is enabled.
+### `SetRange(range)`
+*   **Description:** Configures the maximum distance an entity can be from the groomer before the grooming session ends automatically.
+*   **Parameters:** `range` (number) – maximum distance threshold.
+*   **Returns:** Nothing.
 
-### `Groomer:SetRange(range)`
-* **Description:** Sets the detection radius (units) for auto-disconnecting users who move too far away.  
-* **Parameters:**  
-  - `range` (`number`): Distance threshold.
+### `GetOccupant()`
+*   **Description:** Returns the entity acting as the “occupant” of this groomer (typically the groomer’s own `inst`, unless `occupant` is explicitly set).
+*   **Returns:** entity or `nil` – the occupant entity.
 
-### `Groomer:SetChangeInDelay(delay)`
-* **Description:** Sets the change-in delay value (though not used in current code logic).  
-* **Parameters:**  
-  - `delay` (`number`): Delay in seconds.
+### `CanBeginChanging(doer)`
+*   **Description:** Validates whether `doer` can begin a grooming session. Checks enabled status, stategraph busy tags, fire, usage conflict, and custom `canbeginchangingfn` hooks.
+*   **Parameters:** `doer` (entity) – the entity attempting to start grooming.
+*   **Returns:** `true`, or `false, reason` (e.g., `"INUSE"`, `"BURNING"`).
+*   **Error states:** Returns `false, "BURNING"` if `burnable.IsBurning()` is `true`; returns `false, "INUSE"` if `enabled` is `false` or the groomer is in use and not shareable.
 
-### `Groomer:GetOccupant()`
-* **Description:** Returns the entity whose skin/appearance is being changed. If `occupantisself` is true (implied, not a field), returns the groomer itself; otherwise returns `self.occupant`.  
-* **Parameters:** None.
+### `BeginChanging(doer)`
+*   **Description:** Initiates a grooming session for `doer`. Enters the `"openwardrobe"` stategraph state and starts listening for cleanup events. If this is the first user, begins updating this component for range checks.
+*   **Parameters:** `doer` (entity) – the entity starting the session.
+*   **Returns:** `true` if the session started successfully; `false` if already in session.
 
-### `Groomer:CanBeginChanging(doer)`
-* **Description:** Validates whether a given player (`doer`) may begin using the groomer. Checks `enabled`, busy state tags, sharing status, burning state, and custom callbacks.  
-* **Parameters:**  
-  - `doer` (`Entity`): The player attempting to use the groomer.  
-* **Returns:**  
-  - `true` if allowed; otherwise `false, "REASON"` (e.g., `"INUSE"`, `"BURNING"`).
+### `EndChanging(doer)`
+*   **Description:** Ends a grooming session for `doer`. Cleans up listeners, restores `"idle"` stategraph state, and stops updating if no users remain.
+*   **Parameters:** `doer` (entity) – the entity ending the session.
+*   **Returns:** Nothing.
 
-### `Groomer:BeginChanging(doer)`
-* **Description:** Registers a user (`doer`) as an active changer, transitions them to `"openwardrobe"`, and starts updates if this is the first user.  
-* **Parameters:**  
-  - `doer` (`Entity`): The player beginning to use the groomer.  
-* **Returns:** `true` on success, `false` if already changering.
+### `EndAllChanging()`
+*   **Description:** Ends grooming sessions for all active users. Used during removal from entity or fire events.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `Groomer:EndChanging(doer)`
-* **Description:** Stops a user’s grooming session, cleans up events, and returns them to `"idle"` via `"openwardrobe"` → `"idle"`. Ends updates if no users remain.  
-* **Parameters:**  
-  - `doer` (`Entity`): The player ending their session.
+### `ActivateChanging(doer, skins)`
+*   **Description:** Begins the actual skin change process for `doer`. Validates state, then transitions to `"dressupwardrobe"` → `"skin_change"`, applying the provided `skins` via `ApplyTargetSkins`.
+*   **Parameters:** `doer` (entity), `skins` (table or `nil`) – the skin IDs to apply.
+*   **Returns:** `true` on success; `false` if validation fails (e.g., wrong state, no occupant, custom hook blocked it).
+*   **Error states:** Returns `false` if `skins` is `nil`, `doer` is not in `"openwardrobe"`, occupant is `nil`, or `canactivatechangingfn` returns `false`.
 
-### `Groomer:EndAllChanging()`
-* **Description:** Forces all current changers to end their sessions (e.g., on groomer removal or fire).  
-* **Parameters:** None.
+### `ApplyTargetSkins(target, doer, skins)`
+*   **Description:** Applies the selected skins to `target` using the `applytargetskinsfn` hook. Typically used to update clothing/skin appearance.
+*   **Parameters:** `target` (entity), `doer` (entity), `skins` (table) – skin IDs to apply.
+*   **Returns:** Nothing (calls the hook if defined).
 
-### `Groomer:ActivateChanging(doer, skins)`
-* **Description:** Finalizes and applies selected skins (`skins`) for a user (`doer`). Calls `DoChange`, which triggers `"dressupwardrobe"` and `"skin_change"` states.  
-* **Parameters:**  
-  - `doer` (`Entity`): The player confirming the change.  
-  - `skins` (`table`): Skins/parts to apply (structure depends on `applytargetskinsfn`).  
-* **Returns:** `true` if activated, `false` otherwise.
+### `OnUpdate(dt)`
+*   **Description:** Periodically checks if active users are still within `range` and visible. Ends sessions for users who exceed the threshold.
+*   **Parameters:** `dt` (number) – delta time.
+*   **Returns:** Nothing.
 
-### `Groomer:ApplyTargetSkins(target, doer, skins)`
-* **Description:** Delegates skin/appearance application to `applytargetskinsfn` callback, if defined.  
-* **Parameters:**  
-  - `target` (`Entity`): Entity receiving the skins.  
-  - `doer` (`Entity`): Player performing the change.  
-  - `skins` (`table`): Skins to apply.
+## Events & listeners
+- **Listens to:**
+  - `"onignite"` – handled by `OnIgnite` (blocks grooming when burning if not shareable).
+  - `"onremove"` – triggers `onclosegroomer`.
+  - `"ms_closepopup"` – triggers `onclosepopup`.
+  - `"unhitched"` – triggers `oncloseallgroomer` (closes all sessions if entity is unmounted).
+- **Pushes:** No events directly.
 
-### `Groomer:OnUpdate(dt)`
-* **Description:** Periodic check (while users are active) to disconnect users who move out of range or lose line-of-sight. Automatically stops updates when empty.  
-* **Parameters:**  
-  - `dt` (`number`): Delta time since last frame.
-
-### `Groomer:OnRemoveFromEntity()`
-* **Description:** Cleanup on entity removal: ends all users, removes `"onignite"` listener, and clears `"groomer"`/`"dressable"` tags.  
-* **Parameters:** None.
-
-## Events & Listeners
-- **Listens for events:**
-  - `"onremove"` → `onclosegroomer` (on the `doer`)
-  - `"ms_closepopup"` → `onclosepopup` (on the groomer `inst`)
-  - `"unhitched"` → `oncloseallgroomer` (on the groomer `inst`)
-  - `"onignite"` → `OnIgnite` (only when `canbeshared` is `false`)
+## Notes
+- The component relies on stategraph hooks: `"openwardrobe"`, `"dressupwardrobe"`, and `"skin_change"` must exist in the entity’s stategraph.
+- Tags `groomer` and `dressable` are only added conditionally based on `canuseaction` and `canbedressed`, respectively.
+- Fire handling (`OnIgnite`) does not fire if `canbeshared` is `true`, allowing simultaneous use even in fire.

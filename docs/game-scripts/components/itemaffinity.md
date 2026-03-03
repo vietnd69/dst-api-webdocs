@@ -1,59 +1,77 @@
 ---
 id: itemaffinity
 title: Itemaffinity
-description: Grants a single non-stacking sanity bonus to a character based on the highest-priority compatible item currently held in their inventory.
+description: Manages a priority-based sanity bonus for characters based on specific items carried in inventory.
+tags: [sanity, inventory, character]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 706be926
+system_scope: entity
 ---
 
 # Itemaffinity
 
+> Based on game build **7140014** | Last updated: 2026-03-03
+
 ## Overview
-The `ItemAffinity` component enables a character to gain a temporary sanity bonus when carrying specific items or items with certain tags. Only the highest-priority matching item’s bonus is applied at any given time—no stacking occurs. The component automatically refreshes the active bonus whenever items are added to or removed from the character’s inventory.
+`ItemAffinity` assigns a single active sanity bonus to an entity based on items it carries in its inventory. The bonus is drawn from one item at a time — the highest-priority item that is present — ensuring no stacking occurs. It integrates with the `sanity` component by modifying its `externalmodifiers` list and updates dynamically when inventory changes via events (`itemget`, `itemlose`, `dropitem`). It depends on the `inventory` component for presence checks.
 
-## Dependencies & Tags
-**Component Dependencies:**
-- `inst.components.inventory` — used to check for item presence.
-- `inst.components.sanity.externalmodifiers` — used to apply and remove sanity bonuses.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("itemaffinity")
+inst:AddComponent("sanity")
+inst:AddComponent("inventory")
 
-**Tags:**  
-None added or removed.
+-- Add an affinity for a specific item prefab
+inst.components.itemaffinity:AddAffinity("lantern", nil, 5, 10)
+
+-- Add an affinity for items with a specific tag (lower priority)
+inst.components.itemaffinity:AddAffinity(nil, "candle", 3, 5)
+
+-- Remove an existing affinity
+inst.components.itemaffinity:RemoveAffinity("lantern")
+```
+
+## Dependencies & tags
+**Components used:** `sanity`, `inventory`
+**Tags:** None added or removed directly by this component.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `affinities` | `table` | `{}` | A list of affinity records; each record defines a mapping (`prefab` or `tag`), a `sanity_bonus`, and a `priority` used to resolve conflicts. |
+| `affinities` | table of tables | `{}` | List of affinity records, each with fields `prefab` (string or `nil`), `tag` (string or `nil`), `sanity_bonus` (number), and `priority` (number). Sorted descending by `priority` internally. |
 
-## Main Functions
-
+## Main functions
 ### `AddAffinity(prefab, tag, sanity_bonus, priority)`
-* **Description:** Registers a new item affinity rule. If `prefab` is provided, the bonus applies when that specific item is held; if `tag` is provided, the bonus applies to any item matching the tag. Higher `priority` values override lower ones. The active sanity bonus is recalculated immediately.
+* **Description:** Registers a new sanity bonus rule. A valid rule must specify exactly one of `prefab` or `tag`. Rules are sorted by `priority` (higher first); only the highest-priority matching item is applied.
 * **Parameters:**
-  - `prefab`: Optional string — the prefab name of the item to check for.
-  - `tag`: Optional string — the tag to match against inventory items (used if `prefab` is nil).
-  - `sanity_bonus`: number — the sanity value to apply while the item is carried.
-  - `priority`: number — relative priority of this affinity; higher values take precedence.
+  * `prefab` (string or `nil`) — The prefab name of the item to match; `nil` if matching by tag only.
+  * `tag` (string or `nil`) — The tag name to match; `nil` if matching by prefab only.
+  * `sanity_bonus` (number) — The sanity value applied when the item is found.
+  * `priority` (number) — Relative priority; higher values take precedence.
+* **Returns:** Nothing.
+* **Error states:** No explicit validation — passing `nil` for both `prefab` and `tag` will result in no match and no bonus applied.
 
 ### `RemoveAffinity(prefab)`
-* **Description:** Removes the affinity rule associated with a specific `prefab`. The active sanity bonus is recalculated and applied if another affinity matches.
-* **Parameters:**
-  - `prefab`: string — the prefab name whose affinity should be removed.
+* **Description:** Removes a previously registered affinity by matching `prefab` exactly.
+* **Parameters:** `prefab` (string) — The prefab name of the affinity to remove.
+* **Returns:** Nothing.
+* **Error states:** Silently does nothing if no matching affinity exists.
 
 ### `RefreshAffinity()`
-* **Description:** Re-evaluates all registered affinities in priority order and applies the bonus from the first matching item (by `prefab` or `tag`) currently in the character’s inventory. Removes any previously applied modifier before reapplying.
+* **Description:** Clears existing external modifiers and reapplies the sanity bonus from the highest-priority matching item (by prefab or tag). This is called automatically when inventory changes or when affinities are added/removed.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** None. Always applies at most one modifier via `sanity.externalmodifiers`.
 
-### `SortAffinities()`
-* **Description:** Sorts the `affinities` list in descending order of `priority` (highest first). Called internally during `RefreshAffinity()`.
-
-## Events & Listeners
-- **Listens for:**
-  - `"itemget"` — triggers `RefreshAffinity()` when an item is picked up.
-  - `"itemlose"` — triggers `RefreshAffinity()` when an item is lost (e.g., dropped or consumed).
-  - `"dropitem"` — triggers `RefreshAffinity()` when an item is explicitly dropped.
+## Events & listeners
+- **Listens to:**
+  - `itemget` — Triggers refresh when an item is acquired.
+  - `itemlose` — Triggers refresh when an item is lost.
+  - `dropitem` — Triggers refresh when an item is dropped.
+- **Pushes:** None.

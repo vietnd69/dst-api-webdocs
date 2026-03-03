@@ -1,82 +1,99 @@
 ---
 id: channelcaster
 title: Channelcaster
-description: Manages an entity's channeling state for specific items, applying movement modifiers and synchronizing status across the network.
+description: Manages channeling state and item usage for entities performing channel-based actions, such as casting spells or using artifacts.
+tags: [combat, channeling, network, locomotion]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: e42d844b
+system_scope: entity
 ---
 
 # Channelcaster
 
-## Overview
-This component allows an entity, typically a player, to initiate and manage a "channeling" action with a specific item. It handles the state of channeling, applies movement speed modifiers, interacts with the `channelcastable` component of the channeled item, and synchronizes the channeling status across the network for player entities. It also ensures channeling stops if the entity enters certain state graph states.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-*   **Components it relies on:**
-    *   `locomotor` (on the host entity) for applying speed modifiers.
-    *   `channelcastable` (on the item being channeled) for item-specific channeling logic.
-    *   `player_classified` (on the host entity, if a player) for network synchronization of `ischannelcasting` and `ischannelcastingitem` status.
-*   **State Graph Tags it checks:** `"idle"`, `"running"`, `"keepchannelcasting"`.
+## Overview
+`Channelcaster` handles the logic for entities that are currently channeling an action via an item or ability (e.g., holding down a button to cast a spell). It coordinates with `channelcastable` items to signal when channeling begins or ends, adjusts movement speed during channeling using `locomotor`, and maintains internal state for the channeling item and duration. It also synchronizes channeling status to the player classification UI on the client.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("channelcaster")
+
+-- Begin channeling with an item
+inst.components.channelcaster:StartChanneling(some_channelcastable_item)
+
+-- Set callbacks for channel start/stop events
+inst.components.channelcaster:SetOnStartChannelingFn(function(inst, item)
+    print("Started channeling with", item and item.prefab)
+end)
+inst.components.channelcaster:SetOnStopChannelingFn(function(inst, item)
+    print("Stopped channeling with", item and item.prefab)
+end)
+
+-- Stop channeling manually
+inst.components.channelcaster:StopChanneling()
+```
+
+## Dependencies & tags
+**Components used:** `channelcastable`, `locomotor`, `player_classified`
+**Tags:** None identified.
 
 ## Properties
-| Property             | Type     | Default Value | Description                                                                                             |
-| :------------------- | :------- | :------------ | :------------------------------------------------------------------------------------------------------ |
-| `inst`               | `Entity` | -             | A reference to the entity this component is attached to.                                                |
-| `item`               | `Entity` | `nil`         | The item currently being channeled by the entity. Updates `player_classified.ischannelcastingitem` when changed. |
-| `channeling`         | `boolean`| `false`       | The current channeling status of the entity. Updates `player_classified.ischannelcasting` when changed.  |
-| `onstartchannelingfn`| `function`| `nil`         | An optional callback function to execute when channeling successfully starts.                           |
-| `onstopchannelingfn` | `function`| `nil`         | An optional callback function to execute when channeling successfully stops.                            |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `item` | `Entity?` | `nil` | The item currently being used to channel (if any). |
+| `channeling` | boolean | `false` | Whether the entity is currently channeling. |
+| `onstartchannelingfn` | `function?` | `nil` | Optional callback executed when channeling starts. |
+| `onstopchannelingfn` | `function?` | `nil` | Optional callback executed when channeling stops. |
 
-## Main Functions
+## Main functions
 ### `SetOnStartChannelingFn(fn)`
-*   **Description:** Sets a custom function to be called when the entity successfully begins channeling.
-*   **Parameters:**
-    *   `fn`: `function` - The callback function. It will be passed `(inst, item)` where `inst` is the entity and `item` is the channeled item.
+* **Description:** Sets the callback function invoked when channeling begins.
+* **Parameters:** `fn` (function) - A function taking `(inst, item)` as arguments.
+* **Returns:** Nothing.
 
 ### `SetOnStopChannelingFn(fn)`
-*   **Description:** Sets a custom function to be called when the entity successfully stops channeling.
-*   **Parameters:**
-    *   `fn`: `function` - The callback function. It will be passed `(inst, item)` where `inst` is the entity and `item` is the item that was channeled.
-
-### `IsChannelingItem(item)`
-*   **Description:** Checks if a specific item is currently the one being channeled.
-*   **Parameters:**
-    *   `item`: `Entity` - The item to check against the currently channeled item.
-
-### `IsChanneling()`
-*   **Description:** Returns the current channeling status of the entity.
-*   **Parameters:** None.
+* **Description:** Sets the callback function invoked when channeling ends.
+* **Parameters:** `fn` (function) - A function taking `(inst, item)` as arguments.
+* **Returns:** Nothing.
 
 ### `StartChanneling(item)`
-*   **Description:** Attempts to start channeling a specified item. If successful, it sets the `channeling` state, applies a speed multiplier, informs the item's `channelcastable` component, and pushes a `startchannelcast` event. It will automatically stop any current channeling before starting a new one if a different item is provided or if not currently channeling.
-*   **Parameters:**
-    *   `item`: `Entity` - The item to begin channeling. It must have a `channelcastable` component and be valid, or be `nil` to allow starting an empty channel.
+* **Description:** Begins channeling with the specified item. If a channel is already active, it is stopped first. Adjusts speed and registers state listeners. Returns `true` on success.
+* **Parameters:** `item` (`Entity?`) — The item to channel with. Must be valid and have a `channelcastable` component if not `nil`.
+* **Returns:** `boolean` — `true` if channeling started successfully, `false` otherwise.
+* **Error states:** Returns `false` if `item` is non-`nil` and lacks a `channelcastable` component or is invalid.
 
 ### `StopChanneling()`
-*   **Description:** Stops any active channeling. This removes the speed multiplier, informs the channeled item's `channelcastable` component, and pushes a `stopchannelcast` event.
-*   **Parameters:** None.
+* **Description:** Ends the current channeling action. Cleans up state, restores speed, and unregisters listeners. Returns `true` if a channel was active.
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if channeling was stopped, `false` if no channel was active.
 
-### `OnRemoveFromEntity()`
-*   **Description:** Alias for `StopChanneling`. Called when the component is removed from its entity.
-*   **Parameters:** None.
+### `IsChannelingItem(item)`
+* **Description:** Checks whether the given item is the one currently being used for channeling.
+* **Parameters:** `item` (`Entity?`) — The item to compare.
+* **Returns:** `boolean` — `true` if `item` matches the current channeling item.
 
-### `OnRemoveEntity()`
-*   **Description:** Alias for `StopChanneling`. Called when the entity itself is removed.
-*   **Parameters:** None.
+### `IsChanneling()`
+* **Description:** Queries whether the entity is currently channeling.
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if channeling is active.
 
 ### `GetDebugString()`
-*   **Description:** Returns a formatted string displaying the current channeling status and the item being channeled, useful for debugging.
-*   **Parameters:** None.
+* **Description:** Returns a human-readable debug string summarizing channel state.
+* **Parameters:** None.
+* **Returns:** `string` — Format: `"channeling=boolean item=Entity|nil"`.
 
-## Events & Listeners
-*   **Listens for:**
-    *   `"newstate"` on `self.inst`: Calls an internal `OnNewState` function which stops channeling if the entity's state graph does not have `"idle"`, `"running"`, or `"keepchannelcasting"` tags.
-*   **Pushes/Triggers:**
-    *   `"startchannelcast"` on `self.inst` (data: `{ item = item }`): Triggered when channeling successfully starts.
-    *   `"stopchannelcast"` on `self.inst` (data: `{ item = item }`): Triggered when channeling successfully stops.
+## Events & listeners
+- **Listens to:**  
+  - `newstate` — Triggers `StopChanneling` if the stategraph no longer has any of `"idle"`, `"running"`, or `"keepchannelcasting"` tags.  
+  - `onremove` (via `locomotor`) — Automatically removes speed multiplier when component is removed.
+
+- **Pushes:**  
+  - `startchannelcast` — Fired with `{ item = item }` when channeling starts.  
+  - `stopchannelcast` — Fired with `{ item = item }` when channeling stops.

@@ -1,76 +1,66 @@
 ---
 id: hallucinations
 title: Hallucinations
-description: Manages the spawning and tracking of environment-based hallucination entities (e.g., Creepy Eyes, Shadow Watcher, Shadow Skittish) in response to player sanity, lighting, and time-of-day conditions.
+description: Manages the spawning and tracking of hallucination entities based on player sanity, time of day, and environment lighting.
+tags: [sanity, environment, fx]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 59fa2c90
+system_scope: environment
 ---
 
 # Hallucinations
 
-## Overview
-This component governs the lifecycle of hallucination entities—temporary visual disturbances spawned near the player based on their sanity, ambient light levels, and time of day. It dynamically spawns, tracks, and removes hallucinations by monitoring player state, lighting, and night cycles.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components Required via `inst`:** None explicitly added by this component.
-- **Tags Used Internally:**
-  - `fire` (must-tag for `shadowwatcher` search)
-  - `_equippable` (prohibited-tag for `shadowwatcher` search)
-  - All `FUELTYPE` values appended with `"_fueled"` (e.g., `"wood_fueled"`, `"greengas_fueled"`) to identify active fire sources for `shadowwatcher` placement logic.
-- **Watched World States:** `isnight`, `isfullmoon`
-- **Listened Events:** `playeractivated`, `playerdeactivated`, `onremove` (attached to hallucination entities), and `nightvision` (attached per-player)
+## Overview
+The `hallucinations` component controls the procedural spawning of three types of hallucination prefabs (`creepyeyes`, `shadowwatcher`, `shadowskittish`) on the player entity. It reacts to player sanity levels, whether it is currently night, and environmental lighting conditions. It operates as a passive sidekick to the player, monitoring sanity and time-of-day events, and spawning appropriate hallucinations only when conditions are conducive (e.g., low sanity and darkness). It tracks spawned entities and ensures only a limited number of each type exist concurrently.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("hallucinations")
+-- Automatically activates upon `playeractivated` events and is managed by the game.
+-- Debug string is available for inspection:
+print(inst.components.hallucinations:GetDebugString())
+```
+
+## Dependencies & tags
+**Components used:** None directly accessed via `inst.components.X`. Relies on `TheSim`, `SpawnPrefab`, `FindEntity`, and world state (`isnight`, `isfullmoon`) APIs. Uses `_player.replica.sanity` to read sanity values.
+**Tags:** Adds and removes `fire` and `_equippable` from candidate entities during `shadowwatcher` searching.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (assigned via constructor) | The root entity to which this component is attached (typically the world or a manager). |
-| `_player` | `Entity?` | `nil` | Reference to the currently active player. |
-| `_hallucinations` | `table` | `{}` | Internal registry of hallucination types, each containing `name`, `params`, and `count`. |
-| `_fueltags` | `table<string>` | `{}` | List of fuel-related tags used to detect burning fire sources. Populated from `FUELTYPE`. |
+| `inst` | `Entity` | `inst` (passed in constructor) | Reference to the entity that owns this component (typically the player entity). |
 
-## Main Functions
-### `RestartHallucination(hallucination)`
-* **Description:** Starts or restarts a hallucination task after an initial random delay (`initial_variance * random()`), ensuring the first spawn is randomized.
-* **Parameters:**  
-  `hallucination` — A hallucination entry from `_hallucinations`, containing `.params` (with `initial_variance`) and `.task`.
+No other public properties are exposed.
 
-### `RepeatHallucination(hallucination, delay)`
-* **Description:** Schedules the next spawn of a hallucination. Uses either a provided `delay` or computes a random delay within `interval ± variance`.
-* **Parameters:**  
-  `hallucination` — A hallucination entry.  
-  `delay` (optional) — A numeric delay override; if omitted, computed as `interval + variance * math.random()`.
+## Main functions
+### `GetDebugString()`
+* **Description:** Returns a human-readable debug string listing the current spawn count of each hallucination type.
+* **Parameters:** None.
+* **Returns:** `string` — e.g., `"2 creepyeyes, 1 shadowwatcher, 4 shadowskittish"`, or `nil` if no hallucinations are active.
+* **Error states:** None. Safe to call at any time.
 
-### `Start(nightonly)`
-* **Description:** Starts all hallucination tasks (or only those matching `nightonly` if specified) that are currently inactive (`.task == nil`).
-* **Parameters:**  
-  `nightonly` (optional, `boolean?`) — If `true`/`false`, only starts hallucinations where `params.nightonly` matches; if `nil`, starts all inactive hallucinations.
+## Events & listeners
+- **Listens to:**  
+  - `playeractivated` — triggers `OnPlayerActivated` when a new player becomes active, setting up world-state watches and starting hallucinations.  
+  - `playerdeactivated` — triggers `OnPlayerDeactivated` to shut down and cancel tasks when the player deactivates.  
+  - `nightvision` — triggers `OnIsNight` when the player’s night vision state changes (e.g., via lantern or helmet).  
+- **Pushes:** None.
 
-### `Stop(nightonly)`
-* **Description:** Cancels all currently scheduled hallucination tasks (or only those matching `nightonly`) by setting `.task = nil`.
-* **Parameters:**  
-  `nightonly` (optional, `boolean?`) — Filters which hallucinations to stop, mirroring `Start`.
+## Constants
+The component defines `HALLUCINATION_TYPES`, a table with three entries:
 
-### `self:GetDebugString()`
-* **Description:** Returns a comma-separated string listing each hallucination type and its current spawn count for debugging.
-* **Parameters:** None.  
-* **Returns:** `string?` — E.g., `" 0 creepyeyes, 2 shadowwatcher, 4 shadowskittish"` or `nil` if all counts are zero.
+| Name | `interval` | `variance` | `initial_variance` | `nightonly` |
+|------|------------|------------|--------------------|-------------|
+| `creepyeyes` | `5` | `2.5` | `20` | `true` |
+| `shadowwatcher` | `30` | `15` | `10` | `true` |
+| `shadowskittish` | `10` | `5` | `20` | `false` |
 
-## Events & Listeners
-- **Listens for `playeractivated` → `OnPlayerActivated(inst, player)`**  
-  Switches the active player context, sets up sanity/lighting observers, and starts hallucinations.
-- **Listens for `playerdeactivated` → `OnPlayerDeactivated(inst, player)`**  
-  Cleans up the active player reference, cancels tasks, and stops all hallucinations.
-- **Listens for `nightvision` on `_player` → `OnIsNight()`**  
-  Re-evaluates night-specific hallucinations when the player gains/loses night vision.
-- **Watches `isnight` and `isfullmoon` → `OnIsNight()`**  
-  Reacts to day/night/full-moon transitions to control night-only hallucinations.
-- **Listens for `onremove` on hallucination entities → `StopTracking(ent)`**  
-  Decrements the current count for the hallucination type when an entity is removed, allowing new spawns.
-- **Triggers `RepeatHallucination(...)` calls**  
-  Internally via `spawnfn`s to reschedule the next spawn after each successful or failed spawn attempt.
+Each type uses its `interval`, `variance`, and `initial_variance` to schedule spawning via `DoTaskInTime`. `nightonly` determines whether spawning only occurs at night.

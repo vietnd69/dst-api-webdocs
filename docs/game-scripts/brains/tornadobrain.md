@@ -1,39 +1,44 @@
 ---
 id: tornadobrain
 title: Tornadobrain
-description: Controls the behavior tree logic for tornado entities, prioritizing leashing to and wandering around a designated target location.
-tags: [ai, behavior_tree, entity, movement, boss]
+description: Implements decision-making logic for a tornado entity, directing it to move toward or wander near a target location.
+tags: [ai, movement, weather]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: brain
-system_scope: brain
+category_type: map
 source_hash: 11c7cb9b
+system_scope: brain
 ---
 
 # Tornadobrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
+`Tornadobrain` is a brain component responsible for controlling the movement behavior of a tornado entity. It uses a behavior tree with a priority node to select between two primary actions: leashing toward a known target location (via `knownlocations:GetLocation("target")`) or wandering in the vicinity of that target. The brain inherits from `Brain` and is constructed using standard DST ECS conventions (`Class(Brain, ...)`).
 
-`Tornadobrain` is a brain component that defines the behavioral logic for tornado entities in `Don't Starve Together`. It inherits from `Brain` and constructs a behavior tree at startup. The behavior tree uses a priority node to select between two behaviors: `Leash`, which moves the tornado toward a specified target location, and `Wander`, which causes the tornado to move randomly in the vicinity of the target. Both behaviors rely on the `KnownLocations` component to resolve the target location by name. This component is responsible for enabling dynamic movement patterns, typically in scenarios where tornadoes chase or track a specific point of interest.
+The component relies exclusively on the `knownlocations` component to resolve the "target" location and the `behaviours/leash` and `behaviours/wander` modules to execute movement logic.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("knownlocations")  -- required for location resolution
+inst:AddComponent("tornadobrain")
+-- The brain will automatically initialize on OnStart (typically called by SG or SG logic)
+```
 
 ## Dependencies & tags
-**Components used:** `knownlocations`
-**Tags:** None identified.
+**Components used:** `knownlocations`  
+**Tags:** None identified
 
 ## Properties
-No public properties are explicitly initialized in the constructor. The component stores its behavior tree instance in `self.bt` during `OnStart()`.
+No public properties
 
 ## Main functions
-### `OnStart()`
-* **Description:** Initializes and assigns the behavior tree for the tornado entity. Constructs a priority node that prioritizes leashing over wandering, then creates and stores a new `BT` instance.
-* **Parameters:** None.
-* **Returns:** None.
-* **Error states:** May fail silently if `self.inst.components.knownlocations` is missing or the `"target"` location is not registered, causing `GetLocation("target")` to return `nil`. This would result in undefined movement behavior (e.g., leashing/wandering to position `\`{0,0,0}\``).
+Not applicable — the brain does not expose public methods beyond inherited `Brain` functionality.
 
 ## Events & listeners
-This component does not register any event listeners or push custom events. It operates purely as a behavior tree manager and does not interact with the event system directly.
+Not applicable — this brain does not register or push any events directly.

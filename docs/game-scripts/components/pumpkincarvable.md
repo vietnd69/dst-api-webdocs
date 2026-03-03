@@ -1,94 +1,104 @@
 ---
 id: pumpkincarvable
 title: Pumpkincarvable
-description: Manages pumpkin carving state, shape placement, and visual effects for carved pumpkins in Don't Starve Together.
+description: Manages carving, visual rendering, and state persistence of pumpkins in the game, including cut shapes, lighting effects, and synchronization between client and server.
+tags: [crafting, fx, lighting, persistence, network]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: e70060f5
+system_scope: entity
 ---
 
 # Pumpkincarvable
 
-## Overview
-This component manages the carving logic, stored cut data, and dynamic visual effects for pumpkins in the game. It handles player interaction for carving, persists cut patterns, synchronizes carve data across clients and server, and controls lighting/animation behavior based on time of day. It also supports temporary FX visualization (via `pumpkincarving_swap_fx`) during usage.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- `inst:AddComponent("burnable")`: Used to check if the pumpkin is burning (carving prevented).
-- Tags added by internal `CreateCut` entities: `"FX"` for non-networked FX entities.
-- No direct component dependencies declared in `_ctor`, but it watches world state `"isday"`.
+## Overview
+The `Pumpkincarvable` component enables a pumpkin entity to be carved, displayed with animated cut shapes, and persisted across sessions. It handles both server-side logic (validating cut data, tracking the current carver, syncing state) and client-side rendering (managing cut FX entities, animated fill glow, day/night lighting overrides). The component integrates with `inventory` (to check for valid carving tools), `burnable` (to prevent carving while burning), and `updatelooper` (to drive animation updates).
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddTag("pumpkin")
+inst:AddComponent("pumpkincarvable")
+
+-- Begin carving
+local carver = TheWorld:GetPlayerEntity()
+if inst.components.pumpkincarvable:CanBeginCarving(carver) then
+    inst.components.pumpkincarvable:BeginCarving(carver)
+end
+
+-- After carving, load cut data (e.g., from a menu)
+inst.components.pumpkincarvable:LoadCutData("encoded_cut_data_string")
+
+-- Check current carved state
+local currentCutData = inst.components.pumpkincarvable:GetCutData()
+```
+
+## Dependencies & tags
+**Components used:** `burnable`, `inventory`, `updatelooper`  
+**Tags:** Adds `FX` to cut FX entities (not the pumpkin itself); does not modify tags on the owning entity.
 
 ## Properties
 | Property | Type | Default Value | Description |
-|---|---|---|---|
-| `inst` | `Entity` | — | The owning entity (typically the pumpkin prefab instance). |
-| `ismastersim` | `boolean` | `TheWorld.ismastersim` | True if this instance is running on the master simulation (server). |
-| `cuts` | `table` | `{}` | Array of active FX entities representing individual cuts applied to the pumpkin. |
-| `cutdata` | `net_string` | `net_string(inst.GUID, ...)` | Replicated string storing encoded, zipped array of cut definitions. Each cut is 4 elements: shape_id, rotation, x, y. |
-| `swapinst` | `Entity?` | `nil` | Temporary FX entity (`pumpkincarving_swap_fx`) used while the pumpkin is equipped and carved. |
-| `carver` | `Entity?` | `nil` | The player currently carving the pumpkin. |
-| `range` | `number` | `3` | Maximum distance (in tiles) the carver can be from the pumpkin to continue carving. |
-| `onopenfn` | `function?` | `nil` | Callback invoked when carving starts. |
-| `onclosefn` | `function?` | `nil` | Callback invoked when carving ends. |
+|----------|------|---------------|-------------|
+| `cuts` | table | `{}` | Array of cut FX entity instances currently attached to the pumpkin. |
+| `cutdata` | net_string | `""` | Replicated string of encoded cut data (see `SHAPE_NAMES`, `TOOL_SHAPES`). |
+| `carver` | Entity | `nil` | Entity currently performing the carving (server-only). |
+| `range` | number | `3` | Carver’s max distance to continue carving. |
+| `swapinst` | Entity | `nil` | Server-side preview FX entity shown when pumpkin is equipped. |
+| `ismastersim` | boolean | `TheWorld.ismastersim` | `true` on the master server, `false` on clients. |
 
-## Main Functions
-
-### `PumpkinCarvable:CanBeginCarving(doer)`
-* **Description:** Checks whether the given entity (`doer`, typically a player) is allowed to begin carving the pumpkin.
-* **Parameters:**  
-  `doer`: The potential carver entity.
-
-### `PumpkinCarvable:BeginCarving(doer)`
-* **Description:** Initiates the carving session for the pumpkin, switching the carver into the `"pumpkincarving"` state and registering event listeners for closing. Only executes on the master simulation.
-* **Parameters:**  
-  `doer`: The entity beginning to carve.
-
-### `PumpkinCarvable:EndCarving(doer)`
-* **Description:** Ends the active carving session for the given carver, removing event listeners and sending an event to the carver. Only executes on the master simulation.
-* **Parameters:**  
-  `doer`: The entity that was carving.
-
-### `PumpkinCarvable:DoRefreshCutData()`
-* **Description:** Reapplies all cuts stored in `cutdata` to the pumpkin by instantiating FX entities. Returns `true` if cut data was successfully decoded and applied.
+## Main functions
+### `GetCutData()`
+* **Description:** Returns the current carved pattern data as a string.
 * **Parameters:** None.
+* **Returns:** `string` — Encoded cut data (empty string if uncarved).
 
-### `PumpkinCarvable:LoadCutData(cutdata)`
-* **Description:** Loads and applies new cut data to the pumpkin. On dedicated servers, it only sets the data; on non-dedicated servers, it also refreshes visuals.
-* **Parameters:**  
-  `cutdata`: String containing encoded and zipped cut array.
+### `CanBeginCarving(doer)`
+* **Description:** Checks if the specified entity (`doer`) is allowed to start carving the pumpkin.
+* **Parameters:** `doer` (Entity) — The player attempting to carve.
+* **Returns:** `boolean, string?` — `true, nil` if allowed; otherwise `false` and a reason: `"BURNING"` (if burning), `"INUSE"` (if another carver is active), or `false` (if same carver or busy state).
 
-### `PumpkinCarvable:OnSave()`
-* **Description:** Serializes the current carving state. Returns a table with `cuts` field if cut data exists, otherwise `nil`.
+### `BeginCarving(doer)`
+* **Description:** Starts the carving interaction for `doer`, transitions the carver to `"pumpkincarving"` state, and begins monitoring updates and events.
+* **Parameters:** `doer` (Entity) — The player starting to carve.
+* **Returns:** `boolean` — `true` if carving started, `false` if already in progress.
+
+### `EndCarving(doer)`
+* **Description:** Ends the carving session for `doer`, cleans up events and FX, and emits `"ms_endpumpkincarving"` on the carver.
+* **Parameters:** `doer` (Entity) — The player ending the carve session.
+* **Returns:** Nothing.
+
+### `DoRefreshCutData()`
+* **Description:** Rebuilds all cut FX entities (`self.cuts`) based on the current `cutdata`. Invoked on client when `cutdata` updates.
 * **Parameters:** None.
+* **Returns:** `boolean` — `true` if cut data was successfully decoded and applied.
 
-### `PumpkinCarvable:OnLoad(data, newents)`
-* **Description:** Loads carving state from saved data by calling `LoadCutData`.
-* **Parameters:**  
-  `data`: Table potentially containing `cuts` (string).  
-  `newents`: Unused parameter.
+### `LoadCutData(cutdata)`
+* **Description:** Validates, sets, and applies new cut data (`cutdata`). On clients, triggers `DoRefreshCutData`; on server, updates lighting.
+* **Parameters:** `cutdata` (string) — Encoded carving pattern.
+* **Returns:** Nothing.
 
-### `PumpkinCarvable:TransferComponent(newinst)`
-* **Description:** Copies cut data and visual state to a new instance of the component (e.g., during respawn or transfer).
-* **Parameters:**  
-  `newinst`: The new entity instance receiving the component.
+### `OnSave()`
+* **Description:** Returns saved state for persistence (contains `cuts` field with `cutdata`).
+* **Parameters:** None.
+* **Returns:** `{ cuts = string }` or `nil` if uncarved.
 
-### `PumpkinCarvable:OnUpdate(dt)`
-* **Description:** Periodically checks whether the carver is still near and can see the pumpkin; ends carving if not. Runs only while a carver is active.
-* **Parameters:**  
-  `dt`: Delta time since last update.
+### `OnLoad(data, newents)`
+* **Description:** Loads cut data from saved state and applies it.
+* **Parameters:** `data` (table) — Saved component data; `newents` (unused).
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens to:**
-  - `"equipped"` → `OnEquipped_Server`
-  - `"unequipped"` → `OnUnequipped_Server`
-  - `"cutdatadirty"` (client only) → `OnCutDataDirty_Client`
-  - `"isday"` world state → `OnIsDay_Server`
-  - `"onremove"` on pumpkin → `onclosepumpkin` (via `doer`)
-  - `"ms_closepopup"` → `onclosepopup`
-- **Triggers:**
-  - `"ms_endpumpkincarving"` event on the carver when carving ends.
-  - Pushes `"cutdatadirty"` event on server when `cutdata` is updated (via `net_string`).
+## Events & listeners
+- **Listens to:**  
+  - `equipped` (server) — Spawns preview FX (`pumpkincarving_swap_fx`) when pumpkin is held.  
+  - `unequipped` (server) — Removes preview FX.  
+  - `onremove` (server) — Closes carving session and validates/saves cut data.  
+  - `ms_closepopup` (server) — Handles closing of pumpkin carving UI popup.  
+  - `cutdatadirty` (client) — Triggers client-side `DoRefreshCutData`.
+- **Pushes:** None directly (uses networked `cutdatadirty` event internally via `net_string`).

@@ -1,103 +1,150 @@
 ---
 id: hermitcrab_relocation_manager
 title: Hermitcrab Relocation Manager
-description: Manages the placement, orientation, and teleportation of hermitcrab-related entities during monkeyisland set-piece initialization in Don't Starve Together.
+description: Manages teleportation and rotation-aware positioning of Hermitcrab-related entities (pearls and structures) relative to Monkey Island during world loading and relocation.
+tags: [locomotion, map, relocation, worldgen, network]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: d9f1d9c6
+system_scope: world
 ---
 
 # Hermitcrab Relocation Manager
 
-## Overview
-This component orchestrates the precise positioning and movement of hermitcrab-related entities—including houses, markers, and the hermitcrab itself—when the Monkey Island set-piece is loaded. It calculates world-space rotation based on relative positions of `monkeyqueen` and `monkeyportal`, applies transformations to static layout data, and handles the teleportation sequence of all registered pearl entities (including the hermitcrab) to their final positions in the set-piece arena.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Dependencies**:
-  - `TheWorld` (must be `ismastersim`)
-  - `TheWorld.Map` (for tile center calculations)
-- **Tags**: None explicitly added or removed on `inst`.
-- **Events Listened For**:
-  - `ms_register_hermitcrab`
-  - `ms_register_pearl_entity`
-  - `ms_register_monkeyisland_portal`
-  - `ms_register_monkeyqueen`
-  - `ms_hermitcrab_wants_to_teleport`
-- **Events Pushed**:
-  - `teleported` (on each entity after teleport completes)
-  - `teleport_move` (on entity just before teleport)
+## Overview
+`HermitcrabRelocationManager` is a server-side component responsible for aligning and relocating Hermitcrab-related entities (e.g., `hermitcrab`, `hermithouse2`, `meatrack_hermit`, fishing markers) to their correct positions and orientations within the Monkey Island setpiece. It calculates the world-space rotation of Monkey Island using `monkeyqueen` and `monkeyportal` as reference points, applies transformations to hardcoded tile-relative coordinates, and performs animated teleportation of entities when relocation is triggered. It interacts closely with the `locomotor` component to stop movement before teleportation.
+
+## Usage example
+```lua
+-- Typically added automatically to TheWorld upon Hermitcrab-related content detection
+-- No manual usage is intended for modders
+-- Key events it responds to:
+TheWorld:PushEvent("ms_register_hermitcrab", my_hermit_crab)
+TheWorld:PushEvent("ms_register_pearl_entity", my_pearl_entity)
+TheWorld:PushEvent("ms_hermitcrab_wants_to_teleport", some_entity)
+```
+
+## Dependencies & tags
+**Components used:** `locomotor` (`Clear`, `Stop`)
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `PEARLSETPIECE_MONKEYISLAND` | `table` | (shared constant) | Predefined static layout mapping prefabs to relative x, z, rot coordinates for Monkey Island. |
-| `pearlsentities` | `table` | `{}` | Map of registered pearl entities (keys = entities, values = `true`). |
-| `hermitcrab` | `Entity` | `nil` | Reference to the hermitcrab entity (if present in world). |
-| `monkeyqueen` | `Entity` | `nil` | Reference to the `monkeyqueen` entity used for rotation calculation. |
-| `monkeyportal` | `Entity` | `nil` | Reference to the `monkeyportal` entity used for rotation calculation. |
-| `storedangle_monkey` | `number` | `nil` | Calculated rotation angle (in degrees) of Monkey Island relative to world north. |
-| `storedx_monkey`, `storedz_monkey` | `number` | `nil` | Tile-centered world coordinates used as the set-piece origin for placement. |
-| `pearlmovingdata` | `table` | `nil` (or `{}` during move) | Maps each teleporting entity to its movement data (`x`, `z`, `rot`, `delay`, `fxprefab`, `isinlimbo`). |
-| `appliedrotationtransformation` | `boolean` | `false` | Flag indicating whether rotation transformation has been applied to layout data. |
-| `initiatedpearlmove` | `boolean` | `false` | Flag indicating whether a teleport sequence has been started. |
-| `failed` | `boolean` | `false` | Flag indicating failure due to missing or duplicate key entities (e.g., multiple monkeyqueens). |
+| `inst` | `Entity` | — | Owner entity (typically `TheWorld`) |
+| `PEARLSETPIECE_MONKEYISLAND` | `table` | Hardcoded mapping | Static layout coordinates (x, z, rot) for each prefab relative to island center |
+| `pearlsentities` | `table` | `{}` | Registry of tracked pearl-related entities (`hermitcrab`, `hermitcrab_marker`, etc.) |
+| `hermitcrab` | `Entity?` | `nil` | Reference to the main `hermitcrab` entity |
+| `monkeyqueen` | `Entity?` | `nil` | Reference to `monkeyqueen` entity used to compute island rotation |
+| `monkeyportal` | `Entity?` | `nil` | Reference to `monkeyportal` entity used to compute island rotation |
+| `storedangle_monkey` | `number?` | `nil` | Computed rotation angle (degrees) of Monkey Island relative to world |
+| `storedx_monkey`, `storedz_monkey` | `number?` | `nil` | World tile-center coordinates of the reference point for layout offset |
+| `pearlmovingdata` | `table?` | `nil` | Maps each teleporting entity to its destination data (`x`, `z`, `rot`, `delay`, `fxprefab`, etc.) |
+| `initiatedpearlmove` | `boolean?` | `nil` | Flag indicating whether a teleport sequence has been initiated |
+| `appliedrotationtransformation` | `boolean` | `false` | Flag indicating whether rotation transformation has been applied to layout |
 
-## Main Functions
+## Main functions
+### `RegisterHermitCrab(ent)`
+*   **Description:** Registers the main Hermitcrab entity for tracking and enables special handling during teleportation.
+*   **Parameters:** `ent` (`Entity`) — The `hermitcrab` prefab instance.
+*   **Returns:** Nothing.
+*   **Error states:** Registers a one-time callback on removal; overwriting an existing reference is not allowed.
 
-### `:TryToApplyRotationTransformation()`
-* **Description:** Determines the world-space rotation of Monkey Island using `monkeyqueen` and `monkeyportal`, applies the computed transformation to the static layout data, and returns success/failure. Ensures rotation is computed only once and layout data is transformed in-place.
-* **Parameters:** None.
+### `RegisterPearlEntity(ent)`
+*   **Description:** Registers any pearl-related entity (e.g., markers, structures, bait) for tracking and inclusion in relocation.
+*   **Parameters:** `ent` (`Entity`) — Any `hermitcrab_*` or `meatrack_hermit`/`beebox_hermit` entity.
+*   **Returns:** Nothing.
 
-### `:ApplyAllRotationTransformations()`
-* **Description:** Applies the stored rotation transformation to every entry in `PEARLSETPIECE_MONKEYISLAND` using `:ApplyRotationTransformation_Monkey`. Cleans up event listeners after completion.
-* **Parameters:** None.
+### `RegisterMonkeyQueen(ent)`
+*   **Description:** Registers the `monkeyqueen` entity used to compute Monkey Island’s rotation angle.
+*   **Parameters:** `ent` (`Entity`) — The `monkeyqueen` entity.
+*   **Returns:** Nothing.
+*   **Error states:** Fails with `self.failed = true` if a second `monkeyqueen` is registered.
 
-### `:ApplyRotationTransformation_Monkey(data)`
-* **Description:** Mutates the `data` table (array of `{x, z, rot}`) in-place to account for the stored rotation angle (`self.storedangle_monkey`). Applies discrete rotations/flips based on angle ranges (±180° intervals in 45° steps).
-* **Parameters:**  
-  - `data`: Table of `{x, z, rot}` triplets to transform.
+### `RegisterMonkeyPortal(ent)`
+*   **Description:** Registers the `monkeyportal` entity used to compute Monkey Island’s rotation angle.
+*   **Parameters:** `ent` (`Entity`) — The `monkeyportal` entity.
+*   **Returns:** Nothing.
+*   **Error states:** Fails with `self.failed = true` if a second `monkeyportal` is registered.
 
-### `:SetSetupTeleportingPearlToSetPieceData(setpiecedata, centerx, centerz)`
-* **Description:** Sets up teleportation data for all pearl entities (houses, markers, hermitcrab, etc.) using the transformed set-piece layout. Initiates teleport sequence after caching movement data.
-* **Parameters:**  
-  - `setpiecedata`: Layout data (e.g., `PEARLSETPIECE_MONKEYISLAND`).  
-  - `centerx`, `centerz`: World-space origin for placement (tile-centered).  
+### `TryToApplyRotationTransformation()`
+*   **Description:** Computes or retrieves the Monkey Island rotation using `monkeyqueen` and `monkeyportal`, then applies the rotation transformation to all layout coordinates in `PEARLSETPIECE_MONKEYISLAND`.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if transformation succeeded, `false` otherwise (e.g., missing entities or too many modded entities).
+*   **Error states:** May log warnings and announce to staging builds if required entities are missing or duplicated.
 
-### `:InitiatePearlTeleport()`
-* **Description:** Starts the teleport sequence for all entities in `pearlmovingdata`. Uses step-wise tasks (`Disappear → Teleport → Appear → Arrive`) to smoothly transition entities, including visual FX. Fires `ms_hermitcrab_relocated` when complete.
-* **Parameters:** None.
+### `SetupMovingPearlToMonkeyIsland()`
+*   **Description:** Initiates teleport setup using the computed Monkey Island layout and stored position/rotation.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Notes:** Calls `SetupTeleportingPearlToSetPieceData()` with the pre-transformed layout.
 
-### `:CanPearlMove()`
-* **Description:** Checks whether a teleport sequence is already in progress (i.e., `pearlmovingdata` is non-`nil`).
-* **Parameters:** None.  
-* **Returns:** `true` if no teleport is in progress; `false` otherwise.
+### `CanPearlMove()`
+*   **Description:** Checks whether a teleport sequence can be started (i.e., no prior teleport is in progress).
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if teleporting is currently safe to begin.
 
-### `:SetupMovingPearlToMonkeyIsland()`
-* **Description:** Convenience wrapper calling `:SetupTeleportingPearlToSetPieceData(...)` with the default Monkey Island layout and stored origin.
-* **Parameters:** None.
+### `InitiatePearlTeleport()`
+*   **Description:** Starts the animated teleport sequence for all registered pearl entities.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Notes:** Iterates over `pearlsentities` and schedules `TeleportingStep_*` callbacks for FX and animation synchronization.
 
-### `:GetPearl()`, `:GetPearlsHouse()`, `:GetPearlsFishingMarkers()`
-* **Description:** Getter helpers to retrieve key entities:
-  - `:GetPearl()` → returns `hermitcrab` entity.
-  - `:GetPearlsHouse()` → returns first found house (prefabs: `"hermithouse2"`, `"hermithouse"`, `"hermithouse_construction3"`, etc.).
-  - `:GetPearlsFishingMarkers()` → returns list of `"hermitcrab_marker_fishing"` entities.
+### `OnFinishedTeleportPearlEntity(ent, deleted)`
+*   **Description:** Final step after teleport completes; removes event callbacks, fires `teleported`, and checks for teleport completion across all entities.
+*   **Parameters:**  
+    `ent` (`Entity`) — The entity that finished teleporting.  
+    `deleted` (`boolean`) — Whether the entity was removed during teleport.
+*   **Returns:** Nothing.
 
-## Events & Listeners
+### `OnSave()`
+*   **Description:** Serializes state (e.g., rotation angle, currently teleporting entities) for world save.
+*   **Parameters:** None.
+*   **Returns:** `data` (`table`), `ents` (`table of GUIDs`) — Save data and entity GUIDs involved in teleport.
 
-- **Listens For**:
-  - `"ms_register_hermitcrab"` → `:RegisterHermitCrab(ent)`
-  - `"ms_register_pearl_entity"` → `:RegisterPearlEntity(ent)`
-  - `"ms_register_monkeyisland_portal"` → `:RegisterMonkeyPortal(ent)`
-  - `"ms_register_monkeyqueen"` → `:RegisterMonkeyQueen(ent)`
-  - `"ms_hermitcrab_wants_to_teleport"` → conditionally calls `:InitiatePearlTeleport()`
-  - `"onremove"` (on `monkeyqueen`, `monkeyportal`, and each `pearlentity`) → clears references.
+### `OnLoad(data)`
+*   **Description:** Restores saved state (e.g., rotation angle) on world load.
+*   **Parameters:** `data` (`table?`) — Save data from `OnSave()`.
+*   **Returns:** Nothing.
 
-- **Pushes**:
-  - `"teleported"` → on entity after teleport finishes.
-  - `"teleport_move"` → on entity just before moving.
-  - `"ms_hermitcrab_relocated"` → on `TheWorld` when all teleport steps are complete.
+### `LoadPostPass(newents, savedata)`
+*   **Description:** Completes post-load teleportation setup by reconstructing `pearlmovingdata` from saved entity GUIDs and re-initiating teleport if needed.
+*   **Parameters:**  
+    `newents` (`table`) — Mapped GUID → entity lookup table from `WorldGen`.  
+    `savedata` (`table`) — Deserialized `movingents` array.
+*   **Returns:** Nothing.
+
+### `GetPearl()`
+*   **Description:** Returns the registered `hermitcrab` entity.
+*   **Parameters:** None.
+*   **Returns:** `Entity?` — The main hermitcrab entity, or `nil`.
+
+### `GetPearlsHouse()`
+*   **Description:** Returns the first registered hermit crab house entity (`hermithouse*` or `hermithouse_construction*`).
+*   **Parameters:** None.
+*   **Returns:** `Entity?` — House entity, or `nil`.
+
+### `GetPearlsFishingMarkers()`
+*   **Description:** Returns all registered fishing marker entities (`hermitcrab_marker_fishing`).
+*   **Parameters:** None.
+*   **Returns:** `table of Entity` — Array of fishing marker entities.
+
+## Events & listeners
+- **Listens to:**
+  - `ms_register_hermitcrab` (`inst`, `ent`) — Registers the hermitcrab entity.
+  - `ms_register_pearl_entity` (`inst`, `ent`) — Registers a pearl-related entity.
+  - `ms_register_monkeyisland_portal` (`inst`, `ent`) — Registers the `monkeyportal`.
+  - `ms_register_monkeyqueen` (`inst`, `ent`) — Registers the `monkeyqueen`.
+  - `ms_hermitcrab_wants_to_teleport` (`inst`, `ent`) — Triggers teleport if not already in progress.
+  - `onremove` — On any registered pearl entity, house, or queen/portal removal (to clear references).
+
+- **Pushes:**
+  - `teleport_move` — Fired by each entity at start of teleport animation.
+  - `teleported` — Fired by each entity after teleport completes.
+  - `ms_hermitcrab_relocated` — Fired on world when all teleporting entities have finished.

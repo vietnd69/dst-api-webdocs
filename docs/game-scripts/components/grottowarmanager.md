@@ -1,90 +1,97 @@
 ---
 id: grottowarmanager
 title: Grottowarmanager
-description: Manages grotto war events—including spawning enemies and terrain obstacles—based on player presence and world topology.
+description: Manages Grotto War dynamic spawners and population logic, spawning nightmares and brightmares near players based on area and population limits.
+tags: [combat, ai, boss, environment, network]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: ec61bc73
+system_scope: world
 ---
 
 # Grottowarmanager
 
-## Overview
-The `Grottowarmanager` component orchestrates grotto war dynamics in DST: it tracks players within specific areas (e.g., Lunacy zones), spawns Nightmare and Brightmare entities periodically based on population tuning, and constructs front-line war obstacles (e.g., fissures, spawners) when the war begins via the `ms_archivesbreached` event. It is authoritative and runs exclusively on the master simulation.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependency**: None explicitly added via `AddComponent`. It relies on entity `inst` being present on a world-level object (e.g., a master controller).
-- **Tags**:
-  - Adds `grotto_war_wall` to spawned war obstacles via `SpawnFrontLines`.
-  - Listens for `GrottoWarEntrance` tag on world topology nodes.
-  - Uses internal tags: `brightmare`, `player`, `playerghost`, `shadow`, `brightmare_guard`, `shadow`, `lunacyarea`.
-- **Uses Components**:
-  - `TheWorld.Map`: for point checks (`IsPointNearHole`) and topology.
-  - `TheWorld.topology`: nodes, edges, story depths.
-  - `TheSim`: entity spawning and queries.
-  - `player.components.locomotor`, `player.components.areaaware`, `player.components.combat`.
+## Overview
+`GrottoWarManager` orchestrates the Grotto War event by tracking players in `lunacyarea` zones and spawning nightmare and brightmare entities dynamically to challenge them. It manages population density limits, handles event initiation via the `ms_archivesbreached` event, and supports both standard and retrofitted map layouts. This component only exists on the master simulation and is tied to the world entity.
+
+## Usage example
+```lua
+-- Typically added automatically by the world entity; modders should not instantiate directly.
+-- Ensure war trigger logic is satisfied:
+TheWorld:PushEvent("ms_archivesbreached")
+-- Then verify status:
+if TheWorld.components.grottowarmanager:IsWarStarted() then
+    print("Grotto War is active.")
+end
+```
+
+## Dependencies & tags
+**Components used:**  
+- `areaaware` — `GetCurrentArea()`  
+- `combat` — `SetTarget()`  
+- `knownlocations` — `RememberLocation()`  
+- `locomotor` — `isrunning` property  
+
+**Tags:**  
+- Adds to internal `_players` tracking for players in `lunacyarea` (via `changearea` events).  
+- Checks tags: `lunacyarea`, `brightmare`, `player`, `playerghost`, `shadow`, `grotto_war_wall`, `GrottoWarEntrance`.
 
 ## Properties
-No public properties are exposed beyond the core `self.inst`. All state is held in private local variables. `_enabled`, `_players`, `_activeplayers`, `_poptask`, `_retrofitted_spawnpoints`, and `_retrofitted_homepoint` are defined at the module scope, but only `self.inst` is publicly accessible.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | — | The owning entity instance (always the world). |
 
-## Main Functions
+## Main functions
+### `RetrofittedSpawnFrontLines()`
+*   **Description:** Spawns front-line war spawners (`nightmaregrowth_spawner`, `fissure_grottowar`, `statue_transition`, `grotto_war_sfx`) at registered retrofitted spawn and home points, then clears internal retrofitted data. Intended for pre-defined war layouts (e.g., event levels).
+*   **Parameters:** None.
+*   **Returns:** `true` if retrofitted points were valid and spawning occurred; otherwise `false`.
+*   **Error states:** Returns `false` if `_retrofitted_spawnpoints` or `_retrofitted_homepoint` are `nil` or invalid.
 
-### `self:RetrofittedSpawnFrontLines()`
-* **Description:** Handles war front-line spawning for retrofitted worlds (e.g., modded world gen). Removes pre-registered spawnpoints and homepoint, then replaces them with war infrastructure like `nightmaregrowth_spawner`, `fissure_grottowar`, and transition statues.
-* **Parameters:** None.
+### `SpawnFrontLines()`
+*   **Description:** Spawns front-line war spawners along edges of the Grotto War entrance node in standard world topology. Uses map data to determine entrance location and adjacent edges. Supports modular spawner placement with alternating types and SFX placement.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Logs a warning and returns early if no node tagged `GrottoWarEntrance` is found.
 
-### `self:SpawnFrontLines()`
-* **Description:** Constructs front-line obstacles (fissures and spawners) across edges connecting nodes of differing story depths near the `GrottoWarEntrance` node. Spawns visual and functional war assets with area clearing and known-location tracking.
-* **Parameters:** None.
+### `IsWarStarted()`
+*   **Description:** Checks whether the Grotto War has been triggered (i.e., `ms_archivesbreached` was received).
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if war is active (`_enabled` is `true`), otherwise `false`.
 
-### `self:IsWarStarted()`
-* **Description:** Returns whether the grotto war has started (`_enabled`).
-* **Parameters:** None.
+### `OnSave()`
+*   **Description:** Returns the component’s persistent state for save data. Stores the `_enabled` status under key `_enabled2`.
+*   **Parameters:** None.
+*   **Returns:** `table` — `{ _enabled2 = boolean }`.
 
-### `self:GetDebugString()`
-* **Description:** Returns a debug-friendly string indicating the number of tracked players.
-* **Parameters:** None.
+### `OnLoad(data)`
+*   **Description:** Restores state from saved data. Loads `_enabled` based on `data._enabled2`.
+*   **Parameters:** `data` (table) — The saved state table returned by `OnSave`.
+*   **Returns:** Nothing.
 
-## Events & Listeners
+### `GetDebugString()`
+*   **Description:** Returns a human-readable debug summary for the debug overlay.
+*   **Parameters:** None.
+*   **Returns:** `string` — e.g., `"2 players"`.
 
-- **`ms_playerjoined`** → `OnPlayerJoined(inst, player)`  
-  Registers new players and listens for `changearea` events on them.
+## Events & listeners
+- **Listens to:**  
+  - `ms_playerjoined` — Adds player to tracking and checks current area.  
+  - `ms_playerleft` — Removes player from tracking and stops war if no players remain.  
+  - `changearea` — Updates player’s inclusion in `_players` based on `lunacyarea` tag presence.  
+  - `nightmarephasechanged` — Reserved for future intensity scaling (currently no-op).  
+  - `ms_archivesbreached` — Starts war if not already active, spawns front lines, sets nightmare phase to `"wild"`, and initiates camera shake.  
+  - `ms_register_retrofitted_grotterwar_spawnpoint` — Registers a spawner entity for retrofitted war layouts.  
+  - `ms_register_retrofitted_grotterwar_homepoint` — Registers home point for retrofitted war layouts.  
+  - `entitysleep` (on spawned entities) — Triggers immediate despawn.
 
-- **`ms_playerleft`** → `OnPlayerLeft(inst, player)`  
-  Unregisters players and stops war logic if no players remain.
+- **Pushes:**  
+  - None directly. Indirectly triggers `ms_setnightmarephase` via `TheWorld:PushEvent`.
 
-- **`changearea`** (on each player) → `OnPlayerAreaChanced(player, data)`  
-  Tracks players entering/exiting `lunacyarea`. When present, the player is added to `_players`; when absent, removed. Triggers war start if war is enabled and players remain.
-
-- **`nightmarephasechanged`** → `OnNightmarePhaseChanged(inst, phase)`  
-  Currently unimplemented (placeholder).
-
-- **`ms_archivesbreached`** → `StartTheWar()`  
-  Triggers war start: calls `SpawnFrontLines`, sets nightmare phase to `"wild"`, and initiates camera shake. Sets `_enabled = true`.
-
-- **`ms_register_retrofitted_grotterwar_spawnpoint`** → anonymous function  
-  Registers a spawnpoint entity for retrofitted worlds into `_retrofitted_spawnpoints`.
-
-- **`ms_register_retrofitted_grotterwar_homepoint`** → anonymous function  
-  Registers a homepoint entity for retrofitted worlds into `_retrofitted_homepoint`.
-
-- **`entitysleep`** (on spawned Mare entities) → `RemoveMare(ent)`  
-  Cleans up spawned Mares (e.g., `nightmarebeak`, `gestalt_guard`) when they go to sleep.
-
-## Save/Load Support
-- **`OnSave()`**  
-  Returns a table with `_enabled2` mapping to `_enabled` (note: renamed to `_enabled2` for bug fix in beta).
-
-- **`OnLoad(data)`**  
-  Restores `_enabled` if `data._enabled2` is truthy.
-
-## Notes
-- This component **must** be attached to the master instance (`TheWorld.ismastersim`)—client instances will fail on construction.
-- All spawn logic (including `UpdatePopulation`) runs with randomized offsets, intervals, and probabilities based on tuning values (e.g., `TUNING.GROTTOWAR_MAX_NIGHTMARES`, `TUNING.GROTTOWAR_NIGHTMARE_TARGET_PLAYER_CHANCE`).
-- Uses `FindWalkableOffset` to avoid spawning entities in holes or obstructed zones.
-- The component actively cancels its population task (`_poptask`) when no tracked players remain or war is stopped.
+> Note: All event handlers and population logic (`UpdatePopulation`) only execute on the master simulation. Client-side code has no `GrottoWarManager` component.

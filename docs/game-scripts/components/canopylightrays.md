@@ -1,41 +1,69 @@
 ---
 id: canopylightrays
 title: Canopylightrays
-description: Manages the spawning and despawning of decorative light ray effects in a circular area around the entity.
+description: Spawns and manages reusable light ray prefabs in a radial area around the owner entity for visual canopy effects.
+tags: [environment, fx, lighting, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: environment
+category_type: components
 source_hash: d4493bdc
+system_scope: environment
 ---
 
 # Canopylightrays
 
-## Overview
-This component is responsible for creating and managing decorative light ray visual effects on the ground within a circular area around its parent entity. It uses a global, reference-counted system to ensure that multiple overlapping canopies do not spawn duplicate light rays in the same location. When an entity with this component is removed, it decrements the reference count for the light rays it created, and if a count reaches zero, the light ray effect is removed from the world.
+> Based on game build **7140014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Canopylightrays` is a map/environment component responsible for procedurally spawning temporary "lightrays_canopy" prefabs in a circular region around its owner entity to simulate lighting effects (e.g., under tree canopies). It implements a reference-counted global pooling system (`Global_Lightrays`) to avoid duplicate light ray prefabs at the same grid-aligned position and properly cleans up those prefabs when the owner is removed.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddTag("canopy_light")
+inst:AddComponent("canopylightrays")
+-- Light rays spawn automatically after 0 seconds via DoTaskInTime in constructor
+-- No further user interaction required; cleanup happens automatically on removal
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None added, removed, or checked by this component. However, prefabs using this component are typically expected to have the `canopy_light` tag.
 
 ## Properties
 | Property | Type | Default Value | Description |
-|---|---|---|---|
-| `range` | number | `floor(TUNING.SHADE_CANOPY_RANGE/4)` | The radius, in grid units, within which light rays can be spawned. |
-| `lightray_prefab` | string | `"lightrays_canopy"` | The prefab name of the light ray entity to spawn. |
-| `lightray_positions` | table | `{}` | An array that stores the `{x, z}` coordinates of light rays this component instance has spawned or referenced. |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | (set in constructor) | The entity that owns this component. |
+| `range` | number | `math.floor(TUNING.SHADE_CANOPY_RANGE/4)` | Radius (in tile units) over which light rays are spawned. |
+| `lightray_prefab` | string | `"lightrays_canopy"` | Prefab name used for spawning light ray entities. |
+| `lightray_positions` | table of `{x,z}` pairs | `{}` | List of positions (grid-aligned) where this component has spawned light rays. |
 
-## Main Functions
+## Main functions
+### `OnRemoveEntity()`
+* **Description:** Cleans up all light rays spawned by this component. Called automatically when the owner entity is removed or the component is detached. Also assigned to `OnRemoveFromEntity`.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
 ### `SpawnLightrays()`
-* **Description:** Iterates through tiles in a circular area around the entity's position. With a 10% chance per tile, it attempts to spawn a light ray. It uses a global table to check if a light ray already exists at a target position. If one exists, its reference count is incremented. If not, a new light ray prefab is spawned, its reference count is set to 1, and it's added to the global lookup table.
-* **Parameters:** This function takes no parameters.
+* **Description:** Spawns light ray prefabs within a circular area around the owner’s position. Uses grid-snapped coordinates (4-unit alignment) and reference counting to share rays at the same grid location across multiple owners.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** If called after component removal or if `self.inst` is nil, behavior is safe (early exit in `SpawnLightrays` wrapper, `Lightrays` lookup handles missing entries gracefully).
 
 ### `DespawnLightrays()`
-* **Description:** Iterates through all the light ray positions managed by this component instance. For each one, it finds the corresponding light ray entity in the global table and decrements its reference counter. If the reference counter drops to zero, the light ray entity is removed from the game world.
-* **Parameters:** This function takes no parameters.
+* **Description:** Decrements reference counts for all previously spawned rays and removes shared prefabs when reference count hits zero.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `OnRemoveEntity()`
-* **Description:** A cleanup function called when the component's parent entity is being removed. It ensures that all managed light rays are properly de-referenced by calling `DespawnLightrays()`. This function is also aliased as `OnRemoveFromEntity`.
-* **Parameters:** This function takes no parameters.
+## Events & listeners
+- **Listens to:** None identified.
+- **Pushes:** None identified.
+
+## Notes
+- This component uses a global table (`Global_Lightrays`) to cache and reuse light ray prefabs across multiple entities—each ray has a `refs` counter tracking how many `canopylightrays` instances use it.
+- Position rounding uses floor division and alignment to 4-unit grid: `math.floor((pos + offset) / 4) * 4 + 2`, ensuring rays align to a 4×4 cell grid centered at mid-cells.
+- Initial spawn is deferred via `inst:DoTaskInTime(0, SpawnLightrays)`; `SpawnLightrays` itself is wrapped in a global helper function for the task scheduler.
+- No network replication or event signaling is performed—this component operates entirely client- and server-side locally without cross-process impact.

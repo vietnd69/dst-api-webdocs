@@ -4,7 +4,6 @@ title: Bee
 description: Defines forest room templates for bee-related biomes, including standard bee clearings and queen bee nests, specifying tile type, colour, and prefab spawn rules.
 tags: [room, forest, bee, worldgen, map]
 sidebar_position: 1
-
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: 2c484308
 ---
-
 # Bee
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -47,4 +45,3 @@ This file does not define a component; it uses the `AddRoom` global function to 
 ## Events & listeners
 This file does not define a component; no events or listeners are associated.
 
----

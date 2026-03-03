@@ -1,68 +1,98 @@
 ---
 id: recallmark
 title: Recallmark
-description: Tracks and stores a position and shard ID where a player can teleport back to using recall mechanics.
+description: Marks a specific world position as a recall point for teleportation, storing coordinates and shard ID for later use.
+tags: [teleportation, memory, world]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: map
 source_hash: a5d5046f
+system_scope: world
 ---
 
 # Recallmark
 
-## Overview
-The `Recallmark` component enables an entity (typically a player) to mark and store a valid teleport location, including coordinates and shard ID. It manages the "recalled position" state, enforces teleportation permissions, and handles saving/loading for persistence. When a position is marked, the `recall_unmarked` tag is removed from the entity.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Tags added/removed**: Automatically adds the `"recall_unmarked"` tag on construction; removes it when a position is successfully marked.
-- **Dependencies**: Uses `TheShard:GetShardId()` (global shard system). No explicit component dependencies are declared in the constructor or methods.
+## Overview
+`Recallmark` is a component that allows an entity to store and manage a single recall position—a saved coordinate in the world (including shard ID) used for teleportation. It enforces teleportation permission checks before marking and maintains a `recall_unmarked` tag until a valid position is set. The component persists its state across saves and supports copying its state from another entity.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("recallmark")
+
+-- Attempt to mark a position
+local success, reason = inst.components.recallmark:MarkPosition(100, 0, -100, "forest")
+
+if success then
+    print("Recall position marked at", inst.components.recallmark:GetMarkedPosition())
+else
+    print("Failed to mark:", reason)
+end
+
+-- Later: check if marked and for same shard
+if inst.components.recallmark:IsMarked() and inst.components.recallmark:IsMarkedForSameShard() then
+    -- Safe to recall
+end
+```
+
+## Dependencies & tags
+**Components used:** None  
+**Tags:** Adds `recall_unmarked` in constructor; removes it upon successful marking.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `recall_x` | number | `nil` | X-coordinate of the marked position (after marking). |
-| `recall_y` | number | `nil` | Y-coordinate of the marked position (after marking). |
-| `recall_z` | number | `nil` | Z-coordinate of the marked position (after marking). |
-| `recall_worldid` | number/string | `nil` | Shard/world ID where the marked position resides. Defaults to current shard if not provided. |
-| `onMarkPosition` | function | `nil` | Optional callback invoked when `MarkPosition` succeeds. |
+| `recall_x` | number? | `nil` | X coordinate of the marked position. |
+| `recall_y` | number? | `nil` | Y coordinate of the marked position. |
+| `recall_z` | number? | `nil` | Z coordinate of the marked position. |
+| `recall_worldid` | string? | `nil` | Shard/world ID associated with the marked position. |
+| `onMarkPosition` | function? | `nil` | Optional callback fired after marking; signature: `fn(inst, x, y, z, worldid)`. |
 
-## Main Functions
+## Main functions
 ### `MarkPosition(recall_x, recall_y, recall_z, recall_worldid)`
-* **Description**: Attempts to mark the current entity’s recall position. Validates the position using `IsTeleportingPermittedFromPointToPoint` (self-check) and updates internal state if valid. Removes `recall_unmarked` tag and sets properties. Invokes `onMarkPosition` callback if defined.  
-* **Parameters**:  
-  - `recall_x`, `recall_y`, `recall_z`: Coordinates (numbers). If `nil`, they default to `0`.  
-  - `recall_worldid`: Optional shard ID (number or string). Defaults to current shard ID (`TheShard:GetShardId()`) if omitted.  
-  - **Returns**: `true` on success; `false, "NO_TELEPORT_ZONE"` if the point is invalid.
+*   **Description:** Attempts to mark a position as the entity’s recall point. Validates teleport permission (using `IsTeleportingPermittedFromPointToPoint`). If valid, stores coordinates and world ID, removes `recall_unmarked` tag, and fires `onMarkPosition` callback if set.
+*   **Parameters:**  
+    - `recall_x`, `recall_y`, `recall_z` (numbers or `nil`) — Position coordinates. Missing values default to `0`.  
+    - `recall_worldid` (string or `nil`) — Shard ID. Defaults to current shard if omitted.
+*   **Returns:**  
+    - `true` on success.  
+    - `false, "NO_TELEPORT_ZONE"` if teleporting is disallowed at the position.
+*   **Error states:** Returns early with `false` if the point fails the teleport permission check (e.g., inside a禁止区域).
 
 ### `Copy(rhs)`
-* **Description**: Copies recall position data from another entity’s `recallmark` component (if present) to this one.  
-* **Parameters**:  
-  - `rhs`: Entity or `nil`. If `rhs` has a `recallmark` component, its position data is copied. No return value.
+*   **Description:** Copies the recall position from another entity’s `recallmark` component (`rhs`) into this component. If `rhs` is `nil` or lacks the component, does nothing.
+*   **Parameters:** `rhs` (entity or `nil`) — Entity whose recall position to copy.
+*   **Returns:** Nothing.
 
 ### `IsMarked()`
-* **Description**: Checks whether the entity has a currently marked position.  
-* **Returns**: `true` if `recall_worldid` is non-`nil`; otherwise `false`.
+*   **Description:** Checks whether a recall position has been set.
+*   **Parameters:** None.
+*   **Returns:** `true` if `recall_worldid` is non-`nil`; otherwise `false`.
 
 ### `IsMarkedForSameShard()`
-* **Description**: Determines if the marked position is on the current shard (i.e., same as `TheShard:GetShardId()`).  
-* **Returns**: `true` if `recall_worldid` matches the current shard ID; otherwise `false`.
+*   **Description:** Checks whether the stored recall position belongs to the current shard.
+*   **Parameters:** None.
+*   **Returns:** `true` if `recall_worldid` matches `TheShard:GetShardId()`; otherwise `false`.
 
 ### `GetMarkedPosition()`
-* **Description**: Returns the stored coordinates *only* if the marked position is on the current shard.  
-* **Returns**: `x, y, z` (numbers) if on same shard; otherwise `nil`.
+*   **Description:** Returns the stored coordinates **only** if the recall position is in the current shard. Otherwise returns `nil`.
+*   **Parameters:** None.
+*   **Returns:** `recall_x`, `recall_y`, `recall_z` (all numbers) if on the same shard; otherwise `nil`.
 
 ### `OnSave()`
-* **Description**: Serializes the component’s state into a table for save-file persistence.  
-* **Returns**: Table with keys: `recall_x`, `recall_y`, `recall_z`, `recall_worldid`.
+*   **Description:** Serializes the current recall position for world save.
+*   **Parameters:** None.
+*   **Returns:** Table: `{ recall_x, recall_y, recall_z, recall_worldid }` — `nil` values included if unset.
 
 ### `OnLoad(data)`
-* **Description**: Restores the component’s state from saved data. Calls `MarkPosition` if valid data is provided.  
-* **Parameters**:  
-  - `data`: Table with keys matching `OnSave` output. If `data.recall_worldid` exists, the position is restored.
+*   **Description:** Restores the recall position from saved data. Calls `MarkPosition` with saved coordinates and world ID if present.
+*   **Parameters:** `data` (table or `nil`) — Saved data from `OnSave`.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified.

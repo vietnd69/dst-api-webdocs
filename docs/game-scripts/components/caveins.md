@@ -1,50 +1,68 @@
 ---
 id: caveins
 title: Caveins
-description: Manages the visual and gameplay effects of cave-ins on non-master shards, including player-targeted warnings and boulder attacks.
+description: Manages cave-in events triggered by sinkholes, including debris spawning, camera shake, and player warnings in the caves.
+tags: [environment, cave, boss]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: af60a26b
+system_scope: environment
 ---
 
 # Caveins
 
-## Overview
-This server-side component is responsible for executing cave-in events, specifically within cave shards (i.e., not the master shard/surface world). It listens for data from the master shard to track players, generate warning effects like camera shake and falling debris, and ultimately trigger the main boulder attack by creating a localized earthquake. This component effectively acts as the receiver and executor for Antlion-induced cave-ins in the caves.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Caveins` is a server-only component responsible for tracking and responding to sinkhole-induced cave-in events in the Caves. It listens for `secondary_sinkholesupdate` events to update internal tracking of affected player positions, triggers local miniquake effects, spawns debris, shakes cameras, and notifies players via speech when a cave-in is imminent. This component is strictly server-side (`TheWorld.ismastersim`), with no client-side presence.
+
+The component interacts with the `talker` component to emit player-specific announcements and leverages `TheWorld:PushEvent("ms_miniquake", ...)` to initiate localized ground effects.
+
+## Usage example
+This component is not manually added by modders — it is instantiated internally when a cave-in capable entity (e.g., Antlion Sinkhole manager) is created. Example usage is not applicable for modding.
+
+## Dependencies & tags
+**Components used:** `talker` (via `player.components.talker:Say(...)`)
+**Tags:** None identified.
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | — | The entity instance to which this component is attached. |
 
-| Property | Type   | Default Value | Description                                  |
-|----------|--------|---------------|----------------------------------------------|
-| `inst`   | entity | `inst`        | A reference to the entity instance this component is attached to. |
+**Private state (not exposed publicly):**
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `_targets` | `table` | `{}` | Tracks active sinkhole targets by player `userhash`. Each entry contains `player`, `pos`, `warncd`, and `warned` fields. |
 
-## Main Functions
+## Main functions
 ### `OnUpdate(dt)`
-* **Description:** Called every frame to update the state of tracked cave-in targets. It updates the last known position of any targeted players and ticks down the warning cooldown timer for each target. If there are no active targets, the component stops updating.
-* **Parameters:**
-    * `dt` (number): The time elapsed since the last update (delta time).
+*   **Description:** Called each frame while there are active targets. Updates target positions for tracking players and decrements warning cooldowns.
+*   **Parameters:** `dt` (number) — Delta time since last frame.
+*   **Returns:** Nothing.
+*   **Error states:** None. Silently skips invalid players.
 
 ### `OnSave()`
-* **Description:** Serializes the current state of active cave-in targets for persistence. It saves the last known position of each target.
-* **Parameters:** None.
+*   **Description:** Serializes active target positions for world save. Includes only the `(x, z)` coordinates of each target.
+*   **Parameters:** None.
+*   **Returns:** `nil` or `{ targets = { { x = number, z = number }, ... } }`.
 
 ### `OnLoad(data)`
-* **Description:** Deserializes saved cave-in target data. Upon loading, it immediately schedules a cave-in attack at each of the saved target locations.
-* **Parameters:**
-    * `data` (table): The saved data table from `OnSave`.
+*   **Description:** Restores cave-in state after world load. Fires immediate miniquake effects for each saved target position.
+*   **Parameters:** `data` (table) — Save data containing `data.targets`.
+*   **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Generates a formatted string listing all current cave-in targets and their positions for debugging purposes.
-* **Parameters:** None.
+*   **Description:** Returns a multi-line string listing all active targets and their positions for debugging.
+*   **Parameters:** None.
+*   **Returns:** `string?` — Debug output like `"[PlayerGabe] @(10.20,-5.70)"` or `nil` if no targets.
 
-## Events & Listeners
-*   **Listens for `secondary_sinkholesupdate`:** On non-master shards, this event listener is the primary driver for the component. It receives a data payload containing information about which players to target for warnings or full-scale cave-in attacks.
-*   **Pushes `ms_miniquake`:** This world event is triggered to create the main cave-in attack. It generates a localized earthquake that spawns falling boulders (`cavein_boulder`) at the target's position.
+## Events & listeners
+- **Listens to:** `secondary_sinkholesupdate` — Fired by the sinkhole system to deliver updated target player data (hash-based).
+- **Pushes:** None. Relies on external systems (`ms_miniquake` via `TheWorld`) for effects.
+
+> **Note:** All logic is executed on the master server (`ismastersim == true`). This component is not present on clients.

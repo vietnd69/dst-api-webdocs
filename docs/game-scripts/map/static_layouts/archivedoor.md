@@ -4,7 +4,6 @@ title: Archivedoor
 description: A static layout configuration for the archived door area in DST caves, defining tilemap data, object placement, and map metadata for world generation.
 tags: [map, worldgen, static_layout, door]
 sidebar_position: 1
-
 last_updated: 2026-02-28
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: 185e61a4
 ---
-
 # Archivedoor
 
 > Based on game build **714014** | Last updated: 2026-02-28
@@ -62,4 +60,3 @@ This file exports a single data table and does not define any functions.
 
 Not applicable — this is a static data file, not a runtime component. No events are registered or dispatched by this file.
 
----

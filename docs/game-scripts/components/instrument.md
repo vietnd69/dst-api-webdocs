@@ -1,80 +1,89 @@
 ---
 id: instrument
 title: Instrument
-description: Manages audio playback and sound propagation for in-game musical instruments by handling playback callbacks and broadcasting sound to nearby listeners.
+description: Manages the playback logic and event callbacks for in-game musical instruments, including range-based listener detection and custom asset overrides.
+tags: [audio, entity, music]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: audio
+category_type: components
 source_hash: 2ea7b8c5
+system_scope: audio
 ---
 
 # Instrument
 
-## Overview
-This component enables an entity to function as a musical instrument within the Entity Component System. It manages the full lifecycle of instrument playback—including pre-play, hearing, and post-play events—and broadcasts audio to eligible listeners within a configurable radius using positional entity queries.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components Used:** None directly added or required.
-- **Tags Used:** Excludes `"FX"`, `"DECOR"`, and `"INLIMBO"` entities when locating listeners for sound propagation (defined in `NOTAGS`).
-- **External Dependencies:** Relies on `TheSim:FindEntities()` and `Transform:GetWorldPosition()`.
+## Overview
+`Instrument` is a component that encapsulates the logic for playing musical instruments within the game world. It supports callback hooks for when an instrument is played, heard, or finishes playing, and allows dynamic adjustment of the hearing range. The component is typically attached to prefabs representing musical instruments and coordinates with the musician entity performing the instrument.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("instrument")
+inst.components.instrument:SetRange(20)
+inst.components.instrument:SetOnHeardFn(function(inst, musician) print("Heard!") end)
+inst.components.instrument:SetOnPlayedFn(function(inst, musician) print("Played!") end)
+inst.components.instrument:Play(musician_entity)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Checks for and excludes entities with tags `FX`, `DECOR`, and `INLIMBO` during listener search.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed to constructor) | Reference to the entity this component is attached to. |
-| `range` | `number` | `15` | Maximum radius (in units) around the musician within which listeners can hear the instrument. |
-| `onheard` | `function?` | `nil` | Callback invoked for each eligible listener when the instrument is played. Signature: `fn(listener, musician, instrument_inst)`. |
-| `onplayed` | `function?` | `nil` | Callback invoked immediately before sound propagation. Signature: `fn(instrument_inst, musician)`. |
-| `onfinishedplaying` | `function?` | `nil` | Callback invoked after sound propagation completes. Signature: `fn(instrument_inst, musician)`. |
-| `override_build` | `string?` | `nil` | Custom asset build name override for the instrument model. |
-| `override_symbol` | `string?` | `nil` | Custom symbol override for the instrument's visual representation. |
-| `override_sound` | `string?` | `nil` | Custom sound event name override for playback. |
+| `range` | number | `15` | Maximum radius (in world units) within which listeners can hear the instrument. |
+| `onheard` | function \| nil | `nil` | Callback invoked when the instrument is played and listeners are detected. Signature: `fn(listener, musician, instrument)` |
+| `onplayed` | function \| nil | `nil` | Callback invoked immediately when the instrument starts playing. Signature: `fn(instrument_inst, musician)` |
+| `onfinishedplaying` | function \| nil | `nil` | Callback invoked after the instrument finishes playing (e.g., at end of animation/sound). Signature: `fn(instrument_inst, musician)` |
+| `override_build` | string \| nil | `nil` | Optional custom build asset to use for the instrument. |
+| `override_symbol` | string \| nil | `nil` | Optional custom symbol/texture to override the instrument’s visual representation. |
+| `override_sound` | string \| nil | `nil` | Optional custom sound event to use instead of the default. |
 
-## Main Functions
-
+## Main functions
 ### `SetOnHeardFn(fn)`
-* **Description:** Sets the callback function invoked once for each listener within range when the instrument is played.  
-* **Parameters:**  
-  `fn` (function): A callback with signature `(listener_entity, musician_entity, instrument_entity)`.
+* **Description:** Sets the callback function triggered when nearby entities hear the instrument. Typically used to play audible feedback or trigger effects for listeners.
+* **Parameters:** `fn` (function) - A function accepting three arguments: `(listener: Entity, musician: Entity, instrument: Entity)`.
+* **Returns:** Nothing.
 
 ### `SetOnPlayedFn(fn)`
-* **Description:** Sets the callback function invoked immediately before sound propagation begins.  
-* **Parameters:**  
-  `fn` (function): A callback with signature `(instrument_entity, musician_entity)`.
+* **Description:** Sets the callback invoked when the instrument begins playing, before any listener logic runs.
+* **Parameters:** `fn` (function) - A function accepting two arguments: `(instrument: Entity, musician: Entity)`.
+* **Returns:** Nothing.
 
 ### `SetOnFinishedPlayingFn(fn)`
-* **Description:** Sets the callback function invoked after sound propagation completes.  
-* **Parameters:**  
-  `fn` (function): A callback with signature `(instrument_entity, musician_entity)`.
+* **Description:** Sets the callback invoked after the instrument completes its playback action (e.g., at end of animation or sound duration).
+* **Parameters:** `fn` (function) - A function accepting two arguments: `(instrument: Entity, musician: Entity)`.
+* **Returns:** Nothing.
 
 ### `SetRange(range)`
-* **Description:** Updates the maximum hearing radius for the instrument.  
-* **Parameters:**  
-  `range` (number): New radius value (must be ≥ 0).
+* **Description:** Updates the radius within which entities can hear the instrument. Controls the effective area of influence for listener detection.
+* **Parameters:** `range` (number) - New hearing radius in world units.
+* **Returns:** Nothing.
 
 ### `SetAssetOverrides(build, symbol, sound)`
-* **Description:** Configures custom asset identifiers for the instrument’s model, visual symbol, and sound. These are stored for later use by other systems (e.g., animations or prefabs).  
-* **Parameters:**  
-  `build` (string): Asset build name.  
-  `symbol` (string): Symbol/texture name.  
-  `sound` (string): Sound event name.
+* **Description:** Assigns optional custom assets to override default visual and audio representations of the instrument.
+* **Parameters:**
+  * `build` (string) — Path to custom build asset (e.g., `anim/build.zip`).
+  * `symbol` (string) — Custom symbol name (e.g., `instrument_symbol.tex`).
+  * `sound` (string) — Custom sound event identifier (e.g., `"sound/events/my_instrument"`).
+* **Returns:** Nothing.
 
 ### `GetAssetOverrides()`
-* **Description:** Returns the currently configured asset overrides.  
-* **Returns:**  
-  `build` (string?), `symbol` (string?), `sound` (string?) — All three in that order.
+* **Description:** Returns the currently set custom asset override values.
+* **Parameters:** None.
+* **Returns:** `build` (string\|nil), `symbol` (string\|nil), `sound` (string\|nil).
 
 ### `Play(musician)`
-* **Description:** Executes the instrument’s playback logic: triggers `onplayed`, finds listeners in range, invokes `onheard` for each, then triggers `onfinishedplaying`.  
-* **Parameters:**  
-  `musician` (Entity): The entity playing the instrument. Its position is used to locate listeners.  
-* **Returns:**  
-  `true` (boolean) — Always returns `true`.
+* **Description:** Executes the instrument playback flow: fires the `onplayed` callback, finds and notifies listeners within `range`, then fires the `onfinishedplaying` callback.
+* **Parameters:** `musician` (Entity) — The entity performing the instrument.
+* **Returns:** `true` — Always returns `true` indicating successful execution.
+* **Error states:** Listeners must have none of the excluded tags (`FX`, `DECOR`, `INLIMBO`) and must not be the instrument instance itself. If `onheard` is `nil`, no listener search or callback occurs.
 
-## Events & Listeners
-- **Listens to:** None (component does not register event listeners).
-- **Triggers:** Uses callback functions (`onheard`, `onplayed`, `onfinishedplaying`) to simulate events—not the event system (`inst:PushEvent`).
+## Events & listeners
+None identified

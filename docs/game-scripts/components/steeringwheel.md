@@ -1,62 +1,80 @@
 ---
 id: steeringwheel
 title: Steeringwheel
-description: Manages player interaction with a steering wheel entity, tracking occupancy and notifying listeners on start/stop events.
+description: Manages the logic and state for a steering wheel entity that allows sailors to control boat movement.
+tags: [locomotion, vehicle, interaction]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: dc5b81d3
+system_scope: locomotion
 ---
-
 # Steeringwheel
 
-## Overview
-This component enables an entity (typically a steering wheel) to track when a player ("sailor") is actively steering it. It manages occupancy state by applying/removing the "occupied" tag, listens for sailor removal events, and invokes optional callback functions when steering begins or ends.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds the `"steeringwheel"` tag to the entity in the constructor.
-- Adds the `"occupied"` tag when a sailor begins steering.
-- Relies on the presence of `"steeringwheeluser"` component on the sailor entity for proper cleanup during removal (though it does not explicitly add it).
-- Registers a listener for the `"onremove"` event on the sailor entity.
+## Overview
+`SteeringWheel` is a component that enables an entity (typically a physical steering wheel object) to mediate sailor interaction for boat control. It tracks whether a sailor is currently using the wheel (`self.sailor`), handles start/stop callbacks, and coordinates cleanup when the wheel is removed from the world or a sailor leaves. It works in tandem with the `steeringwheeluser` component attached to sailors.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("steeringwheel")
+inst.components.steeringwheel:SetOnStartSteeringFn(function(wheel, sailor)
+    -- Custom logic on sailor starting to steer
+end)
+inst.components.steeringwheel:SetOnStopSteeringFn(function(wheel, sailor)
+    -- Custom logic on sailor stopping steering
+end)
+```
+
+## Dependencies & tags
+**Components used:** `steeringwheeluser` (accessed via `sailor.components.steeringwheeluser`)
+**Tags:** Adds `steeringwheel` on initialization; adds/.removes `occupied` when a sailor starts/stops using the wheel.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *(none)* | Reference to the entity the component is attached to. |
-| `sailor` | `Entity?` | `nil` | Reference to the current sailor (player) steering the wheel. |
-| `onstartfn` | `function?` | `nil` | Optional callback invoked when steering starts. |
-| `onstopfn` | `function?` | `nil` | Optional callback invoked when steering stops. |
-| `onsailorremoved` | `function` | *(defined inline)* | Internal handler that stops steering if the sailor is removed. |
+| `inst` | `Entity` | (injected) | The entity instance this component is attached to. |
+| `onstartfn` | function or `nil` | `nil` | Optional callback fired when `StartSteering` is called. |
+| `onstopfn` | function or `nil` | `nil` | Optional callback fired when `StopSteering` is called. |
+| `sailor` | `Entity` or `nil` | `nil` | The sailor entity currently using the wheel. |
 
-## Main Functions
+## Main functions
 ### `SetOnStartSteeringFn(fn)`
-* **Description:** Sets the optional callback function that will be executed when a sailor starts steering the wheel.
-* **Parameters:** `fn` — A function accepting two arguments: `(inst, sailor)`, where `inst` is the steering wheel entity and `sailor` is the player entity.
+*   **Description:** Sets the callback function to execute when a sailor begins using the steering wheel.
+*   **Parameters:** `fn` (function or `nil`) — function accepting `(wheel, sailor)` arguments.
+*   **Returns:** Nothing.
 
 ### `SetOnStopSteeringFn(fn)`
-* **Description:** Sets the optional callback function that will be executed when a sailor stops steering the wheel.
-* **Parameters:** `fn` — A function accepting two arguments: `(inst, sailor)`.
+*   **Description:** Sets the callback function to execute when a sailor stops using the steering wheel.
+*   **Parameters:** `fn` (function or `nil`) — function accepting `(wheel, sailor)` arguments.
+*   **Returns:** Nothing.
 
 ### `StartSteering(sailor)`
-* **Description:** Marks the steering wheel as occupied by the given sailor, registers cleanup listeners, and invokes the `onstartfn` callback if defined.
-* **Parameters:** `sailor` — The player entity (sailor) beginning to steer the wheel.
+*   **Description:** Registers a sailor as the current user of this steering wheel. Adds the `occupied` tag and sets up an event listener for the sailor's removal.
+*   **Parameters:** `sailor` (`Entity`) — the sailor entity initiating steering.
+*   **Returns:** Nothing.
+*   **Error states:** If `sailor` is already assigned, it will be overwritten without warning.
 
 ### `StopSteering()`
-* **Description:** Releases occupancy of the steering wheel, removes the `"occupied"` tag, unregisters the sailor removal listener, invokes the `onstopfn` callback (if defined), and clears the `sailor` reference.
-* **Parameters:** None.
+*   **Description:** Ends the current sailor's use of this wheel. Removes the `occupied` tag and clears the sailor reference.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `OnRemoveFromEntity()`
-* **Description:** Handles cleanup when the component is removed from the entity, particularly ensuring the sailor's steering reference is properly cleared.
-* **Parameters:** None.
+*   **Description:** Ensures proper cleanup when the steering wheel is removed from its entity. If a sailor is actively using the wheel, it notifies the sailor's `steeringwheeluser` component to disengage.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a debug-friendly string identifying the current sailor (or `nil`), used for inspector tools.
-* **Parameters:** None.
+*   **Description:** Returns a human-readable debug string summarizing the current sailor assignment.
+*   **Parameters:** None.
+*   **Returns:** `string` — e.g., `"Sailor: Entity #123"` or `"Sailor: nil"`.
 
-## Events & Listeners
-- **Listens for `"onremove"` on the sailor entity** — Triggers `onsailorremoved`, which in turn calls `StopSteering()` if the sailor being removed is the current one.
-- **Pushes no events** — The component does not emit any events itself.
+## Events & listeners
+- **Listens to:** `onremove` — fired on the `sailor` entity; triggers `StopSteering()` if the sailor is removed while assigned.
+- **Pushes:** None — this component does not fire events directly.
+

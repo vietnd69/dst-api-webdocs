@@ -1,70 +1,85 @@
 ---
 id: hitcher
 title: Hitcher
-description: Manages the ability of an entity to be hitched to or detached from another hitchable entity, controlling hitching state, locking, and associated tags.
+description: Manages hitching state and tag synchronization for entities that can be hitched to or from other entities.
+tags: [hitching, entity, tags, network]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 66b02d8c
+system_scope: entity
 ---
 
 # Hitcher
 
-## Overview
-The `Hitcher` component enables an entity (typically a character or vehicle) to act as a hitcher—assigning it to be hitched to a hitchable target entity or releasing it. It tracks hitching state, locking status, and updates relevant entity tags (`hitcher`, `hitcher_locked`) accordingly.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies:** None declared directly, but relies on `hitchable` component being present on hitch targets for proper `SetHitched` and `Unhitch` behavior.
-- **Tags Added/Removed:**
-  - Adds `hitcher` tag when `canbehitched` is `true`.
-  - Removes `hitcher` tag when `canbehitched` becomes `false`.
-  - Adds `hitcher_locked` tag when `locked` is `true`.
-  - Removes `hitcher_locked` tag when `locked` becomes `false`.
+## Overview
+`Hitcher` is an entity component responsible for tracking whether an entity is hitched to another entity (e.g., a horse hitched to a hitching post). It maintains local hitching state (`hitched`, `canbehitched`, `locked`) and synchronizes tags (`hitcher`, `hitcher_locked`) based on those states. It coordinates with the `hitchable` component on the target entity to ensure bidirectional hitching consistency.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("hitcher")
+
+-- Hitch this entity to a target
+local target = prefabs.hitching_post()
+inst.components.hitcher:SetHitched(target)
+
+-- Unhitch
+inst.components.hitcher:Unhitch()
+
+-- Lock/unlock hitching ability
+inst.components.hitcher:Lock(true)
+```
+
+## Dependencies & tags
+**Components used:** `hitchable` (accessed via `target.components.hitchable`)
+**Tags:** Adds/removes `hitcher` (when `canbehitched` changes), `hitcher_locked` (when `locked` changes).
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `hitched` | `entity or nil` | `nil` | Reference to the entity this hitcher is currently attached to. |
-| `canbehitched` | `boolean` | `true` | Controls whether the entity is eligible to be hitched (also triggers the `hitcher` tag). |
-| `locked` | `boolean` | `false` | Indicates if the hitcher is locked (also triggers the `hitcher_locked` tag). |
-| `hitchedfn` | `function or nil` | `nil` | Optional callback invoked when hitching occurs. |
-| `unhitchfn` | `function or nil` | `nil` | Optional callback invoked when unhitching occurs. |
+| `hitched` | entity or `nil` | `nil` | Reference to the entity this hitcher is currently attached to. |
+| `canbehitched` | boolean | `true` | Whether this hitcher is currently available to be hitched. Set to `false` when hitched; set back to `true` on unhitch. |
+| `locked` | boolean | `false` | If `true`, indicates the hitcher is locked (used for visual/tag state; does not prevent hitching itself). |
 
-## Main Functions
+## Main functions
 ### `GetHitched()`
-* **Description:** Returns the current hitched entity reference, or `nil` if not hitched.
+* **Description:** Returns the currently hitched entity, if any.
 * **Parameters:** None.
+* **Returns:** `entity` or `nil`.
 
 ### `SetHitched(target)`
-* **Description:** Assigns this hitcher to a new target entity. Disables further hitching (`canbehitched = false`), notifies the target’s `hitchable` component (if present), and invokes the optional `hitchedfn` callback.
-* **Parameters:**  
-  - `target`: The entity to hitch to. Must (ideally) have a `hitchable` component.
+* **Description:** Hitchs this entity to the specified `target`. Updates state and notifies the target's `hitchable` component.
+* **Parameters:** `target` (entity) — the entity to hitch to.
+* **Returns:** Nothing.
+* **Error states:** If `target` lacks a `hitchable` component, no bidirectional setup occurs.
 
 ### `Unhitch()`
-* **Description:** Releases the current hitched target, restores hitching eligibility (`canbehitched = true`), notifies the target’s `hitchable` component if needed, invokes `unhitchfn` callback (if set), clears internal state, and pushes an `"unhitched"` event.
+* **Description:** Unhitches this entity, restoring `canbehitched` to `true`. Also unhitches the previously hitched target if it is still locked.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Events:** Pushes `unhitched` event upon completion.
 
 ### `Lock(setting)`
-* **Description:** Sets the `locked` state of the hitcher. Controls whether the `hitcher_locked` tag is applied.
-* **Parameters:**  
-  - `setting`: `boolean` – `true` to lock, `false` to unlock.
+* **Description:** Sets the `locked` state, which affects tag `hitcher_locked`.
+* **Parameters:** `setting` (boolean) — `true` to lock, `false` to unlock.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Prepares data for saving (currently returns an empty table—no state is persisted beyond default defaults).
+* **Description:** Prepares save data for persistence. Currently returns an empty table (no state serialized).
 * **Parameters:** None.
+* **Returns:** `data` (table) — always `{}` in this implementation.
 
 ### `OnLoad(data)`
-* **Description:** Restores saved state (currently a no-op—does not restore any persisted data).
-* **Parameters:**  
-  - `data`: Placeholder—unused.
+* **Description:** Loads persisted state. Currently a no-op (no state deserialized).
+* **Parameters:** `data` (table) — expected to match `OnSave()` output.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens For:**
-  - `canbehitched` property change → triggers `onhitched()` handler
-  - `locked` property change → triggers `onlocked()` handler  
-- **Pushes Events:**
-  - `"unhitched"` (during `Unhitch()`)
+## Events & listeners
+- **Listens to:** None directly. Tag updates are triggered by property getters/setters defined in the `Class()` definition (via `canbehitched = onhitched`, `locked = onlocked`).
+- **Pushes:** `unhitched` — fired during `Unhitch()` after unhitching is complete.

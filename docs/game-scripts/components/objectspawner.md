@@ -1,59 +1,82 @@
 ---
 id: objectspawner
 title: Objectspawner
-description: Manages a collection of spawnable and persistent entities, tracks their lifecycle, and supports saving/loading of owned objects.
+description: Manages a collection of spawned prefabs as owned objects, tracking them for persistence and event handling.
+tags: [persistence, world, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: b739104a
+system_scope: world
 ---
 
 # Objectspawner
 
-## Overview
-The `ObjectSpawner` component enables an entity to own, track, and persistently manage spawned child objects. It handles object lifecycle registration, custom callbacks on new object creation, and integration with the game's save/load system by storing and restoring references to owned objects using GUIDs.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-* **Uses:** `SpawnPrefab` (global function) to instantiate prefabs.
-* **No explicit component dependencies** — it only requires the parent entity (`inst`) to be present.
-* **No tags are added or removed** on the parent entity or spawned objects.
+## Overview
+`ObjectSpawner` is a lightweight component that maintains a list of prefabs it has spawned or been explicitly given ownership of. It is designed for entities (often world or room-related) that need to track child objects—for example, to preserve references across saves or trigger actions when new objects are added. It does not manage object lifecycle beyond ownership tracking; object spawning is delegated to the global `SpawnPrefab` function.
+
+This component integrates with the game’s save/load system through `OnSave()` and `LoadPostPass()` methods, storing only GUIDs to re-establish references after loading.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("objectspawner")
+
+-- Spawn a new object and take ownership
+inst.components.objectspawner:SpawnObject("fireflies")
+
+-- Or manually take ownership of an existing object
+local new_obj = SpawnPrefab("torch")
+inst.components.objectspawner:TakeOwnership(new_obj)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified  
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (passed in) | Reference to the entity that owns this component. |
-| `objects` | `table (array)` | `{}` | List of owned child entities managed by this spawner. |
-| `onnewobjectfn` | `function?` | `nil` | Optional callback invoked whenever a new object is taken into ownership. Signature: `callback(inst, new_object)`. |
+| `inst` | `Entity` | *(assigned automatically)* | The entity instance that owns this component. |
+| `objects` | `table` | `{}` | List of owned object entities. |
+| `onnewobjectfn` | `function?` | `nil` | Optional callback invoked when a new object is taken ownership of. |
 
-## Main Functions
+## Main functions
 ### `OnSave()`
-* **Description:** Serializes the component’s state for saving. Collects GUIDs of all owned objects and returns them in a table for persistence.
+* **Description:** Prepares the component’s state for persistence. Collects GUIDs of all owned objects and returns them as data.  
 * **Parameters:** None.  
-* **Returns:** A table with an `objects` field containing GUIDs (if any), and a list of references (identical to the GUIDs); or `nil` if no objects are owned.
+* **Returns:**  
+  * If `objects` is non-empty: `{ objects = table_of_GUIDs }, references` — where `references` is identical to `objects`.  
+  * If `objects` is empty: `nil`.  
 
 ### `LoadPostPass(newents, data)`
-* **Description:** Restores ownership of previously saved objects after world loading completes. Maps saved GUIDs to new entity instances using the `newents` lookup and reassigns ownership.
-* **Parameters:**
-  * `newents`: `table` — A mapping of saved GUIDs to new entity instances post-load.
-  * `data`: `table?` — Saved data payload (must contain an `objects` array of GUIDs to restore).
+* **Description:** Restores references to spawned objects after loading is complete. Uses `newents` (a map of GUID → entity) to lookup and take ownership of each stored object.  
+* **Parameters:**  
+  * `newents` (table) — Map of GUID strings to entity instances.  
+  * `data` (table) — Saved data containing `data.objects` (list of GUIDs).  
+* **Returns:** Nothing.  
+* **Error states:** Silently skips entries where `newents[v]` is `nil` (e.g., if a referenced object failed to load).
 
 ### `TakeOwnership(obj)`
-* **Description:** Registers a new entity (`obj`) as an owned child, adds it to the internal `objects` list, and triggers the optional `onnewobjectfn` callback if defined.
-* **Parameters:**
-  * `obj`: `Entity` — The entity to register as owned.
+* **Description:** Registers an existing object as owned by this spawner, invokes the optional `onnewobjectfn` callback, and adds the object to the `objects` list.  
+* **Parameters:**  
+  * `obj` (`Entity`) — The object to take ownership of.  
+* **Returns:** Nothing.  
+* **Error states:** Does nothing if `obj` is `nil`. Does not prevent duplicate entries.
 
 ### `SpawnObject(obj, linked_skinname, skin_id)`
-* **Description:** Spawns a new prefab using `SpawnPrefab`, then registers it under ownership via `TakeOwnership`.
-* **Parameters:**
-  * `obj`: `string` — The prefab name to spawn.
-  * `linked_skinname`: `string?` — Optional skin prefab name.
-  * `skin_id`: `number?` — Optional numeric skin ID.
-* **Returns:** `Entity` — The newly spawned and owned object.
+* **Description:** Spawns a new prefab using `SpawnPrefab()` and automatically takes ownership of the result.  
+* **Parameters:**  
+  * `obj` (string) — Prefab name to spawn.  
+  * `linked_skinname` (string?, optional) — Skin name to apply (e.g., `"linked"`).  
+  * `skin_id` (number?, optional) — Numeric skin ID.  
+* **Returns:** `Entity` — The newly spawned object (same as returned by `SpawnPrefab`).  
 
-## Events & Listeners
-* **None identified.**  
-  This component does not register for or emit any events using `inst:ListenForEvent` or `inst:PushEvent`.
+## Events & listeners
+- **Listens to:** None identified  
+- **Pushes:** None identified

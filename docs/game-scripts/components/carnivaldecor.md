@@ -1,45 +1,49 @@
 ---
 id: carnivaldecor
 title: Carnivaldecor
-description: Manages an entity's status and value as a carnival decoration, registering it with nearby rankers.
+description: Tracks and reports the decorative value of an entity for carnival ranking systems by integrating with nearby CarnivalDecorRanker components.
+tags: [carnival, decoration, world]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: entity
 source_hash: 3f9d7ba1
+system_scope: world
 ---
 
 # Carnivaldecor
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component marks an entity as a piece of carnival decoration. Its primary responsibility is to find nearby entities with a `carnivaldecorranker` component and register itself with them, contributing to a local decoration score. It automatically handles deregistering itself when the entity is removed from the world.
+`CarnivalDecor` is an entity component that enables an object to contribute to carnival decoration rankings. When attached to an entity, it registers the object with nearby `carnivaldecorranker` components (within `TUNING.CARNIVAL_DECOR_RANK_RANGE` units) by notifying them of its presence and value. It automatically manages registration during placement and removal, and maintains a `carnivaldecor` tag on its host entity. This component works in tandem with `CarnivalDecorRanker` to dynamically track overall decoration scores in the world.
 
-## Dependencies & Tags
-**Dependencies:**
-*   This component's logic requires other entities in the world to have the `carnivaldecorranker` component to function correctly.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("carnivaldecor")
+-- Value is 1 by default; can be customized by overriding in subclass or via prototype
+print(inst.components.carnivaldecor:GetDecorValue()) -- returns 1
+```
 
-**Tags:**
-*   Adds the `carnivaldecor` tag to the entity upon initialization.
-*   Removes the `carnivaldecor` tag when the component is removed.
+## Dependencies & tags
+**Components used:** `carnivaldecorranker` (accessed via `inst.components.carnivaldecorranker` on ranker entities)
+**Tags:** Adds `carnivaldecor` on initialization; removes it on entity/component removal.
 
 ## Properties
-| Property | Type   | Default Value | Description                                          |
-| -------- | ------ | ------------- | ---------------------------------------------------- |
-| `inst`   | Entity | `self.inst`   | A reference to the entity instance holding this component. |
-| `value`  | number | `1`           | The decoration score this entity provides.           |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `value` | number | `1` | Decorative score贡献 of this entity, returned by `GetDecorValue()`. |
 
-## Main Functions
+## Main functions
 ### `GetDecorValue()`
-*   **Description:** Returns the decoration value of this entity.
-*   **Parameters:** None.
+* **Description:** Returns the decorative value of this entity, used by `CarnivalDecorRanker` components to compute cumulative scores.
+* **Parameters:** None.
+* **Returns:** `number` — the current decorative value (typically `1`, unless overridden in a subclass).
+* **Error states:** None — always returns a numeric value.
 
-### `OnRemoveFromEntity()`
-*   **Description:** A lifecycle hook called when the component is being removed from the entity. It removes the `carnivaldecor` tag and deregisters the entity from any nearby carnival decor rankers.
-*   **Parameters:** None.
-
-### `OnRemoveEntity()`
-*   **Description:** A lifecycle hook called when the entity is being removed from the world. It deregisters the entity from any nearby carnival decor rankers to ensure the score is updated correctly.
-*   **Parameters:** None.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** None.

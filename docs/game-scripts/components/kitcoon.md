@@ -1,32 +1,47 @@
 ---
 id: kitcoon
 title: Kitcoon
-description: A minimal placeholder component for the Kitcoon entity that currently provides no functional behavior beyond returning an empty debug string.
+description: A placeholder component with no functional behavior; provides a minimal implementation for debugging or future expansion.
+tags: [debug, placeholder]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: d1a9b0d5
+system_scope: entity
 ---
 
 # Kitcoon
 
-## Overview
-The `Kitcoon` component serves as a structural placeholder for the Kitcoon entity within the Entity Component System. It initializes the entity reference and implements a `GetDebugString` method that returns an empty string. No active gameplay logic, state management, or integration with other systems is present in this component.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Kitcoon` is a minimal, non-functional component attached to entities. It serves as a placeholder or stub with no active behavior beyond exposing a `GetDebugString` method that returns an empty string. It does not interact with other components, tags, or game systems.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("kitcoon")
+-- This component has no runtime effect.
+-- The following always returns an empty string:
+local debug_str = inst.components.kitcoon:GetDebugString()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-No public properties were clearly identified from the source. The component only stores `self.inst` (the entity instance), which is standard for DST components but not exposed as a documented public property.
+No public properties
 
-## Main Functions
+## Main functions
 ### `GetDebugString()`
-* **Description:** Returns a string for debugging purposes. Currently always returns an empty string.
+* **Description:** Returns a string for debugging purposes. In this implementation, it always returns an empty string.
 * **Parameters:** None.
+* **Returns:** `string` — always `""`.
+* **Error states:** None.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified.

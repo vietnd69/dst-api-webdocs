@@ -1,52 +1,60 @@
 ---
 id: groundshadowhandler
 title: Groundshadowhandler
-description: Dynamically updates a ground shadow entity's position and scale based on the owner's vertical height above ground.
+description: Manages a ground shadow effect that dynamically scales and positions beneath an entity based on its vertical height.
+tags: [fx, environment, rendering]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: d94a49fe
+system_scope: fx
 ---
 
 # Groundshadowhandler
 
-## Overview
-This component manages a non-networked, dynamic ground shadow entity for its owner. It keeps the shadow aligned horizontally with the owner while adjusting the shadow's size based on the owner's height above the ground (higher entities cast smaller shadows). It automatically spawns and removes the shadow when the component is attached or detached.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires the owner entity to have a `Transform` component (for position queries) and a `DynamicShadow` component on the shadow entity (for sizing and rendering).
-- The shadow entity is assigned tags: `FX`, `CLASSIFIED`, `NOCLICK`, `NOBLOCK`, and has `SetCanSleep(false)` and `persists = false`.
-- No external component dependencies are added to the owner entity.
+## Overview
+`GroundShadowHandler` is a client-side component that creates and maintains a dynamic ground shadow entity beneath its host. The shadow scales and repositions in real time based on the host entity’s vertical position (`Y`-axis), giving a sense of depth and height variation relative to the ground plane. It is typically attached to prefabs that require visually grounded shadowing without complex physics or server-side replication.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("groundshadowhandler")
+inst.components.groundshadowhandler:SetSize(2.0, 1.5)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Creates and manages a shadow entity with tags: `FX`, `CLASSIFIED`, `NOCLICK`, `NOBLOCK`. Does not modify host entity tags.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed in constructor) | The entity to which this component is attached. |
-| `ground_shadow` | `Entity?` | `nil` (set in `_ctor`) | Reference to the spawned shadow entity. |
-| `original_width` | `number?` | `nil` | Stored base width used for scaling. Set via `SetSize`. |
-| `original_height` | `number?` | `nil` | Stored base height used for scaling. Set via `SetSize`. |
+| `inst` | `Entity` | (passed to constructor) | The entity to which this component is attached. |
+| `ground_shadow` | `Entity` or `nil` | `nil` | The shadow entity instance, created via `groundshadowprefabfn`. |
+| `original_width` | number | `0` | Stored width of the shadow before dynamic scaling. |
+| `original_height` | number | `0` | Stored height of the shadow before dynamic scaling. |
 
-## Main Functions
+## Main functions
+### `SetSize(width, height)`
+* **Description:** Sets the base dimensions of the shadow and configures the underlying `DynamicShadow` component.
+* **Parameters:**  
+  `width` (number) — base horizontal width of the shadow.  
+  `height` (number) — base vertical height of the shadow.
+* **Returns:** Nothing.
+* **Error states:** If the shadow entity has been removed (`ground_shadow == nil`), calling this function has no effect.
 
-### `GroundShadowHandler:SetSize(width, height)`
-* **Description:** Sets the base (unscaled) dimensions of the ground shadow and directly applies them to the shadow’s `DynamicShadow` component.
-* **Parameters:**
-  - `width` (number): Base width of the shadow.
-  - `height` (number): Base height of the shadow.
+### `OnUpdate(dt)`
+* **Description:** Called each frame to update the shadow’s position and scale. Moves the shadow directly under the host entity (at `Y = 0`) and scales it inversely with the host’s height above ground.  
+* **Parameters:**  
+  `dt` (number) — delta time in seconds since last frame (unused directly, but passed for consistency).
+* **Returns:** Nothing.
+* **Error states:** Exits early if `ground_shadow` is `nil` or the host entity is no longer valid.
 
-### `GroundShadowHandler:OnUpdate(dt)`
-* **Description:** Called each frame while the component is active. Updates the shadow’s horizontal position to match the owner’s X/Z coordinates, and dynamically scales the shadow based on the owner’s vertical (Y) height—higher entities have smaller shadows, with scale smoothly interpolated between `MIN_SCALE` (0.3) and `MAX_SCALE` (1.0).
-* **Parameters:**
-  - `dt` (number): Delta time since the last frame (unused in calculation, but required by the update loop).
-
-### `GroundShadowHandler:OnRemoveEntity()`
-* **Description:** Safely removes the shadow entity if it exists and sets the reference to `nil`. Invoked automatically when the component is removed or the owner entity is destroyed.
-
-## Events & Listeners
-- `inst:StartUpdatingComponent(self)` is called in the constructor, enabling `OnUpdate(dt)` to be invoked regularly.
-- No explicit event listeners (`inst:ListenForEvent`) or custom events (`inst:PushEvent`) are used.
+## Events & listeners
+- **Listens to:** None identified  
+- **Pushes:** None identified

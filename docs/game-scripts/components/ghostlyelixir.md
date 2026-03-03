@@ -1,45 +1,60 @@
 ---
 id: ghostlyelixir
 title: Ghostlyelixir
-description: This component enables an item to function as a ghostly elixir by applying predefined effects to eligible targets upon use.
+description: Handles the application of ghostly elixir effects to a target entity, consuming the item upon successful application.
+tags: [consumable, inventory, utility, network]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 40f16510
+system_scope: inventory
 ---
 
 # Ghostlyelixir
 
-## Overview
-The `GhostlyElixir` component allows an entity (typically a consumable item) to serve as a ghostly elixir, enabling custom application logic defined via a callback function (`doapplyelixerfn`) to be executed on a target entity. It also manages the elixir's removal after successful use and ensures it is tagged appropriately for identification.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Tags added:** `"ghostlyelixir"`
-- **Dependencies:** Relies on the target entity having a `ghostlyelixirable` component (to determine valid recipients via `GetApplyToTarget`). If used on an `elixir_drinker`, it retrieves the actual owner from the `inventoryitem` component. May interact with `stackable` to reduce stack count or remove the item entirely.
+## Overview
+`Ghostlyelixir` is a component that enables an entity to act as a ghostly elixir item—consumable by players or other entities to trigger specific gameplay effects. It integrates with the `ghostlyelixirable` and `stackable` components to determine the recipient and manage item consumption. The component is typically attached to elixir prefabs and ensures proper cleanup after use.
+
+## Usage example
+```lua
+local inst = SpawnPrefab("ghostlyelixir")
+inst.components.ghostlyelixir.doapplyelixerfn = function(elixir, doer, target)
+    -- Custom effect logic here
+    return true
+end
+-- Later, during inventory interaction:
+inst.components.ghostlyelixir:Apply(player, player)
+```
+
+## Dependencies & tags
+**Components used:** `inventoryitem`, `stackable`, `ghostlyelixirable`  
+**Tags:** Adds `ghostlyelixir` on instantiation; removes `ghostlyelixir` on removal from entity.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *(none)* | Reference to the entity this component is attached to (the elixir item). |
-| `doapplyelixerfn` | `function?` | `nil` | Optional callback function invoked during `Apply`, with signature `(elixir, doer, target) → success: boolean, reason: string?`. Controls the actual effect logic. |
+| `doapplyelixerfn` | function | `nil` | Optional callback function `(elixir, doer, target) -> (boolean success, string? reason)` defining custom application logic. |
 
-> Note: `doapplyelixerfn` is not initialized in `_ctor`; it is expected to be set externally after component construction.
-
-## Main Functions
-
+## Main functions
 ### `Apply(doer, target)`
-* **Description:** Executes the elixir's effect on the specified target. If the target has the `"elixir_drinker"` tag, resolves the true owner via the `inventoryitem` component. Delegates target selection to the `ghostlyelixirable` component on the target. If a valid target is identified and `doapplyelixerfn` is defined, invokes the callback. On successful application, consumes the elixir (either decrementing stack or full removal).
-* **Parameters:**
-  - `doer`: The entity performing the application (often the player).
-  - `target`: The proposed target entity (may be an `elixir_drinker` holding the elixir, in which case the owner becomes the actual target).
+*   **Description:** Attempts to apply the elixir's effect to the specified target. Delegates final recipient determination to `ghostlyelixirable:GetApplyToTarget()`, invokes `doapplyelixerfn` if defined, and consumes the elixir upon success.
+*   **Parameters:**  
+    `doer` (Entity) - The entity performing the application (e.g., a player).  
+    `target` (Entity) - The intended recipient; if the target has the `elixir_drinker` tag, the true owner is resolved via `inventoryitem.owner`.
+*   **Returns:**  
+    `boolean success` – `true` if the elixir was applied and consumed; `false` otherwise.  
+    `string? reason` – (optional) A localizable string explaining failure, if returned by `doapplyelixerfn`.
+*   **Error states:** Returns `false` if `target` lacks `inventoryitem.owner` when `elixir_drinker` is present, or if `doapplyelixerfn` is `nil` or returns `false`.
 
 ### `OnRemoveFromEntity()`
-* **Description:** Cleans up by removing the `"ghostlyelixir"` tag when the component is detached from its entity.
-* **Parameters:** None.
+*   **Description:** Cleans up the `ghostlyelixir` tag when the component is removed from its entity.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-## Events & Listeners
+## Events & listeners
 None identified.

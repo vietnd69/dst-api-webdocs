@@ -1,121 +1,87 @@
 ---
 id: seasons
 title: Seasons
-description: Manages seasonal cycles, timing, and clock segment distribution in the game world.
+description: Manages seasonal cycles, progression, and world clock segment assignment for the game world.
+tags: [seasons, world, network, clock]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 57f26856
+system_scope: world
 ---
 
 # Seasons
 
-## Overview
-This component orchestrates the game's seasonal system—tracking current season, progression, duration, and clock segment (day/dusk/night) distribution—on the master simulation and master shard. It handles season transitions, mode configuration (cycle/endless/always), and network synchronization between shards.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- `inst`: The entity to which the component is attached (typically `TheWorld`).
-- Network variables rely on `net_tinybyte`, `net_byte`, `net_ushortint`, and `net_bool` for cross-shard sync.
-- No explicit component dependencies are added via `AddComponent`.
-- No tags are added or removed.
+## Overview
+The `seasons` component is a master simulation-only component responsible for tracking and advancing seasons, managing their durations, and controlling the day/dusk/night segment distribution in the world clock. It handles both cycle-based and endless seasonal modes, and synchronizes seasonal state across the server and client shards via network variables. It interacts closely with the world's clock system by pushing updated segment configurations when seasons change.
+
+## Usage example
+```lua
+-- Typically attached automatically to TheWorld; rarely added manually.
+-- Example of reading current season and season length:
+local season_name = SEASON_NAMES[TheWorld.components.seasons._season:value()]
+local remaining = TheWorld.components.seasons._remainingdaysinseason:value()
+local total = TheWorld.components.seasons._totaldaysinseason:value()
+print("Current season:", season_name, "Days remaining:", remaining, "/", total)
+```
+
+## Dependencies & tags
+**Components used:** None  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity the component is attached to (the world instance). |
-| `_season` | `net_tinybyte` | `SEASONS.autumn` | Current season index (1=autumn, 2=winter, 3=spring, 4=summer). |
-| `_totaldaysinseason` | `net_byte` | `TUNING.SEASON_LENGTH_FRIENDLY_DEFAULT * 2` | Total days in the current season (doubled for spring/autumn during transition simulation). |
+| `inst` | `Entity` | — | The entity instance (typically `TheWorld`) that owns this component. |
+| `_season` | `net_tinybyte` | `SEASONS.autumn` | Networked current season index (`1=autumn`, `2=winter`, `3=spring`, `4=summer`). |
+| `_totaldaysinseason` | `net_byte` | `TUNING.SEASON_LENGTH_FRIENDLY_DEFAULT * 2` | Total days scheduled for the current season. |
 | `_elapseddaysinseason` | `net_ushortint` | `0` | Days elapsed in the current season. |
 | `_remainingdaysinseason` | `net_byte` | `TUNING.SEASON_LENGTH_FRIENDLY_DEFAULT` | Days remaining in the current season. |
-| `_endlessdaysinseason` | `net_bool` | `false` | Whether the current season is an endless (peak-phase) season. |
-| `_lengths[i]` | `net_byte` | `TUNING.{SEASON}_LENGTH` | Per-season length (in days) for each of the 4 seasons. |
-| `_segs[i]` | `table` | `DEFAULT_CLOCK_SEGS[SEASON_NAMES[i]]` | Clock segment counts (day/dusk/night) for each season (stored per-season). |
-| `_segmod` | `table` | `{day=1, dusk=1, night=1}` | Multiplier applied to clock segments (for per-player or modded modifications). |
-| `_mode` | `integer` | `MODES.cycle` | Current season mode: 1=cycle, 2=endless, 3=always. |
-| `_premode` | `boolean` | `false` | Whether the current phase is a pre-endless or pre-cycle warm-up period. |
-| `_israndom` | `table` | `{}` | Tracks whether a season’s length was set randomly (prevents overwriting). |
+| `_endlessdaysinseason` | `net_bool` | `false` | Whether the current season is in endless mode (i.e., ramping toward and maintaining a fixed length). |
+| `_lengths` | `array of net_byte` | — | Array indexed by season index, storing user-defined lengths (via `TUNING.*` or mod overrides). |
+| `_segs` | `array of tables` | `DEFAULT_CLOCK_SEGS` | Array of day/dusk/night segment distributions per season (e.g., `{day=8, dusk=6, night=2}` for autumn). |
+| `_segmod` | `table` | `{day=1, dusk=1, night=1}` | Multipliers applied to each segment duration (used for dynamic clock adjustments). |
+| `_mode` | `number` | `MODES.cycle` | Current season mode: `cycle`, `endless`, or `always`. |
+| `_premode` | `boolean` | `false` | Whether the world is in a "pre" phase (e.g., pre-endless ramp-up or cycle pre-sequence). |
 
-## Main Functions
-### `GetModifiedSegs(segs, mod)`
-* **Description:** Applies segment modifiers to base clock segments, ensuring the total remains exactly 16. Adjusts segments based on priority (dusk > day > night if overflow, or vice versa if underflow).
-* **Parameters:**
-  - `segs`: Table with `day`, `dusk`, and `night` values.
-  - `mod`: Modifier table (e.g., `{day=0.5, dusk=1.2, night=1.0}`).
+## Main functions
+The `seasons` component does not expose any public methods beyond save/load/debug helpers. All functional logic is implemented internally via private functions and event handlers.
 
-### `PushSeasonClockSegs()`
-* **Description:** Computes interpolated or current clock segments (including modifiers), then broadcasts `ms_setclocksegs` to the world clock to apply the seasonal day/dusk/night split.
+### `GetDebugString()`
+* **Description:** Returns a human-readable summary of the current season state for debugging.
 * **Parameters:** None.
+* **Returns:** `string` — formatted as `"<SeasonName> <elapsed> -> <remaining> days (<progress> %) <Mode> <(PRE)>"`.
+* **Error states:** None.
 
-### `UpdateSeasonMode(modified_season)`
-* **Description:** Recalculates the global season mode (cycle/endless/always) based on active (non-zero-length) seasons. Adjusts season durations, pre-mode flags, and endless-mode ramp logic accordingly.
-* **Parameters:**
-  - `modified_season`: (Optional) Index of a season whose length was just changed; used to refine update logic.
-
-### `PushMasterSeasonData()`
-* **Description:** Packages and broadcasts current season state (`season`, `lengths`, `days`, etc.) to other shards via the `master_seasonsupdate` event.
+### `OnSave()`
+* **Description:** serializes the component’s internal state for world saving.
 * **Parameters:** None.
+* **Returns:** `table` — containing `mode`, `premode`, `israndom`, `segs`, `season`, `totaldaysinseason`, `elapseddaysinseason`, `remainingdaysinseason`, `lengths`.
 
-### `OnAdvanceSeason()`
-* **Description:** Advances the season by one day (or handles pre-mode/endless-ramp logic). Handles season transitions for all modes (cycle/endless/always) and recalculates remaining/elapsed days.
-* **Parameters:** None.
+### `OnLoad(data)`
+* **Description:** restores the component’s internal state from a saved `data` table during world loading.
+* **Parameters:** `data` (table) — saved state as produced by `OnSave()`.
+* **Returns:** Nothing.
 
-### `OnRetreatSeason()`
-* **Description:** Reverses season progression by one day (used for time-travel or debugging). Mirrors the logic of `OnAdvanceSeason` in reverse.
-* **Parameters:** None.
+## Events & listeners
+- **Listens to:**  
+  - `seasondirty` — triggers `OnSeasonDirty`, which pushes `seasontick` and (on mastershard) `master_seasonsupdate`.  
+  - `lengthsdirty` — triggers `OnLengthsDirty`, which pushes `seasonlengthschanged` and (on mastershard) `master_seasonsupdate`.  
+  - `ms_cyclecomplete`, `ms_advanceseason` — invokes `OnAdvanceSeason`.  
+  - `ms_retreatseason` — invokes `OnRetreatSeason`.  
+  - `ms_setseason` — invokes `OnSetSeason`.  
+  - `ms_setseasonlength` — invokes `OnSetSeasonLength`.  
+  - `ms_setseasonclocksegs` — invokes `OnSetSeasonClockSegs`.  
+  - `ms_setseasonsegmodifier` — invokes `OnSetSeasonSegModifier`.  
+  - `secondary_seasonsupdate` (non-mastershard only) — invokes `OnSeasonsUpdate`.  
 
-### `OnSetSeason(src, season)`
-* **Description:** Forcefully sets the current season (valid only on master simulation). Resets elapsed days and updates mode/segments as needed.
-* **Parameters:**
-  - `season`: String name of the season (`"autumn"`, `"winter"`, `"spring"`, `"summer"`).
-
-### `OnSetSeasonClockSegs(src, segs)`
-* **Description:** Sets base clock segments for all seasons (valid only on master shard). Uses defaults if partial or invalid data is provided.
-* **Parameters:**
-  - `segs`: Table mapping season names to segment tables (e.g., `{ autumn = {day=8, dusk=6, night=2}, ... }`).
-
-### `OnSetSeasonLength(src, data)`
-* **Description:** Sets the length (in days) of a specific season. Triggers mode recalculation and segment updates if the current season is affected.
-* **Parameters:**
-  - `data.season`: Season name string.
-  - `data.length`: Integer day count (or `0` to disable the season).
-  - `data.random`: Boolean flag to prevent accidental override of random length changes.
-
-### `OnSetSeasonSegModifier(src, mod)`
-* **Description:** Applies a modifier to all clock segments (e.g., for per-player seasonal mods or anomalies). Only valid on master shard.
-* **Parameters:**
-  - `mod`: Table of multipliers for `day`, `dusk`, and `night` segments.
-
-### `self:GetDebugString()`
-* **Description:** Returns a human-readable debug string summarizing current season, day progress, and mode (e.g., `"autumn 50 -> 50 days (50 %) cycle"`).
-* **Parameters:** None.
-
-### `self:OnSave()`
-* **Description:** Serializes season state (mode, segments, lengths, flags) for world save.
-* **Parameters:** None.
-
-### `self:OnLoad(data)`
-* **Description:** Restores season state from a saved data object.
-* **Parameters:**
-  - `data`: Saved season state object (matches the structure returned by `OnSave()`).
-
-## Events & Listeners
-- **Listens to:**
-  - `"seasondirty"` → `OnSeasonDirty()`
-  - `"lengthsdirty"` → `OnLengthsDirty()`
-  - `"ms_cyclecomplete"` → `OnAdvanceSeason()` (via `_world`)
-  - `"ms_advanceseason"` → `OnAdvanceSeason()` (via `_world`)
-  - `"ms_retreatseason"` → `OnRetreatSeason()` (via `_world`)
-  - `"ms_setseason"` → `OnSetSeason()` (via `_world`)
-  - `"ms_setseasonlength"` → `OnSetSeasonLength()` (via `_world`)
-  - `"ms_setseasonclocksegs"` → `OnSetSeasonClockSegs()` (via `_world`)
-  - `"ms_setseasonsegmodifier"` → `OnSetSeasonSegModifier()` (via `_world`)
-  - `"secondary_seasonsupdate"` → `OnSeasonsUpdate()` (via `_world`, only on non-master shards)
-- **Triggers:**
-  - `"seasontick"` (world event with season progress data)
-  - `"seasonlengthschanged"` (world event with updated lengths)
-  - `"master_seasonsupdate"` (world event with full season state, only on master shard)
-  - `"ms_setclocksegs"` (world event with segment data to update the clock)
+- **Pushes:**  
+  - `seasontick` — fired on season or day change with progress info.  
+  - `seasonlengthschanged` — fired when any season length is updated.  
+  - `master_seasonsupdate` — fired from mastershard to propagate full season state to other shards.  
+  - `ms_setclocksegs` — pushed to the world clock to apply updated day/dusk/night segments.

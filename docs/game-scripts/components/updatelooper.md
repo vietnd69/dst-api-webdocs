@@ -1,96 +1,104 @@
 ---
 id: updatelooper
 title: Updatelooper
-description: Enables entities to register and execute custom update functions every frame, during long updates, wall updates, and post-update phases.
+description: Manages multiple per-frame, long-interval, wall-logic, and post-update callbacks for an entity.
+tags: [update, loop, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: ac6e7164
+system_scope: entity
 ---
 
 # Updatelooper
 
-## Overview
-The `UpdateLooper` component provides a flexible mechanism for entities to run custom code at specific points in the game loop: every frame (`OnUpdate`), less frequently (`LongUpdate`), only when the entity is visible on screen (`OnWallUpdate`), and after all per-frame updates complete (`PostUpdate`). It replaces the unreliable `DoPeriodicTask(0)` pattern for precise, per-frame callbacks.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on entity methods: `StartUpdatingComponent`, `StopUpdatingComponent`, `StartWallUpdatingComponent`, `StopWallUpdatingComponent`.
-- Uses global `_PostUpdates` table to coordinate post-update callbacks.
-- No component tags are added or removed.
+## Overview
+`UpdateLooper` provides a flexible mechanism for attaching multiple update callbacks to an entity at different update phases: per-frame (`OnUpdate`), long-interval (`LongUpdate`), wall-logic (`OnWallUpdate`), and post-update (`PostUpdate`). It exists because `DoPeriodicTask(0)` does not guarantee frame-precise execution. Each entity that uses this component can register arbitrary functions to be called at these phases, and the component intelligently starts/stops entity updates only when needed.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("updatelooper")
+
+-- Register per-frame callbacks
+inst.components.updatelooper:AddOnUpdateFn(function(ent, dt)
+    -- runs every frame
+end)
+
+-- Register long-interval callbacks
+inst.components.updatelooper:AddLongUpdateFn(function(ent, dt)
+    -- runs less frequently (e.g., every 0.5 seconds via engine)
+end)
+
+-- Register post-update callbacks
+inst.components.updatelooper:AddPostUpdateFn(function(ent)
+    -- runs after all per-frame updates are complete
+end)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds no tags; relies on internal update registration via `StartUpdatingComponent`, `StartWallUpdatingComponent`, and `_PostUpdates` registry.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity the component is attached to. |
-| `onupdatefns` | `table` | `{}` | List of functions registered via `AddOnUpdateFn`, called every frame. |
-| `longupdatefns` | `table` | `{}` | List of functions registered via `AddLongUpdateFn`, called at lower frequency (exact interval determined by caller). |
-| `onwallupdatefns` | `table` | `{}` | List of functions registered via `AddOnWallUpdateFn`, called only when the entity is visible on screen. |
-| `postupdatefns` | `table` | `{}` | List of functions registered via `AddPostUpdateFn`, called after all per-frame updates in the current tick. |
-| `OnUpdatesToRemove` | `table?` | `nil` | Temporary list used during `OnUpdate` to defer removal of functions. |
-| `OnLongUpdatesToRemove` | `table?` | `nil` | Temporary list used during `LongUpdate` to defer removal of functions. |
-| `OnWallUpdatesToRemove` | `table?` | `nil` | Temporary list used during `OnWallUpdate` to defer removal of functions. |
+| `inst` | `Entity` | `nil` (set in constructor) | The entity instance this component is attached to. |
+| `onupdatefns` | `table` | `{}` | List of per-frame callback functions. |
+| `longupdatefns` | `table` | `{}` | List of long-interval callback functions. |
+| `onwallupdatefns` | `table` | `{}` | List of wall-update callback functions. |
+| `postupdatefns` | `table` | `{}` | List of post-update callback functions. |
+| `OnUpdatesToRemove` | `table?` | `nil` | Temporary list of functions pending removal during per-frame update. |
+| `OnLongUpdatesToRemove` | `table?` | `nil` | Temporary list of functions pending removal during long update. |
+| `OnWallUpdatesToRemove` | `table?` | `nil` | Temporary list of functions pending removal during wall update. |
 
-## Main Functions
-
+## Main functions
 ### `AddOnUpdateFn(fn)`
-* **Description:** Registers a function to be called every frame during the entity’s `OnUpdate` phase. Automatically starts per-frame updates if none were previously registered.
-* **Parameters:**  
-  `fn (function)` — Callback function `(entity, dt)` where `dt` is the delta time since the last frame.
+*   **Description:** Registers a per-frame callback to be called on every entity update. Automatically starts per-frame updates if none were registered.
+*   **Parameters:** `fn` (function) - Callback function taking `(entity, dt)` where `dt` is delta time in seconds.
+*   **Returns:** Nothing.
 
 ### `RemoveOnUpdateFn(fn)`
-* **Description:** Deferably removes a previously registered on-update function. Actual removal occurs *during* the next `OnUpdate` call to avoid modifying the list while iterating.
-* **Parameters:**  
-  `fn (function)` — The callback to remove.
+*   **Description:** Schedules a per-frame callback for removal. Safe to call during an active update loop.
+*   **Parameters:** `fn` (function) - The callback to remove.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `fn` is not currently registered.
 
 ### `AddLongUpdateFn(fn)`
-* **Description:** Registers a function to be called periodically (e.g., less frequently than every frame). The caller is responsible for triggering `LongUpdate` via `DoPeriodicTask`.
-* **Parameters:**  
-  `fn (function)` — Callback function `(entity, dt)`.
+*   **Description:** Registers a long-interval callback (typically called at longer intervals by the engine, e.g., `0.5s`).
+*   **Parameters:** `fn` (function) - Callback function taking `(entity, dt)`.
+*   **Returns:** Nothing.
 
 ### `RemoveLongUpdateFn(fn)`
-* **Description:** Deferably removes a long-update function. Actual removal occurs during the next `LongUpdate` call.
-* **Parameters:**  
-  `fn (function)` — The callback to remove.
-
-### `OnUpdate(dt)`
-* **Description:** Main per-frame update handler. Executes all registered `onupdatefns`, handling deferred removals first. Automatically stops per-frame updates if the callback list becomes empty.
-* **Parameters:**  
-  `dt (number)` — Delta time in seconds.
-
-### `LongUpdate(dt)`
-* **Description:** Executes all registered `longupdatefns`, handling deferred removals. Typically invoked manually by the owner of this component.
-* **Parameters:**  
-  `dt (number)` — Delta time in seconds.
+*   **Description:** Schedules a long-interval callback for removal.
+*   **Parameters:** `fn` (function) - The callback to remove.
+*   **Returns:** Nothing.
 
 ### `AddOnWallUpdateFn(fn)`
-* **Description:** Registers a function to be called only when the entity is visible on screen (i.e., "on the wall"). Automatically starts wall-updating if not already active.
-* **Parameters:**  
-  `fn (function)` — Callback function `(entity, dt)`.
+*   **Description:** Registers a wall-update callback. Starts wall-updating if needed. *Only runs on the server*.
+*   **Parameters:** `fn` (function) - Callback function taking `(entity, dt)`.
+*   **Returns:** Nothing.
 
 ### `RemoveOnWallUpdateFn(fn)`
-* **Description:** Deferably removes a wall-update function. Actual removal occurs during the next `OnWallUpdate` call.
-* **Parameters:**  
-  `fn (function)` — The callback to remove.
-
-### `OnWallUpdate(dt)`
-* **Description:** Executes all registered `onwallupdatefns`, skipping if the game is paused. Handles deferred removals and stops wall-updating if no callbacks remain.
-* **Parameters:**  
-  `dt (number)` — Delta time in seconds.
+*   **Description:** Schedules a wall-update callback for removal.
+*   **Parameters:** `fn` (function) - The callback to remove.
+*   **Returns:** Nothing.
 
 ### `AddPostUpdateFn(fn)`
-* **Description:** Registers a function to be executed once per tick *after* all per-frame updates complete. Ensures safe registration and removal even during post-update execution.
-* **Parameters:**  
-  `fn (function)` — Callback function `(entity)` (note: no `dt` argument).
+*   **Description:** Registers a post-update callback. Post-updates occur after all per-frame updates have completed in a given tick. Ensures safe concurrent modification of callbacks during iteration.
+*   **Parameters:** `fn` (function) - Callback function taking `(entity)`.
+*   **Returns:** Nothing.
 
 ### `RemovePostUpdateFn(fn)`
-* **Description:** Removes a post-update function. If called *during* the post-update loop, removal is immediate (via `nil` assignment). Otherwise, the list is compacted eagerly.
-* **Parameters:**  
-  `fn (function)` — The callback to remove.
+*   **Description:** Removes a post-update callback. Can safely remove *during* a `PostUpdate` loop; otherwise performs immediate removal and compaction.
+*   **Parameters:** `fn` (function) - The callback to remove.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens for:** None (no `inst:ListenForEvent` calls).
-- **Triggers:** None directly via `PushEvent`, though registered callbacks *may* emit their own events.
+## Events & listeners
+None identified  
+*(Note: This component does not register or emit events via `inst:ListenForEvent` / `inst:PushEvent`; it integrates with the engine’s update loop via `StartUpdatingComponent`, `StartWallUpdatingComponent`, and the global `_PostUpdates` table.)*

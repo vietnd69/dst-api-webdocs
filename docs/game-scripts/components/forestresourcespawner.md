@@ -1,66 +1,61 @@
 ---
 id: forestresourcespawner
 title: Forestresourcespawner
-description: Manages the automatic spawning and renewal of renewable forest resources (e.g., flint, grass, berry bushes) in the game world, based on player proximity and environmental constraints.
+description: Manages periodic spawning of renewable forest resources such as flint, saplings, and berry bushes near spawn points when no players are nearby.
+tags: [resource, world, environment, spawning]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 5c3c03b2
+system_scope: world
 ---
 
 # Forestresourcespawner
 
-## Overview
-This component is responsible for periodically spawning renewable natural resources (such as flint, saplings, grass, and berry bushes) in the game world when no players are near. It uses registered spawn points to determine where renewal may occur, avoids placing resources on roads or in invalid locations, and respects resource-specific renewal rules defined in `RENEWABLES`.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires `TheWorld.ismastersim` (executes only on the server/multiplayer master).
-- Does *not* add or modify component or tag definitions directly, but uses the following event signals:
-  - Listens for `"ms_registerspawnpoint"` to track spawn locations.
-  - Listens for `"ms_enableresourcerenewal"` to toggle renewal behavior.
-- Internally relies on:
-  - `inst.Map:CanPlantAtPoint`, `inst.Map:IsDeployPointClear`, `inst.Map:CanPlacePrefabFilteredAtPoint`
-  - `TheSim:FindEntities`
-  - `SpawnPrefab`, `RoadManager`, `DEPLOYSPACING`
-  - `easing`, `TUNING.SEG_TIME`, `table.removearrayvalue`, `table.contains`
+## Overview
+`ForestResourceSpawner` is a server-side component responsible for automatically regenerating renewable natural resources (e.g., flint, grass, berry bushes) in the forest world. It operates by periodically selecting a registered spawn point and spawning missing resource prefabs within a radius around that point — but only if no players are nearby. This ensures resources regenerate without interference from active players. The component relies on a list of "renewable sets", each mapping target-resource prefabs to potential replacement prefabs, and uses map filtering to ensure valid placement.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("forestresourcespawner")
+-- Resources will begin regenerating when the component receives the "ms_enableresourcerenewal" event with enable=true
+-- Spawn points must be registered via "ms_registerspawnpoint" events
+inst.components.forestresourcespawner:Enable()  -- Not a direct method — use event instead
+inst:PushEvent("ms_enableresourcerenewal", { enable = true })
+```
+
+## Dependencies & tags
+**Components used:** None — this component does not call `inst.components.X` methods.
+**Tags:** None identified.
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `self.inst` | `Entity` | *required argument* | The entity instance the component is attached to (typically `TheWorld`). |
+No public properties.
 
-**Note:** No additional public properties are exposed. Private state (`_enabled`, `_spawnpts`, `_task`) is encapsulated.
+## Main functions
+None — the component exposes no public methods; functionality is controlled entirely via events.
 
-## Main Functions
+## Events & listeners
+- **Listens to:**
+  - `ms_registerspawnpoint` — triggered when a new spawn point entity is added; registers it for resource renewal. Handler: `OnRegisterSpawnPoint`.
+  - `ms_enableresourcerenewal` — enables or disables resource renewal. Handler: `OnEnableResourceRenewal`.
+- **Pushes:** None — this component does not fire events.
 
-### `DoPrefabRenew(x, z, ents, renewable_set, max)`
-* **Description:** Checks whether a renewable resource set is underrepresented near a given location (based on `renewable_set.matches`) and, if so, spawns up to `max` random prefabs from `renewable_set.spawns` within a 60-unit radius. Placement respects map rules (e.g., avoids roads, checks deploy spacing).
-* **Parameters:**
-  - `x`, `z`: World coordinates (Y is assumed to be 0).
-  - `ents`: List of entities in the renewal radius, used to detect existing matching prefabs.
-  - `renewable_set`: A table with `spawns` (prefabs to consider) and `matches` (prefabs counted toward renewal condition).
-  - `max`: Maximum number of prefabs to attempt spawning (max count per renewal batch).
+### Event Details
+- `ms_registerspawnpoint`
+  - **Payload:** `{ spawnpt = inst }`, where `spawnpt` is an entity instance representing a registered spawn point.
+  - **Behavior:** Adds the spawn point to the internal `_spawnpts` list and registers for its `onremove` event to automatically unregister it upon removal.
 
-### `DoRenew()`
-* **Description:** Selects a random spawn point (using weighted random via `inQuint` easing), removes it from the active list (and re-adds it to cycle through), and triggers resource renewal if no player is within `MIN_PLAYER_DISTANCE`. Schedules the next renewal using `GetRenewablePeriod()`.
-* **Parameters:** None (uses global state).
+- `ms_enableresourcerenewal`
+  - **Payload:** `{ enable = boolean }`
+  - **Behavior:** Starts or stops the periodic renewal task depending on the `enable` flag. If `enable` is `true`, the renewal loop begins via `Start()`; otherwise, `Stop()` cancels any pending task.
 
-### `Start()`
-* **Description:** Starts the renewal task loop if not already running.
-* **Parameters:** None.
-
-### `Stop()`
-* **Description:** Cancels the renewal task, effectively pausing resource renewal.
-* **Parameters:** None.
-
-## Events & Listeners
-
-- **Listens For:**
-  - `"ms_registerspawnpoint"` → calls `OnRegisterSpawnPoint(inst, spawnpt)` to add a new spawn point and register a cleanup listener on `"onremove"`.
-  - `"ms_enableresourcerenewal"` → calls `OnEnableResourceRenewal(inst, enable)` to toggle renewal.
-- **Triggers:**
-  - No events are pushed by this component.
+### Notes
+- The renewal task runs in a loop: each cycle selects a spawn point, checks for nearby players (`MIN_PLAYER_DISTANCE = 240`), and attempts to spawn up to 3 missing resources per renewable set within `RENEW_RADIUS = 60`.
+- Placement uses map validation (`CanPlantAtPoint`, `IsDeployPointClear`, `CanPlacePrefabFilteredAtPoint`) and avoids roads.
+- `easing.inQuint` is used to bias spawn point selection toward earlier points in the list.

@@ -1,91 +1,111 @@
 ---
 id: pinnable
 title: Pinnable
-description: This component manages the state and behavior of entities that can be pinned (e.g., by goo), including animations, wear-off mechanics, and response to damage or death.
+description: Manages the pinned state and visual wear-off effect for entities that can be stuck by goo-based attacks.
+tags: [combat, physics, fx]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 0e479f73
+system_scope: entity
 ---
 
 # Pinnable
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `pinnable` component allows an entity to transition between a free state and a "pinned" state—typically caused by interaction with goo-based projectiles. While pinned, the entity becomes immobile, stops targeting, plays an animated goo symbol, and gradually wears off over time or due to damage. It handles visual effects, timing, and event callbacks to coordinate with other systems like combat and animation.
+The `pinnable` component enables entities (typically enemies) to be "pinned" in place when struck by goo-based attacks, such as those from Sprout. When pinned, the entity is visually covered with a goo symbol, movement and targeting are disabled, and the goo gradually wears off over time or with additional attacks. This component integrates with `combat` (to drop targets), `health` (to prevent pinning dead entities), and `locomotor` (to halt movement). It uses a dynamic symbol override and particle effects to represent the goo's current coverage.
 
-## Dependencies & Tags
-**Dependencies:**
-- Relies on the presence of optional components: `health`, `combat`, `locomotor`, and `brain` (used via `inst:StopBrain("pinned")` and `inst:RestartBrain("pinned")`).
-- Uses `TUNING.PINNABLE_WEAR_OFF_TIME`, `TUNING.PINNABLE_ATTACK_WEAR_OFF`, and `TUNING.PINNABLE_RECOVERY_LEEWAY`.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("pinnable")
 
-**Tags:**
-- Adds the `"pinned"` tag when stuck.
-- Removes the `"pinned"` tag when unstuck.
+-- Customize wear-off behavior
+inst.components.pinnable:SetDefaultWearOffTime(10)
+
+-- Attempt to pin the entity
+if inst.components.pinnable:IsValidPinTarget() then
+    inst.components.pinnable:Stick("goo_build_name")
+end
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `health`, `locomotor`  
+**Tags:** Adds `pinned` while stuck; checks `debuffed` (implicitly via `IsDead()`), `hiding` (via `combat:ShouldAggro`).
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `canbepinned` | boolean | `true` | Controls whether the entity is eligible to be pinned. |
-| `stuck` | boolean | `false` | Indicates whether the entity is currently pinned. |
-| `wearofftime` | number | `TUNING.PINNABLE_WEAR_OFF_TIME` | Total duration (in seconds) for the pin to wear off under ideal conditions. |
-| `wearofftask` | Task | `nil` | Task handle for scheduling wear-off completion. |
-| `attacks_since_pinned` | number | `0` | Number of attacks received since being pinned; reduces effective wear-off time. |
-| `last_unstuck_time` | number | `0` | Timestamp of the last unpinned state change. |
-| `last_stuck_time` | number | `0` | Timestamp when the entity was last pinned. |
-| `fxlevel` | number | `1` | Placeholder for effect intensity (currently unused in logic). |
-| `fxdata` | table | `{}` | Unused field; reserved for future effect data. |
-| `goo_build` | string | `nil` | Name of the goo build asset used in animation override (set on `Stick`). |
-| `splashfxlist` | table | `nil` | Custom list of splash FX prefabs to use instead of default (set on `Stick`). |
+| `canbepinned` | boolean | `true` | Whether the entity can be pinned at all. |
+| `stuck` | boolean | `false` | Current pinned state. |
+| `wearofftime` | number | `TUNING.PINNABLE_WEAR_OFF_TIME` | Total duration (in seconds) for the goo to wear off naturally. |
+| `attacks_since_pinned` | number | `0` | Number of attacks received while pinned, accelerating wear-off. |
+| `last_stuck_time` | number | `0` | Server time (via `GetTime()`) when pinned. |
+| `last_unstuck_time` | number | `0` | Server time when last unpinned, used for recovery leeway. |
+| `fxlevel` | number | `1` | Unused (preserved for legacy compatibility). |
+| `fxdata` | table | `{}` | Unused (preserved for legacy compatibility). |
+| `goo_build` | string or nil | `nil` | Custom goo symbol build name provided on `Stick`. |
+| `splashfxlist` | table or nil | `splashprefabs` | Custom splash FX prefabs list provided on `Stick`. |
 
-## Main Functions
+## Main functions
 ### `Stick(goo_build, splashfxlist)`
-* **Description:** Attempts to pin the entity. Only succeeds if `canbepinned` is true, the entity is visible, and not dead. Sets `stuck = true`, disables brain/locomotion/combat targeting, plays a goo animation symbol, and schedules wear-off. Emits `"pinned"` event.
+* **Description:** Applies the pinned state to the entity, disabling brain, combat targeting, and locomotion. Adds the `pinned` tag and displays the appropriate goo symbol.
 * **Parameters:**
-  * `goo_build` (string, optional): Name of the animation symbol override build to use for the goo. Defaults to `"goo"` if `nil`.
-  * `splashfxlist` (table, optional): Array of FX prefabs to use when shattering. Defaults to `splashprefabs` if `nil`.
+  * `goo_build` (string or nil) – Optional custom animation symbol build name for the goo overlay.
+  * `splashfxlist` (table or nil) – Optional custom list of splash FX prefabs to use.
+* **Returns:** Nothing.
+* **Error states:** Has no effect if `canbepinned` is false, the entity is not visible, or `health` component exists and reports the entity is dead.
 
 ### `Unstick()`
-* **Description:** Ends the pinned state. Resets `stuck`, cancels wear-off task, spawns shatter FX, restarts the pinned brain, clears animation override, and emits `"onunpin"` event.
+* **Description:** Removes the pinned state, restores brain and locomotion, clears the goo symbol override, and spawns a shatter FX. Fires the `onunpin` event.
 * **Parameters:** None.
-
-### `UpdateStuckStatus()`
-* **Description:** Evaluates whether the current pin should persist. If `remainingRatio <= 0`, unpins. Otherwise, updates the animation symbol based on remaining time and schedules the wear-off task.
-* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No-op if `stuck` is `false`.
 
 ### `IsStuck()`
-* **Description:** Returns the current `stuck` state.
+* **Description:** Returns whether the entity is currently pinned.
 * **Parameters:** None.
+* **Returns:** `true` if `stuck` is `true`, otherwise `false`.
 
 ### `IsValidPinTarget()`
-* **Description:** Checks whether the entity can currently be pinned: must be eligible (`canbepinned`), not already stuck, and have waited long enough since last unpinned (`last_unstuck_time + PINNABLE_RECOVERY_LEEWAY`).
+* **Description:** Checks if the entity can currently be pinned.
 * **Parameters:** None.
+* **Returns:** `true` if `canbepinned` is `true`, `stuck` is `false`, and enough time has passed since the last unpin (`GetTime() > last_unstuck_time + TUNING.PINNABLE_RECOVERY_LEEWAY`).
+* **Error states:** Returns `false` if the entity is currently pinned or in the short recovery window after being unpinned.
 
 ### `RemainingRatio()`
-* **Description:** Calculates the fraction of pin duration remaining (0.0 to 1.0). Accounts for time elapsed and damage received.
+* **Description:** Calculates the fraction of goo remaining (from `1.0` to `0.0`), based on elapsed time and attack count.
 * **Parameters:** None.
+* **Returns:** number in range `[0, 1]`.
+* **Error states:** Returns `0` if `stuck` is `false` (though this case is typically handled by callers).
 
-### `StartWearingOff(wearofftime)`
-* **Description:** Schedules the `WearOff` callback after `wearofftime` seconds. If a task already exists, it is cancelled first.
-* **Parameters:**
-  * `wearofftime` (number): Time in seconds until wear-off completes.
+### `UpdateStuckStatus()`
+* **Description:** Updates the visual goo symbol and wear-off task based on current `RemainingRatio`. Removes pin if ratio reaches `0`.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SpawnShatterFX(ratio)`
-* **Description:** Spawns a shatter effect based on how much of the pin remains (`ratio`). Chooses from `splashprefabs` (or `splashfxlist` if overridden) based on remaining fraction.
+* **Description:** Spawns a splash FX particle effect based on the current goo coverage (`ratio`). If `ratio` is omitted, uses `RemainingRatio()`.
 * **Parameters:**
-  * `ratio` (number, optional): Remaining pin ratio (0.0–1.0). If omitted, `RemainingRatio()` is used.
+  * `ratio` (number or nil) – Coverage level (`0.0` = empty, `1.0` = full). Defaults to current remaining ratio.
+* **Returns:** Nothing.
+* **Error states:** Effect is added only if `SpawnPrefab` returns a non-`nil` result (which is always true if the FX prefab exists and loads).
 
 ### `SetDefaultWearOffTime(wearofftime)`
-* **Description:** Overrides the default wear-off time for this instance.
-* **Parameters:**
-  * `wearofftime` (number): New base wear-off duration.
+* **Description:** Overrides the default natural wear-off duration for this instance.
+* **Parameters:** `wearofftime` (number) – New wear-off duration in seconds.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens for `"unpinned"`** → calls `OnUnpinned` (triggers `Unstick()`).
-- **Listens for `"attacked"`** → calls `OnAttacked` (increments `attacks_since_pinned`, triggers shatter FX, and updates pin status if stuck).
-- **Listens for `"death"`** → calls `OnUnpinned` (unpins on death).
-- **Triggers `"pinned"`** event when transitioning to stuck state (in `Stick()`).
-- **Triggers `"onunpin"`** event when transitioning to unstuck state (in `Unstick()`).
+## Events & listeners
+- **Listens to:**  
+  - `unpinned` – Calls `Unstick`.  
+  - `attacked` – Increments `attacks_since_pinned` and triggers shatter FX if pinned.  
+  - `death` – Calls `Unstick` (via `OnUnpinned`).  
+- **Pushes:**  
+  - `pinned` – Fired once when transitioning from unstuck to stuck.  
+  - `onunpin` – Fired when `Unstick` completes.

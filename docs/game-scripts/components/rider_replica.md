@@ -1,114 +1,121 @@
 ---
 id: rider_replica
 title: Rider Replica
-description: Manages the rider state and mount-related logic for player entities, including synchronization of mount data, saddle state, and action filtering when mounted.
+description: Manages networked state and replicated data for a rider entity, synchronizing mount, saddle, and riding status between server and client.
+tags: [network, player, mount, controller, replication]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: components
 source_hash: bd88f38b
+system_scope: network
 ---
 
 # Rider Replica
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component handles the representation and synchronization of a player’s mounted state and related properties across the network in *Don’t Starve Together*. It manages client-side prediction and server-side truth for whether the player is riding, tracks the current mount and saddle, and dynamically adjusts the player’s input actions (e.g., pickup and interaction behavior) based on mount state.
+`RiderReplica` is a client-side replica component that synchronizes rider state — including riding status, mount identity, saddle identity, and derived properties like mount run speed — from the server to the client. It works in tandem with the `rider` component on the server to ensure that actions like mounted movement, UI updates, and action filtering behave consistently across networked sessions. This component is typically attached to player entities and is responsible for updating `player_classified` with dynamic mount-related data during replication.
 
-## Dependencies & Tags
-**Dependencies (Component References):**
-- `inst.player_classified` (expected to exist for replication and classification)
-- `inst.components.playercontroller`
-- `inst.components.playeractionpicker`
-- `inst.components.locomotor` (accessed via mount)
-- `inst.components.health` (accessed via mount)
+## Usage example
+```lua
+local inst = ThePlayer
+inst:AddComponent("rider_replica")
+-- The component is automatically activated when the player is mounted via server-side `rider:SetRiding(true)`
+-- and receives updates via the `isridingdirty` event and `player_classified` bindings.
+```
 
-**Tags Used:**
-- `cancatch`, `catchable`, `heavy`, `fire`, `lighter`, `pickable`, `smolder`, `trapsprung`, `minesprung`, `inactive`, `readyforharvest`, `notreadyforharvest`, `harvestable`, `donecooking`, `dried`, `saddled`, `brushable`, `tapped_harvestable`, `FX`, `NOCLICK`, `DECOR`, `INLIMBO`, `autopredict`
-
-**Tags Added/Removed:** None directly applied by this component.
+## Dependencies & tags
+**Components used:** `player_classified`, `playercontroller`, `playeractionpicker`, `rider`, `health`, `inventoryitem`, `equippable`, `locomotor`  
+**Tags:** None added, removed, or checked directly by this component.
 
 ## Properties
 | Property | Type | Default Value | Description |
-|---------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the owning entity (player). |
-| `_isriding` | `net_bool` | `false` | Networked boolean indicating whether the player is currently riding. Used for synchronization across server/client. |
-| `classified` | `Classified` or `nil` | `nil` | The player’s `player_classified` component, used for client-side data replication. Set on master or during attach. |
-| `_onmounthealthdelta` | `function` | — | Callback used to propagate mount health changes to classification. Set only on master simulation. |
-| `_onisriding` | `function` | — | Local client-side listener for `isridingdirty` events. Set only on non-master simulation. |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | — | The entity instance this component belongs to. |
+| `_isriding` | `net_bool` | `nil` | Networked boolean indicating whether the entity is currently riding. |
+| `classified` | `PlayerClassified?` | `nil` | Reference to the entity's `player_classified` component (used for networked data updates). |
+| `_onmounthealthdelta` | `function?` | `nil` | Local callback for mount health delta events on the server. |
+| `_onisriding` | `function?` | `nil` | Client-side event handler for `isridingdirty`. |
 
-## Main Functions
-
+## Main functions
 ### `AttachClassified(classified)`
-* **Description:** Attaches and registers the component’s `player_classified` reference. Sets up cleanup on classified removal and applies action filtering if already riding.
-* **Parameters:**  
-  - `classified`: The `Classified` component instance to attach (typically `inst.player_classified`).
+* **Description:** Attaches a `player_classified` component for networked updates and sets up a cleanup listener for entity removal. If the rider is currently active (`_isriding` is true), it applies action filtering.
+* **Parameters:** `classified` (`PlayerClassified`) — the classification component to bind.
+* **Returns:** Nothing.
 
 ### `DetachClassified()`
-* **Description:** Detaches the `classified` reference and cleans up event listeners. Should only be called when the classified is being removed.
+* **Description:** Removes the `player_classified` reference and cleans up the on-remove event listener.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SetActionFilter(riding)`
-* **Description:** Enables or disables custom action filtering for mounted (riding) vs. non-mounted states. When riding, it substitutes the action button override and applies a filter to restrict actions to `mount_valid == true`.
-* **Parameters:**  
-  - `riding`: `true` to enable mounted action filtering, `false` to restore default behavior.
+* **Description:** Enables or disables mounted-specific action overrides and filters based on `riding` status. When `riding` is true, it registers `ActionButtonOverride` and pushes `MountedActionFilter` to the action picker. When false, it clears both.
+* **Parameters:** `riding` (`boolean`) — whether the entity is currently riding.
+* **Returns:** Nothing.
 
 ### `OnIsRiding(riding)`
-* **Description:** Handles updates when the riding state changes. Ensures action filtering is properly applied if classified is attached.
-* **Parameters:**  
-  - `riding`: Boolean indicating the new riding state.
+* **Description:** Responds to changes in riding state. If `classified` is attached, it triggers `SetActionFilter` to toggle action overrides.
+* **Parameters:** `riding` (`boolean`) — new riding state.
+* **Returns:** Nothing.
 
 ### `SetRiding(riding)`
-* **Description:** Sets the rider state on the network (if changed), triggering the `isridingdirty` event on clients.
-* **Parameters:**  
-  - `riding`: Boolean representing whether the player is now riding.
+* **Description:** Sets the networked riding state (`_isriding`) and triggers `OnIsRiding`. Only updates if the value changes.
+* **Parameters:** `riding` (`boolean`) — new riding state.
+* **Returns:** Nothing.
 
 ### `IsRiding()`
-* **Description:** Returns the current riding state as tracked by the network variable.
-* **Returns:** `boolean` — `true` if riding, `false` otherwise.
+* **Description:** Returns the current riding state from the networked boolean.
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if riding, otherwise `false`.
 
 ### `OnMountHealth(pct)`
-* **Description:** Updates the `isridermounthurt` classified property based on mount’s health percentage.
-* **Parameters:**  
-  - `pct`: Float in `[0.0, 1.0]`, the current health percentage of the mount.
+* **Description:** Updates `player_classified.isridermounthurt` when mount health drops below 20%. Used to show visual or gameplay feedback (e.g., urgency).
+* **Parameters:** `pct` (`number`) — current mount health as a percentage (`0.0` to `1.0`).
+* **Returns:** Nothing.
 
 ### `IsMountHurt()`
-* **Description:** Returns whether the mount is currently considered “hurt” (health < 20%).
-* **Returns:** `boolean` — `true` if mount is hurt, `false` or `nil` otherwise.
+* **Description:** Checks if the mount’s health is critically low.
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if mount is hurt (health < 20%) and `classified` is attached, otherwise `false`.
 
 ### `SetMount(mount)`
-* **Description:** Sets the mount for the rider, updating classified properties and network relationships. Removes callbacks from the old mount and registers new ones for the new mount.
-* **Parameters:**  
-  - `mount`: The entity being ridden, or `nil` to dismount.
+* **Description:** Updates the server-verified mount reference and synchronizes properties (`runspeed`, `fasteronroad`) to `player_classified`. Also manages old mount detachment and health event subscriptions.
+* **Parameters:** `mount` (`Entity?`) — the new mount entity, or `nil` to dismount.
+* **Returns:** Nothing.
 
 ### `GetMount()`
-* **Description:** Returns the current mount, prioritizing the component’s own reference on client, or classification on non-master if component not attached.
-* **Returns:** `Entity` or `nil` — the mount entity, or `nil` if not mounted.
+* **Description:** Returns the mount entity. Prioritizes the local `rider` component (on server), falls back to the networked `player_classified` value (on client).
+* **Parameters:** None.
+* **Returns:** `Entity?` — the mount entity, or `nil` if not mounted.
 
 ### `GetMountRunSpeed()`
-* **Description:** Returns the effective run speed of the mount, using live component data when available or falling back to classified values.
-* **Returns:** `number` — numeric run speed (0 if no mount or locomotor missing).
+* **Description:** Returns the effective movement speed when riding. Uses live `locomotor.runspeed` if available, otherwise falls back to networked `player_classified.riderrunspeed`.
+* **Parameters:** None.
+* **Returns:** `number` — mount’s run speed, or `0` if no mount.
 
 ### `GetMountFasterOnRoad()`
-* **Description:** Returns whether the mount moves faster on roads.
-* **Returns:** `boolean` — `true` if mount is road-accelerating, otherwise `false`.
+* **Description:** Returns whether the mount provides road speed bonus. Uses live `locomotor.fasteronroad` if available, otherwise falls back to networked `player_classified.riderfasteronroad`.
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if mount has road speed bonus, otherwise `false`.
 
 ### `SetSaddle(saddle)`
-* **Description:** Assigns a saddle to the rider, updating ownership/classified state and handling cleanup of the old saddle.
-* **Parameters:**  
-  - `saddle`: The saddle entity, or `nil` to remove saddle.
+* **Description:** Updates the saddle entity and synchronizes ownership or networked target references to `player_classified.ridersaddle`. Ensures saddle is not held and updates network state.
+* **Parameters:** `saddle` (`Entity?`) — the saddle entity, or `nil` to remove.
+* **Returns:** Nothing.
 
 ### `GetSaddle()`
-* **Description:** Returns the currently assigned saddle.
-* **Returns:** `Entity` or `nil` — the saddle entity, or `nil` if none.
+* **Description:** Returns the saddle entity. Prioritizes the local `rider` component (on server), falls back to the networked `player_classified` value (on client).
+* **Parameters:** None.
+* **Returns:** `Entity?` — the saddle entity, or `nil` if no saddle.
 
-## Events & Listeners
-
-- **Listens To:**
-  - `isridingdirty` → `self._onisriding` (on non-master only)
-  - `onremove` → `self.ondetachclassified` (when classified is attached, to clean up)
-  - `healthdelta` → `self._onmounthealthdelta` (on master, when mounted)
-
-- **Triggers (Pushes):**
-  - None directly; relies on `net_bool` for network sync (`isridingdirty` is implicitly pushed by the `net_bool` mechanism when `:set()` is called).
+## Events & listeners
+- **Listens to:**  
+  - `isridingdirty` — triggers `OnIsRiding` with the latest riding value.  
+  - `onremove` — attached to `classified` to auto-detach when the entity is destroyed.  
+  - `healthdelta` — attached to the mount to call `OnMountHealth` on health change (server-side only).  
+- **Pushes:** None.  
+(No events are directly fired by this component.)

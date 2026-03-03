@@ -1,106 +1,122 @@
 ---
 id: stackable
 title: Stackable
-description: Manages stackable item behavior, including size limits, stacking logic, and persistence across game saves.
+description: Manages stacking behavior for inventory items, including size tracking, consolidation, splitting, and propagation of related states like perishability and moisture.
+tags: [inventory, stacking, item]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: inventory
+category_type: components
 source_hash: 7599da8c
+system_scope: inventory
 ---
 
 # Stackable
 
-## Overview
-The `Stackable` component enables an entity to represent a stack of identical items rather than a single instance. It tracks the current stack size and maximum stack capacity, handles stacking operations (combining stacks or splitting them), and synchronizes these values with the networked replica system. It also manages state such as infinite max size toggling and interacts with other components (e.g., `perishable`, `inventoryitem`, `curseditem`, `rechargeable`, `edible`) during stack operations.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Requires**:
-  - `inst.replica.stackable`: For networked replication of `stacksize` and `maxsize`.
-  - `inst.replica.inventoryitem`: Used to set pickup position when stack size changes (if the `inventoryitem` replica exists).
-- **Events Emitted**:
-  - `stacksizechange` (see Events & Listeners).
-- **No tags** are explicitly added or removed by this component.
+## Overview
+`Stackable` handles the logic for stacking and splitting inventory items in DST. It maintains a `stacksize` counter and a `maxsize` limit, enforces stacking constraints (including infinite stacking via `SetIgnoreMaxSize`), and supports consolidation of compatible items via `Put()`. It also propagates related states such as perishability (`perishable`), moisture (`inventoryitem`), chill (`edible`), curse (`curseditem`), and charge (`rechargeable`) to newly split stacks.
+
+This component is essential for all stackable prefabs (e.g., wood, stone, food) and integrates tightly with the replica system for network synchronization.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("stackable")
+inst.components.stackable:SetStackSize(5)
+if inst.components.stackable:IsFull() then
+    print("Stack is full")
+end
+local item_to_stack = CreateEntity()
+item_to_stack:AddComponent("stackable")
+item_to_stack.components.stackable:SetStackSize(3)
+inst.components.stackable:Put(item_to_stack, Vector3(0,0,0))
+```
+
+## Dependencies & tags
+**Components used:** `inventoryitem`, `perishable`, `edible`, `curseditem`, `rechargeable`
+**Tags:** Adds `applied_curse` on stacking under certain conditions (via `curseditem` interactions); sets `skipspeech` flag temporarily during stack operations.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `stacksize` | `number` | `1` | Current number of items in the stack. |
-| `maxsize` | `number` | `TUNING.STACK_SIZE_MEDITEM` | Maximum allowed stack size (can be overridden to `math.huge` via `SetIgnoreMaxSize`). |
-| `originalmaxsize` | `number?` | `nil` | Stores the non-infinite max size when `SetIgnoreMaxSize(true)` is active. Read-only after initialization. |
+| `stacksize` | number | `1` | Current number of items in the stack. Read-only property with setter hook for replication. |
+| `maxsize` | number | `TUNING.STACK_SIZE_MEDITEM` | Maximum allowed stack size. Defaults to a medium item tune. Read-only property with setter hook. |
+| `originalmaxsize` | number? | `nil` | Stores the original `maxsize` when infinite mode is active. |
 
-## Main Functions
+## Main functions
 ### `SetIgnoreMaxSize(ignoremaxsize)`
-* **Description:** Temporarily sets `maxsize` to infinity (`math.huge`) to allow stacking beyond normal limits (e.g., for debugging or special mechanics). When disabled, restores the original max size.
-* **Parameters:**
-  - `ignoremaxsize` (`boolean`): If `true`, ignore max size limits; if `false`, restore the original limit.
+*   **Description:** Enables or disables ignoring the `maxsize` limit. When enabled, `maxsize` becomes `math.huge`, and the previous `maxsize` is stored in `originalmaxsize`.
+*   **Parameters:** `ignoremaxsize` (boolean) — `true` to ignore max size, `false` to restore the stored original max size.
+*   **Returns:** Nothing.
 
 ### `IsStack()`
-* **Description:** Returns `true` if the stack contains more than one item.
-* **Parameters:** None.
+*   **Description:** Indicates whether the item is part of a stack (i.e., more than one item).
+*   **Parameters:** None.
+*   **Returns:** `true` if `stacksize > 1`; otherwise `false`.
 
 ### `StackSize()`
-* **Description:** Returns the current stack size.
-* **Parameters:** None.
+*   **Description:** Returns the current stack size.
+*   **Parameters:** None.
+*   **Returns:** `number` — current stack size.
 
 ### `IsFull()`
-* **Description:** Returns `true` if the current stack size meets or exceeds the current `maxsize`.
-* **Parameters:** None.
+*   **Description:** Checks if the stack is at capacity.
+*   **Parameters:** None.
+*   **Returns:** `true` if `stacksize >= maxsize`; otherwise `false`.
 
 ### `IsOverStacked()`
-* **Description:** Returns `true` if the current stack size exceeds the *original* (non-infinite) max size—used to detect oversized stacks when `SetIgnoreMaxSize(true)` was active.
-* **Parameters:** None.
+*   **Description:** Indicates whether the stack exceeds the *original* (non-infinite) max size. Useful for detecting overflow during infinite mode.
+*   **Parameters:** None.
+*   **Returns:** `true` if `stacksize > (originalmaxsize or maxsize)`; otherwise `false`.
 
 ### `OnSave()`
-* **Description:** Returns stack data to be persisted if `stacksize` is not `1`; otherwise returns `nil`.
-* **Parameters:** None.
-* **Returns:** `table?` — e.g., `{ stack = 5 }` if stack size is 5.
+*   **Description:** Serialization hook. Returns save data only if stack size is not `1`.
+*   **Parameters:** None.
+*   **Returns:** `{ stack = number }` if `stacksize ~= 1`; otherwise `nil`.
 
 ### `OnLoad(data)`
-* **Description:** Loads stack size from saved data (clamped to `MAXUINT`), and broadcasts a `stacksizechange` event.
-* **Parameters:**
-  - `data` (`table?`): Contains the `stack` key with the saved stack size.
+*   **Description:** Deserialization hook. Loads stack size from `data.stack` and clamps it to `MAXUINT`.
+*   **Parameters:** `data` (table) — optional table with `data.stack`.
+*   **Returns:** Nothing.
+*   **Events:** Pushes `"stacksizechange"` with `{stacksize = number, oldstacksize = 1}`.
 
 ### `SetOnDeStack(fn)`
-* **Description:** Registers a callback function to be invoked when the stack is split via `Get()`.
-* **Parameters:**
-  - `fn` (`function`): Callback signature: `fn(new_instance, original_instance)`.
+*   **Description:** Registers a callback invoked whenever `Get()` splits a stack.
+*   **Parameters:** `fn` (function) — signature: `fn(new_instance, original_instance)`.
+*   **Returns:** Nothing.
 
 ### `SetStackSize(sz)`
-* **Description:** Directly sets the stack size, clamped to `MAXUINT`, and emits a `stacksizechange` event.
-* **Parameters:**
-  - `sz` (`number`): Desired stack size.
+*   **Description:** Sets the stack size directly, clamping to `MAXUINT`.
+*   **Parameters:** `sz` (number) — desired stack size.
+*   **Returns:** Nothing.
+*   **Events:** Pushes `"stacksizechange"` with `{stacksize = sz, oldstacksize = previous_size}`.
 
 ### `Get(num)`
-* **Description:** Splits off `num` items (default `1`) from the stack, creating a new instance. Updates relevant child components (e.g., perishable, cursed, rechargeable) on the new instance.
-* **Parameters:**
-  - `num` (`number?`): Number of items to extract.
-* **Returns:** `entity?` — The new instance if extraction occurred; otherwise, `self.inst` (if no split happened).
+*   **Description:** Splits off `num` items (default `1`) into a new prefab instance. Copies relevant component states (perishable, rechargeable, cursed, inventoryitem, etc.).
+*   **Parameters:** `num` (number?, default `1`) — number of items to split off.
+*   **Returns:** `inst` (new instance) if stack was split; otherwise returns `self.inst` if stack was too small or already `1`.
+*   **Error states:** Does *not* modify `self.stacksize` if `num <= 0`; splits at least `1`.
 
 ### `RoomLeft()`
-* **Description:** Returns how many more items can be added before reaching `maxsize`.
-* **Parameters:** None.
-* **Returns:** `number` — Positive value indicating remaining capacity.
+*   **Description:** Returns the remaining space in the current stack.
+*   **Parameters:** None.
+*   **Returns:** `number` — `maxsize - stacksize`.
 
 ### `Put(item, source_pos)`
-* **Description:** Attempts to merge `item` (another stackable entity) into this stack. Updates perishability, moisture, and other derived properties. May return the remainder `item` if the stack overflows.
-* **Parameters:**
-  - `item` (`Entity`): The stackable item to merge.
-  - `source_pos` (`Vector3?`): Position of the item being added (used for inventory pickup sync).
-* **Returns:** `Entity?` — The remainder item if not fully consumed, or `nil`.
+*   **Description:** Attempts to consolidate another item (`item`) into this stack. Updates `perishable`, `inventoryitem`, and `edible` states via dilution logic. Returns leftover item if stack overflows.
+*   **Parameters:** `item` (Entity) — item to stack onto this stack; `source_pos` (Vector3?) — position used for inventory pickup synchronization.
+*   **Returns:** `item` (Entity) — the leftover item if overflow occurred; otherwise `nil`.
+*   **Error states:** Returns early with `nil` if `item.prefab` or `item.skinname` differ.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted debug string (e.g., `"5/10"` or `"12/--(10)"` for infinite mode).
-* **Parameters:** None.
-* **Returns:** `string`.
+*   **Description:** Returns a human-readable debug string for the stack state (e.g., `"5/10"` or `"12/–"` for infinite).
+*   **Parameters:** None.
+*   **Returns:** `string` — formatted as `"{current}/{max}"`, with `originalmaxsize` appended if applicable.
 
-## Events & Listeners
-- **Events Emitted:**
-  - `stacksizechange` — Pushed when stack size changes (e.g., via `SetStackSize`, `OnLoad`, `Get`, or `Put`). Event data includes:
-    - `stacksize` (`number`): New stack size.
-    - `oldstacksize` (`number`): Previous stack size.
-    - `src_pos` (`Vector3?`, optional): Source position for `Put` operations.
-- **No `inst:ListenForEvent` calls** — This component does not listen for external events.
+## Events & listeners
+- **Pushes:** `stacksizechange` — fired on stack size modifications (e.g., via `SetStackSize`, `Put`, `OnLoad`). Payload: `{stacksize = number, oldstacksize = number, [src_pos = Vector3?]}`
+- **Listens to:** None — this component does not register event listeners directly.

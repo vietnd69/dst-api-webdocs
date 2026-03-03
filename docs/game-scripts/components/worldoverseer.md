@@ -1,161 +1,164 @@
 ---
 id: worldoverseer
 title: Worldoverseer
-description: Tracks player presence, gameplay sessions, equipment changes, crafting, and death events to aggregate and transmit analytics data about world activity.
+description: Tracks player activity, equipment usage, crafting, and session metrics for analytics reporting in multiplayer games.
+tags: [analytics, multiplayer, tracking]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 656a30f6
+system_scope: world
 ---
 
 # Worldoverseer
 
-## Overview
-The Worldoverseer component monitors and logs player activity across gameplay sessions in Don't Starve Together. It tracks when players join or leave the world, records clothing/equipment changes, item crafting, player deaths, and periodically sends aggregated statistics (including session metadata and world state) to the SimAnalytics system. It maintains two parallel tracking systems: one for legacy analytics (`_seenplayers`) and one for modern session-based tracking (`_v2_seenplayers`), handling both heartbeat-style world-wide reports and per-player session lifecycle events.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- `TheWorld`: Listens for world-level events (`ms_playerjoined`, `ms_playerleft`, `cycleschanged`, `clocktick`).
-- `AllPlayers`: Iterates existing players on initialization.
-- `Stats` module: Used to build context tables and format item lists.
-- `json.encode_compliant`: For preparing analytics payloads.
-- `TheSim:SendProfileStats(...)`: Primary output mechanism for stats.
-- Tags added: None.
-- Components used (via entity interaction, not self-added): `skinner`, `age`, `inventory`.
+## Overview
+`WorldOverseer` is a singleton-like component responsible for collecting and reporting detailed player statistics and gameplay metrics. It tracks when players join/leave, records clothing/equipment wear durations, monitors crafting activity, captures death events, and aggregates periodic session-level and player-level data for remote analytics. It runs automatically on `TheWorld` entity and leverages periodic tasks to flush collected data to `TheSim:SendProfileStats()`.
+
+Key integrations include:
+- `age` component for player age in days
+- `inventory` component to reference all current items
+- `skinner` component for clothing/equipment tracking
+
+## Usage example
+```lua
+-- Automatically added to TheWorld in the core game
+-- Modders typically interact with it by listening to its events or checking its internal state
+-- Example: retrieving player stats after a session
+local stats = TheWorld.components.worldoverseer:CalcPlayerStats()
+for _, stat in ipairs(stats) do
+    print("Player:", stat.player.prefab, "Playtime:", stat.secondsplayed)
+end
+```
+
+## Dependencies & tags
+**Components used:** `age`, `inventory`, `skinner`  
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity this component is attached to (typically the world root). |
-| `data` | `table` | `{}` | Unused placeholder table. |
-| `_seenplayers` | `table` | `{}` | Legacy tracking structure for per-player activity metrics (start/end times, worn items, crafted items). |
-| `_v2_seenplayers` | `table` | `{}` | Modern session-based tracking structure keyed by `userid`, storing `gameplay_session_id` and `prefab`. |
+| `inst` | `Entity` | `nil` | The entity instance (typically `TheWorld`) that owns this component. |
+| `data` | `table` | `{}` | Reserved data storage; currently unused. |
+| `_seenplayers` | `table` | `{}` | Tracks per-player statistics (`player` → stats table) during current timeframe. |
 | `_cycles` | `number?` | `nil` | Current world cycle count (from `cycleschanged` event). |
-| `_daytime` | `number?` | `nil` | Current world time (from `clocktick` event). |
-| `last_heartbeat_poll_time` | `number` | `os.time()` | Timestamp of last `HeartbeatPoll` execution (used for suspend detection). |
-| `heartbeat_poll_counter` | `number` | `0` | Accumulated time in seconds since last major `HeartbeatPoll` aggregation (used for scheduling global heartbeat events). |
+| `_daytime` | `number?` | `nil` | Current time of day (from `clocktick` event). |
+| `_v2_seenplayers` | `table` | `{}` | Tracks players by `userid` for session-based analytics (V2 schema). |
+| `last_heartbeat_poll_time` | `number` | `os.time()` | Last timestamp of `HeartbeatPoll` execution. |
+| `heartbeat_poll_counter` | `number` | `0` | Accumulated interval for heartbeat polling. |
 
-## Main Functions
+## Main functions
+### `OnPlayerJoined(src, player)`
+*   **Description:** Registers a player’s arrival, starts time tracking, and sets up event listeners for that player (death, clothing, crafting, equipping).
+*   **Parameters:** `src` (`Entity?`) — event source; `player` (`Entity`) — the player entity.
+*   **Returns:** Nothing.
+*   **Error states:** Manually records initial clothing if `skinner` component exists but events were missed during startup.
 
-### `RecordPlayerJoined(player)`
-* **Description:** Initializes or resets analytics tracking for a player who has joined the world. Records the start time, worn clothing, and prepares for crafting/death tracking.
-* **Parameters:**
-  * `player`: The `Player` entity joining.
-
-### `RecordPlayerLeft(player)`
-* **Description:** Finalizes analytics tracking for a player who has left, computing total playtime and closing open item wear periods.
-* **Parameters:**
-  * `player`: The `Player` entity who left.
+### `OnPlayerLeft(src, player)`
+*   **Description:** Finalizes time tracking for the player and updates `worn_items` end times.
+*   **Parameters:** `src` (`Entity?`) — event source; `player` (`Entity`) — the player entity.
+*   **Returns:** Nothing.
 
 ### `CalcIndividualPlayerStats(player)`
-* **Description:** Computes aggregated statistics (play time, total worn item durations, crafted item counts) for a single player. Returns the result and a flag indicating if the player record should be removed from `_seenplayers` (true if the player left).
-* **Parameters:**
-  * `player`: The `Player` entity whose stats to compute.
-
-### `CalcPlayerStats()`
-* **Description:** Computes stats for all currently tracked players and cleans up records for players who have left.
-* **Returns:** An array of stat objects (one per player) suitable for `DumpIndividualPlayerStats`.
+*   **Description:** Computes aggregated statistics for a single player: total playtime, time spent wearing each item, and craft counts.
+*   **Parameters:** `player` (`Entity`) — player entity to calculate stats for.
+*   **Returns:** `stats` (`table`) and `shouldremove` (`boolean`).  
+    `stats` includes:  
+    - `player`: player entity  
+    - `secondsplayed`: total playtime in seconds  
+    - `worn_items`: `{ [item_name] = total_time }`  
+    - `crafted_items`: `{ [item_name] = count }`  
+    `shouldremove` is `true` if the player has fully disconnected and stats should be purged.
 
 ### `DumpIndividualPlayerStats(stat, event)`
-* **Description:** Serializes and transmits analytics data for a single player's session or activity window.
-* **Parameters:**
-  * `stat`: Table containing player, `secondsplayed`, `worn_items`, `crafted_items`, and optionally `current_inventory`.
-  * `event`: String identifier (e.g., `"heartbeat.player"`, `"player.leave_world"`).
+*   **Description:** Formats and sends individual player analytics data to `TheSim:SendProfileStats()`.
+*   **Parameters:** `stat` (`table`) — result from `CalcIndividualPlayerStats`; `event` (`string`) — event name (e.g., `"heartbeat.player"`).
+*   **Returns:** Nothing.
 
 ### `DumpPlayerStats()`
-* **Description:** Calls `CalcPlayerStats()` and sends all computed stats via `DumpIndividualPlayerStats` with `"heartbeat.player"` event.
-* **Parameters:** None.
+*   **Description:** Calls `CalcPlayerStats()` and `DumpIndividualPlayerStats()` for every tracked player with event `"heartbeat.player"`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `DumpSessionStats()`
-* **Description:** Sends aggregated server/session-level analytics, including player count, gamemode, admin status, clan info, world age, and inventory of world items (via `GetWorldRecipeItems`).
-* **Parameters:** None.
-
-### `OnPlayerDeath(player, data)`
-* **Description:** Sends a death analytics event including player age, world age, and cause of death.
-* **Parameters:**
-  * `player`: The `Player` entity that died.
-  * `data`: Table containing `cause` of death (prefab for kills).
-
-### `OnPlayerChangedSkin(player, data)`
-* **Description:** Updates tracking for when a player changes outfit, ending the previous item's wear period and starting a new one.
-* **Parameters:**
-  * `player`: The `Player` entity.
-  * `data`: Table with `old_skin` and `new_skin`.
-
-### `OnItemCrafted(player, data)`
-* **Description:** Records an item being crafted by the player.
-* **Parameters:**
-  * `player`: The `Player` entity.
-  * `data`: Table with `skin` (prefab name) of the crafted item.
-
-### `OnEquipSkinnedItem(player, data)`
-* **Description:** Starts a new wearable item wear period (typically for non-skin items equipped with skins).
-* **Parameters:**
-  * `player`: The `Player` entity.
-  * `data`: String—the name (prefab) of the equipped item.
-
-### `OnUnequipSkinnedItem(player, data)`
-* **Description:** Ends the current wear period for a specific item.
-* **Parameters:**
-  * `player`: The `Player` entity.
-  * `data`: String—the name (prefab) of the unequipped item.
-
-### `GetWorldRecipeItems()`
-* **Description:** Scans the world for entities matching known recipes or prepared foods and returns a metrics-formatted list.
-* **Returns:** List of recipe item prefabs, or `nil`.
+*   **Description:** Generates and sends a session-level analytics payload (e.g., server config, game mode, recipe items present in world).
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `Heartbeat()`
-* **Description:** Main world-level periodic callback (every 5 minutes) that sends per-player stats and session stats.
-* **Parameters:** None.
+*   **Description:** Fires every `WORLDOVERSEER_HEARTBEAT` (5 minutes). Calls `DumpPlayerStats()` and `DumpSessionStats()`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `HeartbeatPoll()`
-* **Description:** Low-frequency heartbeat (every 5 seconds) that manages per-player session tracking in `_v2_seenplayers`. Detects player joins, leaves, and suspend/resume events. Schedules and sends per-player `SESSION_BEGIN`, `HEARTBEAT`, and `SESSION_END` events.
-* **Parameters:** None.
-
-### `QuitAll()`
-* **Description:** Forces `SESSION_END` events to be sent for all tracked players in `_v2_seenplayers`. Used on shutdown or shutdown-like events.
-* **Parameters:** None.
+*   **Description:** Runs every `WORLDOVERSEER_HEARTBEAT_POLL` (5 seconds) **only on the master shard**. Tracks per-player session lifecycle using `userid` (V2 metrics).
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if `not TheWorld.ismastershard`. Detects long pauses (e.g., OS suspend/resume) and restarts sessions.
 
 ### `SendClientJoin(userid, data)`
-* **Description:** Sends a `SESSION_BEGIN` event for a player joining.
-* **Parameters:**
-  * `userid`: String—network ID of the client.
-  * `data`: Table with `gameplay_session_id` and `prefab`.
+*   **Description:** Sends a `"SESSION_BEGIN"` analytics event for a new player session.
+*   **Parameters:** `userid` (`string`) — unique user ID; `data` (`table`) — includes `gameplay_session_id` and `prefab`.
+*   **Returns:** Nothing.
 
 ### `SendClientHeartBeat(userid, data)`
-* **Description:** Sends a `HEARTBEAT` event to report an active player session.
-* **Parameters:**
-  * `userid`: String—network ID of the client.
-  * `data`: Table with `gameplay_session_id` and `prefab`.
+*   **Description:** Sends a `"HEARTBEAT"` analytics event for ongoing player session.
+*   **Parameters:** `userid` (`string`); `data` (`table`) — includes `gameplay_session_id` and `prefab`.
+*   **Returns:** Nothing.
 
 ### `SendClientQuit(userid, data)`
-* **Description:** Sends a `SESSION_END` event for a player quitting.
-* **Parameters:**
-  * `userid`: String—network ID of the client.
-  * `data`: Table with `gameplay_session_id` and `prefab`.
+*   **Description:** Sends a `"SESSION_END"` analytics event for a player session.
+*   **Parameters:** `userid` (`string`); `data` (`table`) — includes `gameplay_session_id` and `prefab`.
+*   **Returns:** Nothing.
 
-## Events & Listeners
+### `QuitAll()`
+*   **Description:** Sends `"SESSION_END"` events for all tracked players in `_v2_seenplayers`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-- **Listens for:**
-  - `"ms_playerjoined"` on `TheWorld` → `OnPlayerJoined`
-  - `"ms_playerleft"` on `TheWorld` → `OnPlayerLeft`
-  - `"cycleschanged"` on `TheWorld` → `OnCyclesChanged`
-  - `"clocktick"` on `TheWorld` → `OnClockTick`
-  - `"death"` on each `player` entity → `OnPlayerDeath`
-  - `"changeclothes"` on each `player` entity → `OnPlayerChangedSkin`
-  - `"buildstructure"` on each `player` entity → `OnItemCrafted`
-  - `"builditem"` on each `player` entity → `OnItemCrafted`
-  - `"equipskinneditem"` on each `player` entity → `OnEquipSkinnedItem`
-  - `"unequipskinneditem"` on each `player` entity → `OnUnequipSkinnedItem`
+### `OnPlayerDeath(player, data)`
+*   **Description:** Records death event with player age (days), world age, and death cause.
+*   **Parameters:** `player` (`Entity`) — deceased player; `data` (`table`) — includes `cause`.
+*   **Returns:** Nothing.
 
-- **Triggers (via `TheSim:SendProfileStats`):**
-  - `"heartbeat.player"` — Per-player session stats.
-  - `"heartbeat.session"` — Server/session-level stats.
-  - `"player.death"` — Player death event.
-  - `"SESSION_BEGIN"` — Player session start.
-  - `"HEARTBEAT"` — Per-player session heartbeat.
-  - `"SESSION_END"` — Player session end.
+### `OnPlayerChangedSkin(player, data)`
+*   **Description:** Updates `worn_items` tracking when a player changes skins (e.g., via clothing).
+*   **Parameters:** `player` (`Entity`); `data` (`table`) — includes `old_skin` and `new_skin`.
+*   **Returns:** Nothing.
+
+### `OnItemCrafted(player, data)`
+*   **Description:** Records item crafting activity.
+*   **Parameters:** `player` (`Entity`); `data` (`table`) — includes `skin`.
+*   **Returns:** Nothing.
+
+### `OnEquipSkinnedItem(player, data)`
+*   **Description:** Records time start for a newly equipped item.
+*   **Parameters:** `player` (`Entity`); `data` (`string`) — skin name.
+*   **Returns:** Nothing.
+
+### `OnUnequipSkinnedItem(player, data)`
+*   **Description:** Records time end for an unequipped item.
+*   **Parameters:** `player` (`Entity`); `data` (`string`) — skin name.
+*   **Returns:** Nothing.
+
+### `GetWorldRecipeItems()`
+*   **Description:** Returns a list of all unique recipe items currently present in the world (via `Ents`).
+*   **Parameters:** None.
+*   **Returns:** `items` (`table?`) — array of prefab names, or `nil` if world or entities unavailable.
+
+## Events & listeners
+- **Listens to:**
+  - `"ms_playerjoined"` — new player join.
+  - `"ms_playerleft"` — player disconnect.
+  - `"cycleschanged"` — updates `self._cycles`.
+  - `"clocktick"` — updates `self._daytime`.
+  - `"death"` — on each player entity.
+  - `"changeclothes"` — skin change.
+  - `"buildstructure"`, `"builditem"` — crafting.
+  - `"equipskinneditem"`, `"unequipskinneditem"` — equipment changes.
+- **Pushes:** None — this component only sends data via `TheSim:SendProfileStats`.

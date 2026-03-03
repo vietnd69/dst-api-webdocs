@@ -1,49 +1,61 @@
 ---
 id: fertilizerresearchable
 title: Fertilizerresearchable
-description: Marks an entity as capable of providing fertilizer research information and enables learning fertilizer items via player interaction.
+description: Enables an entity to provide researchable fertilizer data to the game, typically used by compost bins or similar structures in biomes like the Ruins.
+tags: [crafting, research, world]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: af2cc389
+system_scope: world
 ---
 
 # Fertilizerresearchable
 
-## Overview
-This component marks an entity as a researchable source for fertilizer items. It stores a custom research-info function and provides methods to retrieve and share that information, primarily for use in research benches or similar UIs. When a player interacts with the entity, it can notify the player to learn a specific fertilizer item.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds the tag `"fertilizerresearchable"` to the entity instance (`inst`).
-- No external component dependencies are added or required by this component.
+## Overview
+`FertilizerResearchable` allows an entity to expose metadata about a specific fertilizer type that players can discover through the research system. It is attached to static world objects (e.g., compost bins) and integrates with the `learnfertilizer` event flow during player interaction. The component ensures the target entity is tagged `fertilizerresearchable`, marking it as a valid source for fertilizer research.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("fertilizerresearchable")
+inst.components.fertilizerresearchable:SetResearchFn(function(ent)
+    return "rotgut"
+end)
+-- Later, when a player interacts with the entity:
+inst.components.fertilizerresearchable:LearnFertilizer(player)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `fertilizerresearchable`
 
 ## Properties
+No public properties
 
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The owning entity instance, stored at construction. |
-| `reasearchinfofn` | `function?` | `nil` | Optional callback function that returns fertilizer research data (e.g., a string or table) for this entity. *Note:* Typo in original source (`reasearchinfofn` instead of `researchinfofn`). |
-
-## Main Functions
-
+## Main functions
 ### `SetResearchFn(fn)`
-* **Description:** Assigns a custom function (`fn`) that will be called by `GetResearchInfo()` to retrieve the fertilizer research data for this entity.
-* **Parameters:**
-  * `fn` (`function`): A callable function that accepts the entity instance as its only argument and returns the research information (e.g., the name or ID of the fertilizer to be learned).
+* **Description:** Assigns a callback function that returns the fertilizer identifier when invoked. This function is called during research to determine *which* fertilizer the entity provides.
+* **Parameters:** `fn` (function) — A function taking the entity instance as its only argument and returning a string fertilizer name (e.g., `"rotgut"`), or `nil`.
+* **Returns:** Nothing.
 
 ### `GetResearchInfo()`
-* **Description:** Invokes the stored `reasearchinfofn` (if set) and returns its result. Returns `nil` if no function is defined.
+* **Description:** Invokes the research function (if set) and returns the resulting fertilizer identifier.
 * **Parameters:** None.
+* **Returns:** `string?` — The fertilizer name, or `nil` if no research function is defined or the function returns `nil`.
+* **Error states:** Returns `nil` if `self.reasearchinfofn` is unset.
 
 ### `LearnFertilizer(doer)`
-* **Description:** Triggers the "learnfertilizer" event on the `doer` (typically a player), passing along the fertilizer research info obtained via `GetResearchInfo()`. Used when a player interacts with the researchable entity to learn the associated fertilizer.
-* **Parameters:**
-  * `doer` (`Entity`): The entity (usually a player) performing the action and receiving the learn event.
+* **Description:** Triggers the `learnfertilizer` event on the `doer` (typically a player entity), delivering the fertilizer data obtained via `GetResearchInfo()`. Used when a player interacts with the researchable entity to learn a new fertilizer recipe.
+* **Parameters:** `doer` (GObject) — The entity (usually a player) performing the action and receiving the event.
+* **Returns:** Nothing.
+* **Error states:** Does nothing if `GetResearchInfo()` returns `nil`.
 
-## Events & Listeners
-- Listens to no events.
-- Emits the `"learnfertilizer"` event on the `doer` entity (via `doer:PushEvent`) when `LearnFertilizer()` is called, with the payload `{ fertilizer = <fertilizer_data> }`.
+## Events & listeners
+- **Listens to:** None  
+- **Pushes:** `learnfertilizer` — Fired on the `doer` entity with payload `{ fertilizer = "..." }` when fertilizer is successfully learned.

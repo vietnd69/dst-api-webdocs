@@ -1,84 +1,99 @@
 ---
 id: joustsource
 title: Joustsource
-description: Manages the jousting lance attack logic, including collision detection, hit timing, and combat interaction during jousting events.
+description: Manages the lance-based melee attack logic for jousting entities, including collision detection against targets within the lance's arc and pushback/knockback behavior.
+tags: [combat, physics, joust]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: combat
+category_type: components
 source_hash: b0c430b0
+system_scope: combat
 ---
 
 # Joustsource
 
-## Overview
-This component handles the core logic for jousting attacks in Don't Starve Together. It calculates lance collision using 2D geometry, enforces hit timing cooldowns, and triggers combat actions (e.g., attacks, knockback, or mutual joust collisions) against valid targets within the lance's range and arc. It integrates with the Combat component to perform attacks and respects physics and tag-based collision rules.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependency:** Uses `inst.components.combat` (if present) to perform attacks (`DoAttack`), check ally status, and control `ignorehitrange`.
-- **Tags:**
-  - Adds `jousting` to entities during jousting (used via `JOUSTING_TAGS` constant).
-  - Uses `collide_tags = { "_combat" }` and `no_collide_tags = { "FX", "NOCLICK", "DECOR", "INLIMBO", "player" (if PVP disabled) }` for entity filtering in `TheSim:FindEntities`.
-- **Physics/Geometry:** Relies on `Transform:GetWorldPosition`, `Transform:GetRotation`, `GetPhysicsRadius`, and vector math.
+## Overview
+`JoustSource` implements the physics and logic for lance-based attacks used in jousting gameplay. It calculates a forward-facing lance arc, checks for collisions with eligible targets within that arc, and triggers combat actions or knockback when a target is struck. It relies on the `combat` and `health` components to validate targets and execute attacks.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("joustsource")
+inst.components.joustsource:SetLanceLength(8)
+inst.components.joustsource:SetSpeed(TUNING.WILSON_RUN_SPEED)
+inst.components.joustsource:SetOnHitOtherFn(function(joust_inst, attacker, target)
+    -- Custom behavior on lance impact
+end)
+-- Called periodically during jousting movement to resolve collisions
+local hit = inst.components.joustsource:CheckCollision(attacker, targets_table)
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `health`  
+**Tags:** Checks `jousting`, `player`, `FX`, `NOCLICK`, `DECOR`, `INLIMBO`, `_combat`  
+**Tags added:** `jousting` (via `JOUSTING_TAGS` constant for reference only; actual tag management happens externally)
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity the component is attached to. |
-| `speed` | `number` | `TUNING.WILSON_RUN_SPEED` | Movement speed used for the jousting animation or logic (not used in collision). |
-| `collide_tags` | `table` | `{ "_combat" }` | Tags that allow collision during jousting detection. |
-| `no_collide_tags` | `table` | `{ "FX", "NOCLICK", "DECOR", "INLIMBO", "player" }` | Tags that block collision (player included only when PVP is disabled). |
-| `length` | `number` | `nil` | Length of the lance (set via `SetLanceLength`, used in collision range). |
-| `loops` | `number` | `nil` | Number of animation loops (set via `SetRunAnimLoopCount`). |
-| `onhitotherfn` | `function` | `nil` | Optional callback function invoked on hit (`self.onhitotherfn(self.inst, inst, guy)`). |
+| `speed` | number | `TUNING.WILSON_RUN_SPEED` | Run speed used during jousting (not directly used in this component but stored for reference) |
+| `length` | number or `nil` | `nil` | Length of the lance in game units; required before `CheckCollision` is effective |
+| `collide_tags` | table | `{ "_combat" }` | Tags that allow collision (e.g., valid targets must have at least one of these) |
+| `no_collide_tags` | table | `{ "FX", "NOCLICK", "DECOR", "INLIMBO" }` (plus `"player"` if PVP is disabled) | Tags that block collision regardless of other tags |
+| `onhitotherfn` | function or `nil` | `nil` | Optional callback invoked when a non-jousting target is hit by the lance |
+| `loops` | number or `nil` | `nil` | Animation loop count for jousting run animation |
 
-## Main Functions
+## Main functions
 ### `SetSpeed(speed)`
-* **Description:** Sets the `speed` property used for animation or movement logic (e.g.,骑Lance run speed).
-* **Parameters:**
-  - `speed` (`number`): New speed value.
+* **Description:** Sets the stored run speed value for the jousting entity.
+* **Parameters:** `speed` (number) — speed in units per second.
+* **Returns:** Nothing.
 
 ### `GetSpeed()`
-* **Description:** Returns the current `speed` value.
+* **Description:** Returns the currently stored run speed.
+* **Parameters:** None.
+* **Returns:** number — the stored speed value.
 
 ### `SetRunAnimLoopCount(loops)`
-* **Description:** Sets the animation loop count for the jousting run.
+* **Description:** Sets the number of animation loops to play for the jousting run animation.
+* **Parameters:** `loops` (number) — number of animation cycles.
+* **Returns:** Nothing.
 
 ### `GetRunAnimLoopCount()`
-* **Description:** Returns the animation loop count.
+* **Description:** Returns the currently set animation loop count.
+* **Parameters:** None.
+* **Returns:** number or `nil` — the stored loop count.
 
 ### `SetLanceLength(length)`
-* **Description:** Sets the effective lance length used in collision calculations.
+* **Description:** Sets the effective length of the lance in world units (from hilt to tip).
+* **Parameters:** `length` (number) — lance length.
+* **Returns:** Nothing.
 
 ### `GetLanceLength()`
-* **Description:** Returns the current lance length.
+* **Description:** Returns the currently set lance length.
+* **Parameters:** None.
+* **Returns:** number or `nil` — the stored lance length.
 
 ### `SetOnHitOtherFn(fn)`
-* **Description:** Registers a custom callback function to be invoked whenever the lance successfully hits a non-jousting target.
-* **Parameters:**
-  - `fn` (`function`): Function of signature `(joust_inst, attacker_inst, target_inst)`.
+* **Description:** Assigns a custom callback function to be invoked when the lance hits a non-jousting target.
+* **Parameters:** `fn` (function) — function with signature `fn(joust_inst, attacker, target)`.
+* **Returns:** Nothing.
 
 ### `CheckCollision(inst, targets)`
-* **Description:** Computes collision for the lance attack using 2D segment-to-point distance. It finds nearby entities within the lance's arc and range, checks a 0.75-second cooldown per target, and triggers combat actions or joust collisions. Returns `true` if a mutual joust collision occurs (e.g., player vs player).
+* **Description:** Checks for entities within the lance's conical arc in front of `inst`, applies collisions and combat actions for eligible targets, and updates `targets` table with recent hits to prevent spam (via 0.75s cooldown).
 * **Parameters:**
-  - `inst` (`Entity`): The jousting entity (same as `self.inst`).
-  - `targets` (`table`): A dictionary used to track last-hit times per target (keyed by target entity) to enforce cooldowns.  
-* **Key Logic:**
-  - Converts lance base and tip positions to world space based on facing angle.
-  - Computes a collision radius around the lance segment.
-  - Iterates over entities matching collision/no-collision tag filters.
-  - For each valid target, checks if:
-    - Hit cooldown is expired (0.75s).
-    - Target is within lance range and in front (`dot >= 0`).
-  - On hit:
-    - If target is also jousting (`"jousting"` tag) *and* facing away (`DiffAngle > 44°`), pushes `"joust_collide"` event and sets `collided = true`.
-    - Otherwise, calls `onhitotherfn` (if set), triggers combat via `combat:DoAttack`, and pushes `"knockback"` with radius `6.5` and forced landing.
+  * `inst` (GothamEntity) — the jousting entity performing the lance attack.
+  * `targets` (table) — table keyed by target entity, used to track last-hit timestamps for cooldown logic.
+* **Returns:** boolean — `true` if any jousting entity collided head-on (`joust_collide` event was pushed), `false` otherwise.
+* **Error states:** May silently skip targets that are invalid, dead (`health:IsDead()`), non-targetable (`combat:CanTarget` fails), or within the protection zone defined by `TargetForceAttackOnly`. Also skips collisions if the lance tip has already hit the target within the last `0.75` seconds.
 
-## Events & Listeners
-- **Pushes/Triggers:**
-  - `"joust_collide"`: Immediately pushed on mutual jousting collision.
-  - `"knockback"`: Pushed on successful hit against a non-jousting or non-reciprocal target, with parameters `{ knocker = inst, radius = 6.5, forcelanded = true }`.
-- **Listens for:** None identified.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:**  
+  - `knockback` — pushed on hit targets with payload `{ knocker = inst, radius = 6.5, forcelanded = true }`.  
+  - `joust_collide` — pushed *immediately* (via `PushEventImmediate`) on another `jousting` entity when lance and lance collide according to `should_collide()` angle logic.

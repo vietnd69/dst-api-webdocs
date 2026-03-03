@@ -1,84 +1,98 @@
 ---
 id: seamlessplayerswapper
 title: Seamlessplayerswapper
-description: Manages seamless character prefab swapping for players without returning to character selection, preserving inventory, state, and clothing while migrating persistence data between characters.
+description: Handles seamless in-game player character transitions without exiting to character select, preserving inventory, tags, and clothing while updating prefabs.
+tags: [player, inventory, network, transition]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 2ebfdda1
+system_scope: player
 ---
-
 # Seamlessplayerswapper
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component enables seamless character switching in Don't Starve Together—allowing players to change their active character prefab (e.g., via `DoMonkeyChange()` or `SwapBackToMainCharacter()`) without exiting to the character select screen. It preserves core state (inventory, tags, behavior state) by transferring it from the old character to the new one, and handles clothing, skin base, and special trait persistence (e.g., MIME tag, speech proxy). It also ensures proper cleanup of cursed items and coordinates the lifecycle of the transition on both the old and newly spawned entities.
+`Seamlessplayerswapper` enables in-game character swaps (e.g., via monkey box) by transferring a player's state—including inventory, health, tags, clothing, and persistence data—to a new prefab instance—without returning to the character selection screen. It works in conjunction with `TheNet:SpawnSeamlessPlayerReplacement` for network synchronization, and maintains continuity of game state across the transition.
 
-## Dependencies & Tags
-**Dependencies (via component access):**
-- `inst.components.skinner` — for retrieving/applying clothing data
-- `inst.components.inventory` — to locate and strip cursed items from the old player
-- `inst.components.health` — to determine post-swap state (e.g., death state)
-- `inst.components.talker` — to set speech proxy
-- `inst.sg` (StateGraph) — to transition into appropriate post-swap state
+The component interacts with:
+- `skinner` to capture and restore clothing/skin data.
+- `inventory` to find and uncurse items.
+- `health` to check for death state post-swap.
+- `talker` to preserve speech proxy.
+- `curseditem` to clear curse associations on transition.
 
-**Tags managed:**
-- Adds/removes `"mime"` tag conditionally during swap
-- Removes `"applied_curse"` tag from cursed items during transition
+## Usage example
+```lua
+-- Example: Trigger a seamless swap to "wonkey" (e.g., via monkey box)
+inst.components.seamlessplayerswapper:DoMonkeyChange()
+
+-- Example: Restore the original character (e.g., via cancel button)
+inst.components.seamlessplayerswapper:SwapBackToMainCharacter()
+
+-- Example: After spawn, load saved seamless swap data
+if data.seamlessplayerswapper then
+    inst.components.seamlessplayerswapper:OnLoad(data.seamlessplayerswapper)
+end
+```
+
+## Dependencies & tags
+**Components used:** `skinner`, `inventory`, `health`, `talker`, `curseditem`  
+**Tags:** Adds `mime` conditionally (via `PostTransformSetup`)
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *(passed in)* | The entity this component is attached to (a player). |
-| `swap_data` | `table` | `{}` | Stores per-prefab clothing data (`skin_base`) for non-main characters during swapping *to* them. Cleared after use. |
-| `main_data` | `table` | `{}` | Stores persistent main character state: `skin_base`, `prefab`, and optionally `mime`. Preserved across swaps *back* to main character. |
+| `swap_data` | table | `{}` | Stores clothing/skin data for *other* prefabs (keyed by prefab name) that the player may swap *to* from the current character. |
+| `main_data` | table | `{}` | Stores original character's clothing (`skin_base`) and `prefab` name (used when swapping back), and optionally `mime` flag. |
 
-## Main Functions
-
+## Main functions
 ### `_StartSwap(new_prefab)`
-* **Description:** Core logic for initiating a seamless character swap. Saves current clothing, determines target prefab and `skin_base`, then delegates to `TheNet:SpawnSeamlessPlayerReplacement()` to trigger the actual swap. Handles both forward swaps (to a new prefab) and return to main character.
-* **Parameters:**
-  - `new_prefab` (`string?`): The target character prefab (e.g., `"wonkey"`). If `nil` or omitted, swaps back to the main character (restoring `self.main_data.prefab` or defaulting to `"wilson"`).
+* **Description:** Initiates the actual seamless player replacement via `TheNet:SpawnSeamlessPlayerReplacement`, saving current clothing data and preparing the new prefab to be spawned with preserved attributes.
+* **Parameters:** `new_prefab` (string or `nil`) — the target prefab name. If `nil`, swaps back to the main character.
+* **Returns:** Nothing.
+* **Error states:** Returns early (no-op) if `inst.userid` is missing or empty.
 
 ### `DoMonkeyChange()`
-* **Description:** Convenience method to swap into the monkey character (`"wonkey"`).
+* **Description:** Triggers a seamless swap to the `"wonkey"` prefab (used for monkey boxes).
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SwapBackToMainCharacter()`
-* **Description:** Convenience method to swap back to the original/primary character.
+* **Description:** Triggers a seamless swap back to the original character (saved in `main_data`).
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnSeamlessCharacterSwap(old_player)`
-* **Description:** Runs on the *newly created* player entity after the swap. Transfers gameplay state from the old player (inventory items, state graph, etc.), cleans up cursed items, hides/disables the old entity, applies special traits (e.g., MIME), and transitions to an appropriate state.
-* **Parameters:**
-  - `old_player` (`Entity`): The player entity that was swapped out.
+* **Description:** Executed *on the newly spawned player* after `TheNet:SpawnSeamlessPlayerReplacement`. Handles restocking, uncursing, and synchronizing state from the old player entity.
+* **Parameters:** `old_player` (Entity) — the previous player instance being replaced.
+* **Returns:** Nothing.
 
 ### `PostTransformSetup()`
-* **Description:** Applies post-swap configuration, including setting the MIME tag and speech proxy based on `main_data`.
+* **Description:** Applies post-swap tag/behavior adjustments, such as restoring the `mime` tag (if applicable) and setting the speech proxy to the original prefab.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SaveForReroll()`
-* **Description:** Generates data for temporary persistence (e.g., during rerolls or restarts) that includes current `swap_data` and current clothing.
+* **Description:** Generates partial state data suitable for `LoadForReroll` (e.g., for non-network rerolls), preserving swap-related clothing data if needed.
 * **Parameters:** None.
-* **Returns:** `table?` — Either `{ swap_data = ... }` or `nil` if no swap-related data exists.
+* **Returns:** `table` with optional `swap_data` field, or `nil` if nothing to save.
 
 ### `OnSave()`
-* **Description:** Serializes full persistent state (including `swap_data` and `main_data`) for saving to disk.
+* **Description:** Produces full serialized state for persistence (e.g., during world saves). Includes both `swap_data` and `main_data`.
 * **Parameters:** None.
-* **Returns:** `table?` — Composite save data or `nil` if empty.
+* **Returns:** `table` with optional `swap_data` and `main_data` fields, or `nil` if both are empty.
 
 ### `OnLoad(data)`
-* **Description:** Loads saved persistent state (`swap_data`, `main_data`) onto the component after instantiation.
-* **Parameters:**
-  - `data` (`table?`): Data saved via `OnSave()`.
+* **Description:** Loads persisted `swap_data` and `main_data`, and triggers `PostTransformSetup` if the current prefab does not match the stored main prefab.
+* **Parameters:** `data` (table or `nil`) — the saved data, typically from `OnSave`.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Events pushed by this component:**
-  - `"ms_playerreroll"` — Pushed on the old player to trigger cleanup (e.g., remove world-bound effects).
-  - `"ms_playerseamlessswaped"` — Pushed on the new player after full transition to apply final setup normally done at spawn.
-
-- **Events listened for:**
-  - *None identified.*
+## Events & listeners
+- **Listens to:** None (no event listeners registered by this component).
+- **Pushes:** 
+  - `"ms_playerreroll"` (on `old_player`) — signals removal of world items belonging to the old character.
+  - `"ms_playerseamlessswaped"` (on `new_player`) — signals completion of seamless swap; used to apply post-spawn setup.

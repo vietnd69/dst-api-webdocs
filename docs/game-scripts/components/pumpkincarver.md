@@ -1,30 +1,41 @@
 ---
 id: pumpkincarver
 title: Pumpkincarver
-description: A minimal placeholder component for pumpkin carving interactions, currently with no active logic.
+description: A placeholder component with no functional logic, likely reserved for future implementation of pumpkin carving mechanics.
+tags: [crafting, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 0b349a22
+system_scope: entity
 ---
 
 # Pumpkincarver
 
-## Overview
-This component serves as a registration marker for pumpkin carving interactions within the game's Entity Component System. It holds no runtime logic or state, functioning solely as a structural placeholder to identify entities capable of participating in pumpkin-carving workflows (e.g., via `ComponentActions`). Its presence signals intent for interaction rather than implementing behavior directly.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Pumpkincarver` is a minimal component that currently contains no functional implementation beyond initializing the component instance. It registers no events, defines no properties, and exposes no methods beyond the constructor. According to the comment in the source, actions related to pumpkin carving are registered in `componentactions.lua`, suggesting this component is a work-in-progress skeleton for future pumpkin-carving gameplay.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("pumpkincarver")
+-- No methods or properties are currently available on this component
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-No public properties are initialized or documented in this component's constructor or initialization logic.
+No public properties
 
-## Main Functions
-No functional methods are defined beyond the basic class constructor (`_ctor`). This component contains no custom public methods.
+## Main functions
+No main functions are defined beyond the constructor.
 
-## Events & Listeners
-No events are listened to or dispatched by this component.
+## Events & listeners
+None identified

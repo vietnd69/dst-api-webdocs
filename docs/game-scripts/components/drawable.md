@@ -1,86 +1,106 @@
 ---
 id: drawable
 title: Drawable
-description: Manages an entity's visual representation and its ability to be drawn within the game world.
+description: Manages the visual appearance of an entity by storing and synchronizing image, atlas, and background assets for rendering in the UI or world.
+tags: [visuals, rendering, ui]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 86aeee1e
+system_scope: ui
 ---
 
 # Drawable
 
-## Overview
-This component controls whether an entity is considered "drawable" in the game and manages the visual assets (image and atlas) associated with its main and background sprites. It provides functions to set and retrieve the drawing state and the currently displayed image/atlas, allowing other systems to query and update an entity's visual appearance.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-This script does not explicitly add other components.
-*   **Tags Added:** `drawable` (when `candraw` is true)
-*   **Tags Removed:** `drawable` (when `candraw` is false or component is removed)
+## Overview
+The `Drawable` component tracks the visual representation of an entity — specifically, the image, atlas, background image, and background atlas used for rendering. It is typically attached to prefabs that need to be visually represented in menus, minimaps, or UI elements (e.g., character avatars, held items). The component also manages the `"drawable"` tag on the entity and supports serialization for save/load.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("drawable")
+inst.components.drawable:SetCanDraw(true)
+inst.components.drawable:OnDrawn("avatar_howard", "images/avatar.xml", nil, nil)
+if inst.components.drawable:CanDraw() then
+    print("Entity is drawable")
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds or removes `"drawable"` tag on `self.inst` based on `candraw` state.
 
 ## Properties
 | Property | Type | Default Value | Description |
-|---|---|---|---|
-| `candraw` | `boolean` | `true` | Determines if the entity should have the "drawable" tag and therefore potentially be rendered. |
-| `imagename` | `string` or `nil` | `nil` | The current name of the main image resource being displayed. |
-| `atlasname` | `string` or `nil` | `nil` | The current name of the main atlas resource being used. |
-| `bgimagename` | `string` or `nil` | `nil` | The current name of the background image resource being displayed. |
-| `bgatlasname` | `string` or `nil` | `nil` | The current name of the background atlas resource being used. |
-| `ondrawnfn` | `function` or `nil` | `nil` | A callback function executed when the drawable's image or atlas changes. It receives `(inst, imagename, imagesource, atlasname, bgimagename, bgatlasname)` as arguments. |
+|----------|------|---------------|-------------|
+| `candraw` | boolean | `true` | Controls whether the entity should be considered drawable (and hold the `"drawable"` tag). |
+| `imagename` | string \| nil | `nil` | Name of the primary image asset (e.g., `"avatar_howard"`). |
+| `atlasname` | string \| nil | `nil` | Path to the image’s atlas XML file (e.g., `"images/avatar.xml"`). |
+| `bgimagename` | string \| nil | `nil` | Name of the background image asset, if any. |
+| `bgatlasname` | string \| nil | `nil` | Path to the background image’s atlas XML file. |
+| `ondrawnfn` | function \| nil | `nil` | Optional callback invoked when image/atlas properties change. |
 
-## Main Functions
-### `Drawable:OnRemoveFromEntity()`
-*   **Description:** Called when the component is removed from its entity. It ensures the "drawable" tag is removed to prevent rendering issues.
-*   **Parameters:** None.
+## Main functions
+### `SetCanDraw(candraw)`
+* **Description:** Sets whether the entity should be drawable. Automatically adds or removes the `"drawable"` tag.
+* **Parameters:** `candraw` (boolean) — whether the entity is allowed to be rendered as a drawable.
+* **Returns:** Nothing.
 
-### `Drawable:SetCanDraw(candraw)`
-*   **Description:** Sets the drawing state of the entity. If `candraw` is true, the "drawable" tag is added; otherwise, it's removed.
-*   **Parameters:**
-    *   `candraw` (`boolean`): True to allow drawing, false to prevent it.
+### `CanDraw()`
+* **Description:** Returns the current draw permission status.
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if `candraw` is set, `false` otherwise.
 
-### `Drawable:CanDraw()`
-*   **Description:** Returns the current drawing state of the entity.
-*   **Parameters:** None.
+### `SetOnDrawnFn(fn)`
+* **Description:** Registers a callback function to be invoked when image or atlas values change.
+* **Parameters:** `fn` (function) — a function with signature `fn(inst, imagename, imagesource, atlasname, bgimagename, bgatlasname)`.
+* **Returns:** Nothing.
 
-### `Drawable:SetOnDrawnFn(fn)`
-*   **Description:** Sets a callback function that will be executed whenever the drawable's image or atlas resources are updated.
-*   **Parameters:**
-    *   `fn` (`function`): The function to call. It receives the entity instance and all image/atlas parameters (`inst, imagename, imagesource, atlasname, bgimagename, bgatlasname`).
+### `OnDrawn(imagename, imagesource, atlasname, bgimagename, bgatlasname)`
+* **Description:** Updates the drawable’s image and atlas properties; triggers the `ondrawnfn` callback only if any value has changed.
+* **Parameters:**
+  - `imagename` (string \| "") — primary image name; empty string treated as `nil`.
+  - `imagesource` (any) — currently unused; pass `nil`.
+  - `atlasname` (string \| "") — primary atlas path; empty string treated as `nil`.
+  - `bgimagename` (string \| "") — background image name; empty string treated as `nil`.
+  - `bgatlasname` (string \| "") — background atlas path; empty string treated as `nil`.
+* **Returns:** Nothing.
 
-### `Drawable:OnDrawn(imagename, imagesource, atlasname, bgimagename, bgatlasname)`
-*   **Description:** Updates the main and background image/atlas resources. If the new resources differ from the current ones, the `ondrawnfn` callback is triggered. Empty strings are treated as `nil` for image/atlas names.
-*   **Parameters:**
-    *   `imagename` (`string` or `nil`): The new name of the main image.
-    *   `imagesource` (`string` or `nil`): An optional source identifier for the image (unused internally by this component).
-    *   `atlasname` (`string` or `nil`): The new name of the main atlas.
-    *   `bgimagename` (`string` or `nil`): The new name of the background image.
-    *   `bgatlasname` (`string` or `nil`): The new name of the background atlas.
+### `GetImage()`
+* **Description:** Returns the currently stored primary image name.
+* **Parameters:** None.
+* **Returns:** `string \| nil` — the `imagename` property.
 
-### `Drawable:GetImage()`
-*   **Description:** Returns the current main image name.
-*   **Parameters:** None.
+### `GetAtlas()`
+* **Description:** Returns the currently stored primary atlas path.
+* **Parameters:** None.
+* **Returns:** `string \| nil` — the `atlasname` property.
 
-### `Drawable:GetAtlas()`
-*   **Description:** Returns the current main atlas name.
-*   **Parameters:** None.
+### `GetBGImage()`
+* **Description:** Returns the currently stored background image name.
+* **Parameters:** None.
+* **Returns:** `string \| nil` — the `bgimagename` property.
 
-### `Drawable:GetBGImage()`
-*   **Description:** Returns the current background image name.
-*   **Parameters:** None.
+### `GetBGAtlas()`
+* **Description:** Returns the currently stored background atlas path.
+* **Parameters:** None.
+* **Returns:** `string \| nil` — the `bgatlasname` property.
 
-### `Drawable:GetBGAtlas()`
-*   **Description:** Returns the current background atlas name.
-*   **Parameters:** None.
+### `OnSave()`
+* **Description:** Returns a serializable table with image/atlas data for save game compatibility.
+* **Parameters:** None.
+* **Returns:** `table \| nil` — a table with keys `image`, `atlas`, `bgimage`, `bgatlas` (only non-`nil` values are included), or `nil` if no image data is set.
 
-### `Drawable:OnSave()`
-*   **Description:** Serializes the current `imagename`, `atlasname`, `bgimagename`, and `bgatlasname` if `imagename` is not `nil`. This is used for saving the entity's visual state.
-*   **Parameters:** None.
+### `OnLoad(data)`
+* **Description:** Restores image and atlas data from a saved table. Triggers `OnDrawn` internally.
+* **Parameters:** `data` (table) — must contain at least `data.image` to be meaningful; may include `data.atlas`, `data.bgimage`, `data.bgatlas`.
+* **Returns:** Nothing.
 
-### `Drawable:OnLoad(data)`
-*   **Description:** Deserializes and applies saved image and atlas data. If `data.image` is present, it calls `OnDrawn` to update the visual assets.
-*   **Parameters:**
-    *   `data` (`table`): A table containing saved image and atlas information, typically from `OnSave()`.
+## Events & listeners
+- **Listens to:** `candraw` — handled by the `oncandraw` callback to toggle the `"drawable"` tag.
+- **Pushes:** None identified.

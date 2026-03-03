@@ -1,149 +1,162 @@
 ---
 id: miasmamanager
 title: Miasmamanager
-description: Manages the generation, spread, strengthening, and removal of miasma clouds in the world, primarily around rifts and vents.
+description: Manages miasma cloud generation, spread, strength, and decay in the world map, primarily in relation to rifts and vents.
+tags: [environment, world, spawn, map]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: 76a65bb6
+system_scope: world
 ---
 
 # Miasmamanager
 
-## Overview
-The `MiasmaManager` component is responsible for simulating dynamic miasma behavior in the game world: it initializes and maintains a grid-based miasma layer, handles miasma creation near rifts or vents, governs spreading and strengthening mechanics, and manages natural decay over time. It operates exclusively on the server (master simulation), driving both the presence and persistence of miasma clouds.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies:** Requires `TheWorld.components.riftspawner` for rift-based miasma validation and creation logic.
-- **Tags Used:**
-  - `"miasma_venter"`: Entities with this tag are considered valid sources for miasma generation (e.g., vents).
-  - `"miasma"`: Used during miasma cloud removal when strength drops to zero.
-- **Component Tags Added:** None explicitly added.
-- **Internal Tags Used:**
-  - `"miasma"`: Passed to `FindEntities` during decay to locate and remove miasma cloud entities.
+## Overview
+`MiasmaManager` is a world-scoped component responsible for simulating miasma fog behavior across the map. It manages miasma cloud entities, their creation at valid locations (near rifts or vents), propagation to adjacent tiles, dynamic strength changes, and decay. The component runs only on the master simulation and interacts closely with `riftspawner` to coordinate miasma spawning around shadow-affinity rifts. It is not used on the client.
+
+## Usage example
+```lua
+-- Add the component to the world entity (typically done in world initialization):
+TheWorld:AddComponent("miasmamanager")
+
+-- Enable miasma simulation:
+TheWorld.components.miasmamanager:SetMiasmaActive(true)
+
+-- Manually force a miasma action roll:
+local action = TheWorld.components.miasmamanager:DoRolls()
+```
+
+## Dependencies & tags
+**Components used:** `riftspawner` (via `_world.components.riftspawner`)
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | Reference to the owning entity (typically `TheWorld`). |
-| `_miasma_grid` | `DataGrid` | `nil` | Grid backing the miasma layer, sized to map dimensions. |
-| `enabled` | `boolean` | `false` | Whether miasma simulation is active and the component is updated. |
-| `KILL_MIASMA_RADIUS` | `number` | `SQRT2 * TUNING.MIASMA_SPACING * TILE_SCALE / 2` | Radius used to locate miasma cloud entities when a grid cell decays to zero. |
-| `_cached_miasma_indexes` | `table` | `{}` | Indexed list of active miasma grid cell indices, for randomized updates. |
-| `_cached_miasma_indexes_count` | `number` | `0` | Count of entries in `_cached_miasma_indexes`. |
-| `_diminishing_datas` | `table` | `{}` | Maps miasma data to `{mtx, mty}` coordinates for batched decay. |
+| `inst` | entity reference | `nil` | The entity (world) that owns this component. Set in constructor. |
+| `_miasma_grid` | DataGrid | `nil` | Internal grid storing miasma tile data. Initialized on `worldmapsetsize`. |
+| `enabled` | boolean | `false` | Whether miasma simulation is active. Controlled by `SetMiasmaActive`. |
+| `_lastupdate_spread` | number | `0` | Timestamp (game time) of last spread-related update. |
+| `_lastupdate_diminish` | number | `0` | Timestamp (game time) of last diminish-related update. |
 
-## Main Functions
-
-### `self:OnSave()`
-* **Description:** Serializes the current miasma grid state and activation status for world save.
+## Main functions
+### `OnSave()`
+* **Description:** Serializes the current state of the miasma grid and active status for saving to disk.
 * **Parameters:** None.
-* **Returns:** `string` (ZIP-compressed and base64-encoded save data).
+* **Returns:** `string` — ZIP-compressed and Base64-encoded save data.
 
-### `self:OnLoad(data)`
-* **Description:** Restores miasma state from save data, including grid cells, diminishing flags, and activation status.
-* **Parameters:**
-  - `data` (`string`): Save data blob, optionally compressed/encoded.
+### `OnLoad(data)`
+* **Description:** Loads and restores miasma simulation state from saved data. Rebuilds cached indices and diminished data tracking.
+* **Parameters:** `data` (string or `nil`) — Raw saved data; if present, must be valid ZIP-encoded save.
+* **Returns:** Nothing.
+* **Error states:** Early returns if `data` is `nil` or malformed.
 
-### `self:GetMiasmaTileCoords(tx, ty)`
-* **Description:** Converts world tile coordinates to discrete miasma grid coordinates (aligned to spacing).
-* **Parameters:**
-  - `tx`, `ty` (`number`): World tile coordinates.
+### `GetMiasmaTileCoords(tx, ty)`
+* **Description:** Converts world tile coordinates (`tx`, `ty`) to miasma tile coordinates (aligned to grid spacing).
+* **Parameters:** `tx` (number), `ty` (number) — World tile coordinates.
+* **Returns:** `mtx`, `mty` (numbers) — Miasma grid-aligned tile coordinates (multiples of `TUNING.MIASMA_SPACING`).
 
-### `self:GetMiasmaAtPoint(x, y, z)`
-* **Description:** Retrieves miasma data at a world point by converting to tile and grid coordinates.
-* **Parameters:**
-  - `x`, `y`, `z` (`number`): World position.
+### `GetMiasmaAtPoint(x, y, z)`
+* **Description:** Returns miasma data at a given world position.
+* **Parameters:** `x`, `y`, `z` (numbers) — World position coordinates.
+* **Returns:** `table?` — Miasma data table (with `strength`, optional `diminishing`), or `nil` if no miasma.
 
-### `self:GetMiasmaAtTile(tx, ty)`
-* **Description:** Retrieves miasma data for a given world tile coordinate.
-* **Parameters:**
-  - `tx`, `ty` (`number`): World tile coordinates.
+### `GetMiasmaAtTile(tx, ty)`
+* **Description:** Returns miasma data at the given world tile coordinates.
+* **Parameters:** `tx`, `ty` (numbers) — World tile coordinates.
+* **Returns:** Same as `GetMiasmaAtPoint`.
 
-### `self:IsMiasmaActive()`
-* **Description:** Returns whether miasma simulation is currently enabled.
+### `IsMiasmaActive()`
+* **Description:** Checks whether miasma simulation is currently enabled.
 * **Parameters:** None.
+* **Returns:** `boolean` — `true` if active, `false` otherwise.
 
-### `self:SetMiasmaActive(active)`
-* **Description:** Enables or disables miasma simulation. Starts/stops component updates and broadcasts a `"miasma_setactive"` event.
-* **Parameters:**
-  - `active` (`boolean`): Desired active state.
+### `SetMiasmaActive(active)`
+* **Description:** Enables or disables miasma simulation. Controls component update loop and fires global event.
+* **Parameters:** `active` (boolean) — Desired active state.
+* **Returns:** Nothing.
 
-### `self:CreateMiasmaAtTile(tx, ty)`
-* **Description:** Spawns a new miasma cloud entity at the specified tile and registers it in the grid.
-* **Parameters:**
-  - `tx`, `ty` (`number`): World tile coordinates.
-* **Side Effects:** Spawns `"miasma_cloud"` prefab, sets active, and updates grid.
+### `SetMiasmaDiminishingAtTile(tx, ty, isdiminishing)`
+* **Description:** Marks a miasma tile for accelerated decay (bypassing normal diminish rate).
+* **Parameters:** `tx`, `ty` (numbers) — World tile coordinates; `isdiminishing` (boolean).
+* **Returns:** Nothing.
 
-### `self:IsValidForMiasmaCreationAt(mtx, mty)`
-* **Description:** Checks if a miasma cell can be created at the given miasma-grid coordinates. Considers proximity to shadow rifts and presence of vents.
-* **Parameters:**
-  - `mtx`, `mty` (`number`): Miasma-grid tile coordinates.
+### `CreateMiasmaAtTile(tx, ty)`
+* **Description:** Spawns a new `miasma_cloud` entity at the specified world tile.
+* **Parameters:** `tx`, `ty` (numbers) — World tile coordinates.
+* **Returns:** Nothing.
+* **Error states:** Returns early if tile is invalid, not land, or already contains miasma.
 
-### `self:MiasmaAction_Create(mtx, mty)`
-* **Description:** Initiates miasma creation at a cell, respecting world constraints (e.g., rift presence).
-* **Parameters:**
-  - `mtx`, `mty` (`number`): Miasma-grid tile coordinates.
+### `IsValidForMiasmaCreationAt(mtx, mty)`
+* **Description:** Determines if a miasma cloud can spawn at the given miasma-grid tile coordinates.
+* **Parameters:** `mtx`, `mty` (numbers) — Miasma grid tile coordinates.
+* **Returns:** `boolean` — `true` if valid (near rift or vent), `false` otherwise.
 
-### `self:MiasmaAction_Spread(mtx, mty, miasmadata)`
-* **Description:** Attempts to propagate miasma to the four cardinal neighbors, each by calling `RollForMiasmaActionAt`.
-* **Parameters:**
-  - `mtx`, `mty` (`number`): Miasma-grid tile coordinates of source.
-  - `miasmadata` (`table`): Current cell’s miasma data.
+### `MiasmaAction_Create(mtx, mty)`
+* **Description:** Attempts to create a miasma cloud at the specified tile, respecting rift presence and validity.
+* **Parameters:** `mtx`, `mty` (numbers) — Miasma grid tile coordinates.
+* **Returns:** Nothing.
+* **Error states:** Returns early if no rifts exist or none have shadow affinity.
 
-### `self:MiasmaAction_Enhance(mtx, mty, miasmadata)`
-* **Description:** Increases the strength of the miasma cell by 1 (capped by `TUNING.MIASMA_MAXSTRENGTH`).
-* **Parameters:**
-  - `mtx`, `mty` (`number`): Miasma-grid tile coordinates.
-  - `miasmadata` (`table`): Miasma data to modify.
+### `MiasmaAction_Spread(mtx, mty, miasmadata)`
+* **Description:** Attempts to spread miasma to the four cardinal neighbors (up, down, left, right).
+* **Parameters:** `mtx`, `mty` (numbers) — Current tile coordinates; `miasmadata` (table) — Miasma data.
+* **Returns:** Nothing.
 
-### `self:MiasmaAction_Diminish(mtx, mty, miasmadata)`
-* **Description:** Decreases miasma strength by 1; removes the cell if strength reaches ≤0 (including destroying associated entity and clearing grid data).
-* **Parameters:**
-  - `mtx`, `mty` (`number`): Miasma-grid tile coordinates.
-  - `miasmadata` (`table`): Miasma data to modify.
+### `MiasmaAction_Enhance(mtx, mty, miasmadata)`
+* **Description:** Increases miasma strength at the tile (up to `TUNING.MIASMA_MAXSTRENGTH`).
+* **Parameters:** `mtx`, `mty` (numbers); `miasmadata` (table).
+* **Returns:** Nothing.
 
-### `self:RollForMiasmaActionAt(mtx, mty, allowspread)`
-* **Description:** Determines and executes a miasma action (Create, Enhance, Spread, Diminish) at a cell based on tuning odds, rift state, and diminishing flags.
-* **Parameters:**
-  - `mtx`, `mty` (`number`): Miasma-grid tile coordinates.
-  - `allowspread` (`boolean`): Whether spread attempts are permitted.
-* **Returns:** `string?`: Name of action taken (`"Create"`, `"Enhance"`, `"Spread"`, `"Diminish"`), or `nil`.
+### `MiasmaAction_Diminish(mtx, mty, miasmadata)`
+* **Description:** Decreases miasma strength at the tile; removes the cloud and miasma data if strength reaches zero.
+* **Parameters:** `mtx`, `mty` (numbers); `miasmadata` (table).
+* **Returns:** `boolean` — `true` if miasma was destroyed, `false` otherwise.
 
-### `self:DoDiminishes()`
-* **Description:** Performs all scheduled diminishments for marked miasma cells.
+### `RollForMiasmaActionAt(mtx, mty, allowspread)`
+* **Description:** Randomly selects and executes one of: create, enhance, diminish, or spread.
+* **Parameters:** `mtx`, `mty` (numbers); `allowspread` (boolean) — Whether spreading is permitted.
+* **Returns:** `string?` — Name of action performed (`"Create"`, `"Enhance"`, `"Diminish"`, `"Spread"`), or `nil` if no action.
+* **Error states:** Returns early without action if miasma can’t spawn or rifts are inactive.
+
+### `DoRolls()`
+* **Description:** Performs a single random miasma action on a randomly chosen existing cloud.
 * **Parameters:** None.
+* **Returns:** Same as `RollForMiasmaActionAt`.
 
-### `self:DoRolls()`
-* **Description:** Selects a random active miasma cell and calls `RollForMiasmaActionAt`, allowing spread only if under max cloud limit.
+### `DoDiminishes()`
+* **Description:** Forces diminish actions on all tiles marked for accelerated decay.
 * **Parameters:** None.
-* **Returns:** `string?`: Result of the action roll.
+* **Returns:** Nothing.
 
-### `self:OnUpdate(dt)`
-* **Description:** Main simulation loop. Handles periodic diminishments and roll-based actions using rate-limiting intervals.
-* **Parameters:**
-  - `dt` (`number`): Time since last frame.
+### `OnUpdate(dt)`
+* **Description:** Main simulation loop. Processes diminish and spread updates based on configured intervals.
+* **Parameters:** `dt` (number) — Delta time since last frame.
+* **Returns:** Nothing.
 
-### `self:GetDebugString()`
-* **Description:** Returns a human-readable debug summary (enabled status and grid node count).
+### `GetDebugString()`
+* **Description:** Returns a diagnostic string for debugging UI or console.
 * **Parameters:** None.
+* **Returns:** `string` — Formatted status, e.g., `"Miasma enabled: ON || grid nodes: 5"`.
 
-### `self:DebugRoll()`
-* **Description:** Logs the result of a single `DoRolls()` call to console.
+### `DebugRoll()`
+* **Description:** Prints the result of one miasma action roll to the console.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `self:DebugSpawn()`
-* **Description:** Spawns miasma at the player’s current location for testing.
+### `DebugSpawn()`
+* **Description:** Spawns a miasma cloud under the local player for testing.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Only functions if `ThePlayer` exists.
 
-## Events & Listeners
-- **Listens for:**
-  - `"worldmapsetsize"` on `TheWorld`: Initializes the miasma grid size once world dimensions are known.
-- **Triggers:**
-  - `"miasma_setactive"` on `TheWorld`: Emitted when the miasma state is toggled.
-
----
+## Events & listeners
+- **Listens to:** `worldmapsetsize` — Initializes internal miasma grid when map size is known.
+- **Pushes:** `miasma_setactive(enabled)` — Fired whenever `SetMiasmaActive` toggles the state.
+- **Internally triggered:** `miasmamanager` handles miasma cloud cleanup (entity removal) as part of `_Diminish`.

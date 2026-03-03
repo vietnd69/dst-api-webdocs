@@ -1,37 +1,54 @@
 ---
 id: digester
 title: Digester
-description: This component periodically consumes items from an associated entity's inventory, optionally filtered by a custom function.
+description: Periodically digests random non-irreplaceable items from an entity's inventory at fixed intervals.
+tags: [inventory, automation, periodic]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 9edda1dd
+system_scope: inventory
 ---
 
 # Digester
 
-## Overview
-The Digester component provides functionality for an entity to periodically "digest" (consume) items from its own inventory. It schedules a recurring task to select and remove one item, which can be filtered by an optional custom function. The digestion process automatically pauses when the inventory is empty of eligible items and resumes when new items are added.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-This component relies on the presence of the `inventory` component on the `inst` (the parent entity). It also checks for the `"irreplaceable"` tag on items within the inventory, excluding any such tagged items from digestion.
+## Overview
+The `Digester` component enables an entity to automatically consume (digest) one random non-irreplaceable item from its own inventory at a fixed time interval (`digesttime`, defaulting to `20` seconds). It is typically attached to entities that function as organic processing units (e.g., compost bins or biological digesters) and works in tandem with the `inventory` component. If no digestible items are present, the periodic task is automatically cancelled until a new item is added.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("inventory")
+inst:AddComponent("digester")
+-- Optionally set a custom digestion predicate
+inst.components.digester.itemstodigestfn = function(ent, item)
+    return item:HasTag("food")
+end
+```
+
+## Dependencies & tags
+**Components used:** `inventory`
+**Tags:** Checks `irreplaceable` tag on individual items; does not manage entity-level tags.
 
 ## Properties
-| Property         | Type               | Default Value | Description                                                                                                                                              |
-| :--------------- | :----------------- | :------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `inst`           | `Entity`           | `N/A`         | A reference to the parent entity this component is attached to.                                                                                          |
-| `digesttime`     | `number`           | `20`          | The time in seconds between each attempt to digest an item.                                                                                              |
-| `itemstodigestfn`| `function` / `nil` | `nil`         | An optional function that, if provided, will be called with `(inst, item)` for each item. It should return `true` if the item is eligible for digestion. |
-| `task`           | `PeriodicTask`     | `N/A`         | The scheduled periodic task responsible for calling `TryDigest()`. It can be `nil` if no task is currently active.                                       |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `digesttime` | number | `20` | Interval in seconds between digest attempts. |
+| `itemstodigestfn` | function or `nil` | `nil` | Optional predicate function `(entity, item) -> boolean` that determines whether an item should be digestible. If `nil`, all non-`irreplaceable` items are digestible. |
+| `task` | Task or `nil` | `nil` (initialized after construction) | The active periodic task for digest attempts; `nil` when no digest loop is running. |
 
-## Main Functions
+## Main functions
 ### `TryDigest()`
-*   **Description:** Attempts to digest an item from the entity's inventory. It first checks if the entity has an `inventory` component. It then iterates through all items in the inventory, building a list of items that are not tagged `"irreplaceable"` and (if `itemstodigestfn` is set) pass the custom filter function. If eligible items are found, one is chosen randomly and consumed. If no eligible items are found, the periodic digestion task is cancelled.
-*   **Parameters:** None.
+* **Description:** Attempts to digest one item from the entity's inventory. It collects all digestible items (those without the `irreplaceable` tag, optionally filtered by `itemstodigestfn`), then consumes a random one using `inventory:ConsumeByName`. If no digestible items exist, it cancels the periodic task.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** If `self.inst.components.inventory` is missing, the function does nothing and returns immediately. If no digestible items are found, the current periodic task (`self.task`) is cancelled and set to `nil`.
 
-## Events & Listeners
-*   `inst:ListenForEvent("gotnewitem", function())`: Listens for the "gotnewitem" event, which is pushed when the entity receives a new item. If the digestion task (`self.task`) is not currently active (e.g., it was cancelled because the inventory was empty), this listener will restart the periodic digestion task.
+## Events & listeners
+- **Listens to:** `gotnewitem` - Restarts the digest periodic task if it was previously cancelled due to empty inventory.
+- **Pushes:** None.

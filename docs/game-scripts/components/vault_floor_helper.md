@@ -1,52 +1,67 @@
 ---
 id: vault_floor_helper
 title: Vault Floor Helper
-description: Provides server-side logic to track and determine whether a given world position falls within the currently active vault floor area, using a marker entity to define the vault's center and dimensions.
+description: Tracks the active position and state of a vault arena floor region, enabling point-in-room checks for client-side collision and rendering.
+tags: [arena, vault, map]
 sidebar_position: 1
-
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: cb3ba120
+system_scope: map
 ---
-
 # Vault Floor Helper
 
-## Overview
-This component enables the game to dynamically track and query whether a point lies inside the currently active vault floor region. It stores networked state—such as whether the vault is active and its origin coordinates—via `vault_active`, `vault_origin_x`, and `vault_origin_z` network variables, and maintains a reference to a marker entity that defines the vault’s center. The core functionality is implemented in `IsPointInVaultRoom_Internal`, which performs an axis-aligned bounding box check against three overlapping rectangular/square zones (horizontal, vertical, and central square) based on predefined tile-scale dimensions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Uses `net_bool`, `net_float` network variable constructors tied to `inst.GUID`.
-- Does **not** add or remove any entity tags.
-- Does **not** declare or require any other components on `self.inst`.
-- Relies on external constants: `TILE_SCALE`, `TheWorld`, `TheWorld.Map`.
+## Overview
+`vault_floor_helper` is a network-synchronized component that stores the origin and active state of the vault arena floor region in the world. It is used to determine whether a given world point lies within the vault's floor boundaries, primarily to prevent player entities from falling into the abyss during arena phases. The component delegates the actual point-in-room queries to `Map:IsPointInVaultRoom`, which consumes the stored origin and flags.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("vault_floor_helper")
+
+-- When the vault arena is activated and positioned:
+local marker = CreateEntity()
+marker.Transform:SetPosition(x, y, z)
+inst.components.vault_floor_helper:TryToSetMarker(marker)
+
+-- Later, elsewhere in code (e.g., Map or physics):
+if TheWorld.Map:IsPointInVaultRoom(x, y, z) then
+    -- Entity is safely within the vault floor region
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity this component is attached to (typically a world or map entity). |
-| `vault_active` | `net_bool` | `false` | Networked boolean indicating whether the vault floor is currently active. |
-| `vault_origin_x` | `net_float` | `0.0` | Networked float storing the X world-coordinate of the vault’s origin (center point). |
-| `vault_origin_z` | `net_float` | `0.0` | Networked float storing the Z world-coordinate of the vault’s origin. |
-| `marker` | `Entity?` | `nil` | Optional reference to the marker entity currently defining the vault origin. |
+| `vault_active` | `net_bool` | `false` | Networked flag indicating whether the vault floor region is currently active. |
+| `vault_origin_x` | `net_float` | `0` | Networked X coordinate (world space) of the vault center origin. |
+| `vault_origin_z` | `net_float` | `0` | Networked Z coordinate (world space) of the vault center origin. |
+| `marker` | entity or `nil` | `nil` | Internal reference to the marker entity used to set the vault origin; used for cleanup. |
 
-## Main Functions
+## Main functions
+### `IsPointInVaultRoom_Internal(x, y, z)`
+*   **Description:** Internal helper used by `Map:IsPointInVaultRoom` to check if a point lies within the vault floor region. The region is defined as the union of three overlapping rectangles: a wide horizontal bar, a tall vertical bar, and a central square — matching the `vault_vault` static layout geometry. *Do not call directly*; use `Map:IsPointInVaultRoom`.
+*   **Parameters:**
+    *   `x` (number) — world X coordinate.
+    *   `y` (number) — world Y coordinate (unused in the check).
+    *   `z` (number) — world Z coordinate.
+*   **Returns:** `true` if the point lies inside any of the three overlapping rectangles, otherwise `false`.
+*   **Error states:** Returns `false` immediately if `vault_active:value()` is `false`.
 
-### `self:IsPointInVaultRoom_Internal(x, y, z)`
-* **Description:** Determines whether the given world position `(x, y, z)` lies inside the vault’s active area. The Y coordinate is unused; only X and Z are considered. This method is intended to be called indirectly via `Map:IsPointInVaultRoom`, *not* directly.
-* **Parameters:**  
-  - `x` (`number`): World X coordinate of the point to test.  
-  - `y` (`number`): World Y coordinate (ignored in current implementation).  
-  - `z` (`number`): World Z coordinate of the point to test.  
-  *Returns:* `true` if the point falls within any of the three defined vault regions (horizontal bar, vertical bar, or central square); otherwise `false`.
+### `TryToSetMarker(inst)`
+*   **Description:** Sets or updates the vault origin from an existing marker entity's world position. If another marker is already assigned, the new marker is removed (cleanup logic). Used during arena setup or world load.
+*   **Parameters:** `inst` (entity) — the marker entity whose position defines the vault origin.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early (with no effect) if `self.marker` is already equal to `inst`. If `self.marker` already exists, the new `inst` is immediately destroyed.
 
-### `self:TryToSetMarker(inst)`
-* **Description:** Assigns or replaces the vault marker entity. If a marker already exists, it removes the new one; if none exists, it sets the new marker as active, records its world position as the new origin, marks the vault as active, and attaches an `onremove` listener to reset state when the marker is removed.
-* **Parameters:**  
-  - `inst` (`Entity`): The candidate marker entity (usually a vault marker prefab instance).  
-
-## Events & Listeners
-- Listens for `"onremove"` event on the `marker` entity via `inst:ListenForEvent("onremove", self.OnRemove_Marker)`.
-  - When triggered, invokes `self.OnRemove_Marker(ent, data)` to clear `self.marker` and deactivate the vault (resetting `vault_active`, `vault_origin_x`, and `vault_origin_z` to default values).
+## Events & listeners
+- **Listens to:** `onremove` — registered on the marker entity; clears the marker reference and deactivates the vault state (`vault_active`, `vault_origin_x`, `vault_origin_z` are reset).
+- **Pushes:** None.

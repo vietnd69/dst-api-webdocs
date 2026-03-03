@@ -4,7 +4,6 @@ title: Vents
 description: Generates cave map content with vent-themed terrain, lootable rocks, and associated flora using procedural room definitions.
 tags: [world, generation, environment]
 sidebar_position: 1
-
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: cade3e9a
 ---
-
 # Vents
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -62,4 +60,3 @@ The following helper functions are defined for use during room generation:
 ## Events & listeners
 None. This is a world generation script and does not register event listeners or push events during runtime.
 
----

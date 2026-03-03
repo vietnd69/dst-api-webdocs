@@ -1,120 +1,130 @@
 ---
 id: equippable
 title: Equippable
-description: Adds equipment slot assignment, equip/unequip logic, and associated modifiers (e.g., speed, dapperness, moisture) to an entity.
+description: Manages item equipping behavior, including slot assignment, unequip prevention, movement speed modifiers, dapperness, moisture, and equip/unequip callbacks for entities in DST.
+tags: [inventory, equipment, networking, player]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: inventory
+category_type: components
 source_hash: 751f922e
+system_scope: inventory
 ---
 
 # Equippable
 
-## Overview
-The `Equippable` component enables an entity (typically an item) to be equipped by players. It manages equip state (`isequipped`), equip slot (`equipslot`), equip/unequip/pocket callbacks, movement speed modification, dapperness, moisture retention, and equip restriction logic. It synchronizes relevant state to clients via replicas and integrates with inventory and linked-item systems.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on `replica.equippable` and optionally `replica.inventoryitem` for client synchronization.
-- If `burnable` component is present, it interacts with smoldering state.
--若 `linkeditem` is present, it participates in equip restriction checks (e.g., owner-only).
-- Registers an `"onremove"` event callback when `preventunequipping` is enabled.
+## Overview
+The `Equippable` component defines how an item behaves when equipped or unequipped on a player or entity. It handles equip slot assignment, network replication of equippable state, walk speed modifiers, restricted equipping logic (e.g., skill tree items), moisture retention when equipped, and dapperness calculations. It works closely with `InventoryItem` (for owner tracking and network sync) and `Burnable` (to stop smoldering when equipped).
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("equippable")
+inst.components.equippable:SetEquipSlot(EQUIPSLOTS.HANDS)
+inst.components.equippable:SetOnEquip(function(item, owner) print("Equipped!") end)
+inst.components.equippable:SetOnUnequip(function(item, owner) print("Unequipped!") end)
+inst.components.equippable:SetPreventUnequipping(true)
+```
+
+## Dependencies & tags
+**Components used:** `burnable`, `inventoryitem`, `linkeditem`  
+**Tags:** Checks `player`, `equipmentmodel`, `merm`, `vigorbuff`; does not add or remove tags itself.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `isequipped` | `boolean` | `false` | Whether the item is currently equipped. |
-| `equipslot` | `EQUIPSLOT` enum | `EQUIPSLOTS.HANDS` | Default equipment slot for the item. |
-| `onequipfn` | `function` | `nil` | Callback executed when equipped. Signature: `fn(inst, owner, from_ground)`. |
-| `onunequipfn` | `function` | `nil` | Callback executed when unequipped. Signature: `fn(inst, owner)`. |
-| `onpocketfn` | `function` | `nil` | Callback executed when pocketed (moved to inventory without equipping). |
-| `onequiptomodelfn` | `function` | `nil` | Callback executed when equipped *to* an equipment model (e.g., for visual previews). |
-| `equipstack` | `boolean` | `false` | Whether stacking occurs during equip (currently unused in source). |
-| `walkspeedmult` | `number` or `nil` | `nil` | Multiplier applied to owner’s walk speed when item is equipped. |
-| `restrictedtag` | `string` or `nil` | `nil` | Required tag for an entity to equip this item (applies only to players). |
-| `dapperness` | `number` | `0` | Base dapperness (social approval) bonus/penalty when equipped. |
-| `dapperfn` | `function` or `nil` | `nil` | Optional function to compute dynamic dapperness. Signature: `fn(inst, owner)`. |
-| `insulated` | `boolean` | `false` | Whether the item provides protection against electric shocks. |
-| `equippedmoisture` | `number` | `0` | Moisture added to the environment while equipped. |
-| `maxequippedmoisture` | `number` | `0` | Maximum moisture capacity when equipped. |
-| `preventunequipping` | `boolean` or `nil` | `nil` | If `true`, blocks player unequip attempts. |
-| `flipdapperonmerms` | (implicit) | `false` | If `true`, negates `dapperness` for merm characters. |
+| `isequipped` | boolean | `false` | Whether the item is currently equipped. |
+| `equipslot` | `EQUIPSLOTS.*` | `EQUIPSLOTS.HANDS` | The equipment slot this item occupies. |
+| `onequipfn` | function \| nil | `nil` | Callback invoked when item is equipped: `function(item, owner, from_ground)`. |
+| `onunequipfn` | function \| nil | `nil` | Callback invoked when item is unequipped: `function(item, owner)`. |
+| `onpocketfn` | function \| nil | `nil` | Callback invoked when item is pocketed: `function(item, owner)`. |
+| `onequiptomodelfn` | function \| nil | `nil` | Callback invoked when item is equipped to an `equipmentmodel` entity. |
+| `equipstack` | boolean | `false` | Reserved; unused in current code. |
+| `walkspeedmult` | number \| nil | `nil` | Multiplier applied to owner's walk speed while equipped. |
+| `restrictedtag` | string \| nil | `nil` | If set, only players with this tag may equip the item. |
+| `dapperness` | number | `0` | Base dapperness value contributed by this item. |
+| `dapperfn` | function \| nil | `nil` | Optional custom dapperness calculation callback. |
+| `insulated` | boolean | `false` | Whether the item insulates the owner from electricity (not temperature). |
+| `equippedmoisture` | number | `0` | Moisture level the item contributes while equipped (e.g., umbrella). |
+| `maxequippedmoisture` | number | `0` | Maximum moisture capacity while equipped. |
+| `preventunequipping` | boolean \| nil | `nil` | When `true`, blocks unequipping until manually disabled. |
+| `flipdapperonmerms` | boolean \| nil | `nil` | If `true`, negates `dapperness` for merm owners. |
 
-## Main Functions
+## Main functions
+### `SetEquipSlot(slot)`
+* **Description:** Sets the equip slot for this item and replicates it to clients.
+* **Parameters:** `slot` (`EQUIPSLOTS.*`) — the slot to assign (e.g., `EQUIPSLOTS.HANDS`, `EQUIPSLOTS.BODY`).
+* **Returns:** Nothing.
+* **Notes:** Implicitly updates the `equipslot` property and calls the network setter via `inst.replica.equippable:SetEquipSlot`.
+
 ### `Equip(owner, from_ground)`
-* **Description:** Equips the item for a given owner. Stops smoldering (if burnable), runs `onequipfn`, and fires `"equipped"` event. Optionally triggers `onequiptomodelfn` if the owner is an equipment model.
-* **Parameters:**
-  - `owner` (`Entity`): The entity equipping the item (typically a player).
-  - `from_ground` (`boolean`): Whether the item was picked up from the ground (as opposed to another inventory slot).
+* **Description:** Marks the item as equipped, stops smoldering if applicable, invokes `onequipfn`, and fires the `"equipped"` event.
+* **Parameters:**  
+  * `owner` (`GEntity`) — the entity equipping the item.  
+  * `from_ground` (`boolean`) — whether the item was picked up from the ground.
+* **Returns:** Nothing.
 
 ### `Unequip(owner)`
-* **Description:** Unequips the item. Runs `onunequipfn` and fires `"unequipped"` event. Sets `isequipped` to `false`.
-* **Parameters:**
-  - `owner` (`Entity`): The entity unequipping the item.
+* **Description:** Marks the item as unequipped, invokes `onunequipfn`, and fires the `"unequipped"` event.
+* **Parameters:** `owner` (`GEntity`) — the entity unequipping the item.
+* **Returns:** Nothing.
 
 ### `ToPocket(owner)`
-* **Description:** Handles moving the item into inventory without equipping (e.g., via inventory UI). Runs `onpocketfn`.
-* **Parameters:**
-  - `owner` (`Entity`): The entity storing the item in their inventory.
+* **Description:** Invokes `onpocketfn` to handle logic when an item is moved to the pocket slot.
+* **Parameters:** `owner` (`GEntity`) — the entity pocketing the item.
+* **Returns:** Nothing.
 
 ### `GetWalkSpeedMult()`
-* **Description:** Returns the effective walk speed multiplier. Applies the base `walkspeedmult`, but adds `+0.25` if the owner has the `"vigorbuff"` tag and the multiplier is `< 1`.
-* **Returns:** `number` – Final speed multiplier (clamped to ≥ 1 for vigor-buffed owners).
+* **Description:** Returns the effective walk speed multiplier while equipped, applying the `vigorbuff` boost if applicable.
+* **Parameters:** None.
+* **Returns:** `number` — speed multiplier (e.g., `1.0`, `0.9`, `1.25`).
+* **Error states:** Returns `1.0` if `walkspeedmult` is `nil`.
 
 ### `IsRestricted(target)`
-* **Description:** Checks whether the given entity is allowed to equip this item. Enforces `restrictedtag` (must have the tag) and, if `linkeditem` exists, enforces owner-only restriction.
-* **Parameters:**
-  - `target` (`Entity`): The entity attempting to equip.
-* **Returns:** `boolean` – `true` if the target is *not* allowed to equip.
+* **Description:** Checks whether the given target entity is allowed to equip this item.
+* **Parameters:** `target` (`GEntity`) — the entity attempting to equip the item.
+* **Returns:** `boolean` — `true` if equipping is restricted, `false` otherwise.
+* **Notes:** Applies `restrictedtag` checks and `linkeditem` owner restrictions (only for players). Non-player entities are never restricted.
 
 ### `IsRestricted_FromLoad(target)`
-* **Description:** Variant of `IsRestricted` that allows equip restriction bypass during snapshot load *if* `restrictedtag` matches a skill-tree-defined equipment entry.
-* **Parameters:**
-  - `target` (`Entity`): The entity attempting to equip (resolved during load).
-* **Returns:** `boolean` – `true` if restricted, applying special handling for skill tree items.
-
-### `SetOnEquip(fn)`
-### `SetOnUnequip(fn)`
-### `SetOnPocket(fn)`
-### `SetDappernessFn(fn)`
-### `SetOnEquipToModel(fn)`
-* **Description:** Sets the respective callback functions for equip, unequip, pocket, dapperness calculation, and equip-to-model events.
-* **Parameters:**
-  - `fn` (`function`): Callback function with appropriate signature (see `onequipfn`, `dapperfn`, etc.).
+* **Description:** Specialized version of `IsRestricted` used when resolving items from saved snapshots. Allows skill-tree-tagged items to be unequipped if the player previously had the tag.
+* **Parameters:** `target` (`GEntity`) — the entity attempting to equip the item.
+* **Returns:** `boolean` — `true` if equipping is restricted, `false` otherwise.
 
 ### `SetPreventUnequipping(shouldprevent)`
-* **Description:** Enables/disables blocking of unequip attempts. When enabled, registers an `"onremove"` event to automatically disable the restriction if the item is destroyed.
-* **Parameters:**
-  - `shouldprevent` (`boolean`): Enable (`true`) or disable (`false`) prevention.
-
-### `IsInsulated()`
-* **Description:** Returns whether the item provides electric insulation.
-* **Returns:** `boolean`
+* **Description:** Enables or disables unequip prevention. When enabled, listens for `"onremove"` to auto-reset the flag.
+* **Parameters:** `shouldprevent` (`boolean`) — if `true`, blocks unequipping.
+* **Returns:** Nothing.
 
 ### `IsEquipped()`
-* **Description:** Returns current equip state.
-* **Returns:** `boolean`
+* **Description:** Returns whether the item is currently equipped.
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if equipped.
+
+### `IsInsulated()`
+* **Description:** Indicates whether this item provides electrical insulation (not thermal insulation).
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if insulated.
 
 ### `GetDapperness(owner, ignore_wetness)`
-* **Description:** Computes the total dapperness of the item when equipped, applying modifiers like merm flip and wetness.
-* **Parameters:**
-  - `owner` (`Entity` or `nil`): The entity wearing the item (used for merm flipping and dapperfn).
-  - `ignore_wetness` (`boolean`): If `true`, skip wetness bonus.
-* **Returns:** `number` – Total dapperness value.
+* **Description:** Calculates the item’s dapperness contribution for an owner.
+* **Parameters:**  
+  * `owner` (`GEntity` \| nil) — the player wearing the item.  
+  * `ignore_wetness` (`boolean`) — if `true`, skips wetness dapperness penalty.
+* **Returns:** `number` — dapperness value (positive or negative).
 
 ### `GetEquippedMoisture()`
-* **Description:** Returns moisture properties for the equipped state.
-* **Returns:** `{ moisture = number, max = number }`
+* **Description:** Returns moisture stats while equipped.
+* **Parameters:** None.
+* **Returns:** `{ moisture = number, max = number }` — current and maximum moisture.
 
-### `OnRemoveFromEntity()`
-* **Description:** Cleanup called when component is removed from an entity. Resets networked properties and prevents unequipping state.
-
-## Events & Listeners
-- **Listens to:** `"equipped"` (fired internally via `PushEvent` when `Equip` completes).
-- **Listens to:** `"unequipped"` (fired internally via `PushEvent` when `Unequip` completes).
-- **Listens to:** `"onremove"` (only when `preventunequipping` is `true`) to reset the restriction upon item destruction.
-- **Pushes:** `"equipped"` event on successful equip.
-- **Pushes:** `"unequipped"` event on successful unequip.
+## Events & listeners
+- **Listens to:**  
+  * `"onremove"` — resets `preventunequipping` to `false` via `OnRemove` handler when the item is removed.  
+- **Pushes:**  
+  * `"equipped"` — fired during `Equip`, with `{ owner = owner }`.  
+  * `"unequipped"` — fired during `Unequip`, with `{ owner = owner }`.

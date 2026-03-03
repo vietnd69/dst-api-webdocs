@@ -1,72 +1,81 @@
 ---
 id: coach
 title: Coach
-description: This component allows an entity to periodically inspire nearby players and their followers, granting them sanity and combat buffs.
+description: Provides periodic support effects (sanity and fight buffs) to nearby players and followers when the host entity is tagged as "coaching".
+tags: [support, buff, leadership, sanity]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 297abeff
+system_scope: entity
 ---
 
 # Coach
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Coach` component enables an entity to act as an inspirer or leader, periodically granting benefits to other nearby players and their followers. These benefits include sanity restoration for players and a temporary combat buff (represented by the "wolfgang_coach_buff" debuff, which is often used in DST for temporary positive effects) for followers. The component manages the timing and radius of these inspiration events, and can also make the entity communicate when no team members are in range to be inspired.
+`Coach` is a support component that periodically buffs nearby allies—both direct followers and players within range—with small sanity increases and fight-related debuffs. It is designed to be used by a leadership-type entity (e.g., Wolfgang) to boost team performance. The component activates when enabled and relies on the `leader` and `sanity` components, as well as the `talker` component for team-finding notifications.
 
-## Dependencies & Tags
-This component relies on the following components being present on the host entity or other entities:
-*   `inst.components.leader` (on the coaching entity and other players)
-*   `inst.components.sanity` (on other players)
-*   `inst.components.talker` (on the coaching entity)
-*   `inst.components.combat` (implicitly for buffs, though not directly accessed)
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("coach")
+inst:AddTag("coaching") -- optional, enables visual state
+inst.components.coach:Enable()
 
-**Tags:**
-*   Adds the `"coaching"` tag to the host entity when `Enable()` is called.
-*   Removes the `"coaching"` tag from the host entity when `Disable()` is called.
+-- Later, disable the coaching behavior:
+inst.components.coach:Disable()
+```
+
+## Dependencies & tags
+**Components used:** `leader`, `sanity`, `talker`  
+**Tags:** Adds `coaching` when enabled; removes `coaching` when disabled.
 
 ## Properties
-| Property         | Type      | Default Value | Description                                                                                                                                              |
-|:-----------------|:----------|:--------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `inst`           | `Entity`  | `self`        | A reference to the entity this component is attached to.                                                                                                 |
-| `enabled`        | `boolean` | `false`       | A flag indicating whether the coaching functionality is currently active.                                                                                  |
-| `randtime`       | `number`  | `30`          | A value used to introduce randomness into the delay before the next inspiration event. The actual delay will be `math.random()*randtime + settime`.        |
-| `settime`        | `number`  | `10`          | A base time in seconds used for scheduling the next inspiration event and as a minimum cooldown between inspirations.                                      |
-| `lastcoachtime`  | `number`  | `nil`         | Stores the game time (retrieved via `GetTime()`) when the last successful inspiration event occurred, used for enforcing cooldowns.                      |
-| `noteamlasttime` | `boolean` | `nil`         | A flag used to alternate dialogue when no teammates are found to inspire, preventing spam. It's set to `true` on the first "no team" message.           |
-| `inspiretask`    | `Task`    | `nil`         | A handle to the `Task` object returned by `inst:DoTaskInTime`, allowing the inspiration loop to be cancelled or managed.                                   |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `enabled` | boolean | `false` | Whether the coaching cycle is active. |
+| `randtime` | number | `30` | Random delay (in seconds) added to the base inspire interval. |
+| `settime` | number | `10` | Minimum fixed delay (in seconds) between inspiration attempts. |
+| `lastcoachtime` | number or `nil` | `nil` | Timestamp of the last successful inspiration attempt. |
+| `noteamlasttime` | boolean or `nil` | `nil` | Tracks whether the coach recently announced "no team" to avoid spam. |
+| `inspiretask` | Task or `nil` | `nil` | Reference to the scheduled task for the next inspiration cycle. |
 
-## Main Functions
+## Main functions
 ### `Enable()`
-*   **Description:** Activates the coaching component. It sets the `enabled` flag to `true`, adds the `"coaching"` tag to the host entity, and initiates the periodic inspiration process by calling `StartInspiring()`.
+*   **Description:** Enables the coaching component by adding the `coaching` tag and starting the periodic inspiration loop.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `Disable()`
-*   **Description:** Deactivates the coaching component. It sets the `enabled` flag to `false`, removes the `"coaching"` tag from the host entity, and halts the periodic inspiration process by calling `StopInspiring()`.
+*   **Description:** Disables the coaching component by removing the `coaching` tag and cancels the current inspiration task.
 *   **Parameters:** None.
-
-### `local function inspire(inst)`
-*   **Description:** This is the core logic function that executes periodically. It checks if enough time has passed since the last inspiration. If so, it identifies nearby players within `INSPIRE_DIST` (25 units) and their followers.
-    *   Players with less than 75% sanity receive a `SANITY_BUFF` (5 points) to their sanity.
-    *   Followers of nearby players receive a temporary combat buff (internally applied via "wolfgang_coach_buff" debuff, which functions as a temporary stat modifier in DST). They also `PushEvent("cheer")`.
-    *   If any entity was successfully inspired, the host entity `PushEvent("coach")`.
-    *   If no entities were inspired, the host entity's `talker` component will announce "ANNOUNCE_WOLFGANG_NOTEAM" on an alternating basis.
-    *   Finally, it schedules the next call to `inspire` using `DoTaskInTime`, with a delay determined by `randtime` and `settime`.
-*   **Parameters:**
-    *   `inst`: The entity instance that owns this `Coach` component.
+*   **Returns:** Nothing.
 
 ### `StartInspiring()`
-*   **Description:** Ensures that the inspiration task is scheduled to run. If there's no active `inspiretask`, it schedules a new one to call the `inspire` function after `TUNING.COACH_TIME_TO_INSPIRE` seconds.
+*   **Description:** Schedules the next inspiration call using `TUNING.COACH_TIME_TO_INSPIRE` as the initial delay. Does nothing if an `inspiretask` is already active.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `StopInspiring()`
-*   **Description:** Cancels any currently active inspiration task. If `inspiretask` exists, it cancels it and sets `inspiretask` to `nil`.
+*   **Description:** Cancels any pending `inspiretask` and sets it to `nil`.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-This component pushes the following events:
-*   `inst:PushEvent("coach")`: Triggered on the host entity when it successfully inspires at least one other entity.
-*   `v:PushEvent("cheer")`: Triggered on individual follower entities when they receive the combat buff.
+### `inspire(inst)`
+*   **Description:** Core logic function that searches for nearby allies (within `INSPIRE_DIST` units) and applies buffs. Called automatically via task scheduling.  
+    * Sanity buff is applied to players with `sanity.GetPercent()` below `0.75`.  
+    * Fight buffs (`wolfgang_coach_buff`) and `cheer` events are applied to followers and nearby players (or their followers).  
+    * If no buffs are applied, it triggers a spoken announcement via `talker:Say(...)`.
+*   **Parameters:** `inst` (Entity) — the coach entity instance.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if `coach.lastcoachtime` exists and current time is less than `coach.lastcoachtime + coach.settime`. Does not apply buffs to entities outside range or without required components.
+
+## Events & listeners
+- **Listens to:** None (component itself does not register listeners).
+- **Pushes:** `coach` — fired when at least one ally receives a buff.  
+- **Pushes via `talker` (external):** Triggers speech via `inst.components.talker:Say(...)` when no ally is eligible for buffs, with the string key `"ANNOUNCE_WOLFGANG_NOTEAM"`.

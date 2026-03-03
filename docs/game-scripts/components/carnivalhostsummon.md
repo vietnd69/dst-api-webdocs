@@ -1,31 +1,48 @@
 ---
 id: carnivalhostsummon
 title: Carnivalhostsummon
-description: Manages an entity's eligibility to be summoned by the Carnival Host by adding or removing a specific tag.
+description: Manages the `carnivalhostsummon` tag on an entity, allowing the entity to be recognized as a carnival host summon.
+tags: [tag, event, host]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: aa04b638
+system_scope: entity
 ---
 
 # Carnivalhostsummon
 
-## Overview
-This component marks an entity as being summonable by the Carnival Host. Its primary function is to add the `carnivalhostsummon` tag upon initialization, with a method to dynamically add or remove this tag later.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-**Tags**
-* `carnivalhostsummon`: Added to the entity to mark it as a valid target for being summoned.
+## Overview
+`CarnivalHostSummon` is a simple tag-management component that ensures the owning entity carries the `carnivalhostsummon` tag. It provides a public interface to add or remove this tag dynamically, which is used by the game to identify entities created by carnival host summons (e.g., in minigames or events).
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("carnivalhostsummon")
+-- Tag is added automatically in constructor
+inst.components.carnivalhostsummon:SetCanSummon(false)
+-- Tag is removed
+inst.components.carnivalhostsummon:SetCanSummon(true)
+-- Tag is added again
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds/removes `carnivalhostsummon`
 
 ## Properties
-No public properties were clearly identified from the source.
+No public properties
 
-## Main Functions
+## Main functions
 ### `SetCanSummon(cansummon)`
-* **Description:** Enables or disables the entity's ability to be summoned by the Carnival Host by adding or removing the `carnivalhostsummon` tag.
-* **Parameters:**
-    * `cansummon` (boolean): If `true`, the `carnivalhostsummon` tag is added. If `false`, it is removed.
+*   **Description:** Sets whether the entity should be tagged as a carnival host summon by adding or removing the `carnivalhostsummon` tag.
+*   **Parameters:** `cansummon` (boolean) – if `true`, adds the tag; if `false`, removes it.
+*   **Returns:** Nothing.
+
+## Events & listeners
+None identified

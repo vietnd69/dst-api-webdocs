@@ -4,7 +4,6 @@ title: Starts
 description: Registers predefined room templates for the forest world type, including custom starting areas like Burnt Forest and Safe Swamp, defining tile type, visual appearance, and content distribution rules.
 tags: [room, worldgen, forest]
 sidebar_position: 1
-
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: ad6bf51b
 ---
-
 # Starts
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -62,4 +60,3 @@ This script calls the global `AddRoom` function twice to register room templates
 ## Events & listeners
 None.
 
----

@@ -1,113 +1,129 @@
 ---
 id: stageactor
 title: Stageactor
-description: Handles narrative storytelling behavior for entities by managing story playback, line delivery, and event coordination with listeners and talker components.
+description: Manages narrative storytelling and monologue performance for interactive stage actors in the game world.
+tags: [npc, narrative, dialogue, stage]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 72f929ef
+system_scope: entity
 ---
 
 # Stageactor
 
-## Overview
-This component enables an entity to perform staged narrative acts (e.g., campfire stories) by managing story selection, dialogue delivery via a talker component, periodic tick callbacks, and coordination with nearby listeners. It tracks previously performed acts to avoid repetition and supports custom storyBegin/storyOver callbacks.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Tags Added:** `"stageactor"` is added on construction and removed when the entity is destroyed.
-- **Component Dependencies:** Assumes the entity has a `talker` component (used for dialogue delivery and shutdown).
-- **Event Callbacks Used:** Listens for `"donetalking"` and `"onremove"` events on the host entity.
+## Overview
+`Stageactor` enables an entity to perform narrative monologues or stage plays, typically for interactive NPCs in environments such as campfires or story settings. It coordinates with the `talker` component to deliver dialogue lines and manages storytelling state, including callbacks for story lifecycle events (begin, tick, end) and persistence across saves.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("stageactor")
+inst:AddComponent("talker")
+
+inst.components.stageactor:SetOnStoryBeginFn(function(inst, story) 
+    print("Story '" .. story.id .. "' began")
+end)
+
+inst.components.stageactor:SetOnStoryOverFn(function(inst, story) 
+    print("Story '" .. story.id .. "' ended")
+end)
+
+inst.components.stageactor:TellStory(some_prop, {
+    style = "CAMPFIRE",
+    id = "my_story",
+    lines = { "Hello world!", { line = "How are you?", duration = 3 } }
+})
+```
+
+## Dependencies & tags
+**Components used:** `talker`  
+**Tags:** Adds `stageactor` when initialized; removes `stageactor` on removal from entity.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (assigned in constructor) | Reference to the host entity. |
-| `storytelling_dist` | `number` | `10` | Radius (in units) used to find stage listeners when a story finishes. |
-| `storytelling_ticktime` | `number` | `2.5` | Default interval (in seconds) for periodic story tick updates. |
-| `stage` | `?` | `nil` | Optional stage context (set/get via `SetStage`/`GetStage`). |
-| `story` | `?` | `nil` | Currently active story object (readable via `IsTellingStory`). |
-| `story.prop` | `?` | `nil` | Reference to the story property object that triggered playback. |
-| `previous_acts` | `table` | `nil` | List of previously performed story IDs; used to avoid re-delivering identical acts. |
-| `storyprop_onremove` | `function` | (assigned in constructor) | Cleanup callback triggered if the story property is removed. |
-| `onstorybeginfn` | `function` | `nil` | Optional callback invoked when a story begins. |
-| `onstoryoverfn` | `function` | `nil` | Optional callback invoked when a story completes or is aborted. |
-| `onstoryticktask` | `Task` | `nil` | Periodic task for story tick updates; cancelled on story end/abort. |
+| `storytelling_dist` | number | `10` | Distance radius used to find listeners when a story finishes. |
+| `storytelling_ticktime` | number | `2.5` | Default interval (seconds) for story `ontickfn` callbacks. |
+| `story` | table or `nil` | `nil` | Current story being told, or `nil` if not telling a story. |
+| `previous_acts` | table or `nil` | `nil` | List of story IDs already performed (used to avoid repeats). |
+| `onstorybeginfn` | function or `nil` | `nil` | Callback invoked when a story starts. |
+| `onstoryoverfn` | function or `nil` | `nil` | Callback invoked when a story ends. |
+| `stage` | any | `nil` | Optional stage context reference. |
 
-## Main Functions
-
+## Main functions
 ### `performplay()`
-* **Description:** Selects and prepares a new story (monologue) to be performed, respecting previously performed acts to avoid repetition. Falls back to generic lines if no prefab-specific monologues exist.
-* **Parameters:** None.
-* **Returns:** A story object containing `style`, `id`, and `lines`, or `nil` if no available story lines remain.
+* **Description:** Selects a random unused story monologue from `STRINGS.STAGEACTOR` for this entity. Updates `previous_acts` and removes previously performed stories from the selection pool.  
+* **Parameters:** None.  
+* **Returns:** `{ style = string, id = string, lines = table }` — story configuration table — or `nil` if no stories remain available.  
+* **Error states:** Returns `nil` when no story lines are defined for the entity or all stories have been exhausted.
 
 ### `TellStory(storyprop, story)`
-* **Description:** Initiates playback of a story. Constructs a list of formatted lines, triggers talker speech, schedules periodic tick updates, registers listeners for story-finished events, and invokes the `onstorybeginfn` callback if defined.
-* **Parameters:**
-  - `storyprop` (`?`): The property object associated with the story (e.g., a campfire); must be non-nil to proceed.
-  - `story` (`table|string?`): Optional pre-defined story object; if omitted, `performplay()` is called to generate one.
-* **Returns:** `true` on successful start; `false` or an error message string otherwise.
+* **Description:** Begins telling a story by delivering lines via `talker:Say`, setting up tick callbacks, and registering event listeners.  
+* **Parameters:**  
+  - `storyprop` (any) — the story property/trigger object; used to listen for `onremove`.  
+  - `story` (table or `nil`) — optional explicit story table; if omitted, `performplay()` is called to generate one.  
+* **Returns:** `true` if a story was started; `false` otherwise.  
+* **Error states:** Returns `false` immediately if `storyprop` is `nil`, or if story generation (`performplay`) yields `nil` or a string (interpreted as an error).
 
 ### `AbortStory(reason)`
-* **Description:** Immediately terminates the current story playback. Stops the talker, cancels pending tasks, removes event listeners, and invokes the `onstoryoverfn` callback. Optionally speaks a `reason` before shutting up.
-* **Parameters:**
-  - `reason` (`string?`): Optional message to speak before stopping.
+* **Description:** Immediately terminates the current story, shuts up talking, and triggers cleanup.  
+* **Parameters:**  
+  - `reason` (string or `nil`) — optional fallback line to say upon aborting.  
+* **Returns:** Nothing.
 
 ### `OnDone()`
-* **Description:** Internal cleanup routine called after story completion or abort. Removes remaining event listeners, cancels tick tasks, invokes `onstoryoverfn`, and clears the `story` reference.
-* **Parameters:** None.
-
-### `OnStoryTick()`
-* **Description:** Invoked periodically during story playback to execute the story’s `ontickfn` callback (if present).
-* **Parameters:** None.
-
-### `performedplay(story_id)`
-* **Description:** Records that a story with the given ID has been performed by appending it to `previous_acts`.
-* **Parameters:**
-  - `story_id` (`string`): The unique identifier of the performed story.
-
-### `IsTellingStory()`
-* **Description:** Checks whether a story is currently active.
-* **Parameters:** None.
-* **Returns:** `true` if `self.story ~= nil`, otherwise `false`.
+* **Description:** Performs internal cleanup after a story finishes or is aborted (removes listeners, cancels tick tasks, triggers `onstoryoverfn`).  
+* **Parameters:** None.  
+* **Returns:** Nothing.
 
 ### `SetOnStoryBeginFn(fn)`
-* **Description:** Sets a custom callback to be invoked when a story begins.
-* **Parameters:**
-  - `fn` (`function`): A function of the form `fn(inst, story)`.
+* **Description:** Registers a callback invoked when a story begins.  
+* **Parameters:**  
+  - `fn` (function) — signature: `function(inst, story)`.  
+* **Returns:** Nothing.
 
 ### `SetOnStoryOverFn(fn)`
-* **Description:** Sets a custom callback to be invoked when a story completes or is aborted.
-* **Parameters:**
-  - `fn` (`function`): A function of the form `fn(inst, story)`.
+* **Description:** Registers a callback invoked when a story ends (either successfully or via `AbortStory`).  
+* **Parameters:**  
+  - `fn` (function) — signature: `function(inst, story)`.  
+* **Returns:** Nothing.
+
+### `IsTellingStory()`
+* **Description:** Checks whether a story is currently in progress.  
+* **Parameters:** None.  
+* **Returns:** `true` if `self.story` is non-`nil`; otherwise `false`.
 
 ### `SetStage(stage)`
-* **Description:** Sets the optional `stage` context for this actor.
-* **Parameters:**
-  - `stage` (`?`): Any user-defined stage data (type-agnostic).
+* **Description:** Sets the `stage` field to an arbitrary context reference (e.g., scene object).  
+* **Parameters:**  
+  - `stage` (any) — arbitrary reference data.  
+* **Returns:** Nothing.
 
 ### `GetStage()`
-* **Description:** Returns the optional `stage` context previously set.
-* **Parameters:** None.
-* **Returns:** The stored `stage` value.
+* **Description:** Returns the stored `stage` reference.  
+* **Parameters:** None.  
+* **Returns:** `self.stage` (any).
 
 ### `OnSave()`
-* **Description:** Serialization helper; captures `previous_acts` for savegame persistence.
-* **Parameters:** None.
-* **Returns:** A table: `{ previous_acts = self.previous_acts }`.
+* **Description:** Returns serialized state for saving.  
+* **Parameters:** None.  
+* **Returns:** `{ previous_acts = table or nil }`.
 
 ### `OnLoad(data)`
-* **Description:** Deserialization helper; restores `previous_acts` from saved data.
-* **Parameters:**
-  - `data` (`table?`): Saved component data, expected to include `previous_acts`.
+* **Description:** Restores saved state from `OnSave`.  
+* **Parameters:**  
+  - `data` (table or `nil`) — saved data structure.  
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Events Listened To:**
-  - `"donetalking"` → triggers `on_done_talking` → calls `self:OnDone()`.
-  - `"onremove"` on the story property (`storyprop`) → triggers `self.storyprop_onremove` → calls `self:AbortStory()`.
-- **Events Pushed:**
-  - `"play_performed"` → pushed to all entities within `storytelling_dist` that have either `"stage"` or `"stagelistener"` tag, upon story speech completion.
-  - `"donetalking"` → pushed via talker component at end of speech (handled indirectly via listener).
+## Events & listeners
+- **Listens to:**  
+  - `donetalking` — fires `OnDone()` when speech completes.  
+  - `onremove` (on `storyprop`) — fires `AbortStory()` if the story property is removed.  
+- **Pushes:**  
+  - None directly; but `TellStory` causes listener entities (tags `"stage"` or `"stagelistener"`) to receive `play_performed` on story finish.

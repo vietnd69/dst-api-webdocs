@@ -1,108 +1,191 @@
 ---
 id: hounded
 title: Hounded
-description: Manages the scripted hound attack system, including scheduling waves, warning phases, spawning hounds near target players, and handling seasonal variants and player-specific delays.
+description: Manages timed, escalating hound waves targeting players based on world age and group proximity.
+tags: [combat, ai, boss, world, scheduling]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: aa3b57c8
+system_scope: world
 ---
 
 # Hounded
 
-## Overview
-This component orchestrates hound attacks in Don't Starve Together. It schedules waves based on world age and player count, manages warning phases with timed sound/speech cues, calculates optimal spawn positions and group-based hound distribution (including adjustments for player proximity), and handles persistent state across saves. It operates exclusively on the master simulation and interacts with the world map, player entities, and combat systems.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- `inst:AddComponent("health")` is not required (component is self-contained).
-- The component relies on: `SourceModifierList` (from `util/sourcemodifierlist`).
-- It uses the `TheWorld` singleton for map features (holes, vaults, seasons, etc.) and `AllPlayers`.
-- Tags added/removed: None explicitly applied by this component.
+## Overview
+`Hounded` is a server-side component that coordinates the spawning and release of hounds (and seasonal variants like `icehound` and `firehound`) against players. It implements an escalating difficulty schedule based on average player age in days, supports grouping of nearby players (to avoid overwhelming spawns), and handles location-based immunity (e.g., water, vaults, arena). It interacts with `combat`, `houndedtarget`, `spawnfader`, `talker`, and `age` components to synchronize spawning, targeting, warnings, and sound cues.
+
+## Usage example
+```lua
+local hounded = inst:AddComponent("hounded")
+hounded:SetSpawnData(my_custom_data)
+hounded:SpawnModeNormal()  -- default escalating mode
+hounded:ForceReleaseSpawn(target)  -- manually spawn a hound targeting a player
+hounded:ForceNextWave()  -- immediately trigger the next wave
+```
+
+## Dependencies & tags
+**Components used:** `age`, `combat`, `houndedtarget`, `spawnfader`, `talker`, `sourcemodifierlist`
+
+**Tags:** Checks `NOCLICK` (via `spawnfader:FadeIn`); no tags added/removed directly by this component.
 
 ## Properties
 | Property | Type | Default Value | Description |
-|---|---|---|---|
-| `inst` | `Entity` | `nil` (passed in) | The component's host entity (typically the World entity). |
-| `max_thieved_spawn_per_thief` | `number` | `3` | Maximum extra hounds a hound thief may receive in addition to their regular share. |
-| `_activeplayers` | `table` | `{}` (private) | List of currently active player entities. |
-| `_targetableplayers` | `table` | `{}` (private) | Maps GUID→location type (e.g., "land", "water") for each active player. |
-| `_warning` | `boolean` | `false` (private) | Whether a warning phase is currently active. |
-| `_timetoattack` | `number` | `0` (private) | Seconds remaining before an attack starts (may be negative). |
-| `_warnduration` | `number` | `30` (private) | Duration in seconds of the warning phase. |
-| `_attackplanned` | `boolean` | `false` (private) | Whether an attack wave is currently scheduled. |
-| `_timetonextwarningsound` | `number` | `0` (private) | Countdown until the next warning sound is played. |
-| `_announcewarningsoundinterval` | `number` | `4` (private) | Interval (in sound events) between warning speech announcements. |
-| `_pausesources` | `SourceModifierList` | Initialized (private) | Tracks sources of pause affecting hound timing (e.g., from global pause). |
-| `_spawnwintervariant` | `boolean` | `true` (private) | Whether winter variants (e.g., Ice Hounds) are enabled. |
-| `_spawnsummervariant` | `boolean` | `true` (private) | Whether summer variants (e.g., Fire Hounds) are enabled. |
-| `_spawndata` | `table` | `table` (private) | Config data for prefabs, spawn levels, delays, upgrade logic, speech, and sounds. |
-| `_spawnmode` | `string` | `"escalating"` (private) | Current spawn behavior mode: `"escalating"`, `"constant"`, or `"never"`. |
-| `_delayedplayerspawninfo` | `table` | `{}` (private) | Queued spawn info for players who left during a warning. |
-| `_missingplayerspawninfo` | `table` | `{}` (private) | Save data for players who left *before* the attack completed. |
-| `_wave_pre_upgraded` | `any` | `nil` (private) | State flag for wave upgrade checks (e.g., Worm Boss). |
-| `_wave_override_settings` | `table` | `{}` (private) | Settings for custom wave overrides (e.g., Worm Boss difficulty). |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | — | The entity instance (typically the world) that owns this component. |
+| `max_thieved_spawn_per_thief` | number | `3` | Maximum extra hounds that can be assigned to a player with `IsHoundThief()` per wave. |
 
-## Main Functions
+*Note:* All core state variables (e.g., `_timetoattack`, `_warning`, `_activeplayers`) are private and managed internally.
 
-### `PlanNextAttack()`
-* **Description:** Schedules the next hound attack wave. Calculates delay and warning duration based on current escalation level (derived from average player age) and resets warning state. Handles early-quit resuming and empty-player cases.
+## Main functions
+### `GetTimeToAttack()`
+* **Description:** Returns the remaining time (in seconds) until the next hound wave spawns.
 * **Parameters:** None.
+* **Returns:** `number` — time remaining, or `0` if spawning has started.
 
-### `GetWaveAmounts()`
-* **Description:** Computes how many hounds each player group receives for the current wave. Clusters players by proximity (GROUP_DIST=20), adjusts spawn counts based on group size (to avoid overwhelming clusters), and distributes spawns using weighted randomness based on player houndedtarget weight.
+### `GetWarning()`
+* **Description:** Indicates whether the current warning phase for the next wave is active.
 * **Parameters:** None.
+* **Returns:** `boolean` — `true` if warning phase is in progress, `false` otherwise.
 
-### `ReleaseSpawn(target, upgrade)`
-* **Description:** Spawns a hound near the specified player target (using `SummonSpawn`) and sets it to target that player.
-* **Parameters:**  
-  - `target` (`Entity`): Player entity to target.  
-  - `upgrade` (`boolean`): If true, spawns an upgraded prefab (e.g., Varg).
-
-### `SummonSpawn(pt, radius_override)`
-* **Description:** Spawns a hound near the given position `pt` (with optional custom search radius) on valid terrain (avoiding holes and water when possible). Handles seasonal/prefab selection and location override hooks.
-* **Parameters:**  
-  - `pt` (`Vector3`): World position to spawn near.  
-  - `radius_override` (`number`, optional): Custom spawn search radius (defaults to SPAWN_DIST=30).
+### `GetAttacking()`
+* **Description:** Indicates whether hounds are currently being spawned (i.e., the attack phase has started).
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if hounds are spawning, `false` otherwise.
 
 ### `SetSpawnData(data)`
-* **Description:** Overrides the internal `_spawndata` configuration (used for custom or boss-specific waves like Worm Boss).
-* **Parameters:**  
-  - `data` (`table`): Replacement spawn configuration table.
+* **Description:** Replaces the internal `_spawndata` table with custom behavior (e.g., changing spawn prefabs, wave scaling, upgrade logic).
+* **Parameters:** `data` (table) — must include keys such as `base_prefab`, `winter_prefab`, `summer_prefab`, `upgrade_spawn`, `attack_levels`, `attack_delays`, `warning_speech`, `warning_sound_thresholds`, and `ShouldUpgrade`.
+* **Returns:** Nothing.
 
-### `OnUpdate(dt)`
-* **Description:** Core update loop for all timing, warning phase logic, and hound release. Handles both active players and delayed players (who joined/left during a warning). Decrements timers, triggers sound/speech, and releases hounds incrementally per group.
-* **Parameters:**  
-  - `dt` (`number`): Delta time since last frame.
-
-### `ForceNextWave()`
-* **Description:** Immediately triggers the next wave for debugging (bypasses delay). Sets `_timetoattack` to `0` and calls `OnUpdate` to process.
+### `GetWorldEscalationLevel()`
+* **Description:** Returns the current escalation level table (based on world cycles) used for loot drops; not used by core hounded mechanics. Matches logic in `CalcEscalationLevel`.
 * **Parameters:** None.
+* **Returns:** `table` — e.g., `attack_levels.light`.
+
+### `GetSpawnPrefab(upgrade)`
+* **Description:** Determines the prefab name (`hound`, `icehound`, `firehound`, or `warglet`) for the next spawn, based on season and upgrade flags.
+* **Parameters:** `upgrade` (boolean) — whether to return the upgrade spawn prefab.
+* **Returns:** `string` — prefab name.
+
+### `SetSummerVariant(enabled)`
+* **Description:** Enables or disables seasonal summer variant spawns (`firehound`/`warglet`).
+* **Parameters:** `enabled` (boolean) — if `false`, summer variants are disabled.
+* **Returns:** Nothing.
+
+### `SetWinterVariant(enabled)`
+* **Description:** Enables or disables seasonal winter variant spawns (`icehound`/`warglet`).
+* **Parameters:** `enabled` (boolean) — if `false`, winter variants are disabled.
+* **Returns:** Nothing.
+
+### `SetWaveOverrideSettings(data)`
+* **Description:** Sets override settings for custom wave types (e.g., `worm_boss`). Used to dynamically adjust wave intensity.
+* **Parameters:** `data` (table) — `{ wavetype = "worm_boss", setting = X }`.
+* **Returns:** Nothing.
+
+### `SpawnModeNever()`
+* **Description:** Disables all hound spawning.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `SpawnModeLight()`
+* **Description:** Sets constant, minimal hound spawns (equivalent to "heavy" in delay, but light level in intensity).
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `SpawnModeNormal()` / `SpawnModeEscalating()`
+* **Description:** Enables default escalating difficulty based on player age.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `SpawnModeMed()`
+* **Description:** Sets constant, moderate difficulty hound spawns (medium wave intensity).
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `SpawnModeHeavy()`
+* **Description:** Sets constant, high-intensity hound spawns (light delay, heavy wave).
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `ForceReleaseSpawn(target)`
-* **Description:** Manually spawns a single hound targeting the specified player (no wave scheduling).
-* **Parameters:**  
-  - `target` (`Entity`): Player to target.
+* **Description:** Immediately spawns a hound near `target` and sets it to attack.
+* **Parameters:** `target` (`Entity` or `nil`) — the entity to target.
+* **Returns:** Nothing.
 
-### `SpawnModeNever()`, `SpawnModeLight()`, `SpawnModeNormal()`, `SpawnModeMed()`, `SpawnModeHeavy()`
-* **Description:** Sets the global spawn difficulty mode. `Normal`/`Escalating` uses age-based scaling, while others use fixed attack delays/durations. Calls `PlanNextAttack()` afterward.
+### `SummonSpawn(pt, radius_override)`
+* **Description:** Spawns a hound at world position `pt` (with optional spawn radius deviation).
+* **Parameters:** `pt` (`Vector` or `nil`) — spawn center position; `radius_override` (number, optional) — override `SPAWN_DIST` (default `30`).
+* **Returns:** `Entity?` — spawned hound, or `nil` on failure.
+
+### `ForceNextWave()`
+* **Description:** Forces the next hound wave to start immediately (for debugging).
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- Listens to:
-  - `"ms_playerjoined"` → `OnPlayerJoined`
-  - `"ms_playerleft"` → `OnPlayerLeft`
-  - `"pausehounded"` → `OnPauseHounded`
-  - `"unpausehounded"` → `OnUnpauseHounded`
-  - `"hounded_setdifficulty"` → `SetDifficulty`
-  - `"hounded_setsummervariant"` → `SetSummerVariant`
-  - `"hounded_setwintervariant"` → `SetWinterVariant`
-  - `"hounds_worm_boss_setdifficulty"` → `SetWormBossDifficulty`
-- Pushes:
-  - `"houndwarning"` → Sent to each land-based player during warning sound intervals with `HOUNDWARNINGTYPE` enum value.
-  - `"ms_miniquake"` → Triggered by specific warning sounds (if `v.quake` is set).
-- Also triggers internally (via `self.inst:PushEvent` or method calls):
-  - `"ms_playerjoined"`, `"ms_playerleft"` (handled by listener registration).
+### `DoWarningSpeech()`
+* **Description:** Triggers spoken warning lines (e.g., `"ANNOUNCE_HOUNDS"`) for all land-immune players not in delayed spawn groups.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `DoWarningSound()`
+* **Description:** Fires `houndwarning` event and optional mini-quake events for land-immune players based on time thresholds.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `DoDelayedWarningSpeech(player, data)`
+* **Description:** Handles warning speech for players whose spawns were queued after leaving/rejoining mid-wave.
+* **Parameters:** `player` (`Entity`) — the player; `data` (table) — saved spawn info.
+* **Returns:** Nothing.
+
+### `DoDelayedWarningSound(player, data)`
+* **Description:** Handles warning sounds for delayed players.
+* **Parameters:** `player` (`Entity`) — the player; `data` (table) — saved spawn info.
+* **Returns:** Nothing.
+
+### `GetWarningSoundList(player)`
+* **Description:** Returns the configured `warning_sound_thresholds` table, optionally adjusted for a specific player's state.
+* **Parameters:** `player` (`Entity?`) — optional player override.
+* **Returns:** `table` — e.g., `{ {time=30, sound="LVL4"}, ... }`.
+
+### `OnUpdate(dt)`
+* **Description:** Main simulation loop called every frame. Handles countdown, spawning, warnings, and delayed player updates.
+* **Parameters:** `dt` (number) — delta time in seconds.
+* **Returns:** Nothing.
+
+### `OnSave()`
+* **Description:** Serializes internal state for world saves, including delayed and missing player spawn info.
+* **Parameters:** None.
+* **Returns:** `table` — serialized state.
+
+### `OnLoad(data)`
+* **Description:** Restores state from a saved world.
+* **Parameters:** `data` (table) — deserialized state from `OnSave()`.
+* **Returns:** Nothing.
+
+### `GetDebugString()`
+* **Description:** Returns a multi-line debug string summarizing current state (e.g., `WARNING`, `DORMANT`, or `ATTACKING` with spawn details).
+* **Parameters:** None.
+* **Returns:** `string`.
+
+## Events & listeners
+- **Listens to:**
+  - `"ms_playerjoined"` — adds new players to `_activeplayers`, loads their spawn data.
+  - `"ms_playerleft"` — saves player spawn data to `_missingplayerspawninfo`, removes them from `_activeplayers`.
+  - `"pausehounded"` / `"unpausehounded"` — updates `_pausesources`.
+  - `"hounded_setdifficulty"` — sets spawn difficulty via `SetDifficulty`.
+  - `"hounded_setsummervariant"` / `"hounded_setwintervariant"` — toggles seasonal variants.
+  - `"hounds_worm_boss_setdifficulty"` — sets custom `worm_boss` wave settings.
+
+- **Pushes:** No events directly. Player entities receive `"houndwarning"` and `"ms_miniquake"` events via `PushEvent`.
+
+## Notes
+- This component only exists on the **master simulation** (server) and asserts `TheWorld.ismastersim`.
+- Hound spawns are grouped by proximity to avoid overwhelming players. Group size affects spawn count scaling.
+- Location immunity is tracked in `_targetableplayers`; players on water or in vaults/arenas may be excluded from targeting during a wave.
+- Delayed player spawn info is stored for players who join or leave during the warning or attack phase, ensuring continuity across sessions.

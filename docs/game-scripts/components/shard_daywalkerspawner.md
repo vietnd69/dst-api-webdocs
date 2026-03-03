@@ -1,79 +1,71 @@
 ---
 id: shard_daywalkerspawner
 title: Shard Daywalkerspawner
-description: This component manages the location state of the Daywalker entity across mastershard and client shards, enabling deterministic position transitions (e.g., cave to surface) upon boss defeat.
+description: Manages networked location state for the Daywalker boss between cave and surface spawns.
+tags: [boss, network, map]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: components
 source_hash: 9ecab008
+system_scope: network
 ---
 
 # Shard Daywalkerspawner
 
-## Overview
-This component tracks and synchronizes the Daywalker's current location (e.g., `cavejail` or `forestjunkpile`) across networked shards. It is only instantiated on the mastershard and uses a networked `tinybyte` variable (`location`) to persist and sync location state. On the mastershard, it automatically transitions the location upon receiving the `master_shardbossdefeated` event; on client shards, it merely syncs the value and updates the local state.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- `inst.GUID` is used to bind the network variable.
-- On the mastershard: listens for the `"master_shardbossdefeated"` event on `TheWorld`.
-- On clients: listens for the `"locationdirty"` event on the entity.
-- Tags: None explicitly added/removed.
+## Overview
+`shard_daywalkerspawner` is a networked component that tracks and synchronizes the Daywalker boss’s current spawn location across server shards. It ensures consistent state between master and non-master shards by maintaining a numeric location enum (`cavejail` or `forestjunkpile`) and exposing it via a replicated variable. It only exists on the master simulation (`TheWorld.ismastersim`), and coordinates location updates when the Daywalker is defeated.
+
+## Usage example
+```lua
+-- Typically added automatically to the Daywalker entity by its prefab.
+-- Example of reading location on any shard:
+if inst.components.shard_daywalkerspawner then
+    local location_name = inst.components.shard_daywalkerspawner:GetLocationName()
+    print("Daywalker is at:", location_name)
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *(passed to constructor)* | The entity this component is attached to (typically a shard). |
-| `DAYWALKERLOCATION` | `table` | `{ cavejail = 0, forestjunkpile = 1 }` | Enum mapping location names to integer IDs. |
-| `DAYWALKERLOCATION_LOOKUP` | `table` | `{ 0 = "cavejail", 1 = "forestjunkpile" }` | Reverse lookup map (populated by `UpdateLocationNames()`). |
-| `location` | `net_tinybyte` | `0` | Networked variable storing the current location ID. Synced via `locationdirty` events. |
+| `DAYWALKERLOCATION` | table | `{ cavejail = 0, forestjunkpile = 1 }` | Enum mapping string keys to location IDs. |
+| `DAYWALKERLOCATION_LOOKUP` | table | populated at runtime | Reverse lookup from numeric ID to location name. |
+| `location` | `net_tinybyte` | `0` | Replicated numeric location value synced across shards. |
 
-## Main Functions
-### `UpdateLocationNames()`
-* **Description:** Builds or rebuilds the reverse lookup table (`DAYWALKERLOCATION_LOOKUP`) from the `DAYWALKERLOCATION` enum for efficient name ↔ ID conversion.
-* **Parameters:** None.
-
+## Main functions
 ### `GetLocation()`
-* **Description:** Returns the current integer location ID stored in the network variable.
-* **Parameters:** None.
+* **Description:** Returns the current numeric location ID (`0` for `cavejail`, `1` for `forestjunkpile`).  
+* **Parameters:** None.  
+* **Returns:** `number` — the current location enum value.  
 
 ### `GetLocationName()`
-* **Description:** Returns the string name (e.g., `"cavejail"`) corresponding to the current location ID.
-* **Parameters:** None.
+* **Description:** Returns the string name corresponding to the current location.  
+* **Parameters:** None.  
+* **Returns:** `string` — either `"cavejail"` or `"forestjunkpile"`.  
 
 ### `SetLocation(location)`
-* **Description:** Sets the location by ID or name (supporting string input), updates the network variable, and triggers a `"locationdirty"` event.
+* **Description:** Sets the location, accepting either a numeric enum or its string name. Triggers network sync via `location:set()`.  
 * **Parameters:**  
-  * `location` (*string* or *number*): Location name (e.g., `"forestjunkpile"`) or enum ID (e.g., `1`). Defaults to `0` if name is invalid.
-
-### `GetNewLocationName(oldlocation)`
-* **Description (mastershard only):** Determines the next location based on the current one (currently only supports toggling between `"cavejail"` and `"forestjunkpile"`). Returns `nil` for unrecognized locations.
-* **Parameters:**  
-  * `oldlocation` (*string*): Current location name.
-
-### `OnLocationUpdate(src, data)`
-* **Description (mastershard only):** Handles the `master_shardbossdefeated` event by advancing the Daywalker’s location when `data.bossprefab == "daywalker"`.
-* **Parameters:**  
-  * `src` (*Entity*): Source of the event.  
-  * `data` (*table?*): Event payload; must contain `bossprefab` and optionally `shardid`. Ignored if `nil`.
-
-### `OnSave()`
-* **Description (mastershard only):** Returns a serializable table containing the current location name for save/load persistence.
-* **Parameters:** None.
-
-### `OnLoad(data)`
-* **Description (mastershard only):** Restores the location from saved data (e.g., after world load or shard respawn).
-* **Parameters:**  
-  * `data` (*table?*): Saved component state; expects `data.location` as a string.
+  - `location` (`number|string`) — numeric enum or `"cavejail"`/`"forestjunkpile"` string.  
+* **Returns:** Nothing.  
 
 ### `GetDebugString()`
-* **Description:** Returns a debug string with mastershard status and current location name for logging.
-* **Parameters:** None.
+* **Description:** Returns a human-readable debug string including shard role and current location.  
+* **Parameters:** None.  
+* **Returns:** `string` — formatted like `"Mastershard: 1, Location: cavejail"`.  
 
-## Events & Listeners
-- Listens for `"master_shardbossdefeated"` on `TheWorld` (mastershard only).
-- Listens for `"locationdirty"` on the entity (client shard only).
-- Triggers `"locationdirty"` when `SetLocation()` updates the network variable.
+## Events & listeners
+- **Listens to:**  
+  - `master_shardbossdefeated` (only on mastershard) — triggers location toggle when Daywalker is defeated.  
+  - `locationdirty` (only on non-mastershard) — stub handler; no functional effect.  
+
+- **Pushes:** None. (Event handling modifies local state but does not emit additional events.)

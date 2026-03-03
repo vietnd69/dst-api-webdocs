@@ -1,84 +1,116 @@
 ---
 id: channelable
 title: Channelable
-description: Manages an entity's ability to be continuously interacted with over time by one or more other entities.
+description: Manages entity channeling behavior, supporting single or multiple simultaneous channelers with state transition control.
+tags: [channeling, state, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 734b1a1b
+system_scope: entity
 ---
 
 # Channelable
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The Channelable component allows an entity to be the target of a sustained, continuous action performed by another entity, known as the "channeler". This is commonly used for actions like repairing, healing, or charging objects over a period of time.
+`Channelable` manages the channeling state of an entity—enabling or disabling it from being a channel target, tracking active channelers, and coordinating state graph transitions. It supports both single-channeler (exclusive) and multi-channeler (non-exclusive) modes. The component integrates with the entity's state graph (`sg`) to drive visual and logical channeling states (`prechanneling`, `channeling`, `stopchanneling`) via long actions or custom functions.
 
-This component manages the state of both the channelable entity and the channeler, ensuring their state graphs (`sg`) are synchronized. It supports both a single-channeler mode and a multi-channeler mode, where several entities can channel the target simultaneously. It provides callback functions that can be defined to trigger custom logic when channeling starts and stops.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("channelable")
 
-## Dependencies & Tags
+-- Enable multi-channeling
+inst.components.channelable:SetMultipleChannelersAllowed(true)
 
-**Dependencies:**
-*   This component relies on the *channeler* entity having a `stategraph` component to manage states like `"channeling"` and `"stopchanneling"`.
+-- Set up channel start/stop callbacks
+inst.components.channelable:SetChannelingFn(
+    function(target, channeler) print("Start channeling:", channeler:GetDebugString()) end,
+    function(target, aborted, channeler) print("Stop channeling:", channeler:GetDebugString()) end
+)
 
-**Tags:**
-*   `channelable`: Added to the entity when the component is enabled, indicating it can be channeled.
-*   `channeled`: Added to the entity when it is actively being channeled by at least one entity.
-*   `multichannelable`: Added to the entity when it is configured to allow multiple simultaneous channelers.
-*   `use_channel_longaction`: Added to the entity if the `use_channel_longaction` property is set to true.
+-- A channeler begins channeling
+local channeler = some_entity
+channeler.sg:GoToState("prechanneling")
+inst.components.channelable:StartChanneling(channeler)
+
+-- Later, stop channeling
+inst.components.channelable:StopChanneling(false, channeler)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds/removes `channelable`, `channeled`, `use_channel_longaction`, `multichannelable`. Tags reflect current channeling capability and active state.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
-| :--- | :--- | :--- | :--- |
-| `enabled` | boolean | `true` | If false, the entity cannot be channeled. |
-| `channeler` | entity | `nil` | In single-channeler mode, this holds the reference to the entity currently channeling. |
-| `multichannelersallowed` | boolean | `nil` | If true, the entity can be channeled by multiple entities at once. |
-| `multichannelers` | table | `nil` | In multi-channeler mode, this table stores references to all current channelers. |
-| `onchannelingfn` | function | `nil` | A callback function that fires when channeling begins. |
-| `onstopchannelingfn` | function | `nil` | A callback function that fires when channeling ends. |
-| `use_channel_longaction` | boolean | `nil` | When set to true, adds the `use_channel_longaction` tag to the entity. |
-| `skip_state_channeling` | boolean | `nil` | If true, does not force the channeler's stategraph to the "channeling" state. |
-| `skip_state_stopchanneling` | boolean | `nil` | If true, does not force the channeler's stategraph to the "stopchanneling" state. |
+|----------|------|---------------|-------------|
+| `enabled` | boolean | `true` | Whether the entity can accept channeling. |
+| `channeler` | entity or `nil` | `nil` | Single active channeler when `multichannelersallowed` is `false`. |
+| `multichannelers` | table or `nil` | `nil` | Map of channelers when `multichannelersallowed` is `true`. |
+| `use_channel_longaction` | boolean or `nil` | `nil` | Whether long actions must use the channeling state flow. |
+| `multichannelersallowed` | boolean | `nil` (initially `false`) | If `true`, allows multiple channelers simultaneously. |
+| `skip_state_channeling` | boolean (inherited) | `nil` | If `true`, skips auto-`GoToState("channeling")` on start. |
+| `skip_state_stopchanneling` | boolean (inherited) | `nil` | If `true`, skips auto-`GoToState("stopchanneling")` on stop. |
 
-## Main Functions
-
+## Main functions
 ### `SetMultipleChannelersAllowed(allowed)`
-*   **Description:** Configures the component to either allow a single channeler or multiple simultaneous channelers. If the mode is changed while active channelers are present, it will stop all current channeling.
-*   **Parameters:**
-    *   `allowed` (boolean): Set to `true` to enable multi-channeler mode, `false` for single-channeler mode.
+*   **Description:** Enables or disables multi-channeling mode. Switching from multi to single mode immediately clears all channelers.
+*   **Parameters:** `allowed` (boolean) – if `true`, allows multiple channelers; otherwise, enforces exclusive channeling.
+*   **Returns:** Nothing.
 
 ### `SetEnabled(enabled)`
-*   **Description:** Enables or disables the component. When disabled, the entity cannot be targeted for new channeling actions.
-*   **Parameters:**
-    *   `enabled` (boolean): `true` to enable, `false` to disable.
+*   **Description:** Sets whether the entity can be channeled.
+*   **Parameters:** `enabled` (boolean) – new enabled state.
+*   **Returns:** Nothing.
+
+### `GetEnabled()`
+*   **Description:** Returns whether the entity is currently channelable.
+*   **Parameters:** None.
+*   **Returns:** boolean – `true` if enabled, otherwise `false`.
 
 ### `SetChannelingFn(startfn, stopfn)`
-*   **Description:** Sets the callback functions that are executed when channeling starts and stops. This is the primary way to implement custom game logic for a channelable object.
-*   **Parameters:**
-    *   `startfn` (function): The function to call when channeling starts. It receives the component's instance (`inst`) and the `channeler` entity as arguments.
-    *   `stopfn` (function): The function to call when channeling stops. It receives the component's instance (`inst`), an `aborted` boolean, and the `channeler` entity as arguments.
+*   **Description:** Registers optional callback functions invoked when channeling starts or stops.
+*   **Parameters:**  
+  - `startfn` (function or `nil`) – called as `startfn(target, channeler)` when channeling begins.  
+  - `stopfn` (function or `nil`) – called as `stopfn(target, aborted, channeler)` when channeling ends.
+*   **Returns:** Nothing.
 
 ### `IsChanneling(targetchanneler)`
-*   **Description:** Checks if the entity is currently being channeled. In multi-channeler mode, can optionally check for a specific channeler.
-*   **Parameters:**
-    *   `targetchanneler` (entity, optional): In multi-channeler mode, the specific entity to check for. If nil, checks if any entity is channeling.
+*   **Description:** Checks whether the specified channeler (or any channeler) is currently channeling this entity.
+*   **Parameters:** `targetchanneler` (entity or `nil`) – if provided, checks only that channeler; otherwise, checks all.
+*   **Returns:** boolean – `true` if the channeler(s) are in the `channeling` state.
+*   **Error states:** Returns `false` if `targetchanneler.sg` is `nil` or does not have the `"channeling"` state tag.
 
 ### `StartChanneling(channeler)`
-*   **Description:** Initiates a channeling session. This will only succeed if the component is enabled and the provided `channeler` entity is in a valid state (e.g., `"prechanneling"`). On success, it sets the channeler's state to `"channeling"` and triggers the `onchannelingfn` callback.
-*   **Parameters:**
-    *   `channeler` (entity): The entity that will begin channeling this object.
+*   **Description:** Begins channeling from the given `channeler` onto this entity, assuming all conditions are met.
+*   **Parameters:** `channeler` (entity) – the entity attempting to channel this one.
+*   **Returns:** boolean – `true` if channeling started successfully; `false` otherwise.
+*   **Error states:** Returns `false` if `enabled` is `false`, channeling is already active (unless `ignore_prechannel` is `true`), `channeler.sg` is `nil`, or `channeler` is not in `prechanneling` state (unless `skip_state_channeling` is `true`).
 
 ### `StopChanneling(aborted, targetchanneler)`
-*   **Description:** Stops an active channeling session. It sets the channeler's state to `"stopchanneling"` and triggers the `onstopchannelingfn` callback.
-*   **Parameters:**
-    *   `aborted` (boolean): A flag passed to the `onstopchannelingfn` callback, typically `true` if the action was interrupted rather than completed.
-    *   `targetchanneler` (entity, optional): In multi-channeler mode, specifies which channeler to stop. If omitted, all channelers are stopped.
+*   **Description:** Ends channeling for the specified channeler (or all channelers if omitted), triggering cleanup and state transitions.
+*   **Parameters:**  
+  - `aborted` (boolean) – whether channeling was interrupted.  
+  - `targetchanneler` (entity or `nil`) – specific channeler to stop; if `nil`, stops all channelers in multi-mode.
+*   **Returns:** Nothing.
+*   **Error states:** Safe to call multiple times; no-op if no active channeling matches.
 
-## Events & Listeners
+### `OnUpdate(dt)`
+*   **Description:** Periodic check during channeling to ensure the channeling state is still valid; stops channeling if not.
+*   **Parameters:** `dt` (number) – time elapsed since last frame.
+*   **Returns:** Nothing.
 
-*   **Listens To:** `onremove` (on the `channeler` entity)
-    *   When channeling starts, this component begins listening for the `onremove` event on the channeler entity. If the channeler is removed from the game, this listener ensures the channeling session is properly terminated.
+### `GetDebugString()`
+*   **Description:** Returns a human-readable status string for debugging.
+*   **Parameters:** None.
+*   **Returns:** string – `"Channeling"` or `"Not Channeling"`.
+
+## Events & listeners
+- **Listens to:** `onremove` (on channeler entities) – triggers `onremovechanneler` callback to clean up references when a channeler is destroyed.
+- **Pushes:** No events directly via `PushEvent`; but triggers side effects (e.g., state graph transitions, callback invocations).

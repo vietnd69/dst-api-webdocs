@@ -1,52 +1,62 @@
 ---
 id: nutrients_visual_manager
 title: Nutrients Visual Manager
-description: Manages the visual rendering and toggling of nutrient entities (e.g., fungal growths) in Don't Starve Together based on the player's nutrient vision state.
+description: Manages visibility and rendering state of nutrient-related visual effects based on the player's nutrient vision toggle.
+tags: [visual, effect, world, networking]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 73eb3df7
+system_scope: world
 ---
 
 # Nutrients Visual Manager
 
-## Overview
-This component controls the visual appearance of nutrient-related entities (such as fungal growths) in the game world. It toggles their visibility and rendering layer based on whether the player has "nutrient vision" enabled—switching them between a hidden, low-contrast state and a fully visible, highlighted state. It is instantiated only on non-dedicated clients and operates on the entity it is attached to (typically the player).
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires the client environment: throws an assertion on dedicated servers.
-- Listens to the `"nutrientsvision"` network event (sent from the server) to toggle rendering state.
-- No components are added to the host entity (`self.inst`).
-- No tags are added or removed.
+## Overview
+`Nutrients_Visual_Manager` is a client-only component responsible for controlling the visual state of nutrient-related overlay effects (e.g., glowing mushrooms or fungi visible under nutrient vision). It dynamically adjusts an entity's animation color, layer, and sort order in response to the `nutrientsvision` event—typically triggered when the player activates or deactivates nutrient vision. This component does not run on dedicated servers.
+
+## Usage example
+```lua
+-- Typically added automatically to the world entity on clients
+-- e.g., via world prefabs or scenario startup logic:
+inst:AddComponent("nutrients_visual_manager")
+
+-- Visual entities (e.g., nutrients) register/unregister themselves:
+inst.components.nutrients_visual_manager:RegisterNutrientsVisual(visual_entity)
+inst.components.nutrients_visual_manager:UnregisterNutrientsVisual(visual_entity)
+
+-- The system responds to the 'nutrientsvision' event to toggle visuals.
+```
+
+## Dependencies & tags
+**Components used:** None  
+**Tags:** None identified
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `inst` | `Entity` | *(none)* | The entity (typically a player) this component is attached to. Set at construction. |
+No public properties
 
-No additional public member variables are exposed directly.
-
-## Main Functions
-
+## Main functions
 ### `UpdateVisualAnimState(visual)`
-* **Description:** Updates the visual rendering properties (color, layer, sort order) of a registered nutrient visual entity based on the current `nutrients_vision` state. When disabled, visuals become nearly invisible with a dim tint; when enabled, they appear fully opaque on the background layer.
-* **Parameters:**  
-  `visual` (`Entity`): The visual entity whose `AnimState` component should be modified.
+* **Description:** Updates the rendering state (`AnimState`) of a registered visual entity to reflect whether nutrient vision is enabled. Applies distinct color and layer settings based on `nutrients_vision` state.
+* **Parameters:** `visual` (entity or table) – an entity with an `AnimState` component that represents a nutrient visual to update.
+* **Returns:** Nothing.
+* **Error states:** No explicit error handling—expects `visual.AnimState` to be valid.
 
 ### `RegisterNutrientsVisual(visual)`
-* **Description:** Registers a visual entity (e.g., a spawned nutrient effect) to be managed by this component. The visual will be updated whenever nutrient vision is toggled.
-* **Parameters:**  
-  `visual` (`Entity`): The visual entity to add to the internal registry.
+* **Description:** Registers a visual entity to be managed by this component. Registered visuals will have their `AnimState` updated when the nutrient vision toggle changes.
+* **Parameters:** `visual` (entity or table) – the visual entity to track.
+* **Returns:** Nothing.
 
 ### `UnregisterNutrientsVisual(visual)`
-* **Description:** Removes a visual entity from the internal registry. It will no longer be affected by future nutrient vision toggles.
-* **Parameters:**  
-  `visual` (`Entity`): The visual entity to remove from the registry.
+* **Description:** Removes a visual entity from management. It will no longer be updated when nutrient vision toggles.
+* **Parameters:** `visual` (entity or table) – the visual entity to stop tracking.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- Listens to event `"nutrientsvision"` (via `inst:ListenForEvent`) and triggers the internal `ToggleNutrientsVision` handler, which updates all registered visuals when the player’s nutrient vision state changes.
-- Does *not* push or emit any events itself.
+## Events & listeners
+- **Listens to:** `nutrientsvision` – event fired to toggle nutrient vision (e.g., via hotkey). Carries `data.enabled` (boolean) indicating current vision state.
+- **Pushes:** None

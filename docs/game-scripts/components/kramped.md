@@ -1,62 +1,66 @@
 ---
 id: kramped
 title: Kramped
-description: Manages Krampus spawning logic by tracking player naughtiness and spawning Krampus entities when naughtiness thresholds are exceeded.
+description: Manages the Krampus spawning system by tracking player naughtiness and spawning Krampus entities when thresholds are exceeded.
+tags: [combat, boss, world, event]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 7d9939fc
+system_scope: world
 ---
 
 # Kramped
 
-## Overview
-The `kramped` component is a world-scoped system responsible for monitoring player behavior that contributes to naughtiness (such as killing certain creatures) and spawning Krampus entities when predefined thresholds are met. It tracks per-player naughtiness state, handles naughtiness decay over time, and coordinates Krampus spawning with spawn location validation and difficulty scaling based on world age.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires `TheWorld.ismastersim` (runs exclusively on the master server).
-- Listens to world events: `ms_playerjoined`, `ms_playerleft`, `ms_forcenaughtiness`.
-- Attaches event listeners to players for `killed` (on successful player kills of eligible targets).
-- No static tags are added or removed from the entity.
-- Dependencies on other components: none explicitly declared on `self.inst`, but uses `TUNING.KRAMPUS_*` values.
+## Overview
+`Kramped` is a master-side world component responsible for monitoring player naughtiness and triggering Krampus spawns when specific thresholds are exceeded. It tracks per-player naughtiness metrics (actions count and decay timers), handles both natural naughtiness accumulation (via `killed` events) and forced spawns (via `ms_forcenaughtiness` events), and ensures Krampus entities are spawned at appropriate distances from players. It interacts with the `combat` component to assign targets to spawned Krampus and with the `werebeast` component to avoid penalizing players for killing Werebeasts in WereState.
+
+## Usage example
+```lua
+-- The component is automatically added to the world entity and managed by the game.
+-- Modders typically interact with it by triggering forced spawns:
+TheWorld:PushEvent("ms_forcenaughtiness", { player = player, numspawns = 3 })
+
+-- Or for debugging:
+print(TheWorld.components.kramped:GetDebugString())
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `werebeast`  
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
-|---------|------|---------------|-------------|
-| `inst` | `Entity` | `inst` (constructor argument) | Reference to the root entity this component is attached to (typically the world root). |
-| `_activeplayers` | `table` | `{}` (empty) | Private table mapping player entities to per-player naughtiness state data. |
+|----------|------|---------------|-------------|
+| `inst` | `GEntity` | — | The entity instance that owns this component (the world). |
 
-*Note: `_activeplayers` is not public but is the central data store; no other public instance variables are exposed.*
-
-## Main Functions
-
+## Main functions
 ### `DoWarningSound(player)`
-* **Description:** Schedules a warning sound/spawn effect for the player when their naughtiness is close to exceeding the threshold (score < 20). The warning level (1–3) depends on how close the player is to threshold.  
-* **Parameters:**
-  * `player` (`Entity`): The player to warn.
+*   **Description:** Triggers a delayed warning sound effect ( Krampus warning prefab) based on the player's current naughtiness level. Spawns `krampuswarning_lvl1`, `lvl2`, or `lvl3` depending on remaining actions until threshold.
+*   **Parameters:** `player` (GPlayer) - The player to check and warn for.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if the player is not tracked in `_activeplayers`.
 
 ### `OnUpdate(dt)`
-* **Description:** Called periodically; decrements naughtiness decay timer and reduces action count by 1 whenever decay timer completes. This implements the gradual reduction of naughtiness over time.  
-* **Parameters:**
-  * `dt` (`number`): Delta time since last update.
+*   **Description:** Called periodically to decay player naughtiness actions over time. Reduces the `actions` counter by 1 when `timetodecay` expires, resetting the decay timer.
+*   **Parameters:** `dt` (number) - Delta time in seconds since last update.
+*   **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a multi-line debug string summarizing naughtiness state (actions, threshold, decay timer) for each active player. Used in debug overlays.  
-* **Returns:** `string` — Debug information per player.
+*   **Description:** Returns a multiline debug string summarizing naughtiness data for all tracked players.
+*   **Parameters:** None.
+*   **Returns:** `string` - A formatted string such as `"Player wilba - Actions: 5 / 20, decay in 12.34"` for each active player.
 
-## Events & Listeners
+## Events & listeners
+- **Listens to:**  
+  - `killed` (on each player) — triggers naughtiness checks when a victim is killed.  
+  - `ms_playerjoined` — initializes tracking data for newly joined players.  
+  - `ms_playerleft` — cleans up tracking data when a player leaves.  
+  - `ms_forcenaughtiness` — manually triggers Krampus spawns and resets naughtiness tracking.
 
-- **Listens to:**
-  - `ms_playerjoined` → `OnPlayerJoined`  
-  - `ms_playerleft` → `OnPlayerLeft`  
-  - `ms_forcenaughtiness` → `OnForceNaughtiness`  
-  - `killed` (on individual players) → `OnKilledOther`  
-
-- **Triggers:**
-  - Spawns `"krampus"` prefab via `SpawnPrefab("krampus")` when thresholds are exceeded or forced.
-  - Spawns `"krampuswarning_lvl1"`, `"krampuswarning_lvl2"`, or `"krampuswarning_lvl3"` prefabs near the player (as visual/audio warnings) when approaching threshold.  
-  *(Note: The component itself does not push formal events; it triggers entity spawning and internal function calls.)*
+- **Pushes:** None.

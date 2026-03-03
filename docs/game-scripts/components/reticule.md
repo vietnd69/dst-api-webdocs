@@ -1,106 +1,124 @@
 ---
 id: reticule
 title: Reticule
-description: Provides a visual targeting reticule for controller-based items, dynamically updating position and color based on validity and input mode (mouse or twin-stick).
+description: Manages the visual targeting reticule for controller-based items, handling position updates, validity checks, and twin-stick aiming modes.
+tags: [controller, targeting, ui, input]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: ui
+category_type: components
 source_hash: e476c341
+system_scope: input
 ---
-
 # Reticule
 
-## Overview
-The `Reticule` component enables items to display a dynamic targeting reticule when used with a game controller. It manages the creation, positioning, coloring (valid/invalid), and movement of the reticule prefab in response to input (mouse, twin-stick aiming, or entity target functions), camera updates, and world geometry constraints. It integrates with `aoetargeting`, input handlers, and camera listeners to ensure responsive and context-aware targeting feedback.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Dependencies:** Relies on external components and systems:
-  - `aoetargeting` component (if present on `self.inst`) for deployment constraints (`alwaysvalid`, `allowwater`, `deployradius`).
-  - `TheInput` system for reading controller/mouse input, handlers, and world projection.
-  - `TheCamera` for camera-relative aiming and heading data.
-  - `TheWorld.Map` for spatial validity checks (`CanCastAtPoint`).
-- **Tags:** None explicitly added/removed. The component is designed to be attached to entities (typically items) that require targeting visual feedback.
+## Overview
+`Reticule` manages the creation, positioning, and visual feedback of a targeting reticule for items used with a game controller. It dynamically updates reticule position based on controller inputs (including analog stick movement for twin-stick aiming), validates target locations against world constraints using the `aoetargeting` component, and toggles between valid/invalid coloration and bloom effects. The reticule entity itself is spawned and destroyed in response to `equip`/`unequip` events in `playercontroller.lua`.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("reticule")
+inst.components.reticule.reticuleprefab = "custom_reticule"
+inst.components.reticule.validcolour = { 1, 1, 1, 1 }
+inst.components.reticule.invalidcolour = { 0.5, 0.5, 0.5, 1 }
+inst.components.reticule.targetfn = function(inst) return inst.Transform:GetWorldPosition() end
+inst.components.reticule:CreateReticule()
+```
+
+## Dependencies & tags
+**Components used:** `aoetargeting` (accessed for `alwaysvalid`, `allowwater`, and `deployradius` properties during position validation).
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (assigned in constructor) | The entity the component is attached to. |
-| `ease` | `boolean` | `false` | Whether reticule movement should be smoothed (lerped). |
-| `smoothing` | `number` | `6.66` | Lerp speed factor for eased movement. |
-| `reticuleprefab` | `string` | `"reticule"` | Prefab name for the reticule visual. |
-| `validcolour` | `{r,g,b,a}` | `{204/255, 131/255, 57/255, 1}` | RGBA color used when target position is valid. |
-| `invalidcolour` | `{r,g,b,a}` | `{1, 0, 0, 1}` | RGBA color used when target position is invalid. |
-| `currentcolour` | `{r,g,b,a}` | `self.invalidcolour` | Current active RGBA color of the reticule. |
-| `mouseenabled` | `boolean` | `false` | Enables mouse input tracking (for non-controller scenarios). |
-| `fadealpha` | `number` | `1` | Fade level multiplier, used when mouse is over HUD entity (reduces visibility). |
-| `blipalpha` | `number` | `1` | Alpha multiplier for blip animation (used on activation). |
+| `ease` | boolean | `false` | Enables linear interpolation (smoothing) of reticule position updates. |
+| `smoothing` | number | `6.66` | Interpolation speed factor used when `ease` is `true`. |
+| `reticuleprefab` | string | `"reticule"` | Prefab name used to spawn the reticule entity. |
+| `validcolour` | `{ number, number, number, number }` | `{ 204/255, 131/255, 57/255, 1 }` | RGBA color used when the target position is valid. |
+| `invalidcolour` | `{ number, number, number, number }` | `{ 1, 0, 0, 1 }` | RGBA color used when the target position is invalid. |
+| `mouseenabled` | boolean | `false` | Enables mouse-based reticule positioning when no controller is attached. |
+| `fadealpha` | number | `1` | Controls reticule fade opacity during mouse aiming. |
+| `blipalpha` | number | `1` | Controls blip effect opacity when `Blip()` is called. |
+| `targetpos` | Vector3 or DynamicPosition | `nil` | Internal target position for the reticule (set by `targetfn`, `mousetargetfn`, or twin-stick logic). |
+| `targetfn` | function | `nil` | Callback to determine reticule position on update; signature `fn(inst)`. |
+| `mousetargetfn` | function | `nil` | Callback to refine mouse-based target position; signature `fn(inst, pos)`. |
+| `updatepositionfn` | function | `nil` | Custom position setter; signature `fn(inst, pos, reticule, ease, smoothing, dt)`. |
+| `validfn` | function | `nil` | Custom validation callback; signature `fn(inst, reticule, pos, alwayspassable, allowwater, deployradius)`. |
+| `twinstickmode` | number or `nil` | `nil` | Twin-stick aiming mode: `1` (offset-based) or `2` (lerp-based). |
+| `twinstickrange` | number | `8` | Maximum distance (in tiles) for twin-stick reticule offset. |
+| `pingprefab` | string or `nil` | `nil` | Prefab to spawn when `PingReticuleAt` is called. |
+| `ispassableatallpoints` | boolean or `nil` | `nil` | Overrides `aoetargeting.alwaysvalid` if set. |
+| `shouldhidefn` | function or `nil` | `nil` | Returns `true` if reticule should be hidden; signature `fn(inst)`. |
 
-*Note: Several fields are commented out in `_ctor` (`targetpos`, `targetfn`, `mousetargetfn`, etc.) and initialized dynamically during runtime; they are not part of the initial constructor defaults.*
-
-## Main Functions
-
+## Main functions
 ### `CreateReticule()`
-* **Description:** Spawns the reticule prefab, sets up input handlers (mouse or controller), initializes position, and registers the camera update listener.
-* **Parameters:** None. Uses internal state (`mouseenabled`, `targetfn`, `mousetargetfn`) to configure behavior.
+* **Description:** Spawns the reticule prefab, sets up input handlers (mouse or controller), initializes state, and registers the camera update listener.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Returns early with no effect if `SpawnPrefab(self.reticuleprefab)` fails.
 
 ### `DestroyReticule()`
-* **Description:** Removes the reticule prefab, unregisters input handlers, and stops camera updates. Cleans up all active resources.
+* **Description:** Removes the reticule entity, cleans up input handlers and camera listener, and resets alpha values.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `PingReticuleAt(pos)`
-* **Description:** Spawns a temporary "ping" effect (e.g., for item placement feedback) at the specified world position. Handles `DynamicPosition` entities and applies color/styling.
-* **Parameters:**  
-  `pos` (`Vector3` or `DynamicPosition`): World position for the ping.
+* **Description:** Spawns a one-time visual "ping" at the specified world position using the configured `pingprefab`. Applies the valid color and optional platform parenting.
+* **Parameters:** `pos` (Vector3 or DynamicPosition) - target location for the ping.
+* **Returns:** Nothing.
+* **Error states:** Returns early if `pingprefab` is `nil`, `pos` is `nil`, or if `pos` is a `DynamicPosition` with no `walkable_platform`.
 
 ### `Blip()`
-* **Description:** Initiates a visual blip animation by resetting `blipalpha` to 0 and starting component updates to gradually fade it in.
+* **Description:** Initiates a blip animation by resetting `blipalpha` to `0` and starting component updates to increment it to `1`.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Returns early with no effect if `reticule` is `nil`.
 
 ### `OnUpdate(dt)`
-* **Description:** Handles blip fade-in animation over time (`dt`), updating `blipalpha` and the reticule’s color.
-* **Parameters:**  
-  `dt` (`number`): Delta time since last frame.
+* **Description:** Called each frame during a blip to increase `blipalpha` over time until it reaches `1`.
+* **Parameters:** `dt` (number) - delta time in seconds.
+* **Returns:** Nothing.
 
 ### `UpdatePosition(dt)`
-* **Description:** Positions the reticule at `targetpos`, checks validity (via `TheWorld.Map` and optional `validfn`), updates color (valid/invalid), and applies easing if enabled.
-* **Parameters:**  
-  `dt` (`number`): Delta time (used only if `ease` is true and `dt` is provided).
+* **Description:** Updates the reticule's position based on `targetpos`, validates the position using `aoetargeting` and `validfn`, and applies smoothing if enabled.
+* **Parameters:** `dt` (number or `nil`) - delta time for smoothing; `nil` disables interpolation.
+* **Returns:** Nothing.
 
 ### `OnCameraUpdate(dt)`
-* **Description:** Core update loop driven by camera events. Handles reticule updates for mouse aiming (HUD hover fade), or twin-stick aiming modes (Modes 1/2), depending on input state.
-* **Parameters:**  
-  `dt` (`number`): Delta time (used for updates in non-mouse modes).
+* **Description:** Main camera update loop for reticule position logic. Handles mouse follow, twin-stick aiming modes 1/2, or static `targetfn` updates.
+* **Parameters:** `dt` (number) - delta time in seconds.
+* **Returns:** Nothing.
 
 ### `IsTwinStickAiming()`
-* **Description:** Returns `true` if twin-stick aiming is currently active (i.e., reticule exists, no mouse handler, and `targetfn`/`twinstickmode` are set).
+* **Description:** Reports whether the reticule is currently in twin-stick aiming mode.
 * **Parameters:** None.
+* **Returns:** `true` if `twinstickmode` is set and no mouse or direct targeting override is active.
 
 ### `UpdateTwinStickMode1()`
-* **Description:** Implements twin-stick aiming Mode 1, where the reticule offset is calculated relative to the player’s heading and clamped to a radial range. Handles deadzone and offset tracking.
+* **Description:** Implements offset-based twin-stick aiming: captures initial offset on stick activation and increments relative to the screen.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `UpdateTwinStickMode2()`
-* **Description:** Implements twin-stick aiming Mode 2, where the reticulelerps toward an edge point on the aiming circle based on stick input magnitude and camera heading.
+* **Description:** Implements direct steering twin-stick aiming: lerp from auto-target point to stick aim point based on stick magnitude.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `ClearTwinStickOverrides()`
-* **Description:** Resets twin-stick state variables (`twinstickoverride`, `twinstickx`, `twinstickz`) to abort aiming override.
+* **Description:** Resets twin-stick override state (`twinstickoverride`, `twinstickx`, `twinstickz`).
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `ShouldHide()`
-* **Description:** Returns `true` if the reticule should be hidden, based on optional `shouldhidefn`.
+* **Description:** Checks if the reticule should be hidden using the optional `shouldhidefn`.
 * **Parameters:** None.
+* **Returns:** `true` if `shouldhidefn(inst)` returns a truthy value, otherwise `false`.
 
-## Events & Listeners
-- **Listens to:**
-  - `TheInput:AddMoveHandler(...)` — triggered on mouse movement when `mouseenabled` is true and no controller is attached.
-  - `TheCamera:AddListener(...)` — registers `_oncameraupdate` for camera updates (handled in `CreateReticule`/`DestroyReticule`).
-  - Custom `onremove` event on platform entities in `PingReticuleAt(...)` to reset parent/position cleanup.
-- **Triggers/Emits:**
-  - `self:UpdatePosition()` — called internally to refresh reticule position.
-  - `self:UpdateColour()` — called internally to refresh reticule color.
-  - `self.inst:StartUpdatingComponent(self)` / `self.inst:StopUpdatingComponent(self)` — activates/deactivates `OnUpdate(dt)` for blip animation.
+## Events & listeners
+- **Listens to:** Camera update callback (`_oncameraupdate`) attached via `TheCamera:AddListener`.
+- **Pushes:** No custom events. Lifecycle is tied to component attach/detach via `OnRemoveFromEntity` and `OnRemoveEntity`, both aliased to `DestroyReticule`.

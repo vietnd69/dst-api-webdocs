@@ -1,108 +1,115 @@
 ---
 id: heater
 title: Heater
-description: The Heater component manages heat emission and absorption properties for an entity, supporting configurable heat values, radii, falloff behavior, and exothermic/endothermic states.
+description: Manages thermal output properties and behavior for an entity, supporting configurable heat sources, carried heat, and endothermic/exothermic states.
+tags: [thermal, environment, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 2fdc4844
+system_scope: environment
 ---
 
 # Heater
 
-## Overview  
-The Heater component enables an entity to provide or absorb heat in the game world. It supports multiple heat sources—passive (base), carried (when held), and equipped (when worn)—with optional function-based or static heat values. It also controls thermal behavior via exothermic (heat-emitting) and endothermic (heat-absorbing) flags, and can optionally enforce radius-based heat falloff.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags  
-- Adds the `"HASHEATER"` tag to the entity on construction.  
-- Removes the `"HASHEATER"` tag when the component is removed from the entity.
+## Overview
+The `Heater` component defines and exposes thermal properties for an entity, enabling it to act as a heat source or sink. It supports dynamic heat generation via functions or static values, and accounts for heat in different states: active (heating), carried (when equipped or held), and endothermic/exothermic behavior. The component adds the `HASHEATER` tag to its owning entity upon construction and removes it on cleanup.
 
-## Properties  
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("heater")
+inst.components.heater:SetHeat(15) -- static heat value
+inst.components.heater:SetCarriedHeat(10, 0.5) -- carried heat with multiplier
+inst.components.heater:SetThermics(true, false) -- exothermic only
+```
 
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `HASHEATER` to `inst`; removes `HASHEATER` on component removal.
+
+## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `heat` | `number?` | `nil` | Static base heat value (used if `heatfn` is not set). |
-| `heatfn` | `function?` | `nil` | Optional function `(inst, observer) → number` returning dynamic base heat. |
-| `equippedheat` | `number?` | `nil` | Static heat value applied when the item is equipped (e.g., worn). |
-| `equippedheatfn` | `function?` | `nil` | Optional function `(inst, observer) → number` returning dynamic equipped heat. |
-| `carriedheat` | `number?` | `nil` | Static heat value applied when the item is carried (e.g., in inventory). |
-| `carriedheatfn` | `function?` | `nil` | Optional function `(inst, observer) → number` returning dynamic carried heat. |
-| `carriedheatmultiplier` | `number` | `1` | Multiplier applied to `carriedheat` (or result of `carriedheatfn`) when computing net carried heat. |
-| `exothermic` | `boolean` | `true` | If `true`, the heater emits heat (positive effect on temperature). |
-| `endothermic` | `boolean` | `false` | If `true`, the heater absorbs heat (negative effect on temperature). |
-| `stop_falloff` | `boolean` | `false` (implicit) | If `true`, disables heat falloff; otherwise, heat decreases with distance. |
-| `radius_cutoff` | `number?` | `nil` | Distance at which heat falls to zero (if falloff is enabled). |
+| `heat` | number or `nil` | `nil` | Base static heat output when no `heatfn` is set. |
+| `heatfn` | function or `nil` | `nil` | Optional function `(inst, observer) -> number` to compute dynamic heat. |
+| `equippedheat` | number or `nil` | `nil` | Static heat when entity is equipped. |
+| `equippedheatfn` | function or `nil` | `nil` | Optional function `(inst, observer) -> number` for dynamic equipped heat. |
+| `carriedheat` | number or `nil` | `nil` | Static heat when entity is carried. |
+| `carriedheatfn` | function or `nil` | `nil` | Optional function `(inst, observer) -> number, multiplier` for dynamic carried heat. |
+| `carriedheatmultiplier` | number | `1` | Multiplier applied to carried heat (used with `carriedheatfn` or `carriedheat`). |
+| `exothermic` | boolean | `true` | If `true`, entity emits heat; otherwise, it absorbs heat. |
+| `endothermic` | boolean | `false` | If `true`, entity absorbs heat (overrides/excludes `exothermic`). |
+| `stop_falloff` | boolean | `false` | If `true`, heat does not fall off with distance (inverted via `ShouldFalloff`). |
+| `radius_cutoff` | number or `nil` | `nil` | Optional radius beyond which heat output is considered zero. |
 
-## Main Functions  
-
+## Main functions
 ### `SetThermics(exo, endo)`
-* **Description:** Sets whether the heater is exothermic (emits heat) and/or endothermic (absorbs heat).  
-* **Parameters:**  
-  - `exo` (`boolean`) — whether the heater is exothermic.  
-  - `endo` (`boolean`) — whether the heater is endothermic.
+*   **Description:** Configures whether the entity is exothermic (emits heat) or endothermic (absorbs heat).
+*   **Parameters:**  
+    - `exo` (boolean) — sets `exothermic` flag.  
+    - `endo` (boolean) — sets `endothermic` flag.  
+*   **Returns:** Nothing.
 
 ### `IsEndothermic()`
-* **Description:** Returns whether the heater is endothermic.  
-* **Parameters:** None.  
-* **Returns:** `boolean`.
+*   **Description:** Returns the endothermic state.
+*   **Parameters:** None.  
+*   **Returns:** (boolean) — `true` if the entity is endothermic.
 
 ### `IsExothermic()`
-* **Description:** Returns whether the heater is exothermic.  
-* **Parameters:** None.  
-* **Returns:** `boolean`.
+*   **Description:** Returns the exothermic state.
+*   **Parameters:** None.  
+*   **Returns:** (boolean) — `true` if the entity is exothermic.
 
 ### `SetShouldFalloff(should_falloff)`
-* **Description:** Enables or disables heat falloff over distance.  
-* **Parameters:**  
-  - `should_falloff` (`boolean`) — if `true`, heat decreases with distance from the heater; if `false`, heat is applied uniformly (no falloff).
+*   **Description:** Sets whether heat output should falloff with distance.  
+*   **Parameters:** `should_falloff` (boolean) — if `true`, falloff is enabled; heat falls off with distance.  
+*   **Returns:** Nothing.
 
 ### `ShouldFalloff()`
-* **Description:** Returns whether heat falloff is enabled.  
-* **Parameters:** None.  
-* **Returns:** `boolean` — `true` if falloff is enabled.
+*   **Description:** Returns whether heat falloff is enabled (inverse of internal `stop_falloff` flag).  
+*   **Parameters:** None.  
+*   **Returns:** (boolean) — `true` if heat should falloff (i.e., `not self.stop_falloff`).  
 
 ### `SetHeatRadiusCutoff(radius_cutoff)`
-* **Description:** Sets the distance at which heat delivery drops to zero.  
-* **Parameters:**  
-  - `radius_cutoff` (`number`) — maximum effective range of the heater.
+*   **Description:** Sets an optional distance cutoff for heat emission; beyond this radius, heat output is effectively zero.  
+*   **Parameters:** `radius_cutoff` (number) — distance threshold.  
+*   **Returns:** Nothing.
 
 ### `GetHeatRadiusCutoff()`
-* **Description:** Returns the configured heat radius cutoff.  
-* **Parameters:** None.  
-* **Returns:** `number?` — the cutoff radius, or `nil` if unset.
+*   **Description:** Returns the configured heat radius cutoff.  
+*   **Parameters:** None.  
+*   **Returns:** (number or `nil`) — the cutoff radius, or `nil` if unset.
 
 ### `GetHeat(observer)`
-* **Description:** Returns the effective base heat value for a given observer.  
-* **Parameters:**  
-  - `observer` (`Entity`) — the entity computing heat (used for dynamic functions).  
-* **Returns:** `number?` — the heat value (from `heatfn` if present, else `heat`), or `nil`.
+*   **Description:** Computes and returns the current heat output, using either a dynamic function or a static value.  
+*   **Parameters:** `observer` (entity instance) — the entity querying heat (used by function-based heat).  
+*   **Returns:** (number or `nil`) — heat value; `nil` if no heat source is set.
 
 ### `GetHeatRate(observer)`
-* **Description:** Returns the heat rate (e.g., speed of temperature change) for an observer.  
-* **Parameters:**  
-  - `observer` (`Entity`) — the entity computing heat rate.  
-* **Returns:** `number` — heat rate value (from `heatratefn` if present, else `heatrate`, defaulting to `1` if neither is set).
+*   **Description:** Returns the heat rate (unused in current codebase), supporting dynamic or static definitions.  
+*   **Parameters:** `observer` (entity instance) — passed to `heatratefn` if defined.  
+*   **Returns:** (number) — heat rate; defaults to `1` if neither `heatratefn` nor `heatrate` are set.
 
 ### `GetEquippedHeat(observer)`
-* **Description:** Returns the heat value when the item is equipped (e.g., worn).  
-* **Parameters:**  
-  - `observer` (`Entity`) — the entity computing heat.  
-* **Returns:** `number?` — equipped heat (from `equippedheatfn` if present, else `equippedheat`), or `nil`.
+*   **Description:** Returns heat output when the entity is equipped (e.g., held by a player).  
+*   **Parameters:** `observer` (entity instance) — used by dynamic function if present.  
+*   **Returns:** (number or `nil`) — equipped heat value; `nil` if unset.
 
 ### `GetCarriedHeat(observer)`
-* **Description:** Returns the effective carried heat and its multiplier for an observer.  
-* **Parameters:**  
-  - `observer` (`Entity`) — the entity computing carried heat.  
-* **Returns:** `number, number` — carried heat value (from `carriedheatfn` if present, else `carriedheat`) and the `carriedheatmultiplier`.
+*   **Description:** Returns heat output and multiplier when the entity is carried (e.g., in inventory).  
+*   **Parameters:** `observer` (entity instance) — used by dynamic function if present.  
+*   **Returns:** (number, number) — carried heat value and multiplier (always returns two values; multiplier defaults to `carriedheatmultiplier`).
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted debug string summarizing current heat configuration.  
-* **Parameters:** None.  
-* **Returns:** `string` — comma-separated heat values and thermic flags for inspection.
+*   **Description:** Returns a formatted string for debugging, summarizing all heat-related fields.  
+*   **Parameters:** None.  
+*   **Returns:** (string) — formatted like `"heat: <value> carriedheat: <value> equippedheat: <value> EXO:true ENDO:false"`. Function-based fields appear as `<fn>`.
 
-## Events & Listeners  
-None identified.
+## Events & listeners
+Not applicable.

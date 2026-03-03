@@ -1,95 +1,142 @@
 ---
 id: winch
 title: Winch
-description: Manages the operational state and movement logic of a winch, including line extension/retraction, speed control, and depth-based animation.
+description: Manages rope line extension and retraction for anchor-based mechanics, updating depth-based state and triggering callbacks during operation.
+tags: [mechanics, anchor, depth, map, update]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 9870a4a0
+system_scope: world
 ---
 
 # Winch
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component handles the physics and state management of a winch mechanism in the game—specifically tracking the vertical line length (e.g., anchor line), controlling raising/lowering movement at configurable speeds, updating a "winch_ready" tag based on line state, and notifying other systems via events during transitions.
+`Winch` manages the dynamic extension and retraction of a rope line (e.g., for anchors) based on water depth at the entity's current location. It maintains the current line length, direction (raising or lowering), and speed multipliers, updating asynchronously while active. It supports callback hooks for operation start/complete events and integrates with the world’s tile depth data. The component is typically attached to anchor-related entities (e.g., winch structures).
 
-## Dependencies & Tags
-**Tags:**  
-- Adds/removes the `"winch_ready"` tag dynamically based on `winch_ready` state (true when line is fully retracted/empty).
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("winch")
+inst.components.winch:SetLoweringSpeedMultiplier(2.0)
+inst.components.winch:SetRaisingSpeedMultiplier(1.5)
+inst.components.winch:SetOnFullyRaisedFn(function(entity) print("Winch fully raised") end)
+inst.components.winch:StartLowering()
+```
 
-**Components:**  
-- None explicitly added via `AddComponent`. Depends on the entity having access to `TheWorld.Map:GetTileAtPoint()`, `GetTileInfo()`, and `TUNING.ANCHOR_DEPTH_TIMES`.
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds or removes `winch_ready` tag based on readiness state (`winch_ready = true` when line is fully retracted and ready for use).
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `winch_ready` | boolean | `true` | Indicates whether the winch line is fully retracted (ready for operation). Controls the `"winch_ready"` tag. |
-| `line_length` | number | `0` | Current length of the deployed line. Increases when lowering, decreases when raising. |
-| `is_raising` | boolean | `false` | True if the winch is currently retracting (raising) the line. |
-| `is_static` | boolean | `true` | True if the winch is idle (not updating each frame). Set false during movement. |
-| `raising_speed` | number | `1` | Speed at which the line is retracted per second (scaled by multiplier via `SetRaisingSpeedMultiplier`). |
-| `lowering_speed` | number | `0.5` | Speed at which the line is deployed per second (scaled by multiplier via `SetLoweringSpeedMultiplier`). |
+| `winch_ready` | boolean | `true` | Whether the winch is ready for operation (i.e., fully retracted). Controls the `winch_ready` tag. |
+| `line_length` | number | `0` | Current length of line extended (in game units or depth units). |
+| `is_raising` | boolean | `false` | Direction of movement: `true` if currently retracting line. |
+| `is_static` | boolean | `true` | Whether the winch is idle (`true`) or actively changing depth (`false`). |
+| `raising_speed` | number | `1` | Speed multiplier for line retraction per second. |
+| `lowering_speed` | number | `0.5` | Speed multiplier for line extension per second. |
 
-## Main Functions
-### `Winch:GetCurrentDepth()`
-* **Description:** Calculates and returns the current ocean depth at the winch’s position using tile data or an override function. Used to determine full extension point when lowering.  
-* **Parameters:** None.
+## Main functions
+### `SetLoweringSpeedMultiplier(mult)`
+*   **Description:** Sets the speed multiplier for lowering (extending) the line. Overrides the default `0.5`.
+*   **Parameters:** `mult` (number) - new lowering speed factor.
+*   **Returns:** Nothing.
 
-### `Winch:StartRaising(loading_in)`
-* **Description:** Initiates line retraction (raising). Starts depth-testing updates, emits `"start_raising_winch"` event, and invokes `onstartraisingfn` callback if set.  
-* **Parameters:**  
-  - `loading_in` (boolean): Passed to the `"start_raising_winch"` event; indicates whether this action was triggered during level loading.
+### `SetRaisingSpeedMultiplier(mult)`
+*   **Description:** Sets the speed multiplier for raising (retracting) the line. Overrides the default `1.0`.
+*   **Parameters:** `mult` (number) - new raising speed factor.
+*   **Returns:** Nothing.
 
-### `Winch:StartLowering(loading_in)`
-* **Description:** Initiates line deployment (lowering). Starts depth-testing updates, emits `"start_lowering_winch"` event, and invokes `onstartloweringfn` callback if set.  
-* **Parameters:**  
-  - `loading_in` (boolean): Passed to the `"start_lowering_winch"` event; indicates whether this action was triggered during level loading.
+### `SetOnFullyLoweredFn(fn)`
+*   **Description:** Registers a callback function to be invoked when the line finishes extending to full depth.
+*   **Parameters:** `fn` (function) - function accepting one argument: the winch entity.
+*   **Returns:** Nothing.
 
-### `Winch:FullyRaised()`
-* **Description:** Finalizes retraction: sets `line_length = 0`, stops updates, sets `winch_ready = true`, invokes `onfullyraisedfn` callback (if set), and emits `"winch_fully_raised"` event.  
-* **Parameters:** None.
+### `SetOnFullyRaisedFn(fn)`
+*   **Description:** Registers a callback function to be invoked when the line finishes retracting to zero length.
+*   **Parameters:** `fn` (function) - function accepting one argument: the winch entity.
+*   **Returns:** Nothing.
 
-### `Winch:FullyLowered()`
-* **Description:** Finalizes deployment: sets `line_length` to current depth, stops updates, invokes `onfullyloweredfn` callback (if set), and emits `"winch_fully_lowered"` event.  
-* **Parameters:** None.
+### `SetOnStartRaisingFn(fn)`
+*   **Description:** Registers a callback function to be invoked at the start of a raising operation.
+*   **Parameters:** `fn` (function) - function accepting one argument: the winch entity.
+*   **Returns:** Nothing.
 
-### `Winch:StartDepthTesting(is_raising)`
-* **Description:** Begins continuous depth updates (calls `OnUpdate` each frame) based on movement direction. Sets `is_static = false` and `is_raising = is_raising`.  
-* **Parameters:**  
-  - `is_raising` (boolean): Direction of movement (`true` = raising, `false` = lowering).
+### `SetOnStartLoweringFn(fn)`
+*   **Description:** Registers a callback function to be invoked at the start of a lowering operation.
+*   **Parameters:** `fn` (function) - function accepting one argument: the winch entity.
+*   **Returns:** Nothing.
 
-### `Winch:StopDepthTesting()`
-* **Description:** Stops depth updates by setting `is_static = true`, `is_raising = false`, and calling `inst:StopUpdatingComponent(self)`.  
-* **Parameters:** None.
+### `SetOverrideGetCurrentDepthFn(fn)`
+*   **Description:** Overrides the default depth calculation (which uses tile ocean depth data) with a custom function.
+*   **Parameters:** `fn` (function) - function accepting one argument: the winch entity; must return a number (depth).
+*   **Returns:** Nothing.
 
-### `Winch:OnUpdate(dt)`
-* **Description:** Core update logic executed while moving. Adjusts `line_length` per second based on speed and direction, then triggers `FullyRaised()` or `FullyLowered()` upon reaching limits.  
-* **Parameters:**  
-  - `dt` (number): Delta time since last frame.
+### `SetUnloadFn(fn)`
+*   **Description:** Registers a callback to be invoked when the winch is unloaded or removed. *(Intended for use with serialization or cleanup logic.)*
+*   **Parameters:** `fn` (function) - function accepting one argument: the winch entity.
+*   **Returns:** Nothing.
 
-### `Winch:SetLoweringSpeedMultiplier(mult)`
-* **Description:** Sets the current lowering speed multiplier (replaces `lowering_speed` directly).  
-* **Parameters:**  
-  - `mult` (number): New speed value for lowering.
+### `GetCurrentDepth()`
+*   **Description:** Calculates and returns the current water depth at the winch’s position.
+*   **Parameters:** None.
+*   **Returns:** number — depth value (units), or `0` if unable to determine depth or custom function not set.
+*   **Error states:** Returns `0` if tile data is missing, ocean depth category is unrecognized, or custom override function returns `nil`.
 
-### `Winch:SetRaisingSpeedMultiplier(mult)`
-* **Description:** Sets the current raising speed multiplier (replaces `raising_speed` directly).  
-* **Parameters:**  
-  - `mult` (number): New speed value for raising.
+### `StartRaising(loading_in)`
+*   **Description:** Begins retracting the line (raising it) toward full retraction.
+*   **Parameters:** `loading_in` (boolean) — indicates if this operation is part of loading a saved game.
+*   **Returns:** Nothing.
+*   **Error states:** No explicit error handling; begins update loop via `StartDepthTesting`.
 
-### `Winch:SetOnFullyLoweredFn(fn)`, `SetOnFullyRaisedFn(fn)`, etc.
-* **Description:** Registers optional callback functions executed at key transition points (e.g., start/end of movement).  
-* **Parameters:**  
-  - `fn` (function): Callback accepting `inst` as argument.
+### `StartLowering(loading_in)`
+*   **Description:** Begins extending the line (lowering it) toward full depth.
+*   **Parameters:** `loading_in` (boolean) — indicates if this operation is part of loading a saved game.
+*   **Returns:** `true` — always returns `true`.
+*   **Error states:** No explicit failure conditions.
 
-## Events & Listeners
-- **Events emitted:**  
-  - `"start_raising_winch"`  
-  - `"start_lowering_winch"`  
-  - `"winch_fully_raised"`  
-  - `"winch_fully_lowered"`  
-- **No internal event listeners** (`inst:ListenForEvent`) are present in this component.
+### `FullyRaised()`
+*   **Description:** Finalizes a raising operation by setting line length to `0` and triggering the `onfullyraisedfn` callback and `winch_fully_raised` event.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `FullyLowered()`
+*   **Description:** Finalizes a lowering operation by setting line length to current depth and triggering the `onfullyloweredfn` callback and `winch_fully_lowered` event.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `StartDepthTesting(is_raising)`
+*   **Description:** Starts the update loop based on depth changes. Marks the winch as non-static and begins periodic `OnUpdate` calls.
+*   **Parameters:** `is_raising` (boolean) — `true` if line is retracting, `false` if extending.
+*   **Returns:** Nothing.
+
+### `StopDepthTesting()`
+*   **Description:** Stops the update loop, marking the winch as static and idle.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `OnUpdate(dt)`
+*   **Description:** Called each frame while the winch is active (`is_static = false`). Adjusts line length based on speed and direction; triggers finalization when target depth is reached.
+*   **Parameters:** `dt` (number) — delta time in seconds since last frame.
+*   **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:** None identified  
+- **Pushes:**  
+  - `start_raising_winch` — fired when raising starts (data: `loading_in` boolean).  
+  - `start_lowering_winch` — fired when lowering starts (data: `loading_in` boolean).  
+  - `winch_fully_raised` — fired when line reaches zero length.  
+  - `winch_fully_lowered` — fired when line reaches current depth.  
+
+## Notes
+- The `winch_ready` tag is automatically added/removed based on `winch_ready` property (`true` only when line is fully retracted).
+- Save/load serialization is implemented (`OnSave`, `OnLoad`) and includes all major state properties.
+- Depth calculation defaults to using `TUNING.ANCHOR_DEPTH_TIMES[depthcategory]` based on tile information. This can be overridden via `SetOverrideGetCurrentDepthFn`.

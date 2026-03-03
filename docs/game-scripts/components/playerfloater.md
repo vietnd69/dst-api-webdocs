@@ -1,87 +1,111 @@
 ---
 id: playerfloater
 title: Playerfloater
-description: A component that manages the equippable state and deployment behavior of player-held items, ensuring they can be temporarily equipped and later released or reset.
+description: Manages equipping and deployment behavior for player-held floating items, such as the Cloud In A Bottle.
+tags: [inventory, equippable, player, deployment]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 4675dcd6
+system_scope: inventory
 ---
 
 # Playerfloater
 
-## Overview
-The `PlayerFloater` component is attached to entities (typically items) that are intended to be temporarily equipped by a player—most commonly used for tools or items that behave like "floating" accessories (e.g., flippers, umbrellas). It coordinates with the `equippable` component to manage equip/unequip logic, enforces that the item cannot be unequipped by normal means, and provides helper functions to deploy, release, and reset the item on a player.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds the tag `"playerfloater"` to the entity in the constructor and removes it upon removal from the entity.
-- Internally depends on the `equippable` component (added/removed dynamically).
-- Requires the `inventory` component to be present on the player entity for its deployment and reset functions.
+## Overview
+`Playerfloater` is a specialized component that enables an entity to function as a player-held floating item—typically used for tools or consumables that float above the player's head when equipped (e.g., Cloud In A Bottle). It manages the item's transition between inventory slots and active floating state, ensuring proper equipping, unequipping, and persistence logic. It integrates closely with the `inventory` and `equippable` components, and adds the `playerfloater` tag to the entity.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("playerfloater")
+
+-- Configure equip behavior
+inst.components.playerfloater:SetOnEquip(function(inst, owner)
+    -- Custom logic on equip
+end)
+
+-- Equip the item to a player (e.g., via player action)
+inst.components.playerfloater:AutoDeploy(player)
+
+-- Later, let go or reset
+inst.components.playerfloater:LetGo(player)
+-- or
+inst.components.playerfloater:Reset(player)
+```
+
+## Dependencies & tags
+**Components used:** `equippable`, `inventory`, `container`  
+**Tags:** Adds `playerfloater`; removes `equippable` during save/load reconciliation.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `onequipfn` | `function?` | `nil` | Callback function invoked when the item is equipped. |
-| `onunequipfn` | `function?` | `nil` | Callback function invoked when the item is unequipped (via internal logic only). |
+| `onequipfn` | function or `nil` | `nil` | Callback executed when the item is equipped. |
+| `onunequipfn` | function or `nil` | `nil` | Callback executed when the item is unequipped. |
 
-## Main Functions
-
-### `OnRemoveFromEntity()`
-* **Description:** Removes the `"playerfloater"` tag from the entity when the component is removed.
-* **Parameters:** None.
-
+## Main functions
 ### `SetOnEquip(fn)`
-* **Description:** Sets the callback function to be invoked upon equip, and (if the `equippable` component exists) immediately registers it.
-* **Parameters:**  
-  - `fn` (`function`): A callback function with signature `fn(inst, owner)`.
+* **Description:** Assigns a callback function to run when the item is equipped. Also syncs this handler to the underlying `equippable` component.
+* **Parameters:** `fn` (function) — the function to execute on equip; receives `(inst, owner)` arguments.
+* **Returns:** Nothing.
 
 ### `SetOnUnequip(fn)`
-* **Description:** Stores a callback function for later use when the item is unequipped via internal logic (e.g., in `OnUnequip` handler).
-* **Parameters:**  
-  - `fn` (`function`): A callback function with signature `fn(inst, owner)`.
-
-### `MakeEquippable_Internal()`
-* **Description:** Adds the `equippable` component (if not already present) and configures it with the equip/unequip callbacks and prevents unequipping by default (via `SetPreventUnequipping(true)`).
-* **Parameters:** None.
+* **Description:** Assigns a callback function to run when the item is unequipped.
+* **Parameters:** `fn` (function) — the function to execute on unequip; receives `(inst, owner)` arguments.
+* **Returns:** Nothing.
 
 ### `AutoDeploy(player)`
-* **Description:** Equips the item on the given player, clearing their hands and closing any equipped containers (e.g., backpacks) in the body slot first.
-* **Parameters:**  
-  - `player` (`Entity`): The player entity to which the item is deployed.
+* **Description:** Equips the item to the `HANDS` slot of `player`, first dropping any existing item in that slot and closing any equipped backpack. Designed for one-click deployment of floating items.
+* **Parameters:** `player` (entity) — the player entity to equip the item on.
+* **Returns:** Nothing.
 
 ### `LetGo(player, randomdir, pos)`
-* **Description:** Allows the item to be unequipped by disabling protection and dropping it at the specified position/direction.
+* **Description:** Unequips and drops the item into the world, allowing the player to "let go" of the floating item.
 * **Parameters:**  
-  - `player` (`Entity`): The player holding the item.  
-  - `randomdir` (`boolean`): Whether to drop the item with random direction.  
-  - `pos` (`Vector3?`): The position to drop the item at (`nil` defaults to player position).
+  - `player` (entity) — the player holding the item.  
+  - `randomdir` (boolean) — whether to drop with a random velocity.  
+  - `pos` (Vector3 or `nil`) — explicit world position for the drop; if `nil`, defaults to player position.
+* **Returns:** Nothing.
 
 ### `Reset(player)`
-* **Description:** Unequips the item (temporarily disabling protection), returns it to the player’s inventory without dropping it, and keeps it available for future equip attempts.
-* **Parameters:**  
-  - `player` (`Entity`): The player currently holding the item.
+* **Description:** Unequips the item and returns it to the player's inventory (e.g., for re-equipping later without dropping).
+* **Parameters:** `player` (entity) — the player holding the item.
+* **Returns:** Nothing.
+
+### `MakeEquippable_Internal()`
+* **Description:** Internal helper that adds the `equippable` component, configures equip/unequip callbacks, and marks the item as prevent-unequipping.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Returns a save data table indicating whether the item is currently equipped.
-* **Parameters:** None.  
-* **Returns:** `{ equipped = true }` if `equippable` is present; otherwise `nil`.
+* **Description:** Saves state when the item is equipped—used for network and save-file persistence.
+* **Parameters:** None.
+* **Returns:** `{ equipped = true }` if the item is currently equipped; `nil` otherwise.
 
 ### `OnLoad(data, ents)`
-* **Description:** Restores the `equippable` component if the item was equipped at save time.
+* **Description:** Restores the `equippable` component if the item was saved as equipped.
 * **Parameters:**  
-  - `data` (`table`): The saved data, expected to have `equipped = true`.  
-  - `ents`: (Unused) Reference to entity map (retained for compatibility).
+  - `data` (table) — save data containing `data.equipped`.  
+  - `ents` (table) — entity mapping (unused).
+* **Returns:** Nothing.
 
 ### `LoadPostPass(ents, data)`
-* **Description:** Ensures that if the item was *not* equipped during load (e.g., loaded via inventory path), the `equippable` component is removed to avoid stale state.
+* **Description:** Ensures the `equippable` component is removed after load—this component only re-adds it when needed (`OnLoad`), and this final pass cleans up stale state.
 * **Parameters:**  
-  - `ents`: Reference to loaded entities (unused).  
-  - `data`: Loaded save data.
+  - `ents` (table) — entity mapping.  
+  - `data` (table) — save data (unused).
+* **Returns:** Nothing.
 
-## Events & Listeners
-- Listens for `"unequip"` event via the `equippable` component’s internal setup: triggers the stored `onunequipfn`, then removes the `equippable` component.  
-- (No direct `inst:ListenForEvent` calls; event handling occurs indirectly through the `equippable` component’s callbacks.)
+## Events & listeners
+- **Listens to:** `onremove` — internal handling via `SetPreventUnequipping(true)` ensures the `equippable` component removes itself on forced removal.
+- **Pushes:** None directly; relies on events from `equippable` and `inventory` (e.g., `equip`, `unequip`, `dropitem`).
+
+### Additional Notes
+- The `equippable` component is added lazily and conditionally—only when needed (e.g., during deployment) and removed during `LoadPostPass` to avoid stale state after world loading.
+- The `playerfloater` tag is added on construction and removed when detached from the entity via `OnRemoveFromEntity`.

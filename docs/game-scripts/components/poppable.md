@@ -1,40 +1,51 @@
 ---
 id: poppable
 title: Poppable
-description: Provides a toggleable state to mark an entity as 'popped' and optionally execute a callback function when popped for the first time.
+description: Manages a one-time "pop" event trigger for an entity, optionally invoking a callback when popped.
+tags: [event, callback, lifecycle]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 45373639
+system_scope: entity
 ---
 
 # Poppable
 
-## Overview
-The `Poppable` component allows an entity to be marked as "popped" exactly once. When `Pop()` is called for the first time, it sets an internal `popped` flag to `true` and, if configured, executes an optional callback function (`onpopfn`) passed during initialization. It is a lightweight utility for one-time state transitions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Usage:** None — this component has no runtime dependencies on other components.
-- **Tags:** None are added or removed.
+## Overview
+`Poppable` is a lightweight component that enables an entity to be marked as "popped" exactly once. It supports an optional callback (`onpopfn`) that executes upon the first call to `Pop()`. The component is stateful and ignores subsequent `Pop()` calls after the first. It is typically used for one-time initialization or destruction events, such as removing visual effects, triggering animations, or cleaning up resources.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("poppable")
+inst.components.poppable.onpopfn = function(inst)
+    print("Entity was popped!")
+    inst:Remove()
+end
+inst.components.poppable:Pop()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-The `_ctor` constructor does not initialize any public properties beyond `self.inst`. All key state variables (`popped`, `onpopfn`) are commented out in the constructor, indicating they are intentionally not initialized by default and are only used conditionally or externally.
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (assigned on construction) | Reference to the entity the component is attached to. |
-| `popped` | `boolean` | *undefined* | Internal state flag indicating whether `Pop()` has been called. *Not initialized in constructor.* |
-| `onpopfn` | `function?` | `nil` | Optional callback function to invoke on the first call to `Pop()`. *Commented out and never initialized in the constructor.* |
+| `popped` | boolean | `false` | Whether the entity has been popped. Read-only for external access. |
+| `onpopfn` | function? | `nil` | Optional callback function invoked once when `Pop()` is first called. Receives `self.inst` as its sole argument. |
 
-## Main Functions
-
+## Main functions
 ### `Pop()`
-* **Description:** Marks the entity as popped and, if not already popped, executes the `onpopfn` callback (if defined). If called again after being popped, it does nothing.
+* **Description:** Marks the entity as popped and invokes `onpopfn` once, if set. Subsequent calls have no effect.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-None — this component does not listen for or dispatch any events.
+## Events & listeners
+None identified

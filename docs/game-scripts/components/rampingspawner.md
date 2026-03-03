@@ -1,130 +1,158 @@
 ---
 id: rampingspawner
 title: Rampingspawner
-description: Manages a wave-based spawner that incrementally increases the number of enemy units spawned over time, typically used for progressive boss encounters.
+description: Manages progressive spawning of entities in waves, ramping up spawn count over time based on wave progression.
+tags: [spawning, boss, wave, ai]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: brain
+category_type: components
 source_hash: 15081462
+system_scope: entity
 ---
 
 # Rampingspawner
 
-## Overview
-The `RampingSpawner` component orchestrates a wave-based spawning system where enemy entities are spawned in increasing quantities per wave over time. It tracks spawned entities, handles their lifecycle events (death/removal), and manages the progression of wave difficulty. To be functional, it must be integrated with an appropriate brain system that controls when spawning starts and stops.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Usage:** Relies on `inst:DoTaskInTime(...)` for delayed wave transitions (uses the entity's task system).
-- **Event Listeners (via ListenForEvent):** Listens to `"inevitabledeath"`, `"death"`, and `"onremove"` events on spawned entities.
-- **Event Pusher:** Emits `"rampingspawner_death"` and `"rampingspawner_spawn"` events.
-- **Tags:** None explicitly added or removed by this component.
+## Overview
+`Rampingspawner` is a component that handles wave-based spawning of entities with a progressively increasing number of spawns per wave. It is designed to be attached to a boss or control entity and must be integrated with a compatible `brain` (e.g., as referenced in the comment: *“Look @ Dragonfly.”*). It tracks spawned entities, handles their lifecycle (death/removal), and supports save/load serialization.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("rampingspawner")
+
+inst.components.rampingspawner.spawn_prefab = "lavae"
+inst.components.rampingspawner.getspawnposfn = function(parent) return parent:GetPosition() + Vector3(5,0,0) end
+
+inst.components.rampingspawner:Start()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Checks `none`; does not manage tags directly.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `spawn_prefab` | `string` | `"lavae"` | The prefab name of entities to spawn. |
-| `spawns` | `table` | `{}` | Map of spawned entities (keys are entity instances, values are `true`). |
-| `num_spawns` | `number` | `0` | Current count of active spawned entities. |
-| `current_wave` | `number` | `0` | Number of spawns remaining in the current wave. |
-| `wave_num` | `number` | `0` | Total wave index (0-based). Used for scaling difficulty. |
-| `min_wave` | `number` | `4` | Minimum number of spawns per wave. |
-| `max_wave` | `number` | `10` | Maximum number of spawns per wave. |
-| `waves_to_max` | `number` | `6` | Number of waves needed to ramp from `min_wave` to `max_wave`. |
-| `wave_time` | `number` | `30` | Delay (in seconds) between the end of one wave and the start of the next. |
-| `spawning_on` | `boolean` | `false` | Whether spawning is currently active. |
-| `SpawnTask` | `task` | `nil` | Reference to the scheduled task for next wave start (if any). |
-| `_ondeathfn` | `function` | (internal) | Callback invoked when a spawned entity dies. |
-| `_onremovefn` | `function` | (internal) | Callback invoked when a spawned entity is removed. |
-| `getspawnposfn` | `function?` | `nil` | Optional custom function to override spawn position. |
-| `getspawnrotfn` | `function?` | `nil` | Optional custom function to override spawn rotation. |
-| `onstartfn` | `function?` | `nil` | Optional callback executed when spawning starts. |
-| `onstopfn` | `function?` | `nil` | Optional callback executed when spawning stops. |
+| `spawn_prefab` | string | `"lavae"` | Name of the prefab to spawn. |
+| `spawns` | table | `{}` | Dictionary mapping spawned entity instances to `true` for tracking. |
+| `num_spawns` | number | `0` | Current count of tracked spawned entities. |
+| `current_wave` | number | `0` | Remaining spawns to execute for the current wave phase. |
+| `wave_num` | number | `0` | Total waves completed (used for scaling difficulty). |
+| `min_wave` | number | `4` | Minimum spawns per wave at start of ramp. |
+| `max_wave` | number | `10` | Maximum spawns per wave at end of ramp. |
+| `waves_to_max` | number | `6` | Number of waves over which spawn count ramps up. |
+| `wave_time` | number | `30` | Delay (in seconds) between spawning individual entities once wave is nearly complete. |
+| `spawning_on` | boolean | `false` | Whether spawning is currently active. |
+| `SpawnTask` | Task? | `nil` | Pending delayed task for timed spawning. |
+| `getspawnposfn` | function? | `nil` | Optional function `(parent) => Vector3` for custom spawn position. |
+| `getspawnrotfn` | function? | `nil` | Optional function `(parent) => number` for custom spawn rotation. |
+| `onstartfn` | function? | `nil` | Optional callback `(parent)` executed when starting. |
+| `onstopfn` | function? | `nil` | Optional callback `(parent)` executed when stopping. |
 
-## Main Functions
+## Main functions
 ### `OnRemoveFromEntity()`
-* **Description:** Cleans up the component when removed from its entity—cancels any pending spawn task and resets state.
+* **Description:** Cleans up the component when removed from its entity: cancels any pending spawn task and resets tracking state.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `StopTrackingSpawn(spawn)`
-* **Description:** Removes all event listeners and internal tracking for a spawned entity, decrementing `num_spawns`.
-* **Parameters:**
-  * `spawn` (entity instance): The spawned entity to stop tracking.
+* **Description:** Stops listening to and removes an entity from the tracked spawns list.
+* **Parameters:**  
+  `spawn` (Entity) — The spawned entity to stop tracking.
+* **Returns:** Nothing.
 
 ### `OnSpawnDeath(spawn)`
-* **Description:** Handles cleanup when a spawned entity dies—calls `StopTrackingSpawn`, then broadcasts a `"rampingspawner_death"` event with the remaining spawn count.
-* **Parameters:**
-  * `spawn` (entity instance): The entity that died.
+* **Description:** Handles a tracked spawn dying; removes it from tracking and fires a `rampingspawner_death` event.
+* **Parameters:**  
+  `spawn` (Entity) — The spawned entity that died.
+* **Returns:** Nothing.
 
 ### `TrackSpawn(spawn)`
-* **Description:** Adds event listeners and tracks a newly spawned entity. Ensures it’s only tracked once.
-* **Parameters:**
-  * `spawn` (entity instance): The entity to begin tracking.
+* **Description:** Begins tracking a newly spawned entity, registering death/remove callbacks.
+* **Parameters:**  
+  `spawn` (Entity) — The spawned entity to track.
+* **Returns:** Nothing.
+
+### `GetCurrentWave()`
+* **Description:** Returns the current number of spawns remaining in the active wave.
+* **Parameters:** None.
+* **Returns:** number — Remaining spawns in the current wave.
 
 ### `GetWaveSize()`
-* **Description:** Computes the size of the next wave by linearly interpolating between `min_wave` and `max_wave` based on `wave_num / waves_to_max`.
+* **Description:** Calculates how many spawns should be in the current wave using linear interpolation between `min_wave` and `max_wave`, based on `wave_num` and `waves_to_max`.
 * **Parameters:** None.
-* **Returns:** `number` — The wave size (floored integer).
+* **Returns:** number — Scaled wave size (floored integer).
 
 ### `DoWave()`
-* **Description:** Starts a new wave by incrementing `wave_num` and adding the computed wave size to `current_wave`.
+* **Description:** Advances wave progression: increments `wave_num`, and increases `current_wave` by the calculated wave size.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `GetSpawnPos()`
-* **Description:** Returns the spawn position—either from a custom `getspawnposfn` or the spawner entity’s current position.
+* **Description:** Returns the spawn position: either via the optional `getspawnposfn`, or the owner entity’s position.
 * **Parameters:** None.
-* **Returns:** `Vector3` — Spawn position.
+* **Returns:** Vector3 — Position to spawn at.
 
 ### `GetSpawnRot()`
-* **Description:** Returns the spawn rotation—either from a custom `getspawnrotfn` or the spawner entity’s current rotation.
+* **Description:** Returns the spawn rotation: either via the optional `getspawnrotfn`, or the owner entity’s rotation.
 * **Parameters:** None.
-* **Returns:** `number` — Rotation angle in degrees.
+* **Returns:** number — Rotation angle in degrees.
 
 ### `SpawnEntity()`
-* **Description:** Instantiates a new entity using `spawn_prefab`, places it at the correct position/rotation, tracks it, decrements `current_wave`, and triggers `"rampingspawner_spawn"`. If no spawns remain in the wave, schedules the next wave after `wave_time` seconds.
+* **Description:** Spawns a new instance of `spawn_prefab`, positions and rotates it, tracks it, decrements `current_wave`, and fires a `rampingspawner_spawn` event. If `current_wave` reaches zero and spawner is active, schedules the next wave after `wave_time`.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `IsActive()`
-* **Description:** Returns whether spawning is currently active (`spawning_on`).
+* **Description:** Returns whether spawner is currently active (i.e., in `spawning_on` state).
 * **Parameters:** None.
-* **Returns:** `boolean`.
+* **Returns:** boolean — `true` if spawning is active.
 
 ### `Start()`
-* **Description:** Begins spawning—calls `DoWave()`, sets `spawning_on = true`, and invokes `onstartfn` if defined. Has no effect if already active.
+* **Description:** Begins spawning: calls `DoWave()` once, sets `spawning_on` to `true`, and invokes `onstartfn` if defined.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `Stop()`
-* **Description:** Stops spawning—sets `spawning_on = false`, cancels `SpawnTask`, and invokes `onstopfn` if defined. Has no effect if already inactive.
+* **Description:** Halts spawning: sets `spawning_on` to `false`, cancels `SpawnTask`, and invokes `onstopfn` if defined.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `Reset()`
-* **Description:** Clears all tracked spawns, sets `current_wave` and `wave_num` to 0, and stops any pending wave task.
+* **Description:** Clears all tracking data and resets `current_wave` to zero; does not change `spawning_on`.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Serializes key state (`spawns`, `current_wave`, `wave_num`, `spawning_on`) for persistence. Returns GUIDs for saved spawns.
+* **Description:** Serializes tracking state (including GUIDs of spawned entities), current wave info, and `spawning_on` flag.
 * **Parameters:** None.
-* **Returns:** `data` (table), `refs` (table of GUIDs).
+* **Returns:**  
+  `data` (table) — Serializable state object.  
+  `refs` (array of GUIDs) — List of entity GUIDs to persist separately.
 
 ### `OnLoad(data)`
-* **Description:** Restores state (`current_wave`, `wave_num`, `spawning_on`) from saved data. Automatically restarts spawning if `spawning_on` was true.
-* **Parameters:**
-  * `data` (table): Saved component state.
+* **Description:** Restores serialized state: wave counters and `spawning_on` flag. If `spawning_on` was true, automatically calls `Start()`.
+* **Parameters:**  
+  `data` (table) — Deserialized state data.
+* **Returns:** Nothing.
 
 ### `LoadPostPass(ents, data)`
-* **Description:** After world loading, reattaches event listeners to previously spawned entities using their GUIDs.
-* **Parameters:**
-  * `ents` (table): Mapping of GUIDs to entities.
-  * `data` (table): Saved data containing `spawns` list.
+* **Description:** After world load completes, reattaches tracked spawns using GUID references.
+* **Parameters:**  
+  `ents` (table) — Map of GUID → entity.  
+  `data` (table) — Contains array of spawn GUIDs in `data.spawns`.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens For:**
-  - `"inevitabledeath"` (on spawned entities) → triggers `_ondeathfn`
-  - `"death"` (on spawned entities) → triggers `_ondeathfn`
-  - `"onremove"` (on spawned entities) → triggers `_onremovefn`
-- **Triggers:**
-  - `"rampingspawner_death"` — after a spawned entity dies (includes `remaining_spawns` in event data).
-  - `"rampingspawner_spawn"` — after a new entity is spawned (includes `newent` in event data).
+## Events & listeners
+- **Listens to:**  
+  - `inevitabledeath` (on spawned entity)  
+  - `death` (on spawned entity)  
+  - `onremove` (on spawned entity)  
+- **Pushes:**  
+  - `rampingspawner_death` — Fired when a tracked spawn dies. Data: `{ remaining_spawns = self.num_spawns }`.  
+  - `rampingspawner_spawn` — Fired when a new entity is spawned. Data: `{ newent = spawn }`.

@@ -1,62 +1,70 @@
 ---
 id: findclosest
 title: Findclosest
-description: Selects the closest valid entity within range based on tag filters and moves the owner entity to maintain a safe distance from it.
+description: AI behaviour node that finds and moves toward the nearest entity matching specified tag filters.
+tags: [ai, behavior, locomotion]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: behaviour
-system_scope: entity
 source_hash: 27897de9
+system_scope: ai
 ---
 
 # Findclosest
 
-## Overview
-`Findclosest` is a `BehaviourNode` subclass used in DST's behavior tree system. Its primary responsibility is to identify the nearest entity that matches a specified tag-based query within a given search radius (`see_dist`) and command the owner entity to approach and maintain a minimum distance (`safe_dist`) from that target. This node is commonly used for pathfinding logic in AI behaviors—such as following a leader, approaching a food source, or staying near an ally—where proximity-based movement is required. It interacts directly with the `locomotor` component to initiate and halt movement, and relies on tag-based entity filtering for selective target identification.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components used:** `locomotor` (uses `GoToPoint` and `Stop` methods)
-- **Tags:** No tags are added or removed. Tag filtering is performed dynamically during target selection via:
-  - `self.tags`: required tags (all must be present)
-  - `self.exclude_tag`: forbidden tags (none may be present)
-  - `self.one_of_tags`: at least one of these must be present
+## Overview
+`Findclosest` is a behaviour node used in the game's AI system (typically via `BehavIoUr` brains) to locate the nearest valid entity within a given radius that matches a set of tag conditions, then move toward it. It inherits from `BehaviourNode` and integrates with the `locomotor` component to execute movement. The node evaluates validity based on tags (required, excluded, and "one-of" conditions), refreshes its target periodically (every 5 seconds), and transitions to `SUCCESS` once it reaches a specified proximity to the target.
+
+## Usage example
+```lua
+-- Example of adding Findclosest to a custom AI brain
+inst:AddComponent("behaviourtree")
+inst.components.behaviourtree:SetTree({
+    Selector,
+    {
+        Findclosest(see_dist = 10, safe_dist = 3, tags = "prey", exclude_tags = "INLIMBO"),
+        MoveTo(),
+    },
+    ...
+})
+```
+
+## Dependencies & tags
+**Components used:** `locomotor` (calls `GoToPoint` and `Stop`)  
+**Tags:** Uses tag filtering logic via `HasTag()` on target entities; no tags are added or removed on the owner entity.
 
 ## Properties
-| Property        | Type             | Default Value                    | Description |
-|-----------------|------------------|----------------------------------|-------------|
-| `inst`          | `Entity`         | *(passed to constructor)*        | The entity that owns and executes this behavior node. |
-| `targ`          | `Entity?`        | `nil`                            | The currently selected target entity. May be `nil` if no valid target is found. |
-| `see_dist`      | `number`         | *(passed to constructor)*        | Maximum search radius (in world units) for candidate entities. |
-| `safe_dist`     | `number|function`| *(passed to constructor)*        | Desired minimum distance to maintain from the target. Can be a number or a function returning a number (signature: `(owner, target) -> number`). |
-| `lastchecktime` | `number`         | `0`                              | Timestamp of the last full target search (used with `CHECK_INTERVAL` for periodic updates). |
-| `tags`          | `table|string?`  | `nil`                            | Array of tags the target must *all* have (if provided). Auto-converts string to `{tags}`. |
-| `exclude_tag`   | `table|string?`  | `nil`                            | Array of tags the target must *none* have (if provided). Auto-converts string to `{exclude_tags}`. |
-| `one_of_tags`   | `table|string?`  | `nil`                            | Array of tags where *at least one* must be present on the target (if provided). Auto-converts string to `{one_of_tags}`. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | — | The entity instance this behaviour belongs to. |
+| `targ` | `Entity?` | `nil` | The currently selected target entity (may be `nil`). |
+| `see_dist` | number | — | Maximum search radius for finding targets. |
+| `safe_dist` | number or function | — | Desired distance to maintain from the target; may be a function `(inst, target) => number`. |
+| `lastchecktime` | number | `0` | Timestamp of the last target search (used for throttling). |
+| `tags` | table or string? | `nil` | List (or single string) of tags the target must have. |
+| `exclude_tag` | table or string? | `nil` | List (or single string) of tags that exclude a target. |
+| `one_of_tags` | table or string? | `nil` | List (or single string) where the target must have at least one. |
 
-## Main Functions
-### `FindClosest:Visit()`
-* **Description:** Core logic executed each tick by the behavior tree. On first run, it selects a target and sets status to `RUNNING`. On subsequent runs, it checks if 5 seconds (`CHECK_INTERVAL`) have elapsed since the last full search, and if so, re-evaluates the target. If the current target becomes invalid or fails tag checks, it is cleared. Movement is then issued toward or away from the target to maintain `safe_dist`.
-* **Parameters:** None.
-* **Returns:** None. Updates `self.status` to `SUCCESS` (when within range), `FAILED` (when no target exists), or `RUNNING`.
+## Main functions
+### `DBString()`
+*   **Description:** Returns a human-readable debug string describing the current state of the node (e.g., `"Stay near target beefalo"`).
+*   **Parameters:** None.
+*   **Returns:** `string` — formatted description including the current target prefab name (or `"nil"` if no target).
 
-### `FindClosest:PickTarget()`
-* **Description:** Executes a world-space search for candidate entities using `TheSim:FindEntities`, then selects the closest valid candidate (first result that is not self, or second if first is self). Updates `self.lastchecktime`.
-* **Parameters:** None.
-* **Returns:** None. Sets `self.targ` to the chosen entity (or `nil` if no valid candidate).
+### `Visit()`
+*   **Description:** Executes the core AI logic for this node per tick: finds a target on first run, periodically refreshes it, checks tag validity, and moves the entity toward the target until within `safe_dist`. Sets the node status to `SUCCESS`, `FAILED`, or `RUNNING`.
+*   **Parameters:** None.
+*   **Returns:** Nothing. Updates `self.status` (`READY` → `RUNNING` → `SUCCESS/FAILED`).
 
-### `FindClosest:DBString()`
-* **Description:** Returns a debug string used by behavior tree inspectors to show the node’s current goal.
-* **Parameters:** None.
-* **Returns:** `string` — a human-readable description like `"Stay near target [Entity]"` or `"Stay near target nil"`.
+### `PickTarget()`
+*   **Description:** Searches the world for entities matching the configured tag filters (`tags`, `exclude_tag`, `one_of_tags`) within `see_dist`. Selects the first valid entity (excluding self) and updates `self.targ`.
+*   **Parameters:** None.
+*   **Returns:** Nothing. Sets `self.targ` and `self.lastchecktime`.
 
-## Events & Listeners
-None.
-
-## Implementation Notes
-- **Check Interval:** Full re-targeting occurs only every 5 seconds (configurable via `CHECK_INTERVAL`), balancing responsiveness with performance. Intermediate status checks (e.g., tag validity) happen each tick without re-querying the world.
-- **Safe Distance Handling:** The `safe_dist` argument supports runtime flexibility: if a function is passed, it is invoked with `(self.inst, self.targ)` as arguments to compute a per-target distance.
-- **Fallback Targeting:** If the closest entity (`ents[1]`) is the owner itself, it skips to `ents[2]`. If only one entity exists (the owner), `ents[2]` is `nil`, and `self.targ` becomes `nil`, resulting in `FAILED` status.
-- **Movement Logic:** When not within `safe_dist`, the owner is ordered to move to a point *adjacent* to the target at `0.98 * safe_dist` (via `GetPositionAdjacentTo`), ensuring it stops slightly *closer* than the target radius—this compensates for rounding and collision bounds.
+## Events & listeners
+None identified.

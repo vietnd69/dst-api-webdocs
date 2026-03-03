@@ -1,64 +1,80 @@
 ---
 id: explosive
 title: Explosive
-description: Handles the logic for an entity's explosion, including area-of-effect damage, building destruction, fire ignition, and screen shake effects.
+description: Manages the behavior and effects of explosive entities, including area-of-effect damage, building destruction, ignition of flammable objects, and camera effects upon detonation.
+tags: [combat, environment, physics]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: combat
+category_type: components
 source_hash: 950c7ca1
+system_scope: environment
 ---
 
 # Explosive
 
-## Overview
-The `Explosive` component manages the behavior when an entity detonates. It calculates and applies area-of-effect damage to nearby entities, destroys or damages workable structures and inventory items (within a per-explosion limit), ignites flammable targets, triggers screen shake and camera flash effects for players, and notifies the world and affected entities via events. After detonation, the explosive entity is removed.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components used internally**: `stackable`, `damagetypebonus`, `workable`, `inventoryitem`, `burnable`, `fueled`, `health`, `combat`, `explosiveresist`
-- **Tags used**: `"INLIMBO"`, `"notarget"` (to exclude entities), `"player"` (for PvP filtering)
-- **Tags added**: None
+## Overview
+The `explosive` component handles the lifecycle and impact of explosive entities, such as dynamite or bombs. When triggered (typically via combustion or external event), it calculates and applies damage to surrounding entities and structures, ignites flammable objects within range, and triggers visual/audio effects like screen flashes and camera shakes. It integrates closely with the `health`, `combat`, `burnable`, `workable`, `explosiveresist`, and `damagetypebonus` components to resolve damage, destruction, and mitigation effects.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("explosive")
+inst.components.explosive.explosiverange = 4
+inst.components.explosive.explosivedamage = 150
+inst.components.explosive:SetOnExplodeFn(function() print("BOOM!") end)
+-- Trigger explosion elsewhere, e.g., on death or via event
+```
+
+## Dependencies & tags
+**Components used:** `burnable`, `combat`, `damagetypebonus`, `dockmanager`, `explosiveresist`, `fueled`, `health`, `inventoryitem`, `spdamageutil`, `stackable`, `workable`  
+**Tags:** Checks for `INLIMBO`, `notarget`, `player`, `fireimmune`, `burnt`; does not add or remove tags.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `explosiverange` | `number` | `3` | Radius (in world units) of the explosion effect. |
-| `explosivedamage` | `number` | `200` | Base damage dealt per stack to targets within range. |
-| `buildingdamage` | `number` | `10` | Base damage applied per stack to workable entities (capped per-explosion). |
-| `lightonexplode` | `boolean` | `true` | If `true`, ignites flammable targets that are not already burning. |
-| `onexplodefn` | `function?` | `nil` | Optional custom callback invoked at the start of explosion handling. |
-| `attacker` | `Entity?` | `nil` | The entity responsible for the explosion; used for target suggestion. |
-| `pvpattacker` | `Entity?` | `nil` | PvP-specific attacker reference; if set, player targets are excluded unless they match it. |
-| `skip_camera_flash` | `boolean?` | `nil` | Controls whether camera flash/shake effects are skipped for all players. |
+| `explosiverange` | number | `3` | Radius (in world units) within which effects are applied. |
+| `explosivedamage` | number | `200` | Base damage dealt to entities per explosion stack. |
+| `buildingdamage` | number | `10` | Damage dealt per stack to `workable` structures/objects. |
+| `lightonexplode` | boolean | `true` | Whether igniting flammable entities is attempted on explosion. |
+| `onexplodefn` | function | `nil` | Custom callback function executed at the start of explosion logic. |
+| `attacker` | Entity | `nil` | Entity responsible for the explosion (used for target suggestion). |
+| `pvpattacker` | Entity | `nil` | PvP-specific attacker reference. |
+| `skip_camera_flash` | boolean | `nil` | Optional override to suppress camera flash effects. |
 
-## Main Functions
-
+## Main functions
 ### `SetOnExplodeFn(fn)`
-* **Description:** Assigns a custom function to be called when the explosion occurs (before any damage or effects are applied).
-* **Parameters:**
-  - `fn` (`function`): A function that receives the explosive entity (`inst`) as its only argument.
+* **Description:** Assigns a custom function to be executed at the beginning of `OnBurnt`, before damage calculations.
+* **Parameters:** `fn` (function) — takes the explosive entity as the sole argument.
+* **Returns:** Nothing.
 
 ### `SetAttacker(attacker)`
-* **Description:** Sets the non-PvP attacker entity reference for this explosion.
-* **Parameters:**
-  - `attacker` (`Entity?`): The entity causing or initiating the explosion.
+* **Description:** Sets the `attacker` field used to suggest combat targets for affected entities.
+* **Parameters:** `attacker` (Entity or `nil`) — the entity causing the explosion.
+* **Returns:** Nothing.
 
 ### `SetPvpAttacker(attacker)`
-* **Description:** Sets the PvP-specific attacker reference. If set, the explosion will ignore non-attacker players (used to prevent friendly-fire in PvP).
-* **Parameters:**
-  - `attacker` (`Entity?`): The PvP attacker entity; if set, only the attacker or non-player entities take damage.
+* **Description:** Sets the `pvpattacker` field, which takes precedence over `attacker` in player-versus-player contexts.
+* **Parameters:** `attacker` (Entity or `nil`) — the PvP source of the explosion.
+* **Returns:** Nothing.
 
 ### `OnBurnt()`
-* **Description:** Triggers the explosion sequence. This is the main method called when the entity burns/explodes.
-* **Parameters:** None. Uses internal state (`explosiverange`, `explosivedamage`, etc.) to determine effects.
+* **Description:** Main explosion handler. Executed when the explosive is destroyed (e.g., burnt). Applies area-of-effect damage, ignite flammable objects, destroy workable structures, and trigger visual effects.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** 
+  - If `self.inst` is destroyed or invalid during processing, behavior depends on caller safety (not guarded internally).
+  - Entities tagged `INLIMBO` or `notarget` are skipped.
+  - PvP-related logic ensures non-player entities or self-exploding entities are handled safely.
 
-## Events & Listeners
-- **Listens for:** `OnBurnt()` is called externally (not via `ListenForEvent`).
-- **Triggers:**
-  - `v:PushEvent("explosion", { explosive = self.inst })` — broadcast to each affected entity.
-  - `world:PushEvent("explosion", { damage = self.explosivedamage })` — broadcast per stack size to the world.
-  - `world:PushEvent("entity_death", { inst = self.inst, explosive = true })` — fired when the explosive entity is destroyed.
-  - `self.inst:PushEvent("death")` — death event for the explosive entity itself.
+## Events & listeners
+- **Listens to:** None directly.
+- **Pushes:** 
+  - `onignite` (via `burnable.Ignite`) — if a nearby flammable object is ignited.
+  - `explosion` (via `inst:PushEvent`) — pushed on each valid entity hit by the explosion.
+  - `entity_death` and `death` (via `world:PushEvent` and `inst:PushEvent`) — if the explosive entity itself has a `health` component and is destroyed.
+  - `explosion` (via `world:PushEvent`) — pushed once per stacksize for global event hooks (e.g., achievements).

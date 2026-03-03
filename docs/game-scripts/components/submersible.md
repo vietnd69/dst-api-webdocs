@@ -1,82 +1,88 @@
 ---
 id: submersible
 title: Submersible
-description: Manages the submersion and positioning logic for entities (e.g., boats or players) transitioning between land and underwater environments in DST.
+description: Manages the submersion logic and underwater placement for salvageable entities, ensuring proper positioning in ocean tiles.
+tags: [locomotion, salvage, environment, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: aaa1b38b
+system_scope: environment
 ---
 
 # Submersible
 
-## Overview
-This component handles the submersion mechanics of an entity—determining whether it can remain at its current location underwater or must reposition (e.g., onto land or a different water tile). It facilitates the spawning of underwater salvageable objects, responds to land/sink events, and enforces tile-area checks to ensure valid placement before submerging.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Listens for `"onsink"` and `"on_landed"` events on the entity (`inst`).
-- Relies on the following external systems: `TheWorld.Map`, `TheWorld.Map:IsOceanAtPoint`, `TheWorld.Map:IsSurroundedByWater`, `TUNING.MAX_WALKABLE_PLATFORM_RADIUS`, `FindWalkableOffset`, `VecUtil_Normalize`, and `shuffleArray`.
-- Uses the `inventoryitem` and `inventory` components on the entity.
-- May interact with the `underwater_salvageable` tag via spawned prefabs.
+## Overview
+`Submersible` is a component that handles the process of submerging an entity (typically a salvaged item) into the ocean, including position validation, tile-space checks, and creation of the `underwater_salvageable` object. It is intended for use on items that can be recovered from the ocean and later placed back underwater. The component listens for `onsink` and `on_landed` events and reacts accordingly, using the `inventoryitem` component to determine where the item should be placed and the `world` map API to verify ocean tile placement.
+
+## Usage example
+```lua
+local inst = Prefab("mysalvage")
+inst:AddComponent("inventoryitem")
+inst:AddComponent("submersible")
+inst:AddTag("salvageable")
+
+-- Trigger submersion logic (e.g., on player action)
+inst:PushEvent("onsink", { boat = true })
+```
+
+## Dependencies & tags
+**Components used:** `inventoryitem`, `inventory`, `transform`
+**Tags:** Listens for events; no tags added, removed, or checked directly.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `GObject` | — | Reference to the entity this component is attached to. |
-| `force_no_repositioning` | `boolean` | `false` | If `true`, disables automatic repositioning attempts during submersion (e.g., when sinking *from* a boat). |
+| `force_no_repositioning` | boolean | `false` | When `true`, skips repositioning logic during submersion, forcing placement at the current location. |
 
-## Main Functions
-
-### `CheckNearbyTiles(x, y, z)`
-* **Description:** Checks the 3×3 grid of tiles centered at the given world coordinates (offset by `CHECK_SPACING = 6`) to determine which are ocean vs. land, and whether the entire area is free of land (i.e., fully surrounded by water).  
-* **Parameters:**  
-  - `x`, `y`, `z`: World coordinates (floats) to check.
-
-### `Submersible:GetUnderwaterObject()`
-* **Description:** Checks if the entity is holding an item inside a container tagged `"underwater_salvageable"`. If so, returns that container; otherwise, returns `nil`.  
+## Main functions
+### `OnRemoveFromEntity()`
+* **Description:** Cleans up event listeners when the component is removed from the entity.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `Submersible:OnLanded()`
-* **Description:** Ensures that if the entity lands on an ocean tile (e.g., due to being removed from a boat or world transition), it immediately submerges. Does nothing if the entity has an owner and is on land.  
+### `GetUnderwaterObject()`
+* **Description:** Returns the container entity if the current item is inside a valid underwater salvage container (i.e., an entity with the `underwater_salvageable` tag). Returns `nil` otherwise.
 * **Parameters:** None.
+* **Returns:** `Entity` or `nil`.
+* **Error states:** Returns `nil` if `inventoryitem` is missing, if `GetContainer()` returns `nil`, or if the container lacks the `underwater_salvageable` tag.
 
-### `Submersible:Submerge()`
-* **Description:** Handles full submersion logic:  
-  - Checks if the entity already has an underwater object (skip if so).  
-  - Validates current position and surrounding tiles.  
-  - Attempts to find a suitable water tile using `CheckNearbyTiles` and `IsSurroundedByWater`.  
-  - If no suitable water tile exists, repositions to a nearby land tile.  
-  - Spawns a `"splash_green"` prefab or calls `MakeSunken` depending on destination.  
-  *Returns `true` if the entity was moved; `false` otherwise.*  
+### `OnLanded()`
+* **Description:** Checks whether the entity landed on land but is still in water (e.g., due to falling off a boat). If so, immediately submerges again.
 * **Parameters:** None.
+* **Returns:** `nil`.
 
-### `Submersible:MakeSunken(x, z, ignore_boats, nosplash)`
-* **Description:** Spawns an `"underwater_salvageable"` prefab at the specified coordinates, gives the entity ownership of its inventory, fires the `"on_submerge"` event, and optionally spawns a splash effect.  
-* **Parameters:**  
-  - `x`, `z`: World coordinates (floats) to spawn the object.  
-  - `ignore_boats` *(optional)*: Boolean. Passed to `IsOceanAtPoint`.  
-  - `nosplash` *(optional)*: Boolean. If `true`, suppresses splash effect.
-
-### `Submersible:OnRemoveFromEntity()`
-* **Description:** Cleans up event listeners (`"onsink"` and `"on_landed"`) when the component is removed from the entity.  
+### `Submerge()`
+* **Description:** Attempts to submerge the entity. Validates surroundings, checks for nearby obstacles or land, and optionally moves the entity to a valid ocean tile before spawning an `underwater_salvageable`. Repositioning may be skipped if `force_no_repositioning` is `true`.
 * **Parameters:** None.
+* **Returns:** `boolean` — `true` if the entity was moved, otherwise `false`.
 
-### `Submersible:OnSave()`
-* **Description:** Returns a serializable table containing persistent state (`force_no_repositioning`) for saving to disk.  
+### `MakeSunken(x, z, ignore_boats, nosplash)`
+* **Description:** Spawns an `underwater_salvageable` at the specified location, places the current entity into its inventory, and triggers the `on_submerge` event. Optionally avoids splash FX and ignores boat collisions.
+* **Parameters:**
+  * `x` (number) — X coordinate of placement.
+  * `z` (number) — Z coordinate of placement.
+  * `ignore_boats` (boolean?, optional) — If `true`, allows placement even if boats occupy the tile.
+  * `nosplash` (boolean?, optional) — If `true`, suppresses the green splash FX.
+* **Returns:** Nothing.
+
+### `OnSave()`
+* **Description:** Serializes component state for save games.
 * **Parameters:** None.
+* **Returns:** `{ force_no_repositioning = boolean }`.
 
-### `Submersible:OnLoad(data)`
-* **Description:** Restores the `force_no_repositioning` state from saved data. Defaults to `false` if missing.  
-* **Parameters:**  
-  - `data`: Table loaded from save data (must contain keys matching the `OnSave` return structure).
+### `OnLoad(data)`
+* **Description:** Restores component state from save data.
+* **Parameters:** `data` (table) — Data returned by `OnSave()`.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- Listens for:
-  - `"onsink"` → triggers `OnSink`
-  - `"on_landed"` → triggers `OnLanded`
-- Triggers:
-  - `"on_submerge"` → passed with `{ underwater_object = underwater_object }` after successfully sinking and spawning an underwater salvageable item.
+## Events & listeners
+- **Listens to:** `onsink` — triggers submersion (often from boat sinking).
+- **Pushes:** `on_submerge` — fired after successfully placing the entity underwater with an `underwater_salvageable`.
+- **Listens to:** `on_landed` — triggers re-submersion check if landed in water.
+- **Pushes:** None beyond `on_submerge`.

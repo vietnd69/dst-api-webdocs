@@ -1,103 +1,115 @@
 ---
 id: wander
 title: Wander
-description: A behaviour node that causes an entity to wander randomly around a home point or freely, using pathfinding-aware offset calculations and locomotion controls.
+description: Controls an entity to move randomly within a defined area relative to a home position, using pathfinding and obstacle avoidance to navigate.
+tags: [ai, locomotion, navigation]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: behaviour
-system_scope: entity
 source_hash: 49b41fbf
+system_scope: locomotion
 ---
 
 # Wander
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Wander` component is a behaviour node responsible for implementing randomized movement patterns for entities in the game world. It enables entities to move within a specified distance from a home location (optional) or wander freely, while respecting environmental constraints such as walls, terrain type (aquatic vs. land), and pathfinding rules. The component integrates closely with the `Locomotor` component to issue movement commands (`GoToPoint`, `WalkInDirection`, `Stop`) and conditionally trigger walking or waiting phases based on configurable timing parameters.
+`Wander` is a behaviour node that causes an entity to explore a local area by moving in randomized directions while optionally respecting a home location and distance constraints. It integrates with the `locomotor` component to perform movement (walking or running), pathfinding, and stopping, while dynamically handling aquatic vs. terrestrial movement and wall avoidance. This component is typically used for passive entities (e.g., animals, minions) that require naturalistic idle motion.
 
-Key features include:
-- Optional home-based leashing with configurable maximum distance.
-- Adaptive direction selection via optional `getdirectionFn`/`setdirectionFn` callbacks.
-- Robust fallback logic when no valid offset is found (e.g., tight spaces).
-- Support for both walking and running speeds via `should_run`.
+## Usage example
+```lua
+-- Example setup for a passive creature with wander AI
+local inst = CreateEntity()
+inst:AddComponent("locomotor")
 
-## Dependencies & Tags
-- **Components used:** `Locomotor`
-- **Tags:** None identified.
+-- Define wander parameters
+local wander_data = {
+    wander_dist = 10,
+    wander_dist = 15,
+    offest_attempts = 6,
+    ignore_walls = false,
+    should_run = false,
+}
+
+local times = {
+    minwalktime = 2,
+    randwalktime = 3,
+    minwaittime = 1,
+    randwaittime = 2,
+}
+
+inst:Add BehaviourNode("wander", nil, 20, times, nil, nil, nil, wander_data)
+```
+
+## Dependencies & tags
+**Components used:** `locomotor`
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `homepos` | `position or function` | `nil` | The home position (or a function returning it). If `nil`, entity is unanchored. |
-| `maxdist` | `number or function` | `nil` | Maximum distance from home. Used to determine when to return home. |
-| `inst` | `Entity` | — | The entity instance the component is attached to. |
-| `wander_dist` | `number or function` | `12` | Target distance from current position to wander to. |
-| `ignore_walls` | `boolean` | `nil` | If truthy, pathfinding ignores walls (falls back to ignoring them if LOS fails). |
-| `offest_attempts` | `number` | `8` | Number of attempts to find a valid offset using `FindWalkableOffset`/`FindSwimmableOffset`. |
-| `should_run` | `boolean or function` | `nil` | If truthy, entity runs instead of walks. |
-| `leashwhengoinghome` | `boolean` | `nil` | If truthy, entity remains leashed only when returning home (not during free wandering). |
-| `getdirectionFn` | `function` | `nil` | Callback to retrieve a pre-selected direction (e.g., from brain input). |
-| `setdirectionFn` | `function` | `nil` | Callback to store the chosen direction for later use. |
-| `checkpointFn` | `function` | `nil` | Custom checkpoint filter used during offset calculations. |
-| `times.minwalktime` | `number` | `2` | Minimum time to spend walking before re-evaluating. |
-| `times.randwalktime` | `number` | `3` | Random additive time added to `minwalktime`. |
-| `times.minwaittime` | `number` | `1` | Minimum time to wait (stand still) before resuming walk. |
-| `times.randwaittime` | `number` | `3` | Random additive time added to `minwaittime`. |
-| `times.no_wait_time` | `boolean` | `false` | Set to `true` if both wait parameters are ≤ 0 (i.e., never wait). |
-| `far_from_home` | `boolean` | `false` | Tracks whether the entity is currently beyond `maxdist` from home. |
+| `homepos` | `vector` or `function` | `nil` | Home position (or function returning it); if `nil`, no leash to home. |
+| `maxdist` | `number` or `function` | `nil` | Maximum distance from home (or function returning it). |
+| `wander_dist` | `number` or `function` | `12` | Target radius for random wandering. |
+| `ignore_walls` | `boolean` or `nil` | `nil` | If true, ignore walls during wander pathfinding. |
+| `offest_attempts` | `number` | `8` | Number of attempts to find a valid offset point. |
+| `should_run` | `boolean` or `nil` | `nil` | If true, entity runs instead of walks. |
+| `leashwhengoinghome` | `boolean` or `nil` | `nil` | If true, entity remains leashed (cannot wander far) when returning home. |
+| `times` | table | See constructor | Contains `minwalktime`, `randwalktime`, `minwaittime`, `randwaittime`, and `no_wait_time` flags. |
+| `getdirectionFn` / `setdirectionFn` | `function` or `nil` | `nil` | Optional functions to retrieve/set direction angle (e.g., for memory or external control). |
+| `checkpointFn` | `function` or `nil` | `nil` | Optional callback used by offset finders for custom checks. |
 
-## Main Functions
-
+## Main functions
 ### `Visit()`
-* **Description:** Core behavior logic executed each tick. Manages transitions between waiting and walking states based on timing, home proximity, and locomotor state.
+* **Description:** Core behaviour node tick function. Manages transitions between waiting and walking phases, calculates whether to return home or pick a new wander direction, and coordinates motion via `locomotor`.
 * **Parameters:** None.
-* **Returns:** `void`.
+* **Returns:** Nothing.
+* **Error states:** None; silently handles edge cases (e.g., no home set, aquatic movement, wall collisions).
+
+### `PickNewDirection()`
+* **Description:** Determines a new target point or direction for movement. If far from home, moves toward home. Otherwise, attempts to find a swimmable/walkable offset in a random or specified direction. Delegates to `LocoMotor:GoToPoint` or `LocoMotor:WalkInDirection`.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** If no valid direction/point is found, falls back to random direction or `WalkInDirection` with no offset.
+
+### `HoldPosition()`
+* **Description:** Stops movement and initiates a waiting period before next action.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `Wait(t)`
+* **Description:** Schedules the next action after a delay `t`, and calls `Sleep(t)` for the behaviour node.
+* **Parameters:** `t` (number) — duration to wait in seconds.
+* **Returns:** Nothing.
 
 ### `GetHomePos()`
-* **Description:** Retrieves the home position by evaluating `self.homepos` as a value or function.
+* **Description:** Returns the resolved home position (either a vector or result of `homepos` function).
 * **Parameters:** None.
-* **Returns:** `Vector3` or `nil`.
+* **Returns:** `vector` or `nil`.
 
 ### `GetDistFromHomeSq()`
-* **Description:** Returns the squared distance between the entity and home. Avoids expensive square root calculation.
+* **Description:** Returns the squared distance from the entity to its home position.
 * **Parameters:** None.
-* **Returns:** `number` or `nil`.
+* **Returns:** `number` or `nil` if no home is set.
 
 ### `IsFarFromHome()`
-* **Description:** Checks whether the entity is beyond `maxdist` from home.
+* **Description:** Checks whether the entity is beyond its maximum allowed distance from home.
 * **Parameters:** None.
 * **Returns:** `boolean`.
 
 ### `GetMaxDistSq()`
-* **Description:** Computes the squared maximum allowed distance from home.
+* **Description:** Returns the squared maximum distance allowed from home (computed from `maxdist`).
 * **Parameters:** None.
 * **Returns:** `number`.
 
-### `Wait(t)`
-* **Description:** Sets a future time (`self.waittime`) to resume action, and puts the behaviour to sleep for `t` seconds.
-* **Parameters:**
-  - `t` (`number`): Duration to sleep in seconds.
-* **Returns:** `void`.
-
-### `PickNewDirection()`
-* **Description:** Initiates a new wandering move. Determines whether to return home or select a new direction:
-  - If far from home: walks directly to `homepos`.
-  - Otherwise: computes a new offset using `FindWalkableOffset`/`FindSwimmableOffset`, optionally adjusting direction via `getdirectionFn`/`setdirectionFn`, and moves the entity via `Locomotor:GoToPoint()` or `Locomotor:WalkInDirection()`.
-* **Parameters:** None.
-* **Returns:** `void`.
-
-### `HoldPosition()`
-* **Description:** Stops movement and initiates a waiting phase (random wait duration derived from `times.minwaittime` and `randwaittime`).
-* **Parameters:** None.
-* **Returns:** `void`.
-
 ### `DBString()`
-* **Description:** Returns a formatted string for debugging, showing current state (walking/waiting), remaining time, home position, distance from home, and direction ("Go Home" or "Go Wherever").
+* **Description:** Returns a debug string summarizing current state (walking/waiting, time remaining, home position, distance from home).
 * **Parameters:** None.
 * **Returns:** `string`.
 
-## Events & Listeners
-- **Listens to:** None.
-- **Pushes:** None.
+## Events & listeners
+None identified.

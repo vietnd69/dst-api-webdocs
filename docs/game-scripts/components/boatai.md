@@ -1,35 +1,49 @@
 ---
 id: boatai
 title: Boatai
-description: Manages the artificial intelligence for a boat, causing it to automatically follow other nearby boats with raised sails.
+description: Controls a boat's AI behavior by scanning for nearby sail-raised vessels and adjusting its own sail to follow them.
+tags: [ai, boat, locomotion]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: brain
+category_type: components
 source_hash: c819e614
+system_scope: locomotion
 ---
 
 # Boatai
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The Boatai component provides artificial intelligence for a boat entity. Its primary responsibility is to scan for other boats in the vicinity. If it detects a nearby boat with its sail raised, it will automatically raise its own sail and adjust its heading to follow the target boat. This creates a "follow the leader" behavior among AI-controlled boats.
+`BoatAI` is a periodic-updating component that enables a boat entity to detect other boats with raised sails within a 200-unit radius and dynamically adjust its own sail direction and raise its sail to mimic their movement. It is intended for AI-controlled boats and relies on the `hull` and `mast` components of the target and owner entities. The component is started automatically upon construction via `StartUpdatingComponent`, which triggers `OnUpdate` each game tick.
 
-## Dependencies & Tags
-**Dependencies:**
-- `hull`
-- `mast`
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("boatai")
+-- The component begins updating automatically after construction
+-- No further manual calls are required
+```
 
-**Tags:**
-- None identified.
+## Dependencies & tags
+**Components used:** `hull`, `mast`
+**Tags:** None identified.
 
 ## Properties
-No public properties were clearly identified from the source. The component primarily contains logic within its `OnUpdate` method.
+No public properties.
 
-## Main Functions
+## Main functions
 ### `OnUpdate(dt)`
-* **Description:** Called every update frame by the game engine. It scans a 200-unit radius for other entities. If it finds another boat with its sail raised, this component's boat will raise its own sail and calculate a new `wind_direction` to move towards and follow the target boat.
-* **Parameters:**
-    * `dt` (number): The time elapsed since the last update, in seconds.
+* **Description:** Scans the surrounding area for entities within 200 units, identifies those with a non-nil `mast` component and `is_sail_raised = true`, and updates the owning boat's sail direction and raises its sail to match.
+* **Parameters:** `dt` (number) - time elapsed since the last update (unused in current implementation).
+* **Returns:** Nothing.
+* **Error states:** 
+  - Skips entities that are the boat itself (`v == self.inst`).
+  - Skips entities without a `mast` component or where `is_sail_raised` is false.
+  - Assumes `self.inst.components.hull.mast` and `mast.components.mast` exist and are valid (no nil checks on these chains beyond `mast` itself).
+
+## Events & listeners
+None identified.

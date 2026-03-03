@@ -1,156 +1,130 @@
 ---
 id: shadowparasitemanager
 title: Shadowparasitemanager
-description: Manages shadow parasite wave spawning logic, host creature spawning, and player-targeted parasitic events in the DST world.
+description: Manages shadow parasite waves and host spawning for the Shadow Thrall mechanic during rift events.
+tags: [combat, boss, rift, wave, world]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 4555e2b1
+system_scope: world
 ---
-
 # Shadowparasitemanager
 
-## Overview
-This component coordinates shadow parasite events in the world, including spawning host creatures with parasite masks, managing floating parasites, triggering parasite waves based on rift activity and player proximity, and handling player join/leave states during wave preparation. It operates exclusively on the master simulation and coordinates with the rift spawner and player systems to execute timed, event-driven parasitic invasions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on `TheWorld.components.riftspawner` (via `GetShadowRift`).
-- Uses `TheWorld.ismastersim` assertion.
-- No explicit component additions or tag mutations on its host entity (`inst`).
-- Internally tracks parasite instances and listens for their `onremove` events.
+## Overview
+`ShadowParasitemanager` orchestrates the Shadow Thrall boss encounter in DST. It tracks active players, manages parasite wave spawning (via hosted creatures like Rocky, Bunnyman, or spiders), coordinates floating parasitefx spawns during rift events, and handles player rejoining/leaving logic. It is instantiated only on the master simulation and interacts closely with the `riftspawner`, `combat`, `inventory`, `spawnfader`, `skinner`, and `follower` components.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("shadowparasitemanager")
+
+-- When rifts spawn, this component is triggered automatically via "ms_riftaddedtopool".
+-- It responds to player joins/leaves and spawns waves as needed.
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `follower`, `herdmember`, `inventory`, `riftspawner`, `skinner`, `spawnfader`  
+**Tags:** Checks `shadowthrall_parasite_mask`; adds `NOCLICK` to floaters.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (none) | The host entity (typically `TheWorld`), set during construction. |
-| `_activeplayers` | `table` | `{}` | Map of currently active players (`player = true`). |
-| `_targetplayers` | `table` | `{}` | Map of players who triggered a pending parasite wave (`player = true`). |
-| `_targetuserids` | `table` | `{}` | User IDs of players who left while a wave target; used to retroactively spawn waves upon rejoin. |
-| `_parasites` | `table` | `{}` | Map of tracked parasite entities (`inst = true`). |
-| `_floaters` | `table` | `{}` | Map of currently active floating parasite entities. |
-| `num_waves` | `number` | `0` | Count of remaining/ready parasite waves. |
-| `_WEIGHTED_HOSTS_TABLE` | `table` | modifiable | Mapping of host creature prefabs to spawn weights (e.g., `bunnyman = 0.4`). Populated from constants and modified at runtime based on world settings. |
-| `_HOST_CAN_SPAWN_TEST` | `table` | modifiable | Map of host prefabs to predicate functions checking if they can spawn in the current world (e.g., via `TUNING` flags). |
+| `_activeplayers` | table | `{}` | Map of active player entities → `true` |
+| `_targetplayers` | table | `{}` | Map of players → `true` who should trigger waves |
+| `_targetuserids` | table | `{}` | Map of userids → `true` for players who left while targeted |
+| `_parasites` | table | `{}` | Map of parasite entities → `true` currently tracked |
+| `_floaters` | table | `{}` | Map of floating parasitefx entities → `true` |
+| `num_waves` | number | `0` | Count of pending parasite waves |
+| `_WEIGHTED_HOSTS_TABLE` | table | `WEIGHTED_HOSTS_TABLE` | Mod-accessible map of host prefabs to spawn weights |
+| `_HOST_CAN_SPAWN_TEST` | table | `HOST_CAN_SPAWN_TEST` | Mod-accessible map of host prefabs to condition functions |
 
-## Main Functions
-
+## Main functions
 ### `ApplyWorldSettings()`
-* **Description:** Adjusts `_WEIGHTED_HOSTS_TABLE` by removing entries whose corresponding `HOST_CAN_SPAWN_TEST` function returns false (i.e., disabled via world tuning).
-* **Parameters:** None.
+* **Description:** Removes disabled host creatures from `_WEIGHTED_HOSTS_TABLE` based on world settings (e.g., `TUNING.ROCKYHERD_SPAWNER_DENSITY`).  
+* **Parameters:** None.  
+* **Returns:** Nothing.  
+* **Error states:** None.
 
 ### `OnPlayerJoined(player)`
-* **Description:** Registers a player as active. If the player was marked as a pending target (e.g., left mid-wave), immediately spawns a parasite wave for them.
-* **Parameters:** `player` (`Entity`) — The joining player entity.
+* **Description:** Registers a new player and immediately spawns a parasite wave for them if they were previously targeted.  
+* **Parameters:** `player` (entity) – the joining player entity.  
+* **Returns:** Nothing.  
+* **Error states:** Returns early if player is already tracked.
 
 ### `OnPlayerLeft(player)`
-* **Description:** Removes player from active list. If they were a pending target, records their `userid` in `_targetuserids` so waves can be replayed on rejoin.
-* **Parameters:** `player` (`Entity`) — The leaving player entity.
+* **Description:** Removes a player from `_activeplayers` and marks them as a target (or stores their userid) if a wave was pending.  
+* **Parameters:** `player` (entity) – the leaving player entity.  
+* **Returns:** Nothing.  
+* **Error states:** Returns early if player is not tracked.
 
 ### `AddParasiteToHost(host)`
-* **Description:** Spawns a `shadow_thrall_parasitehat` item and gives/equips it to the provided host entity.
-* **Parameters:** `host` (`Entity`) — The host creature to infect.
-* **Returns:** `host`, `mask` — The host entity and the spawned mask item (for modding).
-
-### `ChoseHostCreature()`
-* **Description:** Selects a host creature prefab using the current weighted probability table.
-* **Parameters:** None.
-* **Returns:** `prefab` (`string?`) — Prefab name of the chosen host, or `nil` if no valid options.
-
-### `SpawnHostCreature()`
-* **Description:** Spawns a host creature at default location, equips it with a parasite mask, and triggers fade-in if available.
-* **Parameters:** None.
-* **Returns:** `host` (`Entity?`) — Spawned host entity, or `nil` on failure.
+* **Description:** Equips a `shadow_thrall_parasitehat` item on the given host entity.  
+* **Parameters:** `host` (entity) – the host creature to infect.  
+* **Returns:** `host`, `mask` (both entities) – mask returned for modder use.  
+* **Error states:** None.
 
 ### `SpawnParasiteWaveForPlayer(player, joining)`
-* **Description:** Spawns a randomized number (5–7) of host creatures near a player. If `joining` is true, adds a delayed combat target suggestion for the host.
-* **Parameters:**
-  - `player` (`Entity`) — Target player to spawn the wave near.
-  - `joining` (`boolean`) — Whether this wave is triggered by a player rejoining; affects combat targeting logic.
-* **Returns:** None.
-
-### `OnRiftAddedToPool()`
-* **Description:** Increments `num_waves` when a new rift is added, unless during world loading (`POPULATING`).
-* **Parameters:** None.
+* **Description:** Spawns 5–7 parasite-host creatures near the player, assigns them combat target.  
+* **Parameters:**  
+  - `player` (entity) – the target player.  
+  - `joining` (boolean) – if true, delays target suggestion by `JOIN_TARGET_DELAY`.  
+* **Returns:** Nothing.  
+* **Error states:** Returns early if no shadow rift exists.
 
 ### `GetShadowRift()`
-* **Description:** Retrieves the first active rift with shadow affinity.
-* **Parameters:** None.
-* **Returns:** `rift` (`Entity?`) — The shadow rift entity, or `nil` if none exist.
-
-### `DoParasiteGroupTalk()`
-* **Description:** Plays a random chant sound for all active parasites with slight delays.
-* **Parameters:** None.
-
-### `StartTalkTask()`
-* **Description:** Starts or restarts the periodic task for group chants, running every `TALK_PERIOD` seconds.
-* **Parameters:** None.
-
-### `StartTrackingParasite(parasite)`
-* **Description:** Adds a parasite to the tracked list and sets up `onremove` cleanup. Starts the chant task if not already active.
-* **Parameters:** `parasite` (`Entity`) — The parasite entity to track.
-
-### `StopTrackingParasite(parasite)`
-* **Description:** Removes parasite from tracking and cancels chant task if no parasites remain.
-* **Parameters:** `parasite` (`Entity`) — The parasite entity to stop tracking.
-
-### `OnFloaterRemoved(floater)`
-* **Description:** Removes floater from tracking; triggers immediate wave spawn for all pending targets if no floaters remain.
-* **Parameters:** `floater` (`Entity`) — The removed floater entity.
-
-### `SpawnFloater(pos)`
-* **Description:** Spawns a floating parasite near a position, plays sound, and sets up `onremove` listener.
-* **Parameters:** `pos` (`Vector3`) — Position to spawn near.
-* **Returns:** `floater` (`Entity?`) — Spawned floater, or `nil` if no valid spawn offset.
-
-### `SpawnParasiteWaveForAllTargetPlayers()`
-* **Description:** Spawns a wave for each player in `_targetplayers` and clears the list.
-* **Parameters:** None.
+* **Description:** Returns the first shadow-affinity rift from `riftspawner`.  
+* **Parameters:** None.  
+* **Returns:** entity or `nil` – the rift entity, or `nil` if none exist or ` riftspawner` is absent.  
+* **Error states:** Returns `nil` if rift spawner is missing or no shadow rifts exist.
 
 ### `BeginParasiteWave()`
-* **Description:** Initiates a wave at the shadow rift’s position: spawns floaters if players are nearby, otherwise triggers direct spawning for target players.
-* **Parameters:** None.
+* **Description:** Decrements `num_waves` and either spawns floating parasites (if players are nearby) or triggers wave spawning for all targeted players.  
+* **Parameters:** None.  
+* **Returns:** Nothing.  
+* **Error states:** Returns early if no rift exists.
 
 ### `OverrideBlobSpawn(player)`
-* **Description:** Conditionally replaces a blob spawn with parasite wave preparation for the player, if rift exists, hosts available, and luck roll succeeds.
-* **Parameters:** `player` (`Entity`) — The player attempting blob spawn.
-* **Returns:** `boolean` — `true` if parasite wave was triggered.
+* **Description:** Probabilistically overrides a normal blob spawn with a Shadow Thrall encounter if a wave is pending. Marks the player as targeted and initiates a wave if no floaters are active.  
+* **Parameters:** `player` (entity) – the player who may spawn a blob.  
+* **Returns:** `true` if parasite wave is queued; `false` otherwise.  
+* **Error states:** Returns `false` if no rift exists, no hosts available, or luck roll fails.
 
 ### `SpawnHostedPlayer(inst)`
-* **Description:** Spawns a `player_hosted` entity, clones player skin and settings, and equips parasite mask.
-* **Parameters:** `inst` (`Entity`) — Original player entity to copy from.
-* **Returns:** `hosted` (`Entity?`) — The new hosted entity, or `nil`.
+* **Description:** Spawns a `player_hosted` entity and copies skins, userid, and other metadata from the original player `inst`.  
+* **Parameters:** `inst` (entity) – the original player instance to replicate.  
+* **Returns:** hosted entity or `nil`.  
+* **Error states:** Returns `nil` if `SpawnPrefab("player_hosted")` fails.
 
 ### `ReviveHosted(inst)`
-* **Description:** Cleans up state for a parasite-hosted player (e.g., stops follower, drops combat target) and spawns a visual FX.
-* **Parameters:** `inst` (`Entity`) — The parasite-hosted player entity.
+* **Description:** Handles reviving a hosted player entity: resets death flag, stops following/targeting, and spawns a fx entity.  
+* **Parameters:** `inst` (entity) – the hosted parasite entity.  
+* **Returns:** Nothing.  
+* **Error states:** None.
 
 ### `OnSave()`
-* **Description:** Serializes wave count and pending target user IDs for persistence.
-* **Parameters:** None.
-* **Returns:** `data` (`table?`) — Table with optional `num_waves` and `targetuserids`, or `nil` if empty.
+* **Description:** Serializes state (`num_waves`, target player userids) for saving.  
+* **Parameters:** None.  
+* **Returns:** table or `nil` – save data if non-empty.  
 
 ### `OnLoad(data)`
-* **Description:** Loads persisted wave count and target user IDs.
-* **Parameters:** `data` (`table?`) — Saved data from `OnSave`.
-
-### `OnRemoveFromEntity()`
-* **Description:** Cleans up event listeners and cancels the chant task.
-* **Parameters:** None.
+* **Description:** Restores state from save data.  
+* **Parameters:** `data` (table or `nil`) – saved data.  
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted debug string summarizing current state: wave count, parasite counts, and targets.
-* **Parameters:** None.
-* **Returns:** `debug_str` (`string`) — Human-readable debug information.
+* **Description:** Returns a human-readable status string for debug display.  
+* **Parameters:** None.  
+* **Returns:** string – formatted wave/parasite/target counts.
 
-## Events & Listeners
-- Listens for:
-  - `ms_playerjoined` → `OnPlayerJoined`
-  - `ms_playerleft` → `OnPlayerLeft`
-  - `ms_riftaddedtopool` → `OnRiftAddedToPool`
-  - `onremove` (on tracked parasite and floater entities) → internal cleanup handlers
-- Triggers no direct events itself; delegates to external callbacks (e.g., `SpawnFloater`, `DoParasiteGroupTalk`) for side effects.
+## Events & listeners
+- **Listens to:**  
+  - `ms_playerjoined` – calls `OnPlayerJoined`  
+  - `ms_playerleft` – calls `OnPlayerLeft`  
+  - `ms_riftaddedtopool` – calls `OnRiftAddedToPool`  
+  - `onremove` on parasite/floater entities – triggers tracking cleanup  
+- **Pushes:** None (no `PushEvent` calls found).

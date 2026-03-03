@@ -1,55 +1,58 @@
 ---
 id: findflower
 title: Findflower
-description: A behaviour node that identifies and selects the nearest valid flower for pollination, then initiates a pollination action.
+description: Selects the nearest unoccupied flower within sight and plans a pollination action for the entity.
+tags: [ai, pollination, locomotion, behavior]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: behaviour
-system_scope: entity
+category_type: behaviors
 source_hash: ac58c15a
+system_scope: brain
 ---
 
 # Findflower
 
-## Overview
-`Findflower` is a behaviour node responsible for selecting a nearby flower as a pollination target and initiating the pollination action. It extends `BehaviourNode`, integrating into the AI behaviour tree system. The component reads from the `pollinator` component to determine eligibility and validity of flowers as targets, and uses the `locomotor` component to execute movement toward the target. It relies on proximity-based world scanning (`GetClosestInstWithTag` and `FindEntity`) to locate suitable flowers within range and avoid conflicting pollination attempts by other entities.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components used:**
-  - `pollinator`: Reads `target` and calls `CanPollinate(target)`; sets `target`.
-  - `locomotor`: Calls `PushAction(action)` to queue movement and pollination.
-- **Tags:**
-  - `FINDFLOWER_MUST_TAGS = {"pollinator"}`: Used to filter entities during conflict checks.
-  - `FLOWER_TAGS = {"flower"}`: Used to identify candidate flowers.
-- **Tags checked:** `pollinator`, `flower`.
+## Overview
+`Findflower` is a behavior node that selects a nearby flower for pollination and initiates movement toward it. It extends `BehaviourNode` and is typically used within AI brains to enable entities (e.g., bees) to seek and interact with flowers. The behavior interacts closely with the `pollinator` component to determine target validity and the `locomotor` component to execute movement.
+
+## Usage example
+```lua
+-- Example usage in an AI brain tree (simplified)
+local findflower = FindFlower(self.inst)
+local pollinate = Pollinate(self.inst)
+behaviourtree:PushNode(findflower)
+behaviourtree:PushNode(pollinate)
+```
+
+## Dependencies & tags
+**Components used:** `pollinator`, `locomotor`
+**Tags:** Checks `flower` tag on potential targets; uses `pollinator` as a filter tag for entity search.
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (assigned in constructor) | The entity instance this behaviour node operates on (typically the pollinator entity). |
-| `status` | `string` | `READY` (inherited from `BehaviourNode`) | Current state of the behaviour node (`READY`, `RUNNING`, `FAILED`). |
+No public properties
 
-## Main Functions
-### `DBString()`
-* **Description:** Returns a human-readable debug string describing the current target flower, for logging and behaviour tree inspection.
-* **Parameters:** None.
-* **Returns:** `string` – A string of the format `"Go to flower <target>"`, where `<target>` is `nil` or the entity reference of the target flower.
-
+## Main functions
 ### `Visit()`
-* **Description:** Main execution method of the behaviour node. In `READY` state, it picks a target and initiates movement/pollination. In `RUNNING` state, it validates that the target is still valid and unconflicted; fails if not.
+* **Description:** Executes the core logic of the behavior node: selects a flower target if in `READY` state and attempts to initiate a pollination action. If already `RUNNING`, validates continued viability of the target and updates status accordingly (fails if target is no longer pollinatable, missing, or contested by another pollinator).
 * **Parameters:** None.
-* **Returns:** `void`.
+* **Returns:** Nothing.
+* **Error states:** May set `status` to `FAILED` if target is null, invalid, or contested.
 
 ### `PickTarget()`
-* **Description:** Scans for the closest flower within `SEE_DIST` (30 units) and sets it as the pollination target if eligible. A flower is eligible if:
-  - It exists and is tagged with `"flower"`.
-  - `pollinator:CanPollinate()` returns `true`.
-  - No other entity with the `"pollinator"` tag is already targeting it (conflict resolution).
+* **Description:** Locates the closest flower within `SEE_DIST` (30 units) that is eligible for pollination and unoccupied by another pollinator. Updates `self.inst.components.pollinator.target` accordingly.
 * **Parameters:** None.
-* **Returns:** `void`. Sets `self.inst.components.pollinator.target` to the chosen flower or `nil` if none found/eligible.
+* **Returns:** Nothing.
+* **Error states:** Sets `self.inst.components.pollinator.target` to `nil` if no valid flower is found.
 
-## Events & Listeners
-None.
+### `DBString()`
+* **Description:** Returns a debug-friendly string representation of the current target.
+* **Parameters:** None.
+* **Returns:** `string` — e.g., `"Go to flower abe_bug_001"`.
+
+## Events & listeners
+None identified.

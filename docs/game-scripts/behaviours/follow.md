@@ -1,75 +1,82 @@
 ---
 id: follow
 title: Follow
-description: A behaviour node that enables an entity to follow a target entity within configurable distance ranges, adjusting movement based on proximity, platform constraints, and run/walk settings.
+description: Controls an entity's movement to maintain a specified distance from a target, supporting approach, retreat, and idle behaviors based on distance thresholds.
+tags: [ai, locomotion, targeting]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: behaviour
-system_scope: entity
+category_type: behaviours
 source_hash: 60ba9131
+system_scope: locomotion
 ---
 
 # Follow
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Follow` component is a behaviour node used in the DST decision-making system to make an entity move toward (or away from) a specified target while maintaining a target distance range. It integrates with the `Locomotor` component for movement control and checks the `Health` component of the target to avoid following dead entities. The component dynamically evaluates distances using either fixed values or callable functions, supports platform-hopping behavior, and allows configuration of run/walk modes and evaluation frequency.
+`Follow` is a behaviour node that enables an entity to dynamically adjust its position relative to a target entity. It maintains a target distance by either approaching the target when too far (`APPROACH`), backing off when too close (`BACKOFF`), or succeeding (idle) when within the desired range. The behaviour integrates with the `locomotor` component to execute movement and checks the target's `health` component to avoid pursuing dead entities. It supports dynamic distance thresholds via functions and platform-aware movement logic.
 
-It is typically used in AI state graphs and behaviour trees to implement following, retreating, or pacing mechanics for characters and creatures.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("behaviourtree")
+local follow_node = inst.components.behaviourtree:AddNode("Follow", inst, target_ent, 2, 10, 5, true, false, true)
+```
 
-## Dependencies & Tags
-- **Components used:**  
-  - `components.locomotor` – for movement commands (`GoToPoint`, `RunInDirection`, `WalkInDirection`, `Stop`)  
-  - `components.health` – checked for `IsDead()` status to terminate following dead targets  
-- **Tags:** None explicitly added or removed by this component.
+## Dependencies & tags
+**Components used:** `health`, `locomotor`  
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | The entity instance that owns this component and performs the following behavior. |
-| `target` | `Entity` or `function` | `nil` | The target entity to follow, or a function returning an entity. |
-| `min_dist` | `number` or `nil` | `nil` | Minimum acceptable distance (in units). If closer, entity backs off. If a function, evaluated dynamically. |
-| `max_dist` | `number` or `nil` | `nil` | Maximum acceptable distance (in units). If farther, entity approaches. If a function, evaluated dynamically. |
-| `target_dist` | `number` or `nil` | `nil` | Desired distance to maintain. If reached, movement stops. If a function, evaluated dynamically. |
-| `min_dist_fn` | `function` or `nil` | `nil` | Optional function returning `min_dist` (called during distance evaluation). |
-| `max_dist_fn` | `function` or `nil` | `nil` | Optional function returning `max_dist` (called during distance evaluation). |
-| `target_dist_fn` | `function` or `nil` | `nil` | Optional function returning `target_dist` (called during distance evaluation). |
-| `canrun` | `boolean` | `true` | If `true`, allows running (`GoToPoint(..., true)`, `RunInDirection`). Otherwise uses walking. |
-| `alwayseval` | `boolean` | `true` | If `true`, re-evaluates distances on every `Visit()` call. If `false`, only re-evaluated when target changes. |
-| `inlimbo_invalid` | `boolean` or `nil` | `nil` | If `true`, following stops if the target enters limbo. |
-| `currenttarget` | `Entity` or `nil` | `nil` | Cached current target entity (updated on initial evaluation). |
-| `action` | `string` | `"STAND"` | Current movement action: `"APPROACH"`, `"BACKOFF"`, or `"STAND"`. |
+| `inst` | `Entity` | — | The entity that will follow the target. |
+| `target` | `Entity` or `function` | — | Target entity, or a function returning an entity. |
+| `min_dist` | number or `function` | — | Minimum acceptable distance (below which entity backs off), or a function returning it. |
+| `max_dist` | number or `function` | — | Maximum distance threshold (beyond which entity approaches), or a function returning it. |
+| `target_dist` | number or `function` | — | Desired distance to stop moving (for success), or a function returning it. |
+| `canrun` | boolean | `true` | Whether the entity is allowed to run instead of walk. |
+| `alwayseval` | boolean | `true` | Whether distance functions are re-evaluated on every visit. |
+| `inlimbo_invalid` | boolean | — | If `true`, fails if the target is in limbo (e.g., unreachable). |
+| `currenttarget` | `Entity` | `nil` | Cached reference to the current valid target. |
+| `action` | string | `"STAND"` | Current movement action (`APPROACH`, `BACKOFF`, or `STAND`). |
 
-## Main Functions
-
+## Main functions
 ### `GetTarget()`
-* **Description:** Resolves and validates the target entity. If `self.target` is a function, it is invoked; otherwise, `self.target` is used directly. Returns `nil` if the target is invalid, dead, or unreachable.
+* **Description:** Returns the current valid target entity, resolving `self.target` if it is a function, and verifying it is valid and not dead.
 * **Parameters:** None.
-* **Returns:** `Entity` or `nil` – The valid target entity or `nil`.
+* **Returns:** `Entity` or `nil`.
 
 ### `EvaluateDistances()`
-* **Description:** Dynamically computes `min_dist`, `max_dist`, and `target_dist` if their corresponding `_fn` functions are set. Called when the target changes or when `alwayseval` is `true`.
+* **Description:** Recomputes `min_dist`, `max_dist`, and `target_dist` by evaluating any associated functions. Typically called when the target changes or `alwayseval` is enabled.
 * **Parameters:** None.
-* **Returns:** `nil`.
+* **Returns:** Nothing.
 
 ### `DBString()`
-* **Description:** Returns a debug-friendly string describing the current follow state, including target name (if valid), current action, and actual distance to target.
+* **Description:** Returns a debug string showing the current target, action, and Euclidean distance in meters.
 * **Parameters:** None.
-* **Returns:** `string` – e.g., `"pine_tree APPROACH, (5.23) "`.
+* **Returns:** `string` — formatted as `"<target> <action>, (<distance>) "`.
 
 ### `AreDifferentPlatforms(inst, target)`
-* **Description:** Determines whether the entity and target are on different platforms (e.g., ground vs. floating islands). Returns `true` only if platform hopping is disabled and platforms differ.
+* **Description:** Determines whether the entity and target are on different platforms (e.g., ground vs. air), based on `locomotor.allow_platform_hopping`.
 * **Parameters:**  
-  - `inst` (`Entity`) – The entity instance.  
-  - `target` (`Entity`) – The target entity.  
-* **Returns:** `boolean` – `true` if the two entities are on different platforms *and* platform hopping is not allowed.
+  - `inst` (`Entity`) — entity to check.  
+  - `target` (`Entity`) — target entity.  
+* **Returns:** `boolean` — `true` if on different platforms and platform hopping is disallowed; otherwise `false`.
 
 ### `Visit()`
-* **Description:** Core logic of the behaviour node. Implements the follow state machine (ready → running → success/fail). It evaluates target validity, computes distances, selects movement action (`APPROACH`/`BACKOFF`), and delegates to `Locomotor`.
+* **Description:** The core behaviour node tick logic. Evaluates target presence, distance thresholds, and platform configuration to decide action (`APPROACH`, `BACKOFF`, or success). Executes movement via `locomotor` commands.
 * **Parameters:** None.
-* **Returns:** `nil` (sets internal `status` and triggers locomotion commands).
+* **Returns:** Nothing. Updates `self.status` (`READY`, `RUNNING`, `SUCCESS`, or `FAILED`).
+* **Error states:**  
+  - Fails (`status = FAILED`) if target is `nil`, invalid, dead, or in limbo (when `inlimbo_invalid`).  
+  - Fails and stops locomotion if target becomes unreachable during `RUNNING` state.
 
-## Events & Listeners
-None. This component does not register or dispatch events.
+## Events & listeners
+- **Listens to:** None identified.
+- **Pushes:** None identified.  
+  *(Note: Event handling is delegated to the behaviour tree framework and `locomotor`, not directly fired by this component.)*

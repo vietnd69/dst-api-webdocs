@@ -1,112 +1,141 @@
 ---
 id: electricconnector
 title: Electricconnector
-description: Manages and establishes electrical connections between entities, creating visual field effects and handling linking/unlinking logic.
+description: Manages electrical connections between electric fence segments by creating visual beam effects and tracking bidirectional links.
+tags: [combat, environment, network]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: environment
+category_type: components
 source_hash: fad47dcf
+system_scope: environment
 ---
 
 # Electricconnector
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Electricconnector` component allows an entity to establish and manage electrical connections with other entities. It handles the logic for detecting connectable targets, forming links, creating visual electric field effects between connected entities, and managing disconnections. This component also supports saving and loading of established connections.
+`ElectricConnector` is a component attached to electric fence segments (or similar connectors) to manage the creation, maintenance, and removal of electrical connections. It identifies nearby compatible connectors, spawns visual beam prefabs (`fence_electric_field`) between them, and maintains state about link count and tags. It also supports save/load operations to preserve connections across world sessions. This component is central to the electrical fence system and enforces constraints such as maximum link limits, platform restrictions, and mutual linking logic.
 
-## Dependencies & Tags
-This component relies on other entities also having an `Electricconnector` component to establish bidirectional links.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("electricconnector")
 
-*   **Tags Added:**
-    *   `electric_connector`: Marks the entity as capable of forming electrical connections.
-    *   `is_electrically_linked`: Added when the entity has at least one active electrical connection.
-    *   `fully_electrically_linked`: Added when the entity has reached its `max_links` capacity.
-*   **Tags Removed:**
-    *   `fully_electrically_linked`: Removed when the entity's number of connections drops below `max_links`.
-    *   `is_electrically_linked`: Removed when the entity has no active electrical connections.
+-- Begin linking mode
+inst.components.electricconnector:StartLinking()
+
+-- Attempt to connect to a nearby connector
+local target = inst.components.electricconnector:FindAndLinkConnector()
+if target then
+    print("Connected to connector!")
+end
+
+-- Set callbacks for connection/disconnection events
+inst.components.electricconnector.onlinkedfn = function(self, other, field)
+    print("New connection:", other:GetDebugString())
+end
+
+inst.components.electricconnector.onunlinkedfn = function(self, other)
+    print("Disconnected from:", other:GetDebugString())
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `electric_connector`, `is_electrically_linked`, `fully_electrically_linked`  
+**Removed tags:** `is_electrically_linked`, `fully_electrically_linked` (on disconnection or field count drops)
 
 ## Properties
-| Property         | Type      | Default Value                      | Description                                                                     |
-| :--------------- | :-------- | :--------------------------------- | :------------------------------------------------------------------------------ |
-| `inst`           | `userdata`| `self.inst`                        | A reference to the entity this component is attached to.                        |
-| `fields`         | `table`   | `{}`                               | A table storing active connections, mapping `other_entity` to `field_fx_prefab`. |
-| `field_prefab`   | `string`  | `"fence_electric_field"`           | The prefab name for the visual electric field effect created between connectors. |
-| `max_links`      | `number`  | `TUNING.ELECTRIC_FENCE_MAX_LINKS`  | The maximum number of simultaneous electrical links this entity can maintain.   |
-| `link_range`     | `number`  | `TUNING.ELECTRIC_FENCE_MAX_DIST`   | The maximum distance within which this entity can form a link.                  |
-| `onlinkedfn`     | `function`| `nil`                              | An optional callback function executed when a new link is established.          |
-| `onunlinkedfn`   | `function`| `nil`                              | An optional callback function executed when a link is broken.                   |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | `nil` | The entity instance the component is attached to. |
+| `fields` | `table` | `{}` | Map of connected entities → spawned beam prefab instances. |
+| `field_prefab` | `string` | `"fence_electric_field"` | Prefab name used to spawn visual connection beams. |
+| `max_links` | `number` | `TUNING.ELECTRIC_FENCE_MAX_LINKS` | Maximum number of simultaneous connections allowed. |
+| `link_range` | `number` | `TUNING.ELECTRIC_FENCE_MAX_DIST` | Search radius (units) for finding other connectors. |
+| `onlinkedfn` | `function?` | `nil` | Optional callback: `(self_inst, other_inst, field_prefab)` called when a new link is established. |
+| `onunlinkedfn` | `function?` | `nil` | Optional callback: `(self_inst, other_inst)` called when a link is removed. |
 
-## Main Functions
+## Main functions
 ### `StartLinking()`
-*   **Description:** Initiates the linking process for the entity, typically indicating it's ready to form new connections.
-*   **Parameters:** None.
+* **Description:** Activates the entity into linking mode, pushing the `"start_linking"` event. Used during placement or editing of electric fences.
+* **Parameters:** None.
+* **Returns:** `true`.
 
 ### `EndLinking()`
-*   **Description:** Concludes the linking process for the entity, typically indicating it's no longer actively seeking new connections.
-*   **Parameters:** None.
+* **Description:** Exits linking mode, pushing the `"end_linking"` event.
+* **Parameters:** None.
+* **Returns:** `true`.
 
 ### `IsLinking()`
-*   **Description:** Checks if the entity's state graph currently has the "linking" state tag, indicating it is in the process of attempting to form connections.
-*   **Parameters:** None.
+* **Description:** Checks if the entity's stategraph currently has the `"linking"` state tag.
+* **Parameters:** None.
+* **Returns:** `boolean` — whether the entity is in linking mode.
 
 ### `HasConnection()`
-*   **Description:** Determines if the entity currently has any active electrical connections.
-*   **Parameters:** None.
+* **Description:** Indicates whether the entity has any active connections.
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if `#self.fields > 0`.
 
 ### `CanLinkTo(guy, on_load)`
-*   **Description:** Checks if the component can establish a valid electrical link with another specified entity. It verifies the target has an `electricconnector` component, is linking (or the check is for loading), isn't on a platform (boats), and isn't already linked.
-*   **Parameters:**
-    *   `guy`: The potential target entity to link with.
-    *   `on_load`: A boolean indicating if this check is happening during game loading (allows linking even if `guy` isn't actively linking).
+* **Description:** Determines whether the entity can link to another entity `guy`.
+* **Parameters:**
+  * `guy` (`Entity`) — candidate connector entity.
+  * `on_load` (`boolean`) — if `true`, bypasses the linking-state check (used during save/load recovery).
+* **Returns:** `boolean` — `true` if linking conditions are met (see conditions in source).
 
 ### `Disconnect()`
-*   **Description:** Breaks all active electrical connections the entity has. It removes the visual field effects and notifies both this entity and all previously connected entities of the disconnection.
-*   **Parameters:** None.
+* **Description:** Removes all active connections: destroys all beam prefabs, unregisters fields on both sides, and pushes `"disconnect_links"` events to both entities. Used on entity removal or manual disconnection.
+* **Parameters:** None.
+* **Returns:** `true`.
 
 ### `FindAndLinkConnector()`
-*   **Description:** Searches for a suitable connectable entity within `link_range` and, if found, attempts to establish a connection with it.
-*   **Parameters:** None.
+* **Description:** Searches for the first eligible connector within `link_range` using `FindEntity`, then attempts to connect to it.
+* **Parameters:** None.
+* **Returns:** `Entity?` — the connected connector entity, or `nil` if none found or connection failed.
 
 ### `ConnectTo(connector)`
-*   **Description:** Establishes a direct electrical connection with a specified target entity. If successful, it spawns a visual electric field effect between the two entities and registers the connection.
-*   **Parameters:**
-    *   `connector`: The target entity to establish a connection with.
+* **Description:** Establishes a single connection to `connector`, spawns a beam prefab at the midpoint, and registers the link on both sides.
+* **Parameters:**
+  * `connector` (`Entity`) — target connector entity.
+* **Returns:** `Entity?` — returns `connector` on success; `nil` if maximum link count reached or entity is invalid.
 
 ### `RegisterField(other, field)`
-*   **Description:** Internal function to formally register a new electrical connection and its associated field effect. It calls `onlinkedfn` if defined, adds the connection to `self.fields`, and updates relevant entity tags.
-*   **Parameters:**
-    *   `other`: The entity connected to.
-    *   `field`: The visual electric field entity spawned between the two connectors.
+* **Description:** Records a connection to `other` with associated `field` (beam prefab), updates tags, and fires `onlinkedfn` if defined.
+* **Parameters:**
+  * `other` (`Entity`) — connected entity.
+  * `field` (`Entity`) — spawned beam prefab instance.
+* **Returns:** Nothing.
 
 ### `UnregisterField(other)`
-*   **Description:** Internal function to formally deregister an existing electrical connection. It removes the connection from `self.fields`, updates entity tags, and calls `onunlinkedfn` if defined and no other fields remain.
-*   **Parameters:**
-    *   `other`: The entity to disconnect from.
+* **Description:** Removes the connection to `other`, cleans up tags, and fires `onunlinkedfn` if no fields remain.
+* **Parameters:**
+  * `other` (`Entity`) — disconnected entity.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-*   **Description:** Provides data necessary to save the entity's current electrical connections, specifically the GUIDs of connected entities.
-*   **Parameters:** None.
+* **Description:** Serializes connection information for saving to disk.
+* **Parameters:** None.
+* **Returns:** `{ connectors: GUID[] }` — table listing GUIDs of all connected entities.
 
 ### `LoadPostPass(newents, savedata)`
-*   **Description:** Re-establishes electrical connections after the game loads, using the saved GUIDs to link with newly spawned or re-identified entities.
-*   **Parameters:**
-    *   `newents`: A table mapping saved GUIDs to their newly instantiated entities.
-    *   `savedata`: The saved data containing the `connectors` table with GUIDs.
+* **Description:** Recreates connections after the world has loaded using saved GUIDs. Only attempts to reconnect if `CanLinkTo(..., true)` passes.
+* **Parameters:**
+  * `newents` (`table`) — map of saved GUID → `EntityRef`.
+  * `savedata` (`table`) — data from `OnSave()`.
+* **Returns:** Nothing.
 
-### `OnRemoveEntity()`
-*   **Description:** An alias for `Disconnect()`, automatically called when the entity is removed.
-*   **Parameters:** None.
+### `GetDebugString()`
+* **Description:** Returns a static debug string for logging or debugging.
+* **Parameters:** None.
+* **Returns:** `string` — `"ElectricConnector: "`.
 
-### `OnRemoveFromEntity()`
-*   **Description:** An alias for `Disconnect()`, automatically called when the component is removed from the entity.
-*   **Parameters:** None.
-
-## Events & Listeners
-*   **Pushed Events:**
-    *   `start_linking`: Triggered when `StartLinking()` is called.
-    *   `end_linking`: Triggered when `EndLinking()` is called.
-    *   `disconnect_links`: Triggered when `Disconnect()` is called, and also pushed to other connected entities.
-    *   `linked_to`: Triggered on a connected entity when a new link is formed to it.
+## Events & listeners
+- **Listens to:** None identified (no explicit `inst:ListenForEvent` calls).
+- **Pushes:** `"start_linking"`, `"end_linking"`, `"disconnect_links"`, `"linked_to"`.  
+  The `"linked_to"` event is pushed to the *target* connector after a successful connection.  
+  `"disconnect_links"` is pushed to both sides during disconnection.

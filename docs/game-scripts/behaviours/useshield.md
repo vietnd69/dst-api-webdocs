@@ -1,104 +1,109 @@
 ---
 id: useshield
 title: Useshield
-description: A behaviour node that controls an entity’s shield state—activating when damage thresholds, incoming projectiles, or fear effects are detected, and deactivating after a configurable cooldown or threat resolution.
+description: Controls shield mechanics by determining when an entity should enter or exit a shielded state based on recent damage, fire, projectiles, or fear events.
+tags: [combat, ai, shield, state]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: behaviour
-system_scope: combat
+category_type: behaviours
 source_hash: 676dabf8
+system_scope: combat
 ---
 
 # Useshield
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
+`UseShield` is a behaviour node used in DST's AI/behaviour system to manage shield-related state transitions (e.g., entering and exiting a shield animation). It evaluates multiple conditions—including recent damage intake, fire damage, incoming projectiles, and fear periods—to decide when the entity should be shielded. It integrates with the `Health` component to check for death and fire damage status, and it programmatically triggers shield-related events (`entershield`, `exitshield`) on the entity.
 
-`UseShield` is a behaviour node (inheriting from `BehaviourNode`) responsible for managing shield activation and deactivation logic for an entity. It evaluates incoming threats—including direct damage, projectile fire, fire damage, and epic fear events—and transitions the entity’s state machine into a shielded state when thresholds or conditions are met. Once shielded, the node monitors conditions to determine when the shield should be lowered (i.e., when threats subside for a configured duration).
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("behaviourtree")
+inst:AddComponent("health")
 
-It integrates closely with the `health` component to assess death status and fire damage, and supports custom logic via optional callbacks (`shouldshieldfn`) and animation/data overrides. It is typically used in AI decision trees to enable tactical defensive postures (e.g., as seen in playable characters like Wendy or enemy behaviours like the Boss Bee).
+inst.components.behaviourtree:PushNode("useshield", {
+    damageforshield = 50,
+    shieldtime = 1.5,
+    hidefromprojectiles = true,
+    hidewhenscared = true,
+    data = {
+        dontupdatetimeonattack = false,
+        usecustomanims = false,
+        dontshieldforfire = false,
+        checkstategraph = true,
+        shouldshieldfn = function(ent) return ent.components.health.currenthealth < ent.components.health.maxhealth * 0.5 end
+    }
+})
+```
 
-## Dependencies & Tags
-
-- **Components used:**
-  - `health` (accessed via `self.inst.components.health`)
-    - Reads `IsDead()` and `takingfiredamage`
-- **Tags:**
-  - Checks via `inst.sg:HasStateTag(...)`: `"busy"`, `"caninterrupt"`, `"frozen"`, `"electrocute"`, `"shield"`, `"shield_end"`
-  - Pushes `"entershield"` and `"exitshield"` events to trigger state machine transitions.
+## Dependencies & tags
+**Components used:** `health`
+**Tags:** Checks `frozen`, `busy`, `caninterrupt`, `electrocute`, `shield`, `shield_end`. No tags are added or removed by this component.
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | — | The entity this behaviour is attached to. |
+| `damageforshield` | number | `100` | Minimum damage taken within `shieldtime` to trigger shielding. |
+| `shieldtime` | number | `2` | Time window (in seconds) for cumulative damage tracking. |
+| `hidefromprojectiles` | boolean | `false` | If `true`, incoming projectiles force shielding. |
+| `hidewhenscared` | boolean | — | If `true`, sets up listener for `epicscare` to delay shield exit. |
+| `dontupdatetimeonattack` | boolean | `nil` | If `true`, time of last attack is updated on node start, not on `attacked`. |
+| `usecustomanims` | boolean | `nil` | If `true`, skip automatic `hit_shield` + `hide_loop` animation. |
+| `dontshieldforfire` | boolean | `nil` | If `true`, fire damage does not trigger shielding. |
+| `checkstategraph` | boolean | `nil` | If `true`, prevents shielding if in a `busy` state without `caninterrupt`. |
+| `shouldshieldfn` | function | `nil` | Optional custom predicate: `fn(inst) → should_shield (boolean), [optional time_to_shield] (number)`. |
+| `damagetaken` | number | `0` | Accumulated damage since last shield entry. |
+| `scareendtime` | number | `0` | Time (from `GetTime()`) after which fear-induced shielding ends. |
+| `timelastattacked` | number | `1` | Timestamp (from `GetTime()`) of last attack, used for `shieldtime` window. |
+| `projectileincoming` | boolean | `false` | Indicates a projectile is incoming. |
+| `shieldendtime` | number? | `nil` | Optional custom shield end time (if `shouldshieldfn` returns a duration). |
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `damageforshield` | `number` | `100` | Minimum cumulative damage taken in a single encounter required to trigger shield. |
-| `shieldtime` | `number` | `2` | Seconds of cooldown elapsed after last attack before shield can end. |
-| `hidefromprojectiles` | `boolean` | `false` | If `true`, incoming projectiles reset or extend the shield timer. |
-| `scareendtime` | `number` | `0` | Timestamp after which fear-based shielding ends. Updated via `"epicscare"` events. |
-| `damagetaken` | `number` | `0` | Accumulated damage since last shield entry. Reset on entry. |
-| `timelastattacked` | `number` | `1` | Timestamp of the last attack. Used with `shieldtime` to decide when to end shielding. |
-| `projectileincoming` | `boolean` | `false` | Set `true` when a hostile projectile is detected (if `hidefromprojectiles` is `true`). |
-| `dontupdatetimeonattack` | `boolean?` | `nil` | If `true`, do *not* update `timelastattacked` on attack—instead, set it on node start. |
-| `usecustomanims` | `boolean?` | `nil` | If `true`, skip default "hit_shield" + "hide_loop" animation on attack during shielding. |
-| `dontshieldforfire` | `boolean?` | `nil` | If `true`, ignore fire damage in `ShouldShield()` logic. |
-| `checkstategraph` | `boolean?` | `nil` | If `true`, prevent shield activation during `"busy"` states unless `"caninterrupt"`. |
-| `shouldshieldfn` | `function?` | `nil` | Optional custom predicate `(inst) → (bool, time?)` allowing per-entity control over shielding. |
-
-## Main Functions
+## Main functions
+### `OnStop()`
+* **Description:** Cleans up event listeners registered in the constructor, preventing memory leaks or phantom callbacks on node termination.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `TimeToEmerge()`
-* **Description:** Determines whether enough time has elapsed since the last attack, fear event, and any custom shield end time to exit the shield state.  
-* **Parameters:** None.  
-* **Returns:** `boolean` — `true` if all cooldowns have expired; `false` otherwise.
+* **Description:** Determines whether the entity is allowed to exit the shield state (i.e., when the shield cooldown period has elapsed and fear has subsided).
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if `shieldtime` has passed since last attack, `scareendtime` has elapsed, and no custom `shieldendtime` is pending.
+* **Error states:** Returns `false` if any of the following conditions hold: `t - timelastattacked <= shieldtime`, `t < scareendtime`, or `t < shieldendtime` (if set).
 
 ### `ShouldShield()`
-* **Description:** Evaluates all triggers and custom logic to decide if the entity *should* begin or remain in a shielded state. Called before entering or while running the shield node.  
-* **Parameters:** None.  
-* **Returns:** `boolean, number?` —  
-  - First return: `true` if shielding is warranted; `false` otherwise.  
-  - Second return (optional): A duration to extend the shield (passed from `shouldshieldfn`).  
-* **Logic:** Returns `false` if dead, or if `checkstategraph` is enabled and the current state is `"busy"` without `"caninterrupt"`. Otherwise, checks:  
-  - Damage threshold exceeded (`damagetaken > damageforshield`),  
-  - Fire damage active (unless `dontshieldforfire`),  
-  - Projectile incoming,  
-  - Fear effect active (`GetTime() < scareendtime`),  
-  - Or custom `shouldshieldfn` returning `true`.
+* **Description:** Evaluates all conditions that justify entering a shield state.
+* **Parameters:** None.
+* **Returns:** `boolean, number?` — First return value indicates whether shielding is recommended; second (optional) return value is the duration (in seconds) to shield (if provided by `shouldshieldfn`).
+* **Error states:** Returns `false` if the entity is dead or in a non-interruptible `busy` state (if `checkstategraph` is enabled). Also respects `dontshieldforfire`, `shouldshieldfn`, projectile status, fire damage, and recent attack/fear timers.
 
 ### `OnAttacked(attacker, damage, projectile)`
-* **Description:** Callback invoked on `"attacked"`, `"hostileprojectile"`, `"firedamage"`, `"startfiredamage"`, and `"startelectrocute"` events. Accumulates damage, updates timers, and controls shield-specific animations.  
-* **Parameters:**  
-  - `attacker` (`Instancer?`): Attacking entity.  
-  - `damage` (`number?`): Damage amount.  
-  - `projectile` (`boolean?`): Whether the damage originated from a projectile.  
-* **Returns:** `nil`.  
-* **Notes:**  
-  - If `dontupdatetimeonattack` is `nil`/`false`, updates `timelastattacked` and clears `shieldendtime`.  
-  - Resets `damagetaken` only on entry to the shield state (in `Visit()`), *not* here.  
-  - Plays `"hit_shield"` → `"hide_loop"` animations *unless* `usecustomanims` is set or the node is not in `"shield"` state.  
-  - Sets `projectileincoming = true` *only* if `hidefromprojectiles` is `true` and projectile is `true`.
+* **Description:** Called on `attacked`, `hostileprojectile`, `firedamage`, and `startfiredamage` events to record damage or projectile status, update timers, and optionally play shield-hit animation.
+* **Parameters:**
+  * `attacker` (`Entity?`) — The entity that dealt damage.
+  * `damage` (`number?`) — Amount of damage taken (may be `0` for projectile/fire events).
+  * `projectile` (`boolean?`) — If `true`, indicates the event came from a projectile.
+* **Returns:** Nothing.
+* **Error states:** Does nothing if the entity is in a `frozen` state.
 
 ### `Visit()`
-* **Description:** Core `BehaviourNode` method invoked each tick to drive state transitions. Handles entering, maintaining, and exiting the shield.  
-* **Parameters:** None.  
-* **Returns:** `nil`.  
-* **Logic:**  
-  - **On `READY`:** Calls `ShouldShield()`. If `true` (or already in `"shield"` state), resets `damagetaken`, clears `projectileincoming`, optionally sets `shieldendtime`, updates `timelastattacked` if needed, and pushes `"entershield"` event → sets status to `RUNNING`.  
-  - **On `RUNNING`:**  
-    - Aborts to `FAILED` if `"electrocute"` state tag is active.  
-    - Maintains `RUNNING` if either `TimeToEmerge()` is `false` *or* fire damage is still active (unless `dontshieldforfire`).  
-    - Otherwise, pushes `"exitshield"` and sets status to `SUCCESS`.
+* **Description:** Main entry point for the behaviour tree system. Decides whether to transition from `READY` → `RUNNING` (enter shield), or `RUNNING` → `SUCCESS`/`FAILED` (exit shield).
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Fails early if `ShouldShield()` returns `false` (and no shield state is active). During `RUNNING`, transitions to `FAILED` if `electrocute` state is active or if conditions to remain shielded no longer hold.
 
-## Events & Listeners
-
-- **Listens to:**  
-  - `"attacked"` → `self.onattackedfn`  
-  - `"hostileprojectile"` → `self.onhostileprojectilefn` (which calls `OnAttacked(..., true)`)  
-  - `"firedamage"` & `"startfiredamage"` → `self.onfiredamagefn`  
-  - `"startelectrocute"` → `self.onelectrocutefn` (which forces a brain update)  
-  - `"epicscare"` (if `hidewhenscared` is `true`) → `self.onepicscarefn` (extends `scareendtime`)
-
-- **Pushes:**  
-  - `"entershield"` → Signals state machine to enter shielded state.  
-  - `"exitshield"` → Signals state machine to exit shielded state.
+## Events & listeners
+- **Listens to:**
+  * `attacked` — triggers `OnAttacked`.
+  * `hostileprojectile` — sets `projectileincoming = true`.
+  * `firedamage`, `startfiredamage` — triggers `OnAttacked`.
+  * `startelectrocute` — forces immediate brain update (via `self.inst.brain:ForceUpdate()`).
+  * `epicscare` (if `hidewhenscared` is `true`) — extends `scareendtime`.
+- **Pushes:**
+  * `entershield` — fired on entry into the shield state.
+  * `exitshield` — fired on successful exit from the shield state.

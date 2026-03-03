@@ -1,107 +1,141 @@
 ---
 id: playerprox
 title: Playerprox
-description: Tracks proximity of one or more players relative to an entity and triggers callbacks when players enter or exit specified distance ranges.
-
+description: Monitors proximity of players to an entity and triggers callbacks when players enter or leave defined zones.
+tags: [player, proximity, detection, ai]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 67ad0833
+system_scope: entity
 ---
 
 # Playerprox
 
-## Overview
-The `PlayerProx` component monitors player proximity to an entity using configurable inner (`near`) and outer (`far`) radius thresholds. It supports four distinct operational modes—tracking all players, any single player, locking onto and tracking a single player temporarily, or locking onto and permanently tracking one player—and invokes user-defined callbacks when players cross the threshold boundaries. It periodically rechecks proximity and supports wake/sleep lifecycle integration.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-* **Component Usage**: Requires no specific pre-existing components on `inst`.
-* **Event Listeners**: Internally listens for `"onremove"` events on tracked target players (for `LockOnPlayer` and `LockAndKeepPlayer` modes).
-* **Entity Tags**: No tags added or removed.
+## Overview
+`Playerprox` is a component that detects when one or more players are within specified distances of its owner entity. It supports four operation modes:
+- `AllPlayers`: Tracks all players near/far individually.
+- `AnyPlayer`: Reports proximity if *any* player is near, and only离开 when *none* remain far.
+- `SpecificPlayer`: Monitors a single designated player's proximity.
+- `LockOnPlayer`: Locks onto the first player who enters range and continues tracking them until they leave.
+- `LockAndKeepPlayer`: Locks onto the first player and permanently switches to `SpecificPlayer` mode for them.
+
+It is typically used for AI behaviors that depend on player presence (e.g., spawning enemies, triggering events, or changing state based on visibility or distance). The component runs as a periodic task that evaluates proximity and invokes user-defined callbacks (`onnear`, `onfar`) when state changes occur.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("playerprox")
+
+-- Set up detection zone: near = 2 units, far = 3 units
+inst.components.playerprox:SetDist(2, 3)
+
+-- Define callbacks for when a player enters or exits range
+inst.components.playerprox:SetOnPlayerNear(function(ent, player) 
+    print("Player entered range:", player.prefab)
+end)
+
+inst.components.playerprox:SetOnPlayerFar(function(ent, player)
+    print("Player exited range:", player.prefab)
+end)
+
+-- Start monitoring (defaults to AnyPlayer mode)
+inst.components.playerprox:Schedule()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `playerprox` (implicitly via usage context), but does not modify tags on its owner.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `near` | number | `2` | Inner radius (inclusive); triggers `onnear` callback when a player enters this range. |
-| `far` | number | `3` | Outer radius (exclusive); triggers `onfar` callback when a player exits this range. |
-| `isclose` | boolean | `false` | Current proximity state: `true` if at least one tracked player is within `near` radius. |
-| `period` | number | `10 * FRAMES` | Time interval (in frames) between proximity checks. |
-| `onnear` | function | `nil` | Callback triggered when a player enters the `near` radius; signature: `(inst, player)`. |
-| `onfar` | function | `nil` | Callback triggered when a player leaves the `far` radius; signature varies by mode (`(inst, player)` or `(inst)`). |
-| `target` | entity | `nil` | The specific player being tracked in `SpecificPlayer`, `LockOnPlayer`, or `LockAndKeepPlayer` modes. |
-| `closeplayers` | table | `{}` | Dictionary mapping tracked close players to `true`; used in `AllPlayers` mode. |
-| `alivemode` | enum/boolean | `nil` | Filters players by alive state: `true` = alive only, `false` = dead only, `nil` = any state. |
-| `targetmode` | function | `AnyPlayer` | Internal function pointer defining the current proximity logic (`AllPlayers`, `AnyPlayer`, `SpecificPlayer`, `LockOnPlayer`, `LockAndKeepPlayer`). |
+| `near` | number | `2` | Inner radius (in units) where player proximity triggers the "near" state. |
+| `far` | number | `3` | Outer radius (in units) where a player must be *outside* to trigger the "far" state. |
+| `isclose` | boolean | `false` | Current proximity state: `true` if at least one relevant player is within `near` (or `far`, depending on mode). |
+| `period` | number | `10 * FRAMES` | Interval (in seconds × frames) between proximity checks. |
+| `onnear` | function? | `nil` | Callback invoked when a player enters the near zone. Signature: `fn(inst, player)` or `fn(inst)` (in `AnyPlayer` mode). |
+| `onfar` | function? | `nil` | Callback invoked when a player leaves the far zone. Signature: `fn(inst, player)` or `fn(inst)` (in `AnyPlayer` mode). |
+| `target` | entity? | `nil` | The specific player being tracked (for `SpecificPlayer`, `LockOnPlayer`, and `LockAndKeepPlayer` modes). |
+| `alivemode` | `AliveOnly` \| `DeadOnly` \| `DeadOrAlive` \| `nil` | `nil` | Filter for player state: `true` = alive only, `false` = dead only, `nil` = both (see `SetPlayerAliveMode`). |
 
-## Main Functions
-### `PlayerProx:SetOnPlayerNear(fn)`
-* **Description:** Assigns the callback function invoked when a player enters the `near` radius.
+## Main functions
+### `SetOnPlayerNear(fn)`
+* **Description:** Sets the callback function to invoke when a player enters the near zone.
+* **Parameters:** `fn` (function) - a function that accepts either `(inst, player)` or `(inst)` depending on the current mode.
+* **Returns:** Nothing.
+
+### `SetOnPlayerFar(fn)`
+* **Description:** Sets the callback function to invoke when a player exits the far zone.
+* **Parameters:** `fn` (function) - same signature rules as `SetOnPlayerNear`.
+* **Returns:** Nothing.
+
+### `SetDist(near, far)`
+* **Description:** Updates the inner (`near`) and outer (`far`) proximity radii.
 * **Parameters:**
-  * `fn` (function): Callback with signature `(inst, player)`.
+  - `near` (number) — inner distance threshold.
+  - `far` (number) — outer distance threshold; must be ≥ `near` for meaningful behavior.
+* **Returns:** Nothing.
 
-### `PlayerProx:SetOnPlayerFar(fn)`
-* **Description:** Assigns the callback function invoked when a player leaves the `far` radius.
+### `SetPlayerAliveMode(alivemode)`
+* **Description:** Configures which player states are considered (alive, dead, or both).
+* **Parameters:** `alivemode` (boolean or `nil`) — see `PlayerProx.AliveModes`:
+  - `true` (`AliveOnly`) — only alive players are tracked.
+  - `false` (`DeadOnly`) — only dead/ghost players are tracked.
+  - `nil` (`DeadOrAlive`) — both states are tracked.
+* **Returns:** Nothing.
+
+### `SetLostTargetFn(func)`
+* **Description:** Sets a callback invoked when the tracked player is removed or otherwise lost (specifically in `LockOnPlayer` and `LockAndKeepPlayer` modes).
+* **Parameters:** `func` (function) — a function with no arguments.
+* **Returns:** Nothing.
+
+### `SetTargetMode(mode, target, override)`
+* **Description:** Switches the detection behavior to one of the supported modes.
 * **Parameters:**
-  * `fn` (function): Callback with signature `(inst)` for `AnyPlayer` mode, or `(inst, player)` for other modes.
+  - `mode` (function) — one of `PlayerProx.TargetModes` (`AllPlayers`, `AnyPlayer`, `SpecificPlayer`, `LockOnPlayer`, `LockAndKeepPlayer`).
+  - `target` (entity) — only used in `SpecificPlayer` mode; the player entity to monitor.
+  - `override` (boolean, optional) — if `true`, suppresses saving `mode` as the original target mode (used internally).
+* **Returns:** Nothing.
+* **Error states:** Asserts that `mode == SpecificPlayer` requires a non-`nil` `target`.
 
-### `PlayerProx:SetDist(near, far)`
-* **Description:** Updates the inner and outer proximity thresholds.
-* **Parameters:**
-  * `near` (number): New inner radius.
-  * `far` (number): New outer radius.
+### `Schedule(new_period)`
+* **Description:** Starts or reschedules the periodic proximity-checking task.
+* **Parameters:** `new_period` (number?, optional) — if provided, overrides the default `period` (in seconds × frames).
+* **Returns:** Nothing.
 
-### `PlayerProx:Schedule([new_period])`
-* **Description:** Starts or restarts the periodic proximity check task with an optional custom interval.
-* **Parameters:**
-  * `new_period` (number, optional): Custom interval (in frames) for the task; defaults to `self.period`.
+### `ForceUpdate()`
+* **Description:** Immediately triggers the current detection function (e.g., `AllPlayers`, `SpecificPlayer`) once, bypassing the periodic schedule.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `PlayerProx:ForceUpdate()`
-* **Description:** Immediately executes the current `targetmode` logic to update proximity state and callbacks, without waiting for the next scheduled task.
+### `Stop()`
+* **Description:** Cancels the periodic task and halts proximity updates. Often used when the entity is removed or goes to sleep.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `PlayerProx:Stop()`
-* **Description:** Cancels the scheduled proximity check task and sets `self.task` to `nil`.
-
-### `PlayerProx:SetTargetMode(mode, target, override)`
-* **Description:** Switches the tracking behavior mode, sets the target player (if applicable), and restarts the task.
-* **Parameters:**
-  * `mode` (function): One of `AllPlayers`, `AnyPlayer`, `SpecificPlayer`, `LockOnPlayer`, or `LockAndKeepPlayer`.
-  * `target` (entity, optional): Player entity for `SpecificPlayer`, `LockOnPlayer`, or `LockAndKeepPlayer` modes.
-  * `override` (boolean, optional): If `true`, preserves the original mode for later restoration (used internally by `LockOnPlayer`/`LockAndKeepPlayer`).
-
-### `PlayerProx:SetTarget(target)`
-* **Description:** Assigns the tracked player entity and sets up `"onremove"` event listeners to detect target removal.
-* **Parameters:**
-  * `target` (entity, optional): Player entity to track.
-
-### `PlayerProx:SetPlayerAliveMode(alivemode)`
-* **Description:** Configures whether to consider alive, dead, or any players during proximity checks.
-* **Parameters:**
-  * `alivemode` (boolean or `nil`): `true` = alive only, `false` = dead only, `nil` = any state.
-
-### `PlayerProx:SetLostTargetFn(func)`
-* **Description:** Registers a callback invoked when a tracked player target is lost (e.g., removed or leaves far range).
-* **Parameters:**
-  * `func` (function): Callback with signature `()`, called when the target is lost.
-
-### `PlayerProx:IsPlayerClose()`
+### `IsPlayerClose()`
 * **Description:** Returns the current proximity state.
-* **Returns:** `true` if at least one tracked player is within the `near` radius.
+* **Parameters:** None.
+* **Returns:** `boolean` — `true` if players are within the near/far thresholds (mode-dependent).
+* **Error states:** Returns `false` if no players meet the criteria.
 
-### `PlayerProx:GetDebugString()`
-* **Description:** Returns a debug-friendly string representation of the proximity state.
-* **Returns:** `"NEAR"` or `"FAR"`.
+### `OnEntityWake()`
+* **Description:** Resets and restarts proximity monitoring when the entity wakes (e.g., respawns, is loaded, or becomes active).
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `PlayerProx:OnEntityWake()`
-* **Description:** Lifecycle callback (invoked when the entity wakes); restarts the task and forces an immediate update.
+### `OnEntitySleep()`
+* **Description:** Updates state and stops monitoring when the entity sleeps (e.g., unloads, is paused, or deactivates).
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `PlayerProx:OnEntitySleep()`
-* **Description:** Lifecycle callback (invoked when the entity sleeps); forces an update before stopping the task.
-
-## Events & Listeners
-* **Listens to `"onremove"` on tracked target player entities** (via `self._ontargetleft`) to detect target removal in `SpecificPlayer`, `LockOnPlayer`, and `LockAndKeepPlayer` modes.
-* **Triggers `onnear` and `onfar` callbacks** based on player proximity transitions (user-defined, not system events).
-* **Does not push any events** via `inst:PushEvent`.
+## Events & listeners
+- **Listens to:**
+  - `"onremove"` on the `target` player entity (in `SpecificPlayer`-based modes) — triggers the internal `losttargetfn` callback.
+- **Pushes:** None. Events are *not* pushed by this component. Callbacks (`onnear`, `onfar`, `losttargetfn`) are invoked directly.

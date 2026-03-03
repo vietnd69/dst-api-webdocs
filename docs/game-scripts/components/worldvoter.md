@@ -1,86 +1,80 @@
 ---
 id: worldvoter
-title: Worldvoter
-description: Manages the lifecycle of in-game votes, including starting, tracking, counting, and concluding votes across master simulation and secondary shards in Don't Starve Together.
+title: WorldVoter
+description: Manages world-wide voting sessions, including dialog display, vote collection, timeout handling, and result enforcement across master and secondary shards.
+tags: [network, voting, world]
 sidebar_position: 1
-
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: c727b55a
+system_scope: world
 ---
+# WorldVoter
 
-# Worldvoter
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The `Worldvoter` component orchestrates the complete voting process in Don't Starve Together, including vote initiation, player selection tracking, countdown management, result calculation, and UI coordination. It operates under distinct roles depending on whether the instance is the master simulation and/or master shard: on the master shard, it handles authoritative vote state and network synchronization; on secondary shards or clients, it consumes and reflects the authoritative state via network events. The component integrates with `UserCommands`, `TheNet`, and per-player voting state to ensure consistent, synchronized voting behavior across all connected clients.
+`WorldVoter` orchestrates world-level voting events (e.g., banning players, toggling settings) in DST. It handles vote lifecycle management—including initiation, countdown, vote tallying, and result enforcement—while synchronizing state between master and secondary shards. It coordinates with `playervoter` (to update per-player vote selection and squelch status) and `usercommands` (to process vote start/finish requests). The component is attached to the world entity (`TheWorld`).
 
-## Dependencies & Tags
-- **Component Dependencies**:
-  - Requires `inst` to have `components.playervoter` on players for local vote selection and squelch status updates.
-  - Relies on `TheWorld`, `TheNet`, `UserCommands`, and `TUNING` globals.
-- **Tags/Entities**:
-  - Attaches to `TheWorld` instance (not player or entity scoped).
-  - No explicit tags added/removed.
+## Usage example
+```lua
+-- Example: Check if a vote is currently active
+if TheWorld.components.worldvoter:IsVoteActive() then
+    print("A vote is currently in progress.")
+end
+
+-- Example: Check if voting is enabled on the server
+if TheWorld.components.worldvoter:IsEnabled() then
+    print("Voting is enabled.")
+end
+```
+
+## Dependencies & tags
+**Components used:** `playervoter` (via `player.components.playervoter`)
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the host entity (`TheWorld`). Public-facing. |
-| `_world` | `World` | `TheWorld` | Local reference to the current world instance. |
-| `_ismastersim` | `boolean` | `TheWorld.ismastersim` | True if this instance runs master simulation logic. |
-| `_ismastershard` | `boolean` | `TheWorld.ismastershard` | True if this instance is the master shard (authoritative vote state). |
-| `_enabled` | `net_bool` | `false` | Networked flag indicating whether voting is globally enabled. |
-| `_countdown` | `net_byte` | `0` | Networked countdown timer for the active vote. |
-| `_commandid` | `net_uint` | `0` | Networked hash of the active command initiating the vote. |
-| `_targetuserid` | `net_string` | `""` | Networked user ID of the vote target. |
-| `_starteruserid` | `net_string` | `""` | Networked user ID of the user who started the vote. |
-| `_votecounts` | `array<net_byte>` | `{}` (64 entries) | Networked vote counts per option (indexed 1..`MAX_VOTE_OPTIONS`). |
-| `_shown` | `boolean` | `false` | Local flag indicating if the vote dialog is currently visible. |
-| `_updating` | `boolean` | `false` | Whether the component is actively updating its countdown. |
+| `inst` | Entity | `nil` (injected) | The entity instance (`TheWorld`) this component is attached to. |
 
-## Main Functions
-
-### `self:IsVoteActive()`
-* **Description:** Returns whether a vote dialog is currently displayed (`_shown`).
+## Main functions
+### `IsVoteActive()`
+* **Description:** Returns whether a vote dialog is currently displayed.
 * **Parameters:** None.
-* **Returns:** `boolean`
+* **Returns:** `boolean` — `true` if the vote dialog is visible, otherwise `false`.
 
-### `self:IsEnabled()`
-* **Description:** Returns the global voting state (`_enabled`).
+### `IsEnabled()`
+* **Description:** Returns whether world voting is currently enabled (e.g., by server config).
 * **Parameters:** None.
-* **Returns:** `boolean`
+* **Returns:** `boolean` — `true` if voting is enabled, otherwise `false`.
 
-### `self:OnUpdate(dt)`
-* **Description:** Core update loop for vote countdown and result processing. Manages countdown decrement, network sync, voting timeout (if expired), and result checks when votes are cast or delay completes.
-* **Parameters:**
-  * `dt` (`number`): Delta time since last update.
+### `OnUpdate(dt)`
+* **Description:** Handles vote countdown, net sync, and vote result finalization. Called every frame while a vote is active.
+* **Parameters:** `dt` (number) — delta time in seconds.
+* **Returns:** Nothing.
+* **Error states:** May call `CheckVoteResults` or `CancelCountdown` if countdown expires or voting completes.
 
-### `self:OnPostInit()`
-* **Description:** Post-initialization hook. Enables voting if configured or in dev mode, and adjusts countdown for client-side sync delays.
+### `OnPostInit()`
+* **Description:** Initializes vote state after component loading (e.g., sets default enabled status on master shard if allowed by config).
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
+## Events & listeners
+- **Listens to:**
+  - `countdowndirty` — triggers countdown display updates.
+  - `playeractivated` (non-dedicated only) — refreshes vote dialog visibility.
+  - `ms_playerjoined` — updates joiner’s vote selection/squelch status.
+  - `ms_startvote`, `ms_stopvote`, `ms_receivevote` (master shard only) — initiates, cancels, or records votes.
+  - `secondary_worldvoterupdate`, `secondary_worldvotersquelchedupdate`, `secondary_worldvoterenabled` (non-master shard only) — syncs vote state from master shard.
+  - `votecountsdirty` (non-master only) — updates vote counts on client.
 
-- **Listens For:**
-  - `"countdowndirty"` → `OnCountdownDirty()`  
-  - `"playeractivated"` → `OnRefreshDialog()` *(non-dedicated only)*  
-  - `"ms_playerjoined"` → `OnPlayerJoined()` *(master sim only)*  
-  - `"ms_startvote"` → `OnStartVote()` *(master shard only)*  
-  - `"ms_stopvote"` → `OnStopVote()` *(master shard only)*  
-  - `"ms_receivevote"` → `OnReceiveVote()` *(master shard only)*  
-  - `"secondary_worldvoterupdate"` → `OnWorldVoterUpdate()` *(non-master shard, master sim only)*  
-  - `"secondary_worldvotersquelchedupdate"` → `OnWorldVoterSquelchedUpdate()` *(non-master shard, master sim only)*  
-  - `"secondary_worldvoterenabled"` → `OnWorldVoterEnabled()` *(non-master shard, master sim only)*  
-  - `"votecountsdirty"` → `UpdateVoteCounts()` *(non-master sim only)*
+- **Pushes:**
+  - `worldvotertick` — fires countdown ticks.
+  - `showvotedialog` / `hidevotedialog` — triggers UI dialog visibility.
+  - `votecountschanged` — notifies of updated vote totals.
+  - `master_worldvoterupdate`, `master_worldvoterenabled` (master shard only) — broadcasts master vote state.
+  - `master_worldvotersquelchedupdate` (master shard only) — broadcasts squelch list changes.
 
-- **Triggers (Pushes):**
-  - `"worldvotertick"` *(via `UpdateCountdown`)*  
-  - `"showvotedialog"` *(via `ShowVoteDialog`)*  
-  - `"hidevotedialog"` *(via `HideVoteDialog`)*  
-  - `"votecountschanged"` *(via `UpdateVoteCounts`)*  
-  - `"master_worldvoterupdate"` *(via `PushMasterVoterData`)*  
-  - `"master_worldvotersquelchedupdate"` *(via `PushMasterSquelchedData`)*  
-  - `"master_worldvoterenabled"` *(in `OnPostInit`)*

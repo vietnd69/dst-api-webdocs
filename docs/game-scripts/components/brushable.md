@@ -1,73 +1,91 @@
 ---
 id: brushable
 title: Brushable
-description: Enables an entity to be brushed periodically to yield a prize item.
+description: Manages brushable interactions for an entity, calculating prizes awarded based on time elapsed since last brushing and handling brush events.
+tags: [world, interaction, loot]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: a313a81c
+system_scope: world
 ---
 
 # Brushable
 
-## Overview
-The `Brushable` component allows an entity to be interacted with using a brush tool. It tracks the time since the entity was last brushed to determine the number of "prizes" (spawnable items) to award to the player. The type of prize, the maximum number that can be accumulated, and the time required per prize are all configurable.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Tags:** Adds the `brushable` tag to the entity when it can be brushed, and removes it when it cannot.
+## Overview
+The `Brushable` component enables an entity to be brushed, awarding items (prizes) based on how many brushing cycles have passed since the last brush action. It tracks brushing progress over world cycles, calculates the number of rewards due, and emits events upon successful brushing. This component is commonly used for entities like beefalo, bees, or bushes that yield resources when interacted with.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("brushable")
+
+inst.components.brushable:SetBrushable(true, true)
+inst.components.brushable:SetPrize("bee")
+inst.components.brushable:SetMaxPrizes(5)
+inst.components.brushable:SetCyclesPerPrize(600)
+
+inst:ListenForEvent("brushed", function(inst, data)
+    print("Brushed by", data.doer, "for", data.numprizes, "prizes")
+end)
+```
+
+## Dependencies & tags
+**Components used:** None explicitly called via `inst.components.X` beyond internal usage, but relies on `inventory` component for item distribution.
+**Tags:** Adds or removes `brushable` tag on the entity depending on state.
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `prize` | string or nil | `nil` | Prefab name of the item to award when brushed. |
+| `max` | number | `0` | Maximum number of prizes that can be earned in one brush action. |
+| `cyclesperprize` | number | `0` | Number of world cycles required per prize unit. |
+| `lastbrushcycle` | number | `0` | World cycle at which the last brush occurred. |
+| `brushable` | boolean | `true` | Whether the entity can currently be brushed. |
 
-| Property         | Type (`inferred`) | Default Value | Description                                                               |
-| ---------------- | ----------------- | ------------- | ------------------------------------------------------------------------- |
-| `prize`          | string            | `nil`         | The prefab name of the item to spawn as a prize.                          |
-| `max`            | number            | `0`           | The maximum number of prizes that can be accumulated at one time.         |
-| `cyclesperprize` | number            | `0`           | The number of world cycles that must pass for one prize to become available. |
-| `lastbrushcycle` | number            | `0`           | The world cycle on which the entity was last successfully brushed.        |
-| `brushable`      | boolean           | `true`        | A flag indicating if the entity is currently able to be brushed.          |
-
-## Main Functions
-
+## Main functions
 ### `SetBrushable(brushable, reset)`
-* **Description:** Sets whether the entity can be brushed. It can optionally reset the prize accumulation timer.
-* **Parameters:**
-    * `brushable` (boolean): `true` to make the entity brushable, `false` otherwise.
-    * `reset` (boolean, optional): If `true`, resets `lastbrushcycle` to the current world cycle, effectively restarting the prize timer.
+* **Description:** Enables or disables brushing on the entity and optionally resets the last brush cycle.
+* **Parameters:** `brushable` (boolean) – whether the entity should be brushable. `reset` (boolean, optional) – if `true`, sets `lastbrushcycle` to the current world cycle.
+* **Returns:** Nothing.
 
 ### `SetOnBrushed(fn)`
-* **Description:** Assigns a custom callback function to be executed after the entity is brushed.
-* **Parameters:**
-    * `fn` (function): The callback function to run. It will receive the entity instance, the `doer`, and the number of prizes as arguments.
+* **Description:** Sets a callback function to be invoked whenever the entity is brushed.
+* **Parameters:** `fn` (function) – function with signature `fn(inst, doer, numprizes)`, where `doer` is the entity performing the brush and `numprizes` is the number of prizes given.
+* **Returns:** Nothing.
 
 ### `CalculateNumPrizes()`
-* **Description:** Calculates the number of prizes currently available based on the time elapsed since the last brushing. The result is capped by the `max` property.
+* **Description:** Computes how many prizes have accumulated since the last brush, based on elapsed cycles and `cyclesperprize`.
 * **Parameters:** None.
+* **Returns:** number – number of prizes due; `0` if no time has elapsed or `cyclesperprize <= 0`.
+* **Error states:** Returns `0` if `elapsed <= 0`.
 
 ### `Brush(doer, brush)`
-* **Description:** Executes the brushing logic. It calculates the number of prizes, spawns them, and gives them to the `doer`. It then resets the prize timer and triggers the `brushed` event and any custom callback.
-* **Parameters:**
-    * `doer` (Entity): The entity performing the brushing action.
-    * `brush` (Entity): The brush item being used. (Note: This parameter is accepted but not used in the function body).
+* **Description:** Performs the brush action: awards prizes to the actor (`doer`) if brushing is enabled and valid, updates the last brush cycle, and fires events.
+* **Parameters:** `doer` (Entity) – the entity performing the brush. `brush` (Entity, unused) – kept for API compatibility but not used.
+* **Returns:** Nothing.
+* **Error states:** If `brushable` is `false`, `prize` is `nil`, and `max <= 0`, no prizes are awarded.
 
 ### `OnSave()`
-* **Description:** Gathers the component's state to be saved with the game world.
+* **Description:** Prepares the component’s state for saving to disk.
 * **Parameters:** None.
+* **Returns:** table – `{ lastbrushcycle = number, brushable = boolean }`.
 
 ### `OnLoad(data)`
-* **Description:** Restores the component's state from saved data.
-* **Parameters:**
-    * `data` (table): The saved data table from a previous session.
+* **Description:** Restores the component’s state from saved data.
+* **Parameters:** `data` (table) – saved state, must contain `lastbrushcycle` and optionally `brushable`.
+* **Returns:** Nothing.
+* **Error states:** Defaults `brushable` to `true` if not present in `data`.
 
 ### `GetDebugString()`
-* **Description:** Generates a formatted string containing debug information about the component's current state, including its brushable status, last brush cycle, and available prizes.
+* **Description:** Returns a debug-friendly string representation of the component’s current state.
 * **Parameters:** None.
+* **Returns:** string – formatted as `" <brushable_status> lastcycle: <N> prizes: <M>"`.
 
-## Events & Listeners
-- **`brushed`**: Pushed on the component's entity instance after it has been brushed.
-    - **Data:** `{ doer = doer, numprizes = numprizes }`
-        - `doer`: The entity that performed the brushing.
-        - `numprizes`: The number of prizes that were awarded.
+## Events & listeners
+- **Pushes:** `brushed` – fired with payload `{doer = Entity, numprizes = number}` after prizes are awarded. Used internally and by external listeners.

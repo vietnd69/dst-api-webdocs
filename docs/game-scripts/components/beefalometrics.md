@@ -1,68 +1,79 @@
 ---
 id: beefalometrics
 title: Beefalometrics
-description: This component tracks and reports beefalo domestication and interaction events for game analytics.
+description: Records and reports metric events related to beefalo domestication, riding, attacks, and death for analytics purposes.
+tags: [analytics, entity, metrics, behavior]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: fd572fcf
+system_scope: entity
 ---
 
 # Beefalometrics
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `beefalometrics` component is attached to beefalo entities to monitor and report analytics related to their domestication lifecycle. It listens for key events such as being fed, brushed, ridden, attacked, or dying, and pushes this data to the game's metrics system. The component also tracks the last player who interacted with the beefalo for domestication purposes, ensuring this information persists across game sessions.
+`Beefalometrics` is a passive analytics component that listens for specific events on beefalo entities and pushes structured metric events to the `Stats` system. It focuses on domestication progression (feeding, brushing, domestication state changes), riding activity, combat interactions, and death events. It maintains a reference to the last player who interacted with the beefalo (e.g., via feeding or brushing) to associate metric events with that user. The component does not affect gameplay logic—it is strictly for telemetry.
 
-## Dependencies & Tags
-**Dependencies:**
-- `uniqueid`: Used to identify the specific beefalo in metrics events.
-- `domesticatable`: Used to get domestication levels and status.
-- `rideable`: Used to track rider information and mounted combat events.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("beefalometrics")
 
-**Tags:**
-- None identified.
+-- The component automatically starts listening for events upon addition.
+-- No manual initialization is required.
+-- Example metric events will fire when domestication, riding, or combat events occur.
+```
+
+## Dependencies & tags
+**Components used:** `domesticatable`, `edible`, `rideable`, `uniqueid`, `Stats`  
+**Tags:** None identified.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
-|---|---|---|---|
-| `inst` | `entity` | `inst` | A reference to the entity instance this component is attached to. |
-| `lastdomesticator` | `entity` (player) | `nil` | A runtime reference to the last player who performed a domestication action (e.g., feeding, brushing). |
-| `lastdomesticator_id`| `string` | `nil` | The User ID of the last domesticator, used for persistence across game saves. |
-| `ridestarttime` | `number` | `nil` | Stores the game time when a player starts riding the beefalo, used to calculate ride duration. |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | (passed in) | Reference to the entity this component is attached to. |
+| `lastdomesticator` | `Entity` or `nil` | `nil` | Reference to the last player to feed/brush the beefalo (for event attribution). |
+| `lastdomesticator_id` | `string` or `nil` | `nil` | User ID of the last domesticator, used for network serialization. |
+| `ridestarttime` | `number` or `nil` | `nil` | Timestamp (via `GetTime()`) when riding began; used to compute ride duration. |
 
-## Main Functions
+## Main functions
 ### `SetLastDomesticator(player)`
-* **Description:** Sets or updates the last player who performed a domestication-related action on the beefalo. This clears any previously stored user ID.
-* **Parameters:**
-    * `player` (`entity`): The player entity to be set as the last domesticator.
+*   **Description:** Sets the last domesticator for event attribution (e.g., who fed or brushed the beefalo). Clears stored user ID if a full entity is provided.
+*   **Parameters:** `player` (`Entity`) — the player entity performing the domestication action.
+*   **Returns:** Nothing.
 
 ### `GetLastDomesticator()`
-* **Description:** Retrieves the last known domesticator. It prioritizes the active player entity reference. If that is unavailable, it attempts to find the player in the world using the saved `lastdomesticator_id`.
-* **Parameters:** None.
+*   **Description:** Returns the last domesticator entity. Attempts to resolve a cached `lastdomesticator_id` to an entity; returns the user ID string if resolution fails, or `nil` if unavailable.
+*   **Parameters:** None.
+*   **Returns:** `Entity`, `string`, or `nil` — the domesticator entity if available, otherwise the user ID string, or `nil`.
+*   **Error states:** If `UserToPlayer()` returns `nil`, returns the stored `lastdomesticator_id` (string) instead of failing.
 
 ### `OnSave()`
-* **Description:** Called when the game saves. It packages the `userid` of the `lastdomesticator` for persistence.
-* **Parameters:** None.
+*   **Description:** Serializes state for network or save game persistence—specifically, the `lastdomesticator_id`.
+*   **Parameters:** None.
+*   **Returns:** `table?` — a table `{lastdomesticator_id = "userid"}` or `nil` if no ID is stored.
 
 ### `OnLoad(data)`
-* **Description:** Called when the game loads. It restores the `lastdomesticator_id` from the saved data.
-* **Parameters:**
-    * `data` (`table`): The saved data table containing the `lastdomesticator_id`.
+*   **Description:** Deserializes saved state—restores `lastdomesticator_id` from persistence data.
+*   **Parameters:** `data` (`table`) — expected to contain `{lastdomesticator_id = string}`.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-This component listens for several events on its owner entity to trigger metrics reporting.
+## Events & listeners
+- **Listens to:**  
+  `domesticationdelta` — triggered when domestication level crosses from 0 to >0; fires `beefalo.domestication.start` event.  
+  `oneat` — triggered when beefalo eats; fires `beefalo.domestication.feed` event with feeding context.  
+  `brushed` — triggered when beefalo is brushed; fires `beefalo.domestication.brushed` event with brushing context.  
+  `domesticated` — triggered on full domestication; fires `beefalo.domestication.domesticated` event with tendancy values.  
+  `goneferal` — triggered when beefalo reverts to feral state; fires `beefalo.domestication.feral` event.  
+  `death` — triggered on beefalo death (only if domestication > 0); fires `beefalo.domestication.death` event with cause and afflicter info.  
+  `riderchanged` — triggered when rider mounts/dismounts; fires `beefalo.domestication.ride` on dismount with ride duration.  
+  `attacked` — triggered when beefalo is attacked while being ridden; fires `beefalo.domestication.mountedattacked` event.  
+  `riderdoattackother` — triggered when rider attacks while mounted; fires `beefalo.domestication.mountedattack` event.
 
-*   **Listens to `domesticationdelta`:** Pushes a `beefalo.domestication.start` metric when domestication first begins (i.e., when the value changes from 0 to greater than 0).
-*   **Listens to `oneat`:** Pushes a `beefalo.domestication.feed` metric when the beefalo is fed. Records the feeder as the `lastdomesticator`.
-*   **Listens to `brushed`:** Pushes a `beefalo.domestication.brushed` metric when the beefalo is brushed. Records the brusher as the `lastdomesticator`.
-*   **Listens to `domesticated`:** Pushes a `beefalo.domestication.domesticated` metric when the beefalo becomes fully domesticated, including tendency data.
-*   **Listens to `goneferal`:** Pushes a `beefalo.domestication.feral` metric when the beefalo reverts to a feral state.
-*   **Listens to `death`:** Pushes a `beefalo.domestication.death` metric if a beefalo with any amount of domestication dies.
-*   **Listens to `riderchanged`:** Tracks ride duration. When a rider dismounts, it pushes a `beefalo.domestication.ride` metric with the total ride time.
-*   **Listens to `attacked`:** Pushes a `beefalo.domestication.mountedattacked` metric if the beefalo is attacked while being ridden.
-*   **Listens to `riderdoattackother`:** Pushes a `beefalo.domestication.mountedattack` metric when the rider initiates an attack while mounted.
+- **Pushes:** None — this component only consumes events and forwards them to `Stats.PushMetricsEvent`.

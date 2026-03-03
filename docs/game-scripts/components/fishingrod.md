@@ -1,122 +1,156 @@
 ---
 id: fishingrod
 title: Fishingrod
-description: Manages the fishing mechanics for a fishing rod, including casting, biting, strain, reeling, and collecting fish.
+description: Manages the fishing mechanic for a fishing rod, including casting, nibbling, strain, and reeling interactions with a fishable entity.
+tags: [fishing, inventory, player]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 47670e58
+system_scope: player
 ---
 
 # Fishingrod
 
-## Overview
-The `FishingRod` component implements the core logic for fishing in Don't Starve Together. It tracks the rod's current state (e.g., fishing, hooked, caught), manages timing for bite events and line strain, and interfaces with the `fishable` component on water targets to control fish behavior. It also synchronizes state via replica and emits events to the rod and fisherman entities.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds tag `"fishingrod"` to the owning entity.
-- Relies on the owning entity having `equippable`, `finiteuses` (optional), and `physics`/`transform` components.
-- Interacts with the `fishable` component on the target entity.
+## Overview
+`Fishingrod` handles the complete lifecycle of a fishing action for an entity (typically the player). It coordinates casting the rod to a `fishable` target, waiting for a nibble, applying strain to the rod, and reeling in caught fish. It integrates with the `equippable`, `finiteuses`, and `fishable` components to manage state and durability.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("fishingrod")
+
+-- Start fishing at a specific fishable target with a fisherman (e.g., player)
+local target = some_fishable_entity
+local fisherman = the_player
+inst.components.fishingrod:StartFishing(target, fisherman)
+
+-- Later, trigger strain and reeling
+inst.components.fishingrod:Hook()
+-- ... after strain time ...
+inst.components.fishingrod:Reel()
+
+-- Finally, collect the fish
+inst.components.fishingrod:Collect()
+```
+
+## Dependencies & tags
+**Components used:** `equippable`, `finiteuses`, `fishable`
+**Tags:** Adds `fishingrod` to the owning entity.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `target` | `Entity?` | `nil` | The water/pond entity currently being fished at. |
-| `fisherman` | `Entity?` | `nil` | The player entity using the rod. |
-| `hookedfish` | `Entity?` | `nil` | The fish entity currently hooked but not yet reeled in. |
-| `caughtfish` | `Entity?` | `nil` | The fish entity reeled in and ready for collection. |
-| `minwaittime` | `number` | `0` | Minimum time (in seconds) before a fish nibbles. |
-| `maxwaittime` | `number` | `10` | Maximum time (in seconds) before a fish nibbles. |
-| `minstraintime` | `number` | `0` | Minimum time (in seconds) before the line breaks under strain. |
-| `maxstraintime` | `number` | `6` | Maximum time (in seconds) before the line breaks under strain. |
-| `fishtask` | `Task?` | `nil` | The active delayed task (e.g., nibble or strain timer). |
+| `target` | `Goi` or `nil` | `nil` | The `fishable` entity being fished at. |
+| `fisherman` | `Goi` or `nil` | `nil` | The entity holding and using the fishing rod (e.g., player). |
+| `hookedfish` | `Goi` or `nil` | `nil` | The fish entity currently hooked and being reeled. |
+| `caughtfish` | `Goi` or `nil` | `nil` | The fish entity that has been successfully reeled and is ready to be collected. |
+| `minwaittime` | number | `0` | Minimum time (seconds) before a fish nibbles. |
+| `maxwaittime` | number | `10` | Maximum time (seconds) before a fish nibbles. |
+| `minstraintime` | number | `0` | Minimum time (seconds) before rod breaks under strain (used with `finiteuses`). |
+| `maxstraintime` | number | `6` | Maximum time (seconds) before rod breaks under strain. |
+| `fishtask` | `DoTaskInTime` handle or `nil` | `nil` | Reference to the scheduled nibble or strain task. |
 
-## Main Functions
+## Main functions
+### `GetDebugString()`
+*   **Description:** Returns a string summarizing the current fishing state for debugging.
+*   **Parameters:** None.
+*   **Returns:** `string` — formatted as `"target: X hooked: Y caught: Z"`, with `nil` values omitted.
 
 ### `SetWaitTimes(min, max)`
-* **Description:** Sets the minimum and maximum wait times (in seconds) before a fish nibbles. The actual wait time is interpolated based on remaining fish in the target.
-* **Parameters:**
-  - `min` (number): Minimum nibble delay.
-  - `max` (number): Maximum nibble delay.
+*   **Description:** Sets the range of time (in seconds) to wait before a fish nibbles. The actual wait time interpolates based on remaining fish in the target.
+*   **Parameters:** 
+    * `min` (number) — minimum wait time in seconds.
+    * `max` (number) — maximum wait time in seconds.
+*   **Returns:** Nothing.
 
 ### `SetStrainTimes(min, max)`
-* **Description:** Sets the minimum and maximum times (in seconds) the line holds under strain before breaking. Break time is interpolated based on the rod's durability.
-* **Parameters:**
-  - `min` (number): Minimum strain time.
-  - `max` (number): Maximum strain time.
+*   **Description:** Sets the range of time (in seconds) before the rod breaks under strain. Used only if the owning entity has a `finiteuses` component.
+*   **Parameters:** 
+    * `min` (number) — minimum strain time in seconds.
+    * `max` (number) — maximum strain time in seconds.
+*   **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-* **Description:** Called every frame while fishing. Checks if the fishing condition is still valid (e.g., rod equipped, fisherman in fishing state) and stops fishing if not.
-* **Parameters:**
-  - `dt` (number): Delta time in seconds.
+*   **Description:** Periodically checks whether fishing should continue (e.g., rod still equipped, fisherman in fishing state). If conditions fail, stops fishing.
+*   **Parameters:** `dt` (number) — delta time in seconds.
+*   **Returns:** Nothing.
 
 ### `IsFishing()`
-* **Description:** Returns whether the rod is currently active (i.e., target and fisherman are set).
-* **Returns:** `boolean`
+*   **Description:** Checks if a fishing action is currently active.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if `target` and `fisherman` are both non-`nil`.
 
 ### `HasHookedFish()`
-* **Description:** Returns whether a fish is currently hooked (i.e., nibbled and straining).
-* **Returns:** `boolean`
+*   **Description:** Checks if a fish is currently hooked.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if `target` and `hookedfish` are both non-`nil`.
 
 ### `HasCaughtFish()`
-* **Description:** Returns whether a fish has been fully reeled in and is awaiting collection.
-* **Returns:** `boolean`
+*   **Description:** Checks if a fish has been caught and is ready for collection.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if `caughtfish` is non-`nil`.
 
 ### `FishIsBiting()`
-* **Description:** Returns whether the fish is actively biting (i.e., the fisherman's stategraph has the `"nibble"` tag).
-* **Returns:** `boolean`
+*   **Description:** Checks if the fisherman is currently in the nibble state.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if `fisherman.sg:HasStateTag("nibble")` is `true`.
 
 ### `StartFishing(target, fisherman)`
-* **Description:** Begins fishing at the specified target entity using the given fisherman (player). Initializes fishing state and starts frame updates.
-* **Parameters:**
-  - `target` (Entity): The pond/water entity with a `fishable` component.
-  - `fisherman` (Entity): The player entity casting the line.
+*   **Description:** Begins a fishing action on the specified `fishable` target by the given fisherman. Cancels any ongoing fishing first.
+*   **Parameters:** 
+    * `target` (`Goi`) — an entity with a `fishable` component.
+    * `fisherman` (`Goi`) — the entity using the rod (e.g., player).
+*   **Returns:** Nothing.
+*   **Error states:** If `target` is `nil` or lacks `components.fishable`, no action is taken.
 
 ### `WaitForFish()`
-* **Description:** Schedules a nibble event after a time determined by remaining fish and configured wait times. Cancels any existing fish task first.
-* **Parameters:** None.
+*   **Description:** Schedules a nibble task based on remaining fish in the target. Wait time interpolates between `minwaittime` and `maxwaittime`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if `target` is `nil` or lacks `components.fishable`.
 
 ### `CancelFishTask()`
-* **Description:** Cancels and clears the active fish task (e.g., nibble or strain timer).
-* **Parameters:** None.
+*   **Description:** Cancels any pending nibble or strain task.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `StopFishing()`
-* **Description:** Ends the current fishing session, clears all active state (target, fisherman, hooked/caught fish), cancels pending tasks, and stops updates.
-* **Parameters:** None.
+*   **Description:** Ends the current fishing action. Resets all internal references and cancels scheduled tasks.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Fires `fishingcancel` event on the `fisherman` if it was active.
 
 ### `Hook()`
-* **Description:** Triggers when the player attempts to hook a fish. Calls the target's `fishable:HookFish()` to capture the fish and schedules line strain timeout. Emits `"fishingstrain"` events.
-* **Parameters:** None.
+*   **Description:** Hooks a fish on the `target`, applies strain, and schedules rod breakage if `finiteuses` is present.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if `target` or `target.components.fishable` is `nil`.
 
 ### `Release()`
-* **Description:** Releases the currently hooked fish back to the water and stops fishing.
-* **Parameters:** None.
+*   **Description:** Releases the currently hooked fish back into the water (without collecting it).
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if `hookedfish` is `nil` or `target.components.fishable` is `nil`.
 
 ### `Reel()`
-* **Description:** Completes the reeling process, removing the hooked fish from the target and spawning it at the fisherman's location. Marks it as caught and emits `"fishingcatch"` events.
-* **Parameters:** None.
+*   **Description:** Reels in the hooked fish, spawning it near the fisherman.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if `hookedfish` is `nil`. Upon success, pushes `fishingcatch` events with `build` data on both rod and fisherman.
 
 ### `Collect()`
-* **Description:** Collects the reeled-in fish into the fisherman's inventory. Makes the fish entity fully active and persistent, spawns it into the world near the fisherman, and emits `"fishingcollect"` events.
-* **Parameters:** None.
+*   **Description:** Collects the caught fish, respawning it in the world and ending fishing. Makes the fish entity persistent and visible.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if `caughtfish` is `nil`. Pushes `fishingcollect` events with `fish` data on both rod and fisherman.
 
-### `GetDebugString()`
-* **Description:** Returns a human-readable debug string summarizing the current fishing state.
-* **Returns:** `string`
-
-## Events & Listeners
-- Listens to replica updates:
-  - `target` → `ontarget(self, target)`
-  - `hookedfish` → `onhookedfish(self, hookedfish)`
-  - `caughtfish` → `oncaughtfish(self, caughtfish)`
-- Emits events:
-  - `"fishingnibble"` (to `inst` and `fisherman`) when a fish nibbles.
-  - `"fishingloserod"` (to `inst` and `fisherman`) when the line breaks.
-  - `"fishingcancel"` (to `fisherman`) when fishing is stopped.
-  - `"fishingstrain"` (to `inst` and `fisherman`) when a fish is hooked.
-  - `"fishingcatch"` (to `inst` and `fisherman`, with `{build = ...}`) after a fish is reeled in.
-  - `"fishingcollect"` (to `inst` and `fisherman`, with `{fish = ...}`) when a fish is collected.
+## Events & listeners
+- **Listens to:** None (events are pushed, not listened for).
+- **Pushes:** `fishingnibble`, `fishingloserod`, `fishingcancel`, `fishingstrain`, `fishingcatch`, `fishingcollect`.  
+  All events are fired on both `self.inst` (the rod) and `self.fisherman` (when non-`nil`), with additional payload data where noted.

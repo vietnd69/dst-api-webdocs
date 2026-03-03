@@ -1,55 +1,59 @@
 ---
 id: wanderingtraderbrain
 title: Wanderingtraderbrain
-description: Controls the AI behavior of the Wandering Trader, handling trading interactions, stock depletion chatter, path following, and wander movement.
-tags: [ai, entity, movement, trading]
+description: Controls the AI behavior of the Wandering Trader, managing movement, face-targeting, stock exhaustion chattering, and route following.
+tags: [ai, movement, trader]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: f26060ff
+system_scope: brain
 ---
 
 # Wanderingtraderbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-
-The `WanderingTraderBrain` component defines the behavior tree logic for the Wandering Trader entity in Don't Starve Together. It orchestrates high-priority actions such as trading with players and reacting to stock depletion, while also managing movement via leashed route following and random wandering. It extends `Brain` and uses `PriorityNode`-based behavior trees to prioritize state-dependent actions. The component relies on `FaceEntity`, `Leash`, and `Wander` behavior tasks, and reads destination data from the `worldroutefollower` component to constrain movement.
+`WanderingTraderBrain` implements the behavior tree for the Wandering Trader entity. It coordinates movement (wandering, leash-based route following), face-targeting toward nearby players, and chatter logic when out of stock. It relies on the `worldroutefollower` component for path traversal and integrates three core behaviors: `FaceEntity`, `Leash`, and `Wander`.
 
 ## Usage example
-
 ```lua
-local trader = SpawnPrefab("wanderingtrader")
-trader:AddComponent("worldroutefollower")
-trader:AddComponent("inventory")
-trader:AddBrain("wanderingtraderbrain")
+local inst = CreateEntity()
+inst:AddComponent("worldroutefollower")
+inst:AddBrain("wanderingtraderbrain")
+-- The brain automatically activates when added and manages behavior via its internal stategraph and node tree.
 ```
 
 ## Dependencies & tags
-**Components used:** `worldroutefollower` (calls `GetRouteDestination`, `ShouldIterate`), `inventory` (implicitly via `HasStock`/`CanChatter` checks), `inventorymaster` or equivalent (for stock logic), and others accessed via `FindClosestPlayerToInst`, `IsNear`, `GetPosition`, `DoChatter`, `sg.mem.trading`, `HasStock`, `CanChatter`.
-
-**Tags:** None explicitly added or removed by this component. It relies on runtime checks (e.g., `self.inst.sg.mem.trading`, `HasStock()`), not tag-based state management.
+**Components used:** `worldroutefollower` (via `inst.components.worldroutefollower:ShouldIterate()` and `GetRouteDestination()`)  
+**Tags:** None identified.
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `bt` | `BT` or `nil` | `nil` (set in `OnStart`) | Behavior tree instance, initialized during `OnStart()` with the root node. |
-
-Note: No properties are initialized directly in the constructor. The `root` behavior tree is constructed inside `OnStart()` and assigned to `self.bt`.
+No public properties.
 
 ## Main functions
-### `WanderingTraderBrain:OnStart()`
-* **Description:** Initializes and starts the behavior tree for the Wandering Trader. It constructs a `PriorityNode` with sub-trees that handle trading, out-of-stock chatter, leash-following, and wandering. The behavior tree is assigned to `self.bt` and begins executing immediately.
-* **Parameters:** None.
-* **Returns:** `nil`.
-* **Error states:** None documented. Behavior tree construction assumes required functions and components (e.g., `worldroutefollower`, `GetRoutePos`) are present and functional.
+### `OnStart()`
+*   **Description:** Initializes the behavior tree root node. It creates a priority-ordered tree that prioritizes trading-related actions, then stock-exhaustion chatter, leash-following, and finally wandering.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ## Events & listeners
-No events are explicitly listened to or pushed by this component. It uses a continuous behavior tree execution model rather than event-driven state transitions.
+- **Pushes:** None identified.  
+- **Listens to:** None identified. (Behavior is purely reactive via the `PriorityNode`-based behavior tree.)
 
----
+## Behavior tree node summary
+The `OnStart()` method builds the following hierarchy:
+- `Trading` (high priority):  
+  - `WhileNode` condition: `self.inst.sg.mem.trading or self.inst:HasStock()`  
+  - Action: `FaceEntity` toward closest nearby player.
+- `No stock left`:  
+  - Condition: `not self.inst:HasStock() and self.inst:CanChatter()`  
+  - Action: Play proximity out-of-stock chatter, then `FaceEntity` for 2 seconds.
+- `Leash`:  
+  - Enforces staying within leash distance using route destination as anchor.
+- `Wander`:  
+  - Default movement when no higher-priority actions apply; wanders within `MAX_WANDER_DIST` (`4`) units.

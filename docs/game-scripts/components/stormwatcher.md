@@ -1,76 +1,85 @@
 ---
 id: stormwatcher
 title: Stormwatcher
-description: Tracks active storm types and levels for an entity and synchronizes storm-related state with the player classified UI component.
+description: Tracks active storms on a player entity and synchronizes storm-related properties and speed modifiers.
+tags: [storm, player, world, locomotion]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: environment
+category_type: components
 source_hash: 0ff14481
+system_scope: player
 ---
 
 # Stormwatcher
 
-## Overview
-This component monitors environmental storm activity (sandstorms and moonstorms) affecting the associated entity. It maintains the current storm type and intensity level, updates derived state (e.g., `stormlevel`, `currentstorm`), and coordinates updates via scheduled polling and event-driven callbacks. It also ensures UI reflection by syncing the storm level and type to the `player_classified.stormlevel` and `player_classified.stormtype` components when present.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- `inst:AddComponent("locomotor")` — used to remove speed multipliers when exiting a storm (accessed via `self.inst.components.locomotor`).
-- `inst:AddComponent("sandstormwatcher")` — invoked when sandstorm level updates (`self.inst.components.sandstormwatcher:UpdateSandstormLevel()`).
-- `inst:AddComponent("moonstormwatcher")` — invoked when moonstorm level updates (`self.inst.components.moonstormwatcher:UpdateMoonstormLevel()`).
-- **World Dependencies**:
-  - `TheWorld.components.sandstorms` — to check active sandstorms and query storm level/zone presence.
-  - `TheWorld.net.components.moonstorms` — to check active moonstorms and query storm level/zone presence.
+## Overview
+`Stormwatcher` monitors active environmental storms (sandstorms and moonstorms) affecting a player entity and maintains internal state (`stormlevel`, `currentstorm`) to reflect current storm intensity and type. It integrates with `sandstorms` and `moonstorms` components on the world entity, updates the `sandstormwatcher` and `moonstormwatcher` subcomponents, and modifies the player’s movement speed via the `locomotor` component. It also synchronizes storm properties to the player’s classified replica (`player_classified.stormlevel` and `player_classified.stormtype`) for network replication.
+
+## Usage example
+```lua
+local inst = TheWorld.Entities[PLAYER_GUID]
+if inst.components.stormwatcher then
+    local level = inst.components.stormwatcher:GetStormLevel()
+    local type = inst.components.stormwatcher.currentstorm
+    print("Current storm level:", level, "type:", type)
+end
+```
+
+## Dependencies & tags
+**Components used:** `locomotor`, `sandstorms`, `sandstormwatcher`, `moonstorms` (on `TheWorld.net`), `moonstormwatcher`, `player_classified`  
+**Tags:** Checks `player`; uses `player_classified.stormlevel` and `player_classified.stormtype` as replicated setters.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `stormlevel` | number | `0` | Current normalized storm intensity (0 to 1, quantized to 1/7 increments). |
-| `delay` | number or `nil` | `nil` | Interpolation delay timer for periodic storm level updates. |
-| `currentstorm` | string (STORM_TYPES.*) | `STORM_TYPES.NONE` | The dominant storm type affecting the entity. |
-| `currentstorms` | table | `{}` | Map of storm types to boolean flags indicating active presence (e.g., `{[STORM_TYPES.SANDSTORM] = true}`). |
-| `laststorm` | string (STORM_TYPES.*) | *(not initialized)* | Tracks the previous storm type for cleanup purposes. |
+| `stormlevel` | number | `0` | Current storm intensity, scaled to 1/7 increments (`0`, `1/7`, ..., `1`). |
+| `currentstorm` | string (`STORM_TYPES.*`) | `STORM_TYPES.NONE` | Type of the active storm (`NONE`, `SANDSTORM`, or `MOONSTORM`). |
+| `currentstorms` | table | `{}` | Mapping of `stormtype → boolean` indicating which storms are active. |
+| `delay` | number or nil | `nil` | Countdown timer for throttling `UpdateStormLevel()` calls. |
 
-## Main Functions
-
+## Main functions
 ### `GetStormLevel(stormtype)`
-* **Description:** Returns the current storm intensity level. If a specific `stormtype` is provided, returns the level only if that storm is active; otherwise, returns `0`.
-* **Parameters:**  
-  `stormtype` (string, optional) — A `STORM_TYPES.*` constant (e.g., `STORM_TYPES.SANDSTORM`). If omitted or matches `self.currentstorm`, returns the global `self.stormlevel`.
+* **Description:** Returns the current storm level if `stormtype` matches the active storm, or `0` otherwise. If `stormtype` is omitted, returns the active storm level regardless of type.
+* **Parameters:** `stormtype` (string, optional) — `STORM_TYPES.SANDSTORM` or `STORM_TYPES.MOONSTORM`.
+* **Returns:** number — `0` or the current storm level (0–1, scaled to 1/7 increments).
+* **Error states:** None.
 
 ### `GetCurrentStorm(inst)`
-* **Description:** Determines the dominant storm type affecting the entity by checking both sandstorm and moonstorm subsystems. Asserts the entity cannot be in two storms simultaneously.
-* **Parameters:**  
-  `inst` (Entity) — The entity instance (typically `self.inst`).
+* **Description:** Determines the dominant storm affecting the given entity by querying `sandstorms` and `moonstorms` components. Ensures only one storm type is active at a time.
+* **Parameters:** `inst` (Entity) — entity to check for storm presence.
+* **Returns:** string — `STORM_TYPES.SANDSTORM`, `STORM_TYPES.MOONSTORM`, or `STORM_TYPES.NONE`.
+* **Error states:** Throws an assertion error if both `SANDSTORM` and `MOONSTORM` are detected on the entity simultaneously.
 
 ### `CheckStorms(data)`
-* **Description:** Compares the currently tracked storm type with the result of `GetCurrentStorm()`. If different, updates `currentstorm`, triggers storm level recalculation, or clears `stormlevel` to `0` if no storm is active.
-* **Parameters:**  
-  `data` (table, optional) — Storm change event data (unused directly in this function but retained for API consistency).
+* **Description:** Verifies whether the current active storm matches the actual state. Updates `currentstorm` and triggers `UpdateStormLevel()` if a mismatch is detected.
+* **Parameters:** `data` (table, optional) — unused in this implementation.
+* **Returns:** Nothing.
+* **Error states:** None.
 
 ### `UpdateStorms(data)`
-* **Description:** Updates internal tracking of active storms (via `currentstorms` table) based on event data. Enables or disables periodic updates and listens for `changearea` events depending on whether any storms are active.
-* **Parameters:**  
-  `data` (table, optional) — Must contain `data.stormtype` and `data.setting` (boolean). Updates the `currentstorms` map accordingly.
+* **Description:** Updates internal tracking of active storms (`currentstorms`) based on incoming event data (typically from `"ms_stormchanged"`). Controls whether the component should be updated periodically and manages `"changearea"` event registration.
+* **Parameters:** `data` (table, optional) — must contain `data.stormtype` and `data.setting` (boolean) if present.
+* **Returns:** Nothing.
 
 ### `UpdateStormLevel()`
-* **Description:** Recalculates and sets the current storm level based on the active storm subsystem. Applies movement speed modifiers when entering a storm and removes them on exit. Delegates to `sandstormwatcher` or `moonstormwatcher` components for UI updates.
+* **Description:** Recalculates the player’s current storm level by querying the appropriate world component (`sandstorms` or `moonstorms`). Applies speed modifiers to `locomotor` and updates `sandstormwatcher`/`moonstormwatcher`. Removes speed modifiers when exiting a storm.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** None.
 
 ### `OnUpdate(dt)`
-* **Description:** Acts as a polling loop for gradual storm level transitions. Decrements the internal `delay` timer; when elapsed, triggers `UpdateStormLevel()` and resets the delay based on current storm intensity.
-* **Parameters:**  
-  `dt` (number) — Time since last update (delta time).
+* **Description:** Periodic update handler that throttles storm level recalculation based on `delay`. Resets `delay` for subsequent updates.
+* **Parameters:** `dt` (number) — time elapsed since last frame.
+* **Returns:** Nothing.
+* **Error states:** None.
 
-## Events & Listeners
-- **Listens to:**
-  - `"ms_stormchanged"` (on `TheWorld`) — Triggers `self:UpdateStorms(data)`.
-  - `"changearea"` (on `self.inst`) — Triggers `OnChangeArea`, which calls `self:UpdateStormLevel()` and adjusts update delay.
-- **Triggers:**
-  - `self.inst:StartUpdatingComponent(self)` — Enables periodic updates when any storm is active.
-  - `self.inst:StopUpdatingComponent(self)` — Disables periodic updates when no storms are active.
-  - `self.inst:ListenForEvent("changearea", OnChangeArea)` — Registers `changearea` handler during active storm conditions.
-  - `self.inst:RemoveEventCallback("changearea", OnChangeArea)` — Removes `changearea` handler when storm ends.
+## Events & listeners
+- **Listens to:**  
+  - `"ms_stormchanged"` (on `TheWorld`) — triggers `UpdateStorms(data)` to track new storm activations.  
+  - `"changearea"` (on `inst`) — triggers `OnChangeArea`, which updates storm level and adjusts update interval when entering/exiting areas.  
+- **Pushes:** Events are not pushed directly by this component, but it triggers updates in `sandstormwatcher`/`moonstormwatcher`, which fire `"sandstormlevel"` and `"moonstormlevel"` events respectively.

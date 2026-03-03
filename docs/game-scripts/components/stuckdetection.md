@@ -1,53 +1,69 @@
 ---
 id: stuckdetection
 title: Stuckdetection
-description: Monitors an entity's movement to determine if it has remained motionless for a specified duration.
+description: Monitors an entity's positional movement to determine if it has become stuck for a specified duration.
+tags: [locomotion, physics, ai]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 23570661
+system_scope: locomotion
 ---
+# Stuckdetection
 
-# StuckDetection
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-This component tracks an entity's position over time to detect whether it has become "stuck"—i.e., remained within a very small spatial threshold (`0.05` world units RMS distance squared) for a configurable duration (`timetostuck`, defaulting to 2 seconds). It is typically used to trigger fallback behavior (e.g., repositioning or animations) when an entity fails to move despite expected motion.
+`StuckDetection` is a lightweight component that detects whether an entity is stationary (or nearly stationary) for a configurable amount of time. It tracks positional updates in the XZ plane and compares them against a minimum movement threshold (`STUCK_DIST_SQ = 0.0025`) to determine if the entity is stuck. It does not interact with other components and operates solely based on position data retrieved from the entity's `Transform` component.
 
-## Dependencies & Tags
-- **Dependencies**: Uses `self.inst.Transform:GetWorldPosition()` and `GetTime()` from the global time system.
-- **Tags**: None added or removed.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("stuckdetection")
+inst.components.stuckdetection:SetTimeToStuck(1.5)
+
+if inst.components.stuckdetection:IsStuck() then
+    print("Entity is stuck!")
+end
+
+print("Remaining time until stuck:", inst.components.stuckdetection:GetRemainingTime())
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified  
 
 ## Properties
-| Property       | Type   | Default Value | Description |
-|----------------|--------|---------------|-------------|
-| `timetostuck`  | number | `2`           | Time in seconds an entity must remain within `STUCK_DIST_SQ` (0.0025 units²) of its previous position to be considered "stuck". |
-| `starttime`    | number \| nil | `nil`      | Internal: timestamp (via `GetTime()`) of the last movement event. Accessed only through component methods. |
-| `lastx`, `lastz` | number \| nil | `nil`     | Internal: world X and Z coordinates of the last non-stuck position. Accessed only through component methods. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | — | Reference to the entity that owns this component (set automatically). |
+| `timetostuck` | number | `2` | The duration (in seconds) of immobility required before the entity is considered stuck. |
+| `starttime` | number? | `nil` | Timestamp when the last significant position change was recorded (internal use). |
+| `lastx`, `lastz` | number? | `nil` | Last known world X and Z coordinates of the entity (internal use). |
 
-> **Note**: The properties `starttime`, `lastx`, and `lastz` are initialized as `nil` implicitly (commented in source but initialized in logic) and are updated during `IsStuck()` calls.
-
-## Main Functions
-
+## Main functions
 ### `SetTimeToStuck(t)`
-* **Description:** Sets the duration (in seconds) the entity must remain stationary to be considered stuck.
-* **Parameters:**  
-  `t` (number): New stuck threshold in seconds. Must be ≥ 0.
+* **Description:** Sets the time threshold (in seconds) the entity must remain stationary before being considered stuck.
+* **Parameters:** `t` (number) — required stuck duration in seconds. Must be non-negative; values less than `0` are not explicitly validated.
+* **Returns:** Nothing.
 
 ### `IsStuck()`
-* **Description:** Checks whether the entity is currently stuck. Updates internal tracking state (position and timestamp) if significant movement is detected. Returns `true` if the entity has been stationary for ≥ `timetostuck` seconds.
+* **Description:** Checks whether the entity has been immobile for longer than `timetostuck`. Updates internal tracking state on each call.
 * **Parameters:** None.
+* **Returns:** `true` if the entity has been immobile for more than `timetostuck` seconds; otherwise `false`.
+* **Error states:** Returns `false` on first call if `starttime` is `nil` (initialization pending first movement).也可能 return `false` if the entity has moved beyond `STUCK_DIST_SQ` since the last update.
 
 ### `GetRemainingTime()`
-* **Description:** Returns how much time remains before the entity will be considered stuck, based on current progress toward the threshold. Returns `-1` if no position tracking has started yet.
+* **Description:** Returns how much time remains until the entity reaches the stuck threshold. Useful for UI or predictive logic.
 * **Parameters:** None.
+* **Returns:** A number representing the time (in seconds) until the entity is considered stuck, or `-1` if no tracking has started yet (`starttime == nil`).
 
 ### `Reset()`
-* **Description:** Resets stuck tracking by updating `lastx`, `lastz`, and `starttime` to the current position and time. Should be called after repositioning the entity to prevent false positives.
+* **Description:** Resets the stuck timer by updating the last known position and `starttime` to the current frame. Only takes effect if `starttime` is not `nil` (i.e., after at least one position update).
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- No events are emitted or listened for by this component.
+## Events & listeners
+None identified

@@ -1,85 +1,119 @@
 ---
 id: oceanfishinghook
 title: Oceanfishinghook
-description: Calculates and manages fishing lure charm and interest for fish entities, updating interest over time based on charm modifiers and movement.
+description: Manages fishing lure behavior and fish attraction mechanics in the ocean, including charm calculation, interest tracking, and reel-based modifiers.
+tags: [fishing, environment, fish, attraction, multiplayer]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: environment
+category_type: components
 source_hash: a844668f
+system_scope: environment
 ---
 
 # Oceanfishinghook
 
-## Overview
-The `OceanFishingHook` component manages the fishing hook's interaction with fish by calculating charm-based attraction, tracking interest in specific fish over time, and adjusting attraction based on lure movement, perishability, time of day, weather, and lure style. It is attached to fishing hook entities and operates as part of the Entity Component System in Don't Starve Together.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds the tag `"fishinghook"` to the host entity.
-- Uses `self.inst:StartWallUpdatingComponent(self)` to register for wall updates (likely for server-side logic).
-- Requires presence of `perishable` component for charm calculation (if present).
-- Uses `TheWorld.state` (e.g., `raining`, `issnowing`, `phase`, `israining`) and `TheNet:IsServerPaused()` for conditional logic.
+## Overview
+`OceanFishingHook` is a component that enables entities (typically fishing hooks) to interact with fish in the ocean. It calculates attraction ("charm") based on lure properties, time of day, weather, fish preferences, and perish status. It also tracks fish-specific interest levels and supports reel-motion detection via physics velocity updates. It integrates with the `perishable` component to scale charm based on freshness.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("oceanfishinghook")
+local lure_data = {
+    charm = 1.0,
+    reel_charm = 0.5,
+    timeofday = { ["day"] = 1.2, ["dusk"] = 1.0, ["night"] = 0.8 },
+    weather = { ["raining"] = 1.5, ["snowing"] = 0.7, ["default"] = 1.0 },
+    style = "worm",
+}
+local lure_fns = { charm_mod_fn = function(fish) return fish.GUID % 2 == 0 and 1.2 or 1.0 end }
+inst.components.oceanfishinghook:SetLureData(lure_data, lure_fns)
+inst.components.oceanfishinghook:TestInterest(some_fish)
+```
+
+## Dependencies & tags
+**Components used:** `perishable` (for `GetPercent()`), `physics` (for velocity), `net` (for `IsServerPaused()`), `the_world` (for world state: `israining`, `issnowing`, `phase`)
+**Tags:** Adds `fishinghook` on construction; removes on removal.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the host entity (the fishing hook). |
-| `interest` | `table` | `{}` | Map of fish GUIDs to interest values (negative values indicate lost interest). |
-| `lure_data` | `table` or `nil` | `nil` | Lure configuration data (charm, reel_charm, timeofday, weather, style, radius). |
-| `lure_fns` | `table` | `{}` | Custom hook functions (e.g., `charm_mod_fn`). |
-| `reel_mod` | `number` | `0` | Movement-based modifier (1 when moving, lerps to 0 when stationary). |
+| `interest` | table | `{}` | Map of fish GUID → interest level (number), used to track attraction decay/growth. |
+| `lure_data` | table or `nil` | `nil` | Lure configuration including `charm`, `reel_charm`, `timeofday`, `weather`, and `style`. |
+| `lure_fns` | table | `{}` | Optional function table, e.g., `charm_mod_fn`. |
+| `reel_mod` | number | `0` | Multiplier applied to `reel_charm` when the hook is moving (velocity-based). |
+| `debug_fish_lure_prefs` | table or `nil` | `nil` | Internal cache used for debug output. |
 
-## Main Functions
+## Main functions
 ### `SetLureData(lure_data, lure_fns)`
-* **Description:** Sets the lure configuration and optional custom functions. Starts component updates if `reel_charm` is present in `lure_data`.
-* **Parameters:**
-  - `lure_data`: Table containing charm values and modifiers (e.g., `charm`, `reel_charm`, `timeofday`, `weather`, `style`, `radius`).
-  - `lure_fns`: Optional table of functions (e.g., `charm_mod_fn(fish)`).
+* **Description:** Assigns lure configuration and optional modifier functions. Begins periodic updates if `lure_data.reel_charm` is set.
+* **Parameters:**  
+  - `lure_data` (table) — Must contain at least `charm` (number) and optionally `reel_charm`, `timeofday`, `weather`, and `style`.  
+  - `lure_fns` (table, optional) — Function table; supports `charm_mod_fn(fish)`.
+* **Returns:** Nothing.
+* **Error states:** If `lure_data.reel_charm ~= nil`, starts component updates via `StartUpdatingComponent`.
 
-### `_ClacCharm(fish)`
-* **Description:** Computes the total charm (attraction strength) for a given fish, applying modifiers for perishability, time of day, weather, lure style, and custom functions. Note: Function name likely contains typo (`Clac` → `Calc`).
-* **Parameters:**
-  - `fish`: The fish entity to evaluate (used for style preferences and charm functions).
+### `:ClacCharm(fish)`
+* **Description:** Computes the total charm (attraction score) for a given fish, combining base charm, reel modifier, perish freshness, time of day, weather, lure style compatibility, and custom modifier functions. *(Note: Function name appears to be a typo for `CalcCharm`.)*
+* **Parameters:**  
+  - `fish` (table/entity with `fish_def.lures`, `GUID`) — The fish to evaluate.
+* **Returns:** Number — The computed charm value (≥ 0).
+* **Error states:** Returns early with `0` if `lure_data.timeofday[phase]` or `lure_data.weather[weather]` are missing and no fallback exists.
 
 ### `HasLostInterest(fish)`
-* **Description:** Returns `true` if interest in the given fish has been depleted (i.e., interest value ≤ 0).
-* **Parameters:**
-  - `fish`: The fish entity to check.
+* **Description:** Checks whether interest in the specified fish has dropped to zero (i.e., attraction exhausted).
+* **Parameters:**  
+  - `fish` (table/entity with `GUID`) — The fish to check.
+* **Returns:** Boolean — `true` if `interest[fish.GUID] <= 0`, otherwise `false`.
 
 ### `SetLostInterest(fish)`
-* **Description:** Marks the fish as no longer interesting by setting its interest value to `0`.
-* **Parameters:**
-  - `fish`: The fish entity to update.
+* **Description:** Explicitly sets interest in a fish to `0`.
+* **Parameters:**  
+  - `fish` (table/entity with `GUID`) — The fish whose interest is to expire.
+* **Returns:** Nothing.
 
 ### `ClearLostInterestList()`
-* **Description:** Resets all interest values (clears the `interest` table).
+* **Description:** Resets the entire interest tracking table.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `UpdateInterestForFishable(fish)`
-* **Description:** Increases interest in the given fish if not already lost. Interest accumulates using charm × 0.2 per update; initial entry uses full charm.
-* **Parameters:**
-  - `fish`: The fish entity whose interest is being updated.
-
-### `OnUpdate(dt)`
-* **Description:** Called during component updates (when `reel_charm` is active). Adjusts `reel_mod` based on hook velocity (1 if moving, lerps to 0 if stationary).
-* **Parameters:**
-  - `dt`: Delta time since last frame.
+* **Description:** Updates and returns the interest level for a fish. Grows interest if not already present or already positive; otherwise does nothing.
+* **Parameters:**  
+  - `fish` (table/entity with `GUID`) — The fish to update interest for.
+* **Returns:** Number — Current interest level (may be `nil` initially).
+* **Error states:** Returns early with current value if interest is already `<= 0`.
 
 ### `TestInterest(fish)`
-* **Description:** Determines whether the hook should attempt to catch the fish (interest must be positive or unset, and fish must be within lure radius).
-* **Parameters:**
-  - `fish`: The fish entity to test.
+* **Description:** Determines whether a fish is still a valid target for fishing — checks both interest and proximity within `lure_data.radius`.
+* **Parameters:**  
+  - `fish` (table/entity with `GUID`) — The fish to test.
+* **Returns:** Boolean — `true` if interest exists and fish is within range.
+* **Error states:** Returns `false` if `interest[fish.GUID]` is missing or `<= 0`, or if distance check fails.
 
 ### `GetDebugString()`
-* **Description:** Returns a multi-line debug string summarizing current charm factors, interest values, and modifiers for inspection.
+* **Description:** Generates a multi-line debug string summarizing current charm components and per-fish interest levels.
 * **Parameters:** None.
+* **Returns:** String — Human-readable charm breakdown and interest table.
+
+### `OnUpdate(dt)`
+* **Description:** Called periodically while the component is active (e.g., when `reel_charm` is enabled). Updates `reel_mod` based on physics velocity — sets to `1` when moving (`vx² + vz² >= 0.1`), otherwise decays toward `0`.
+* **Parameters:**  
+  - `dt` (number) — Delta time in seconds.
+* **Returns:** Nothing.
 
 ### `OnWallUpdate(dt)`
-* **Description:** Server-side update hook (likely for wall updates during fishing). Delegates to a custom `onwallupdate` handler if set.
-* **Parameters:**
-  - `dt`: Delta time since last frame.
+* **Description:** Proxy method for wall update callbacks. Delegates to `onwallupdate` if set.
+* **Parameters:**  
+  - `dt` (number) — Delta time in seconds.
+* **Returns:** Nothing.
+* **Error states:** Returns immediately if `TheNet:IsServerPaused()` is `true`.
 
-## Events & Listeners
-None identified.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** None.

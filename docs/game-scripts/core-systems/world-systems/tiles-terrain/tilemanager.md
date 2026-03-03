@@ -542,11 +542,6 @@ mod_protect_TileManager = true  -- Prevents mod interference
 allow_existing_GROUND_entry = false  -- Prevents GROUND table conflicts
 ```
 
-## Related Modules
-
-- [TileDefs](./tiledefs.md): Contains all vanilla tile definitions
-- [TileGroups](./tilegroups.md): Provides tile categorization and validation
-- [World Tile Definitions](../map/worldtiledefs.md): Core tile constants and structures
 
 ## Source Reference
 

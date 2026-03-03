@@ -1,45 +1,55 @@
 ---
 id: strongman
 title: Strongman
-description: Manages a player's gym workout session by tagging them and pausing/resuming the Mightiness component.
+description: Manages a character's gym workout session, pausing mightiness while active and resuming it upon completion.
+tags: [combat, gym, workout]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: cbd0b9e1
+system_scope: entity
 ---
 
 # Strongman
 
-## Overview
-The Strongman component coordinates the player's gym workout activity. It is responsible for tagging the player while in the gym (`"ingym"`), storing the reference to the current gym instance, and pausing or resuming the Mightiness component to reflect active workout state transitions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component dependency:** `mightiness` (assumed to be present on the entity)
-- **Tag added:** `"ingym"` (during workout)
-- **Tag removed:** `"ingym"` (when workout ends)
+## Overview
+`Strongman` manages a character's workout session at a gym structure. It coordinates with the `mightiness` component to temporarily pause damage-draining effects during the workout, and applies the `ingym` tag to indicate the character is currently exercising. This component is designed for use with gym-related mechanics, likely tied to a "strongman" character or gym furniture.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("strongman")
+inst:AddComponent("mightiness")
+-- When entering a gym:
+inst.components.strongman:DoWorkout(gym_structure)
+-- When leaving the gym:
+inst.components.strongman:StopWorkout()
+```
+
+## Dependencies & tags
+**Components used:** `mightiness`  
+**Tags:** Adds `ingym` during workout; removes `ingym` on workout结束.
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `gym` | `Entity?` | `nil` | Reference to the gym structure the player is currently working out at. Set in `DoWorkout`, cleared in `StopWorkout`. |
+No public properties
 
-> **Note:** The constructor `Class(function(self, inst) self.inst = inst end)` initializes only `self.inst`. The `gym` property is assigned later on first use.
-
-## Main Functions
-
+## Main functions
 ### `DoWorkout(gym)`
-* **Description:** Begins a gym workout session for the player. Pauses the Mightiness component and adds the `"ingym"` tag to the entity.
-* **Parameters:**  
-  `gym` (`Entity`) — The gym structure entity the player is entering to train.
+*   **Description:** Starts a gym workout session. Pauses the `mightiness` component and adds the `ingym` tag to the entity.
+*   **Parameters:** `gym` (entity reference) – the gym structure or object the character is working out at.
+*   **Returns:** Nothing.
+*   **Error states:** Assumes `mightiness` component exists on `inst`; will error if missing.
 
 ### `StopWorkout()`
-* **Description:** Ends the current gym workout session. Removes the `"ingym"` tag, resumes the Mightiness component, and clears the stored `gym` reference.
-* **Parameters:**  
-  None.
+*   **Description:** Ends the gym workout session. Removes the `ingym` tag and resumes the `mightiness` component. Clears internal reference to the gym.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Assumes `mightiness` component exists on `inst`; will error if missing.
 
-## Events & Listeners
+## Events & listeners
 None identified.

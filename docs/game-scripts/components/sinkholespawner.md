@@ -1,95 +1,92 @@
 ---
 id: sinkholespawner
 title: Sinkholespawner
-description: Manages the spawning, targeting, timing, and state of antlion sinkhole attacks in response to player activity.
+description: Manages the spawning and timing of antlion sinkhole attacks targeting specific players during the Antlion event.
+tags: [event, boss, combat, environment, network]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 6a82fa3b
+system_scope: environment
 ---
-
 # Sinkholespawner
 
-## Overview
-This component orchestrates antlion sinkhole attacks during specific seasonal windows (e.g., Autumn and Winter). It identifies eligible player targets using weighted selection, schedules warning phases and attack waves per target, and coordinates local and remote sinkhole placement via periodic updates. It integrates with world state, network, and world generation systems to ensure attacks are placement-valid and synchronized across shards.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Uses `TheWorld.has_ocean`, `TheWorld.Map`, `TheNet`, `TheSim`, `TUNING.ANTLION_SINKHOLE`, `GetString`, `smallhash`, `weighted_random_choice`, `SpawnPrefab`, `FindValidPositionByFan`, `GetRandomWithVariance`, `ShakeAllCameras`.
-- Adds no tags to the host entity (`self.inst`).
-- No component dependencies (e.g., `AddComponent`) are present in this file.
+## Overview
+`Sinkholespawner` is a component responsible for orchestrating antlion sinkhole attack waves during the Antlion event. It selects one or two player targets based on weighted criteria (e.g., play time), schedules warning periods and attack waves per target, and spawns sinkhole prefabs at validated positions near the target. It interacts with the `talker` component to announce sinkhole warnings and integrates with the world's network system via events to synchronize state across shards.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("sinkholespawner")
+inst.components.sinkholespawner:StartSinkholes()
+-- To stop attacks and clean up:
+inst.components.sinkholespawner:StopSinkholes()
+```
+
+## Dependencies & tags
+**Components used:** `talker` (via `player.components.talker:Say(...)`), `health` (for dead checks), `sleeper` (for sleeping checks), `revivablecorpse`
+**Tags:** Reads `antlion_sinkhole_blocker` tag for positioning validation. No tags added or removed by this component.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed to constructor) | The entity that owns this component (typically the Antlion or world-level controller). |
-| `targets` | `table` | `{}` | List of active target info tables, each describing a player's sinkhole attack state. Limited to `MAX_TARGETS = 2`. |
+| `inst` | `Inst` | — | The entity instance the component is attached to. |
+| `targets` | table | `{}` | List of up to `MAX_TARGETS` (2) target info tables describing active sinkhole attack targets. |
 
-No additional public properties are initialized beyond the constructor.
-
-## Main Functions
-
+## Main functions
 ### `StartSinkholes()`
-* **Description:** Begins a new sinkhole attack wave. Selects up to two eligible players based on weighted criteria (player age and ground validity), computes required attack counts per target, and schedules warnings and attacks. If targets were added, starts component updates and broadcasts `"onsinkholesstarted"`.
-* **Parameters:** None.
+*   **Description:** Initiates a new wave of sinkhole attacks by selecting 1–2 players as targets. Computes number of attacks per target based on player age and remaining season days. Triggers warnings and schedules attacks via internal timers. Starts the component's update loop if targets exist.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if no valid players are found or if all candidate players are on non-visual ground (e.g., ocean tiles outside coastal areas).
 
 ### `StopSinkholes()`
-* **Description:** Clears all active targets, stops updates, broadcasts `"onsinkholesfinished"`, and syncs to remote clients.
-* **Parameters:** None.
-
-### `UpdateTarget(targetinfo)`
-* **Description:** Resolves a player and world position for a given target, or resets position if the player is migrating. Called during target initialization and periodically to refresh positions.
-* **Parameters:**
-  - `targetinfo` (table): Target info table containing `client`, `userid`, and optionally `player`, `pos`.
+*   **Description:** Immediately stops all ongoing sinkhole attacks by clearing the target list and firing `onsinkholesfinished`. Stops component updates.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `DoTargetWarning(targetinfo)`
-* **Description:** Handles warning logic for a target: spawns visual/sound effects (camera shake, rock FX), optionally announces the attack via talker, and decrements warning count. When warnings end, sets up the first attack delay.
-* **Parameters:**
-  - `targetinfo` (table): Target info table with `warnings`, `next_warning`, `pos`, and `player`.
+*   **Description:** Handles warning behavior for a target (e.g., camera shake, visual FX, and announcement). Decrements the warning counter and schedules the next warning or attack.
+*   **Parameters:** `targetinfo` (table) — Target metadata containing `player`, `pos`, `warnings`, `next_warning`, and `client`.
+*   **Returns:** Nothing.
+*   **Error states:** Does nothing if `targetinfo.warnings` is `nil` or negative.
 
 ### `DoTargetAttack(targetinfo)`
-* **Description:** Executes a sinkhole spawn attempt for a target if position is known and no other sinkholes are too close (merge distance check). Decrements attack count; if zero, clears attack timer.
-* **Parameters:**
-  - `targetinfo` (table): Target info table with `pos`, `attacks`, and `next_attack`.
+*   **Description:** Attempts to spawn a sinkhole at the target's position. Checks for nearby merges before spawning (to prevent overlapping attacks). Decrements remaining attack count.
+*   **Parameters:** `targetinfo` (table) — Target metadata containing `pos` and `attacks`.
+*   **Returns:** Nothing.
+*   **Error states:** Does not spawn if `pos` is `nil` or if another sinkhole is too close (`< WAVE_MERGE_ATTACKS_DIST_SQ`).
 
 ### `SpawnSinkhole(spawnpt)`
-* **Description:** Attempts to spawn an `antlion_sinkhole` prefab at a valid location near the given point, using variance, obstacle checking, terrain compatibility, and passability tests. Falls back to radial search if the center position is invalid.
-* **Parameters:**
-  - `spawnpt` (`Vector3`): Base world position for the sinkhole.
-
-### `PushRemoteTargets()`
-* **Description:** Serializes and sends target timing states for remote players to the master server via `"master_sinkholesupdate"` event. Only includes targets where position is unknown (i.e., remote players).
-* **Parameters:** None.
+*   **Description:** Attempts to spawn a sinkhole (`antlion_sinkhole`) at a position near `spawnpt` with randomized offset, using validation logic (no blockers, passable, valid tile).
+*   **Parameters:** `spawnpt` (Vector3) — Approximate target position.
+*   **Returns:** Nothing.
+*   **Error states:** If no valid position is found within a reasonable search radius, the sinkhole is not spawned.
 
 ### `OnUpdate(dt)`
-* **Description:** Periodically called during active attack phases. Updates positions, decrements warning/attack timers, triggers warnings and attacks, cleans up completed targets, stops updates if no targets remain, and syncs remote state.
-* **Parameters:**
-  - `dt` (number): Delta time in seconds.
+*   **Description:** Called periodically by the engine. Updates remaining warning/attack timers per target, triggers warnings and attacks when timers expire, and removes targets once attacks are complete. Stops updating when all targets are exhausted.
+*   **Parameters:** `dt` (number) — Delta time in seconds.
+*   **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Serializes in-progress sinkhole attacks (only those with known positions) for save/load persistence.
-* **Parameters:** None.
-* **Returns:** `table` with `targets` array of saved attack data, or `nil` if no active attacks.
+*   **Description:** Serializes active sinkhole state for save/load persistence. Only saves targets with known positions (`pos ~= nil`).
+*   **Parameters:** None.
+*   **Returns:** A table with `targets` array containing `x`, `z`, `attacks`, `next_attack`, and `next_warning` per saved target, or `nil` if none.
 
 ### `OnLoad(data)`
-* **Description:** Restores active sinkhole attacks from saved data, respecting `MAX_TARGETS` limit, restarting updates and remote sync if any targets were loaded.
-* **Parameters:**
-  - `data` (table): Saved data containing `targets` array with `x`, `z`, `attacks`, `next_attack`, `next_warning`.
+*   **Description:** Loads sinkhole state from saved data. Restores active targets with positions and timers. Restarts update loop if targets exist.
+*   **Parameters:** `data` (table) — Saved state with `targets` array.
+*   **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a multiline debug string summarizing each target’s current warning or attack progress, position, and remaining time.
-* **Parameters:** None.
-* **Returns:** `string` or `nil`.
+*   **Description:** Returns a multiline debug string describing each target's current state (warning or attack phase), remaining count, and timer.
+*   **Parameters:** None.
+*   **Returns:** `string` — Human-readable debug info for debugging tools.
 
-## Events & Listeners
-- **Listeners:**
-  - None (no `inst:ListenForEvent` calls in this component).
-- **Events triggered (via `inst:PushEvent`):**
-  - `"onsinkholesstarted"` — When sinkhole attacks begin or are resumed after loading.
-  - `"onsinkholesfinished"` — When all sinkhole attacks complete or are explicitly stopped.
-- **Events pushed globally (via `TheWorld:PushEvent`):**
-  - `"master_sinkholesupdate"` — Carries updated remote target data to master shard.
+## Events & listeners
+- **Listens to:** None (no `inst:ListenForEvent` calls).
+- **Pushes:** `onsinkholesstarted`, `onsinkholesfinished`, and via `TheWorld:PushEvent("master_sinkholesupdate", ...)` to synchronize remote targets.

@@ -1,72 +1,77 @@
 ---
 id: sandstormwatcher
 title: Sandstormwatcher
-description: Monitors sandstorm activity in the world and adjusts the player’s walk speed accordingly based on sandstorm intensity and vision modifiers.
+description: Manages movement speed penalties during sandstorms based on vision state, mounting, and storm intensity.
+tags: [environment, movement, weather]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: environment
+category_type: components
 source_hash: 95ba3afa
+system_scope: environment
 ---
 
 # Sandstormwatcher
 
-## Overview  
-This component tracks sandstorm conditions in the world and dynamically modifies the player’s locomotion speed when sandstorms are active. It listens for storm changes globally (via `TheWorld`) and applies a speed multiplier based on sandstorm intensity—unless vision-affecting states like Goggle Vision, Ghost Vision, or riding are active, in which case the speed penalty is removed.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags  
-**Component dependencies:**  
-- `inst.components.stormwatcher` — used to query current sandstorm level (`GetStormLevel(STORM_TYPES.SANDSTORM)`).  
-- `inst.components.locomotor` — applies or removes the external speed multiplier `"sandstorm"`.  
-- `inst.components.playervision` — checked for Goggle Vision or Ghost Vision state.  
-- `inst.components.rider` — checked to determine if the player is currently mounted.  
+## Overview
+`Sandstormwatcher` dynamically modifies an entity's walking speed during sandstorms. It integrates with the `stormwatcher`, `playervision`, `rider`, and `locomotor` components to apply or remove a speed multiplier (`sandstormspeedmult`) when a sandstorm is active and conditions permit. Speed reduction is skipped when the entity has `gogglevision`, `ghostvision`, or is mounted, or when storm intensity falls below a threshold.
 
-**World dependency:**  
-- Requires `TheWorld.components.sandstorms` to be non-nil to register storm change listeners.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("sandstormwatcher")
+inst.components.sandstormwatcher:SetSandstormSpeedMultiplier(0.7)
+inst.components.sandstormwatcher:ToggleSandstorms(true)
+```
 
-## Properties  
+## Dependencies & tags
+**Components used:** `stormwatcher`, `playervision`, `rider`, `locomotor`  
+**Tags:** None identified.
+
+## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity the component is attached to (typically the player). |
-| `enabled` | `boolean` | `false` | Whether sandstorm speed modification is currently active. |
-| `sandstormspeedmult` | `number` | `TUNING.SANDSTORM_SPEED_MOD` | Speed multiplier applied during sandstorms (clamped to [0, 1]). |
+| `enabled` | boolean | `false` | Whether sandstorm speed adjustments are currently active. |
+| `sandstormspeedmult` | number | `TUNING.SANDSTORM_SPEED_MOD` | Speed multiplier applied during sandstorms (clamped between `0` and `1`). |
 
-## Main Functions  
+## Main functions
 ### `ToggleSandstorms(active)`
-* **Description:** Enables or disables sandstorm-based speed penalty logic based on whether a sandstorm is active. Also triggers level updates when activated.  
-* **Parameters:**  
-  - `active` (boolean, default `false`): Whether sandstorm conditions should be considered active.
+*   **Description:** Enables or disables sandstorm speed management. When `sandstormspeedmult < 1`, listeners are added/removed to handle dynamic updates (e.g., goggle/ghost vision toggles, mount state changes).
+*   **Parameters:** `active` (boolean) — whether sandstorms should be considered active.
+*   **Returns:** Nothing.
 
 ### `SetSandstormSpeedMultiplier(mult)`
-* **Description:** Updates the sandstorm speed multiplier used for locomotion. Automatically manages listener setup/teardown based on the new multiplier value and active state.  
-* **Parameters:**  
-  - `mult` (number, clamped to [0, 1]): The new speed multiplier to apply during sandstorms.
+*   **Description:** Sets the speed multiplier used during sandstorms. Validates and clamps `mult` to `[0, 1]`. Automatically manages listener registration if the multiplier changes across the `1` threshold.
+*   **Parameters:** `mult` (number) — desired speed multiplier.
+*   **Returns:** Nothing.
 
 ### `UpdateSandstormLevel()`
-* **Description:** Refreshes the current sandstorm level, updates the locomotor with the appropriate speed multiplier, and broadcasts a `"sandstormlevel"` event to the entity.  
-* **Parameters:** None.
+*   **Description:** Queries the current sandstorm level from `stormwatcher`, updates walk speed, and pushes a `sandstormlevel` event.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `UpdateSandstormWalkSpeed()`
-* **Description:** Invokes `UpdateSandstormWalkSpeed_Internal` using the latest sandstorm level from `GetSandstormLevel()`. Used as an event callback (e.g., on vision changes).  
-* **Parameters:** None.
-
-### `UpdateSandstormWalkSpeed_Internal(level)`
-* **Description:** Applies or removes the `"sandstorm"` speed multiplier via the `locomotor` component based on storm level and context (e.g., goggles, ghosts, or riding negate the penalty).  
-* **Parameters:**  
-  - `level` (number or `nil`): Current sandstorm level. If `nil`, no multiplier is applied.
+*   **Description:** Recalculates and applies the current sandstorm speed multiplier based on the storm level and entity state (vision, mounting).
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `GetSandstormLevel()`
-* **Description:** Returns the current sandstorm level from `stormwatcher`, or `nil` if `stormwatcher` is missing.  
-* **Parameters:** None.
+*   **Description:** Fetches the current sandstorm level from the `stormwatcher` component.
+*   **Parameters:** None.
+*   **Returns:** (number or `nil`) — storm level if `stormwatcher` is present, otherwise `nil`.
 
-### `OnRemoveFromEntity()`
-* **Description:** Cleans up event listeners and speed multiplier when the component is removed. Only cleans up if the component was enabled *and* a speed multiplier was configured.  
-* **Parameters:** None.
+### `UpdateSandstormWalkSpeed_Internal(level)`
+*   **Description:** Internal helper that applies or removes the sandstorm speed multiplier using `locomotor`, based on storm level and entity conditions.
+*   **Parameters:** `level` (number or `nil`) — current sandstorm level.
+*   **Returns:** Nothing.
 
-## Events & Listeners  
-- **Listens for `"ms_stormchanged"`** from `TheWorld` — triggers `ToggleSandstorms` when a sandstorm starts or stops.  
-- **Listens for `"gogglevision"`, `"ghostvision"`, `"mounted"`, `"dismounted"`** — triggers `UpdateSandstormWalkSpeed` to adjust speed in response to vision/mount state changes.  
-- **Pushes `"sandstormlevel"`** on entity — broadcasts the current sandstorm level (e.g., for UI updates).
+## Events & listeners
+- **Listens to:**  
+  - `"ms_stormchanged"` — triggered by `TheWorld` to toggle sandstorm handling when storm type is `STORM_TYPES.SANDSTORM`.  
+  - `"gogglevision"`, `"ghostvision"`, `"mounted"`, `"dismounted"` — triggers speed recalculation via `UpdateSandstormWalkSpeed`.  
+- **Pushes:**  
+  - `"sandstormlevel"` — fired with `{ level = level }` when storm level changes via `UpdateSandstormLevel()`.

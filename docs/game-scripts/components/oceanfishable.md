@@ -1,108 +1,113 @@
 ---
 id: oceanfishable
 title: Oceanfishable
-description: Controls the behavior and fishing mechanics of fish caught by ocean fishing, including stamina management, rod interaction, and movement response to line tension.
+description: Manages the fishable state and behavior of ocean creatures when interacting with fishing rods, including stamina-based struggle mechanics and movement speed adjustments based on line tension.
+tags: [ocean, fishing, behavior, stamina, movement]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: c84eeb5c
+system_scope: entity
 ---
 
 # Oceanfishable
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component manages the gameplay interactions for ocean-caught fish entities, enabling them to be reeled in by fishing rods. It handles rod attachment/detachment, movement speed modulation based on line tension, stamina-based struggling mechanics, and catch readiness detection. It is designed to be attached to fish entities within the Entity Component System.
+`Oceanfishable` is a component attached to ocean-dwelling creatures (e.g., fish, jellyfish) that enables them to be caught via ocean fishing rods. It handles core mechanics such as line tension–dependent movement speed, stamina-based struggling states, and integration with the `oceanfishingrod` component. It supports event hooks for custom behavior on rod attachment, being eaten, and reeling in.
 
-## Dependencies & Tags
-**Component Dependencies:**
-- `inst.components.locomotor` — used for dynamic speed adjustment (walkspeed/runspeed)
-- `inst.components.inventoryitem` — optionally used to determine grand owner for catch distance checks
+## Usage example
+```lua
+local inst = CreateEntity()
+-- Attach the component to an ocean creature prefab
+inst:AddComponent("oceanfishable")
 
-**Tags:**
-- Adds `"oceanfishing_catchable"` tag when the fish is close enough to the fishing rod owner and the rod is attached.
-- Removes `"oceanfishing_catchable"` tag when detached or out of range.
+-- Optional: Configure struggle mechanics
+inst.components.oceanfishable:StrugglingSetup(
+    TUNING.WILSON_WALK_SPEED * 1.5,
+    TUNING.WILSON_RUN_SPEED * 1.5,
+    { drain_rate = 0.5, recover_rate = 0.2, struggle_times = { low = 1.0, high = 2.0 }, tired_times = { low = 0.5, high = 1.0 } }
+)
 
-**No other components are explicitly added** — it only interacts with existing ones.
+-- Optional: Assign hooks for events
+inst.components.oceanfishable.onsetrodfn = function(inst, rod) print("Rod attached:", rod) end
+inst.components.oceanfishable.oneatenfn = function(inst, eater) print("Eaten by:", eater) end
+```
+
+## Dependencies & tags
+**Components used:** `locomotor`, `inventoryitem` (via `GetGrandOwner`), `oceanfishingrod`
+**Tags:** Checks/updates `oceanfishing_catchable`; listens for `onremove` on attached rod.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *(passed to constructor)* | Reference to the owning entity. |
-| `rod` | `Entity?` | `nil` | The fishing rod currently attached to this fish. |
-| `catch_distance` | `number` | `4` | Maximum distance (in units) from the rod owner required to be catchable. |
-| `max_walk_speed` | `number?` | `nil` | Base walking speed before tension modulation. Set via `StrugglingSetup()`. |
-| `max_run_speed` | `number?` | `nil` | Base running speed before tension modulation. Set via `StrugglingSetup()`. |
-| `stamina_def` | `table?` | `nil` | Definition table containing `drain_rate`, `recover_rate`, `struggle_times`, and `tired_times` for stamina calculations. Set via `StrugglingSetup()`. |
-| `stamina` | `number` | `1.0` | Current stamina level (0.0–1.0), influencing struggle duration and speed. |
-| `is_struggling_state` | `boolean` | `false` | Whether the fish is currently in a struggling state (moving away rapidly). |
-| `pending_is_struggling_state` | `boolean` | `false` | Pending state to allow smooth transitions between struggling states. |
-| `struggling_state_timer` | `number` | `0` | Countdown timer until the next state transition (struggle ↔ tired). |
-| `rod_onremove` | `function` | *(lambda)* | Internal callback to detach the rod if it is removed. |
-| `onsetrodfn` | `function?` | `nil` | Optional hook called when rod is attached/detached: `fn(inst, rod)`. |
-| `onreelinginfn` | `function?` | `nil` | Optional hook called during reel-in: `fn(inst, doer)`. |
-| `onreelinginpstfn` | `function?` | `nil` | Optional hook called *after* reel-in processing: `fn(inst, doer)`. |
-| `oneatenfn` | `function?` | `nil` | Optional hook called when fish is eaten: `fn(inst, eater)`. |
-| `makeprojectilefn` | `function?` | `nil` | Optional override for projectile creation during catch. |
-| `overrideunreelratefn` | `function?` | `nil` | Optional override for line unreel rate calculation. |
+| `rod` | `Entity` or `nil` | `nil` | Reference to the fishing rod that has hooked this entity. |
+| `catch_distance` | number | `4` | Max distance from the rod's owner to trigger the `oceanfishing_catchable` tag. |
+| `stamina` | number or `nil` | `nil` | Current stamina level (`0` to `1`); `nil` if struggling mechanics are not initialized. |
+| `max_walk_speed` | number or `nil` | `nil` | Base walk speed before tension-based scaling. |
+| `max_run_speed` | number or `nil` | `nil` | Base run speed before tension-based scaling. |
+| `is_struggling_state` | boolean | `false` | Current active struggle state. |
+| `pending_is_struggling_state` | boolean | `false` | Pending struggle state to be applied after timer expires. |
+| `struggling_state_timer` | number | `0` | Time remaining (in seconds) before toggling struggle state. |
 
-## Main Functions
+## Main functions
+### `OnRemoveFromEntity()`
+* **Description:** Cleanup handler called when this component is removed from its entity. Detaches any attached fishing rod.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SetRod(rod)`
-* **Description:** Attaches or detaches a fishing rod to/from this fish. Adds/removes the `"oceanfishing_catchable"` tag, updates locomotor speeds, and triggers callbacks. Returns `true` if successfully attached.
-* **Parameters:**
-  - `rod` (`Entity?`): The fishing rod entity to attach, or `nil` to detach.
+* **Description:** Attaches or detaches a fishing rod. Updates tags, updates movement speeds, and registers/unregisters event listeners.
+* **Parameters:** `rod` (`Entity` or `nil`) – The fishing rod entity to attach/detach.
+* **Returns:** `true` if a rod was successfully attached; `false` otherwise.
+* **Error states:** May silently fail if `rod` is invalid or has no `oceanfishingrod` component.
 
-### `OnUpdate(dt)`
-* **Description:** Called every frame while the fish is being targeted. Updates stamina based on line tension, manages struggling state transitions, and ensures correct catchability tag.
-* **Parameters:**
-  - `dt` (`number`): Delta time since last frame.
+### `GetRod()`
+* **Description:** Returns the currently attached fishing rod.
+* **Parameters:** None.
+* **Returns:** `Entity` or `nil`.
 
 ### `StrugglingSetup(walk_speed, run_speed, stamina_def)`
-* **Description:** Initializes stamina-related properties and speed limits. Must be called to enable struggling mechanics.
-* **Parameters:**
-  - `walk_speed` (`number`): Base walking speed.
-  - `run_speed` (`number`): Base running speed (used during struggling).
-  - `stamina_def` (`table`): Table with keys: `drain_rate`, `recover_rate`, `struggle_times`, `tired_times`. Each time value table has `low`/`high` and optional `r_low`/`r_high` for randomized durations.
+* **Description:** Initializes the stamina and movement speed parameters for struggle mechanics.
+* **Parameters:**  
+  - `walk_speed` (number) – Base walk speed for struggle speed calculations.  
+  - `run_speed` (number) – Base run speed for struggle speed calculations.  
+  - `stamina_def` (table) – Configuration table with keys: `drain_rate`, `recover_rate`, `struggle_times`, `tired_times`.
+* **Returns:** Nothing.
 
 ### `IsCloseEnoughToCatch()`
-* **Description:** Determines if the fish is within range to be caught by the player. Requires an attached rod.
+* **Description:** Determines if the entity is within range of the rod’s owner to be caught (i.e., tagged `oceanfishing_catchable`).
 * **Parameters:** None.
+* **Returns:** `boolean` – `true` if within range, `false` otherwise.
 
-### `CalcStaminaDrainRate()`
-* **Description:** Calculates the per-second stamina loss rate, factoring in extra drain from the fishing rod’s tension rating.
-* **Parameters:** None.
+### `OnUpdate(dt)`
+* **Description:** Called each frame. Updates stamina based on line tension, toggles struggle state timers, and manages the `oceanfishing_catchable` tag.
+* **Parameters:** `dt` (number) – Delta time in seconds.
+* **Returns:** Nothing.
 
 ### `ResetStruggling()`
-* **Description:** Immediately resets the fish to a full-struggle state: sets stamina to 1.0, begins timer, and activates struggling.
+* **Description:** Immediately resets stamina to full and toggles the struggle state, resetting the timer.
 * **Parameters:** None.
-
-### `UpdateStruggleState()`
-* **Description:** Applies pending state changes (`pending_is_struggling_state`) and resets the struggle timer.
-* **Parameters:** None.
-
-### `CalcStruggleDuration()`
-* **Description:** Computes the duration (in seconds) before the next state transition (struggle ↔ tired), based on current stamina.
-* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `CalcLineUnreelRate(rod)`
-* **Description:** Computes how fast the fishing line unreels (in units/sec) due to the fish’s movement, used for tension simulation. Returns `0` if not struggling or not moving away.
-* **Parameters:**
-  - `rod` (`Entity`): The fishing rod entity.
-
-### `MakeProjectile()`
-* **Description:** Returns the entity to be used as the projectile when the fish is caught. Defaults to `self.inst`, but can be overridden by `makeprojectilefn`.
-* **Parameters:** None.
+* **Description:** Calculates how fast the fishing line unreels (positive rate means line is drawn in).
+* **Parameters:** `rod` (Entity) – The fishing rod entity.
+* **Returns:** number – unreeling rate per second (non-negative if struggling and running away).
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted string for debugging: includes rod status, struggling state/timer, stamina, and optional lure modifiers.
+* **Description:** Returns a human-readable debug string summarizing state (rod, stamina, struggle timer, lure modifiers).
 * **Parameters:** None.
+* **Returns:** string.
 
-## Events & Listeners
-- **Listens for `"onremove"` event on the attached `rod` entity**, invoking `self.rod_onremove` to automatically detach if the rod is destroyed.
-- **Triggers (via `self.inst`):**
-  - Calls custom hooks (`onsetrodfn`, `onreelinginfn`, `onreelinginpstfn`, `oneatenfn`) when applicable.
-- **Does not push custom events directly.**
+## Events & listeners
+- **Listens to:**  
+  - `onremove` on attached `rod` – triggers `SetRod(nil)` if the rod is removed.
+- **Pushes:**  
+  - None directly (callbacks are invoked via `oneatenfn`, `onsetrodfn`, `onreelinginfn`, and `onreelinginpstfn` fields if assigned).
+
+> Note: This component supports optional hook functions (`onsetrodfn`, `oneatenfn`, `onreelinginfn`, `onreelinginpstfn`, `makeprojectilefn`) that are called by the game or other components. These are not part of the component’s API but are internal extension points.

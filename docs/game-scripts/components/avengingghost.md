@@ -1,93 +1,115 @@
 ---
 id: avengingghost
 title: Avengingghost
-description: Manages the temporary 'avenging' state for player ghosts, granting them combat abilities for a limited time when near a skilled Wendy.
+description: Manages the avenging ghost state for Wendy, increasing damage over time while in ghost form if a nearby player has the 'wendy_avenging_ghost' skill activated.
+tags: [combat, player, ghost, skill, boss]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: combat
+category_type: components
 source_hash: 9a349101
+system_scope: entity
 ---
 
 # Avengingghost
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-The `Avengingghost` component is responsible for managing a temporary empowered state for player ghosts. This state is activated when a player dies and becomes a ghost, provided there is a nearby Wendy player who has unlocked the "wendy_avenging_ghost" skill.
+`AvengingGhost` controls the behavior of Wendy's avenging ghost transformation. When active, it grants increasing damage over time while Wendy is a ghost, provided at least one nearby player has the `wendy_avenging_ghost` skill activated via the `skilltreeupdater` component. The component handles state transitions (`StartAvenging`, `StopAvenging`), time tracking, network sync, world-state-based damage adjustments (day/dusk/night), and attachment of a visual attack effect. It is intended for use only on the master simulation and interacts closely with the `combat`, `aura`, `timer`, and `skilltreeupdater` components.
 
-When active, the component grants the ghost a damage value that scales with the time of day (similar to Abigail), a red visual tint, and a particle effect. This "avenging" mode lasts for a limited duration, which ticks down over time. The countdown timer is slowed when the ghost performs an attack. The state ends when the timer expires or the player is resurrected.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("avengingghost")
+-- Avenging state is triggered automatically on 'ms_becameghost' if ShouldAvenge() returns true.
+-- The component internally manages tick timers and damage scaling via OnUpdate.
+```
 
-## Dependencies & Tags
-**Dependencies:**
-- `combat`: The component modifies the entity's `defaultdamage`.
-- `timer`: Used to track when the ghost has recently attacked to slow the avenge timer's decay.
-- `aura`: An aura is enabled during the avenging state.
-- `skilltreeupdater`: Checked on nearby players to see if the avenging state should be triggered.
-
-**Tags:**
-- The component's logic runs on entities with the `playerghost` tag.
-- It scans for nearby entities with the `player` tag to find a skilled Wendy.
+## Dependencies & tags
+**Components used:** `combat`, `aura`, `timer`, `skilltreeupdater`, `net_float`, `net_hash`
+**Tags:** Listens for `ms_becameghost`, `ms_respawnedfromghost`, `onareaattackother`, and `avengetimedirty` events. Does not directly add/remove tags.
 
 ## Properties
-
 | Property | Type | Default Value | Description |
-| :--- | :--- | :--- | :--- |
-| `ismastersim` | boolean | `TheWorld.ismastersim` | Caches whether the component is running on the server. |
-| `_avengetime` | net\_float | 0 | The remaining time for the avenging state. Network-synchronized. |
-| `_maxtime` | net\_float | 15 | The maximum duration of the avenging state. Network-synchronized. |
-| `_symbol` | net\_hash | nil | A network-synchronized hash, though its usage is not apparent in this script. |
-| `olddamage` | number | nil | Stores the ghost's original `defaultdamage` before it is modified by the avenging state. |
-| `load_avengetime` | number | nil | A temporary variable to hold the avenge time loaded from save data. |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | — | Reference to the entity instance owning this component. |
+| `ismastersim` | boolean | — | Whether the current instance is the server (true) or client (false). |
+| `_avengetime` | `net_float` | `0` | Networked remaining time in seconds (decrements during avenging). |
+| `_maxtime` | `net_float` | `15` | Networked maximum duration (fixed at 15 seconds). |
+| `_symbol` | `net_hash` | `nil` | Networked hash for avenging ghost symbol (not populated in this code). |
+| `olddamage` | number | `nil` | Stores original combat damage before avenging begins. |
 
-## Main Functions
+## Main functions
 ### `GetSymbol()`
-* **Description:** Returns the current value of the `_symbol` net variable.
+* **Description:** Returns the current avenging ghost symbol hash.
 * **Parameters:** None.
+* **Returns:** `hash` (string) — The symbol value; currently always `nil` as it is not set.
+* **Error states:** None.
 
 ### `GetTime()`
-* **Description:** Returns the current remaining time of the avenging state.
+* **Description:** Returns the remaining avenging time.
 * **Parameters:** None.
+* **Returns:** `number` — Time remaining in seconds.
+* **Error states:** None.
 
 ### `GetMaxTime()`
-* **Description:** Returns the maximum duration of the avenging state.
+* **Description:** Returns the maximum avenging duration.
 * **Parameters:** None.
+* **Returns:** `number` — Fixed at `15`.
+* **Error states:** None.
 
 ### `ShouldAvenge()`
-* **Description:** Checks if the conditions to start avenging are met. It scans for nearby players and returns `true` if any of them have the `wendy_avenging_ghost` skill activated. This is a server-side only function.
+* **Description:** (Server-only) Checks whether any nearby player has the `wendy_avenging_ghost` skill activated. Used to decide if avenging should activate upon becoming a ghost.
 * **Parameters:** None.
+* **Returns:** `boolean?` — `true` if a qualifying player is nearby, `nil` otherwise.
+* **Error states:** Returns `nil` immediately if called on client.
 
 ### `StartAvenging(time)`
-* **Description:** Initiates the avenging state on the ghost. This applies a red tint, adds a particle effect, changes the ghost's damage based on the time of day, and starts the countdown timer. This is a server-side only function.
-* **Parameters:**
-    * `time` (number, optional): The time in seconds to set the avenging timer to. If not provided, it defaults to `MAX_TIME` (15 seconds).
+* **Description:** (Server-only) Activates the avenging ghost effect: starts the aura, begins attack timer, sets world-state listeners for dynamic damage, spawns attack effect, updates color, and initializes avenging time.
+* **Parameters:** `time` (number, optional) — Custom starting time in seconds; defaults to `15`.
+* **Returns:** Nothing.
+* **Error states:** Returns early if called on client. Must be called on server.
 
 ### `StopAvenging()`
-* **Description:** Ends the avenging state. This restores the ghost's original damage, removes the visual effects, and stops the countdown timer. This is a server-side only function.
+* **Description:** (Server-only) Deactivates avenging: restores original combat damage, removes aura, kills attack effect, stops world-state listeners, and resets timer/color.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Returns early if called on client or if not currently avenging (`olddamage` is `nil`).
 
 ### `OnUpdate(dt)`
-* **Description:** Called every frame while the component is updating. It decrements the `_avengetime` timer. The rate of time decay is slowed by 50% (`SLOWRATE`) if the ghost has recently attacked. It calls `StopAvenging()` when the timer reaches zero.
-* **Parameters:**
-    * `dt` (number): The time delta since the last update.
+* **Description:** (Server-only) Called periodically while avenging. Decrements avenging time, scaled by `SLOWRATE` if the attack timer is active.
+* **Parameters:** `dt` (number) — Delta time in seconds.
+* **Returns:** Nothing.
+* **Error states:** Returns early if called on client or if avenging is inactive.
 
 ### `OnSave()`
-* **Description:** Serializes the component's state for saving the game. It saves the current `_avengetime`.
+* **Description:** Serializes current avenging time for save game persistence.
 * **Parameters:** None.
+* **Returns:** `{ avengetime = number }` — Table containing the remaining time (or loaded time if available).
+* **Error states:** None.
 
 ### `OnLoad(data, newents)`
-* **Description:** Deserializes the component's state from saved data. It restores the `_avengetime`.
-* **Parameters:**
-    * `data` (table): The saved data table.
-    * `newents` (table): A table for remapping entity references, not used here.
+* **Description:** Loads persisted avenging time after save restoration.
+* **Parameters:** 
+  * `data` (table) — Save data containing `avengetime`.
+  * `newents` (table) — Entity map (unused).
+* **Returns:** Nothing.
+* **Error states:** None.
 
-## Events & Listeners
-**Listens For:**
-- `avengetimedirty`: When the `_avengetime` net variable changes, it pushes the `clientavengetimedirty` event for client-side updates.
-- `ms_becameghost`: When the owner entity becomes a ghost, it checks if it `ShouldAvenge` and starts the process if true.
-- `ms_respawnedfromghost`: When the owner entity is resurrected, it calls `StopAvenging`.
-- `onareaattackother`: When the owner entity performs an area attack, it sets a short timer to indicate a recent attack, which slows the decay of the `_avengetime` in `OnUpdate`.
+## Events & listeners
+- **Listens to:** 
+  - `ms_becameghost` — Triggers `StartAvenging()` if `ShouldAvenge()` returns true.
+  - `ms_respawnedfromghost` — Triggers `StopAvenging()`.
+  - `onareaattackother` — Resets or starts the `"avenging_ghost_attack"` timer on `timer` component.
+  - `avengetimedirty` — Fires `"clientavengetimedirty"` event for UI updates.
+- **Pushes:** 
+  - `"clientavengetimedirty"` —携 `{ val = time }` — Notified when avenging time changes (client-side).
 
-**Pushes:**
-- `clientavengetimedirty`: Pushed to the client when the remaining avenge time changes, sending the new value.
+## Notes
+- This component is server-only (`ismastersim` check). All logic for state transitions and time management occurs on the server; client handles visuals and UI sync.
+- Avenging time is decremented by `dt` normally, but slowed by `dt * 0.5` when the `"avenging_ghost_attack"` timer exists.
+- Damage is dynamically set based on time of day via `TUNING.ABIGAIL_DAMAGE.*` values (`day`, `dusk`, `night`), and visual feedback uses the `abigail_attack_fx` prefab.
+- The `skilltreeupdater:IsActivated("wendy_avenging_ghost")` check ensures the skill must be active for any nearby player for avenging to begin.

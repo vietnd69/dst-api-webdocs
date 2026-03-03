@@ -1,64 +1,69 @@
 ---
 id: eyeofterror_minibrain
 title: Eyeofterror Minibrain
-description: Controls the behavior tree for the Eye of Terror enemy, orchestrating movement, targeting, and feeding logic using priority-based state management.
+description: Controls the AI behavior of the Eye of Terror entity, managing its pathfinding, combat, and foraging actions via a behavior tree.
+tags: [ai, combat, boss, navigation]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: c2a19656
+system_scope: brain
 ---
 
 # Eyeofterror Minibrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The `EyeOfTerrorMiniBrain` is a mini-brain component responsible for governing the behavior of the Eye of Terror enemy entity. It implements a hierarchical behavior tree (`BT`) that prioritizes responses to environmental and combat threats, including panic triggers (electric fences), wall attacks, enemy chasing and combat, food acquisition, and wandering back to a remembered spawn point. This component adheres to DST's Entity Component System and extends the base `Brain` class, relying on components like `eater` and `knownlocations` to make decisions and interact with the world.
+`EyeOfTerrorMiniBrain` is a `MiniBrain` component that defines the behavioral logic for the Eye of Terror entity in Don't Starve Together. It uses a priority-based behavior tree to prioritize panic responses (e.g., electric fences, combat), followed by eating food and wandering to a remembered spawn point. It relies on the `eater` component to identify edible items and the `knownlocations` component to store and retrieve its spawn position.
 
-## Dependencies & Tags
-- **Components used:**
-  - `eater`: Used to determine edible entities via `inst.components.eater:CanEat()`.
-  - `knownlocations`: Used to store and retrieve the spawn point location via `inst.components.knownlocations:RememberLocation()` and `inst.components.knownlocations:GetLocation()`.
-- **Tags checked/used:**
-  - `"busy"`: Checked to prevent action initiation during non-interruptible states (`inst.sg:HasStateTag("busy")`).
-  - `"outofreach"`: Used in search filtering to exclude unreachable food items.
-  - `"INLIMBO"`: Excluded from valid food candidates (typically indicates non-solid or non-spawned states).
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("brain")
+inst:AddComponent("eater")
+inst:AddComponent("knownlocations")
+inst:AddComponent("combat")
+inst:AddComponent("locomotor")
+
+-- Assign the mini-brain to the entity
+inst.brain = EyeOfTerrorMiniBrain(inst)
+inst.brain:OnStart()
+inst.brain:OnInitializationComplete()
+```
+
+## Dependencies & tags
+**Components used:** `eater`, `knownlocations`, `combat` (implicitly via `ChaseAndAttack`), `locomotor` (implicitly via behavior tree), `transform` (for position), `physics` (for world coordinates).  
+**Tags:** Checks `busy` (state tag), `outofreach`, and `INLIMBO` (used in `FindEntity` filtering).
 
 ## Properties
-No public instance properties are initialized in the constructor beyond those inherited from `Brain`. The only constants defined are:
+No public properties.
 
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `FOOD_DISTANCE` | number | `20` | Maximum radius (in units) within which the Eye of Terror scans for edible items. |
-| `EATFOOD_CANT_TAGS` | table | `{ "outofreach", "INLIMBO" }` | List of entity tags that disqualify an item from being considered edible. |
-
-## Main Functions
-
+## Main functions
 ### `OnStart()`
-* **Description:** Initializes the behavior tree upon activation. Constructs a priority-based root node that evaluates conditions in order of urgency. The tree first checks if the entity is *not* in a "charge" state before proceeding to evaluate lower-priority behaviors such as panic avoidance, wall attacks, enemy targeting, food consumption, and wandering.
+* **Description:** Initializes the behavior tree for the Eye of Terror. The root node prioritizes escaping danger (panic triggers, electric fence), then combat, then eating food, and finally wandering near the remembered spawn point—unless currently charging.
 * **Parameters:** None.
-* **Returns:** None. Sets `self.bt` to an instance of `BT` initialized with the constructed root node.
+* **Returns:** Nothing.
+* **Error states:** None documented.
 
 ### `OnInitializationComplete()`
-* **Description:** Records the entity's current spawn position (`x`, `z` with `y` clamped to `0`) under the name `"spawnpoint"` in the `knownlocations` component. The `dont_overwrite` flag ensures the location is only set once and not overwritten later.
+* **Description:** Records the entity’s current world position (with `y = 0`) as the `"spawnpoint"` location. This point is later used as the target for the `Wander` behavior.
 * **Parameters:** None.
-* **Returns:** None.
+* **Returns:** Nothing.
 
-### `EatFoodAction(inst)`
-* **Description:** A helper action function that locates and returns a buffered action to eat a nearby edible item, provided the entity is not currently busy and the item meets viability criteria (edible and on a passable point). This function is invoked by the `DoAction` behavior node.
-* **Parameters:**
-  - `inst`: The entity instance attempting to find food (type: `entity`).
-* **Returns:** `BufferedAction` if a valid food item is found and the entity is not busy; otherwise `nil`.
+### `EatFoodAction(inst)` *(local helper)*
+* **Description:** Constructs an `Action` to find and eat a nearby edible item. Fails if the entity is in a `busy` state, no valid food is within range (`FOOD_DISTANCE = 20`), or the item is unreachable or in limbo.
+* **Parameters:** `inst` (Entity) — the Eye of Terror entity instance.
+* **Returns:** `BufferedAction` instance for `ACTIONS.EAT`, or `nil`.
+* **Error states:** Returns `nil` if `inst.sg:HasStateTag("busy")` is true, or if `FindEntity` yields no valid food.
 
-### `GetSpawnPoint(inst)`
-* **Description:** Retrieves the remembered spawn point location from the `knownlocations` component using the key `"spawnpoint"`. Used by the `Wander` behavior to guide motion back toward this area.
-* **Parameters:**
-  - `inst`: The entity instance (type: `entity`).
-* **Returns:** `Vector3` (or `nil` if no spawn point is stored), representing the spawn position with `y` normalized to `0` during storage.
+### `GetSpawnPoint(inst)` *(local helper)*
+* **Description:** Retrieves the previously stored `"spawnpoint"` location from `knownlocations`.
+* **Parameters:** `inst` (Entity) — passed for API consistency but unused.
+* **Returns:** Vector position (`pos.x`, `pos.y`, `pos.z`) or `nil` if `"spawnpoint"` was never recorded.
 
-## Events & Listeners
-None. This component does not directly register or fire events. Behavior triggers rely on the state graph (`self.inst.sg:HasStateTag()`) and the active behavior tree evaluation cycle.
+## Events & listeners
+None. This component does not register or push events directly.

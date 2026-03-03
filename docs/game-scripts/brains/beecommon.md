@@ -1,84 +1,84 @@
 ---
 id: beecommon
 title: Beecommon
-description: Provides shared constants and utility functions for bee AI behavior, including target sharing, combat response, and hive retreat logic.
+description: Provides shared constants and utility functions for bee behavior, including combat targeting, hive defense, and home-seeking logic.
+tags: [combat, ai, hive, bees]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: dcf15014
+system_scope: entity
 ---
 
 # Beecommon
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **7140014** | Last updated: 2026-03-03
 
 ## Overview
+`beecommon.lua` is a utility module containing shared logic and constants used by bee-related AI systems in DST. It defines distance thresholds for behavioral states (e.g., fleeing, targeting, foraging), and implements core combat and coordination functions—most notably `OnAttacked`, which handles target acquisition, hive-based emergency bee spawning, and coordinated target sharing among nearby bees. This module does not define a component itself, but rather returns a table of reusable functions and constants for use in state graphs and brain scripts.
 
-The `beecommon.lua` file defines a shared Lua module containing constants and helper functions used by bee-related AI behaviors in Don't Starve Together. It centralizes logic for combat reaction, target sharing with nearby bees, and hive retreat decisions. It is not a component itself, but a collection of reusable functions and constants intended to be imported and referenced by brain scripts or state machines for bees.
+## Usage example
+```lua
+local beecommon = require "brains/beecommon"
 
-Key responsibilities include:
-- Triggering target sharing when attacked or worked on (`OnAttacked`, `OnWorked`)
-- Determining safe retreat actions to the hive (`GoHomeAction`)
-- Enforcing hive membership and spawning conditions for child bees (`childspawner.childreninside`, `ReleaseAllChildren`)
+inst:ListenForEvent("attacked", beecommon.OnAttacked)
+inst:ListenForEvent("worked", beecommon.OnWorked)
 
-It depends on several core components: `combat`, `health`, `homeseeker`, `burnable`, and `childspawner`.
+local action = beecommon.GoHomeAction(inst)
+if action then
+    inst:PushEvent("dowork", { action = action })
+end
+```
 
-## Dependencies & Tags
-
-- **Components used:**
-  - `combat` (via `inst.components.combat`)
-  - `health` (via `inst.components.health`)
-  - `homeseeker` (via `inst.components.homeseeker`)
-  - `burnable` (via `inst.components.burnable`)
-  - `childspawner` (via `inst.components.childspawner`)
-- **Tags checked:**
-  - `"bee"`: used to filter valid share targets
-  - `"companion"`: used to ensure only bees of the same type (regular vs companion) share targets
-  - `"epic"`: used to exclude epic bees from target sharing
+## Dependencies & tags
+**Components used:** `combat`, `health`, `homeseeker`, `childspawner`, `burnable`
+**Tags:** Checks `bee`, `companion`, `epic`; used with hive-associated prefabs (e.g., `killerbee` spawn).
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `RUN_AWAY_DIST` | number | `10` | Distance threshold at which bees flee from threats. |
+| `SEE_FLOWER_DIST` | number | `10` | Maximum distance to detect flowers for foraging. |
+| `SEE_TARGET_DIST` | number | `6` | Distance at which bees engage a target. |
+| `MAX_CHASE_DIST` | number | `7` | Farthest a bee will chase a target from its hive. |
+| `MAX_CHASE_TIME` | number | `8` | Seconds a bee will continue chasing before returning home. |
+| `MAX_WANDER_DIST` | number | `32` | Maximum radius bees may wander from their hive. |
+| `SHARE_TARGET_DIST` | number | `30` | Radius around which bees can be summoned to assist in combat. |
+| `MAX_TARGET_SHARES` | number | `10` | Maximum number of bees that can be summoned per defensive trigger. |
 
-No public properties are defined by this module. It exports only constants and functions.
-
-## Main Functions
-
+## Main functions
 ### `GoHomeAction(inst)`
-* **Description:** Constructs and returns a buffered action that moves the entity (`inst`) to its assigned hive (`homeseeker.home`), but only if the hive is valid, exists, and is not currently on fire.
-* **Parameters:**
-  - `inst` (`Entity`): The entity requesting the home action.
-* **Returns:** `BufferedAction` or `nil` — returns an action if conditions are met, otherwise `nil`.
+*   **Description:** Creates a buffered `GOHOME` action toward the bee’s hive if the hive exists, is valid, and not burning.
+*   **Parameters:** `inst` (Entity) - the bee entity requesting the action.
+*   **Returns:** `BufferedAction` or `nil` - returns `nil` if no valid hive exists or if the hive is burning.
+*   **Error states:** Does not spawn bees or return actions if the hive is burning (checked via `burnable:IsBurning()`).
 
 ### `OnAttacked(inst, data)`
-* **Description:** Handles response when the entity is attacked. Sets the attacker as the combat target, spawns child bees (`killerbee` prefab) from the hive if present, and shares the target with nearby bees belonging to the same hive.
-* **Parameters:**
-  - `inst` (`Entity`): The entity being attacked.
-  - `data` (`Table?`): Event data containing at least `{attacker = Entity}`. May be `nil`.
-* **Returns:** `nil`
+*   **Description:** Handles defensive response when the bee is attacked: sets the attacker as the combat target, spawns emergency bees from the hive if applicable, and alerts nearby bees in the same hive to share the target.
+*   **Parameters:**  
+  `inst` (Entity) - the bee entity that was attacked.  
+  `data` (table, optional) - event data table containing `data.attacker` (Entity).  
+*   **Returns:** Nothing.
+*   **Error states:**  
+  - Hive emergency spawning is skipped if the hive or `childspawner` is missing.  
+  - Target sharing is skipped if `attacker` is nil or invalid.  
+  - Companion bees (`companion` tag) only share targets with other companions; wild bees do not share with companions.  
+  - Bees already dead, in Limbo, or marked `epic` are excluded from sharing.
 
 ### `OnWorked(inst, data)`
-* **Description:** Callback triggered when the entity is worked on (e.g., by a player using an item). Internally calls `OnAttacked` with the worker as the attacker, effectively treating interaction as aggression.
-* **Parameters:**
-  - `inst` (`Entity`): The entity being worked on.
-  - `data` (`Table`): Event data containing `{worker = Entity}`.
-* **Returns:** `nil`
+*   **Description:** Forwards worker-related events to `OnAttacked`, allowing bees to respond defensively when a worker (e.g., player) defends the hive.
+*   **Parameters:**  
+  `inst` (Entity) - the bee entity.  
+  `data` (table) - event data containing `data.worker` (Entity) acting as attacker.  
+*   **Returns:** Nothing.
 
-## Constants
-
-| Constant | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `RUN_AWAY_DIST` | number | 10 | Maximum distance within which a bee will attempt to flee. |
-| `SEE_FLOWER_DIST` | number | 10 | Distance threshold for detecting flowers. |
-| `SEE_TARGET_DIST` | number | 6 | Distance threshold for detecting combat targets. |
-| `MAX_CHASE_DIST` | number | 7 | Maximum distance a bee will chase a target. |
-| `MAX_CHASE_TIME` | number | 8 | Maximum duration (in seconds) a bee will chase a target. |
-| `MAX_WANDER_DIST` | number | 32 | Maximum distance from hive a bee may wander. |
-| `SHARE_TARGET_DIST` | number | 30 | Radius around the bee within which other bees are considered for target sharing. |
-| `MAX_TARGET_SHARES` | number | 10 | Upper limit on the number of bees a target can be shared to, reduced by number of bees inside the hive. |
-
-## Events & Listeners
-
-This module does not define any event listeners or push events directly. It is intended to be invoked by event handlers defined in external stategraphs or scripts (e.g., `SGbee.lua`).
+## Events & listeners
+- **Listens to:**  
+  - `attacked` - triggers `OnAttacked` to initiate defense.  
+  - `worked` - triggers `OnWorked` to respond to defensive worker actions.  
+- **Pushes:** No events directly, but `OnAttacked` may result in:  
+  - `childspawner:ReleaseAllChildren()` spawning `killerbee` prefabs.  
+  - `combat:ShareTarget()` activating other bees’ combat brains.

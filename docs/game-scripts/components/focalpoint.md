@@ -1,75 +1,104 @@
 ---
 id: focalpoint
 title: Focalpoint
-description: Manages camera focus targets with configurable priority, range, and updater callbacks for client-side camera positioning in Don't Starve Together.
+description: Manages camera focal point targeting on the client, updating camera offset based on prioritized sources and distance constraints.
+tags: [camera, client, focus, world]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: camera
+category_type: components
 source_hash: 94c62473
+system_scope: world
 ---
 
 # Focalpoint
 
-## Overview
-The `focalpoint` component is a client-side manager that handles camera focus logic by evaluating registered focus sources (e.g., entities) and selecting the most appropriate one based on distance, priority, and updater conditions. It dynamically adjusts the camera offset to follow the highest-priority valid target within range. No server logic depends on this component.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies:** None directly added or required.
-- **Tags:** None added or removed.
-- **External Systems:** Relies on `TheCamera` (camera system) and standard entity events (`onremove`).
+## Overview
+`Focalpoint` is a client-side component that manages dynamic camera focus targeting. It allows multiple sources to register focal point requests (each with a target entity, range, priority, and optional updater callbacks), and selects the highest-priority valid target within range to drive the camera offset. It is typically attached to `TheFocalPoint` and interacts with `TheCamera` to set offsets and reset to default.
+
+## Usage example
+```lua
+-- Register a new focus source (e.g., player selection)
+TheFocalPoint.components.focalpoint:StartFocusSource(c_sel(), "large", nil, 5, 12, 4)
+
+-- Register another source with higher priority but smaller range
+TheFocalPoint.components.focalpoint:StartFocusSource(c_sel(), "small", nil, 999, 999, 3)
+
+-- Stop a specific source when no longer relevant
+TheFocalPoint.components.focalpoint:StopFocusSource(c_sel(), "large")
+
+-- Reset camera to default when all sources are removed
+TheFocalPoint.components.focalpoint:RemoveAllFocusSources(false)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-The component does not declare explicit public properties in a `_ctor`-like block, but the constructor initializes the following internal state variables used as de facto properties:
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | passed to constructor | The entity the component is attached to (typically `TheFocalPoint`). |
-| `targets` | `table` | `{}` | Nested table mapping sources → (id → parameters) for all registered focus sources. |
-| `_onsourceremoved` | `function` | `function(source) self:StopFocusSource(source) end` | Event callback invoked when a registered source entity is removed. |
-| `current_focus` | `table` or `nil` | `nil` | Holds the active focus parameters (source, id, target, etc.) currently dictating camera offset. |
+| `inst` | `Entity` | — | The entity instance this component is attached to (typically `TheFocalPoint`). |
+| `targets` | `table` | `{}` | Nested table mapping `source → {id → params}` for registered focus sources. |
+| `current_focus` | `table?` | `nil` | Currently active focus parameters table, or `nil` if no focus. |
+| `_onsourceremoved` | `function` | — | Internal callback bound to `self:StopFocusSource(source)` for source removal events. |
 
-## Main Functions
-
+## Main functions
 ### `Reset(no_snap)`
-* **Description:** Clears the current focus state and resets the camera to its default offset and behavior. Optionally skips snapping the camera to the new default position.
-* **Parameters:**
-  - `no_snap` (`boolean`, optional): If `true`, the camera offset is set but not snapped; if `false` or omitted, `TheCamera:Snap()` is called.
+* **Description:** Clears the current focus and resets the camera to default settings. Optionally snaps camera immediately.
+* **Parameters:**  
+  `no_snap` (boolean, optional) — if `true`, camera transition is not snapped; otherwise, `TheCamera:Snap()` is called.
+* **Returns:** Nothing.
 
 ### `StartFocusSource(source, id, target, minrange, maxrange, priority, updater)`
-* **Description:** Registers a new or updates an existing focus source (e.g., player, object) with camera tracking parameters. Focus is computed based on the source’s relationship to the camera parent (e.g., player entity). 
-* **Parameters:**
-  - `source` (`Entity` or `table`): The focus source entity (used to track when to deregister via `onremove`).
-  - `id` (`string`, optional, default `"_default_"`): Identifier for this focus entry under the source (allows multiple concurrent focus entries per source).
-  - `target` (`Entity`, optional): The entity whose position is tracked; defaults to `source` if omitted.
-  - `minrange` (`number`): Minimum distance (in world units) where the camera begins to lead toward the target.
-  - `maxrange` (`number`): Maximum distance beyond which the focus source is ignored.
-  - `priority` (`number`): Higher priority values take precedence; ties are broken by closer distance.
-  - `updater` (`table`, optional): Contains optional functions: `IsEnabled(parent, params, source)`, `ActiveFn(params, parent, dist_sq)`, and `UpdateFn(dt, params, parent, dist_sq)`. Defaults to `UpdateFocus` if `UpdateFn` is missing.
+* **Description:** Registers or updates a focus request from a given source. If multiple sources exist, the one with highest priority (and smallest distance on tie) becomes active.
+* **Parameters:**  
+  `source` (entity or token) — unique source identifier.  
+  `id` (string, optional) — sub-id for the source; defaults to `"_default_"`.  
+  `target` (entity, optional) — entity to follow; defaults to `source`.  
+  `minrange` (number) — minimum distance before offset scaling begins.  
+  `maxrange` (number) — maximum range; target outside this range is ignored.  
+  `priority` (number) — priority score; higher values win in selection.  
+  `updater` (table, optional) — optional table containing `UpdateFn` and/or `ActiveFn` callbacks and an `IsEnabled(parent, params, source)` function.  
+* **Returns:** Nothing.
 
 ### `StopFocusSource(source, id)`
-* **Description:** Removes a registered focus source or specific ID under a source. If the stopped focus was the current active focus, resets the camera.
-* **Parameters:**
-  - `source` (`Entity` or `table`): The focus source to remove.
-  - `id` (`string` or `nil`): Specific ID to remove under the source; if `nil`, all focus entries under `source` are removed.
+* **Description:** Removes a focus source (or specific `id` under the source). If the removed focus was current, resets the camera.
+* **Parameters:**  
+  `source` (entity or token) — source to remove.  
+  `id` (string?, optional) — if omitted, all `id`s under this source are removed.  
+* **Returns:** Nothing.
 
 ### `RemoveAllFocusSources(no_snap)`
-* **Description:** Clears all registered focus sources and resets the camera to default.
-* **Parameters:**
-  - `no_snap` (`boolean`, optional): Passed to `Reset()` to control snapping behavior.
+* **Description:** Clears all registered focus sources and resets camera.
+* **Parameters:**  
+  `no_snap` (boolean, optional) — passed to `Reset()`.  
+* **Returns:** Nothing.
 
 ### `CameraUpdate(dt)`
-* **Description:** Evaluates all registered focus sources to determine the best current focus candidate based on distance, priority, and `IsEnabled()` conditions. Updates the camera offset using the selected focus’s updater or the default `UpdateFocus`.
-* **Parameters:**
-  - `dt` (`number`): Delta time (unused directly but passed to updater functions).
+* **Description:** Evaluates all registered focus sources and selects the best one (by priority and distance). Updates camera offset using the source’s updater or the default `UpdateFocus` function. Handles removal of invalid targets.
+* **Parameters:**  
+  `dt` (number) — delta time for smooth updates.  
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a multi-line string with debug information: current camera offset, camera gains, active focus, and a list of all registered focus sources with their parameters.
+* **Description:** Returns a multi-line debug string showing current offset, camera gains, active focus, and all registered sources.
 * **Parameters:** None.
+* **Returns:** `string` — formatted debug output.
 
-## Events & Listeners
-- Listens to `"onremove"` event on registered `source` entities via `inst:ListenForEvent("onremove", self._onsourceremoved, source)` to automatically deregister removed focus sources.
-- Raises no custom events (only interacts with existing camera system and entity lifecycle events).
+## Events & listeners
+- **Listens to:** `onremove` — on registered sources, triggers `self._onsourceremoved(source)` to clean up focus entries when a source entity is removed.
+- **Pushes:** None identified
+
+## Deprecated functions
+### `PushTempFocus(target, minrange, maxrange, priority)`
+* **Description:** Kept for backward compatibility; prints deprecation warning and performs no action.
+* **Parameters:**  
+  `target` (entity), `minrange`, `maxrange`, `priority` (numbers) — unused.  
+* **Returns:** Nothing.
+
+> **Note:** This component is client-only. Server-side logic must not depend on it.

@@ -1,68 +1,79 @@
 ---
 id: unevenground
 title: Unevenground
-description: Periodically detects and notifies nearby players of uneven ground terrain in a circular area around the entity.
+description: Periodically notifies nearby players when they enter a zone affected by uneven ground, triggering related gameplay effects.
+tags: [environment, terrain, networking, detection]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 264c1795
+system_scope: environment
 ---
 
 # Unevenground
 
-## Overview
-This component monitors the area around an entity and periodically broadcasts a `unevengrounddetected` event to all nearby living players, signaling the presence of uneven terrain within a defined radius. It integrates with the DST Entity Component System to support dynamic terrain responses—such as visual effects or gameplay adjustments—based on terrain irregularities.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-* Depends on: `inst.Transform` (for world position), `inst:IsAsleep()`, `inst:DoTaskInTime()`, `inst:DoPeriodicTask()`, `inst:PushEvent()`
-* Tags: None explicitly added or removed.
-* Relies on `AllPlayers` global list and player tags like `"playerghost"`.
+## Overview
+`Unevenground` is an environment-aware component that detects when players are near a source of uneven terrain and notifies them via the `"unevengrounddetected"` event. It operates by running a periodic task that scans for nearby non-ghost players within a defined radius and pushes event data including the component's activation radius and scan period. This component is typically attached to environment objects (e.g., terrain features or custom structures) that impose movement or visibility penalties.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("unevenground")
+inst.components.unevenground:SetEnabled(true)
+inst.components.unevenground:SetRadius(4)
+inst.components.unevenground:SetDetectRadius(12)
+inst.components.unevenground:Start()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds no tags; checks only `playerghost` and `asleep` states via `inst:HasTag` and `inst:IsAsleep()`.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | Reference to the host entity (set in constructor). |
-| `enabled` | `boolean` | `true` | Controls whether detection is active; can be toggled via `Enable()`/`Disable()`. |
-| `radius` | `number` | `3` | Radius (in world units) of the uneven ground effect area. |
-| `detectradius` | `number` | `15` | Maximum distance from the entity at which players will receive detection events. |
-| `detectperiod` | `number` | `0.6` | Time interval (in seconds) between consecutive detection events. |
-| `detecttask` | `Task` | `nil` | Reference to the active periodic task; `nil` when stopped. |
+| `enabled` | boolean | `true` | Whether the component is active and responsive to wake/sleep events. |
+| `radius` | number | `3` | The inner radius of the uneven ground effect zone, passed to clients via events. |
+| `detectradius` | number | `15` | Maximum distance (squared) at which players will be scanned and notified. |
+| `detectperiod` | number | `0.6` | Time interval (in seconds) between each scan of nearby players. |
+| `detecttask` | task reference or `nil` | `nil` | Reference to the active periodic task; `nil` when stopped. |
 
-## Main Functions
-
+## Main functions
 ### `Start()`
-* **Description:** Begins the periodic terrain detection if not already running. Schedules a delayed task (`OnStartTask`) that initiates the main periodic loop. Ignores calls when `enabled` is false or the entity is asleep.
+* **Description:** Initiates the periodic detection task if not already running. Automatically called on component construction (unless the entity is asleep) and by `Enable()` / `OnEntityWake()`.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `Stop()`
-* **Description:** Cancels and nullifies the periodic detection task, halting all events until re-enabled. Used internally by `Disable()` and lifecycle hooks.
+* **Description:** Cancels the active periodic task and clears the task reference. Called automatically when the entity goes to sleep, is removed, or via `Disable()`.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `Enable()`
-* **Description:** Activates the component if currently disabled. Restarts detection *only* if the entity is awake; otherwise, defers until `OnEntityWake`.
+* **Description:** Enables the component and starts detection if the entity is awake.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `Disable()`
-* **Description:** Deactivates the component, stopping detection and clearing the task. Does *not* affect the `enabled` state permanently—subsequent `Enable()` calls will resume.
+* **Description:** Disables the component and stops detection.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnEntityWake()`
-* **Description:** Lifecycle callback triggered when the entity wakes from sleep. Restarts detection if the component is enabled.
-* **Parameters:** None (auto-invoked by the engine).
+* **Description:** Lifecycle callback triggered when the entity wakes. Starts detection if the component is enabled.
+* **Parameters:** None (method signature implies `self` only).
+* **Returns:** Nothing.
 
-### `OnEntitySleep()`
-* **Description:** Alias to `Stop()`. Triggered when the entity goes to sleep, pausing detection until wake-up.
-* **Parameters:** None (auto-invoked by the engine).
-
-### `OnRemoveFromEntity()`
-* **Description:** Alias to `Stop()`. Ensures cleanup and prevents dangling tasks when the component is removed from the entity.
-* **Parameters:** None (auto-invoked by the engine).
-
-## Events & Listeners
-* **Pushes Events:**
-  * `unevengrounddetected` — Broadcast to all non-ghost players within `detectradius` (squared). Carries payload `{ inst = inst, radius = self.radius, period = self.detectperiod }`.
-* **Does Not Listen For:** No `inst:ListenForEvent` calls are present; this component only emits events.
+## Events & listeners
+- **Listens to:** None  
+- **Pushes:**  
+  - `"unevengrounddetected"` — Pushed on each detection cycle for every nearby player. Data includes:  
+    - `inst` (entity): the Unevenground instance owner  
+    - `radius` (number): value of `self.radius`  
+    - `period` (number): value of `self.detectperiod`  
+  - The event is *not* pushed when players enter or leave the zone; it is a periodic notification only.

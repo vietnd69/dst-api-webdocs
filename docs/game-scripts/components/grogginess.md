@@ -1,166 +1,184 @@
 ---
 id: grogginess
 title: Grogginess
-description: Manages the grogginess state and effects—including knockouts and speed reduction—for an entity in Don't Starve Together.
+description: Manages temporary impairment effects including grogginess, knockouts, and associated speed penalties on an entity.
+tags: [knockout, movement, status, combat, ai]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 8af1bddb
+system_scope: entity
 ---
 
 # Grogginess
 
-## Overview
-The `Grogginess` component tracks and governs an entity’s grogginess level—determining whether it becomes knocked out, slows down, or recovers—by managing grogginess accumulation, resistance modifiers, decay, and state transitions. It integrates with the entity’s locomotion system to apply speed modifiers and interacts with state graphs to trigger knockout events.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies**:  
-  - `inst.components.locomotor` (used to apply/remove speed multipliers)  
-  - `inst.components.health` (checked for death or fire damage during knockout conditions)  
-  - `inst.components.burnable` (checked for burning status during knockout conditions)
-- **Tags Added/Removed**:  
-  - Adds `"groggy"` tag when `isgroggy` becomes true (and speed mod is enabled)  
-  - Removes `"groggy"` tag when `isgroggy` becomes false (or speed mod is disabled)  
-- **Modifier Lists Used** (internal):  
-  - `RESISTANCE_MODIFIER_LIST_KEY = "groggyresistance"` (additive)  
-  - `IMMUNITY_MODIFIER_LIST_KEY = "groggyimmunity"` (boolean)
+## Overview
+`Grogginess` is a component that tracks and manages temporary impairment effects such as grogginess and knockouts. It calculates and applies movement speed penalties based on the entity's grogginess level, handles transitions between awake, groggy, knocked-out, and recovering states, and supports customizable test functions for state transitions. It integrates closely with the `health`, `burnable`, and `locomotor` components to ensure proper state synchronization and speed modification.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("grogginess")
+inst.components.grogginess:SetResistance(100)
+inst.components.grogginess:AddGrogginess(50, TUNING.MIN_KNOCKOUT_TIME)
+```
+
+## Dependencies & tags
+**Components used:** `health`, `burnable`, `locomotor`
+**Tags:** Adds `groggy` when grogginess is active and speed modulation is enabled; removes on recovery or component removal.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the parent entity. |
-| `resistance` | `number` | `1` | Base grogginess threshold; exceeding it may trigger knockout. |
-| `grog_amount` | `number` | `0` | Current accumulated grogginess value. |
-| `knockouttime` | `number` | `0` | Time elapsed in current knockout state. |
-| `knockoutduration` | `number` | `0` | Target duration (in seconds) for knockout. |
-| `wearofftime` | `number` | `0` | Time elapsed during wearoff recovery phase. |
-| `wearoffduration` | `number` | `TUNING.GROGGINESS_WEAR_OFF_DURATION` | Total duration for the wearoff transition. |
-| `decayrate` | `number` | `TUNING.GROGGINESS_DECAY_RATE` | Rate at which `grog_amount` decreases per second. |
-| `speedmod` | `number?` | `nil` | Cached speed modifier value (applied to locomotor). |
-| `speedmodmult` | `number` | `1` | Multiplier applied to `speedmod` when setting locomotor speed. |
-| `enablespeedmod` | `boolean` | `true` | Whether grogginess should apply speed modifiers. |
-| `isgroggy` | `boolean` | `false` | Whether entity is currently in groggy state. |
-| `knockedout` | `boolean` | `false` | Whether the entity is currently knocked out. |
-| `_resistance_sources` | `SourceModifierList` | — | Tracks additive resistance modifiers. |
-| `_immunity_sources` | `SourceModifierList` | — | Tracks boolean immunity (prevents grogginess buildup/decay). |
-| `knockouttestfn` | `function?` | `DefaultKnockoutTest` | Function returning `true` if entity should enter knockout. |
-| `cometotestfn` | `function?` | `DefaultComeToTest` | Function returning `true` if knockout should end. |
-| `whilegroggyfn` | `function?` | `DefaultWhileGroggy` | Function called each tick while groggy (applies speed mod). |
-| `whilewearingofffn` | `function?` | `DefaultWhileWearingOff` | Function called each tick during wearoff. |
-| `onwearofffn` | `function?` | `DefaultOnWearOff` | Function called when wearoff completes. |
+| `resistance` | number | `1` | Base grogginess resistance threshold. |
+| `grog_amount` | number | `0` | Current accumulated grogginess. |
+| `knockouttime` | number | `0` | Elapsed time spent knocked out. |
+| `knockoutduration` | number | `0` | Required time to stay knocked out before recovering. |
+| `wearofftime` | number | `0` | Elapsed time since grogginess dropped to zero, during recovery phase. |
+| `wearoffduration` | number | `TUNING.GROGGINESS_WEAR_OFF_DURATION` | Duration of the recovery (wear-off) phase in seconds. |
+| `decayrate` | number | `TUNING.GROGGINESS_DECAY_RATE` | Rate at which grogginess decreases per second. |
+| `speedmod` | number or nil | `nil` | Calculated speed multiplier currently applied. |
+| `speedmodmult` | number | `1` | Multiplier applied to `speedmod` when setting external speed. |
+| `enablespeedmod` | boolean | `true` | Whether speed penalties are actively applied. |
+| `isgroggy` | boolean | `false` | Whether the entity is currently in a groggy state. |
+| `knockedout` | boolean | `false` | Whether the entity has ever been knocked out (during current activation). |
 
-## Main Functions
+## Main functions
 ### `SetSpeedModMultiplier(mult)`
-* **Description:** Sets a multiplier applied to the calculated groggy speed modifier (e.g., from items or traits). Only effective when speed modulation is enabled.  
-* **Parameters:**  
-  - `mult`: `number` — additional multiplier (e.g., 0.9 for 10% penalty). Updates the locomotor immediately if `speedmod` is active.
+*   **Description:** Sets a bonus multiplier for speed modifiers, applied only while speed modulation is active. Updates the locomotor modifier immediately if speed modulation is enabled and a speed modifier is in effect.
+*   **Parameters:** `mult` (number) — the multiplier to apply to the base speed modifier.
+*   **Returns:** Nothing.
 
 ### `SetResistance(resist)`
-* **Description:** Sets the base resistance value. Does *not* add modifiers; only sets the raw threshold.  
-* **Parameters:**  
-  - `resist`: `number` — new base resistance.
+*   **Description:** Sets the base resistance value, overriding the default.
+*   **Parameters:** `resist` (number) — the new resistance threshold.
+*   **Returns:** Nothing.
 
 ### `GetResistance()`
-* **Description:** Returns total resistance, including additive modifier sources.  
-* **Parameters:** None.  
-* **Returns:** `number` — `resistance + modifier list value`.
+*   **Description:** Returns the effective resistance, including additive modifiers from resistance sources.
+*   **Parameters:** None.
+*   **Returns:** number — total resistance value.
 
-### `AddGrogginess(grogginess, knockoutduration)`
-* **Description:** Increases grogginess amount, may trigger knockout if threshold exceeded and conditions met. Resets wearoff progress.  
-* **Parameters:**  
-  - `grogginess`: `number` — amount to add. Ignored if ≤ 0 or immunity is active.  
-  - `knockoutduration`: `number?` — desired knockout duration (capped at `TUNING.MIN_KNOCKOUT_TIME`). If omitted, defaults to current max.
+### `SetDecayRate(rate)`
+*   **Description:** Configures how quickly grogginess decays per second.
+*   **Parameters:** `rate` (number) — new decay rate in grogginess units per second.
+*   **Returns:** Nothing.
 
-### `SubtractGrogginess(grogginess)`
-* **Description:** Decreases grogginess amount. Ensures component is updating to handle eventual exhaustion.  
-* **Parameters:**  
-  - `grogginess`: `number` — amount to subtract. Ignored if ≤ 0 or immunity active.
-
-### `ResetGrogginess()`
-* **Description:** Sets grogginess to zero by subtracting current amount.  
-
-### `SetPercent(percent)`
-* **Description:** Adjusts grogginess to match a percentage of current resistance (0.0–1.0).  
-* **Parameters:**  
-  - `percent`: `number` — fraction of `resistance` to target.
-
-### `MaximizeGrogginess()`
-* **Description:** Adds grogginess up to just below resistance (leaves small buffer).  
-
-### `MakeGrogginessAtLeast(min)`
-* **Description:** Increases grogginess if current amount is below `min`.  
-
-### `CapToResistance()`
-* **Description:** Clamps `grog_amount` to `resistance`.  
-
-### `ExtendKnockout(knockoutduration)`
-* **Description:** Extends current knockout with new duration (only if already knocked out). Also caps grogginess to resistance.  
-* **Parameters:**  
-  - `knockoutduration`: `number` — new knockout duration.
-
-### `KnockOut()`
-* **Description:** Triggers `"knockedout"` event and sets internal `knockedout = true`, if visible and alive.  
-
-### `ComeTo()`
-* **Description:** Ends knockout state by resetting `knockedout` and forcing grogginess to resistance level to immediately re-trigger grogginess logic (if needed). Triggers `"cometo"` event.  
+### `SetWearOffDuration(duration)`
+*   **Description:** Sets the duration (in seconds) of the recovery phase after grogginess reaches zero.
+*   **Parameters:** `duration` (number) — new wear-off duration.
+*   **Returns:** Nothing.
 
 ### `SetEnableSpeedMod(enable)`
-* **Description:** Enables/disables grogginess-based speed modulation. Adds/removes `"groggy"` tag accordingly.  
-* **Parameters:**  
-  - `enable`: `boolean` — whether to enable speed mod.
-
-### `IsGroggy()`
-* **Description:** Returns `true` if grogginess is active (amount > 0, enabled, and not knocked out).  
-* **Returns:** `boolean`.
-
-### `HasGrogginess()`
-* **Description:** Returns `true` if grogginess amount > 0 and speed mod is enabled (includes knocked-out state).  
-* **Returns:** `boolean`.
+*   **Description:** Enables or disables speed penalty application. When disabled, removes the `groggy` tag and stops applying speed modifiers; when re-enabled, restores them if applicable.
+*   **Parameters:** `enable` (boolean) — whether to enable speed modulation.
+*   **Returns:** Nothing.
 
 ### `IsKnockedOut()`
-* **Description:** Checks if entity’s state graph currently has the `"knockout"` state tag.  
-* **Returns:** `boolean`.
+*   **Description:** Checks if the entity’s current state graph has the `knockout` state tag.
+*   **Parameters:** None.
+*   **Returns:** boolean — true if knocked out, false otherwise.
+
+### `IsGroggy()`
+*   **Description:** Determines if the entity is currently groggy (i.e., has non-zero grogginess, speed modulation is enabled, and not knocked out).
+*   **Parameters:** None.
+*   **Returns:** boolean — true if groggy.
+
+### `HasGrogginess()`
+*   **Description:** Checks whether the entity has any active grogginess, regardless of speed modulation state or knockout status.
+*   **Parameters:** None.
+*   **Returns:** boolean — true if `grog_amount` > 0 and speed modulation is enabled.
 
 ### `GetDebugString()`
-* **Description:** Returns formatted debug string for in-game diagnostics. Includes KO status, time, grog/resistance, and speed mod status.  
-* **Returns:** `string`.
+*   **Description:** Returns a formatted string summarizing current grogginess state for debugging.
+*   **Parameters:** None.
+*   **Returns:** string — formatted debug string.
+
+### `AddGrogginess(grogginess, knockoutduration)`
+*   **Description:** Increases accumulated grogginess. May trigger a knockout if grogginess exceeds resistance and no fire-related conditions prevent it.
+*   **Parameters:** `grogginess` (number) — amount to add (must be > 0); `knockoutduration` (number or nil) — minimum knockout duration if triggered.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if `grogginess <= 0` or if an immunity source is active.
+
+### `MaximizeGrogginess()`
+*   **Description:** Adds grogginess to bring the entity to near-maximum resistance level.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `SetPercent(percent)`
+*   **Description:** Sets grogginess to a specified percentage of resistance (0.0–1.0).
+*   **Parameters:** `percent` (number) — desired percentage of resistance.
+*   **Returns:** Nothing.
+
+### `MakeGrogginessAtLeast(min)`
+*   **Description:** Ensures grogginess is at least `min`; adds grogginess only if necessary.
+*   **Parameters:** `min` (number) — minimum required grogginess value.
+*   **Returns:** Nothing.
+
+### `SubtractGrogginess(grogginess)`
+*   **Description:** Decreases grogginess by the specified amount (without going below zero).
+*   **Parameters:** `grogginess` (number) — amount to subtract (must be > 0).
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if `grogginess <= 0` or if an immunity source is active.
+
+### `ResetGrogginess()`
+*   **Description:** Fully resets grogginess to zero.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `CapToResistance()`
+*   **Description:** Caps current grogginess to the current resistance value.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `ExtendKnockout(knockoutduration)`
+*   **Description:** Extends the knockout time if the entity is currently knocked out; resets `knockouttime` and ensures grogginess remains at or above resistance.
+*   **Parameters:** `knockoutduration` (number) — new knockout duration.
+*   **Returns:** Nothing.
+*   **Error states:** Only takes effect if the entity is knocked out.
+
+### `KnockOut()`
+*   **Description:** Fires the `knockedout` event and marks the entity as knocked out (if visible and not dead).
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `ComeTo()`
+*   **Description:** Restores full grogginess after recovering from a knockout; fires the `cometo` event.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Only takes effect if the entity is knocked out and not dead.
 
 ### `AddResistanceSource(source, resistance)`
-* **Description:** Adds an additive modifier to the resistance total (e.g., from items or buff effects).  
-* **Parameters:**  
-  - `source`: `string` — unique identifier for the source.  
-  - `resistance`: `number` — additive resistance to apply.
+*   **Description:** Adds a named source that modifies the entity’s grogginess resistance additively.
+*   **Parameters:** `source` (any) — unique identifier for the source; `resistance` (number) — additive resistance bonus/penalty.
+*   **Returns:** Nothing.
 
 ### `RemoveResistanceSource(source)`
-* **Description:** Removes a previously added resistance modifier.  
+*   **Description:** Removes a previously added resistance source.
+*   **Parameters:** `source` (any) — the source identifier to remove.
+*   **Returns:** Nothing.
 
 ### `AddImmunitySource(source)`
-* **Description:** Grants grogginess immunity (prevents buildup and decay).  
-* **Parameters:**  
-  - `source`: `string` — unique identifier.
+*   **Description:** Adds a named source that grants grogginess immunity (blocks grogginess gain and forces grogginess to zero).
+*   **Parameters:** `source` (any) — unique identifier for the immunity source.
+*   **Returns:** Nothing.
 
 ### `RemoveImmunitySource(source)`
-* **Description:** Removes grogginess immunity.  
-
-### `OnUpdate(dt)`
-* **Description:** Main per-frame update logic: decay grogginess, handle knockout progression/wearoff transition, invoke state-specific callbacks.  
-* **Parameters:**  
-  - `dt`: `number` — delta time in seconds.
-
-### `OnRemoveFromEntity()`
-* **Description:** Cleanup on component removal: clears groggy tag, fires wearoff callback if active.  
+*   **Description:** Removes a previously added immunity source.
+*   **Parameters:** `source` (any) — the source identifier to remove.
+*   **Returns:** Nothing.
 
 ### `TransferComponent(newinst)`
-* **Description:** Transfers current grogginess and wearoff state to another entity’s `Grogginess` component.  
-* **Parameters:**  
-  - `newinst`: `Entity` — destination entity.
+*   **Description:** Transfers the current grogginess state to another entity’s grogginess component.
+*   **Parameters:** `newinst` (Entity) — the destination entity instance.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens for:** None (component is updated explicitly via `StartUpdatingComponent`/`StopUpdatingComponent`).
-- **Emits:**  
-  - `"knockedout"` — triggered in `KnockOut()` when first entering knockout (if visible and not dead).  
-  - `"cometo"` — triggered in `ComeTo()` when exiting knockout (if knocked out and not dead).
+## Events & listeners
+- **Listens to:** `onremove` (on entity removal) — cleanup callback for external speed modifiers (via `LocoMotor`).
+- **Pushes:** `knockedout` — when an entity transitions to the knocked-out state (only if visible and not dead).
+- **Pushes:** `cometo` — when an entity recovers from a knockout.

@@ -1,183 +1,125 @@
 ---
 id: hermitcrabbrain
 title: Hermitcrabbrain
-description: Controls the decision-making and behavior of the Hermit Crab NPC, including trading, wandering, fishing, soaking in hot springs, using weather gear, feeding pets, and responding to environmental conditions.
+description: Manages the AI behavior tree for the Hermit Crab, including trading, fishing, hotspring soaking, pet feeding, tea shop navigation, and environmental adaptation (weather, day/night).
+tags: [brain, ai, npc, weather, inventory]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: entity
 source_hash: 4d949711
+system_scope: brain
 ---
 
 # Hermitcrabbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
+`Hermitcrabbrain` implements the decision-making logic for the Hermit Crab entity via a Behavior Tree (`BT`). It orchestrates high-level tasks such as trading with players, fishing, harvesting meat/berries, soaking in hotsprings, feeding pets, and navigating weather/terrain changes. It relies heavily on the `inventory`, `npc_talker`, `locomotor`, `friendlevels`, `homeseeker`, `petleash`, `trader`, and `timer` components to execute context-aware actions and respond to dynamic in-game conditions.
 
-The `Hermitcrabbrain` component implements the behavior tree (BT) for the Hermit Crab NPC. It governs all autonomous actions and reactions, including trading with players, harvesting resources (meat, berries), fishing, soaking in hot springs, sitting on chairs, managing weather gear (umbrella/coat), feeding critters via `petleash`, speaking at appropriate times, fleeing from aggressive targets, and returning home during night or dangerous conditions (e.g., burning homes). The behavior prioritizes high-level environmental state detection (day/night, rain/snow) and interacts with multiple components including `inventory`, `npc_talker`, `petleash`, `locomotor`, `friendlevels`, `homeseeker`, `trader`, `timer`, `bathingpool`, `burnable`, and `health`.
+## Usage example
+This component is not added manually. It is automatically assigned to the Hermit Crab prefab via its `Brain` definition in the game's asset pipeline. Example of its integration:
+```lua
+local inst = CreateEntity()
+inst:AddBrain("hermitcrabbrain")
+-- The brain initializes and starts executing its Behavior Tree during inst:DoTaskInTime(0, ...)
+```
 
-## Dependencies & Tags
-
-- **Components used:**
-  - `bathingpool` (calls `LeavePool`)
-  - `burnable` (calls `IsBurning`)
-  - `combat` (calls `TargetIs`)
-  - `dryable`, `dryer`, `dryingrack`, `edible`, `equippable`, `friendlevels`, `health`, `hunger`, `inventory`, `locomotor`, `npc_talker`, `petleash`, `sanity`, `timer`, `trader`
-  - `homeseeker` (calls `GetHomePos`, uses `home` property)
-
-- **Tags added/checked:**
-  - `umbrella`, `lightsource`, `pickable`, `bush`, `hermitcrab_marker_fishing`, `oceanfish`, `oceanfishable`, `INLIMBO`, `cansit`, `uncomfortable_chair`, `fire`, `hermithotspring`, `bathbombable`, `critter`, `notarget`, `playerghost`, `busy`, `alert`, `mandatory`, `sitting`, `fishing_idle`, `talking`, `teleporting`, `soakin`
+## Dependencies & tags
+**Components used:** `bathingpool`, `burnable`, `combat`, `dryable`, `dryer`, `dryingrack`, `edible`, `equippable`, `friendlevels`, `health`, `homeseeker`, `hunger`, `inventory`, `locomotor`, `npc_talker`, `petleash`, `sanity`, `timer`, `trader`  
+**Tags checked:** `umbrella`, `lightsource`, `cansit`, `hermitcrab_marker_fishing`, `critter`, `oceanfish`, `oceanfishable`, `INLIMBO`, `pig`, `_combat`, `bathbombable`, `hermithotspring`, `pickable`, `bush`, `playerghost`, `notarget`, `sitting`  
+**Tags added:** `sitting_on_chair` (via stategraph)
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `tea_shops` | table | `{}` | Map of valid tea shop entities (`[ent] = true`) the Hermit Crab considers visiting. |
+| `selected_tea_shop` | Entity or `nil` | `nil` | The currently selected tea shop to navigate toward. |
 
-| Property         | Type      | Default Value | Description |
-|------------------|-----------|---------------|-------------|
-| `tea_shops`      | `table`   | `{}`          | Map of currently active tea shops this hermit crab plans to visit. |
-| `selected_tea_shop` | `Entity?` | `nil`       | Reference to the currently selected tea shop to travel toward. |
-
-## Main Functions
-
+## Main functions
 ### `HermitBrain:AddActiveTeaShop(teashop)`
-* **Description:** Registers a tea shop as active for this hermit crab. It is added to `self.tea_shops` and used later when selecting a destination.
-* **Parameters:**
-  - `teashop` (Entity): The tea shop entity to add.
-* **Returns:** None.
+* **Description:** Registers a tea shop entity as active for this Hermit Crab.
+* **Parameters:** `teashop` (Entity) — the tea shop entity to add.
+* **Returns:** Nothing.
 
 ### `HermitBrain:RemoveActiveTeaShop(teashop)`
-* **Description:** Removes a tea shop from the active set. If it was the selected shop, the locomotion is stopped and `selected_tea_shop` is cleared.
-* **Parameters:**
-  - `teashop` (Entity): The tea shop entity to remove.
-* **Returns:** None.
-
-### `HermitBrain:AnyActiveTeaShop()`
-* **Description:** Returns whether any tea shop is currently active.
-* **Parameters:** None.
-* **Returns:** `boolean` — true if at least one tea shop exists in `tea_shops`.
-
-### `HermitBrain:GetFirstTeaShop()`
-* **Description:** Returns the first tea shop in `tea_shops` (or `nil` if none).
-* **Parameters:** None.
-* **Returns:** `Entity?` — First active tea shop or `nil`.
-
-### `HermitBrain:ValidateTeaShops()`
-* **Description:** Filters out invalid tea shops (burnt, burning, or non-existent) from `tea_shops` and clears `selected_tea_shop` if it was invalid.
-* **Parameters:** None.
-* **Returns:** None.
+* **Description:** Removes a tea shop from the active set and stops the Hermit Crab’s locomotion if it was the selected shop.
+* **Parameters:** `teashop` (Entity) — the tea shop entity to remove.
+* **Returns:** Nothing.
 
 ### `HermitBrain:SelectTeaShop()`
-* **Description:** Validates tea shops, selects the first valid one, announces via NPC talker, and sets `selected_tea_shop`. Returns true on success.
+* **Description:** Validates active tea shops and selects the first valid one. If successful, triggers chatter announcing movement toward the shop.
 * **Parameters:** None.
-* **Returns:** `boolean?` — true if a valid tea shop was selected; `nil` otherwise.
-
-### `HermitBrain:CheckSelectedTeaShop()`
-* **Description:** Verifies that the currently selected tea shop is still valid.
-* **Parameters:** None.
-* **Returns:** `boolean` — true if `selected_tea_shop` is valid.
+* **Returns:** `true` if a tea shop was selected; `nil` otherwise.
 
 ### `HermitBrain:GetSelectedTeaShopPos()`
-* **Description:** Returns the world position of the selected tea shop, or `nil` if none is valid.
+* **Description:** Returns the world position of the currently selected tea shop if valid.
 * **Parameters:** None.
-* **Returns:** `Vector3?` — Position of tea shop or `nil`.
+* **Returns:** `Vector3` or `nil`.
 
 ### `HermitBrain:GetSelectedTeaShop()`
-* **Description:** Returns the selected tea shop entity if valid, or `nil`.
+* **Description:** Returns the selected tea shop entity if valid.
 * **Parameters:** None.
-* **Returns:** `Entity?` — Selected tea shop or `nil`.
+* **Returns:** Entity or `nil`.
 
-### `HermitBrain:OnStart()`
-* **Description:** Initializes the behavior tree root. Contains high-priority nodes for weather gear toggling, talk queue handling, tea shop navigation, critter feeding, trading, fleeing, soaking, and daily vs. nightly behavior sub-trees. Uses a `PriorityNode` to evaluate conditions in order of priority.
+### `HermitBrain:ValidateTeaShops()`
+* **Description:** Filters out invalid tea shops (burnt, destroyed, etc.) from the `tea_shops` set and clears `selected_tea_shop` if invalidated.
 * **Parameters:** None.
-* **Returns:** None. (Assigns `self.bt`.)
-
-## Helper Functions (Internal)
-
-### `IsTeaShopValid(teashop)`
-* Returns true if the tea shop is valid (exists, not burnt, not burning).
-
-### `getfriendlevelspeech(inst, target)`
-* Constructs appropriate greeting text based on `friendlevels.level`. Applies custom logic for level 10 (player condition-based remarks). Uses `npc_talker:Say` or `Chatter` based on whether it’s chatter or full speech.
-
-### `GetTraderFn(inst)`
-* Finds a nearby player attempting to trade within `TRADE_DIST`. Triggers a chatter line and updates timers (`speak_time`, `complain_time`). Returns the player entity.
-
-### `KeepTraderFn(inst, target)`
-* Returns true if the target is still the same trader and not talking.
-
-### `HasValidHome(inst)`
-* Verifies that `homeseeker.home` exists, is valid, not burning, and not burnt.
-
-### `GetHomePos(inst)`
-* Returns home position using `homeseeker:GetHomePos()` if valid.
-
-### `GetFaceTargetFn(inst)`
-* Finds the closest player within `START_FACE_DIST`. Triggers a greeting based on friendship level using `getfriendlevelspeech`. Returns the player if appropriate.
-
-### `KeepFaceTargetFn(inst, target)`
-* Ensures face target remains valid and within range (`KEEP_FACE_DIST`).
-
-### `DoCommentAction(inst)`
-* Handles action to move or speak at a pre-defined comment location (`inst.comment_data`).
+* **Returns:** Nothing.
 
 ### `DoFeedPetCritterAction(inst)`
-* Checks if any critter pet is hungry. If so, finds honey in inventory (spawns one if missing), then creates a `BufferedAction` to feed the hungry critter. Announces feeding using `npc_talker`.
-
-### `CanWanderAtPoint(pos)`
-* Determines if wandering is permitted at a position: always true in day; in night, only if within range of a `lightsource` (to avoid being in the dark).
-
-### `GetFirstHungryPetCritter(inst)`
-* Returns the first pet critter that is hungry, not on the ocean, and not in a blocked area.
-
-### `GetFoodForCritter(inst)`
-* Tries to find honey in inventory; spawns one if not found.
-
-### `DoChairSit(inst)`
-* Finds a valid sittable chair and creates `BufferedAction` to sit.
-
-### `DoSoakin(inst)`
-* Checks for a valid `hermithotspring` that isn’t bath-bombed or depleted, and returns `BufferedAction` to `SOAKIN`.
-
-### `ExitHotSpring(inst)`
-* Calls `LeavePool` on the bathing pool if currently soaking.
-
-### `DoReel(inst)`
-* Returns buffered action to reel if currently hooked and idle.
-
-### `DoHarvestMeat(inst)`
-* Harvests dried meat from drying racks or done dryers if `CHEVO_marker` is set.
-
-### `DoHarvestBerries(inst)`
-* Picks a nearby `pickable` or `bush` if `CHEVO_marker` is set.
+* **Description:** Creates a buffered action to feed the first nearby hungry critter pet with honey from inventory (spawning honey if missing).
+* **Parameters:** `inst` (Entity) — the Hermit Crab instance.
+* **Returns:** `BufferedAction` or `nil`.
 
 ### `DoFishingAction(inst)`
-* Checks for fishing markers, finds the one with the most fish nearby, spawns and equips a rod if needed, and initiates ocean fishing.
+* **Description:** Attempts to initiate ocean fishing at the nearest valid fishing marker with the most fish in range, using the fishing rod (equipped or inventory).
+* **Parameters:** `inst` (Entity).
+* **Returns:** `BufferedAction` or `nil`.
 
-### `DoBottleToss(inst)`
-* Tosses a `messagebottle_throwable` into the ocean near fishing markers, if no umbrella is equipped and not in a bad living area.
+### `DoSoakin(inst)`
+* **Description:** Initiates soaking in a valid, non-burnt hotspring that has not been exhausted by a bath bomb.
+* **Parameters:** `inst` (Entity).
+* **Returns:** `BufferedAction` or `nil`.
 
-### `DoTalkQueue(inst)`
-* Advances NPC talk queue if not busy or talking.
+### `ExitHotSpring(inst)`
+* **Description:** Removes the Hermit Crab from the current hotspring bath pool.
+* **Parameters:** `inst` (Entity).
+* **Returns:** Nothing.
 
-### `DoThrow(inst)`
-* Pushes `"tossitem"` event if `inst.itemstotoss` is set.
+### `getfriendlevelspeech(inst, target)`
+* **Description:** Generates and queues greeting speech based on friendship level, optionally including player status advice (if friend level = 10). Manages timers (`speak_time`, `complain_time`).
+* **Parameters:** `inst` (Entity), `target` (Entity, optional).
+* **Returns:** `string`, `table`, or `nil` — the speech string to queue; also returns `true` if using chatter-style queuing.
 
 ### `runawaytest(inst)`
-* Determines whether to flee from players when `friendlevels.level` is low or unfriendly.
+* **Description:** Returns `true` if the Hermit Crab is unfriendly (friend level ≤ `UNFRIENDLY_LEVEL`) and a player is nearby; also initiates greeting chatter before retreating.
+* **Parameters:** `inst` (Entity).
+* **Returns:** `boolean`.
 
-## Events & Listeners
+### `GetFaceTargetFn(inst)`
+* **Description:** Returns the closest player (within `START_FACE_DIST`) as a face target, triggering a greeting if not already greeted. Handles fishing interruption.
+* **Parameters:** `inst` (Entity).
+* **Returns:** Entity or `nil`.
 
-### Listens to
-None explicitly registered via `inst:ListenForEvent`. The brain responds to game events indirectly via stategraph state tags (e.g., `busy`, `talking`, `soakin`) and condition checks.
+### `KeepFaceTargetFn(inst, target)`
+* **Description:** Continues facing `target` only if valid, within range (`KEEP_FACE_DIST`), and not busy/talking.
+* **Parameters:** `inst` (Entity), `target` (Entity).
+* **Returns:** `boolean`.
 
-### Pushes
-- `"setoverflow"` (via `inventory:Unequip`)
-- `"unequip"` (via `inventory:Unequip`)
-- `"setoverflow"` (in `EquipUmbrella`, `UnEquipUmbrella`, `EquipCoat`, `UnEquipBody`)
-- `"oceanfishing_stoppedfishing"` (when fishing is interrupted to face player)
-- `"hermitcrab_entered"` (on tea shop entry)
-- `"tossitem"` (in `DoThrow`)
-- `"locomote"` (via `locomotor:Stop`)
-- `"ms_leavebathingpool"` (via `bathingpool:LeavePool`)
+### `DoBottleToss(inst)`
+* **Description:** Tosses a message bottle into the ocean from the nearest fishing marker if no umbrella is equipped and no cooldown is active.
+* **Parameters:** `inst` (Entity).
+* **Returns:** `BufferedAction` or `nil`.
+
+### `DoChairSit(inst)`
+* **Description:** Attempts to sit on a comfortable chair in the Hermit Crab’s island radius.
+* **Parameters:** `inst` (Entity).
+* **Returns:** `BufferedAction` or `nil`.
+
+## Events & listeners
+- **Listens to:** `hermitcrab_entered` — fired by the tea shop when the Hermit Crab arrives.
+- **Pushes:** `oceanfishing_stoppedfishing`, `tossitem`, `ms_leavebathingpool` (via `bathingpool:LeavePool`), `unequip`, `setoverflow` (via inventory operations), `locomote`, `buffed` (via `DoAction` success callbacks, indirectly via `npc_talker`).

@@ -1,81 +1,84 @@
 ---
 id: temperatureoverrider
 title: Temperatureoverrider
-description: Registers and manages a spatially active temperature override source for entities in the world, allowing local temperature to be customized per entity within a specified radius.
+description: Provides a temperature override that takes effect within a specified radius around the entity, used for localized environmental heating or cooling.
+tags: [environment, temperature, override, network, world]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 02b91be7
+system_scope: environment
 ---
 
 # Temperatureoverrider
 
-## Overview  
-This component enables an entity to define a localized region around itself where the ambient temperature is overridden to a custom value. It maintains a global registry of active overrider instances and provides the `GetTemperatureAtXZ` and `GetLocalTemperature` functions to resolve the effective temperature at any point in the world, prioritizing proximity-based overrides before falling back to global or fumarole-based defaults.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags  
-- Relies on:  
-  - `inst.Transform` (for world position queries via `GetDistanceSqToPoint`)  
-  - `inst.GUID` (used for network variable binding)  
-- Network variables created:  
-  - `_activeradius` (float, networked, triggers `_activeradiusdirty` event)  
-  - `_temperature` (float, networked)  
-- No specific tags added/removed.
+## Overview
+`TemperatureOverrider` is a world-space component that allows an entity to define a localized temperature effect within a circular radius. When enabled, it registers itself globally and overrides the base world temperature for any location (`x, z`) within its radius. It uses networked float variables (`_activeradius` and `_temperature`) for client-server synchronization. When no active overrider is within range, it falls back to `fumarolelocaltemperature:GetTemperatureAtXZ()` or the global `TheWorld.state.temperature`.
 
-## Properties  
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("temperatureoverrider")
+inst.components.temperatureoverrider:SetRadius(10)
+inst.components.temperatureoverrider:SetTemperature(50)
+inst.components.temperatureoverrider:Enable()
+```
+
+## Dependencies & tags
+**Components used:** `transform`, `temperatureoverrider` (self), `fumarolelocaltemperature` (global `TheWorld.net.components.fumarolelocaltemperature`)
+**Tags:** None identified.
+
+## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity the component is attached to. |
-| `ismastersim` | `boolean` | `TheWorld.ismastersim` | Indicates whether this component instance runs in master simulation (server). |
-| `_activeradius` | `net_float` | `0` (initial), synced via network | Networked variable for the current active radius of the temperature override. |
-| `_temperature` | `net_float` | `25` (on server init) | Networked variable storing the custom temperature to apply inside the radius. |
-| `radius` | `number` | `16` (server-only, non-networked) | Internal cached radius value used on the server to control active radius when enabled. |
-| `enabled` | `boolean` | `false` (server-only) | Controls whether this overrider contributes to temperature calculations. |
+| `radius` | number | `16` (server-side only, initial) | Desired active radius in units. Only affects internal logic; final active radius is stored in `_activeradius`. |
+| `enabled` | boolean | `false` (server-side only, initial) | Whether the overrider is active. Must be set via `Enable()` or `Disable()` to take effect. |
 
-## Main Functions  
-### `TemperatureOverrider:GetActiveRadius()`
-* **Description:** Returns the current active override radius as a networked float value.  
-* **Parameters:** None.  
+## Main functions
+### `SetTemperature(temperature)`
+*   **Description:** Sets the temperature value (in arbitrary units) that will be used within the override radius. Only valid on the master simulation (server).
+*   **Parameters:** `temperature` (number) - the temperature to apply inside the radius.
+*   **Returns:** Nothing.
+*   **Error states:** Has no effect on non-master clients.
 
-### `TemperatureOverrider:GetTemperature()`
-* **Description:** Returns the custom temperature value defined by this overrider.  
-* **Parameters:** None.  
+### `SetRadius(radius)`
+*   **Description:** Updates the *intended* radius. The actual active radius is managed internally via `_activeradius` and is synced over the network.
+*   **Parameters:** `radius` (number) - new radius in units.
+*   **Returns:** Nothing.
+*   **Error states:** Radius is not applied until `Enable()` is called or after `_activeradiusdirty` is triggered. Changes are local to the master simulation.
 
-### `TemperatureOverrider:SetTemperature(temperature)`
-* **Description:** (Server only) Sets the custom temperature to be applied within the override radius. Broadcasts via the networked `_temperature` variable.  
-* **Parameters:**  
-  - `temperature` (number): The new temperature value.  
+### `Enable()`
+*   **Description:** Activates the temperature override by setting `_activeradius` to `radius`, registering the entity in the global `_overriders` set, and listening for changes via network dirty events.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if already enabled or not on the master simulation.
 
-### `TemperatureOverrider:SetRadius(radius)`
-* **Description:** (Server only) Sets the internal radius value, which will be used if `Enable()` is called. Does *not* affect the active radius until enabled or `SetActiveRadius_Internal()` is called.  
-* **Parameters:**  
-  - `radius` (number): The desired override radius.  
+### `Disable()`
+*   **Description:** Deactivates the temperature override by setting `_activeradius` to `0`, unregistering from `_overriders`, and stopping influence on global temperature queries.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if already disabled or not on the master simulation.
 
-### `TemperatureOverrider:Enable()`
-* **Description:** (Server only) Enables the temperature override and activates it by setting the active radius to the stored `radius` value. Registers this entity as a valid overrider in `_overriders`.  
-* **Parameters:** None.  
+### `GetActiveRadius()`
+*   **Description:** Returns the currently active radius value (the value stored in the networked `_activeradius` float).
+*   **Parameters:** None.
+*   **Returns:** `number` - the current override radius (may be `0` if disabled).
 
-### `TemperatureOverrider:Disable()`
-* **Description:** (Server only) Disables the temperature override by setting the active radius to `0`. Unregisters the entity from `_overriders`.  
-* **Parameters:** None.  
+### `GetTemperature()`
+*   **Description:** Returns the temperature value currently stored in the networked `_temperature` float.
+*   **Parameters:** None.
+*   **Returns:** `number` - the current override temperature.
 
-### `TemperatureOverrider:SetActiveRadius_Internal(new, old)`
-* **Description:** (Server only) Updates the `_activeradius` network variable and registers/unregisters this entity in `_overriders` depending on whether the new radius is zero or non-zero. Used internally by `Enable`, `Disable`, and the `radius` property change handler.  
-* **Parameters:**  
-  - `new` (number): The new radius value (may be `0`).  
-  - `old` (number): The previous radius value.  
+### `OnRemoveEntity()`
+*   **Description:** Cleanup hook called when the entity is removed. Ensures the entity is unregistered from `_overriders` if it had a non-zero active radius.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-## Events & Listeners  
-- Listens for:  
-  - `_activeradiusdirty` → calls `OnActiveRadiusDirty(inst)` (on client only)  
-- Triggers:  
-  - `_activeradiusdirty` (via networked variable change)  
-- Global event listeners:  
-  - None  
-- Events pushed by other systems using this component’s values:  
-  - `TheWorld.net.components.fumarolelocaltemperature:GetTemperatureAtXZ(x, z)` (used as fallback, not an event)  
-  - `GetTemperatureAtXZ(x, z)` and `GetLocalTemperature(inst)` query registered overriders — no events involved.
+## Events & listeners
+- **Listens to:** `_activeradiusdirty` - triggers `OnActiveRadiusDirty()` when `_activeradius` is updated over the network.
+- **Pushes:** None.

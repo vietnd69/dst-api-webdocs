@@ -1,47 +1,53 @@
 ---
 id: caveventmitebrain
 title: Caveventmitebrain
-description: Controls the decision-making behavior of cave vent mites, including fleeing, combat, shield usage, foraging, and wandering.
+description: Manages the AI behavior of cave vent mites, including combat, foraging, and navigation using a behavior tree.
+tags: [ai, combat, foraging, navigation]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 9acb7e05
+system_scope: brain
 ---
 
-# CaveventMiteBrain
+# Caveventmitebrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
+`Caveventmitebrain` defines the artificial intelligence for cave vent mites in Don't Starve Together. It orchestrates high-priority survival behaviors such as panic reactions, shield usage, combat chasing, and food foraging via a behavior tree. It leverages the `combat`, `eater`, `knownlocations`, and `timer` components to make decisions and interact with the world.
 
-`caveventmitebrain` is a Brain component responsible for the behavior tree logic of the Cave Vent Mite. It orchestrates high-level decision-making through a prioritized sequence of Behaviors: fleeing from threats (including panic triggers and electric fences), using a damage-triggered shield in combat, chasing and attacking targets, foraging for edible items, and wandering within a defined radius. It integrates several core components (`combat`, `eater`, `knownlocations`, `timer`) to support autonomous, context-sensitive behavior.
+## Usage example
+```lua
+local inst = CreateEntity()
+-- ... entity setup ...
+inst:AddBrain("caveventmitebrain")
+```
+The brain is attached automatically via prefab definition; manual instantiation is not typically required.
 
-## Dependencies & Tags
-- **Components used:**
-  - `combat`: Used via `inst.components.combat:HasTarget()`.
-  - `eater`: Used via `inst.components.eater:CanEat()` and `inst.components.eater:GetEdibleTags()`.
-  - `knownlocations`: Used via `inst.components.knownlocations:GetLocation("home")` and `inst.components.knownlocations:RememberLocation("home", pos)`.
-  - `timer`: Used via `inst.components.timer:TimerExists("shield_cooldown")`.
-- **Tags:** None added or removed by this component.
+## Dependencies & tags
+**Components used:** `combat`, `eater`, `knownlocations`, `timer`  
+**Tags:** None identified (uses tag-based filtering only via `EATFOOD_CANT_TAGS` and edible tag lookups).
 
 ## Properties
-None identified. The component relies on locally defined constants and behavior functions, and does not declare custom properties in its constructor.
+No public properties.
 
-## Main Functions
-
-### `CaveVentMiteBrain:OnStart()`
-* **Description:** Initializes and sets up the behavior tree root node. It constructs a priority-based sequence of Behaviors, assigning higher priority to escape-related behaviors (panic, electric fence), followed by shield usage, combat, foraging, and wandering.
+## Main functions
+### `OnStart()`
+* **Description:** Initializes the behavior tree root with a prioritized sequence of behaviors: panic, shield usage, chasing/attacking, foraging, and wandering.
 * **Parameters:** None.
-* **Returns:** None.
+* **Returns:** Nothing.
+* **Error states:** None — behavior tree construction is robust.
 
-### `CaveVentMiteBrain:OnInitializationComplete()`
-* **Description:** Records the entity's current position as its "home" location using `knownlocations`. This anchor point is used by the `Wander` behavior to constrain movement range.
+### `OnInitializationComplete()`
+* **Description:** Records the entity’s current position as its “home” location for navigation reference.
 * **Parameters:** None.
-* **Returns:** None.
+* **Returns:** Nothing.
+* **Error states:** None.
 
-## Events & Listeners
-None. This component does not register or fire any custom events. It relies entirely on the Behavior Tree system and built-in Behavior hooks (`OnStart`, `OnInitializationComplete`) for execution control.
+## Events & listeners
+- **Listens to:** None identified.
+- **Pushes:** None identified.

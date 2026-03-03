@@ -1,95 +1,120 @@
 ---
 id: forestdaywalkerspawner
 title: Forestdaywalkerspawner
-description: Manages the timing, state, and spawning logic for the Day Walker in the Forest biome, coordinating with junk pile objects and shard-level spawner settings.
+description: Manages the spawning and state tracking of the Day Walker boss in the Forest world, coordinating with the junk pile and shard-level spawner.
+tags: [boss, spawner, world]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: d052008e
+system_scope: world
 ---
 
 # Forestdaywalkerspawner
 
-## Overview
-This component orchestrates the delayed spawning of the Day Walker in the Forest biome. It tracks respawn timing via a countdown of in-game days, interacts with a junk pile (`bigjunk`) to trigger the burial/spawn sequence, and responds to the Day Walker’s defeat to increment power levels. It only exists on the master simulation and synchronizes spawn readiness with the shard-level `shard_daywalkerspawner`.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Required Components on `inst`:** None directly added by this component (assumes `inst` is a valid world or worldroot entity with appropriate tags).
-- **External Components Used:**  
-  - `TheWorld.components.wagpunk_manager`  
-  - `TheWorld.shard.components.shard_daywalkerspawner`  
-- **Entity Tags:** None explicitly added or removed.
+## Overview
+`ForestDayWalkerSpawner` orchestrates the spawning logic for the Day Walker boss in the Forest world. It tracks respawn delays (`days_to_spawn`), manages the relationship with the `bigjunk` entity (junk pile), and synchronizes with `shard_daywalkerspawner` to determine when and where Day Walker should appear. It also persists state across saves and tracks boss defeat to increment the boss's `power_level`. This component only exists on the master simulation and is intended to be attached to a world-level entity.
+
+## Usage example
+```lua
+-- Typically added automatically to the world entity in the Forest
+-- Manual usage in modding would look like:
+local world = TheWorld
+world:AddComponent("forestdaywalkerspawner")
+-- To force an immediate spawn attempt (if conditions met):
+world.components.forestdaywalkerspawner:OnDayChange()
+```
+
+## Dependencies & tags
+**Components used:** `wagpunk_manager`, `shard_daywalkerspawner`  
+**Tags:** Checks `daywalker` tag via entity; does not add/remove tags itself.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `days_to_spawn` | `number` | `TUNING.DAYWALKER_RESPAWN_DAYS_COUNT` | Number of days remaining before the Forest can spawn the Day Walker. Decrements on each `OnDayChange`. |
-| `power_level` | `number` | `1` | Current power level of the Forest (1 or 2). Incremented on Day Walker defeat. |
-| `bigjunk` | `Entity` or `nil` | `nil` | Reference to the junk pile entity used to bury/spawn the Day Walker. Set during spawn attempt. |
-| `daywalker` | `Entity` or `nil` | `nil` | Reference to the currently active Day Walker entity, if spawned. |
+| `days_to_spawn` | number | `TUNING.DAYWALKER_RESPAWN_DAYS_COUNT` | Days remaining until the next Day Walker spawn attempt (decremented per `OnDayChange`). |
+| `power_level` | number | `1` | Current difficulty tier of the Day Walker; increments to max `2` on defeat. |
+| `bigjunk` | entity or `nil` | `nil` | Reference to the `bigjunk` entity (the junk pile) used for spawning Day Walker. |
+| `daywalker` | entity or `nil` | `nil` | Reference to the currently active Day Walker entity. |
 
-## Main Functions
+## Main functions
 ### `IncrementPowerLevel()`
-* **Description:** Increases the `power_level` by 1, up to a maximum of 2.
-* **Parameters:** None.
+*   **Description:** Increases the `power_level` by `1`, capped at `2`. Typically called after Day Walker is defeated.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `GetPowerLevel()`
-* **Description:** Returns the current `power_level`.
-* **Parameters:** None.
+*   **Description:** Returns the current `power_level`.
+*   **Parameters:** None.
+*   **Returns:** number — the current power level (`1` or `2`).
 
 ### `TryToSetDayWalkerJunkPile()`
-* **Description:** Attempts to retrieve and assign the `bigjunk` entity from `wagpunk_manager`. Returns `true` on success, `false` otherwise.
-* **Parameters:** None.
+*   **Description:** Attempts to retrieve and cache the `bigjunk` entity via `wagpunk_manager:GetBigJunk()`. Required before spawning Day Walker from the junk pile.
+*   **Parameters:** None.
+*   **Returns:** `true` if `bigjunk` was successfully set (or already set); `false` otherwise.
 
 ### `ShouldShakeJunk()`
-* **Description:** Returns `true` if a `bigjunk` entity is currently assigned.
-* **Parameters:** None.
+*   **Description:** Determines whether the junk pile is currently active and should be shaken (i.e., Day Walker is buried there).
+*   **Parameters:** None.
+*   **Returns:** `true` if `bigjunk ~= nil`; `false` otherwise.
 
 ### `CanSpawnFromJunk()`
-* **Description:** Determines whether the Forest can currently spawn the Day Walker. Requires either:  
-  (a) an assigned `bigjunk` (burial-in-progress state), *or*  
-  (b) a matching shard spawner location (`"forestjunkpile"`), *and* `days_to_spawn` ≤ 0.  
-  Returns `false` if a Day Walker is already active.
-* **Parameters:** None.
+*   **Description:** Evaluates whether the forest can spawn Day Walker from the junk pile *right now*.
+*   **Parameters:** None.
+*   **Returns:** `true` if `bigjunk` is active and ready to spawn, or if shard conditions match and `days_to_spawn <= 0`; otherwise `false`.
+*   **Error states:** Returns `false` if `daywalker` already exists, or if the shard spawner is not pointing to `"forestjunkpile"`.
 
 ### `OnDayChange()`
-* **Description:** Called at the start of each new day. Decrements `days_to_spawn` while > 0. When reaching 0, initiates the spawn sequence if `TryToSetDayWalkerJunkPile` succeeds, by calling `StartDaywalkerBuried()` on the junk pile.
-* **Parameters:** None.
+*   **Description:** Called daily to decrement `days_to_spawn`. When countdown reaches `0`, triggers spawning logic via `bigjunk:StartDaywalkerBuried()` (if setup succeeds), and resets the countdown.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if `daywalker` or `bigjunk` already exists, or if shard spawner location is not `"forestjunkpile"`.
 
 ### `WatchDaywalker(daywalker)`
-* **Description:** Registers the given Day Walker entity for tracking. Sets up an `onremove` event listener to increment `power_level` and notify the shard on defeat, then clears the reference.
-* **Parameters:**  
-  - `daywalker` (`Entity`): The Day Walker entity to monitor.
+*   **Description:** Registers a listener on the `daywalker` entity to handle post-defeat cleanup and `power_level` increment. Clears the `bigjunk` reference and sets `daywalker`.
+*   **Parameters:** `daywalker` (entity) — the Day Walker instance being watched.
+*   **Returns:** Nothing.
 
 ### `HasDaywalker()`
-* **Description:** Returns `true` if a Day Walker is currently spawned and tracked.
-* **Parameters:** None.
+*   **Description:** Checks whether a Day Walker is currently active.
+*   **Parameters:** None.
+*   **Returns:** `true` if `daywalker ~= nil`; `false` otherwise.
 
 ### `OnPostInit()`
-* **Description:** Initializes event listening for world `cycles` (day changes) if `TUNING.SPAWN_DAYWALKER` is enabled. Immediately triggers `OnDayChange()` if `days_to_spawn` ≤ 0.
-* **Parameters:** None.
+*   **Description:** Called after component initialization. If `TUNING.SPAWN_DAYWALKER` is enabled, sets up the `"cycles"` event listener and triggers an immediate `OnDayChange()` if `days_to_spawn <= 0`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Prepares data and entity references for serialization. Includes `days_to_spawn`, `power_level`, and optional GUIDs for `daywalker` and `bigjunk`.
-* **Parameters:** None.  
-* **Returns:** `data` (table), `refs` (table of GUIDs or `nil`).
+*   **Description:** Serializes component state (including `days_to_spawn`, `power_level`, and references to `daywalker`/`bigjunk` by `GUID`) for saving.
+*   **Parameters:** None.
+*   **Returns:** `{ data, refs }` where:
+    *   `data` (table) — contains `days_to_spawn`, `power_level`, and optionally `daywalker_GUID`, `bigjunk_GUID`.
+    *   `refs` (table or `nil`) — list of `GUID`s of referenced entities.
 
 ### `OnLoad(data)`
-* **Description:** Restores saved state (`days_to_spawn`, `power_level`) from serialized data.
-* **Parameters:**  
-  - `data` (`table`): Data dictionary from `OnSave`.
+*   **Description:** Restores component state from saved data during world load.
+*   **Parameters:** `data` (table or `nil`) — saved data table.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if `data` is `nil`.
 
 ### `LoadPostPass(ents, data)`
-* **Description:** After all entities are loaded, restores references to `daywalker` and `bigjunk` using stored GUIDs. Calls `WatchDaywalker()` on the Day Walker to reattach listeners.
-* **Parameters:**  
-  - `ents` (`table`): Loaded entities map by GUID.  
-  - `data` (`table`): Loaded data dictionary (same as passed to `OnLoad`).
+*   **Description:** Resolves saved entity `GUID`s to live entities using the `ents` table post-load. Sets `self.daywalker` and `self.bigjunk`.
+*   **Parameters:**
+    *   `ents` (table) — map of `GUID -> entity`.
+    *   `data` (table) — loaded data (may include `daywalker_GUID`, `bigjunk_GUID`).
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens to:**
-  - `"onremove"` on the `daywalker` entity (set via `WatchDaywalker`) — triggers power-level increment and shard sync on defeat.
-  - `"cycles"` on `TheWorld` (set in `OnPostInit`) — calls `OnDayChange()` at the start of each day.
+## Events & listeners
+- **Listens to:**  
+  - `"cycles"` (on `TheWorld`) — triggers `OnDayChange()`.  
+  - `"onremove"` (on `self.daywalker`) — triggers power level increment and saves defeat.
+
+- **Pushes:**  
+  - None identified.
+

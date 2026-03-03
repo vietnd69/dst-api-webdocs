@@ -1,93 +1,124 @@
 ---
 id: counter
 title: Counter
-description: This component provides a flexible system for managing multiple named integer counters on an entity, supporting modification, saving, and debugging.
+description: Manages named numeric counters with support for increment/decrement, per-counter save filtering, and save/load persistence.
+tags: [storage, savegame, utilities]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: b04ab796
+system_scope: entity
 ---
 
 # Counter
 
-## Overview
-This component provides a robust and flexible system for entities to manage multiple named integer counters. It allows for the creation, modification, and retrieval of counter values, with built-in functionality for saving and loading only persistent counters, and generating a debug string for introspection. This is useful for tracking various entity-specific states, charges, or resource counts that are not necessarily tied to a physical inventory item.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Counter` is a lightweight utility component that manages a collection of named numeric counters attached to an entity. It provides straightforward arithmetic operations (`Increment`, `Decrement`, `DoDelta`), conditional counter adjustments (`IncrementToZero`, `DecrementToZero`), and integration with DST’s save/load system via `OnSave`/`OnLoad`. Counters can be marked as non-persistent (excluded from save files) using `DoNotSave`. It does not interact with other components directly.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("counter")
+
+inst.components.counter:Set("souls_collected", 5)
+inst.components.counter:Increment("souls_collected", 2)   -- → 7
+inst.components.counter:Decrement("souls_collected")      -- → 6
+inst.components.counter:IncrementToZero("souls_collected")-- moves toward zero
+
+-- Mark a temporary counter as non-persistent
+inst.components.counter:DoNotSave("temp_charge")
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-| Property    | Type  | Default Value | Description                                                    |
-| :---------- | :---- | :------------ | :------------------------------------------------------------- |
-| `inst`      | `table` | `nil`           | A reference to the parent entity this component is attached to. |
-| `counters`  | `table` | `{}`            | A table storing all the named counter values. Keys are counter names (strings), values are numbers. |
-| `donotsave` | `table` | `{}`            | A table used to mark specific counters that should not be saved. Keys are counter names (strings), values are `true`. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `counters` | table | `{}` | Internal map of counter names (string) → numeric values (number). |
+| `donotsave` | table | `{}` | Internal set of counter names (string) → `true` that should be excluded from save data. |
 
-## Main Functions
+## Main functions
 ### `GetCount(countername)`
-*   **Description:** Retrieves the current value of a specified counter. If the counter does not exist, it returns `0`.
-*   **Parameters:**
-    *   `countername`: `string` - The name of the counter to retrieve.
+* **Description:** Returns the current value of the named counter, or `0` if the counter does not exist.
+* **Parameters:** `countername` (string) — the identifier for the counter.
+* **Returns:** number — current counter value (always `>= 0`, unless intentionally set to negative).
 
 ### `Set(countername, value)`
-*   **Description:** Sets the value of a specified counter.
-*   **Parameters:**
-    *   `countername`: `string` - The name of the counter to set.
-    *   `value`: `number` - The new numeric value for the counter.
+* **Description:** Sets the named counter to a specific value. Overwrites any existing value.
+* **Parameters:** 
+  * `countername` (string) — the identifier for the counter.
+  * `value` (number) — the new numeric value.
+* **Returns:** Nothing.
 
 ### `Clear(countername)`
-*   **Description:** Removes a specified counter from the component.
-*   **Parameters:**
-    *   `countername`: `string` - The name of the counter to clear.
+* **Description:** Removes the named counter entirely from the collection (as if it were never set).
+* **Parameters:** `countername` (string) — the identifier for the counter.
+* **Returns:** Nothing.
 
 ### `DoDelta(countername, delta)`
-*   **Description:** Modifies the value of a specified counter by adding `delta`. If the counter's value becomes `0` after the operation, it is cleared (removed).
-*   **Parameters:**
-    *   `countername`: `string` - The name of the counter to modify.
-    *   `delta`: `number` - The amount to add to the counter. Can be positive or negative.
+* **Description:** Applies a signed numeric delta to the named counter, removing the counter if its value becomes `0`.
+* **Parameters:** 
+  * `countername` (string) — the identifier for the counter.
+  * `delta` (number) — the amount to add (can be negative).
+* **Returns:** Nothing.
 
 ### `Increment(countername, magnitude)`
-*   **Description:** Increases the value of a specified counter. Uses `DoDelta` internally.
-*   **Parameters:**
-    *   `countername`: `string` - The name of the counter to increment.
-    *   `magnitude`: `number, optional` - The amount to increment by. Defaults to `1` if not provided.
+* **Description:** Increases the named counter by `magnitude` (default `1`).
+* **Parameters:** 
+  * `countername` (string) — the identifier for the counter.
+  * `magnitude` (number, optional) — amount to increment by (default `1`).
+* **Returns:** Nothing.
 
 ### `Decrement(countername, magnitude)`
-*   **Description:** Decreases the value of a specified counter. Uses `DoDelta` internally.
-*   **Parameters:**
-    *   `countername`: `string` - The name of the counter to decrement.
-    *   `magnitude`: `number, optional` - The amount to decrement by. Defaults to `1` if not provided.
+* **Description:** Decreases the named counter by `magnitude` (default `1`).
+* **Parameters:** 
+  * `countername` (string) — the identifier for the counter.
+  * `magnitude` (number, optional) — amount to decrement by (default `1`).
+* **Returns:** Nothing.
 
 ### `IncrementToZero(countername, magnitude)`
-*   **Description:** Increments a negative counter towards zero. It only affects counters with a negative value. The increment amount is capped at the current counter's absolute value to prevent it from going positive. Uses `DoDelta` internally.
-*   **Parameters:**
-    *   `countername`: `string` - The name of the counter to modify.
-    *   `magnitude`: `number, optional` - The maximum positive amount to increment by. Defaults to `1` if not provided.
+* **Description:** Increases the counter toward zero only if it is currently negative. Does nothing if the counter is already `>= 0`.
+* **Parameters:** 
+  * `countername` (string) — the identifier for the counter.
+  * `magnitude` (number, optional) — maximum step size per call (default `1`).
+* **Returns:** Nothing.
+* **Error states:** No-op if `GetCount(countername) >= 0`.
 
 ### `DecrementToZero(countername, magnitude)`
-*   **Description:** Decrements a positive counter towards zero. It only affects counters with a positive value. The decrement amount is capped at the current counter's value to prevent it from going negative. Uses `DoDelta` internally.
-*   **Parameters:**
-    *   `countername`: `string` - The name of the counter to modify.
-    *   `magnitude`: `number, optional` - The maximum positive amount (absolute value) to decrement by. Defaults to `1` if not provided.
+* **Description:** Decreases the counter toward zero only if it is currently positive. Does nothing if the counter is `<= 0`.
+* **Parameters:** 
+  * `countername` (string) — the identifier for the counter.
+  * `magnitude` (number, optional) — maximum step size per call (default `1`).
+* **Returns:** Nothing.
+* **Error states:** No-op if `GetCount(countername) <= 0`.
 
 ### `DoNotSave(countername)`
-*   **Description:** Marks a specific counter as temporary, preventing it from being saved when the entity's data is persisted. This is typically a one-way operation.
-*   **Parameters:**
-    *   `countername`: `string` - The name of the counter to mark as unsavable.
+* **Description:** Marks a counter as non-persistent. Must be called before save operations to take effect.
+* **Parameters:** `countername` (string) — the identifier for the counter.
+* **Returns:** Nothing.
+* **Notes:** Intended to be a one-way operation; resetting this flag is not supported.
 
 ### `OnSave()`
-*   **Description:** Prepares the component's data for saving. It returns a table containing only the counters that have not been marked with `DoNotSave()`.
-*   **Parameters:** None.
+* **Description:** Invoked during save serialization. Returns a table containing only counters not marked as `donotsave`.
+* **Parameters:** None.
+* **Returns:** table? — `nil` if no counters exist; otherwise `{ counters = { ... } }` with filtered key-value pairs.
 
 ### `OnLoad(data)`
-*   **Description:** Loads counter data from a saved state. It merges the loaded counters with any existing counters on the entity.
-*   **Parameters:**
-    *   `data`: `table` - A table containing the saved counter data, typically generated by `OnSave()`.
+* **Description:** Invoked during load to restore counter values from saved data.
+* **Parameters:** `data` (table?) — save data payload, typically `{ counters = { ... } }`.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-*   **Description:** Generates a formatted string representing all current counters and their values, useful for debugging purposes. Counters are sorted alphabetically by name.
-*   **Parameters:** None.
+* **Description:** Returns a formatted multi-line debug string listing all counter names and values, sorted alphabetically. Useful for console/inspect output.
+* **Parameters:** None.
+* **Returns:** string? — `nil` if no counters; otherwise a string like `"2 total\n  alpha : 3\n  beta : 5"`.
+
+## Events & listeners
+None identified

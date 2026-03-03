@@ -1,0 +1,10 @@
+{
+    "position": 4,
+    "label": "Tasks",
+    "collapsed": true,
+    "link": {
+        "type": "generated-index",
+        "title": "Tasks",
+        "description": "DST tasks API documentation"
+    }
+}

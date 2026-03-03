@@ -1,67 +1,87 @@
 ---
 id: driedsalticon
 title: Driedsalticon
-description: This component manages the display of a "dried salt" overlay icon on an entity's inventory image, synchronizing its state across the network.
+description: Manages the visibility and overlay image of a dried salt icon on an inventory item in DST's UI and world representation.
+tags: [inventory, ui, overlay]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: inventory
+category_type: components
 source_hash: 11d13fe3
+system_scope: inventory
 ---
 
 # Driedsalticon
 
-## Overview
-The `Driedsalticon` component is responsible for visually indicating whether an item, typically salt, is in a "dried" state by displaying a specific overlay icon on its inventory image. It synchronizes this visual state across the network using a `net_bool` and allows for custom callback functions to override its default icon display behavior. On the server, it can explicitly set the inventory item's image name, while on the client, it triggers an `imagechange` event.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-This component relies on the `inventoryitem` component to manage the visual representation of the item within the inventory.
-None identified.
+## Overview
+`DriedSaltIcon` controls whether a dried salt visual overlay appears on an inventory item (e.g., dried beefalo, dried meat). It integrates with the `inventoryitem` component to dynamically update the item’s inventory image when the overlay is toggled. The component uses a networked boolean (`showicon`) to synchronize state across the client and server. Master sim (server) logic triggers image updates via `inventoryitem:ChangeImageName`, while clients listen for the `showicondirty` event to update visuals locally.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("inventoryitem")
+inst:AddComponent("driedsalticon")
+
+-- Show dried salt overlay
+inst.components.driedsalticon:ShowSaltIcon()
+
+-- Hide dried salt overlay
+inst.components.driedsalticon:HideSaltIcon()
+
+-- Optionally override default icon handling
+inst.components.driedsalticon:OverrideShowIconFn(function(item)
+    item.inv_image_bg = { image = "custom_salt.tex" }
+    item.inv_image_bg.atlas = GetInventoryItemAtlas(item.inv_image_bg.image)
+end)
+```
+
+## Dependencies & tags
+**Components used:** `inventoryitem` (via `ChangeImageName`)
+**Tags:** None identified.
 
 ## Properties
-| Property       | Type     | Default Value | Description                                                                                                                                                                                                                 |
-| :------------- | :------- | :------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `inst`         | `table`  | `self`        | A reference to the entity this component is attached to.                                                                                                                                                                    |
-| `ismastersim`  | `boolean`| `TheWorld.ismastersim` | Indicates whether the component instance is running on the master simulation (server).                                                                                                                                      |
-| `showiconfn`   | `function` or `nil` | `nil`         | An optional callback function to be executed when the dried salt icon is shown, overriding the default visual update logic. Set via `OverrideShowIconFn`.                                                                |
-| `hideiconfn`   | `function` or `nil` | `nil`         | An optional callback function to be executed when the dried salt icon is hidden, overriding the default visual update logic. Set via `OverrideHideIconFn`.                                                                |
-| `showicon`     | `net_bool` | `false`       | A networked boolean that determines whether the dried salt icon should be displayed. Changes to this value trigger the `showicondirty` event on the client.                                                                    |
-| `collects`     | `boolean`| `false`       | (Master sim only) An internal flag whose purpose is not directly evident from this script but is exposed for potential use by other systems. Its value is `false` by default on the master simulation. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | — | The entity this component belongs to. |
+| `ismastersim` | boolean | — | `true` on the server, `false` on clients. |
+| `showiconfn` | function \| `nil` | `nil` | Custom function to execute when showing the icon. |
+| `hideiconfn` | function \| `nil` | `nil` | Custom function to execute when hiding the icon. |
+| `showicon` | `net_bool` | — | Networked boolean controlling icon visibility. |
+| `collects` | boolean | `false` | Server-only flag indicating if the item collects salt (settable via `SetCollectsOnDried`). |
 
-## Main Functions
-### `OnShowIconDirty(inst)`
-*   **Description:** This local function is the core logic for updating the visual state of the dried salt icon. It is triggered when the `showicon` network boolean changes or is explicitly called to force an update. It either calls a registered override function (`showiconfn` or `hideiconfn`) or applies/removes the default `salt_dried_overlay` image directly to the inventory item's background.
-*   **Parameters:**
-    *   `inst`: The entity instance to which this component is attached.
-
+## Main functions
 ### `OverrideShowIconFn(fn)`
-*   **Description:** Allows overriding the default behavior when the dried salt icon is to be shown. If a function is provided, it will be called instead of the component's default icon display logic.
-*   **Parameters:**
-    *   `fn`: A function to be called when the icon is shown. It will receive the entity instance as its argument.
+*   **Description:** Sets a custom function to be called when the salt icon is shown, overriding the default image setup logic.
+*   **Parameters:** `fn` (function) — A callback accepting `inst` as its only argument. Receives the entity instance.
+*   **Returns:** Nothing.
 
 ### `OverrideHideIconFn(fn)`
-*   **Description:** Allows overriding the default behavior when the dried salt icon is to be hidden. If a function is provided, it will be called instead of the component's default icon removal logic.
-*   **Parameters:**
-    *   `fn`: A function to be called when the icon is hidden. It will receive the entity instance as its argument.
+*   **Description:** Sets a custom function to be called when the salt icon is hidden, overriding the default cleanup logic.
+*   **Parameters:** `fn` (function) — A callback accepting `inst` as its only argument.
+*   **Returns:** Nothing.
 
 ### `SetCollectsOnDried(collects)`
-*   **Description:** Sets an internal `collects` flag on the master simulation. The direct effect of this flag is not implemented within this component, suggesting it is an informational flag for other systems. This function only operates on the master simulation.
-*   **Parameters:**
-    *   `collects`: A boolean value to set for the `self.collects` property.
+*   **Description:** Sets the `collects` flag on the server, likely used to track whether salt collection behavior is active.
+*   **Parameters:** `collects` (boolean) — Whether the item collects salt.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early with no effect on the client.
 
 ### `ShowSaltIcon()`
-*   **Description:** On the master simulation, this function sets the `showicon` networked boolean to `true`, if it isn't already. This change will propagate to clients and trigger the visual update, immediately calling `OnShowIconDirty` locally as well.
+*   **Description:** Sets the `showicon` state to `true` on the server, triggering an immediate visual update via `OnShowIconDirty`.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early on clients or if the icon is already visible.
 
 ### `HideSaltIcon()`
-*   **Description:** On the master simulation, this function sets the `showicon` networked boolean to `false`, if it isn't already. This change will propagate to clients and trigger the visual update, immediately calling `OnShowIconDirty` locally as well.
+*   **Description:** Sets the `showicon` state to `false` on the server, triggering removal of the salt icon.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early on clients or if the icon is already hidden.
 
-## Events & Listeners
-*   **Listens for:**
-    *   `"showicondirty"`: Listened to on the client simulation. This event is triggered by the `net_bool` property `showicon` whenever its value changes, causing `OnShowIconDirty` to be called.
-*   **Pushes/Triggers:**
-    *   `"imagechange"`: Pushed on the client simulation when the `inv_image_bg` is modified, signaling other components that the item's visual representation might have changed.
+## Events & listeners
+- **Listens to:** `showicondirty` — Triggered by changes to the `showicon` net_bool; invokes `OnShowIconDirty` to update visuals.
+- **Pushes:** `imagechange` — Pushed on clients when updating the inventory image (if not master sim).

@@ -1,165 +1,193 @@
 ---
 id: snowmandecoratable
 title: Snowmandecoratable
-description: This component manages the decoration, stacking, and hat equipment of snowman entities in Don't Starve Together, including client-server synchronization and persistence.
+description: Manages snowman decoration, stacking, hat placement, and state persistence for snowman entities in DST.
+tags: [decoration, stacking, entity, persistence]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 60d56b8e
+system_scope: entity
 ---
 
 # Snowmandecoratable
 
-## Overview
-The `snowmandecoratable` component enables snowmen (or snowballs used as snowman bases) to be decorated with items (e.g., vegetables, bones, feathers), stacked upon each other to increase height, and fitted with hats. It handles visual representation, validation of placement, inventory consumption, and network synchronization between client and server. The component operates only on snowman-related entities and requires master simulation (`ismastersim`) for authoritative actions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Tags added internally:** `FX` (for decor/FX entities created via `CreateDecor`)
-- **Networked properties (via `net_*` functions):**
-  - `decordata`: stores encoded decoration configuration
-  - `basesize`: base snowball size ID (`small`, `med`, `large`)
-  - `stacks`: array of stack layer size IDs
-  - `stackoffsets`: random rotation offsets per stack layer
-- **Event listeners (server-side):** `equipped`, `unequipped`, `enterlimbo`
-- **Event listeners (client-side):** `decordatadirty`, `stacksdirty`
-- **Component usage assumptions:** Requires `Transform`, `AnimState`, `Follower`, and `inventory` components on parent/child entities for visuals and item handling.
+## Overview
+`Snowmandecoratable` manages decorative items placed on snowmen and snowballs, including stacking behavior, hat equip/unequip, and data serialization for saving/loading. It is attached to snowman and snowball prefabs, and handles interaction with the `snowmandecorating` stategraph. The component coordinates closely with `inventory`, `equippable`, `stackable`, `inventoryitem`, `pushable`, `heavyobstaclephysics`, and `workable` components to manage item consumption, dropping, and physics during stacking or unstacking.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddTag("snowman")
+inst:AddComponent("snowmandecoratable")
+inst.components.snowmandecoratable:SetSize("med")
+inst.components.snowmandecoratable:BeginDecorating(player, nil)
+-- Decorations are applied via the snowmandecorating stategraph
+inst.components.snowmandecoratable:EndDecorating(player)
+```
+
+## Dependencies & tags
+**Components used:** `inventory`, `equippable`, `stackable`, `inventoryitem`, `pushable`, `heavyobstaclephysics`, `workable`, `inventoryitemmoisture` (via `inventoryitem:InheritWorldWetnessAtTarget`), `inventoryitem` (via `GetGrandOwner` and `OnPutInInventory`)
+**Tags:** Checks `waxedplant`, `player`; does not add or remove any tags directly.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed to constructor) | The entity the component is attached to (typically a snowman or large snowball). |
-| `ismastersim` | `boolean` | `TheWorld.ismastersim` | Indicates if this instance is running in master simulation (server). |
-| `isdedicated` | `boolean` | `TheNet:IsDedicated()` | True if running on a dedicated server (no visual FX or decor entities). |
-| `decordata` | `net_string` | `""` | Networked string storing encoded decoration data (item hash, rotation, flip, position). |
-| `basesize` | `net_tinybyte` | `STACK_IDS.large` | Networked ID indicating the base stack size (`small`, `med`, `large`). |
-| `stacks` | `net_smallbytearray` | `{}` | Networked array of stack layer IDs. |
-| `stackoffsets` | `net_smallbytearray` | `{}` | Networked array of random rotation offsets for each stack. |
-| `decors` | `array< Entity >` | `{}` (client only) | Local array of decor FX entities (not persisted or synced). |
-| `swapinst` | `Entity or nil` | `nil` (server only) | Reference to the "snowmandecorating_swap_fx" preview entity while decorating. |
-| `hatinst` | `Entity or nil` | `nil` (server only) | Reference to the `snowmanhat_fx` entity showing equipped hat. |
-| `hatrnd` | `number or nil` | `nil` (server only) | Frame index for hat animation (random rotation). |
-| `doer` | `Entity or nil` | `nil` (server only) | The player currently decorating this snowman. |
-| `range` | `number` | `3` | Max distance for auto-closing the decorating UI. |
-| `onclosesnowman` | `function` | (internal) | Callback for when the decorating popup closes, handling validation & item consumption. |
-| `melting` | `boolean or nil` | `nil` | Tracks if the snowman is currently melting. |
+| `ismastersim` | boolean | `TheWorld.ismastersim` | `true` on the server or single-player; `false` on dedicated clients. |
+| `isdedicated` | boolean | `TheNet:IsDedicated()` | `true` on dedicated server, `false` otherwise. |
+| `decors` | table (client only) | `{}` | Array of entity references for visual decorations on the client. |
+| `decordata` | net_string | `""` | Networked string encoding serialized decoration data. |
+| `basesize` | net_tinybyte | `STACK_IDS.large` | ID of the base snowball size (`small`, `med`, or `large`). |
+| `stacks` | net_smallbytearray | `{}` | Array of stack IDs representing upper layers. |
+| `stackoffsets` | net_smallbytearray | `{}` | Random offsets for upper layers to prevent perfect alignment. |
+| `swapinst` | entity or nil | `nil` | FX entity used when the snowman is equipped as a hat. |
+| `hatinst` | entity or nil | `nil` | FX entity for hat visuals on the snowman. |
+| `doer` | entity or nil | `nil` | Player currently interacting with the snowman. |
+| `range` | number | `3` | Interaction range for auto-closing the decorating session. |
+| `melting` | boolean or nil | `nil` | Whether the snowman is currently melting. |
 
-## Main Functions
+## Main functions
+### `CanBeginDecorating(doer)`
+* **Description:** Checks whether a given entity (`doer`) is allowed to begin decorating the snowman.
+* **Parameters:** `doer` (entity) – the entity attempting to start decorating.
+* **Returns:** `true` if decoration can start; otherwise, `false` and a reason string: `"INUSE"` (another player is using it), `"MELTING"`, or `false` if `doer` is busy, heavy-lifting, or pushing the snowman.
+* **Error states:** Returns early with `nil` on clients.
 
-### `SnowmanDecoratable:OnRemoveFromEntity()`
-* **Description:** Cleans up the component on entity removal: ends active decorating sessions, removes listeners, destroys decor/FX entities, and removes the swap hat FX. Also aliased as `OnRemoveEntity`.
+### `BeginDecorating(doer, obj)`
+* **Description:** Starts a decorating session for `doer`, launching the `snowmandecorating` stategraph.
+* **Parameters:** `doer` (entity) – the player decorating; `obj` (entity or nil) – the item initially used to open the decorating screen (e.g., an inventory item).
+* **Returns:** `true` if the session began successfully; `false` if already in use.
+* **Error states:** Returns `false` on clients.
+
+### `EndDecorating(doer)`
+* **Description:** Ends an active decorating session, cleaning up listeners and events.
+* **Parameters:** `doer` (entity or nil) – the player ending the session (if `nil`, the current `doer` is used).
+* **Returns:** Nothing.
+* **Error states:** Returns early on clients.
+
+### `ValidateAndAppendDecorData(doer, olddecordata, newdecordata, basesize, stacks, invobj)`
+* **Description:** (Static function, not a method) Validates a new decoration data set against inventory constraints, consumes items, and returns encoded valid decoration data.
+* **Parameters:**
+  - `doer` (entity) – the player making changes.
+  - `olddecordata` (string) – previous encoded decoration data.
+  - `newdecordata` (string) – new encoded decoration data to validate.
+  - `basesize` (number) – base snowball size ID.
+  - `stacks` (table) – current stacks table.
+  - `invobj` (entity or nil) – inventory item used to open the decorating screen.
+* **Returns:** Encoded string of valid decoration data or `""` if none.
+* **Error states:** Returns `olddecordata` unchanged if validation fails.
+
+### `AddDecorData(tbl, itemhash, rot, flip, x, y)`
+* **Description:** (Static function) Appends a single decoration record (5 values) to a flat table for encoding.
+* **Parameters:**
+  - `tbl` (table) – target table.
+  - `itemhash` (hash) – item prefab hash.
+  - `rot` (number) – animation frame rotation.
+  - `flip` (boolean) – whether to flip the animation.
+  - `x`, `y` (numbers) – screen-space coordinates.
+* **Returns:** Modifies `tbl` in place; no return value.
+
+### `ApplyDecor(decordata, decors, basesize, stacks, stackoffsets, owner, swapsymbol, swapframe, offsetx, offsety)`
+* **Description:** Applies decoration visuals based on encoded data and current snowman structure, spawning visual entities and managing the `highlightchildren` array.
+* **Parameters:** As listed in function signature.
+* **Returns:** `true` if decorations were applied; `false` otherwise.
+* **Error states:** Cleans up old decoration entities before re-applying.
+
+### `GetSize()`
+* **Description:** Returns the human-readable name (`"small"`, `"med"`, or `"large"`) of the snowman’s base size.
 * **Parameters:** None.
+* **Returns:** `string`.
 
-### `SnowmanDecoratable:CanBeginDecorating(doer)`
-* **Description:** Checks if the given player (`doer`) can start decorating this snowman. Enforces exclusivity (one decorator at a time), prevents use while the player is busy/heavy-lifting/pushing, or if the snowman is melting.
+### `SetSize(size)`
+* **Description:** Sets the snowman’s base size by name.
+* **Parameters:** `size` (string) – one of `"small"`, `"med"`, `"large"`.
+* **Returns:** Nothing.
+
+### `CanStack(doer, obj)`
+* **Description:** Checks whether the snowman can accept stacking with another snowman (`obj`).
 * **Parameters:**
-  - `doer` (Entity): The player attempting to begin decorating.
+  - `doer` (entity) – player performing the action.
+  - `obj` (entity) – another snowman or snowball to stack on top.
+* **Returns:** `true` if stacking is allowed; otherwise, `false` and a reason: `"HASHAT"`, `"STACKEDTOOHIGH"`, or `"INUSE"`.
 
-### `SnowmanDecoratable:BeginDecorating(doer, obj)`
-* **Description:** Starts the decorating session for `doer`, spawning a state graph `"snowmandecorating"` and registering cleanup events. Updates state and listening. Returns `true` on success.
+### `Stack(doer, obj)`
+* **Description:** Adds `obj` as a new stack layer on top of the snowman and consumes it.
 * **Parameters:**
-  - `doer` (Entity): The player initiating the decorating.
-  - `obj` (Entity or nil): The inventory item used to open the decorating UI.
+  - `doer` (entity) – player performing the action.
+  - `obj` (entity) – snowman or snowball entity to stack.
+* **Returns:** Nothing.
+* **Error states:** Removes `obj` from the world and updates `stacks` and `stackoffsets` only on the server.
 
-### `SnowmanDecoratable:EndDecorating(doer)`
-* **Description:** Ends an active decorating session. Cleans up listeners, notifies the client via `ms_endsnowmandecorating`, and stops component update loop. Accepts `nil doer` to forcibly end any session.
-* **Parameters:**
-  - `doer` (Entity or nil): The player who completed the session, or `nil` for forced termination.
+### `Unstack(isdestroyed)`
+* **Description:** Unstacks all upper layers and, if the base becomes a snowball, replaces the entity with a `snowball_item`.
+* **Parameters:** `isdestroyed` (boolean) – if `true`, drops snowmen instead of snowballs when unstacking.
+* **Returns:** Nothing.
 
-### `SnowmanDecoratable:ValidateAndAppendDecorData(doer, olddecordata, newdecordata, basesize, stacks, invobj)`
-* **Description:** (Internal, exposed as static function `_ValidateAndAppendDecorData`) Validates new decoration data against inventory, enforces per-size/max-layer decoration limits, consumes items, and returns encoded (valid) decoration data. Handles prioritized consumption from `invobj` first.
-* **Parameters:** (Passed as locals; not a method)
-  - `doer`: Player performing validation.
-  - `olddecordata`: Existing encoded decoration string.
-  - `newdecordata`: User-submitted decoration data (decoded table).
-  - `basesize`: Base size ID.
-  - `stacks`: Current stack IDs.
-  - `invobj`: Optional item used to open the UI (consumed first).
-
-### `SnowmanDecoratable:ApplyDecor(decordata, decors, basesize, stacks, stackoffsets, owner, swapsymbol, swapframe, offsetx, offsety)`
-* **Description:** Applies the given decoration data (decoded table) by spawning FX entities (`CreateDecor`) and attaching them to the `owner` entity. Clears previous decor. Returns `true` if valid decor data was processed.
-* **Parameters:**
-  - `decordata` (string): Encoded decoration data (from `decordata:value()`).
-  - `decors` (array): Local array to store/replace decor FX entities.
-  - `basesize`, `stacks`, `stackoffsets`: Current snowman stack geometry.
-  - `owner`: Entity to parent decor to.
-  - `swapsymbol`, `swapframe`, `offsetx`, `offsety`: Animation/sprite offsets.
-
-### `SnowmanDecoratable:CanStack(doer, obj)`
-* **Description:** Checks if `obj` (another snowman/snowball) can be stacked on top of this one. Enforces height limit (max 6), checks for existing hat, or if already in use. Returns `true` or `false, reason`.
-* **Parameters:**
-  - `doer` (Entity): Player attempting to stack.
-  - `obj` (Entity): The snowman/snowball to stack.
-
-### `SnowmanDecoratable:Stack(doer, obj)`
-* **Description:** Stacks `obj` on top of this snowman by consuming it and updating the `stacks`/`stackoffsets` arrays. Does *not* preserve decorations on the substack.
-* **Parameters:**
-  - `doer` (Entity): Player initiating the stack.
-  - `obj` (Entity): The snowman/snowball to remove and integrate as a stack layer.
-
-### `SnowmanDecoratable:Unstack(isdestroyed)`
-* **Description:** Removes all stacked layers and drops them as items or snowman entities (if `isdestroyed`, spawns destroyed snowmen instead of pick-up items). Drops the base if it’s a `small` snowball (otherwise resets to small size). Requires master sim.
-* **Parameters:**
-  - `isdestroyed` (boolean): Whether to destroy and return unstacked pieces as destroyed snowmen.
-
-### `SnowmanDecoratable:EquipHat(hat)`
-* **Description:** Public wrapper for `EquipHat_Internal`; equips a hat on the snowman via FX attachment. Only accepts valid head-slot hats not already equipped.
-* **Parameters:**
-  - `hat` (Entity): The hat item to equip.
-
-### `SnowmanDecoratable:EquipHat_Internal(hat, overridernd)`
-* **Description:** Internal function that spawns `snowmanhat_fx` and positions it correctly at the snowman’s top. Sets random animation frame (via `overridernd`) and attaches the hat to inventory.
-* **Parameters:**
-  - `hat` (Entity): The hat item.
-  - `overridernd` (number or nil): Optional frame index override (for loaded data).
-
-### `SnowmanDecoratable:UnequipHat()`
-* **Description:** Drops all items from the hat FX and removes it. Resets hat state. Requires master sim.
+### `HasHat()`
+* **Description:** Returns whether a hat is equipped on this snowman.
 * **Parameters:** None.
+* **Returns:** `true` or `false`.
+* **Error states:** Returns `nil` on clients.
 
-### `SnowmanDecoratable:DropAllDecor()`
-* **Description:** Drops all currently applied decorative items as individual entities. Items are grouped into stacks where possible, and `decordata` is cleared. Requires master sim.
+### `EquipHat(hat)`
+* **Description:** Equips a hat item onto the snowman’s hat FX entity.
+* **Parameters:** `hat` (entity) – must be equipped to `EQUIPSLOTS.HEAD`.
+* **Returns:** Nothing.
+* **Error states:** Returns early on clients; only one hat can be equipped at a time.
+
+### `UnequipHat()`
+* **Description:** Removes and drops any hat equipped on the snowman.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `SnowmanDecoratable:DoRefreshDecorData()`
-* **Description:** Reads the current `decordata` and rebuilds all decor FX entities. Used after loading or updating decoration. Only creates visual entities on non-dedicated clients.
+### `SetMelting(melting)`
+* **Description:** Sets or clears the melting state, preventing decoration attempts while melting.
+* **Parameters:** `melting` (boolean).
+* **Returns:** Nothing.
+
+### `IsMelting()`
+* **Description:** Returns whether the snowman is currently melting.
 * **Parameters:** None.
+* **Returns:** `true`, `false`, or `nil`.
 
-### `SnowmanDecoratable:DoDropItem(prefab, x, z, size)`
-* **Description:** Helper to spawn, size, and drop an item with physics and wetness inheritance from the snowman.
-* **Parameters:**
-  - `prefab` (string): Prefab name to spawn.
-  - `x`, `z` (number): Drop coordinates.
-  - `size` (string or nil): Optional size (e.g., `"small"`, `"med"`).
-
-### `SnowmanDecoratable:OnSave()`
-* **Description:** Serializes the component’s state: decoration data, stack layers, hat and its frame. Returns `{ decor?, stacks?, stackoffsets?, hat?, hatrnd? }` and optional entity references.
+### `DoRefreshDecorData()`
+* **Description:** (Client only) Rebuilds visual decoration entities based on `decordata`.
 * **Parameters:** None.
+* **Returns:** `true` if visuals were applied; `false` otherwise.
 
-### `SnowmanDecoratable:OnLoad(data, newents)`
-* **Description:** Loads saved state from `data`—restores stacks, decorations, and hat. Requires `newents` for save-record reconstruction.
+### `LoadDecorData(decordata)`
+* **Description:** Loads decoration data (typically from save) and refreshes visuals.
+* **Parameters:** `decordata` (string) – encoded decoration data.
+* **Returns:** Nothing.
+
+### `OnSave()`
+* **Description:** Prepares data for saving (decorations, stacks, hat, hat frame).
+* **Parameters:** None.
+* **Returns:** `data` (table) and optional `references` (table of ents) for serialization.
+
+### `OnLoad(data, newents)`
+* **Description:** Loads and applies saved decoration, stack, and hat data.
 * **Parameters:**
-  - `data` (table): Saved data from `OnSave`.
-  - `newents` (table): New entity table (for `SpawnSaveRecord`).
+  - `data` (table) – saved component data.
+  - `newents` (table) – new entity mapping for save record loading.
+* **Returns:** Nothing.
 
-### `SnowmanDecoratable:OnUpdate(dt)`
-* **Description:** Auto-closes the decorating session if the decorator moves too far or cannot see the snowman. Monitors `doer` position and line-of-sight.
-* **Parameters:**
-  - `dt` (number): Delta time.
+### `TransferComponent(newinst)`
+* **Description:** Transfers component state to a new snowman entity instance (e.g., during unstacking).
+* **Parameters:** `newinst` (entity).
+* **Returns:** Nothing.
 
-## Events & Listeners
-- **Listens:**
-  - `decordatadirty` (client): Triggers `DoRefreshDecorData()`.
-  - `stacksdirty` (client): Triggers `OnStacksChanged("clientsync")`.
-  - `equipped` (server): Spawns `snowmandecorating_swap_fx` preview for server-side players.
-  - `unequipped` (server): Removes swap FX.
-  - `enterlimbo` (server): Forces end of decorating session.
-  - `onremove` (client/server): Triggers `onclosesnowman` on decorator’s entity removal.
-  - `ms_closepopup` (server): Triggers `onclosepopup` when decorating UI closes.
-
-- **Pushes:**
-  - `ms_endsnowmandecorating`: Sent to client to notify end of decorating session.
-  - Networked changes on `decordata`, `basesize`, `stacks`, `stackoffsets`.
+## Events & listeners
+- **Listens to (server/client):**  
+  - `equipped`, `unequipped`, `enterlimbo` (server only)  
+  - `decordatadirty`, `stacksdirty` (client only)  
+- **Pushes:**  
+  - None directly (uses networked setters like `net_string:value()`, `net_tinybyte:set()`, etc., to propagate changes).  
+- **Internal callbacks:**  
+  - `OnDecorDataDirty_Client`, `OnStacksDirty_Client` – trigger local refresh on clients.  
+  - `onclosepopup`, `onclosesnowman` – fire when the decorating popup closes.

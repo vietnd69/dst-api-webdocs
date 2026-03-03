@@ -1,71 +1,96 @@
 ---
 id: bundler
 title: Bundler
-description: Manages the process of an entity wrapping multiple items into a single bundled object.
+description: Manages the bundling workflow for items, including spawning bundling containers, wrapping items, and persisting state across saves.
+tags: [inventory, crafting, persistence]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: inventory
+category_type: components
 source_hash: 708f6d44
+system_scope: inventory
 ---
 
 # Bundler
 
-## Overview
-The Bundler component manages the state and logic for an entity that is in the process of wrapping items into a bundle (e.g., using wrapping paper). It facilitates the creation of a temporary container, handles the transfer of items into it, and ultimately spawns the final wrapped product. This component works in tandem with the entity's stategraph (`sg`) to transition through various bundling states like `bundle`, `bundling`, and `bundle_pst`.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-This component relies on the presence of other components on various entities:
-- **`inventory`** (on self): Used to give items back to the entity if bundling is canceled or finished.
-- **`bundlemaker`** (on the item used to start bundling): Provides the prefabs for the temporary container and the final wrapped item.
-- **`container`** (on the temporary bundling instance): Manages the items being placed into the bundle.
-- **`unwrappable`** (on the final wrapped item): Used to store the contents of the bundle.
+## Overview
+`Bundler` orchestrates the item bundling process in DST. It is attached to entities (typically players or mobs) that perform bundling actions. The component handles lifecycle stages: initiating a bundling session using a `bundlemaker`-enabled item, opening a temporary container for insertion, and converting the bundled contents into a wrapped item via `unwrappable.WrapItems`. It also supports save/load persistence by serializing intermediate bundling state.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("bundler")
+
+-- Assuming 'item_with_bundlemaker' is an item with a bundlemaker component:
+local success = inst.components.bundler:StartBundling(item_with_bundlemaker)
+if success then
+    -- User inserts items into the opened container...
+    -- Then call FinishBundling when done:
+    inst.components.bundler:FinishBundling()
+end
+```
+
+## Dependencies & tags
+**Components used:** `bundlemaker`, `container`, `inventory`, `inventoryitem`, `unwrappable`  
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :--- | :--- | :--- | :--- |
-| `bundlinginst` | `Entity` | `nil` | The temporary container entity spawned to hold items during the bundling process. |
-| `itemprefab` | `string` | `nil` | The prefab name of the item used to initiate bundling (e.g., "wrappingpaper"). |
-| `wrappedprefab` | `string` | `nil` | The prefab name of the final bundled item that will be created. |
-| `itemskinname` | `string` | `nil` | The skin name of the item used to initiate bundling. |
-| `wrappedskinname` | `string` | `nil` | The skin name to be applied to the final bundled item. |
-| `wrappedskin_id` | `string` | `nil` | The skin ID to be applied to the final bundled item. |
+|----------|------|---------------|-------------|
+| `bundlinginst` | `Entity` or `nil` | `nil` | Temporary container entity spawned during bundling. |
+| `itemprefab` | `string` or `nil` | `nil` | Prefab name of the original bundling item (e.g., "paperbag"). |
+| `wrappedprefab` | `string` or `nil` | `nil` | Prefab name of the resulting wrapped item (e.g., "wrapped_fish"). |
+| `itemskinname` | `string` or `nil` | `nil` | Skin name used for the original bundling item. |
+| `wrappedskinname` | `string` or `nil` | `nil` | Skin name for the final wrapped item. |
+| `wrappedskin_id` | `number` or `nil` | `nil` | Numeric skin ID for the final wrapped item. |
 
-## Main Functions
+## Main functions
 ### `CanStartBundling()`
-* **Description:** Checks if the entity is in a state where it can begin the bundling process. This requires the entity to be in the "bundle" state and not already in the middle of bundling something.
-* **Parameters:** None.
+*   **Description:** Checks if the entity is allowed to begin a new bundling operation. Requires the current state to be `"bundle"` and no bundling in progress.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if bundling can start, otherwise `false`.
 
 ### `IsBundling(bundlinginst)`
-* **Description:** Determines if the entity is currently in the "bundling" state with a specific temporary container instance.
-* **Parameters:**
-    * `bundlinginst` (`Entity`): The temporary container entity to check against.
+*   **Description:** Verifies if the entity is actively bundling *and* the provided entity matches the current bundling container.
+*   **Parameters:** `bundlinginst` (`Entity` or `nil`) — the candidate bundling container.
+*   **Returns:** `boolean` — `true` if actively bundling with the given container.
 
 ### `StartBundling(item)`
-* **Description:** Initiates the bundling process using a specified item (e.g., wrapping paper). It spawns a temporary container, sets internal properties based on the `bundlemaker` component of the item, and transitions the entity's stategraph to the "bundling" state.
-* **Parameters:**
-    * `item` (`Entity`): The item entity being used to start the bundling, which must have a `bundlemaker` component.
+*   **Description:** Starts a bundling session using the provided item. Spawns a temporary container, opens it for the owner, and transitions the stategraph to `"bundling"`.
+*   **Parameters:** `item` (`Entity` or `nil`) — an item with a functional `bundlemaker` component.
+*   **Returns:** `boolean` — `true` on success, `false` otherwise.
+*   **Error states:** Returns `false` if the item lacks a `bundlemaker` component, missing bundling/wrapped prefab data, or if the spawned container fails to open.
 
 ### `StopBundling()`
-* **Description:** Aborts the current bundling process. It removes the temporary container, returns all items from it to the entity's inventory (or drops them), and gives back the original item used to start the process. This function is also used for cleanup when the component is removed.
-* **Parameters:** None.
+*   **Description:** Cancels or aborts the current bundling session. Returns all items in the bundling container to the owner's inventory (or drops them if no inventory), and respawns the original bundling item.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `FinishBundling()`
-* **Description:** Transitions the entity from the active "bundling" state to the final "bundle_pst" (post) state, preparing for the creation of the final wrapped item. This can only be called if the temporary container is not empty.
-* **Parameters:** None.
+*   **Description:** Transitions the stategraph to `"bundle_pst"` after confirming the bundling container is not empty. Does *not* create the wrapped item—this is deferred to `OnFinishBundling`.
+*   **Parameters:** None.
+*   **Returns:** `boolean` — `true` if the state transition succeeded, `false` otherwise.
 
 ### `OnFinishBundling()`
-* **Description:** Called at the end of the bundling animation/state. It creates the final wrapped item, transfers the contents from the temporary container into the new item's `unwrappable` component, cleans up the temporary container, and gives the final wrapped item to the entity.
-* **Parameters:** None.
+*   **Description:** Finalizes bundling: spawns the wrapped item, inserts all items from the bundling container into it via `unwrappable.WrapItems`, removes the bundling container, and gives the wrapped item to the owner.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Serializes the component's state for game saving. It saves the prefabs, skins, and the contents of the temporary container.
-* **Parameters:** None.
+*   **Description:** Serializes the current bundling state, including the bundling container (if non-empty), and pending item/wrapped prefabs.
+*   **Parameters:** None.
+*   **Returns:** `table` or `nil` — save data if bundling is in progress, otherwise `nil`.
 
 ### `OnLoad(data)`
-* **Description:** Deserializes the component's state from save data, restoring any in-progress bundling.
-* **Parameters:**
-    * `data` (`table`): The saved data table generated by `OnSave`.
+*   **Description:** Loads a previously saved bundling state. Re-creates the bundling container and restores all pending state.
+*   **Parameters:** `data` (`table`) — save data from `OnSave`.
+*   **Returns:** Nothing.
+
+## Events & listeners
+- **Listens to:** None identified (no `inst:ListenForEvent` calls in `bundler.lua`).
+- **Pushes:** None identified (no `inst:PushEvent` calls in `bundler.lua`).  
+  *(Note: The component indirectly triggers events by calling methods on other components like `container:Open`, `unwrappable:WrapItems`, etc., but does not fire custom events itself.)*

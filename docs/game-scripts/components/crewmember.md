@@ -1,90 +1,91 @@
 ---
 id: crewmember
 title: Crewmember
-description: Manages an entity's role as a crewmember on a boat, enabling it to contribute to the boat's movement and participate in crew-related actions.
+description: Manages the rowing behavior and boat association for entities acting as crew members on boats.
+tags: [locomotion, boat, rowing]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 00e655ff
+system_scope: entity
 ---
 
 # Crewmember
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component enables an entity to function as an active crew member on a boat. It handles assigning the entity to a boat, managing its contribution to the boat's movement (rowing), and facilitating its participation in specific boat crew behaviors such as pursuing targets or retreating. It also ensures the entity is properly tagged as a "crewmember".
+`Crewmember` is an entity component that enables an entity to function as a rower aboard a boat. It manages the entity’s association with a boat, tracks whether rowing is necessary, applies rowing force, and coordinates with the `boatcrew` or `boatracecrew` components to drive boat movement. The component automatically adds or removes the `crewmember` tag based on its enabled state.
 
-## Dependencies & Tags
-This component explicitly adds and removes the `"crewmember"` tag from the entity it is attached to.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("crewmember")
+inst.components.crewmember:SetBoat(someboat)
+inst.components.crewmember:Enable(true)
+inst.components.crewmember:Row()
+```
 
-It relies on the following components being present on the associated `boat` entity:
-*   `boatcrew` or `boatracecrew` (for managing crew members, targets, and headings)
-*   `boatphysics` (for applying rowing forces)
-
-It also implicitly relies on the entity it is attached to having:
-*   `Transform` (to get world position)
-*   The ability to call `GetCurrentPlatform()` (indicating platform interaction capabilities)
+## Dependencies & tags
+**Components used:** `boatcrew`, `boatracecrew`, `boatphysics`  
+**Tags:** Adds `crewmember` when enabled; removes `crewmember` when disabled or on removal from entity.
 
 ## Properties
-| Property          | Type     | Default Value              | Description                                                               |
-| :---------------- | :------- | :------------------------- | :------------------------------------------------------------------------ |
-| `inst`            | Entity   | `inst`                     | The entity this component is attached to.                                 |
-| `enabled`         | Boolean  | `true`                     | Determines if the crewmember's functionality is active. Setting this value will add/remove the "crewmember" tag. |
-| `max_velocity`    | Number   | `4`                        | The maximum velocity contribution this crewmember can apply while rowing. |
-| `max_target_dsq`  | Number   | `TUNING.CREWMEMBER_TARGET_DSQ` | The squared distance threshold to a target, used for determining if the boat is close enough to its objective. |
-| `force`           | Number   | `1`                        | The base force applied by this crewmember when rowing.                    |
-| `_on_boat_removed`| Function | `function() self.boat = nil end` | Internal callback function to clear `self.boat` when the assigned boat is removed. |
-| `boat`            | Entity   | `nil`                      | The boat entity this crewmember is currently assigned to.                 |
-| `leavecrewfn`     | Function | `nil`                      | An optional callback function to execute when the crewmember leaves the crew. |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `enabled` | boolean | `true` | Controls whether the entity can row. Disabling it also removes the entity from the crew. |
+| `max_velocity` | number | `4` | Maximum rowing speed applied to the boat. |
+| `max_target_dsq` | number | `TUNING.CREWMEMBER_TARGET_DSQ` | Squared distance threshold to determine if the boat is close enough to its assault target to stop rowing. |
+| `force` | number | `1` | Rowing force magnitude applied per frame. |
+| `boat` | entity or `nil` | `nil` | Reference to the boat the crewmember is assigned to. |
+| `_on_boat_removed` | function | `function() self.boat = nil end` | Event callback triggered when the boat is removed from the world. |
 
-## Main Functions
-### `CrewMember:OnRemoveFromEntity()`
-*   **Description:** Called when the component is removed from its entity. It ensures the "crewmember" tag is removed from the entity.
-*   **Parameters:** None
+## Main functions
+### `Shouldrow()`
+* **Description:** Determines whether the crewmember should currently be rowing. Evaluates boat state (e.g., target presence, assault status, proximity) and crewmember membership.
+* **Parameters:** None.
+* **Returns:** `true`, `false`, or `nil` — `nil` means rowing is not applicable or disallowed.
+* **Error states:** Returns `nil` if the crewmember is not on the stored boat, or if the boat has no crew component or no rowing direction set.
 
-### `CrewMember:Shouldrow()`
-*   **Description:** Determines if the crewmember is currently in a valid state to contribute to rowing the boat. It checks if the crewmember is on the assigned boat, if the boat has crew components, and if there's an active target or heading, considering assault targets.
-*   **Parameters:** None
-*   **Returns:** `true` if the crewmember should row, `nil` otherwise.
+### `SetBoat(boat)`
+* **Description:** Assigns or clears the boat association for this crewmember. Registers or unregisters event listeners to safely handle boat removal.
+* **Parameters:** `boat` (entity or `nil`) — the boat entity to join, or `nil` to disassociate.
+* **Returns:** Nothing.
 
-### `CrewMember:SetBoat(boat)`
-*   **Description:** Assigns or unassigns the crewmember to a specified boat. If assigning, it also sets up a listener for the boat's "onremove" event.
-*   **Parameters:**
-    *   `boat`: (`Entity`) The boat entity to assign the crewmember to, or `nil` to unassign.
+### `GetBoat()`
+* **Description:** Returns the currently assigned boat.
+* **Parameters:** None.
+* **Returns:** The `boat` entity, or `nil` if unassigned.
 
-### `CrewMember:GetBoat()`
-*   **Description:** Returns the boat entity the crewmember is currently assigned to.
-*   **Parameters:** None
-*   **Returns:** (`Entity`) The assigned boat, or `nil` if not assigned to any boat.
+### `Leave()`
+* **Description:** Removes this crewmember from its boat’s crew via the `boatcrew:RemoveMember()` method.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `CrewMember:Leave()`
-*   **Description:** Instructs the assigned boat's `boatcrew` component to remove this entity as a member.
-*   **Parameters:** None
+### `OnLeftCrew()`
+* **Description:** Invokes the optional `leavecrewfn` callback if defined, typically used to trigger custom cleanup or logic upon crew departure.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-### `CrewMember:OnLeftCrew()`
-*   **Description:** Executes the `leavecrewfn` callback if one has been set, passing the crewmember's entity as an argument.
-*   **Parameters:** None
+### `Enable(enabled)`
+* **Description:** Enables or disables rowing ability. Disabling automatically removes the crewmember from its boat.
+* **Parameters:** `enabled` (boolean) — whether to enable rowing.
+* **Returns:** Nothing.
 
-### `CrewMember:Enable(enabled)`
-*   **Description:** Enables or disables the crewmember's functionality. If disabled while currently on a boat, it will remove the entity from the boat's crew.
-*   **Parameters:**
-    *   `enabled`: (`Boolean`) `true` to enable, `false` to disable.
+### `Row()`
+* **Description:** Applies rowing force to the boat based on current crew status, target, and direction logic. Calls `boat:PushEvent("rowed", self.inst)` after application.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** Returns early without effect if the crewmember is not assigned to a valid boat or if the boat lacks `boatcrew`/`boatracecrew` or `boatphysics` components.
 
-### `CrewMember:Row()`
-*   **Description:** Applies a rowing force to the assigned boat based on its current state (target, heading, status like "assault", "retreat", "delivery"). It calculates the direction and magnitude of the force.
-*   **Parameters:** None
+### `GetDebugString()`
+* **Description:** Returns a debug-friendly string including the associated boat and whether the component is disabled.
+* **Parameters:** None.
+* **Returns:** String formatted as `"herd:<boat_ref> disabled"` or `"herd:<boat_ref>"`.
 
-### `CrewMember:GetDebugString()`
-*   **Description:** Returns a string useful for debugging, indicating the assigned boat and whether the component is disabled.
-*   **Parameters:** None
-*   **Returns:** (`string`) A formatted debug string.
-
-## Events & Listeners
-This component listens to the following event:
-*   `"onremove"`: Listens on the assigned `boat` entity to clear `self.boat` when the boat is removed from the world.
-
-This component pushes/triggers the following event:
-*   `"rowed"`: Pushed on the `boat` entity when the `Row()` function is called, passing the `self.inst` (the crewmember entity) as an argument.
+## Events & listeners
+- **Listens to:** `onremove` (on assigned boat) — sets `self.boat = nil` when the boat is removed from the world.
+- **Pushes:** `rowed` — fired on the boat entity with `self.inst` passed as the event data.

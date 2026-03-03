@@ -1,85 +1,111 @@
 ---
 id: grouptargeter
 title: Grouptargeter
-description: Manages weighted targeting for AI entities by tracking multiple potential targets and dynamically adjusting selection probabilities based on recent choices.
+description: Implements weighted target selection and dynamic weight redistribution for entities managing multiple potential targets.
+tags: [ai, combat, targeting]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: brain
+category_type: components
 source_hash: dfe8c577
+system_scope: entity
 ---
 
 # Grouptargeter
 
-## Overview
-The `Grouptargeter` component maintains a set of potential targets with associated selection weights and implements weighted-random targeting logic. It dynamically adjusts weights to prevent repeated targeting of the same entity—increasing the weight of unselected targets and decreasing the weight of recently selected ones—ensuring balanced target selection across multiple entities. It is primarily used by AI brains to select intelligent, fair targets during combat or interaction scenarios.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Uses `inst:ListenForEvent` and `inst:RemoveEventCallback` to monitor `"onremove"` events on target entities.
-- Does **not** add or remove tags on the host entity.
-- No explicit component dependencies (e.g., no `AddComponent` calls) are present.
+## Overview
+`Grouptargeter` manages a set of weighted targets for an entity and supports dynamic target selection based on evolving weights. It is used for AI behaviors that need to track multiple targets and probabilistically select one, adjusting influence weights over time (e.g., after picking a target, weights are shifted to favor less-selected targets). It does not directly handle combat or movement but serves as a targeting subsystem for components like `brain` or custom AI logic.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("grouptargeter")
+
+-- Add initial targets
+inst.components.grouptargeter:AddTarget(entity1)
+inst.components.grouptargeter:AddTarget(entity2)
+
+-- Attempt to select a new target probabilistically
+local new_target = inst.components.grouptargeter:TryGetNewTarget()
+if new_target then
+    -- Handle new target selection
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `targets` | `table` (entity → number) | `{}` | Maps target entities to their current selection weights. |
-| `total_weight` | `number` | `1` | Unused in logic (internal debug only); not actively maintained. |
-| `weight_change` | `number` | `0.1` | Amount by which weights are adjusted when a target is selected. |
-| `num_targets` | `number` | `0` | Current count of tracked targets. |
-| `min_chance` | `number` | `0` | Minimum probability for attempting a new target selection on `TryGetNewTarget`. |
-| `max_chance` | `number` | `0.7` | Maximum probability cap for target re-evaluation. |
-| `chance_delta` | `number` | `0.1` | Increment applied to `current_chance` on failure to pick a new target. |
-| `current_chance` | `number` | `0` | Current probability threshold for triggering a new target selection attempt. |
-| `_ontargetremoved` | `function` | *(internal)* | Callback registered to stop tracking when a target is removed from the world. |
+| `targets` | table | `{}` | Map of target entities → numeric weights (sum to 1.0). |
+| `total_weight` | number | `1` | Total sum of target weights (intended to be 1.0). |
+| `weight_change` | number | `0.1` | Amount of weight redistributed when a target is picked. |
+| `num_targets` | number | `0` | Count of tracked targets. |
+| `min_chance` | number | `0` | Lower bound for target-reselection probability. |
+| `max_chance` | number | `0.7` | Upper bound for target-reselection probability. |
+| `chance_delta` | number | `0.1` | Increment added to `current_chance` on failed reselection. |
+| `current_chance` | number | `0` | Current probability threshold for attempting new target selection. |
 
-## Main Functions
-
+## Main functions
 ### `StartTracking(target)`
-* **Description:** Registers a listener for the `"onremove"` event on the given `target` entity to automatically stop tracking it when it is removed.
-* **Parameters:**
-  * `target` *(Entity)*: The target entity to begin tracking.
+* **Description:** Begins listening for the `onremove` event on the given target to auto-deregister it when removed.  
+* **Parameters:** `target` (entity) — the target entity to track.  
+* **Returns:** Nothing.  
 
 ### `StopTracking(target)`
-* **Description:** Removes the `"onremove"` event listener registered for the given `target`.
-* **Parameters:**
-  * `target` *(Entity)*: The target entity to stop tracking.
+* **Description:** Stops listening for the `onremove` event on the given target.  
+* **Parameters:** `target` (entity) — the target entity to stop tracking.  
+* **Returns:** Nothing.  
 
 ### `AddTarget(target)`
-* **Description:** Adds a new target to the internal list with appropriate weight normalization to preserve total weight ≈ 1. Initial target gets full weight if list was empty; otherwise, weights are rebalanced proportionally.
-* **Parameters:**
-  * `target` *(Entity)*: The new target to add.
+* **Description:** Adds a new target with computed weight to maintain unit weight sum. Existing targets’ weights are proportionally reduced.  
+* **Parameters:** `target` (entity) — the entity to add as a target.  
+* **Returns:** Nothing.  
+* **Error states:** No effect if `target` is already in `targets`. |
 
 ### `RemoveTarget(target)`
-* **Description:** Removes a target and redistributes its weight equally among remaining targets. If it was the last target, clears the list.
-* **Parameters:**
-  * `target` *(Entity)*: The target to remove.
+* **Description:** Removes a target and redistributes its weight among remaining targets. Resets tracking listeners.  
+* **Parameters:** `target` (entity) — the entity to remove from targets.  
+* **Returns:** Nothing.  
+* **Error states:** No effect if `target` is not in `targets`. |
+
+### `GetTotalWeight()`
+* **Description:** Computes and prints the sum of all target weights (intended for debugging).  
+* **Parameters:** None.  
+* **Returns:** Nothing (debug print only).  
 
 ### `OnPickTarget(target)`
-* **Description:** Adjusts weights after a target is selected: *decreases* the weight of the chosen target and *increases* the weight of all other targets proportionally (preventing consecutive repeats).
-* **Parameters:**
-  * `target` *(Entity)*: The target that was just selected.
-
-### `SelectTarget()`
-* **Description:** Returns a target using weighted-random selection based on current weights in `self.targets`. Iterates through targets, accumulating weights until the random selection point falls within a target's range.
-* **Parameters:** None.
-
-### `TryGetNewTarget()`
-* **Description:** Attempts to select a new target based on a probability threshold (`current_chance`). On success, calls `OnPickTarget` and returns the new target; on failure, increments `current_chance` and returns `nil`.
-* **Parameters:** None.
+* **Description:** Reduces the weight of the picked target and increases weights of others to equalize selection pressure over time.  
+* **Parameters:** `target` (entity) — the target that was selected.  
+* **Returns:** Nothing.  
+* **Error states:** Early return with no effect if `num_targets <= 1`. |
 
 ### `GetTargets()`
-* **Description:** Returns the internal `targets` map.
-* **Parameters:** None.
+* **Description:** Returns the current target→weight mapping.  
+* **Parameters:** None.  
+* **Returns:** `table` — copy reference to the internal `targets` table. |
 
 ### `IsTargeting(target)`
-* **Description:** Returns whether the given entity is currently tracked as a target.
-* **Parameters:**
-  * `target` *(Entity)*: The entity to check.
+* **Description:** Checks whether a given entity is currently a tracked target.  
+* **Parameters:** `target` (entity or `nil`) — the entity to check.  
+* **Returns:** `boolean` — `true` if `target` is in `targets`, otherwise `false`. |
 
-## Events & Listeners
-- Listens for `"onremove"` event on each tracked target entity via `inst:ListenForEvent("onremove", self._ontargetremoved, target)` in `StartTracking`.
-- Triggers no custom events itself.
-- `OnRemoveFromEntity` ensures cleanup by stopping tracking of all targets.
+### `TryGetNewTarget()`
+* **Description:** Attempts to select a new target using probabilistic reselection logic. Updates `current_chance` on failure.  
+* **Parameters:** None.  
+* **Returns:** `entity` or `nil` — the newly selected target, or `nil` if selection failed. |
+
+### `SelectTarget()`
+* **Description:** Performs weighted random selection over tracked targets.  
+* **Parameters:** None.  
+* **Returns:** `entity` or `nil` — the selected target; undefined behavior if `targets` is empty. |
+
+## Events & listeners
+- **Listens to:** `onremove` (on each tracked target) — triggers `RemoveTarget` automatically via `_ontargetremoved` callback.  
+- **Pushes:** None identified

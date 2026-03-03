@@ -1,173 +1,153 @@
 ---
 id: braincommon
 title: Braincommon
-description: Provides shared utility functions and behavior nodes for entity AI brains, including saltlick seeking, panic triggers, leader-assisted actions, and inventory pickup/give/drop logic.
+description: Provides shared AI behavior utilities for followers and non-player entities, including panic triggers, saltlick navigation, and leader-assisted actions.
+tags: [ai, brain, follower, panic]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: brain
-system_scope: brain
+category_type: components
 source_hash: 7dfe398d
+system_scope: brain
 ---
 
 # Braincommon
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
+`Braincommon` is a shared utility module that defines reusable AI behavior patterns for entities, particularly followers. It centralizes logic for panic responses (e.g., from fire, lunar burn, electricity, or scaring events), navigation near saltlicks, and leader-assisted actions such as mining, chopping, and item pickup/giving. This module does not instantiate or manage a component directly; instead, it exports functions to be used by brain definitions (e.g., in `brains/*.lua` files).
 
-`Braincommon.lua` is a utility module that exports reusable AI behavior functions and node factories for use in entity brains. It centralizes common decision-making patterns such as saltlick seeking, panic triggers (for fire, lunar burn, hauntable, electric fence, shadow creature, and ipecac syrup effects), leader assistance (MINE/CHOP actions), and inventory management (pickup, give, drop). This component does not attach directly to entities but serves as a library for brain stategraph implementations.
+It interacts with multiple components including `health`, `hauntable`, `combat`, `follower`, `inventory`, `timer`, `burnable`, and `trap` to evaluate state and construct behavior nodes.
 
-## Dependencies & Tags
+## Usage example
+```lua
+local BrainCommon = require "brains/braincommon"
 
-- **Components used:** `burnable` (`IsBurning`), `combat` (`SetTarget`), `follower` (`GetLeader`, `GetLoyaltyPercent`, `SetLeader`), `hauntable` (`panic` property), `health` (`takingfiredamage`, `GetLunarBurnFlags`), `inventory` (`DropItem`, `GetActiveItem`, `GetFirstItemInAnySlot`, `IsFull`, `IsOpenedBy`), `stackable` (`IsFull`), `timer` (`GetTimeLeft`), `trap`.
-- **Tags checked:** `"saltlick"`, `"INLIMBO"`, `"fire"`, `"burnt"`, `"MINE_workable"`, `"CHOP_workable"`, `"carnivalgame_part"`, `"event_trigger"`, `"waxedplant"`, `"player"`.
-- **Tags added/removed:** None.
+-- Use panic triggers in a brain definition
+local brain = {
+    { 
+        BrainCommon.PanicTrigger,
+        BrainCommon.ElectricFencePanicTrigger,
+        BrainCommon.PanicTriggerShadowCreature,
+    },
+    -- Use leader-assist mining with custom chatter
+    BrainCommon.NodeAssistLeaderDoAction(self, {
+        action = "MINE",
+        chatterstring = "chatter_mine",
+    }),
+    -- Attach to saltlick when time is low
+    BrainCommon.AnchorToSaltlick(inst),
+}
+```
+
+## Dependencies & tags
+**Components used:** `health`, `hauntable`, `combat`, `follower`, `inventory`, `timer`, `burnable`, `trap`, `leader` (via `follower`), `trader`  
+**Tags:** Uses `saltlick`, `INLIMBO`, `fire`, `burnt`, `MINE_workable`, `CHOP_workable`, `carnivalgame_part`, `event_trigger`, `waxedplant`, `player`  
+**Debuffs:** Checks for `"ipecacsyrup_buff"`
 
 ## Properties
+No public properties are initialized or stored in this module.
 
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `ShouldSeekSalt` | `function` | (undefined) | Returns `true` if `timer` exists and `"salt"` timer has less than 16 seconds remaining. |
-| `AnchorToSaltlick` | `function` | (undefined) | Returns a `WhileNode`-wrapped `Wander` behavior that stays near a saltlick until the timer expires or the saltlick becomes invalid. Handles cleanup of saltlick listeners and state. |
-| `ShouldTriggerPanic` | `function` | (undefined) | Returns `true` if the entity is taking fire damage, experiencing lunar burn, or has `hauntable.panic` set. |
-| `PanicTrigger` | `function` | (undefined) | Returns a `WhileNode` that triggers `Panic` behavior when `ShouldTriggerPanic(inst)` is true. |
-| `ShouldAvoidElectricFence` | `function` | (undefined) | Returns `true` if `inst.panic_electric_field` is set. |
-| `ElectricFencePanicTrigger` | `function` | (undefined) | Returns a `WhileNode` that triggers `AvoidElectricFence` behavior when electric fence panic condition is active. |
-| `HasElectricFencePanicTriggerNode` | `function` | (undefined) | Returns `inst._has_electric_fence_panic_trigger`, set internally by `AvoidElectricFence`. |
-| `ShouldTriggerPanicShadowCreature` | `function` | (undefined) | Returns `true` if `inst._shadow_creature_panic_task` is not `nil`. |
-| `PanicTriggerShadowCreature` | `function` | (undefined) | Returns a `WhileNode` that triggers `Panic` behavior for shadow creature panic events. |
-| `PanicWhenScared` | `function` | (undefined) | Returns a panic node that activates on `"epicscare"` events, optionally reduces loyalty, and clears combat target during panic. |
-| `IsUnderIpecacsyrupEffect` | `function` | (undefined) | Returns `true` if entity has debuff `"ipecacsyrup_buff"`. |
-| `IpecacsyrupPanicTrigger` | `function` | (undefined) | Returns a `WhileNode` that triggers `Panic` while under ipecac syrup effect. |
-| `AssistLeaderDefaults` | `table` | `{ MINE = ..., CHOP = ... }` | Public table of default behavior functions for `NodeAssistLeaderDoAction`. Exposed for mod support customization. |
-| `NodeAssistLeaderDoAction` | `function` | (undefined) | Returns a behavior node that lets followers assist leader's mining or chopping tasks. |
-| `NodeAssistLeaderPickUps` | `function` | (undefined) | Returns a behavior node that helps leader by picking up items, giving/dropping to leader when inventory is full. |
+## Main functions
+### `BrainCommon.ShouldSeekSalt(inst)`
+* **Description:** Returns `true` if the entity is near the end of its saltlick timer (within `TIME_TO_SEEK_SALT = 16` seconds) and has a valid saltlick reference.
+* **Parameters:** `inst` (entity instance) — entity whose timer and saltlick are checked.
+* **Returns:** `boolean` — whether the entity should seek a saltlick.
+* **Error states:** Returns `false` if `inst._brainsaltlick` is `nil`, invalid, or timer component is missing.
 
-## Main Functions
+### `BrainCommon.AnchorToSaltlick(inst)`
+* **Description:** Returns a behavior node tree that causes the entity to stay near a saltlick when low on salt, using a dynamic wander radius that shrinks as salt runs out.
+* **Parameters:** `inst` (entity instance) — the entity to anchor.
+* **Returns:** Behavior node (`WhileNode` containing `Wander`) — to be used in a brain or task sequence.
+* **Error states:** Cleans up the saltlick reference and event listener on node stop.
 
-### `FindSaltlick(inst)`
-* **Description:** Finds and caches the nearest valid saltlick within `TUNING.SALTLICK_CHECK_DIST`. Ensures the saltlick is not burning, burnt, or in limbo. Registers a one-time listener for `"saltlick_placed"` if a saltlick is newly found.
-* **Parameters:**  
-  `inst`: The entity instance.
-* **Returns:** `true` if a valid saltlick is found; `false` otherwise.
+### `BrainCommon.ShouldTriggerPanic(inst)`
+* **Description:** Returns `true` if the entity should enter panic due to fire, lunar burn, or `hauntable.panic` state.
+* **Parameters:** `inst` (entity instance) — the entity whose health and hauntable states are checked.
+* **Returns:** `boolean` — whether panic should be triggered.
+* **Error states:** Safely handles missing `health` or `hauntable` components.
 
-### `WanderFromSaltlickDistFn(inst)`
-* **Description:** Calculates a dynamic wander radius for saltlick-seeking behavior. Reduces the radius as the `"salt"` timer approaches `TIME_TO_SEEK_SALT` (16s), encouraging closer approach near expiry.
-* **Parameters:**  
-  `inst`: The entity instance.
-* **Returns:** `number`: A distance value between `TUNING.SALTLICK_USE_DIST * 0.75` and `TUNING.SALTLICK_CHECK_DIST * 0.75`, or `TUNING.SALTLICK_CHECK_DIST * 0.75` if no timer.
+### `BrainCommon.PanicTrigger(inst)`
+* **Description:** Returns a `WhileNode` that activates `Panic(inst)` behavior when `ShouldTriggerPanic(inst)` becomes `true`.
+* **Parameters:** `inst` (entity instance).
+* **Returns:** Behavior node (`WhileNode` containing `Panic`).
+* **Error states:** None.
 
-### `ShouldSeekSalt(inst)`
-* **Description:** Determines if the entity should seek a saltlick based on remaining `"salt"` timer.
-* **Parameters:**  
-  `inst`: The entity instance.
-* **Returns:** `true` if a saltlick exists and timer has less than 16 seconds remaining.
+### `BrainCommon.ShouldAvoidElectricFence(inst)`
+* **Description:** Returns `true` if the entity has `panic_electric_field` set (e.g., due to nearby electric fence).
+* **Parameters:** `inst` (entity instance).
+* **Returns:** `boolean`.
+* **Error states:** Assumes `inst.panic_electric_field` is a boolean flag.
 
-### `AnchorToSaltlick(inst)`
-* **Description:** Returns a behavior node that makes the entity stay near a saltlick until the `"salt"` timer expires. Wraps `Wander` behavior inside a `WhileNode` that checks `FindSaltlick`. Cleans up saltlick listener and internal state (`inst._brainsaltlick`) when stopped.
-* **Parameters:**  
-  `inst`: The entity instance.
-* **Returns:** `node`: A `WhileNode`-based behavior tree node.
+### `BrainCommon.ElectricFencePanicTrigger(inst)`
+* **Description:** Returns a behavior node that triggers `AvoidElectricFence` while `ShouldAvoidElectricFence(inst)` is `true`.
+* **Parameters:** `inst` (entity instance).
+* **Returns:** Behavior node (`WhileNode` containing `AvoidElectricFence`).
+* **Error states:** Relies on `AvoidElectricFence` setting `inst._has_electric_fence_panic_trigger`.
 
-### `ShouldTriggerPanic(inst)`
-* **Description:** Evaluates conditions that should trigger panic behavior: fire damage, lunar burn, or hauntable panic flag.
-* **Parameters:**  
-  `inst`: The entity instance.
-* **Returns:** `true` if any panic condition is active.
-
-### `PanicTrigger(inst)`
-* **Description:** Creates a `WhileNode` that executes `Panic(inst)` while `ShouldTriggerPanic(inst)` is true.
-* **Parameters:**  
-  `inst`: The entity instance.
-* **Returns:** `node`: A behavior tree node.
-
-### `ShouldAvoidElectricFence(inst)`
-* **Description:** Checks if the entity should trigger electric fence avoidance panic (e.g., due to proximity).
-* **Parameters:**  
-  `inst`: The entity instance.
-* **Returns:** `true` if `inst.panic_electric_field` is set.
-
-### `ElectricFencePanicTrigger(inst)`
-* **Description:** Creates a `WhileNode` that executes `AvoidElectricFence(inst)` while electric fence panic condition is active.
-* **Parameters:**  
-  `inst`: The entity instance.
-* **Returns:** `node`: A behavior tree node.
-
-### `HasElectricFencePanicTriggerNode(inst)`
-* **Description:** Reports whether the entity has an active electric fence panic trigger node set by `AvoidElectricFence`.
-* **Parameters:**  
-  `inst`: The entity instance.
-* **Returns:** `boolean`: Value of `inst._has_electric_fence_panic_trigger`.
-
-### `ShouldTriggerPanicShadowCreature(inst)`
-* **Description:** Checks if the entity is experiencing panic due to a shadow creature event (based on presence of `_shadow_creature_panic_task`).
-* **Parameters:**  
-  `inst`: The entity instance.
+### `BrainCommon.HasElectricFencePanicTriggerNode(inst)`
+* **Description:** Returns whether the entity currently has an active electric fence panic trigger node (used for coordination).
+* **Parameters:** `inst` (entity instance).
 * **Returns:** `boolean`.
 
-### `PanicTriggerShadowCreature(inst)`
-* **Description:** Returns a `WhileNode` that triggers `Panic` behavior while shadow creature panic is active.
-* **Parameters:**  
-  `inst`: The entity instance.
-* **Returns:** `node`.
-
-### `PanicWhenScared(inst, loseloyaltychance, chatty)`
-* **Description:** Creates a panic node that activates on `"epicscare"` events. Optionally reduces follower loyalty (with probability `loseloyaltychance`) and supports chatter. Clears combat target during panic. Removes event listener and cleans up state on stop.
-* **Parameters:**  
-  `inst`: The entity instance.  
-  `loseloyaltychance`: `number` or `nil`: Chance to lose a follower on panic (0–1).  
-  `chatty`: `string` or `nil`: Chatter string to use with `ChattyNode`.
-* **Returns:** `node`.
-
-### `IsUnderIpecacsyrupEffect(inst)`
-* **Description:** Checks if the entity is affected by ipecac syrup (has debuff `"ipecacsyrup_buff"`).
-* **Parameters:**  
-  `inst`: The entity instance.
+### `BrainCommon.ShouldTriggerPanicShadowCreature(inst)`
+* **Description:** Returns `true` if a shadow creature panic task has been scheduled (via modded or event systems like `hermitcrabtea_moon_tree_blossom_buff`).
+* **Parameters:** `inst` (entity instance).
 * **Returns:** `boolean`.
 
-### `IpecacsyrupPanicTrigger(inst)`
-* **Description:** Returns a `WhileNode` that triggers `Panic` behavior while the entity is under ipecac syrup effect.
+### `BrainCommon.PanicTriggerShadowCreature(inst)`
+* **Description:** Returns a behavior node that activates `Panic(inst)` while shadow creature panic is active.
+* **Parameters:** `inst` (entity instance).
+* **Returns:** Behavior node (`WhileNode` containing `Panic`).
+
+### `BrainCommon.PanicWhenScared(inst, loseloyaltychance, chatty)`
+* **Description:** Returns a behavior node that triggers panic in response to `"epicscare"` events. Optionally drops loyalty (via `loseloyaltychance`) and/or adds chatty dialogue.
 * **Parameters:**  
-  `inst`: The entity instance.
-* **Returns:** `node`.
+  - `inst` (entity instance)  
+  - `loseloyaltychance` (number? — probability [0–1] to lose follower loyalty on panic; default `nil` skips loyalty logic)  
+  - `chatty` (string? — chatter name to use; default `nil` disables chatty)  
+* **Returns:** Behavior node (`WhileNode` containing `Panic`, plus optional loyalty-degradation logic).
+* **Error states:** Cancels active `combat.target` during panic; cleans up `"epicscare"` listener on node stop.
 
-### `NodeAssistLeaderDoAction(self, parameters)`
-* **Description:** Generates a behavior tree node for followers to assist their leader in performing actions (e.g., MINE, CHOP). Uses configurable `Starter`, `KeepGoing`, and `FindNew` functions (defaults provided in `AssistLeaderDefaults`). Supports chatter and optional condition overrides.  
+### `BrainCommon.IsUnderIpecacsyrupEffect(inst)`
+* **Description:** Returns `true` if the entity is affected by the `"ipecacsyrup_buff"` debuff.
+* **Parameters:** `inst` (entity instance).
+* **Returns:** `boolean`.
+
+### `BrainCommon.IpecacsyrupPanicTrigger(inst)`
+* **Description:** Returns a behavior node that triggers panic while the entity is under the ipecac syrup effect.
+* **Parameters:** `inst` (entity instance).
+* **Returns:** Behavior node (`WhileNode` containing `Panic`).
+
+### `BrainCommon.NodeAssistLeaderDoAction(self, parameters)`
+* **Description:** Returns a behavior node that enables an entity (follower) to assist its leader in performing `MINE` or `CHOP` actions. Supports optional chatter, custom condition overrides, and fallback to leader-targeted workables.
 * **Parameters:**  
-  `self`: The current behavior context (`self.inst` is used).  
-  `parameters`: A table with keys:  
-    - `action`: `"MINE"` or `"CHOP"`  
-    - `starter`, `keepgoing`, `finder`: Optional override functions  
-    - `chatterstring`: Optional chatter string  
-    - `shouldrun`: Optional custom condition  
-    - `keepgoing_leaderdist`: Distance threshold to stay near leader (default `TUNING.FOLLOWER_HELP_LEADERDIST`)  
-    - `finder_finddist`: Search radius for new targets (default `TUNING.FOLLOWER_HELP_FINDDIST`)  
-* **Returns:** `node`: An `IfThenDoWhileNode` wrapping a `LoopNode` of the action.
+  - `self` — caller context (typically `self` in a brain function)  
+  - `parameters` (table) —  
+    - `action` (string `"MINE"` or `"CHOP"`) — required  
+    - `starter`/`keepgoing`/`finder` (function?) — optional overrides  
+    - `chatterstring` (string?) — optional chatter tag  
+    - `shouldrun` (function?) — optional guard  
+* **Returns:** Behavior node (`IfThenDoWhileNode` containing `LoopNode` with `DoAction`).
+* **Error states:** Defaults to using `AssistLeaderDefaults[action]` if not overridden.
 
-### `NodeAssistLeaderPickUps(self, parameters)`
-* **Description:** Generates a priority behavior node for followers to pick up items from leader’s inventory radius, give them to the leader if possible, or drop them if the follower’s inventory is full. Designed for items the leader is managing (e.g., loot, supplies).  
+### `BrainCommon.NodeAssistLeaderPickUps(self, parameters)`
+* **Description:** Returns a behavior node that enables a follower to pick up items for a player leader and give/drop them appropriately based on inventory state and distance.
 * **Parameters:**  
-  `self`: Behavior context (`self.inst` used).  
-  `parameters`: A table with keys (optional unless specified):  
-    - `cond`: `function` returning `boolean` — run condition for pickup loop (default: `AlwaysTrue`)  
-    - `range`: `number` — search radius for pickup items (leader’s position)  
-    - `range_local`: `number` — local search radius around follower  
-    - `give_cond`: `function` or `nil` — additional condition for giving items  
-    - `give_range`: `number` — max distance to leader for giving/dropping (optional)  
-    - `furthestfirst`: `boolean` — prioritize furthest items  
-    - `positionoverride`: `function` or `Vector` — override position for pickup/give  
-    - `ignorethese`: `table` — tracked ignored items (to avoid race conditions)  
-    - `wholestacks`: `boolean` — only pickup items if inventory has space for full stack  
-    - `allowpickables`: `boolean` — allow picking up pickable items  
-    - `custom_pickup_filter`: `function` — custom filter for pickupable items  
-* **Returns:** `node`: A `PriorityNode` that prioritizes giving items to leader over dropping, within a `WhileNode` loop.
+  - `self` — caller context  
+  - `parameters` (table) — includes:  
+    - `cond`, `range`, `range_local`, `give_cond`, `give_range`, `furthestfirst`, `positionoverride`, `ignorethese`, `wholestacks`, `allowpickables`, `custom_pickup_filter`  
+* **Returns:** Behavior node (`PriorityNode` with `WhileNode`s for `PickUp`, then `GiveAction`/`DropAction`).
+* **Error states:** Drops active item first; skips if leader missing `trader`, inventory not opened, or leader not a `player`.
 
-## Events & Listeners
-
-- **Listens to:** `"saltlick_placed"`, `"epicscare"`.
-- **Pushes:** `inst:PushEvent("leaderchanged", { new = new_leader, old = prev_leader })` — triggered internally by `Follower:SetLeader` when leader changes during panic (see `Follower.lua` usage).
-
-> Note: Event listeners in `Braincommon.lua` are registered per-instance within functions like `AnchorToSaltlick` and `PanicWhenScared`, not globally in the module’s constructor.
+## Events & listeners
+- **Listens to:**  
+  - `"saltlick_placed"` — resets cached `_brainsaltlick` and updates saltlick reference  
+  - `"epicscare"` — extends panic duration and clears combat target  
+- **Pushes:**  
+  - `"leaderchanged"` — via `follower:SetLeader(nil)` during panic  
+  - `"dropitem"` — via `inventory:DropItem()`  
+  - Internal event callbacks are cleaned up on node stop in `AnchorToSaltlick` and `PanicWhenScared`.

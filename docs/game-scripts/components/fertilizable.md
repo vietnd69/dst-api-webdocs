@@ -1,34 +1,51 @@
 ---
 id: fertilizable
 title: Fertilizable
-description: Adds support for applying fertilizer to an entity by invoking a registered callback function.
+description: Provides a callback hook for handling fertilizer application on an entity.
+tags: [farming, interaction]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: f5a4d40f
+system_scope: entity
 ---
 
 # Fertilizable
 
-## Overview
-This component provides a minimal interface for entities that can be fertilized: it stores an optional callback function (`onfertlizedfn`) and exposes a `Fertilize()` method that invokes this callback when called, passing the entity instance and the fertilizer used.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Fertilizable` is a lightweight component that enables an entity to respond to fertilizer application via a customizable callback function (`onfertlizedfn`). It does not manage state or logic itself but delegates the fertilizer handling to an externally assigned callback. This component is typically attached to entities such as crops or soil plots that need to react when fertilized by a player or item.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("fertilizable")
+
+inst.components.fertilizable.onfertlizedfn = function(inst, fertilizer)
+    print("Fertilized by", fertilizer(prefab))
+    -- perform growth logic, add tags, etc.
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-No public properties are initialized or used in a meaningful way. The only non-commented assignment is the commented-out line `--self.onfertlizedfn = nil`, indicating the callback is intended to be set externally (not initialized by this component). The `Fertilize()` method checks for existence of `self.onfertlizedfn`, but the component itself does not set or manage it.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `onfertlizedfn` | function | `nil` | Callback invoked when `:Fertilize(fertilizer)` is called. Receives `inst` and `fertilizer` as arguments. |
 
-## Main Functions
-
+## Main functions
 ### `Fertilize(fertilizer)`
-* **Description:** Attempts to trigger the fertilization callback (`onfertlizedfn`) if one has been registered. Returns the result of the callback invocation or `nil` if no callback is set.
-* **Parameters:**
-  - `fertilizer`: The entity or item used as fertilizer (passed as the second argument to the callback).
+* **Description:** Triggers the fertilizer callback, if one is assigned. Typically called when a player applies fertilizer to this entity.
+* **Parameters:** `fertilizer` (Entity) — the fertilizer item or entity being used.
+* **Returns:** The return value of the callback function (`onfertlizedfn`), or `nil` if no callback is set.
+* **Error states:** No explicit error handling; silently returns `nil` if `onfertlizedfn` is unassigned.
 
-## Events & Listeners
-None.
+## Events & listeners
+None identified

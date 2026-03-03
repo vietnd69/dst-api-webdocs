@@ -1,133 +1,161 @@
 ---
 id: roseinspectableuser
 title: Roseinspectableuser
-description: This component enables an entity (typically a player) to use Rose Glasses to inspect entities or points in the world for hidden Residue-based interactions, managing cooldowns, residue spawning, and quips.
+description: Manages the Rose Glasses' inspection logic, including cooldown tracking, residue spawning, and interaction with roseinspectable targets.
+tags: [inspection, cooldown, item, interaction]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 6d310e3a
+system_scope: entity
 ---
 
 # Roseinspectableuser
 
-## Overview
-The `RoseInspectableUser` component allows an entity (e.g., a player character) to use Rose Glasses to interact with "rose-inspectable" objects or locations. It manages the spawning of Charlie Residue for visual feedback, handles the cooldown state of the glasses, triggers inspect actions, and plays appropriate quips (dialogue or sound effects) based on success or cooldown status. It integrates tightly with the `roseinspectable` component on target entities and supports both targeted and point-based inspection.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependencies:** Requires the host entity to have `components.talker` for quips and `components.player_classified` for UI cooldown state updates. `components.roseinspectable` must be present on target entities during targeted inspection.
-- **Invalid Tags:** `{"lunar_aligned", "notroseinspectable"}` — entities possessing either tag are rejected as inspection targets.
-- **Residue Interaction:** Spawns a `"charlieresidue"` prefab for each inspection attempt and tracks its lifecycle (e.g., removes listeners on entity destruction).
-- **No tags added/removed** to the host entity itself.
+## Overview
+`Roseinspectableuser` handles the behavior of entities using the Rose Glasses to inspect other entities or world points for hidden properties. It manages the cooldown state, creates and maintains a `charlieresidue` effect during inspection, and coordinates with `roseinspectable` components on targets to perform inspection. It also provides quips (dialogue) via the `talker` component and persists cooldown state across saves.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("roseinspectableuser")
+inst:AddTag("inspector")
+inst:AddComponent("talker")
+
+-- Begin inspecting a target
+local target = some_entity
+if inst.components.roseinspectableuser:TryToDoRoseInspectionOnTarget(target) then
+    -- Inspection started successfully; residue will be spawned
+end
+
+-- Later, to trigger immediate cooldown
+inst.components.roseinspectableuser:GoOnCooldown()
+```
+
+## Dependencies & tags
+**Components used:** `talker`, `roseinspectable` (via `target.components.roseinspectable`), `player_classified` (optional), `health` (indirect, for `talker`), `revivablecorpse`, `sleeper` (via `talker`), `Transform`, `Inspectable` (via `CLOSEINSPECTORUTIL`).
+**Tags:** Checks `lunar_aligned`, `notroseinspectable` on target (as invalid); adds no tags.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed) | Reference to the host entity (e.g., player). |
-| `cooldowntime` | `number` | `TUNING.SKILLS.WINONA.ROSEGLASSES_COOLDOWNTIME` | Duration (in seconds) of the cooldown after a successful inspection. |
-| `target` | `Entity?` | `nil` | The inspected entity (if inspecting a target). |
-| `point` | `Vector3?` | `nil` | The inspected world position (if inspecting a point). |
-| `residue` | `PrefabInstance?` | `nil` | The currently active Charlie Residue instance spawned for inspection feedback. |
-| `quipcooldowntime` | `number?` | `nil` | Timestamp used to throttle quip repetition (4–5 second interval). |
-| `cooldowntask` | `Task?` | `nil` | Task handle tracking active cooldown; `nil` when not in cooldown. |
+| `inst` | `Entity` | `nil` | The entity owning this component. |
+| `cooldowntime` | number | `TUNING.SKILLS.WINONA.ROSEGLASSES_COOLDOWNTIME` | Duration (in seconds) for cooldown after inspection. |
+| `target` | `Entity` | `nil` | The target entity currently being inspected. |
+| `point` | `Vector` | `nil` | The world point currently being inspected. |
+| `residue` | `Entity` | `nil` | The `charlieresidue` prefab instance spawned during inspection. |
+| `quipcooldowntime` | number | `nil` | Timestamp used to throttle quip (dialogue) output. |
+| `cooldowntask` | `Task` | `nil` | Scheduled task for ending the cooldown period. |
 
-> Note: `cooldowntask` is initialized as `nil` but managed dynamically. Properties like `target`, `point`, and `residue` are set per inspection request and reset afterward.
-
-## Main Functions
-
+## Main functions
 ### `SetCooldownTime(cooldowntime)`
-* **Description:** Updates the duration used for cooldowns (used for dynamic tuning, e.g., skill upgrades).
-* **Parameters:**
-  * `cooldowntime` (`number`): New cooldown duration in seconds.
+* **Description:** Updates the cooldown duration used by `GoOnCooldown`.
+* **Parameters:** `cooldowntime` (number) – new cooldown duration in seconds.
+* **Returns:** Nothing.
 
 ### `GoOnCooldown()`
-* **Description:** Cancels any existing cooldown task and starts a new one using the current `cooldowntime`. Also sets the `roseglasses_cooldown` state in the player’s classified UI.
+* **Description:** Starts the cooldown timer using the current `cooldowntime`. Cancels any existing cooldown task first.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnCharlieResidueActivated(residue)`
-* **Description:** Triggered when a spawned residue is activated (e.g., by player interaction). Performs actual inspection logic: inspects the current `target` (if set) or the stored `point`, applies cooldown if needed, and handles cooldown quips.
-* **Parameters:**
-  * `residue` (`PrefabInstance`): The residue instance being activated. Must match `self.residue` for processing.
+* **Description:** Triggered when the spawned `charlieresidue` is activated (typically when the user releases the inspect key or the residue times out). Performs the actual inspection on the `target` or `point`, applying cooldown if needed.
+* **Parameters:** `residue` (Entity) – the residue instance being activated.
+* **Returns:** Nothing.
+* **Error states:** Returns early if `residue` does not match `self.residue`.
 
 ### `SetRoseInpectionOnTarget(target)`
-* **Description:** Prepares the component to inspect a specific entity: sets `target`, clears `point`, spawns/resets residue, and links the residue to the target via `roseinspectable:HookupResidue`.
-* **Parameters:**
-  * `target` (`Entity`): Entity to inspect.
+* **Description:** Begins inspecting a target entity. Spawns a residue linked to the target and sets up event listeners.
+* **Parameters:** `target` (Entity) – the entity to inspect.
+* **Returns:** Nothing.
 
 ### `SetRoseInpectionOnPoint(point)`
-* **Description:** Prepares inspection of a world point: clears `target`, sets `point`, and spawns/resets residue.
-* **Parameters:**
-  * `point` (`Vector3` or similar): World position to inspect.
-
-### `ForceDecayResidue()`
-* **Description:** Immediately triggers decay of the current `residue`, cleaning up listeners first.
-* **Parameters:** None.
-
-### `SpawnResidue()`
-* **Description:** Destroys any existing residue and spawns a new `"charlieresidue"` prefab at the appropriate location (on `target` or at `point`). Attaches listeners for residue removal.
-* **Parameters:** None.
-
-### `DoRoseInspectionOnPoint()`
-* **Description:** Iterates through `ROSEPOINT_CONFIGURATIONS` to find and execute an inspection match at the current `point`. Returns `true` if a match triggered a cooldown (caller should call `GoOnCooldown()`).
-* **Parameters:** None.
-* **Returns:** `boolean` — `true` if a successful match induce a cooldown.
-
-### `DoQuip(reason, failed)`
-* **Description:** Plays a localized string/audio quip (e.g., cooldown message or announcement) via `talker`. Enforces per-quip cooldowns to avoid spam.
-* **Parameters:**
-  * `reason` (`string`): Key for localized string (e.g., `"ROSEGLASSES_COOLDOWN"`).
-  * `failed` (`boolean`): If `true`, plays a failure quip immediately; otherwise, enforces quip cooldown before playing.
+* **Description:** Begins inspecting a world point (e.g., a tile or location). Spawns a residue at the point.
+* **Parameters:** `point` (Vector or point-like object) – world coordinates of the inspection target.
+* **Returns:** Nothing.
 
 ### `TryToDoRoseInspectionOnTarget(target)`
-* **Description:** Validates and initiates inspection of a target entity. Performs pre-flight checks (tags, presence of `roseinspectable`, cooldown, residue eligibility). If valid, calls `SetRoseInpectionOnTarget()` and plays an announcement.
-* **Parameters:**
-  * `target` (`Entity`): Entity to inspect.
-* **Returns:** `boolean, string` — `true, ""` on success; `false, reason` on failure (e.g., `"ROSEGLASSES_INVALID"`, `"ROSEGLASSES_COOLDOWN"`).
+* **Description:** Validates and attempts to start an inspection on a target. Returns success status and an optional quip key for failure reasons.
+* **Parameters:** `target` (Entity) – entity to inspect.
+* **Returns:** `success` (boolean), `quip_reason` (string | nil) – quip key for failure (e.g., `"ROSEGLASSES_COOLDOWN"`), or `nil` if successful.
+* **Error states:** Returns `false` if target is a residue, invalid (`CLOSEINSPECTORUTIL.IsValidTarget`), has invalid tags (`lunar_aligned`, `notroseinspectable`), lacks `roseinspectable`, or cannot spawn residue.
 
 ### `TryToDoRoseInspectionOnPoint(pt)`
-* **Description:** Initiates point-based inspection: sets `point` and spawns residue, then announces inspection.
-* **Parameters:**
-  * `pt` (`Vector3`): Point in the world to inspect.
-* **Returns:** `boolean` — Always `true`.
+* **Description:** Begins inspection of a world point and returns success.
+* **Parameters:** `pt` (Vector) – point to inspect.
+* **Returns:** `true` (always succeeds if called).
+* **Error states:** None identified.
+
+### `DoRoseInspectionOnPoint()`
+* **Description:** Evaluates all configured `ROSEPOINT_CONFIGURATIONS` at the current `self.point` and executes the first matching callback. Returns whether a cooldown should be applied.
+* **Parameters:** None.
+* **Returns:** `will_cooldown` (boolean) – whether the successful configuration induces a cooldown.
+* **Error states:** Returns `false` if no configuration matches or all matching configurations are on cooldown (and a quip is triggered).
+
+### `DoQuip(reason, failed)`
+* **Description:** Triggers a line of dialogue via `talker.Say` based on `reason`. Throttles subsequent quips via `quipcooldowntime`.
+* **Parameters:**  
+  * `reason` (string) – localization key for the dialogue line (e.g., `"ANNOUNCE_ROSEGLASSES"`, `"ROSEGLASSES_COOLDOWN"`).  
+  * `failed` (boolean) – if `true`, triggers a failure quip and ignores throttle.
+* **Returns:** Nothing.
 
 ### `ApplyCooldown(duration)`
-* **Description:** Creates a delayed task to end the cooldown after `duration`, updates UI state, and cancels any previous cooldown task.
-* **Parameters:**
-  * `duration` (`number`): Cooldown duration in seconds.
+* **Description:** Starts a task to end the cooldown after `duration` seconds and notifies `player_classified.roseglasses_cooldown` on the client.
+* **Parameters:** `duration` (number) – cooldown duration in seconds.
+* **Returns:** Nothing.
 
 ### `OnCooldown()`
-* **Description:** Ends the cooldown state by clearing `cooldowntask` and updating UI state.
+* **Description:** Called when the cooldown timer ends. Resets `cooldowntask` and notifies `player_classified.roseglasses_cooldown`.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `IsInCooldown()`
-* **Description:** Returns whether the component is currently in cooldown.
-* **Returns:** `boolean`.
+* **Description:** Checks whether the component is currently in a cooldown state.
+* **Parameters:** None.
+* **Returns:** `true` if `cooldowntask` is not `nil`; otherwise `false`.
+
+### `ForceDecayResidue()`
+* **Description:** Immediately destroys the currently spawned `residue`, if any, and cleans up listeners.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `SpawnResidue()`
+* **Description:** Destroys any existing residue, spawns a new `charlieresidue`, positions it at `target` or `point`, and sets up `onremove` listeners.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Saves remaining cooldown time for persistence.
-* **Returns:** `table` — Contains `cooldown` key with remaining seconds if active.
+* **Description:** Serializes remaining cooldown time for save/load.
+* **Parameters:** None.
+* **Returns:** `data` (table) – contains `cooldown` (number) if active.
+* **Error states:** Returns an empty table if no cooldown is active.
 
 ### `OnLoad(data)`
-* **Description:** Restores active cooldown from saved data.
-* **Parameters:**
-  * `data` (`table?`): Saved component data.
+* **Description:** Restores cooldown state from save data.
+* **Parameters:** `data` (table) – saved component data.
+* **Returns:** Nothing.
 
 ### `LongUpdate(dt)`
-* **Description:** Adjusts the cooldown task for time scaling (e.g., during slow-mo or season transitions) by rescheduling.
-* **Parameters:**
-  * `dt` (`number`): Delta time to apply.
+* **Description:** Handles cooldown refinement across frame updates (e.g., for pause/sync), re-scheduling the task with updated remaining time.
+* **Parameters:** `dt` (number) – delta time since last update.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a debug-friendly string summarizing current state (target/point and remaining cooldown).
-* **Returns:** `string`.
+* **Description:** Returns a string for debug display showing the current `target`/`point` and remaining cooldown time.
+* **Parameters:** None.
+* **Returns:** `debug_str` (string) – e.g., `"Target: mytarget, Cooldown: 2.3"`.
 
-## Events & Listeners
-- **Listens for `"onremove"` on host entity:** Cancels active cooldown and calls `OnCooldown()` via `OnRemoveFromEntity`.
-- **Listens for `"onremove"` on `self.residue`:** Clears `self.residue` via `self.residue._onresidueremoved`.
-- **Triggers:**
-  - `"silentcloseinspect"` — Sent during quip spam prevention.
-  - Passively via `DoQuip`: Uses `talker:Say` to trigger speech/quips.
-  - Via `residue._onresidueremoved`: Automatically calls `self.residue = nil`.
+## Events & listeners
+- **Listens to:**  
+  - `"onremove"` on `self.residue` – triggers `self.residue._onresidueremoved` to clear `self.residue`.  
+  - `"onremove"` on `self.inst` – handled via residue's `FXOwner` lifecycle.  
+  - `"onremove"` in `SetRoseInpectionOnTarget` – registered directly on `self.residue` for cleanup.  
+  - `"onremove"` in `OnRemoveFromEntity` – cancels and clears `cooldowntask`.  
+- **Pushes:**  
+  - `"silentcloseinspect"` – fired when quip is throttled.  
+  - `"ROSEGLASSES_COOLDOWN"` quip via `talker.Say` – not a game event but triggers dialogue.

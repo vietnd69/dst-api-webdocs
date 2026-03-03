@@ -3,7 +3,7 @@ id: bunches
 title: Bunches
 description: Defines static spawning rules for grouped environmental props (bunches) such as seastacks, saltstacks, and rubbles across specific tile types.
 tags: [map, worldgen, spawning]
-sidebar_position: 1
+sidebar_position: 100
 
 last_updated: 2026-02-27
 build_version: 714014

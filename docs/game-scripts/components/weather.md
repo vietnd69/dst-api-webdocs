@@ -1,76 +1,101 @@
 ---
 id: weather
 title: Weather
-description: Manages global weather dynamics including precipitation, temperature-driven precipitation type, moisture accumulation and dissipation, snow accumulation, wetness, and lightning activity in Don't Starve Together.
+description: Manages dynamic weather systems including precipitation, temperature, moisture, wetness, snow accumulation, lightning, and atmospheric lighting.
+tags: [weather, environment, lighting, precipitation]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: environment
+category_type: map
 source_hash: a2cd4068
+system_scope: environment
 ---
 
 # Weather
 
-## Overview
-The `weather` component is the core system responsible for simulating dynamic weather conditions in the game world. It calculates and synchronizes moisture levels, precipitation rates, snow accumulation, ground overlay state, player wetness, and ambient lighting adjustments over time. It operates differently on the master simulation (server) versus clients: the server computes game-logic-critical values (e.g., precipitation state, lightning triggers), while the client drives visual and audio feedback based on server-synced data. This component is typically attached to `TheWorld`.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components used internally:** None explicitly added via `AddComponent`. Relies on other systems via event listens (`seasontick`, `temperaturetick`, `phasechanged`, `playeractivated`, `playerdeactivated`, `ms_*` events).
-- **Network variables:** Uses `net_float`, `net_tinybyte`, and `net_bool` for client-server synchronization of state.
-- **Prefabs spawned (client-side only):** `"rain"`, `"snow"`, `"pollen"`, `"lunarhail"` (via `SpawnPrefab`) when not on a dedicated server.
-- **Tags considered:** `"playerghost"`, `"INLIMBO"`, `"lightningrod"`, `"lightningtarget"`, `"lightningblocker"` (used only for lightning strike pathing logic).
+## Overview
+The `weather` component implements the game's comprehensive weather system, handling dynamic precipitation (rain, snow, lunar hail), moisture accumulation and dissipation, ground overlays (snow and puddles), wetness tracking for gameplay effects, lightning generation, and lighting adjustments based on season and weather state. It operates on both server and client, with the server authoritative over state transitions and the client responsible for visual and audio effects synchronization. The component integrates with `health`, `lightningblocker`, `moonstorms`, `playerlightningtarget`, `raindomewatcher`, and `riftspawner` components to handle interactions like lightning targeting, moonstorm interference, and shelter protection.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("weather")
+-- Server-side control examples:
+inst.components.weather:PushEvent("ms_setprecipitationmode", "always")
+inst.components.weather:PushEvent("ms_setmoisturescale", 2.0)
+inst.components.weather:PushEvent("ms_deltamoisture", 10)
+inst.components.weather:PushEvent("ms_setsnowlevel", 0.5)
+```
+
+## Dependencies & tags
+**Components used:** `health`, `lightningblocker`, `moonstorms`, `playerlightningtarget`, `raindomewatcher`, `riftspawner`, `sandstorms`, `sheltered`, `inventory`
+**Tags:** Checks `playerghost`, `INLIMBO`, `lightningrod`, `lightningtarget`, `lightningblocker`, `umbrella`, `metal`; adds `weather` tag implicitly on `TheWorld`.
 
 ## Properties
-No public instance properties are defined outside `self.inst`. All key runtime state is held in local variables with `net_*` wrappers for persistence/sync. The constructor initializes a large number of local private variables for simulation and rendering.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | — | The entity instance this component is attached to (always `TheWorld`). |
+| `_preciptype` | `net_tinybyte` | `0` (none) | Networked precipitation type: 0=none, 1=rain, 2=snow, 3=lunarhail. |
+| `_precipmode` | `net_tinybyte` | `0` (dynamic) | Networked precipitation mode: 0=dynamic, 1=always, 2=never. |
+| `_moisture` | `net_float` | `0` | Current moisture level. |
+| `_moisturefloor` | `net_float` | `0` | Minimum moisture threshold before rain starts. |
+| `_moistureceil` | `net_float` | `0` | Maximum moisture threshold before rain ends. |
+| `_moisturerate` | `net_float` | `0` | Current moisture accumulation rate. |
+| `_snowlevel` | `net_float` | `0` | Snow layer coverage, 0–1. |
+| `_wetness` | `net_float` | `0` | Player wetness level (0–`MAX_WETNESS`). |
+| `_wet` | `net_bool` | `false` | Networked flag indicating player is wet. |
+| `_lightningmode` | number | `0` (rain) | Lightning activation mode (see constants). |
 
-## Main Functions
+## Main functions
+### `GetDebugString()`
+*   **Description:** Returns a multi-line debug string with current weather state values, including moisture, precipitation rate, snow level, lunar hail level, wetness, and lightning timing (server only). Used in `/devmenu` and debug overlays.
+*   **Parameters:** None.
+*   **Returns:** `string` — Formatted debug output.
+*   **Error states:** None; always returns a string.
 
-### `self:OnUpdate(dt)`
-* **Description:** Main simulation and rendering update loop. Handles moisture accumulation/dissipation, precipitation toggling, snow accumulation/melting, wetness calculation, ground overlay updates, particle system rates, sound management, lightning timing, and pushes weather state via `weathertick`. Also calls `PushWeather` each frame.
-* **Parameters:**
-  * `dt` (number): Delta time in seconds since the last update.
+### `OnUpdate(dt)`
+*   **Description:** The core update loop (also aliased as `LongUpdate`). Runs every frame to advance weather simulation, process precipitation accumulation/dissipation, update ground overlays, wetness, lighting, sounds, and particle effects. Server triggers precipitation state changes and lightning; client interpolates and renders.
+*   **Parameters:** `dt` (number) — Delta time in seconds.
+*   **Returns:** Nothing.
+*   **Error states:** Client updates are interpolated and may not exactly match server; critical logic is never run on client.
 
-### `self:GetDebugString()`
-* **Description:** Returns a multi-line formatted string with current weather state (temperature, moisture, precipitation rate, snow level, lunar hail level, wetness, and light level) for use in debug overlays.
-* **Parameters:** None.
+### `OnPostInit()`
+*   **Description:** Initializes particle FX prefabs (`rain`, `snow`, `pollen`, `lunarhail`) after the weather system is attached to an entity. Only runs on non-dedicated clients.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `_hasfx` is `false` (dedicated server).
 
-### `self:OnPostInit()`
-* **Description:** (Client-only) Initializes particle prefabs (`rain`, `snow`, `pollen`, `lunarhail`) once the player entity is available and attached.
-* **Parameters:** None.
+### `OnRemoveEntity()`
+*   **Description:** Cleans up FX prefabs and associated sounds when the component (and `TheWorld`) is destroyed.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Ensures safe removal even if FX are invalid.
 
-### `self:OnRemoveEntity()`
-* **Description:** (Client-only) Removes all particle prefabs on entity cleanup.
-* **Parameters:** None.
+### `OnSave()`
+*   **Description:** Returns a table containing all master-simulation state necessary to persist weather across saves (season, temperature, moisture, precipitation, lightning, wetness, etc.). Only implemented on master simulation.
+*   **Parameters:** None.
+*   **Returns:** `table` — State data for serialization.
 
-### `self:OnSave()`
-* **Description:** (Master simulation only) Returns a table containing all critical weather state needed for world persistence.
-* **Parameters:** None.
+### `OnLoad(data)`
+*   **Description:** Restores weather state from `data` table during load. Updates all internal variables and immediately triggers a `weathertick` event.
+*   **Parameters:** `data` (table) — Previously saved state.
+*   **Returns:** Nothing.
+*   **Error states:** Uses safe defaults if fields are missing.
 
-### `self:OnLoad(data)`
-* **Description:** (Master simulation only) Restores all weather state from the `data` table during world load. Ensures networked values and simulation variables are re-synchronized.
-* **Parameters:**
-  * `data` (table): Saved state table produced by `OnSave`.
-
-## Events & Listeners
-
-### Listens For:
-- `"seasontick"` — triggered on season change/transition (handled by `OnSeasonTick`)
-- `"temperaturetick"` — triggered when temperature updates (handled by `OnTemperatureTick`)
-- `"phasechanged"` — triggered on day/night/dusk/dawn phase change (handled by `OnPhaseChanged`)
-- `"playeractivated"` — triggered when a local player becomes active (handled by `OnPlayerActivated`)
-- `"playerdeactivated"` — triggered when a local player becomes inactive (handled by `OnPlayerDeactivated`)
-- `"moistureceildirty"`, `"preciptypedirty"`, `"snowcovereddirty"`, `"wetdirty"` — internal sync events to push state changes to listeners (handled locally)
-- `"ms_playerjoined"`, `"ms_playerleft"` — (server-only) track lightning targets
-- `"ms_forceprecipitation"`, `"ms_setprecipitationmode"`, `"ms_setmoisturescale"`, `"ms_deltamoisture"`, `"ms_deltamoistureceil"`, `"ms_setsnowlevel"`, `"ms_deltawetness"`, `"ms_setlightningmode"`, `"ms_setlightningdelay"`, `"ms_sendlightningstrike"`, `"ms_simunpaused"`, `"ms_startlunarhail"` — (server-only) RPCs to manipulate weather state
-
-### Pushes:
-- `"weathertick"` — sent each frame with computed weather state (`moisture`, `pop`, `precipitationrate`, `snowlevel`, `lunarhaillevel`, `lunarhailrate`, `wetness`, `light`)
-- `"moistureceilchanged"` — on moisture ceiling sync change
-- `"precipitationchanged"` — on precipitation type change
-- `"snowcoveredchanged"` — on ground snow cover state change
-- `"wetchanged"` — on player wet state change
-- `"ms_sendlightningstrike"` — (server-only) triggers a lightning strike at a position
-- (via `self.inst:PushEvent`) `"lightningstrike"` — sent to entities struck (e.g., lightning rods)
+## Events & listeners
+- **Listens to:**  
+  - `"seasontick"` — Updates seasonal parameters and moisture rates.  
+  - `"temperaturetick"` — Caches current temperature for precipitation type decisions.  
+  - `"phasechanged"` — Tracks day/night cycle for lighting calculations.  
+  - `"playeractivated"` — Attaches FX to local player.  
+  - `"playerdeactivated"` — Detaches FX.  
+  - `"moistureceildirty"`, `"preciptypedirty"`, `"snowcovereddirty"`, `"wetdirty"` — Reprojects network changes.  
+  - `"ms_playerjoined"`, `"ms_playerleft"` — Manages lightning target list (master only).  
+  - `"ms_forceprecipitation"`, `"ms_setprecipitationmode"`, `"ms_setmoisturescale"`, `"ms_deltamoisture"`, `"ms_deltamoistureceil"`, `"ms_setsnowlevel"`, `"ms_deltawetness"`, `"ms_setlightningmode"`, `"ms_setlightningdelay"`, `"ms_sendlightningstrike"`, `"ms_simunpaused"`, `"ms_startlunarhail"` — Master-only control events.  
+- **Pushes:**  
+  - `"weathertick"` — Fired every update with current weather state (`moisture`, `pop`, `precipitationrate`, `snowlevel`, `lunarhaillevel`, `lunarhailrate`, `wetness`, `light`).  
+  - `"moistureceilchanged"`, `"precipitationchanged"`, `"snowcoveredchanged"`, `"wetchanged"` — Reactivity triggers for networked changes.

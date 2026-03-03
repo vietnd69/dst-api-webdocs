@@ -1,50 +1,54 @@
 ---
 id: shard_worldvoter
 title: Shard Worldvoter
-description: Synchronizes world voting state across clients and the master shard in Don't Starve Together.
+description: Manages network synchronization of world voting state between master shard and other shards in a DST shard setup.
+tags: [network, world, sync, shard]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: network
+category_type: map
 source_hash: 8bac443d
+system_scope: network
 ---
-
 # Shard Worldvoter
 
-## Overview
-The `Shard_WorldVoter` component synchronizes world vote state—including vote status, countdown, participants, and squelched players—between the master shard and client shards in a multiplayer session. It ensures that vote-related data is consistently replicated across the network by using dedicated network variables and event-driven synchronization.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires `TheWorld.ismastersim` (fails on non-mastersim instances via `assert`).
-- No other components are added or required on the entity.
-- No tags are added or removed by this component.
+## Overview
+`Shard_WorldVoter` is a server-side component responsible for synchronizing world voting state (e.g., vote results, countdown, participants, and squelched users) between the master shard and other shards. It uses dedicated network variables (`net_bool`, `net_byte`, `net_uint`, `net_string`, `net_tinybyte`) to ensure consistent state replication across shards. This component is strictly for internal DST shard infrastructure and must only exist on the master simulation world (`TheWorld.ismastersim` must be true).
+
+## Usage example
+```lua
+-- Internal use only — the component is added by the game infrastructure during shard initialization.
+-- Example of expected usage in the engine:
+local inst = TheWorld
+inst:AddComponent("shard_worldvoter")
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-The component does not define public instance properties via `_ctor`. Instead, it initializes private network variables and local tables for internal use. The only public property explicitly exposed is:
+No public properties. All state is held in private local variables and network variables.
 
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `inst` | `Entity` | `inst` (passed to constructor) | Reference to the owning entity (typically `TheWorld` or a shard instance). |
+## Main functions
+No public functions. This component only responds to internal events and updates internal network variable state.
 
-All other state is stored in private network variables (e.g., `_enabled`, `_countdown`) and local closures (`_voters`, `_squelched`, `_squelchedpool`).
+## Events & listeners
+- **Listens to:**
+  - On master shard (`_ismastershard == true`):
+    - `master_worldvoterenabled` — updates `_enabled` via `OnVoterEnabled`.
+    - `master_worldvoterupdate` — updates vote metadata (`_countdown`, `_commandid`, `_targetuserid`, `_starteruserid`) and voter list via `OnVoterUpdate`.
+    - `master_worldvotersquelchedupdate` — updates squelched user list via `OnSquelchedUpdate`.
+  - On non-master shards:
+    - `voterenableddirty` — pushes `secondary_worldvoterenabled` event on world sync.
+    - `voterdirty` — pushes `secondary_worldvoterupdate` event with current vote state.
+    - `squelcheddirty` — pushes `secondary_worldvotersquelchedupdate` event with squelched user list.
+- **Pushes:**
+  - On non-master shards only:
+    - `secondary_worldvoterenabled` — data: `enabled` boolean.
+    - `secondary_worldvoterupdate` — data: `{ countdown, commandid, targetuserid, starteruserid, voters }`.
+    - `secondary_worldvotersquelchedupdate` — data: `{ squelched }`.
 
-## Main Functions
-No public methods are defined in this component; all functionality is implemented via private event handlers registered during initialization.
-
-## Events & Listeners
-### Master Shard (`ismastershard = true`)
-- Listens for:
-  - `"master_worldvoterenabled"` → triggers `OnVoterEnabled` to set `_enabled`
-  - `"master_worldvoterupdate"` → triggers `OnVoterUpdate` to update vote state (countdown, command ID, voters, etc.)
-  - `"master_worldvotersquelchedupdate"` → triggers `OnSquelchedUpdate` to manage squelched players list
-
-### Non-Master Shard (`ismastershard = false`)
-- Listens for:
-  - `"voterenableddirty"` → triggers `OnVoterEnabledDirty`, which pushes `"secondary_worldvoterenabled"` with the current enabled state
-  - `"voterdirty"` → triggers `OnVoterDirty`, which collects current voter data and pushes `"secondary_worldvoterupdate"` event
-  - `"squelcheddirty"` → triggers `OnSquelchedDirty`, which aggregates squelched user IDs and pushes `"secondary_worldvotersquelchedupdate"`
-
-No events are pushed by the component on the master shard; it only receives external vote update events and synchronizes them via network variables.

@@ -1,94 +1,66 @@
 ---
 id: wargbrain
 title: Wargbrain
-description: Controls AI behavior for warg and warglet entities, including state-dependent logic for reanimation, hound spawning, carcass consumption, and combat interactions.
-tags: [ai, combat, boss, state, creature]
+description: Controls AI behavior for warg hounds, including carcass consumption, hound summoning, and statue mechanics.
+tags: [ai, combat, hound, boss]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 2e15596d
+system_scope: brain
 ---
 
 # Wargbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-
-Wargbrain is the decision-making component for warg and warglet entities. It implements a behavior tree that orchestrates responses to game conditions such as being in an intro state, transforming into a statue (clay wargs), responding to electric fences, spawning hounds (summoning), consuming carcasses, and engaging in combat.
-
-This brain is shared by both `warg` and `warglet`, with behavioral adjustments based on entity tags (`clay`, `lunar_aligned`). It depends on the `Combat` and `Burnable` components for state evaluation, and integrates with custom behaviors (`StandStill`, `ChaseAndAttack`, `Leash`, `Wander`) to construct its decision logic.
+`WargBrain` implements the behavior tree logic for warg entities in Don't Starve Together. It orchestrates high-priority behaviors such as reanimating when near players (clay wargs), summoning hound minions, consuming carcasses, and engaging in combat. It integrates with the `combat` and `burnable` components and uses standard DST behavior modules (`chaseandattack`, `leash`, `wander`, `standstill`). The brain is shared between wargs and warglets, which rely on the `SGhound` state graph.
 
 ## Usage example
-
-This component is not added directly by modders. It is assigned internally to warg/warglet prefabs as their `brain` component, e.g.:
-
 ```lua
+local inst = CreateEntity()
 inst:AddBrain("wargbrain")
+-- Additional setup (tags, components, state graph) handled by prefab definition
 ```
 
-For modders: if extending or replicating behavior, initialize the brain like any other component and override `OnStart()` to modify the behavior tree root.
-
 ## Dependencies & tags
-
-**Components used:**
-- `combat`: accesses `HasTarget()`, `GetLastAttackedTime()`, `GetHitRange()`, `InCooldown()`
-- `burnable`: accesses `IsBurning()`
-
-**Tags checked:**
-- `clay`: triggers statue loop logic (periodically pushes `becomestatue` event)
-- `lunar_aligned`: disables panic triggers and carcass-eating behavior
-- `creaturecorpse`: filter for valid carcass targets
-
-**Tags added/removed:**
-- None
+**Components used:** `combat`, `burnable`  
+**Tags:** Checks `clay`, `lunar_aligned`, `creaturecorpse`, `NOCLICK`, `fire`. Adds none directly.
 
 ## Properties
-
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `carcass` | `Entity?` | `nil` | Stores the nearest valid carcass entity found via `SelectCarcass()`; valid only while `CheckCarcass()` returns true |
-| `reanimatetime` | `number?` | `nil` | Timer/flag used for clay wargs to transition from statue state to active state. `nil` = wait for proximity, `true` = pending reanimation event |
+No public properties are initialized in the constructor. Internal state is maintained in `self.reanimatetime` and `self.carcass` (set via method calls).
 
 ## Main functions
-
 ### `SelectCarcass()`
-* **Description:** Finds the nearest valid corpse within `SEE_DIST` (30 units) that matches the criteria: has `creaturecorpse` tag, lacks `NOCLICK` and `fire` tags, and is not burning.
+* **Description:** Locates the nearest valid corpse within `SEE_DIST` (30 units) using `FindEntity`, storing it in `self.carcass`.
 * **Parameters:** None.
-* **Returns:** `true` if a valid carcass is found and stored in `self.carcass`; `false` otherwise.
-* **Error states:** Does not fail; returns `false` if no candidate is found.
+* **Returns:** `true` if a matching corpse is found; `false` otherwise.
+* **Error states:** May return `true` even if the corpse becomes invalid before use (checked later by `CheckCarcass`).
 
 ### `CheckCarcass()`
-* **Description:** Verifies that the currently stored `carcass` is still valid: exists, not burning, and tagged as `creaturecorpse`.
+* **Description:** Verifies the currently stored `self.carcass` is still valid and safe to consume (not burning).
 * **Parameters:** None.
-* **Returns:** `true` if the carcass is valid; `false` otherwise.
-* **Error states:** If `self.carcass` is `nil` or invalid, returns `false`.
+* **Returns:** `true` if `self.carcass` is valid, has the `creaturecorpse` tag, and is *not* burning; `false` otherwise.
+* **Error states:** Returns `false` if `self.carcass` is `nil` or its `burnable` component reports `IsBurning()`.
 
 ### `GetCarcassPos()`
-* **Description:** Returns the 3D position of the valid carcass if `CheckCarcass()` passes; otherwise returns `nil`.
+* **Description:** Returns the 3D position of the target carcass, if it passes `CheckCarcass`.
 * **Parameters:** None.
-* **Returns:** `Vector3?` — position of the carcass or `nil`.
-* **Error states:** Returns `nil` if carcass is invalid or not yet selected.
+* **Returns:** `Vector3` (via `self.carcass:GetPosition()`) if carcass is valid; `nil` otherwise.
 
 ### `OnStart()`
-* **Description:** Constructs and assigns the behavior tree root for the entity. This method must be called during brain initialization to set up AI logic.
+* **Description:** Initializes the behavior tree for the warg. Defines the root priority node tree with conditional and hierarchical logic, including state-specific behavior for intro, statue (clay), normal panic, hound summoning, carcass eating, combat, and wandering.
 * **Parameters:** None.
-* **Returns:** None.
-* **Error states:** None. Behavior tree construction is idempotent per call, but only needs to be done once per entity instantiation.
+* **Returns:** Nothing. Assigns the behavior tree to `self.bt`.
 
 ## Events & listeners
-
-- **Listens to:** None explicitly; behavior tree nodes trigger reactions based on runtime state, but no event listeners are registered in this component itself.
-- **Pushes:**
-  - `reanimate`: triggered via `inst:PushEvent("reanimate", { target = player })` in `TryReanimate` when a clay warg's reanimation timer elapses and a nearby player exists.
-  - `chomp`: pushed immediately via `inst:PushEventImmediate("chomp", { target = self.carcass })` when a valid carcass is available and cooldown allows.
-  - `dohowl`: triggered via `sg:HandleEvent("dohowl")` (via state graph) before attempting to summon a follower.
-  - `becomestatue`: pushed periodically (every 3 seconds) while the entity is clay and not in intro state, via the statue loop in the behavior tree.
-
-> Note: Events like `reanimate`, `chomp`, and `becomestatue` are pushed on the instance (`self.inst`), which is the warg/warglet entity. The state graph (`self.inst.sg`) processes `dohowl` as a state transition request, not a raw event.
-
----
+- **Listens to:** None directly (event handling is driven by the state graph `self.inst.sg` via `HasStateTag`, `HandleEvent`, and `mem.dohowl`).
+- **Pushes:** 
+  - `"reanimate"` with `{ target = player }` when reanimation trigger is satisfied (clay wargs).
+  - `"chomp"` with `{ target = self.carcass }` during carcass consumption (via `PushEventImmediate`).
+  - `"becomestatue"` periodically when in clay state (via `PushEvent`).
+- **Pushes via `BrainCommon`:** `"panic"` or `"electricpanic"` depending on configuration (not direct calls, but triggered via `PanicTrigger` and `ElectricFencePanicTrigger`).

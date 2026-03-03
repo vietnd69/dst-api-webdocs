@@ -1,101 +1,114 @@
 ---
 id: pushable
 title: Pushable
-description: Enables an entity to be pushed by another entity, managing motion, state transitions, and event notifications during push interactions.
+description: Enables an entity to be pushed by another entity and maintains relative positioning during the push.
+tags: [locomotion, physics, interaction]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: f111f77c
+system_scope: physics
 ---
-
 # Pushable
 
-## Overview
-The `Pushable` component allows an entity to be moved (pushed) by another entity, such as a player. It controls the pushed entity's physics velocity, enforces distance constraints between the pusher and the pushed object, and emits events to coordinate animations, logic, and synchronization during pushing interactions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependency**: `Physics` component (used via `self.inst.Physics:SetMotorVel`, `self.inst:StartUpdatingComponent`, etc.)
-- **Tags Added/Removed**: None explicitly added or removed by this component.
-- **Event Dependencies**: Relies on `doer` having a valid `sg` (state graph) and `IsValid()` check.
+## Overview
+The `Pushable` component allows an entity to respond to being pushed by another entity (the *doer*). It manages the motion of the pushed entity during a push, optionally adjusting speed to maintain a target distance from the pusher. It integrates with the physics system via `Physics:SetMotorVel`, and supports event callbacks and game events (`startpushing`, `stoppushing`). It is typically added to objects or entities that should slide or be moved by player or creature interaction.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("pushable")
+inst.components.pushable:SetTargetDist(1.5)
+inst.components.pushable:SetMinDist(0.5)
+inst.components.pushable:SetMaxDist(5)
+inst.components.pushable:SetPushingSpeed(3)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Checks `pushing_walk` state tag on the pusher (`doer.sg`).  
+Adds no tags directly.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity this component is attached to. |
-| `speed` | `number` | `3` | Base forward speed during pushing. |
-| `doer` | `Entity?` | `nil` | Reference to the entity currently pushing this object (`nil` when not being pushed). |
-| `targetdist` | `number?` | `nil` | Optional desired distance behind the pusher; used for speed compensation. |
-| `mindist` | `number?` | `nil` | Minimum allowed separation distance; used to halt forward motion if too close. |
-| `maxdist` | `number?` | `nil` | Maximum allowed separation distance; pushing ends if exceeded. |
-| `onstartpushingfn` | `function?` | `nil` | Optional callback invoked when pushing begins: `fn(entity, pusher)`. |
-| `onstoppushingfn` | `function?` | `nil` | Optional callback invoked when pushing ends: `fn(entity, pusher)`. |
+| `inst` | `Entity` | — | Reference to the owning entity. |
+| `doer` | `Entity` or `nil` | `nil` | The entity currently pushing this one. |
+| `targetdist` | number or `nil` | `nil` | Desired distance from the pusher; used to adjust speed dynamically. |
+| `mindist` | number or `nil` | `nil` | Minimum separation; if closer, pushing forward stops. |
+| `maxdist` | number or `nil` | `nil` | Maximum separation; if exceeded, pushing stops. |
+| `speed` | number | `3` | Base forward velocity during a push. |
+| `onstartpushingfn` | function or `nil` | `nil` | Callback fired when a push begins: `fn(inst, doer)`. |
+| `onstoppushingfn` | function or `nil` | `nil` | Callback fired when a push ends: `fn(inst, doer)`. |
 
-## Main Functions
-
+## Main functions
 ### `SetTargetDist(dist)`
-* **Description:** Sets the desired distance the pushed entity maintains behind the pusher. Adjusts pushing speed dynamically to maintain this distance.
-* **Parameters:**  
-  `dist` (`number`) – Target separation distance in units.
+* **Description:** Sets the desired distance to maintain from the pusher; used to dynamically adjust pushing speed.
+* **Parameters:** `dist` (number) — target separation distance in units.
+* **Returns:** Nothing.
 
 ### `SetMinDist(dist)`
-* **Description:** Configures the minimum separation threshold. When the pusher gets this close or closer, forward motion stops to prevent overlap or collision.
-* **Parameters:**  
-  `dist` (`number`) – Minimum allowed distance in units.
+* **Description:** Configures the minimum separation; if the pusher gets closer than this, forward motion ceases.
+* **Parameters:** `dist` (number) — minimum allowed separation in units.
+* **Returns:** Nothing.
 
 ### `SetMaxDist(dist)`
-* **Description:** Sets the maximum separation distance. Pushing ends automatically if the distance between entities exceeds this value.
-* **Parameters:**  
-  `dist` (`number`) – Maximum allowed distance in units.
+* **Description:** Configures the maximum separation; if the pusher drifts farther than this, the push is canceled.
+* **Parameters:** `dist` (number) — maximum allowed separation in units.
+* **Returns:** Nothing.
 
 ### `SetPushingSpeed(speed)`
-* **Description:** Overrides the base pushing speed used during movement.
-* **Parameters:**  
-  `speed` (`number`) – New constant speed value (e.g., `3` for default walk speed).
+* **Description:** Sets the base forward speed during a push.
+* **Parameters:** `speed` (number) — base velocity in units/second.
+* **Returns:** Nothing.
 
 ### `SetOnStartPushingFn(fn)`
-* **Description:** Assigns a callback to run when pushing begins.
-* **Parameters:**  
-  `fn` (`function?`) – Function signature: `function(entity, pusher)`.
+* **Description:** Assigns a callback to run when a push begins.
+* **Parameters:** `fn` (function) — callback with signature `fn(inst, doer)`.
+* **Returns:** Nothing.
 
 ### `SetOnStopPushingFn(fn)`
-* **Description:** Assigns a callback to run when pushing ends.
-* **Parameters:**  
-  `fn` (`function?`) – Function signature: `function(entity, pusher)`.
+* **Description:** Assigns a callback to run when a push ends.
+* **Parameters:** `fn` (function) — callback with signature `fn(inst, doer)`.
+* **Returns:** Nothing.
 
 ### `IsPushing()`
-* **Description:** Returns whether this entity is currently being pushed.
-* **Returns:** `boolean` – `true` if being pushed by a valid doer.
+* **Description:** Reports whether an entity is currently being pushed.
+* **Parameters:** None.
+* **Returns:** `true` if a valid `doer` is set; otherwise `false`.
 
 ### `GetPushingSpeed()`
-* **Description:** Returns the currently configured base pushing speed.
-* **Returns:** `number` – Speed value.
+* **Description:** Returns the current base pushing speed.
+* **Parameters:** None.
+* **Returns:** number — the push speed.
 
 ### `ShouldStopForwardMotion()`
-* **Description:** Checks if forward motion should be halted because the pusher is too close (within `mindist`). Only meaningful if `mindist` is set and a valid pusher exists.
-* **Returns:** `boolean` – `true` if forward motion should stop.
+* **Description:** Determines whether forward motion should cease based on proximity to the pusher (`mindist` check).
+* **Parameters:** None.
+* **Returns:** `true` if the pusher is within `mindist`; otherwise `false`.
 
 ### `StartPushing(doer)`
-* **Description:** Initiates pushing behavior on this entity. Sets up the pusher reference, starts physics updates, fires callbacks, and emits a `"startpushing"` event.
-* **Parameters:**  
-  `doer` (`Entity`) – The entity initiating the push (must be valid and have a state graph).
+* **Description:** Initiates a push by the given entity. Updates the physics motor, triggers callbacks, and starts the update loop.
+* **Parameters:** `doer` (Entity) — the entity initiating the push; must be valid and have a valid state graph.
+* **Returns:** Nothing.
+* **Error states:** Silently returns if `doer` is `nil`, invalid, or lacks a state graph.
 
 ### `StopPushing(doer)`
-* **Description:** Halts pushing behavior. Stops physics, fires optional callbacks, emits `"stoppushing"` event, and clears the pusher reference. Accepts optional `doer` parameter for verification; if `nil`, stops regardless of the current doer.
-* **Parameters:**  
-  `doer` (`Entity?`) – Optional expected pusher entity for confirmation.
+* **Description:** Halts the current push. Clears physics motion and stops the update loop. If `doer` is provided and does not match the active pusher, nothing happens.
+* **Parameters:** `doer` (Entity or `nil`) — optional filter; if `nil`, stops any active push.
+* **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-* **Description:** Called every frame while pushing. Maintains motion using `SetMotorVel`, adjusts speed based on `targetdist`, and stops pushing if constraints (`maxdist`, invalid doer, missing state tags) are violated.
-* **Parameters:**  
-  `dt` (`number`) – Delta time in seconds.
+* **Description:** Called every frame while pushing. Adjusts motor velocity to move forward; optionally modulates speed to reach `targetdist`.
+* **Parameters:** `dt` (number) — delta time since last frame.
+* **Returns:** Nothing.
+* **Error states:** Automatically calls `StopPushing` if the pusher state is invalid, missing the `pushing_walk` state tag, or exceeds `maxdist`.
 
-## Events & Listeners
-- **Emits:**
-  - `"startpushing"` – Pushing begins. Event payload: `{ doer = pusher_entity }`.
-  - `"stoppushing"` – Pushing ends. Event payload: `{ doer = pusher_entity }`.
-- **Listens For:**
-  - None (this component does not actively listen for external events).
+## Events & listeners
+- **Listens to:** N/A (this component does not register listeners itself).
+- **Pushes:** `startpushing` — fired when a push begins; payload: `{ doer = Entity }`.  
+  `stoppushing` — fired when a push ends; payload: `{ doer = Entity }`.

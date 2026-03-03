@@ -1,30 +1,41 @@
 ---
 id: shaver
 title: Shaver
-description: A placeholder component that provides no functional logic or state, likely intended for future use or act as a stub.
+description: Placeholder component with no implemented logic; exists solely to register custom actions via componentactions.lua.
+tags: [action, placeholder]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 72c5fb7e
+system_scope: entity
 ---
 
 # Shaver
 
-## Overview
-This component serves as an empty stub—initializing only the entity reference (`inst`) and containing no additional logic, properties, methods, or event listeners. It registers no actions, dependencies, or behaviors beyond basic instantiation. Its presence likely indicates it is reserved for future implementation or used as a structural placeholder.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-None identified.
+## Overview
+`Shaver` is an empty component implementation that serves only as a registration point for custom actions defined in `componentactions.lua`. It does not contain any logic, properties, event listeners, or behavioral methods. Its sole purpose is to allow the entity it is attached to support context-sensitive actions defined externally.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("shaver")
+-- Custom actions are defined in componentactions.lua and attached via inst:MakeAuthority()
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-No public properties were clearly identified from the source. The constructor accepts only `self` and `inst`, assigning `inst` to `self.inst`, but this is standard ECS boilerplate and not considered a public property of the component itself.
+No public properties
 
-## Main Functions
-No main functional methods are defined.
+## Main functions
+No main functions
 
-## Events & Listeners
-No events are registered or listened to.
+## Events & listeners
+None identified

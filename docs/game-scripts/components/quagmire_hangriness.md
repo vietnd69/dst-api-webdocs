@@ -1,75 +1,88 @@
 ---
 id: quagmire_hangriness
 title: Quagmire Hangriness
-description: Tracks and manages a player's hangriness state in Quagmire mode, including progression mechanics, acceleration tiers, rumble effects, and network synchronization.
+description: Manages the hangriness meter and progression system for Quagmire-era entities, including hunger depletion simulation, acceleration-based speed modeling, and rumble sound triggering.
+tags: [combat, hunger, boss, quagmire]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 0e7df35c
+system_scope: entity
 ---
 
 # Quagmire Hangriness
 
-## Overview
-This component implements the hangriness progression system used for Quagmire mode, tracking how hungrier a player becomes over time. It calculates hangriness values using variable acceleration based on thresholds, handles client-server synchronization, triggers rumble and sound effects, and supports level-start matching logic for cooperative play.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components used:** None explicitly added or required on `inst`.
-- **Tags added/removed:** None identified.
-- **Network usage:** Relies on custom net variables (`net_float`, `net_bool`) scoped to the entity GUID.
+## Overview
+`QuagmireHangriness` models the hunger mechanic for Quagmire creatures, tracking a `current` hangriness value that decreases over time with non-constant acceleration. It handles state transitions (level changes), client-server synchronization via network variables, and timed rumble events during active hunger phases. The component is attached to entities involved in Quagmire encounters (e.g., bosses or key NPCs), and integrates with an internal `event_server_data` system for authoritative logic on the master simulation.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("quagmire_hangriness")
+inst.components.quagmire_hangriness:Start(300) -- Begin hunger with 300s level start buffer
+print(inst.components.quagmire_hangriness:GetPercent()) -- 0.0 to 1.0
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `hungry`, `starving`, `ravenous`, and `matched` conditionally during Quagmire gameplay.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (passed to constructor) | Reference to the owning entity (typically a player). |
-| `_world` | `TheWorld` | `TheWorld` | Reference to the world context. Used for event dispatching and sound effects. |
-| `_ismastersim` | `boolean` | `TheWorld.ismastersim` | Flag indicating whether the current instance is running in master simulation. |
-| `_updating` | `boolean` | `false` | Whether the hangriness system is actively tracking time (i.e., level has started). |
-| `_netvars.current` | `net_float` | `MAX_HANGRY` | Current hangriness value, clamped to `[0, MAX_HANGRY]`. |
-| `_netvars.speed` | `net_float` | `0` | Current rate of hangriness increase (velocity-like quantity). |
-| `_netvars.levelstart` | `net_float` | `0` | Remaining time at the start of a level; triggers updates when > 0. |
-| `_netvars.rumbled` | `net_bool` | `false` | Whether the hangriness has triggered a major rumble event (level > 2). |
-| `_netvars.matched` | `net_bool` | `false` | Whether the player has successfully matched with a craving (for co-op synchronization). |
+| `inst` | Entity | `inst` | Reference to the entity this component is attached to. |
+| `_netvars.current` | number | `6000` | Current hangriness value (0–6000). |
+| `_netvars.speed` | number | `0` | Current depletion speed, updated on each update. |
+| `_netvars.levelstart` | number | `0` | Remaining time at the start of a level (e.g., pre-match buffer). |
+| `_netvars.rumbled` | boolean | `false` | Whether a rumble event is currently active. |
+| `_netvars.matched` | boolean | `false` | Whether the creature is in a matching state (e.g., player interaction). |
 
-## Main Functions
-
+## Main functions
 ### `GetCurrent()`
 * **Description:** Returns the current hangriness value.
 * **Parameters:** None.
+* **Returns:** `number` — current value in range `[0, 6000]`.
 
 ### `GetPercent()`
-* **Description:** Returns the current hangriness as a fraction of `MAX_HANGRY` (i.e., percentage in range `[0, 1]`).
+* **Description:** Returns the hangriness level as a normalized percentage.
 * **Parameters:** None.
+* **Returns:** `number` — value in range `[0.0, 1.0]`.
 
 ### `GetLevel()`
-* **Description:** Returns a difficulty level (1–3) based on current hangriness and speed. Level 3 if hungrier than threshold or speed is high; level 2 for medium speed; otherwise level 1.
+* **Description:** Returns the current hunger level: `1` (mild), `2` (moderate), or `3` (severe/critical).
 * **Parameters:** None.
+* **Returns:** `number` — `1`, `2`, or `3`. Level `3` is returned if hangriness is `0`, or speed is `≥ 4`, or speed is `≥ 8`.
 
 ### `GetTimeRemaining()`
-* **Description:** Computes and returns the estimated time (in seconds) until hangriness reaches 0, using piecewise constant acceleration defined in `ACCEL_THRESHOLDS`.
+* **Description:** Calculates the remaining time (in seconds) until hangriness reaches `0`, using piecewise constant acceleration segments defined by `ACCEL_THRESHOLDS`.
 * **Parameters:** None.
+* **Returns:** `number` — projected time remaining in seconds.
 
 ### `Start(levelstart)`
-* **Description:** (Master-only) Begins the hangriness tracking for a new level. Initializes internal timers and registers event callbacks for matching behavior.
-* **Parameters:**  
-  - `levelstart` (`number`): Time (in seconds) before the level timer begins reducing hangriness.
+* **Description (master only):** Begins the hangriness progression. Initializes the level-start buffer and triggers syncing.
+* **Parameters:** `levelstart` (number) — time in seconds before hangriness begins depleting.
+* **Returns:** Nothing.
 
 ### `Stop()`
-* **Description:** (Master-only) Stops hangriness tracking for the current level, clearing timers and callbacks.
+* **Description (master only):** Stops hangriness progression and resets timing buffers.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-* **Description:** (Master-only, called automatically during update loop) Advances hangriness simulation by `dt` seconds, applying piecewise acceleration to reduce hangriness and update speed. Manages rumble timing, periodic syncing, and triggers sound events.
-* **Parameters:**  
-  - `dt` (`number`): Delta time in seconds since last frame.
+* **Description (master only):** Called every frame during active phases. Updates speed and hangriness value based on piecewise acceleration, triggers rumbles, and ensures network sync.
+* **Parameters:** `dt` (number) — delta time in seconds.
+* **Returns:** Nothing.
 
-## Events & Listeners
-- Listens for `"levelstartdirty"` → triggers `OnLevelStartDirty()`, which starts or stops the update loop and registers/unregisters craving match/mismatch handlers.
-- Listens for `"rumbleddirty"` (client-only) → triggers `OnRumbled()` to replay rumble sounds.
-- Listens for `"matcheddirty"` (client-only) → triggers `OnMatched()` to notify listeners of matching status changes.
-- Pushes `"quagmirehangrinessrumbled"` event via `_world:PushEvent(...)` when rumble occurs.
-- Pushes `"quagmirehangrinessmatched"` event via `_world:PushEvent(...)` when matching state changes.
+## Events & listeners
+- **Listens to:**  
+  - `levelstartdirty` — triggers state entry/exit for active hunger phases.  
+  - `rumbleddirty` — fires rumble sound when network flag updates.  
+  - `matcheddirty` — fires matched sound when matching state changes.
+- **Pushes:**  
+  - `quagmirehangrinessrumbled` — includes `{ major = boolean }`.  
+  - `quagmirehangrinessmatched` — includes `{ matched = boolean }`.

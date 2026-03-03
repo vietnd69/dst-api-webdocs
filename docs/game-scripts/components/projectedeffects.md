@@ -1,100 +1,113 @@
 ---
 id: projectedeffects
 title: Projectedeffects
-description: Manages animated fade-in and fade-out transitions for projection shader effects on an entity using alpha interpolation and shader parameters.
+description: Manages animated transparency and shader parameters for projected visual effects on entities, such as fading in or out using an erosion shader.
+tags: [fx, visual, animation]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: ff561b5e
+system_scope: fx
 ---
-
 # Projectedeffects
 
-## Overview
-The `ProjectedEffects` component manages smooth visual transitions (fade-in and fade-out) for projection-based shaders applied to an entity's animation state. It controls alpha interpolation over time, updates erosion parameters for the shader, and supports callbacks upon completion of construction or decay phases. It integrates with the entity’s update loop to drive the animation dynamically.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Uses `inst.AnimState:SetErosionParams(...)` — depends on the `AnimState` component being present on the entity.
-- No explicit component additions or tag manipulations are performed.
+## Overview
+`ProjectedEffects` controls the fade-in and fade-out animation of projected visual effects on an entity's mesh by dynamically adjusting the alpha value of an erosion shader. It interacts with the `AnimState` component to apply time-based transitions using configurable construct and decay times. This component is typically used for particles or overlays that need smooth opacity transitions (e.g., summoned entities, temporary barriers).
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("projectedeffects")
+inst.components.projectedeffects:SetConstructTime(0.5)
+inst.components.projectedeffects:SetDecayTime(1.0)
+inst.components.projectedeffects:SetIntensity(-0.2)
+inst.components.projectedeffects:Construct()
+```
+
+## Dependencies & tags
+**Components used:** `AnimState` (via `inst.AnimState:SetErosionParams(...)`)
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` (passed in constructor) | Reference to the owning entity instance. |
-| `alpha` | `number` | `0` | Current interpolation factor (0 = fully invisible, 1 = fully visible). |
-| `targetalpha` | `number` | `0` | Target alpha value the transition is moving toward. |
-| `cutoffheight` | `number` | `-0.01` | Shader cutoff height parameter; clamped to avoid fractal artifacts. |
-| `intensity` | `number` | `-0.15` | Shader intensity (must be negative for projector to function). |
-| `decaytime` | `number` | `0.5` | Duration (in seconds) for fade-out transitions. |
-| `constructtime` | `number` | `0.25` | Duration (in seconds) for fade-in transitions. |
-| `onconstructcallback` | `function?` | `nil` | Optional callback invoked when fade-in completes. |
-| `ondecaycallback` | `function?` | `nil` | Optional callback invoked when fade-out completes (unless decay is locked). |
+| `alpha` | number | `0` | Current opacity level (0 = fully transparent, 1 = fully opaque). |
+| `targetalpha` | number | `0` | Target opacity for interpolation. |
+| `cutoffheight` | number | `-0.01` | Shader parameter to control vertical cutoff; set to `SHADER_CUTOFF_HEIGHT_HIDE` (`20`) when fully transparent. |
+| `intensity` | number | `-0.15` | Shader intensity; must be ≤ `-0.01` to function. |
+| `decaytime` | number | `0.5` | Duration (seconds) for fade-out transition. |
+| `constructtime` | number | `0.25` | Duration (seconds) for fade-in transition. |
+| `onconstructcallback` | function or nil | `nil` | Optional callback fired when fully constructed (`alpha == 1`). |
+| `ondecaycallback` | function or nil | `nil` | Optional callback fired when fully decayed (`alpha == 0`) *and* not locked. |
+| `permanentdecay` | boolean or nil | `nil` | When true, prevents reactivation via `Construct()`. |
+| `lockeddecay` | boolean or nil | `nil` | When true, prevents cleanup after decay completes (i.e., keeps component updated). |
+| `paused` | boolean or nil | `nil` | If true, temporarily halts updates in `OnUpdate`. |
 
-> Note: The component does not define `_ctor` separately but uses `Class(function(self, inst) ... end)` to initialize state.
-
-## Main Functions
-
+## Main functions
 ### `MakeOpaque()`
-* **Description:** Immediately sets the effect to fully opaque (`alpha = 1`) and updates the shader erosion parameters accordingly.
+* **Description:** Instantly sets the effect to fully opaque (alpha = 1) and applies the erosion shader parameters accordingly. Useful for immediate visibility without animation.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SetDecayTime(duration)`
-* **Description:** Sets the duration (in seconds) for fade-out transitions. Enforces a minimum positive value.
-* **Parameters:**  
-  * `duration` (`number`): Desired fade-out duration. Values less than `0.01` are clamped to `0.01`.
+* **Description:** Sets the time (in seconds) over which the effect fades out (alpha → 0).
+* **Parameters:** `duration` (number) — must be ≥ `0.01`; values below this are clamped.
+* **Returns:** Nothing.
 
 ### `SetConstructTime(duration)`
-* **Description:** Sets the duration (in seconds) for fade-in transitions. Enforces a minimum positive value.
-* **Parameters:**  
-  * `duration` (`number`): Desired fade-in duration. Values less than `0.01` are clamped to `0.01`.
+* **Description:** Sets the time (in seconds) over which the effect fades in (alpha → 1).
+* **Parameters:** `duration` (number) — must be ≥ `0.01`; values below this are clamped.
+* **Returns:** Nothing.
 
 ### `SetCutoffHeight(cutoffheight)`
-* **Description:** Sets the shader cutoff height. Automatically adjusts `0` to `-0.01` to prevent shader artifacts.
-* **Parameters:**  
-  * `cutoffheight` (`number`): Cutoff height value for the erosion shader.
+* **Description:** Configures the vertical cutoff height used by the erosion shader. Automatically adjusts zero to `-0.01` to prevent shader instability.
+* **Parameters:** `cutoffheight` (number) — desired cutoff height.
+* **Returns:** Nothing.
 
 ### `SetIntensity(intensity)`
-* **Description:** Sets the shader intensity. Ensures the value is negative (required for projector shader functionality).
-* **Parameters:**  
-  * `intensity` (`number`): Intensity value. Values greater than `-0.01` are clamped to `-0.01`.
+* **Description:** Sets the shader intensity. Enforces a maximum (least negative) value of `-0.01` to ensure the projector shader remains active.
+* **Parameters:** `intensity` (number) — must be ≤ `-0.01`.
+* **Returns:** Nothing.
 
 ### `SetOnConstructCallback(callback)`
-* **Description:** Registers a callback function to execute when the fade-in transition completes (i.e., `alpha` reaches `1`).
-* **Parameters:**  
-  * `callback` (`function?`): Function accepting `inst` as its sole argument.
+* **Description:** Assigns an optional callback function invoked when the effect reaches full opacity (`alpha == 1`).
+* **Parameters:** `callback` (function) — takes the entity instance (`inst`) as argument.
+* **Returns:** Nothing.
 
 ### `SetOnDecayCallback(callback)`
-* **Description:** Registers a callback function to execute when the fade-out transition completes (i.e., `alpha` reaches `0`), unless decay is locked.
-* **Parameters:**  
-  * `callback` (`function?`): Function accepting `inst` as its sole argument.
+* **Description:** Assigns an optional callback function invoked when the effect completes decay (`alpha == 0`) *and* decay is not locked.
+* **Parameters:** `callback` (function) — takes the entity instance (`inst`) as argument.
+* **Returns:** Nothing.
 
 ### `Construct()`
-* **Description:** Initiates a fade-in transition by setting `targetalpha = 1` and starting the component update loop if not already active. No effect if `permanentdecay` is true.
+* **Description:** Initiates fade-in transition by setting `targetalpha = 1`. Skips if `permanentdecay` is set or if alpha is already at or above target.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `Decay(permanent)`
-* **Description:** Initiates a fade-out transition by setting `targetalpha = 0` and starting the update loop. If `permanent` is true, the decay is locked so it cannot be re-enabled later.
-* **Parameters:**  
-  * `permanent` (`boolean`): If true, sets `permanentdecay = true`, preventing future construction.
+* **Description:** Initiates fade-out transition by setting `targetalpha = 0`. If `permanent` is true, prevents future `Construct()` calls.
+* **Parameters:** `permanent` (boolean) — if true, locks the decay state permanently.
+* **Returns:** Nothing.
 
 ### `LockDecay(locked)`
-* **Description:** Locks or unlocks the decay state. When locked, decay completion callbacks are suppressed and no further fade-in is possible.
-* **Parameters:**  
-  * `locked` (`boolean`): If true, prevents decay callbacks and halts future construction.
+* **Description:** Determines whether to keep the component active after full decay. When `true`, decay callbacks won’t stop updates, preserving the component for potential later use.
+* **Parameters:** `locked` (boolean) — whether to lock decay state.
+* **Returns:** Nothing.
 
 ### `SetPaused(paused)`
-* **Description:** Pauses or resumes the transition update loop.
-* **Parameters:**  
-  * `paused` (`boolean`): If true, pauses updates; otherwise, resumes.
+* **Description:** Pauses or resumes animation updates. Accepts `true`/`false` or any truthy/falsy value.
+* **Parameters:** `paused` (boolean) — if truthy, pauses the update loop.
+* **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-* **Description:** Interpolates `alpha` toward `targetalpha` using linear interpolation over `constructtime` or `decaytime`, then updates the shader. Triggers callbacks and stops updates when transitions complete.
-* **Parameters:**  
-  * `dt` (`number`): Delta time in seconds since the last frame.
+* **Description:** Core update loop that interpolates `alpha` toward `targetalpha` each frame, using `constructtime` or `decaytime`. Applies updated shader params to `AnimState`. Fires callbacks and stops updates when transitions complete.
+* **Parameters:** `dt` (number) — delta time in seconds.
+* **Returns:** Nothing.
 
-## Events & Listeners
-None. This component does not use DST’s event system (`inst:ListenForEvent`/`inst:PushEvent`); it relies solely on direct method calls and the `OnUpdate` loop.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** None.

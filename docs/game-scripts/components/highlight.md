@@ -1,76 +1,97 @@
 ---
 id: highlight
 title: Highlight
-description: Manages dynamic highlight color overlays for entities, supporting persistent highlighting, flashing effects, and per-entity color overrides.
+description: Manages dynamic highlight color effects (including flashing and persistent highlights) on entity renderables.
+tags: [render, visual, fx]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: ui
+category_type: components
 source_hash: 97bdf38b
+system_scope: fx
 ---
 
 # Highlight
 
-## Overview
-This component adds a visual highlight effect to an entity (and optionally its child entities) by modifying its `AnimState`'s highlight color. It supports persistent highlighting (e.g., when an item is hovered or targeted), temporary flashing (e.g., during damage or selection feedback), and dynamic color blending from multiple sources: base color, highlight color override, and flash transitions.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Requires:** `AnimState` component (used to apply color changes via `AnimState:SetHighlightColour`)
-- **Uses:** `easing` module (`easing.outCubic`) for smooth flash transitions
-- **Tag Behavior:** Conditionally applies highlight based on `"player"` tag or line-of-sight (`CanEntitySeeTarget`) — no tags are added/removed programmatically by this component.
+## Overview
+The `Highlight` component applies and animates custom highlight colors on an entity's `AnimState` and optional child entities. It supports persistent highlighting, custom additive RGB color offsets, and timed flash effects using cubic easing. This component is typically used for targeting indicators, status effects, or visual feedback on important entities and is automatically removed when no highlight or flash is active.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("highlight")
+
+-- Apply a persistent highlight with custom color
+inst.components.highlight:Highlight(0.3, 0.1, 0.1)
+
+-- Trigger a 0.5-second fade-in + 0.5-second fade-out red flash
+inst.components.highlight:Flash(1.0, 0.5, 0.5)
+```
+
+## Dependencies & tags
+**Components used:** None directly — relies on `AnimState` and optional `highlightchildren` property.  
+**Tags:** Checks `player` tag and uses `ThePlayer` for visibility detection.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (passed to constructor) | Reference to the owner entity. |
-| `highlit` | `boolean?` | `nil` | Whether the entity is currently highlighted. |
-| `base_add_colour_red/green/blue` | `number` | `0` | Persistent base color offset added to the highlight. |
-| `highlight_add_colour_red/green/blue` | `number?` | `nil` | Override color used during highlighting (e.g., white-ish default or custom per-entity color). |
-| `flashadd` | `number` | (undefined until `Flash`) | Peak value of the flash color offset. |
-| `flashtimein` / `flashtimeout` | `number` | (undefined until `Flash`) | Duration (in seconds) of the flash's rising and falling phases. |
-| `t` | `number` | `0` | Internal timer tracking progress within flash transitions. |
-| `flashing` | `boolean` | `false` | Whether a flash effect is active. |
-| `goingin` | `boolean` | `false` | Direction of current flash: `true` = fading in, `false` = fading out. |
-| `flash_val` | `number?` | `nil` | Current interpolated flash color offset value. |
+| `inst` | `Entity` | `nil` | The entity this component is attached to. |
+| `highlit` | boolean or `nil` | `nil` | Indicates if a persistent highlight is currently active. |
+| `base_add_colour_red`, `base_add_colour_green`, `base_add_colour_blue` | number | `0` | Additive RGB values set via `SetAddColour`. |
+| `highlight_add_colour_red`, `highlight_add_colour_green`, `highlight_add_colour_blue` | number or `nil` | `nil` | Additive RGB values applied during highlight state. |
+| `flash_val` | number or `nil` | `nil` | Current flash intensity value computed during animation. |
+| `flashing` | boolean | `false` | Whether a flash animation is currently active. |
+| `flashadd` | number | `0` | Peak flash intensity for the flash effect. |
+| `flashtimein` | number | `0` | Duration (in seconds) of the flash fade-in. |
+| `flashtimeout` | number | `0` | Duration (in seconds) of the flash fade-out. |
+| `t` | number | `0` | Accumulated time during the current flash phase. |
+| `goingin` | boolean | `true` | Direction of the current flash phase (`true` = fade-in, `false` = fade-out). |
 
-## Main Functions
-
+## Main functions
 ### `SetAddColour(col)`
-* **Description:** Sets the persistent base highlight color (e.g., for ambient or background lighting effects). Immediately applies the new color unless flashing is active.  
-* **Parameters:**  
-  - `col` (`Vector3` or table-like): RGB color offset where `col.x`, `col.y`, `col.z` correspond to red, green, and blue components.
+* **Description:** Sets a persistent additive RGB highlight color on the entity. If not currently flashing, immediately applies the color.
+* **Parameters:** `col` (vector3) — `col.x`, `col.y`, `col.z` correspond to red, green, and blue values (typically `0`–`1` range).
+* **Returns:** Nothing.
+* **Error states:** Has no effect if the entity lacks an `AnimState` component.
 
 ### `Flash(toadd, timein, timeout)`
-* **Description:** Initiates a temporary flash effect using a cubic easing function. The flash starts at `0`, ramps up to `toadd` over `timein` seconds, then fades back to `0` over `timeout` seconds. Automatically starts/stops entity updates as needed.  
-* **Parameters:**  
-  - `toadd` (`number`): Peak additive color value applied during the flash peak (RGB channels use the same value).  
-  - `timein` (`number`): Duration (in seconds) of the ascending (fading-in) phase.  
-  - `timeout` (`number`): Duration (in seconds) of the descending (fading-out) phase.
-
-### `OnUpdate(dt)`
-* **Description:** Drives the flash animation each frame. Handles cleanup on entity invalidation (stops updates or removes the component). Updates `flash_val` using easing, and calls `ApplyColour()` when active.  
-* **Parameters:**  
-  - `dt` (`number`): Time elapsed since the last frame (in seconds).
-
-### `ApplyColour()`
-* **Description:** Computes the total additive color (sum of base, highlight override, and current flash value) and applies it to the entity's `AnimState` (and optionally its `highlightchildren`). If `AnimState` is missing, no action is taken.  
-* **Parameters:** None.
+* **Description:** Starts a flash animation, gradually increasing then decreasing additive color intensity using `easing.outCubic`.
+* **Parameters:**
+  * `toadd` (number) — peak additive value to reach (applied to all RGB channels).
+  * `timein` (number) — duration of the fade-in phase in seconds.
+  * `timeout` (number) — duration of the fade-out phase in seconds.
+* **Returns:** Nothing.
+* **Error states:** None. Automatically stops updating if the entity becomes invalid or highlight/flash ends.
 
 ### `Highlight(r, g, b)`
-* **Description:** Activates a highlight on the entity. If the entity is visible to the player or is a player, applies a color override (default `.2, .2, .2` or custom from `highlightoverride`); otherwise, clears the override. Sets `highlit = true`. Does not apply color if flashing is in progress (waits until flash ends).  
-* **Parameters:**  
-  - `r`, `g`, `b` (`number?`): Optional explicit RGB override values; if provided, used instead of `highlightoverride` or default.
+* **Description:** Activates a persistent highlight with optional RGB override values. Checks if the entity is visible to `ThePlayer` or has the `player` tag before applying highlights; otherwise, clears highlight color.
+* **Parameters:**
+  * `r`, `g`, `b` (number or `nil`) — override red, green, and blue additive values. If `nil`, uses `highlightoverride` (if present) or defaults to `0.2` for all channels.
+* **Returns:** Nothing.
+* **Error states:** None. Silently skips applying color if the entity is not visible or lacks required properties.
 
 ### `UnHighlight()`
-* **Description:** Deactivates the highlight by setting `highlit = nil`. Does *not* immediately remove the component or color override fields (commented out in code), but will remove the component if not currently flashing.  
+* **Description:** Removes the persistent highlight. If not flashing, schedules the component for removal.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** None. Does not interrupt an active flash.
+
+### `ApplyColour()`
+* **Description:** Computes the final additive color (base + highlight + flash) and applies it to the entity’s `AnimState` and `highlightchildren`.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** None. Skips if `AnimState` is missing.
 
 ### `OnRemoveFromEntity()`
-* **Description:** Cleans up highlight color when the component is removed: resets highlight color to default (no offset) on the entity and its children.  
+* **Description:** Resets highlight colors to default (no highlight) for the entity and its children when the component is removed.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** None.
 
-## Events & Listeners
-None identified.
+## Events & listeners
+- **Listens to:** None directly — updates are managed via `inst:StartUpdatingComponent(self)` and `inst:StopUpdatingComponent(self)` from `OnUpdate`.
+- **Pushes:** None — this component does not fire custom events.

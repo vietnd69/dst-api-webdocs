@@ -3,8 +3,7 @@ id: bunch_spawner
 title: Bunch Spawner
 description: Spawns groups of entities (bunches) around predefined spawner positions during world generation, enforcing placement rules and spacing constraints.
 tags: [world-generation, spawner, grouping]
-sidebar_position: 1
-
+sidebar_position: 100
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: 32e5b024
 ---
-
 # Bunch Spawner
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -87,4 +85,3 @@ The following global variables are initialized in the module scope:
 ## Events & listeners
 No events or listeners are defined or used by this module.
 
----

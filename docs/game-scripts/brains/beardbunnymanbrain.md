@@ -1,68 +1,75 @@
 ---
 id: beardbunnymanbrain
 title: Beardbunnymanbrain
-description: A brain class for Werepig entities that manages behavior through a behavior tree, including combat, foraging, wandering, and home-seeking.
+description: An unused and unmaintained brain class intended for a WerePig-style AI behavior in DST.
+tags: [ai, brain, unused]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: f2cfe18a
+system_scope: brain
 ---
 
 # Beardbunnymanbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
-
-> This file is marked as **unused and unmaintained** in the official codebase. It exists only as a legacy reference, and should not be used as a reference for new development.
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-This component defines the AI brain for Werepig entities (`WerePigBrain`). It inherits from `Brain` and implements behavior logic using a behavior tree (`BT`) composed of common behavior nodes. The brain handles priority-based decision making: panic responses take precedence, followed by opportunistic eating, combat, and then wandering near a remembered home location. It interacts with `combat`, `eater`, `follower`, `homeseeker`, and `knownlocations` components to coordinate actions.
+`beardbunnymanbrain.lua` defines an unused and unmaintained brain class named `WerePigBrain` intended for an AI-controlled entity (likely a variant of Werepig). The comment at the top explicitly warns: *"Unused, not maintained, don't copy from this file."* It implements basic behavior via a behavior tree, including panic handling, food seeking (when safe), chasing/attacking, and wandering back toward a remembered home location. The brain depends on shared behavior helpers and components for movement, combat, eating, homing, and location tracking.
 
-Note: The file name (`beardbunnymanbrain.lua`) does not match the actual class name (`WerePigBrain`). This mismatch suggests the file was likely misnamed or repurposed during development and is no longer actively used.
+## Usage example
+This brain is not intended for use in production code. As a reference, here is how one *might* attach it to an entity (though discouraged per source comments):
 
-## Dependencies & Tags
-- **Components used:**
-  - `combat`: accessed via `inst.components.combat.target`, `inst.components.combat.defaultdamage`
-  - `eater`: accessed via `inst.components.eater:CanEat(...)`
-  - `follower`: accessed via `inst.components.follower:GetLeader()`
-  - `homeseeker`: accessed via `inst.components.homeseeker.home` and `IsValid()`
-  - `knownlocations`: accessed via `inst.components.knownlocations:GetLocation("home")` and `inst.components.knownlocations:RememberLocation(...)`
-- **Tags:** None identified.
+```lua
+local WerePigBrain = require("brains/beardbunnymanbrain")
+inst:AddBrain(WerePigBrain(inst))
+```
+
+## Dependencies & tags
+**Components used:**  
+- `combat` (to check `defaultdamage`, `target`, and target status)  
+- `eater` (to determine edible targets via `CanEat`)  
+- `follower` (to verify lack of leader)  
+- `homeseeker` (to access and verify home location)  
+- `knownlocations` (to remember and retrieve `"home"` position)  
+
+**Tags:** None identified.
 
 ## Properties
-The class does not declare any public properties in the constructor. All state is managed internally by behavior nodes and component interactions.
+No public properties are defined in this file.
 
-## Main Functions
+## Main functions
 ### `FindFoodAction(inst)`
-* **Description:** Locates an edible entity within `SEE_FOOD_DIST` (`10` units) that satisfies `CanEat()` and is on a passable point. Returns a buffered `EAT` action targeting that entity, or `nil`.
-* **Parameters:**
-  - `inst` (`Entity`): The entity instance whose brain is making the decision.
-* **Returns:** `BufferedAction` or `nil`.
+*   **Description:** Searches for an edible entity within `SEE_FOOD_DIST` (10 units) that is edible (`eater:CanEat`) and on a passable point. Returns a buffered `EAT` action on success, or `nil`.
+*   **Parameters:** `inst` (entity instance) — the actor seeking food.
+*   **Returns:** `BufferedAction` or `nil`.
+*   **Error states:** Returns `nil` if no valid food target is found or if the `eater` component is missing.
 
 ### `GoHomeAction(inst)`
-* **Description:** Constructs a buffered `GOHOME` action if the entity has no active leader, has a valid `homeseeker` component, and a valid home location stored in `homeseeker.home`.
-* **Parameters:**
-  - `inst` (`Entity`): The entity instance.
-* **Returns:** `BufferedAction` or `nil`.
+*   **Description:** Returns a `GOHOME` buffered action toward the entity’s home if no leader exists and the home location is valid and known. *Note: This function is defined but never used in the brain.*
+*   **Parameters:** `inst` (entity instance).
+*   **Returns:** `BufferedAction` or `nil`.
+*   **Error states:** Returns `nil` if the entity has a leader, lacks the `homeseeker` component, or the home location is invalid/unset.
 
 ### `TargetIsAggressive(inst)`
-* **Description:** Checks whether the current combat target is currently aggressive — that is, has positive `defaultdamage`, has `combat` component, and is targeting the entity (`target.components.combat.target == inst`).
-* **Parameters:**
-  - `inst` (`Entity`): The entity instance.
-* **Returns:** `boolean` — `true` if the target is aggressive and valid.
+*   **Description:** Checks whether the current combat target is actively attacking the entity (`target.combat.target == inst`) and deals damage (`defaultdamage > 0`). Used to toggle between eating and combat states.
+*   **Parameters:** `inst` (entity instance).
+*   **Returns:** `boolean`.
+*   **Error states:** Returns `false` if no combat target exists, target lacks combat component, or target is not targeting `inst`.
 
 ### `WerePigBrain:OnStart()`
-* **Description:** Initializes the behavior tree root node. Establishes priority order: panic conditions > safe eating > combat (chase and attack) > wandering near home. Uses `WhileNode` to enable opportunistic eating only when the target is not aggressive.
-* **Parameters:** None.
-* **Returns:** None. Sets `self.bt` to the constructed `BT` instance.
+*   **Description:** Initializes the brain's behavior tree with a priority-based root node. Highest-priority behaviors are panic triggers (via `BrainCommon`), followed by safe eating, combat/chase, and finally wandering toward remembered home.
+*   **Parameters:** None (instance method).
+*   **Returns:** Nothing.
+*   **Error states:** Behavior tree setup may fail if required components (`combat`, `eater`, `knownlocations`, etc.) are missing, but no explicit error handling is present.
 
 ### `WerePigBrain:OnInitializationComplete()`
-* **Description:** Records the entity’s current position as the `"home"` location using `KnownLocations:RememberLocation(...)`.
-* **Parameters:** None.
-* **Returns:** None.
+*   **Description:** Records the entity’s current world position as `"home"` in `knownlocations` once initialization completes.
+*   **Parameters:** None (instance method).
+*   **Returns:** Nothing.
 
-## Events & Listeners
-None. This component does not register or dispatch any events directly. Behavioral responses (e.g., panic) are driven by `BrainCommon` helper nodes.
+## Events & listeners
+This file does not define any event listeners or events pushed. It relies on external systems (e.g., `ChaseAndAttack`, `Wander`, `DoAction`) to handle events internally.

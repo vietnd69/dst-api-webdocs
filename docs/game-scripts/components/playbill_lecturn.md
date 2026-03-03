@@ -1,73 +1,92 @@
 ---
 id: playbill_lecturn
 title: Playbill Lecturn
-description: This component manages the display, swapping, and text rendering of a playbill item on alecturn entity in DST.
+description: Manages the interactive lecturn that displays and tracks the current playbill, synchronizes with the stage performance, and handles playbill item swapping.
+tags: [inventory, performance, stage]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: dd843f39
+system_scope: entity
 ---
 
 # Playbill Lecturn
 
-## Overview
-The `Playbill_Lecturn` component is responsible for attaching a playbill item to a lecturn entity, updating the lecturn's visible text (based on the playbill's script and cast), and managing transitions—including swapping in a new playbill, updating animations, registering the playbill with a stage (if attached), and persisting the playbill across saves via GUID references.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Tags Added:** `"playbill_lecturn"` (added in constructor, removed on entity removal).
-- **Component Assumptions (not directly added by this script, but required on `self.inst`):**
-  - `writeable` (used in `UpdateText()` for setting displayed text)
-  - `lootdropper` (used in `SwapPlayBill()` to fling removed playbills)
-  - `animstate` (used for animation playback)
-- **Component Assumptions (on the `playbill_item` passed to `SwapPlayBill`):**
-  - `playbill` (provides `SetCurrentAct`, `starting_act`, `scripts`, `cast`, `costumes`, `book_build`)
-  - `inventory` (if `doer` is provided, used to remove the item)
+## Overview
+`Playbill_Lecturn` manages the lecturn entity that holds and displays a `playbill_item`, which drives the active play performance. It integrates with the `playbill`, `writeable`, `lootdropper`, and `stageactingprop` components to synchronize script content, cast lists, and visual presentation. When a new playbill is inserted, it updates the lecturn’s displayed text, replaces the current stage performance data, and handles serialization for save/load.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("playbill_lecturn")
+inst:AddComponent("writeable")
+inst:AddComponent("lootdropper")
+inst.components.playbill_lecturn:SetStage(stage_entity)
+local playbill = MakeItem("playbill")
+inst.components.playbill_lecturn:SwapPlayBill(playbill, doer)
+```
+
+## Dependencies & tags
+**Components used:** `playbill`, `writeable`, `lootdropper`, `stageactingprop`, `inventory`  
+**Tags:** Adds `playbill_lecturn` on entity creation; removes `playbill_lecturn` on removal.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity the component is attached to. Assigned in `_ctor`. |
-| `playbill_item` | `Entity?` | `nil` | Reference to the currently inserted playbill item. `nil` if empty. |
-| `stage` | `Entity?` | `nil` | Reference to an optional stage entity this lecturn is associated with. Set via `SetStage()`. |
-| `onstageset` | `function?` | `nil` | Optional callback invoked when `SetStage()` is called. Not used internally except in `SetStage`. |
+| `inst` | `Entity` | `nil` | Reference to the owning entity. Set in constructor. |
+| `playbill_item` | `Entity?` | `nil` | The current playbill item held by the lecturn. `nil` if empty. |
+| `stage` | `Entity?` | `nil` | Reference to the associated stage entity, used to propagate performance data. |
+| `onstageset` | `function?` | `nil` | Optional callback invoked when `SetStage` is called. |
 
-## Main Functions
+## Main functions
+### `OnRemoveEntity()`
+* **Description:** Removes the `playbill_lecturn` tag from the entity. Also aliased as `OnRemoveFromEntity`.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `SetStage(stage)`
-* **Description:** Stores the given stage entity and invokes the optional `onstageset` callback. Does *not* automatically register the current playbill with the stage; `SwapPlayBill` handles registration when a playbill is inserted.
-* **Parameters:**  
-  `stage` (*Entity?*): The stage entity to associate with this lecturn.
+* **Description:** Assigns the stage entity this lecturn should interact with. Optionally invokes the `onstageset` callback.
+* **Parameters:** `stage` (`Entity?`) — the stage entity to link.
+* **Returns:** Nothing.
 
 ### `ChangeAct(next_act)`
-* **Description:** Changes the active act of the current playbill and updates the lecturn’s displayed text accordingly. Does *not* change animations or interact with the stage.
-* **Parameters:**  
-  `next_act` (*string*): The name of the act to switch to.
+* **Description:** Updates the current act on the held playbill and refreshes the displayed text.
+* **Parameters:** `next_act` (`string`) — key identifying the new act in `playbill.scripts`.
+* **Returns:** Nothing.
+* **Error states:** No effect if `playbill_item` is `nil`.
 
 ### `UpdateText()`
-* **Description:** Reads the current act’s script from the playbill, constructs a formatted string containing the script title followed by the cast list, and writes it to the lecturn’s `writeable` component. Pushes the `"text_changed"` event afterward.
+* **Description:** Builds and displays the current playbill’s script and cast list in the lecturn’s `writeable` component. Fires `text_changed` event.
 * **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No effect if `playbill_item` is `nil`.
 
 ### `SwapPlayBill(playbill, doer)`
-* **Description:** Replaces the current playbill with a new one. Handles returning the old playbill to the scene (flinging it), updating the lecturn’s visual representation (animation, override build), associating the new playbill with the stage (if present), updating displayed text, and managing inventory (if `doer` is provided).
+* **Description:** Replaces the current playbill item with a new one, handling cleanup of the old item, updating visual overrides, and synchronizing with the stage. If `doer` is provided, it removes the new playbill from the doer’s inventory and resets its act to the starting act.
 * **Parameters:**  
-  `playbill` (*Entity*): The new playbill item to insert.  
-  `doer` (*Entity?*): Optional entity performing the swap; its inventory will have the playbill removed, and its new act will be reset to `starting_act`.
+  - `playbill` (`Entity`) — new playbill item to insert.  
+  - `doer` (`Entity?`) — entity performing the swap (e.g., player), used to deduct the item.
+* **Returns:** Nothing.
+* **Error states:** If `playbill_item` is present and has a `book_build`, the override is cleared before applying the new one.
 
 ### `OnSave()`
-* **Description:** Returns serializable data for persistence, specifically the GUID of the currently inserted playbill (if any). Returns both the data table and a list of referenced entity GUIDs for world load post-processing.
+* **Description:** Serializes the GUID of the held `playbill_item` for save-game persistence.
 * **Parameters:** None.
+* **Returns:** `data` (`table`) containing `playbill_item_id` (GUID string or `nil`), and `refs` (`table`) containing GUID references.
 
 ### `LoadPostPass(newents, data)`
-* **Description:** Loads and reconnects the saved playbill item after entity reconstruction. Delegates actual reattachment to `SwapPlayBill` via a deferred task (via `loadplaybill_postpass`).
+* **Description:** Restores the `playbill_item` after entity loading by referencing the stored GUID and scheduling `SwapPlayBill` via a zero-delay task.
 * **Parameters:**  
-  `newents` (*table*): Map of GUID → entity data for newly reconstructed entities.  
-  `data` (*table*): The saved data from `OnSave()`.
+  - `newents` (`table`) — mapping of GUIDs to loaded entities.  
+  - `data` (`table`) — saved component data containing `playbill_item_id`.
+* **Returns:** Nothing.
+* **Error states:** No effect if `playbill_item_id` is missing or not found in `newents`.
 
-## Events & Listeners
-- **Listens to:** *None*  
-- **Triggers/Pushes:**  
-  - `"text_changed"` (emitted in `UpdateText()` after text is updated)
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** `text_changed` — fired after `UpdateText()` modifies the displayed text.

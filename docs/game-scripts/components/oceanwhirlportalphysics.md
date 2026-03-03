@@ -1,121 +1,103 @@
 ---
 id: oceanwhirlportalphysics
 title: Oceanwhirlportalphysics
-description: This component simulates the physics behavior of an ocean whirlpool portal by pulling and rotating nearby entities within a configurable radius.
+description: Simulates physics forces (pull and radial rotation) on entities near an ocean whirlpool portal, and handles interaction with static objects and winch targets.
+tags: [physics, environment, ocean, winch]
 sidebar_position: 1
-
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 3d4825a9
+system_scope: physics
 ---
-
 # Oceanwhirlportalphysics
 
-## Overview
-This component implements the physics simulation logic for an ocean whirlpool portal entity. It detects eligible entities within a radial zone, tracks them, and applies computed inward and radial forces to simulate vortex-induced motion and rotation. It dynamically switches between fast and slow update cycles based on activity and handles entity entry/exit from the influence zone.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires the `physicsmodifiedexternally` component (added dynamically to entities it tracks).
-- Tags entities with `physicsmodifiedexternally` as a source (`self.inst`).
-- Uses the `WHIRLPORTALPHYSICS_CANT_TAGS` list to exclude entities: `"FX"`, `"DECOR"`, `"INLIMBO"`, `"oceanwhirlportal"`, `"flying"`, `"ghost"`, `"playerghost"`, `"shadow"`.
-- Listens to `"onremove"` events on tracked entities.
-- Depends on `TheWorld.Map:IsOceanAtPoint`, `FindRandomPointOnShoreFromOcean`, `TUNING.OCEANWHIRLBIGPORTAL_BOAT_PERCENT_DAMAGE_PER_TICK`, and the `winchtarget` and `health`/`workable` component behaviors.
+## Overview
+`Oceanwhirlportalphysics` is a server-side component that applies dynamic physics forces to entities within the influence radius of an ocean whirlpool portal. It models a centripetal pull toward a focal point combined with a radial (tangential) force for rotation. It also detects entities entering the radius, damages or destroys static/indestructible objects in its path, and handles winch-target salvage behavior when entities are moved out of the ocean. This component is exclusively used on the master simulation and must not exist on clients.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("oceanwhirlportalphysics")
+inst.components.oceanwhirlportalphysics:SetEnabled(true)
+inst.components.oceanwhirlportalphysics:SetRadius(8)
+inst.components.oceanwhirlportalphysics:SetPullStrength(6)
+inst.components.oceanwhirlportalphysics:SetRadialStrength(3)
+```
+
+## Dependencies & tags
+**Components used:** `health`, `inventoryitem`, `physicsmodifiedexternally`, `winchtarget`, `workable`  
+**Tags:** Checks for `bird`, `boat`, `winchtarget`, and internal exclusion tags (`FX`, `DECOR`, `INLIMBO`, `oceanwhirlportal`, `flying`, `ghost`, `playerghost`, `shadow`).
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `focalradius` | number | `DEFAULT_FOCAL_RADIUS` (1) | Radius around the portal center where maximum pull occurs. |
-| `radius` | number | `DEFAULT_RADIUS` (4) | Outer radius of the effective vortex zone. |
-| `pullstrength` | number | `DEFAULT_PULLSTRENGTH` (4) | Magnitude of the inward (radial-toward-center) force. |
-| `radialstrength` | number | `DEFAULT_RADIALSTRENGTH` (2) | Magnitude of the rotational (tangential) force. |
-| `forceexponent` | number | Calculated from `focalradius`/`radius` | Exponent used in force decay calculation; ensures smooth transition between focal and outer radius. |
-| `tickaccumulator` | number | 0 | Accumulator for controlling update frequency (slow vs fast tick). |
-| `enabled` | boolean | false | Whether the component is actively updating physics. |
-| `fastcooldown` | number? | nil | Remaining time before reverting to slow updates if no entities are tracked. |
-| `watchedentities` | table | empty table | Map of tracked entities currently within the vortex zone. |
-| `onentitytouchingfocalfn` | function? | nil | Optional callback invoked when a tracked entity touches the focal radius. |
+| `focalradius` | number | `1` | Inner radius around the center where maximum pull force is applied. |
+| `radius` | number | `4` | Outer radius beyond which no physics forces are applied. |
+| `pullstrength` | number | `4` | Strength of the inward (centripetal) force. |
+| `radialstrength` | number | `2` | Strength of the rotational (tangential) force. |
+| `forceexponent` | number | computed | Derived exponent used for smooth falloff of forces between `focalradius` and `radius`. |
+| `enabled` | boolean | `false` | Whether the physics simulation is active. |
+| `tickaccumulator` | number | `0` | Accumulator for time-based tick scheduling. |
+| `fastcooldown` | number? | `nil` | Remaining cooldown before reverting to slow tick updates. |
 
-## Main Functions
-
+## Main functions
 ### `SetEnabled(enabled)`
-* **Description:** Enables or disables the physics simulation. When enabled, starts/stops component updates and manages tracked entities.
-* **Parameters:**
-  * `enabled` (boolean): Whether to activate the physics.
-
-### `RecalculateForceExponent()`
-* **Description:** Computes `forceexponent` based on `focalradius` and `radius` to control how force decays across the vortex zone.
-* **Parameters:** None.
+*   **Description:** Enables or disables the physics simulation. When enabled, starts updating; when disabled, stops updates and forgets all watched entities.
+*   **Parameters:** `enabled` (boolean) — whether to activate the component.
+*   **Returns:** Nothing.
+*   **Error states:** No-op if `enabled` matches current state or if the entity is asleep.
 
 ### `SetFocalRadius(focalradius)`
-* **Description:** Updates the focal radius and recalculates the force exponent.
-* **Parameters:**
-  * `focalradius` (number): New focal radius.
+*   **Description:** Sets the inner radius of influence and recomputes the force exponent for smooth falloff.
+*   **Parameters:** `focalradius` (number) — new focal radius value.
+*   **Returns:** Nothing.
 
 ### `SetRadius(radius)`
-* **Description:** Updates the outer vortex radius and recalculates the force exponent.
-* **Parameters:**
-  * `radius` (number): New outer radius.
+*   **Description:** Sets the outer radius of influence and recomputes the force exponent.
+*   **Parameters:** `radius` (number) — new outer radius value.
+*   **Returns:** Nothing.
 
 ### `SetPullStrength(pullstrength)`
-* **Description:** Sets the inward pull force magnitude.
-* **Parameters:**
-  * `pullstrength` (number): New pull strength.
+*   **Description:** Configures the magnitude of the inward pull force.
+*   **Parameters:** `pullstrength` (number) — new pull strength multiplier.
+*   **Returns:** Nothing.
 
 ### `SetRadialStrength(radialstrength)`
-* **Description:** Sets the rotational (tangential) force magnitude.
-* **Parameters:**
-  * `radialstrength` (number): New radial strength.
+*   **Description:** Configures the magnitude of the rotational (tangential) force.
+*   **Parameters:** `radialstrength` (number) — new radial strength multiplier.
+*   **Returns:** Nothing.
 
 ### `SetOnEntityTouchingFocalFn(fn)`
-* **Description:** Registers a callback to execute when a tracked entity enters the focal radius.
-* **Parameters:**
-  * `fn` (function): Callback accepting `(self.inst, ent)`.
+*   **Description:** Registers a callback invoked when an entity passes within half its own radius of the focal center.
+*   **Parameters:** `fn` (function) — function accepting `(portal_inst, ent)` as arguments.
+*   **Returns:** Nothing.
 
 ### `CheckForEntities()`
-* **Description:** Scans for entities within the outer radius, filters them, and adds/removes them from the `watchedentities` list. Handles winch targets (e.g., anchors) by optionally relocating or salvaging them.
-* **Parameters:** None.
-
-### `RememberEntity(ent)`
-* **Description:** Adds an entity to the `watchedentities` list and ensures it has the `physicsmodifiedexternally` component with this component registered as a physics source.
-* **Parameters:**
-  * `ent` (Entity): The entity to track.
-
-### `ForgetEntity(ent)`
-* **Description:** Removes an entity from tracking, cleans up event listeners and physics source registration.
-* **Parameters:**
-  * `ent` (Entity): The entity to stop tracking.
+*   **Description:** Scans the local area for entities within `radius`, filters by tag and position, and adds qualifying entities to `watchedentities`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** If an entity has `winchtarget`, it may be teleported or salvaged and removed instead of being added.
 
 ### `PullEntities(tickperiod)`
-* **Description:** Applies computed forces (inward + radial) to all tracked entities based on their distance from the center, modifying their velocity via `physicsmodifiedexternally`.
-* **Parameters:**
-  * `tickperiod` (number): Time delta used for velocity scaling (currently fixed to `TICK_FAST_PERIOD`).
-
-### `ShouldRememberEntity(ent)`
-* **Description:** Determines if an entity should be tracked. Filters out birds, static entities (with mass 0), and triggers destruction logic for the latter.
-* **Parameters:**
-  * `ent` (Entity): The entity to evaluate.
-
-### `TryToBreakStaticObject(ent)`
-* **Description:** Attempts to destroy or damage a static object (mass 0) by reducing health or destroying workables.
-* **Parameters:**
-  * `ent` (Entity): The static object to destroy/damage.
+*   **Description:** Applies radial and inward physics forces to each watched entity based on distance, using `physicsmodifiedexternally`.
+*   **Parameters:** `tickperiod` (number) — time delta used to scale velocity (should be `TICK_FAST_PERIOD`).
+*   **Returns:** Nothing.
 
 ### `OnUpdate(dt)`
-* **Description:** Main update loop that schedules `CheckForEntities()` and `PullEntities()` at either fast or slow intervals.
-* **Parameters:**
-  * `dt` (number): Delta time since last frame.
+*   **Description:** Main update loop; toggles between fast and slow update rates based on entity activity.
+*   **Parameters:** `dt` (number) — delta time in seconds.
+*   **Returns:** Nothing.
 
-### `OnEntitySleep()` / `OnEntityWake()`
-* **Description:** Pauses/resumes updates when the parent entity sleeps/wakes (e.g., during world lighting changes).
-* **Parameters:** None.
+## Events & listeners
+- **Listens to:** `onremove` — fires `OnRemove_WatchedEntity` for watched entities to clean up references.  
+- **Pushes:** `flyaway` (to birds), `teleported` (on winch-target teleports), `on_salvaged` (after salvaging items).
 
-## Events & Listeners
-- Listens for `"onremove"` events on tracked entities via `ent:ListenForEvent("onremove", ...)` to stop tracking them when removed.
-- Triggers `"flyaway"` event on bird entities.
-- Triggers `"teleported"` event on winch target entities that are relocated.
-- Triggers `"on_salvaged"` event on salvaged items.
-- Triggers `"splash_sink"` and `"teleported"` events during winch target relocation.
-- Pushes `self.inst` as a physics source via `physicsmodifiedexternally:AddSource` / `RemoveSource`.
+## Notes
+- Entities with `Physics:GetMass() == 0` are treated as static and are either damaged via `health` or destroyed via `workable:Destroy`.
+- The `OnEntitySleep` and `OnEntityWake` callbacks allow the component to pause/resume updates when the owner entity sleeps.
+- Updates skip or slow down when no entities are being affected, conserving performance (`TICK_FAST_PERIOD = 0.1` vs `TICK_SLOW_PERIOD = 1.0`).
+- Uses `TheWorld.Map:IsOceanAtPoint` to validate positions before moving winch targets out of the ocean.

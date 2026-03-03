@@ -1,171 +1,163 @@
 ---
 id: acidbatwavemanager
 title: Acidbatwavemanager
-description: Manages dynamic Acid Bat attack waves during acid rain based on players' inventories, world state, and internal cooldowns.
+description: Manages spawning and tracking of acid bat waves in response to players accumulating nitre during acid rain.
+tags: [environment, combat, boss, npc]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: map
 source_hash: d69c3f1d
+system_scope: world
 ---
 
-# acidbatwavemanager
+# Acidbatwavemanager
+
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-The `acidbatwavemanager` component is responsible for managing the spawning of Acid Bat waves during acid rain events. It tracks players' inventories for specific items (default: `nitre`), calculates the odds of spawning a wave based on the quantity of these items, issues warnings to players, and then spawns a group of Acid Bats. It handles player joining/leaving, saving/loading wave progress, and integrates with the game's acid rain and general spawning pause systems. This component ensures that the Acid Bat wave mechanic functions dynamically based on player actions and world state.
+`Acidbatwavemanager` orchestrates the spawning and lifecycle of acid bat attacks for players during acid rain events. It monitors player inventory for nitre accumulation, calculates wave-spawning odds based on item progress, issues audible/visual warnings, and spawns batches of acid bats. It manages persistent state across saves and coordinates with `hounded`-style pause events to temporarily halt spawning. This component is server-authoritative (`ismastersim` only) and operates globally via a single instance attached to `TheWorld`.
 
-## Dependencies & Tags
-None identified for direct component reliance via `AddComponent` or entity tags. This component primarily interacts with the following systems and entity components:
-- `TheWorld` and `TheWorld.Map` for world state and map queries.
-- `TUNING` constants for configuration values.
-- `AllPlayers` global table for player management.
-- Player components: `player.components.inventory`, `player.components.talker`.
-- Spawns the `"bat"` prefab.
-- Requires `easing` and `util/sourcemodifierlist`.
+## Usage example
+```lua
+-- Typically added to TheWorld in master mode via worldgen or startup logic:
+TheWorld:AddComponent("acidbatwavemanager")
+
+-- When acid rain begins:
+TheWorld.state.isacidraining = true
+
+-- When nitre is acquired by a player:
+-- The component automatically listens for inventory events and updates wave odds.
+```
+
+## Dependencies & tags
+**Components used:** `inventory`, `stackable`, `talker`, `health` (via `IsEntityDeadOrGhost`), `sleeper` (indirectly via `IsEntityDeadOrGhost`)  
+**Tags:** None identified (does not add or remove entity tags directly)
 
 ## Properties
 | Property | Type | Default Value | Description |
-|---|---|---|---|
-| `spawn_dist` | number | `TUNING.ACIDBATWAVE_SPAWN_DISTANCE` | The maximum distance from a player at which Acid Bats will attempt to spawn. |
-| `max_target_prefab` | number | `TUNING.ACIDBATWAVE_NUMBER_OF_ITEMS_TO_GUARANTEE_WAVE_SPAWN` | The number of `target_prefab` items a player needs to carry to guarantee a bat wave spawn (after cooldown). |
-| `cooldown_between_waves` | number | `TUNING.ACIDBATWAVE_COOLDOWN_BETWEEN_WAVES` | The minimum time, in seconds, between successful Acid Bat wave spawns for a single player. |
-| `time_for_warning` | number | `TUNING.ACIDBATWAVE_TIME_FOR_WARNING` | The duration, in seconds, between a wave warning being issued and the actual bat spawn. |
-| `target_prefab` | string | `"nitre"` | The prefab name of the inventory item that influences Acid Bat wave spawns. |
-| `update_time_seconds` | number | `10` | The interval, in seconds, at which the component's `OnUpdate` function performs major logic (e.g., odds calculation, wave attempts). |
-| `update_time_accumulator` | number | `0` | An internal timer used to track `update_time_seconds`. |
-| `pausesources` | `SourceModifierList` | `SourceModifierList(inst, false, SourceModifierList.boolean)` | Manages various sources that can temporarily pause the spawning of Acid Bat waves. |
-| `acidbats` | table | `{}` | A table tracking currently spawned Acid Bat entities managed by this component. |
-| `players` | table | `{}` | A cache of all currently joined players in the game. |
-| `watching` | table | `{}` | A table of players currently being monitored for Acid Bat wave conditions, storing their associated metadata. |
-| `savedplayermetadata` | table | `{}` | Stores wave-related metadata for players who have disconnected, to be loaded upon their return. |
+|----------|------|---------------|-------------|
+| `spawn_dist` | number | `TUNING.ACIDBATWAVE_SPAWN_DISTANCE` | Max distance from player to spawn acid bats. |
+| `max_target_prefab` | number | `TUNING.ACIDBATWAVE_NUMBER_OF_ITEMS_TO_GUARANTEE_WAVE_SPAWN` | Cap on nitre count used for odds calculation. |
+| `cooldown_between_waves` | number | `TUNING.ACIDBATWAVE_COOLDOWN_BETWEEN_WAVES` | Seconds between consecutive bat waves per player. |
+| `time_for_warning` | number | `TUNING.ACIDBATWAVE_TIME_FOR_WARNING` | Seconds of warning before a bat wave spawns. |
+| `target_prefab` | string | `"nitre"` | Item prefab whose count triggers waves. |
+| `update_time_seconds` | number | `10` | Seconds between main update checks. |
+| `update_time_accumulator` | number | `0` | Accumulator tracking time since last update loop. |
+| `pausesources` | `SourceModifierList` | `SourceModifierList(inst, false, SourceModifierList.boolean)` | Tracks pause reasons (e.g., `hounded` events). |
+| `acidbats` | table | `{}` | Map of active acid bat entities (`bat` → `true`). |
+| `players` | table | `{}` | Cache of all players (`player` → `true`). |
+| `watching` | table | `{}` | Per-player metadata for active watchers (`player` → `metadata`). |
+| `savedplayermetadata` | table | `{}` | Persisted per-player metadata for players who were active at save time. |
 
-## Main Functions
+## Main functions
 ### `TrackAcidBat(bat)`
-*   **Description:** Adds an Acid Bat entity to the component's internal tracking list, allowing it to monitor the bat's lifecycle and potentially save its state.
-*   **Parameters:**
-    *   `bat` (entity): The Acid Bat entity to track.
+* **Description:** Registers an acid bat for tracking and attaches a listener to automatically remove it from the internal `acidbats` map on removal.  
+* **Parameters:** `bat` (entity) — the spawned acid bat instance.  
+* **Returns:** Nothing.  
+* **Error states:** No-op if `bat` is already tracked.
 
 ### `GetAcidBatSpawnPoint(pt)`
-*   **Description:** Calculates a suitable spawn point for an Acid Bat wave around a given world position, ensuring it's within `self.spawn_dist`, walkable, and not near a hole.
-*   **Parameters:**
-    *   `pt` (vector3): The central world position (e.g., player's location) to find a spawn point around.
+* **Description:** Finds a valid walkable spawn point for acid bats near a given point, avoiding holes.  
+* **Parameters:** `pt` (vector3-like, `{x, z}`) — center point around which to search.  
+* **Returns:** `{x, z}` (vector3-like) if a valid point is found, otherwise `nil`.  
 
 ### `SpawnAcidBatForPlayerAt(player, pt)`
-*   **Description:** Spawns a single "bat" prefab at a specified point, initially removing it from the scene, then returning it after a short random delay with a "fly_back" event.
-*   **Parameters:**
-    *   `player` (entity): The player for whom the bat is being spawned (used for context, though not directly for positioning here).
-    *   `pt` (vector3): The world position where the bat should spawn.
+* **Description:** Spawns a single acid bat at the given world coordinates, immediately removes it from the scene, and schedules return to scene.  
+* **Parameters:**  
+  * `player` (entity) — player for whom the bat is spawned (used for return timing).  
+  * `pt` (vector3-like) — world position `{x, z}`.  
+* **Returns:** `bat` (entity) — the spawned acid bat, or `nil` on failure.  
 
 ### `CreateAcidBatsForPlayer(player, playermetadata)`
-*   **Description:** Determines the number of Acid Bats to spawn for a given player based on their `target_prefab_count` and spawns them.
-*   **Parameters:**
-    *   `player` (entity): The player for whom bats are being created.
-    *   `playermetadata` (table): The player's associated metadata, containing `target_prefab_count`.
+* **Description:** Spawns a calculated number of acid bats for a given player based on their nitre count.  
+* **Parameters:**  
+  * `player` (entity) — target player.  
+  * `playermetadata` (table) — player metadata containing `target_prefab_count`.  
+* **Returns:** Nothing.  
+* **Error states:** Spawning failures (e.g., invalid positions) are silently ignored.  
 
-### `CountTargetPrefabForPlayer(player)`
-*   **Description:** Counts the total number of `self.target_prefab` items in a player's inventory, considering stack sizes, up to `self.max_target_prefab`.
-*   **Parameters:**
-    *   `player` (entity): The player whose inventory is being checked.
-
-### `CreateMetaDataForPlayer(player)`
-*   **Description:** Initializes or retrieves and updates wave-related metadata for a player, including their `target_prefab_count` and `odds_to_spawn_wave`. It also handles restoring saved metadata for returning players.
-*   **Parameters:**
-    *   `player` (entity): The player for whom metadata is being created/retrieved.
-
-### `StartWatchingPlayer(player)`
-*   **Description:** Begins monitoring a player for Acid Bat wave conditions. This involves adding them to the `self.watching` table, creating metadata, and registering inventory change listeners. It also starts the component's `OnUpdate` loop if no players were previously being watched.
-*   **Parameters:**
-    *   `player` (entity): The player to start watching.
-
-### `StopWatchingPlayer(player)`
-*   **Description:** Ceases monitoring a player. It removes them from `self.watching`, unregisters inventory listeners, and saves their metadata if acid rain is active. It also stops the component's `OnUpdate` loop if no players are left being watched.
-*   **Parameters:**
-    *   `player` (entity): The player to stop watching.
-
-### `StartWatchingPlayers()`
-*   **Description:** Iterates through all known players and calls `StartWatchingPlayer` for each, initiating monitoring for all active players.
-
-### `StopWatchingPlayers()`
-*   **Description:** Iterates through all known players and calls `StopWatchingPlayer` for each, stopping monitoring for all active players and clearing any saved metadata.
-
-### `OnIsAcidRaining(isacidraining)`
-*   **Description:** A callback triggered when the world's `isacidraining` state changes. It calls `StartWatchingPlayers()` when acid rain begins and `StopWatchingPlayers()` when it ends.
-*   **Parameters:**
-    *   `isacidraining` (boolean): The current state of acid rain in the world.
-
-### `OnPostInit()`
-*   **Description:** A lifecycle method called after the component has been fully initialized. It ensures the manager's state (e.g., watching players) is correctly set up based on the initial world `isacidraining` state.
+### `CountTargetPrefabForPlayer(player)
+* **Description:** Counts total nitre items in a player's inventory, including overflow and containers.  
+* **Parameters:** `player` (entity) — player whose inventory to inspect.  
+* **Returns:** number — up to `max_target_prefab`.  
 
 ### `UpdateOddsForPlayer(player, playermetadata)`
-*   **Description:** Calculates and updates the `odds_to_spawn_wave` for a player based on their `target_prefab_count`, considering their location (cannot spawn if dead/ghost or outside acid rain area). Uses `easing.inQuad` for a non-linear scaling of odds.
-*   **Parameters:**
-    *   `player` (entity): The player whose odds are being updated.
-    *   `playermetadata` (table): The player's associated metadata.
+* **Description:** Updates the `odds_to_spawn_wave` value for a player based on nitre count, using an easing curve. Returns `0` for invalid positions or dead/ghost players.  
+* **Parameters:**  
+  * `player` (entity) — target player.  
+  * `playermetadata` (table) — player metadata to update.  
+* **Returns:** Nothing.  
 
 ### `TryToSpawnWaveForPlayer(player, playermetadata, t)`
-*   **Description:** Manages the wave spawning logic for a player. This includes checking if spawning is paused, handling warning periods, enforcing cooldowns, and performing a luck roll to determine if a wave should be initiated. If a wave is triggered, it issues a warning.
-*   **Parameters:**
-    *   `player` (entity): The player potentially receiving a wave.
-    *   `playermetadata` (table): The player's associated metadata.
-    *   `t` (number): The current game time.
+* **Description:** Implements wave-spawning logic: respects cooldowns/warnings, rolls luck, and schedules spawn or warning state.  
+* **Parameters:**  
+  * `player` (entity) — target player.  
+  * `playermetadata` (table) — player metadata (updated in-place).  
+  * `t` (number) — current game time (via `GetTime()`).  
+* **Returns:** Nothing.  
 
 ### `SpawnWaveForPlayer(player, playermetadata)`
-*   **Description:** Initiates the actual spawning of Acid Bats for a player after a warning period has concluded. It clears any active warning timers and then calls `CreateAcidBatsForPlayer`.
-*   **Parameters:**
-    *   `player` (entity): The player for whom the wave is spawning.
-    *   `playermetadata` (table): The player's associated metadata.
+* **Description:** Triggers actual bat spawning for the player.  
+* **Parameters:**  
+  * `player` (entity) — target player.  
+  * `playermetadata` (table) — player metadata.  
+* **Returns:** Nothing.  
 
 ### `IssueWarningForPlayer(player, playermetadata, t)`
-*   **Description:** Triggers visual and auditory warnings for a player when an Acid Bat wave is imminent. It spawns a visual effect and schedules the player to deliver a warning speech. This function prevents repeated warnings within a short timeframe.
-*   **Parameters:**
-    *   `player` (entity): The player who should receive the warning.
-    *   `playermetadata` (table): The player's associated metadata.
-    *   `t` (number): The current game time.
+* **Description:** Plays warning SFX and sets `last_warn_time` to prevent spam.  
+* **Parameters:**  
+  * `player` (entity) — target player.  
+  * `playermetadata` (table) — player metadata (updated with `last_warn_time`).  
+  * `t` (number) — current game time.  
+* **Returns:** Nothing.  
 
 ### `OnUpdate(dt)`
-*   **Description:** The component's main update loop, called periodically. It handles updating warning effects, accumulating time, and, at `self.update_time_seconds` intervals, updates player odds and attempts to spawn waves for all watched players.
-*   **Parameters:**
-    *   `dt` (number): The delta time since the last update.
+* **Description:** Periodic server-side update function. Updates odds and attempts to spawn waves for all watched players. Also handles warning SFX timing.  
+* **Parameters:** `dt` (number) — delta time since last update.  
+* **Returns:** Nothing.  
 
-### `SetSaveDataForMetaData(savedata, playermetadata, t)`
-*   **Description:** Helper function to populate a `savedata` table with relevant wave-related timings (adjusted to relative time) from a player's metadata for persistence.
-*   **Parameters:**
-    *   `savedata` (table): The table to populate with save data.
-    *   `playermetadata` (table): The player's current metadata.
-    *   `t` (number): The current game time, used to convert absolute times to relative.
+### `StartWatchingPlayer(player)` / `StopWatchingPlayer(player)`
+* **Description:** Manages per-player event listeners and metadata. `StartWatchingPlayer` begins tracking and updates inventory callbacks; `StopWatchingPlayer` cleans up and persists state if acid rain is active.  
+* **Parameters:** `player` (entity) — player to start/stop watching.  
+* **Returns:** Nothing.  
+
+### `StartWatchingPlayers()` / `StopWatchingPlayers()`
+* **Description:** Batch versions of `StartWatchingPlayer`/`StopWatchingPlayer` over all known players.  
+* **Parameters:** None.  
+* **Returns:** Nothing.  
+
+### `OnIsAcidRaining(isacidraining)`
+* **Description:** Activates/deactivates all player watching based on current acid rain state.  
+* **Parameters:** `isacidraining` (boolean) — whether acid rain is active.  
+* **Returns:** Nothing.  
 
 ### `OnSave()`
-*   **Description:** Serializes the component's current state, including active player wave timers and tracked Acid Bats, into a `data` table and a list of entity GUIDs for saving.
-*   **Parameters:** None.
+* **Description:** Serializes player wave metadata and active bat GUIDs for world save.  
+* **Parameters:** None.  
+* **Returns:**  
+  * `data` (table) — save data (`{userids, bats}`) or `nil` if nothing to save.  
+  * `ents` (table) — list of bat GUIDs needing save lookup.  
 
 ### `OnLoad(data)`
-*   **Description:** Deserializes saved data upon world load, restoring player wave metadata and Acid Bat tracking.
-*   **Parameters:**
-    *   `data` (table): The table containing saved component data.
+* **Description:** Loads per-player wave metadata (e.g., from players who left mid-wave).  
+* **Parameters:** `data` (table) — saved data.  
+* **Returns:** Nothing.  
 
 ### `LoadPostPass(newents, savedata)`
-*   **Description:** A post-load function called after all entities have been loaded. It re-establishes tracking for Acid Bat entities that were alive when the game was saved.
-*   **Parameters:**
-    *   `newents` (table): A map of old GUIDs to newly spawned entities.
-    *   `savedata` (table): The component's saved data.
+* **Description:** Re-registers acid bats after world load using GUIDs from `OnSave()`.  
+* **Parameters:**  
+  * `newents` (table) — map of GUID → `{entity, ...}`.  
+  * `savedata` (table) — loaded save data (contains `bats`).  
+* **Returns:** Nothing.  
 
-## Events & Listeners
-*   **Listens to `self.inst` for:**
-    *   `ms_playerjoined` (triggers `self.OnPlayerJoined`) - To track new players.
-    *   `ms_playerleft` (triggers `self.OnPlayerLeft`) - To stop tracking disconnected players.
-    *   `pausehounded` (triggers `self.OnPauseHounded`) - To pause wave spawning based on external sources.
-    *   `unpausehounded` (triggers `self.OnUnpauseHounded`) - To unpause wave spawning based on external sources.
-*   **Listens to `TheWorld` for:**
-    *   World state `isacidraining` (triggers `self:OnIsAcidRaining`) - To start/stop monitoring players based on acid rain presence.
-*   **Listens to `player` entities for:**
-    *   `itemget` (triggers `self.OnInventoryStateChanged`) - To update target item count.
-    *   `itemlose` (triggers `self.OnInventoryStateChanged`) - To update target item count.
-    *   `newactiveitem` (triggers `self.OnInventoryStateChanged`) - To update target item count.
-    *   `stacksizechange` (triggers `self.OnInventoryStateChanged`) - To update target item count.
-*   **Listens to `bat` entities for:**
-    *   `onremove` (triggers `self.OnRemove_Bat`) - To untrack bats when they are removed from the world.
-*   **Pushes/Triggers on `bat` entities:**
-    *   `fly_back` (in `self.OnBatReturnToScene`) - To signal a bat to fly back into the scene after an initial delayed spawn.
+## Events & listeners
+- **Listens to:**  
+  * `ms_playerjoined` — triggers `OnPlayerJoined`.  
+  * `ms_playerleft` — triggers `OnPlayerLeft`.  
+  * `pausehounded` / `unpausehounded` — updates pause sources.  
+  * Per-player: `itemget`, `itemlose`, `newactiveitem`, `stacksizechange` — inventory updates.  
+  * Per-bat: `onremove` — cleanup from `acidbats` map.  
+- **Pushes:** None.

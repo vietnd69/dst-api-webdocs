@@ -1,177 +1,219 @@
 ---
 id: moonstormmanager
 title: Moonstormmanager
-description: Manages the spawning, propagation, and lifecycle of moonstorms, Wagstaff hunt/experiment events, and associated game mechanics in DST.
+description: Manages moonstorm events, wagstaff hunts, and storm-related gameplay progression in DST's Moon Altar and Wagboss systems.
+tags: [moonstorm, boss, events, world]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 75d319d3
+system_scope: world
 ---
 
 # Moonstormmanager
 
-## Overview
-This component orchestrates the procedural generation and management of moonstorms—dynamic weather events centered around specific world nodes—alongside related gameplay sequences involving Wagstaff NPC hunts, static roamer experiments, and gestalt bird waves. It runs exclusively on the master simulation and handles all state persistence, event coordination, and timing logic for these complex systems.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Dependency:** Requires `TheWorld.net.components.moonstorms` to be present (accessed via `TheWorld.net`).
-- **Event Listeners Registered:** Listens for `"timerdone"`, `"ms_playerjoined"`, `"ms_playerleft"`, `"ms_startthemoonstorms"`, `"ms_stopthemoonstorms"`, and `"ms_moonstormstatic_roamer_spawned"` (global via `TheWorld`).
-- **World State Watched:** `"cycles"` — triggers `on_day_change()` on day transitions.
-- **Tags Used:** `"birdblocker"`, `"lunacyarea"`, `"sandstorm"`.
-- **No tags added/removed** by this component itself.
+## Overview
+`Moonstormmanager` is a master-sim-only component responsible for orchestrating moonstorm events, including storm generation, propagation, wagstaff NPC encounters, and gestalt wave defense phases. It is attached to the world entity (`TheWorld`) and manages phase transitions between normal moon cycles and full moonstorms, as well as player-initiated experiments with the Wagboss.
+
+The component interacts heavily with the `moonstorms` network component for world-wide storm state management, and relies on `timer`, `entitytracker`, `health`, and `talker` components for scheduling, entity tracking, and dialogue. It coordinates behavior between WAGSTAFF, ROAMER, and GESTALT prefabs during moonstorm events.
+
+## Usage example
+```lua
+-- Access the component on the world entity (mastersim only)
+if TheWorld.ismastersim then
+    local manager = TheWorld.components.moonstormmanager
+
+    -- Start a new moonstorm (e.g., after certain conditions)
+    manager:StartMoonstorm()
+
+    -- Stop the current moonstorm (e.g., after wagboss defeat)
+    manager:StopCurrentMoonstorm()
+
+    -- Check how many Alter Guardians have been defeated
+    local kills = manager:GetCelestialChampionsKilled()
+end
+```
+
+## Dependencies & tags
+**Components used:** `moonstorms`, `timer`, `entitytracker`, `health`, `talker`, `wagboss_tracker`
+
+**Tags:** None added or removed directly by this component. It reads/writes `TheWorld.components.moonstorms` state via replicated APIs.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (constructor arg) | The entity this component is attached to (typically the server `World`). |
-| `metplayers` | `table` | `{}` | Map of player user IDs who have met Wagstaff (used to avoid repeating introductions). |
-| `roamers` | `table` | `{}` | Tracks active static roamer entities to remove them on detach/cleanup. |
-| `_alterguardian_defeated_count` | `number` | `0` | Count of Defeated Moonaltars/Alter Guardians; affects moon phase styling and post-experiment storm behavior. |
-| `_activeplayers` | `table` | `{}` | List of currently active players used for location-based logic (e.g., spark/lightning spawning). |
-| `_currentbasenodeindex` | `number?` | `nil` | Index of the current moonstorm’s base node in `TheWorld.topology.nodes`. |
-| `_currentnodes` | `table?` | `nil` | List of node indices currently involved in the active moonstorm. |
-| `_moonstyle_altar` | `boolean?` | `nil` | True when a moonstorm is active and initiated via altar-related logic (not random). |
-| `_nummoonstormpropagationsteps` | `number` | `3` | Propagation depth for moonstorm node spread during storm creation. |
-| `spawn_wagstaff_test_task` | `Task?` | `nil` | Periodic task (`DoPeriodicTask`) to trigger Wagstaff/hunt experiments. |
-| `moonstorm_spark_task` | `Task?` | `nil` | Periodic task to spawn moonstorm sparks. |
-| `moonstorm_lightning_task` | `Task?` | `nil` | Delayed task (via `DoTaskInTime`) to spawn moonstorm lightning. |
-| `defence_task` | `Task?` | `nil` | Deferred task to spawn gestalt bird waves during experiments/hunts. |
-| `tools_task` | `Task?` | `nil` | Deferred task to spawn tools during experiments. |
-| `tools_need` | `Task?` | `nil` | Deferred task to trigger need_tool events during experiments. |
+| `inst` | `Entity` | — | The world entity instance (`TheWorld`) that owns this component. |
+| `roamers` | `table` | `{}` | Map of active `moonstorm_static_roamer` entities being tracked. |
+| `metplayers` | `table` | `{}` | Map of player user IDs who have been met during the current moonstorm. |
+| `wagstaff` | `Entity?` | `nil` | Reference to the active `wagstaff_npc` instance (if any). |
+| `experiment_static` | `Entity?` | `nil` | Reference to the active `moonstorm_static` instance during no-wagstaff experiments. |
+| `stormdays` | `number` | `0` | Number of days elapsed during the current moonstorm. |
+| `_alterguardian_defeated_count` | `number` | `0` | Internal counter for how many Alter Guardians have been defeated (saved and loaded). |
+| `_moonstyle_altar` | `boolean?` | `nil` | Whether an altar-based moonstorm is active. |
+| `_currentbasenodeindex` | `number?` | `nil` | Index of the current base node in `TheWorld.topology.nodes` for the active storm. |
+| `_currentnodes` | `table?` | `nil` | List of node indices currently affected by the storm. |
 
-## Main Functions
-
+## Main functions
 ### `CalcNewMoonstormBaseNodeIndex()`
-* **Description:** Selects a new valid base node for the next moonstorm by iterating through topology nodes. Ensures the selected node is far enough from the previous one and meets `NodeCanHaveMoonstorm` criteria (not a sandstorm/lunacy area, not ocean).
+* **Description:** Selects a new valid base node for the next moonstorm, ensuring it is far enough from the previous base node and meets conditions (not ocean, not a `lunacyarea`, etc.).
 * **Parameters:** None.
+* **Returns:** `number?` — Index of the selected node in `TheWorld.topology.nodes`, or `nil` if no valid node found.
 
 ### `GetCelestialChampionsKilled()`
-* **Description:** Returns the count of defeated alter guardians (`_alterguardian_defeated_count`).
+* **Description:** Returns the number of Alter Guardians (Celestial Champions) defeated this world session.
 * **Parameters:** None.
+* **Returns:** `number` — Count of defeated champions.
 
 ### `StartMoonstorm(set_first_node_index, nodes)`
-* **Description:** Initializes and propagates a new moonstorm across world nodes, starting from either a specified base node or a computed one. Spawns periodic tasks for sparks, lightning, and Wagstaff static tests.
+* **Description:** Initializes and propagates a new moonstorm, optionally starting at a specific node or using a provided node list. Cancels existing storm tasks and timers.
 * **Parameters:**
-  - `set_first_node_index` (optional `number`): Pre-selected base node index; otherwise computed.
-  - `nodes` (optional `table`): Pre-built list of node indices; otherwise generated via propagation.
+  * `set_first_node_index` (`number?`) — Optional index of the first node to use as the storm origin.
+  * `nodes` (`table?`) — Optional precomputed list of node indices to include in the storm.
+* **Returns:** Nothing.
 
 ### `StopCurrentMoonstorm()`
-* **Description:** Shuts down the current moonstorm, cancels related tasks, and advances `_alterguardian_defeated_count`. If `_moonstyle_altar` is set, leaves the moon locked; otherwise unlocks moon phases.
+* **Description:** Stops the active moonstorm, cancels associated periodic and delayed tasks, and notifies the `moonstorms` component to clear storm nodes.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `StopExperimentTasks()`
-* **Description:** Cancels experiment-related timers and tasks (e.g., `moonstorm_experiment_complete`, `tools_task`, `defence_task`) and clears them.
+* **Description:** Stops all experiment-related timers and tasks, including `moonstorm_experiment_complete`, tool spawning, and gestalt wave timers.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `StopExperiment()`
-* **Description:** Cleans up tools, static, or roamer objects created for experiments/hunts; removes tool components or erodes them.
+* **Description:** Cleans up experiment resources (e.g., tool items, static references), typically called after `EndExperiment()` or `FailExperiment()`.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `FailExperiment()`
-* **Description:** Triggers Wagstaff failure dialog/animation, erodes Wagstaff, and calls `StopExperiment()`.
+* **Description:** Handles experiment failure: triggers wagstaff dialogue, erodes the static entity, and cleans up the experiment state.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `EndExperiment()`
-* **Description:** Handles successful experiment completion: Wagstaff dialog, erode, static completion, and restarts a new moonstorm.
+* **Description:** Completes the experiment successfully: triggers dialogue, erodes wagstaff/static, and starts a new moonstorm.
 * **Parameters:** None.
-
-### `beginNoWagstaffExperiment(player)`
-* **Description:** Starts a Wagstaff-less experiment by spawning a `moonstorm_static_roamer` near the player.
-* **Parameters:**
-  - `player`: The player entity that triggered the event (used for location).
+* **Returns:** Nothing.
 
 ### `beginWagstaffHunt(player)`
-* **Description:** Spawns the Wagstaff NPC at a location near the player to initiate a hunt sequence.
-* **Parameters:**
-  - `player`: The player entity that triggered the event (used for location).
+* **Description:** Spawns a `wagstaff_npc` at a random walkable location near the given player to begin a standard moonstorm hunt.
+* **Parameters:** `player` (`Entity`) — Player to use as a reference location.
+* **Returns:** Nothing.
 
-### `AdvanceWagstaff()`
-* **Description:** Moves the current Wagstaff to a new location closer to players inside the storm; updates expiration timer.
-* **Parameters:** None.
-
-### `FindUnmetCharacter()`
-* **Description:** Finds a random active player currently inside the moonstorm who has not yet met Wagstaff.
-* **Parameters:** None.
-
-### `GetNewWagstaffLocation(wagstaff)`
-* **Description:** Computes a new valid spawn position for Wagstaff, optionally preferring positions closer to the moonstorm center if in final hunt stage.
-* **Parameters:**
-  - `wagstaff`: The `wagstaff_npc` entity.
-
-### `startNeedTool()` / `foundTool()` / `startWaglessNeedTool()` / `foundWaglessTool()`
-* **Description:** Manages the experiment tool-wait phase by pausing/resuming the experiment timer and signaling the NPC/static to wait for or acknowledge tools.
-* **Parameters:** None (all methods are internal steps in tool-wait cycles).
-
-### `AddMetplayer(id)`
-* **Description:** Records that a player with the given `userid` has been introduced to Wagstaff.
-* **Parameters:**
-  - `id`: String player `userid`.
+### `beginNoWagstaffExperiment(player)`
+* **Description:** Spawns a `moonstorm_static_roamer` to start a no-wagstaff experiment near the given player.
+* **Parameters:** `player` (`Entity`) — Player to use as a reference location.
+* **Returns:** Nothing.
 
 ### `beginWagstaffDefence()`
-* **Description:** Begins a defense experiment by stopping expiration timer, spawning tools, starting gestalt waves, and triggering the initial experiment dialog.
+* **Description:** Prepares for the defense phase of a wagstaff experiment: stops timer expiration, spawns tools, and starts gestalt waves.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `SpawnGestalt(angle, prefab)`
-* **Description:** Spawns a gestalt entity (`bird_mutant` or `bird_mutant_spitter`) at a random offset around Wagstaff or static, and sets it to swarm the static.
-* **Parameters:**
-  - `angle`: Directional base for spawn offset.
-  - `prefab`: Prefab name (`"bird_mutant"` or `"bird_mutant_spitter"`).
-
-### `spawnGestaltWave()` / `spawnWaglessGestaltWave()`
-* **Description:** Spawns a wave of gestalt birds (or spitters) around Wagstaff or static, updating the next wave delay based on experiment timer. Re-schedules itself via `defence_task`.
+### `beginNoWagstaffDefence()`
+* **Description:** Prepares for the defense phase of a no-wagstaff experiment: spawns tools and starts gestalt waves.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `spawnTool()` / `spawnWaglessTool()`
-* **Description:** Spawns random tools (from `wagstaff_tools_original` list) near Wagstaff or static; removes tool from pool and registers cleanup callback.
+### `AdvanceWagstaff()`
+* **Description:** Moves the active wagstaff NPC to a new location closer to the player.
 * **Parameters:** None.
+* **Returns:** `Vector3?` — New position if successful, otherwise `nil`.
+
+### `FindUnmetCharacter()`
+* **Description:** Finds a player in the moonstorm who has not yet been “met” this storm cycle.
+* **Parameters:** None.
+* **Returns:** `Vector3?` — Position of a player who hasn’t been met, or `nil`.
+
+### `GetNewWagstaffLocation(wagstaff)`
+* **Description:** Computes a new walkable location for the wagstaff NPC, optionally based on hunt stage (final hunt when `hunt_count >= WAGSTAFF_NPC_HUNTS`).
+* **Parameters:** `wagstaff` (`Entity`) — Wagstaff instance.
+* **Returns:** `Vector3` — New walkable position.
+
+### `startNeedTool()` and `foundTool()`
+* **Description:** Pauses/resumes the experiment timer and triggers wagstaff’s tool-waiting or tool-received states.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `startWaglessNeedTool()` and `foundWaglessTool()`
+* **Description:** Pauses/resumes the experiment timer and notifies the static entity of tool needs/resolution.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `AddMetplayer(id)`
+* **Description:** Marks a player ID as having been met during the current storm.
+* **Parameters:** `id` (`string`) — Player’s `userid`.
+* **Returns:** Nothing.
 
 ### `DoTestForWagstaff()`
-* **Description:** Checks eligible players in the moonstorm zone and triggers either `beginWagstaffHunt()` or `beginNoWagstaffExperiment()` depending on Wagboss status.
+* **Description:** Checks if a wagstaff hunt or no-wagstaff experiment should be started based on active players in the moonstorm and whether the Wagboss has been defeated.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `DoTestForSparks()`
-* **Description:** Ensures each player in the moonstorm has up to `SPARKLIMIT` (3) sparks nearby; spawns additional sparks if needed.
+* **Description:** Ensures enough `moonstorm_spark` entities exist near active players in the moonstorm (max `SPARKLIMIT` per player).
 * **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `DoTestForLightning()`
-* **Description:** Picks a random player in the moonstorm and spawns a lightning entity near them; reschedules itself.
+* **Description:** Spawns a `moonstorm_lightning` instance near a random active player in the moonstorm.
 * **Parameters:** None.
+* **Returns:** Nothing.
 
-### `TestMoonAltarLinkPositionValid(pt)`
-* **Description:** Validates whether a point is suitable for a moon altar link (passable, above ground, no blockers within radius).
+### `SpawnGestalt(angle, prefab)`
+* **Description:** Spawns a gestalt entity (e.g., `bird_mutant`) at a safe offset from the wagstaff or static entity.
 * **Parameters:**
-  - `pt`: A `Point` or table with `.x`, `.y`, `.z`.
+  * `angle` (`number`) — Base angle for offset calculation.
+  * `prefab` (`string`) — Name of gestalt prefab to spawn.
+* **Returns:** Nothing.
+
+### `spawnGestaltWave()` and `spawnWaglessGestaltWave()`
+* **Description:** Spawns a wave of gestalt entities (mutant birds and spitters), requeues the next wave based on remaining experiment time.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
+### `spawnTool()` and `spawnWaglessTool()`
+* **Description:** Spawns a random tool for the wagstaff/static to collect, recurs by scheduling the next tool spawn.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `TestAltarTriangleValid(altar0, altar1, altar2, center_pt)`
-* **Description:** Validates a triangle of altars for creating a moon altar link: checks mutual distance, angle constraints (`AltarAngleTest`), and link point validity.
+* **Description:** Validates whether three moon altars form a valid triangle for creating a `moon_altar_link`. Checks distances, angle constraints, and point validity.
 * **Parameters:**
-  - `altar0`, `altar1`, `altar2`: Moon altar entities.
-  - `center_pt` (optional): Precomputed link center; if `nil`, uses triangle centroid.
+  * `altar0`, `altar1`, `altar2` (`Entity`) — Moon altar entities.
+  * `center_pt` (`Vector3?`) — Optional point to validate instead of computing centroid.
+* **Returns:** `boolean` — Whether the triangle is valid.
 
-### `OnSave()`
-* **Description:** Serializes state (storm days, current nodes, met players, flags, counts, tasks).
-* **Parameters:** None.
-
-### `OnLoad(data)`
-* **Description:** Restores state after loading; reinitializes experiments, timers, and phase style as needed.
-* **Parameters:**
-  - `data`: Saved state table.
+### `OnSave()` / `OnLoad(data)`
+* **Description:** Serialization/deserialization for world persistence. Saves storm state, player meet tracking, and storm-related tasks.
+* **Parameters:** `OnSave` → None; `OnLoad(data)` → `data` (`table`) — Saved data.
+* **Returns:** `OnSave` returns `table`; `OnLoad` returns nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a multi-line debug string summarizing storm progress, counts, and task times.
+* **Description:** Returns a debug string summarizing current storm progress, tasks, and kills for dev tools.
 * **Parameters:** None.
+* **Returns:** `string` — Human-readable debug info.
 
-## Events & Listeners
-- Listens for `"timerdone"` → calls `EndExperiment()` on `"moonstorm_experiment_complete"`.
-- Listens for `"ms_playerjoined"` → adds player to `_activeplayers`.
-- Listens for `"ms_playerleft"` → removes player from `_activeplayers`.
-- Listens for `"ms_startthemoonstorms"` → triggers `StartTheMoonstorms()`.
-- Listens for `"ms_stopthemoonstorms"` → triggers `StopTheMoonstorms()`.
-- Listens for `"ms_moonstormstatic_roamer_spawned"` → calls `TrackRoamer()`.
-- Listens for `"ms_moonstormstatic_roamer_captured"` → calls `CapturedRoamer()`.
-- Watches world state `"cycles"` → triggers `on_day_change()`.
-- Pushes events: `"ms_setmoonphasestyle"`, `"ms_lockmoonphase"`, `"ms_setclocksegs"`, `"ms_setmoonphase"`, `"ms_moonstormwindowover"`, `"ms_moonboss_was_defeated"`.
+## Events & listeners
+- **Listens to:**
+  - `timerdone` — Handles `moonstorm_experiment_complete` timer expiration.
+  - `ms_playerjoined` — Adds joining players to `_activeplayers`.
+  - `ms_playerleft` — Removes leaving players from `_activeplayers`.
+  - `ms_startthemoonstorms` — Starts the moonstorm sequence.
+  - `ms_stopthemoonstorms` — Stops the moonstorm sequence.
+  - `ms_moonstormstatic_roamer_spawned` — Tracks newly spawned roamers.
+  - `ms_moonstormstatic_roamer_captured` — Handles roamer capture to begin no-wagstaff experiments.
+- **Pushes:**
+  - `ms_setmoonphasestyle`
+  - `ms_lockmoonphase`
+  - `ms_setclocksegs`
+  - `ms_setmoonphase`
+  - `ms_moonstormwindowover`
+  - `ms_moonboss_was_defeated`
+- **Also calls external events** (e.g., `wagstaff:PushEvent("talk")`, `wagstaff:PushEvent("doexperiment")`) via `talker` interactions.

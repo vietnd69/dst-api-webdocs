@@ -1,50 +1,68 @@
 ---
 id: forgerepair
 title: Forgerepair
-description: Handles item-based repair operations by restoring damaged armor, finite-uses, or fueled components to full durability while consuming the repair item.
+description: Handles repair of damaged equipment using forge-based materials, consuming itself in the process and updating entity tags based on the repair material used.
+tags: [crafting, repair, inventory]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: crafting
+category_type: components
 source_hash: ad4c7423
+system_scope: crafting
 ---
 
 # Forgerepair
 
-## Overview
-This component enables an entity (typically a tool or material used for repairs) to restore target entities to full durability by checking for compatible components (`armor`, `finiteuses`, or `fueled`) and applying full repair when possible. It also supports optional cleanup of the repair item upon successful use and executes custom logic via an `onrepaired` callback.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Adds/Removes tags dynamically based on `repairmaterial`: `"forgerepair_"..material`  
-- Relies on target entities having at least one of the following components: `armor`, `finiteuses`, or `fueled`.  
-- May interact with `finiteuses` or `stackable` on the repair item itself for consumption logic.
+## Overview
+`Forgerepair` is a utility component that enables an item (typically a tool or consumable) to repair damaged equipment items such as armor, finite-use items, or fueled items. When `OnRepair` is called with a target entity, it restores the target's condition to full and consumes the repairer item (either decrementing finite uses, splitting and removing from stack, or deleting the item entirely). The component also manages dynamic tags (e.g., `forgerepair_log` or `forgerepair_moonrock`) based on the configured `repairmaterial` value.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("forgerepair")
+inst.components.forgerepair:SetRepairMaterial("moonrock")
+inst.components.forgerepair:SetOnRepaired(function(repairer, target, doer)
+    print("Repaired item with moonrock forge tool")
+end)
+```
+
+## Dependencies & tags
+**Components used:** `armor`, `finiteuses`, `fueled`, `stackable`  
+**Tags:** Adds or removes `forgerepair_<material>` tags (e.g., `forgerepair_moonrock`), based on `repairmaterial`.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `repairmaterial` | `string?` | `nil` | The type of material used for repair; used to assign/remove entity tags. Automatically synced via the `onrepairmaterial` callback when set via `SetRepairMaterial`. |
-| `onrepaired` | `function?` | `nil` | Optional callback function invoked after a successful repair. Signature: `fn(repair_item, target, doer)`. |
+| `repairmaterial` | string? | `nil` | The type of material used for repair; used to generate dynamic tags (e.g., `"moonrock"` → `forgerepair_moonrock`). |
+| `onrepaired` | function? | `nil` | Optional callback fired after a successful repair; signature: `(repairer_inst, target_inst, doer_inst)`. |
 
-## Main Functions
+## Main functions
 ### `SetRepairMaterial(material)`
-* **Description:** Sets the repair material type, which triggers tag updates on the entity (removing the old `forgerepair_*` tag, if any, and adding a new one based on the material).  
-* **Parameters:**  
-  * `material` (`string?`): The material identifier. If `nil`, no tag is added.
+* **Description:** Sets the repair material type, which updates the entity’s `forgerepair_<material>` tag.
+* **Parameters:** `material` (string?) — the material identifier; `nil` clears the tag.
+* **Returns:** Nothing.
 
 ### `SetOnRepaired(fn)`
-* **Description:** Registers a custom callback to be executed after a repair is successfully applied.  
-* **Parameters:**  
-  * `fn` (`function?`): A function with signature `fn(repair_item, target, doer)`. May be `nil` to clear the callback.
+* **Description:** Registers a callback function to be invoked after a successful repair.
+* **Parameters:** `fn` (function) — a function accepting three arguments: `repairer` (the item performing repair), `target` (the repaired item), and `doer` (the actor initiating repair).
+* **Returns:** Nothing.
 
 ### `OnRepair(target, doer)`
-* **Description:** Attempts to fully repair the target entity. It checks for compatible components (`armor`, `finiteuses`, `fueled`) in order; if found and not already at full durability, it sets their durability to 100%. Upon success, it consumes the repair item (via `finiteuses:Use`, `stackable:Get():Remove`, or direct removal) and invokes `onrepaired`.  
+* **Description:** Attempts to fully repair the target entity’s condition. If successful, consumes the repairer item and fires the `onrepaired` callback.
 * **Parameters:**  
-  * `target` (`Entity`): The entity to be repaired.  
-  * `doer` (`Entity?`): The entity performing the repair (e.g., the player).  
-* **Returns:** `boolean` — `true` if a repair was successfully applied; `false` otherwise.
+  `target` (Entity) — the entity to repair; must have one of `armor`, `finiteuses`, or `fueled` components in a damaged state.  
+  `doer` (Entity) — the entity performing the repair (passed to the callback).  
+* **Returns:** `true` if repair succeeded; `nil` otherwise.
+* **Error states:**  
+  - Returns `nil` if `target` lacks a compatible component or is already at full condition (`1.0`).  
+  - Repairer item consumption logic:  
+    - If `self.inst.components.finiteuses` exists: calls `:Use(1)`.  
+    - Else if `self.inst.components.stackable` exists: splits and removes the split item via `:Get():Remove()`.  
+    - Else: directly removes `self.inst`.
 
-## Events & Listeners
-* Listens for changes to `repairmaterial` via the `onrepairmaterial` function, which updates tags automatically.
+## Events & listeners
+None identified.

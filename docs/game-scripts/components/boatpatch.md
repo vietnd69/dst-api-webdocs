@@ -1,32 +1,52 @@
 ---
 id: boatpatch
 title: Boatpatch
-description: Manages the properties of a boat patch item used for repairing boats.
+description: Assigns the `boat_patch` tag to an entity and provides basic patch type tracking for boat-related environmental patches.
+tags: [boat, environment, tag]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: map
 source_hash: d6635142
+system_scope: entity
 ---
 
 # Boatpatch
 
-## Overview
-This component identifies an entity as a "boat patch", an item used for repairing boats. It stores the specific type of the patch, which other game systems can use to determine its repair properties.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Tags:** Adds the `boat_patch` tag to the entity upon initialization.
+## Overview
+`Boatpatch` is a lightweight component that tags an entity with `boat_patch`, indicating it functions as a boat patch (e.g., for repairing or interacting with boats). It stores an optional `patch_type` value and provides a simple accessor for it. This component is typically attached to prefabs representing patches in the world (e.g., wooden patches used for boat repair) and helps distinguish them from other entity types during gameplay logic.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("boatpatch")
+inst.components.boatpatch.patch_type = "wood"
+print(inst.components.boatpatch:GetPatchType()) -- "wood"
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `boat_patch` on instantiation; removes `boat_patch` on component removal.
 
 ## Properties
-| Property     | Type          | Default Value | Description                                                                |
-|--------------|---------------|---------------|----------------------------------------------------------------------------|
-| `inst`       | `table`       | `inst`        | The entity instance this component is attached to.                         |
-| `patch_type` | `string`      | `nil`         | A string identifier for the type of patch (e.g., "wood", "thulecite"). |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `patch_type` | string? | `nil` | Optional identifier for the patch type (e.g., `"wood"`, `"leather"`). Set externally after instantiation. |
 
-## Main Functions
+## Main functions
+### `OnRemoveFromEntity()`
+* **Description:** Automatically called when the component is removed from its entity. Removes the `boat_patch` tag to maintain tag hygiene.
+* **Parameters:** None.
+* **Returns:** Nothing.
+
 ### `GetPatchType()`
-* **Description:** Returns the type of the boat patch.
-* **Parameters:** This function does not take any parameters.
+* **Description:** Returns the currently stored patch type.
+* **Parameters:** None.
+* **Returns:** `string?` — the value of `self.patch_type`, or `nil` if unset.
+
+## Events & listeners
+None identified

@@ -1,93 +1,113 @@
 ---
 id: beaverness
 title: Beaverness
-description: Manages the player's Beaverness meter, a resource that depletes over time and causes damage when empty.
+description: Manages the beaver-related "beaverness" hunger subtype for entities, including starvation state, time-based decay, and network synchronization.
+tags: [hunger, network, starvation]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: d0e0d976
+system_scope: entity
 ---
 
 # Beaverness
 
+> Based on game build **714014** | Last updated: 2026-03-03
+
 ## Overview
-This component manages a character-specific resource stat called "Beaverness," primarily used for Woodie's werebeaver form. It tracks a numerical value that depletes over time. When the value reaches zero, the entity begins to take periodic damage, mimicking the game's hunger mechanic. The component handles the value's modification, periodic depletion, and the associated game events for starting or stopping the "starving" state.
+`Beaverness` implements a secondary hunger-like resource—distinct from the base `hunger` component—that tracks an entity’s beaver-specific sustenance. It supports time-based decay (via `StartTimeEffect`), starvation detection, and syncing to clients via the `player_classified` network replica. When beaverness reaches `0`, it triggers starving events and contributes to health damage via the `hunger` component.
 
-## Dependencies & Tags
+This component is typically added to player characters (especially beaver-specific variants) and integrates with `hunger` and `health` to implement starvation mechanics.
 
-*   **Components:**
-    *   `health`: Required to apply damage when the Beaverness meter is empty.
-    *   `hunger`: Used to check the player's hunger state and to determine the damage rate.
-*   **Tags:**
-    *   `beaverness`: Added to the entity to identify it as having this component.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("beaverness")
+inst.components.beaverness:SetPercent(1.0)
+inst.components.beaverness:StartTimeEffect(1.0, -5)  -- decay 5 units/sec
+inst:ListenForEvent("startstarving", function() print("Beaver is starving!") end)
+```
+
+## Dependencies & tags
+**Components used:** `health`, `hunger`, `player_classified`
+**Tags:** Adds `beaverness` to the owning entity.
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `current` | number | `100` | Current beaverness value (0 to `max`). |
+| `max` | number | `100` | Maximum beaverness value. Read-only for networked players. |
+| `time_effect_multiplier` | number | `1` | Scaling factor for beaverness decay/gain during time-based effects. |
+| `task` | Task | `nil` | Internal periodic task for timed decay. |
 
-| Property                 | Type   | Default Value | Description                                                                    |
-| ------------------------ | ------ | ------------- | ------------------------------------------------------------------------------ |
-| `max`                    | number | `100`         | The maximum value of the Beaverness meter.                                     |
-| `current`                | number | `100`         | The current value of the Beaverness meter.                                     |
-| `time_effect_multiplier` | number | `1`           | A multiplier affecting the rate at which Beaverness drains over time.           |
-| `task`                   | Task   | `nil`         | A handle for the periodic task that drains Beaverness. Set by `StartTimeEffect`. |
-
-## Main Functions
-
+## Main functions
 ### `IsStarving()`
-*   **Description:** Checks if the Beaverness meter is depleted (at or below zero).
-*   **Returns:** `boolean` - `true` if current Beaverness is less than or equal to 0, otherwise `false`.
-
-### `StartTimeEffect(dt, delta_b)`
-*   **Description:** Starts a periodic task that drains Beaverness over time. If a task is already running, it is cancelled and replaced. When the meter is empty, it also applies health damage at a rate determined by the `hunger` component's `hurtrate`.
-*   **Parameters:**
-    *   `dt` (number): The time interval, in seconds, between each tick of the effect.
-    *   `delta_b` (number): The amount of Beaverness to subtract on each tick.
-
-### `StopTimeEffect()`
-*   **Description:** Stops the periodic task that drains Beaverness.
-
-### `SetTimeEffectMultiplier(multiplier)`
-*   **Description:** Sets a multiplier for the rate of Beaverness drain from the periodic time effect.
-*   **Parameters:**
-    *   `multiplier` (number): The new multiplier value. Defaults to `1` if `nil`.
+*   **Description:** Checks whether beaverness is at or below zero.
+*   **Parameters:** None.
+*   **Returns:** `true` if `current <= 0`, otherwise `false`.
 
 ### `DoDelta(delta, overtime)`
-*   **Description:** Modifies the current Beaverness value by a given amount, clamped between 0 and `max`. It also triggers events based on the change, such as `beavernessdelta`, `startstarving`, and `stopstarving`.
-*   **Parameters:**
-    *   `delta` (number): The amount to add (positive) or subtract (negative) from the current Beaverness.
-    *   `overtime` (boolean): A flag passed along in the `beavernessdelta` event, typically indicating if the change happened gradually.
-
-### `GetPercent()`
-*   **Description:** Calculates the current Beaverness as a percentage of the maximum.
-*   **Returns:** `number` - A value between 0.0 and 1.0 representing the current percentage.
+*   **Description:** Adjusts beaverness by `delta`, clamps it within `[0, max]`, and fires state-change events.
+*   **Parameters:**  
+  `delta` (number) – amount to change beaverness (can be negative).  
+  `overtime` (boolean) – indicates whether the change occurred over time (affects event metadata).
+*   **Returns:** Nothing.
+*   **Error states:** If `current` drops from positive to `<= 0`, fires `startstarving`; if `current` rises from `<= 0` to positive, fires `stopstarving`. Only triggers starving events if `hunger` is not already starving.
 
 ### `SetPercent(percent, overtime)`
-*   **Description:** Sets the current Beaverness to a specific percentage of the maximum value.
-*   **Parameters:**
-    *   `percent` (number): The desired percentage (0.0 to 1.0).
-    *   `overtime` (boolean): A flag to indicate if the change should be considered gradual.
+*   **Description:** Sets `current` to a percentage of `max` and calls `DoDelta` to sync state.
+*   **Parameters:**  
+  `percent` (number) – desired fraction of max (e.g., `0.5` for 50%).  
+  `overtime` (boolean) – passed to `DoDelta`.
+*   **Returns:** Nothing.
+
+### `StartTimeEffect(dt, delta_b)`
+*   **Description:** Starts a periodic task that applies beaverness decay (`delta_b`) every `dt` seconds, scaled by `time_effect_multiplier`.
+*   **Parameters:**  
+  `dt` (number) – interval in seconds between decay ticks.  
+  `delta_b` (number) – base delta applied per tick before scaling.
+*   **Returns:** Nothing.
+*   **Error states:** Cancels any existing periodic task before starting a new one.
+
+### `StopTimeEffect()`
+*   **Description:** Cancels the active periodic decay task.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `SetTimeEffectMultiplier(multiplier)`
+*   **Description:** Sets the multiplier applied to beaverness changes during `StartTimeEffect`.
+*   **Parameters:**  
+  `multiplier` (number?) – scaling factor (e.g., `2.0` for double rate); if `nil`, defaults to `1`.
+*   **Returns:** Nothing.
+
+### `GetPercent()`
+*   **Description:** Returns the current beaverness as a fraction of `max`.
+*   **Parameters:** None.
+*   **Returns:** number between `0` and `1`.
 
 ### `OnSave()`
-*   **Description:** Serializes the component's state for saving the game.
-*   **Returns:** `table` - A table containing the `current` Beaverness value.
+*   **Description:** Returns serializable state for persistence.
+*   **Parameters:** None.
+*   **Returns:** Table `{ current = number }`.
 
 ### `OnLoad(data)`
-*   **Description:** Deserializes and applies the component's state from saved game data.
-*   **Parameters:**
-    *   `data` (table): The data loaded from a save file.
+*   **Description:** Restores beaverness state after loading.
+*   **Parameters:**  
+  `data` (table?) – saved state from `OnSave`.
+*   **Returns:** Nothing.
+*   **Error states:** Only applies changes if `data.current` is present and differs from `self.current`.
 
 ### `GetDebugString()`
-*   **Description:** Returns a formatted string showing the current and maximum Beaverness values for debugging purposes.
-*   **Returns:** `string` - The debug string (e.g., "100.00 / 100.00").
+*   **Description:** Returns a formatted debug string for UI or console output.
+*   **Parameters:** None.
+*   **Returns:** `"current / max"` with two decimal places (e.g., `"75.00 / 100.00"`).
 
-## Events & Listeners
-
-This component pushes the following events:
-
-*   **`beavernessdelta`**: Pushed when the Beaverness value changes via `DoDelta`.
-    *   `data`: `{ oldpercent, newpercent, overtime }`
-*   **`startstarving`**: Pushed when the Beaverness value drops to 0 or below from a positive value.
-*   **`stopstarving`**: Pushed when the Beaverness value rises above 0 from a non-positive value.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:**  
+  `beavernessdelta` – when `current` changes; payload `{ oldpercent, newpercent, overtime }`.  
+  `startstarving` – fired once when `current` crosses from >0 to `<= 0` (only if `hunger` is not already starving).  
+  `stopstarving` – fired once when `current` crosses from `<= 0` to >0 (only if `hunger` was previously starving).

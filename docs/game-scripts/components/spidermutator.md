@@ -1,52 +1,69 @@
 ---
 id: spidermutator
 title: Spidermutator
-description: Provides mutation logic for spiders, replacing a given spider with a new one of a specified target prefab.
+description: Handles the conversion of one spider type into another, typically used when a spider consumes a mutator item.
+tags: [spider, mutation, transformation]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 9ce5f588
+system_scope: entity
 ---
 
 # Spidermutator
 
-## Overview
-This component enables spider mutation: it replaces an existing spider entity with a new spider of a configurable target prefab. It handles both cases where the spider is held in an inventory/container and when it is an active world entity, ensuring proper transfer of the mutated spider to the target slot and preserving leadership relationships.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Relies on the target entity (`spider`) having the following components if applicable:  
-  `inventoryitem`, `inventory`, `container`, `follower`, `stackable`  
-- No tags are added or removed by this component itself.
+## Overview
+`SpiderMutator` is a component that enables an entity to mutate one spider into another spider type. It supports two mutation paths: one for spiders that are held in an inventory/container (where the spider is replaced in the slot) and one for free-roaming spiders (where the spider receives mutation flags and fires a `"mutate"` event). After mutation, the mutator item is consumed.
+
+This component is primarily used by items like the *Spider Mutator* (e.g., *Mutated Spider Egg*) and interacts with `follower`, `inventory`, `inventoryitem`, and `stackable` components.
+
+## Usage example
+```lua
+local mutator = SpawnPrefab("spider_mutator")
+mutator:AddComponent("spidermutator")
+mutator.components.spidermutator:SetMutationTarget("beefalospider")
+mutator.components.spidermutator:Mutate(target_spider, false, player)
+```
+
+## Dependencies & tags
+**Components used:** `inventory`, `inventoryitem`, `follower`, `stackable`
+**Tags:** None identified.
 
 ## Properties
-No public properties are initialized in the constructor. The component only stores `self.inst` and assigns `self.mutation_target` dynamically via `SetMutationTarget`. No other persistent state is exposed.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | — | The entity instance that owns this component (the mutator item). |
+| `mutation_target` | `string` or `nil` | `nil` | Prefab name of the spider type to mutate into. Set via `SetMutationTarget`. |
 
-## Main Functions
-
+## Main functions
 ### `SetMutationTarget(target)`
-* **Description:** Sets the target prefab name to which spiders will be mutated.  
-* **Parameters:**  
-  - `target` (string): The prefab name of the spider type to mutate into (e.g., `"spider"` → `"spiderfighter"`).
+*   **Description:** Sets the target spider prefab name for mutation.
+*   **Parameters:** `target` (string) — the prefab name of the spider to mutate into (e.g., `"beefalospider"`).
+*   **Returns:** Nothing.
 
 ### `CanMutate(spider)`
-* **Description:** Checks whether the given spider qualifies for mutation by comparing its prefab against the current mutation target.  
-* **Parameters:**  
-  - `spider` (Entity): The spider entity to evaluate.  
-  *Returns:* `true` if `spider.prefab` differs from `self.mutation_target`; otherwise `false`.
+*   **Description:** Checks whether a given spider can be mutated. Returns `true` if the spider's prefab differs from the `mutation_target`.
+*   **Parameters:** `spider` (`Entity`) — the spider entity to check.
+*   **Returns:** `boolean` — `true` if mutation is allowed, `false` otherwise.
+*   **Error states:** Returns `true` if `mutation_target` is `nil`.
 
 ### `Mutate(spider, skip_event, giver)`
-* **Description:** Executes the mutation process on the given spider. If the spider is held in an inventory or container, it is removed and replaced in the same slot. Otherwise, mutation flags are set on the spider and the `"mutate"` event is broadcast (unless skipped). Finally, the mutator item itself is consumed.  
-* **Parameters:**  
-  - `spider` (Entity): The spider to mutate.  
-  - `skip_event` (boolean, optional): If `true`, suppresses the `"mutate"` event broadcast. Default: `nil` → event is pushed.  
-  - `giver` (Entity): The entity responsible for initiating mutation (typically used to set the new spider's leader).  
+*   **Description:** Performs the mutation on the given spider. If the spider is held in an inventory or container, it replaces the spider with a new instance of the target prefab in the same slot and assigns the `giver` as leader. Otherwise, it sets mutation flags on the spider and fires the `"mutate"` event for external logic to handle. Finally, it consumes the mutator item.
+*   **Parameters:**
+    *   `spider` (`Entity`) — the spider to mutate.
+    *   `skip_event` (boolean) — if `true`, the `"mutate"` event is not fired (used when mutation is handled explicitly elsewhere).
+    *   `giver` (`Entity` or `nil`) — the entity that gave the mutator; used to set as leader of the new spider.
+*   **Returns:** Nothing.
+*   **Error states:**
+    *   If `spider.components.inventoryitem.owner` is `nil` and the spider is *not* held in inventory, the mutation is deferred via flag-setting and event firing.
+    *   If `mutation_target` is `nil`, the behavior is undefined (but no explicit error is raised).
+    *   If `spider` or `giver` is `nil`, errors may occur in component access or function calls (e.g., `SetLeader`).
 
-## Events & Listeners
-- **Listens for:** None.  
-- **Triggers:**  
-  - `spider:PushEvent("mutate")` — Broadcast on the spider entity during mutation *unless* `skip_event` is `true`.  
-  - The mutator entity (`self.inst`) is removed (or its stack decremented) after successful mutation.
+## Events & listeners
+- **Listens to:** None.
+- **Pushes:** `spider:PushEvent("mutate")` — fired on the *spider* being mutated (not on `inst`) if `skip_event` is `false`. Used to trigger visual/audio effects and state changes on the mutated spider.

@@ -1,151 +1,145 @@
 ---
 id: leader
 title: Leader
-description: Manages a group of followers that follow and assist the entity in combat and movement.
+description: Manages a group of follower entities, coordinates shared combat targets, and handles follower lifecycle events.
+tags: [ai, group, combat, leadership]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 8c00070f
+system_scope: entity
 ---
 
 # Leader
 
-## Overview
-This component enables an entity to maintain and manage a group of followers—both living entities (e.g., pigs, wolves) and item-based followers (e.g., pets in inventory slots). It coordinates combat target sharing, tracks follower counts, handles follower lifecycle events (e.g., joining, leaving, dying), and supports achievement tracking and save/load persistence for non-player leaders.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Components:** Assumes followers have the `follower` and `combat` components; leader may have `petleash`, `inventory`, and `minigame_participator`.
-- **Tags:** Relies on `"player"`, `"pig"`, `"rocky"`, and `"pet"` (indirectly via `petleash`). No tags are added by this component.
+## Overview
+The `Leader` component enables an entity to command and coordinate a group of followers—typically creatures or items that follow and assist the leader. It manages follower addition/removal, distributes combat targets to followers when the leader acquires a target or is attacked, and handles persistence across world saves. It works closely with the `follower` and `combat` components of follower entities to propagate targeting decisions and synchronize group behavior.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("leader")
+
+-- Add a follower entity (e.g., a pig or rocky)
+local follower = The世界.entities["pig_123"]
+if follower and follower.components.follower then
+    inst.components.leader:AddFollower(follower)
+end
+
+-- Get number of followers
+local count = inst.components.leader:CountFollowers()
+
+-- Distribute a combat target to all followers
+inst.components.leader:OnNewTarget(some_enemy)
+```
+
+## Dependencies & tags
+**Components used:** `combat`, `follower`, `inventory`, `petleash`, `minigame_participator`  
+**Tags:** None added or removed by this component.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity this component is attached to. |
-| `followers` | `table` | `{}` | Map of active entity followers (key = entity, value = `true`). |
-| `numfollowers` | `number` | `0` | Count of regular entity followers. |
-| `itemfollowers` | `table` | `{}` | Map of virtual/item followers (e.g., equippable pets); not persisted. |
-| `numitemfollowers` | `number` | `0` | Count of item followers. |
-| `forceleash` | `boolean` | `false` | Set via `SetForceLeash()`; used to enforce leash behavior. |
-| `_onfollowerdied` | `function` | — | Internal callback to remove follower on death event. |
-| `_onfollowerremoved` | `function` | — | Internal callback to remove follower on remove-from-world event. |
+| `followers` | table | `{}` | Map of active follower entities (`entity → true`). |
+| `numfollowers` | number | `0` | Count of regular followers. |
+| `itemfollowers` | table | `{}` | Map of virtual followers (e.g., equipped items acting as leader for other entities). |
+| `numitemfollowers` | number | `0` | Count of item-based followers. |
+| `forceleash` | boolean | `nil` | If set via `SetForceLeash()`, causes followers to remain leashed. |
 
-## Main Functions
-### `OnRemoveFromEntity()`
-* **Description:** Cleans up event listeners and removes all followers when the leader is removed from the world.
-* **Parameters:** None.
-
-### `SetForceLeash()`
-* **Description:** Enables strict leash enforcement for the leader.
-* **Parameters:** None.
-
-### `IsFollower(guy)`
-* **Description:** Checks whether the given entity is currently following this leader (either as a regular or item follower).
-* **Parameters:**
-  * `guy` (`Entity`): The entity to check.
-
+## Main functions
 ### `OnAttacked(attacker)`
-* **Description:** When the leader is attacked by a non-follower, notifies all followers to engage the attacker (if they meet combat/follower conditions).
-* **Parameters:**
-  * `attacker` (`Entity?`): The entity that attacked the leader.
-
-### `CountFollowers(tag)`
-* **Description:** Returns the total number of followers, optionally filtered by a specific tag.
-* **Parameters:**
-  * `tag` (`string?`): Optional tag to count only followers with this tag.
-
-### `GetFollowersByTag(tag)`
-* **Description:** Returns a table of followers matching the specified tag.
-* **Parameters:**
-  * `tag` (`string?`): Required tag to filter followers.
-
-### `IsTargetedByFollowers(target)`
-* **Description:** Returns `true` if *any* follower is currently targeting the specified entity.
-* **Parameters:**
-  * `target` (`Entity?`): The entity to check for targeting.
-
-### `IsTargetPet(target)`
-* **Description:** Determines whether the target is a pet of this leader (via `petleash` component or equippable slot).
-* **Parameters:**
-  * `target` (`Entity?`): The entity to check.
+*   **Description:** When the leader is attacked, broadcasts the attacker as a new target to all followers that can accept targets.
+*   **Parameters:** `attacker` (Entity) - the entity that attacked the leader.
+*   **Returns:** Nothing.
+*   **Error states:** Does not broadcast to followers that are themselves attackers, the leader itself, or participate in non-PVP minigames (unless PVP is enabled).
 
 ### `OnNewTarget(target)`
-* **Description:** Informs all followers to switch to or engage the specified new target, unless the target is a dismissed pet.
-* **Parameters:**
-  * `target` (`Entity?`): The new combat target; may be `nil`.
-
-### `RemoveFollower(follower, invalid)`
-* **Description:** Removes a single follower, updates internal state, and cleans up associated event listeners and follower references.
-* **Parameters:**
-  * `follower` (`Entity?`): The entity to remove.
-  * `invalid` (`boolean`): If `true`, suppresses event notifications (used during world teardown).
+*   **Description:** Broadcasts a newly acquired combat target to all followers, enabling coordinated aggression. Pet dismissals are respected.
+*   **Parameters:** `target` (Entity) - the new target entity, or `nil`.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if the target is a pet; does not broadcast to minigame participants unless PVP is enabled.
 
 ### `AddFollower(follower)`
-* **Description:** Adds a living entity as a follower, sets up event listeners, updates counters, and may trigger achievements or stats.
-* **Parameters:**
-  * `follower` (`Entity?`): The entity to add as a follower.
+*   **Description:** Registers an entity as a follower, sets its `leader` field via the `follower` component, and subscribes to follower lifecycle events.
+*   **Parameters:** `follower` (Entity) - the entity to add as a follower.
+*   **Returns:** Nothing.
+*   **Error states:** No effect if the follower is already registered or lacks a `follower` component.
+
+### `RemoveFollower(follower, invalid)`
+*   **Description:** Unregisters a follower, resets its leader to `nil`, and fires the `"stopfollowing"` event.
+*   **Parameters:**  
+    * `follower` (Entity) - the follower to remove.  
+    * `invalid` (boolean) - if `true`, skips resetting leader and firing events (used internally during entity removal).
+*   **Returns:** Nothing.
+
+### `CountFollowers(tag)`
+*   **Description:** Returns the total number of followers; optionally filters by a specific tag.
+*   **Parameters:** `tag` (string or `nil`) - optional tag to count only followers with that tag.
+*   **Returns:** number - count of matching followers.
+
+### `GetFollowersByTag(tag)`
+*   **Description:** Returns an array of followers matching the given tag.
+*   **Parameters:** `tag` (string) - tag to filter by (if `nil`, returns empty array).
+*   **Returns:** table - array of follower entities.
 
 ### `AddItemFollower(itemfollower)`
-* **Description:** Adds a non-entity (e.g., equippable pet) as a virtual follower.
-* **Parameters:**
-  * `itemfollower` (`Entity?`): The item to track as an item follower.
+*   **Description:** Adds an item-based follower (used for interaction logic, not persistence). Not saved across sessions.
+*   **Parameters:** `itemfollower` (Entity) - the item or entity to register as a virtual follower.
+*   **Returns:** Nothing.
 
 ### `RemoveItemFollower(itemfollower)`
-* **Description:** Removes a virtual item follower.
-* **Parameters:**
-  * `itemfollower` (`Entity?`): The item to remove.
-
-### `RemoveFollowersByTag(tag, validateremovefn)`
-* **Description:** Removes all followers matching a given tag, optionally filtered by a custom validator function.
-* **Parameters:**
-  * `tag` (`string`): Tag to match.
-  * `validateremovefn` (`function?`): Optional callback to decide per-follower removal.
-
-### `RemoveAllFollowers()`
-* **Description:** Immediately removes all regular followers.
-* **Parameters:** None.
+*   **Description:** Removes an item-based follower.
+*   **Parameters:** `itemfollower` (Entity) - the item follower to remove.
+*   **Returns:** Nothing.
 
 ### `RemoveAllFollowersOnDeath()`
-* **Description:** Removes all followers upon leader’s death, unless they are configured to stay (`keepdeadleader`).
-* **Parameters:** None.
+*   **Description:** Removes all followers upon leader death, respecting `keepdeadleader` on individual followers.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `HaveFollowersCachePlayerLeader()`
-* **Description:** Instructs all followers to cache the player leader (used for UI/sync efficiency).
-* **Parameters:** None.
+*   **Description:** Calls `CachePlayerLeader()` on each follower’s `follower` component, caching the player leader identity for networked synchronization.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `IsBeingFollowedBy(prefabName)`
-* **Description:** Checks if any follower is of the given prefab name (checked in both regular and item follower lists).
-* **Parameters:**
-  * `prefabName` (`string`): The prefab name to check.
+### `IsFollower(guy)`
+*   **Description:** Checks whether an entity is registered as either a regular or item follower.
+*   **Parameters:** `guy` (Entity) - entity to check.
+*   **Returns:** boolean - `true` if the entity is a follower.
 
-### `OnSave()`
-* **Description:** Serializes follower GUIDs for non-player leaders during world save.
-* **Parameters:** None.  
-* **Returns:** `{ followers = {guids...} }` and raw follower guids, or `nil` for players or no followers.
+### `IsTargetPet(target)`
+*   **Description:** Determines if a given target is a pet (via `petleash`) of the leader or of any equipped inventory item.
+*   **Parameters:** `target` (Entity or `nil`) - the entity to check.
+*   **Returns:** boolean - `true` if the target is a pet.
 
-### `LoadPostPass(newents, savedata)`
-* **Description:** Reconnects followers after save loading using GUIDs for non-player leaders.
-* **Parameters:**
-  * `newents` (`table`): Map of GUID → entity for loaded entities.
-  * `savedata` (`table?`): Saved data containing follower GUIDs.
+### `OnSave()` and `LoadPostPass(newents, savedata)`
+*   **Description:** Persist and restore follower relationships for non-player leaders. Saves GUIDs of followers; restores them during world load.
+*   **Parameters:**  
+    * `OnSave()` — None.  
+    * `LoadPostPass(newents, savedata)` — `newents` (table) — mapping of GUIDs to entities; `savedata` (table or `nil`) — saved follower GUID list.
+*   **Returns:**  
+    * `OnSave()` — `{ followers = { guid1, guid2, ... } }` (table) if followers exist, else `nil`.  
+    * `LoadPostPass` — Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a human-readable debug string showing the follower count.
-* **Parameters:** None.  
-* **Returns:** `string` in the format `"followers:<count>"`.
+*   **Description:** Returns a human-readable debug summary for UI or logging.
+*   **Parameters:** None.
+*   **Returns:** string — `"followers:" .. self.numfollowers`.
 
-## Events & Listeners
-- **Listens to:**
-  - `"newcombattarget"` → calls `OnNewCombatTarget`, which invokes `OnNewTarget`.
-  - `"attacked"` → calls `OnAttacked`.
-  - `"death"` → calls `OnDeath`, which invokes `RemoveAllFollowersOnDeath`.
-  - `"death"` (follower-specific) → removes follower via `_onfollowerdied`.
-  - `"onremove"` (follower-specific) → removes follower via `_onfollowerremoved`.
-- **Triggers:**
-  - `"startfollowing"` on the follower when added.
-  - `"stopfollowing"` on the follower when removed (unless `invalid` is true).
-  - Achievements `"pigman_posse"` and `"rocky_posse"` when follower counts meet tuning thresholds.
-  - `"TotalFollowersAcquired"` via `NotifyPlayerProgress` on follower addition.
+## Events & listeners
+- **Listens to:**  
+    * `"newcombattarget"` — triggers `OnNewTarget(data.target)`.  
+    * `"attacked"` — triggers `OnAttacked(data.attacker)`.  
+    * `"death"` — triggers `RemoveAllFollowersOnDeath()`.  
+- **Pushes:**  
+    * Via follower callbacks: `"startfollowing"` (when adding a follower), `"stopfollowing"` (when removing a follower).  
+    * `"leaderchanged"` events are pushed by follower components (not directly by this component).  
+- **Fires callbacks:**  
+    * `self.onfolloweradded(inst, follower)` — custom callback set externally.  
+    * `self.onremovefollower(inst, follower)` — custom callback set externally.  
+    * Achievements and profile stats for player leaders (e.g., `"pigman_posse"`, `"rocky_posse"`).

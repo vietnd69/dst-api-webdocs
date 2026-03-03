@@ -1,89 +1,105 @@
 ---
 id: deerherdspawner
 title: Deerherdspawner
-description: This component manages the spawning, tracking, and seasonal migration of deer herds in the world.
+description: Manages seasonal spawning, migration, and population control of deer herds in the world.
+tags: [ecology, ai, seasonal, population]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: world
+category_type: components
 source_hash: 9699abe3
+system_scope: world
 ---
 
 # Deerherdspawner
 
-## Overview
-The `Deerherdspawner` component is responsible for orchestrating the lifecycle of deer herds within the game world. It handles the initial summoning of deer during autumn, tracks the active deer population, and manages their migration behavior as winter approaches, ensuring deer populations are maintained and interact appropriately with the game's seasons.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-This component implicitly relies on the existence and proper functioning of the `deerherding` component on the `TheWorld` entity. It also expects "deer" prefabs to be defined and available for spawning, and "deerspawningground" prefabs to be registered as potential spawning locations.
-It does not directly add or remove tags from the entity it is attached to.
+## Overview
+`Deerherdspawner` is a world-scoped component responsible for orchestrating deer herd behavior across seasons. It spawns new herds in autumn, tracks active deer, and migrates them in winter. It relies on the `deerherding` component to record the herd's central location and uses `knownlocations` to store relative positions for each deer. This component only exists on the master simulation and coordinates spawning logic, timing, and persistence.
+
+## Usage example
+```lua
+-- Typically added to a world-level prefab (e.g., world spawner)
+inst:AddComponent("deerherdspawner")
+
+-- Debug trigger (for testing)
+inst.components.deerherdspawner:DebugSummonHerd(5) -- summon herd in 5 seconds
+```
+
+## Dependencies & tags
+**Components used:** `deerherding`, `knownlocations`
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :------- | :--- | :------------ | :---------- |
-| `inst` | `Entity` | - | A reference to the parent entity this component is attached to. |
+|----------|------|---------------|-------------|
+| `inst` | `Entity` | `nil` | The entity instance this component is attached to. |
 
-## Main Functions
-### `GetDeer()`
-*   **Description:** Returns a table containing all currently active deer entities being tracked by this spawner.
-*   **Parameters:** None.
+*Note: Internal state variables (e.g., `_spawners`, `_activedeer`, `_timetospawn`, etc.) are not part of the public API and should not be accessed directly.*
 
+## Main functions
 ### `SpawnDeer(pos, center)`
-*   **Description:** Creates and spawns a single "deer" prefab at the specified position. It also registers the newly spawned deer with the spawner for tracking.
+*   **Description:** Spawns a single `deer` prefab at the specified world position and records its relative offset from the herd center using `knownlocations`.
 *   **Parameters:**
-    *   `pos`: A `Vector3` representing the exact world position where the deer should be spawned.
-    *   `center`: A `Vector3` representing the center of the herd, used to calculate the deer's offset from the herd center for its `knownlocations` component.
+    *   `pos` (`Vector3`) – World position to place the deer.
+    *   `center` (`Vector3`) – Reference point used to calculate and store the deer's offset.
+*   **Returns:** Nothing.
+*   **Error states:** If `SpawnPrefab("deer")` fails, no deer is spawned and no error is raised.
+
+### `GetDeer()`
+*   **Description:** Returns the internal table of currently active deer entities.
+*   **Parameters:** None.
+*   **Returns:** `table` – A dictionary mapping deer entities to `true`. Only contains valid deer still in the world.
 
 ### `OnUpdate(dt)`
-*   **Description:** This function is called every frame when the component is updating. It manages the internal timers for spawning new herds (`_timetospawn`) and triggering herd migration (`_timetomigrate`), calling the respective functions when timers expire. If no timers are active, it stops the component from updating.
+*   **Description:** Handles countdown timers for herd summoning and migration. Called via `LongUpdate` during simulation.
 *   **Parameters:**
-    *   `dt`: The delta time (time elapsed since the last frame) in seconds.
-
-### `LongUpdate(dt)`
-*   **Description:** An alias for `OnUpdate`. Used for updates that can tolerate less frequent calls, though in this component, it behaves identically to `OnUpdate`.
-*   **Parameters:**
-    *   `dt`: The delta time in seconds.
-
-### `OnSave()`
-*   **Description:** Serializes the component's internal state for persistence, including active timers and the GUIDs of active deer.
-*   **Parameters:** None.
-
-### `OnLoad(data)`
-*   **Description:** Deserializes and restores the component's internal state from saved data, including timers for spawning and migration.
-*   **Parameters:**
-    *   `data`: A table containing the saved state data.
-
-### `LoadPostPass(newents, data)`
-*   **Description:** Called after all entities have been loaded, allowing the component to re-establish references to active deer entities using their GUIDs from saved data. It also restarts component updates if any timers were active.
-*   **Parameters:**
-    *   `newents`: A table mapping GUIDs to newly loaded entities.
-    *   `data`: A table containing the saved state data.
-
-### `GetDebugString()`
-*   **Description:** Returns a formatted string providing debug information about the spawner's current state, such as remaining time until spawning/migration or the number of active deer.
-*   **Parameters:** None.
+    *   `dt` (`number`) – Time elapsed since last update in seconds.
+*   **Returns:** Nothing.
+*   **Error states:** Stops updating when no timers are active (`_timetospawn == nil` and `_timetomigrate == nil`).
 
 ### `DebugSummonHerd(time)`
-*   **Description:** A debug function to force the immediate or delayed summoning of a deer herd, bypassing normal seasonal logic.
+*   **Description:** Forces immediate preparation for a herd summon after `time` seconds, bypassing seasonal/timer logic.
 *   **Parameters:**
-    *   `time` (optional): The time in seconds until the herd should be summoned. Defaults to 1 second if not provided.
+    *   `time` (`number`, optional) – Delay in seconds before summoning. Defaults to `1`.
+*   **Returns:** Nothing.
 
-### `OnPostInit()`
-*   **Description:** Called after the entity and its components have been fully initialized. It performs initial setup checks for deer spawning, particularly if the game starts in winter or autumn.
+### `OnSave()`
+*   **Description:** Serializes timer and active deer state for world persistence.
 *   **Parameters:** None.
+*   **Returns:** `table` – Save data containing `_timetospawn`, `_prevherdsummonday`, `_timetomigrate`, and `_activedeer` (as GUIDs).
+    *   Second return value: list of GUIDs (also included in first return), likely for legacy sync or save format reasons.
 
-## Events & Listeners
-*   **Listens For:**
-    *   `ms_registerdeerspawningground`: Triggered by other entities to register themselves as valid deer spawning locations.
-    *   `onremove` (from individual deer entities): Called when a tracked deer entity is removed from the world, causing it to be untracked.
-    *   `onremove` (from registered spawner entities): Called when a registered spawning ground entity is removed, removing it from the list of available spawners.
-    *   `death` (from individual deer entities): Called when a tracked deer entity dies, causing it to be untracked.
-    *   World State Change `isautumn`: Triggers `QueueSummonHerd` to schedule new deer herd spawning.
-    *   World State Change `iswinter`: Triggers `QueueHerdMigration` to schedule deer herd migration.
+### `OnLoad(data)`
+*   **Description:** Restores timer state from saved world data.
+*   **Parameters:**
+    *   `data` (`table`, optional) – Saved component state. May include `_timetospawn`, `_prevherdsummonday`, `_timetomigrate`, and deprecated `_lastherdsummonday`.
+*   **Returns:** Nothing.
 
-*   **Pushes/Triggers:**
-    *   `queuegrowantler` (on individual deer entities): Signaled to active deer when herd migration is queued, potentially triggering antler growth.
-    *   `deerherdmigration` (on individual deer entities): Signaled to active deer when the herd migration is initiated, prompting them to migrate.
+### `LoadPostPass(newents, data)`
+*   **Description:** Reconnects saved deer entities after world load completes and resumes updates if needed.
+*   **Parameters:**
+    *   `newents` (`table`) – Mapping of GUIDs to loaded entities.
+    *   `data` (`table`, optional) – Loaded component data containing `_activedeer` GUIDs.
+*   **Returns:** Nothing.
+
+### `GetDebugString()`
+*   **Description:** Returns a human-readable status string for debugging tools.
+*   **Parameters:** None.
+*   **Returns:** `string` – Describes current phase (dormant, summoning, migrated, migrating) with timing or deer count.
+
+## Events & listeners
+- **Listens to:**  
+    `ms_registerdeerspawningground` – Fired by spawning ground entities to register themselves. Triggers `OnRegisterDeerSpawningGround`.
+- **Pushes:**  
+    None. The component does not fire custom events.
+
+## Notes
+- The component is restricted to the master simulation (`TheWorld.ismastersim`), and will assert on the client.
+- Seasonal scheduling uses `TheWorld.state.isautumn`, `TheWorld.state.iswinter`, and `TheWorld.state.cycles`.
+- Deer herd size is randomized using `HERD_SPAWN_SIZE (5)` and `HERD_SPAWN_SIZE_VARIANCE (1)`, capped by `HERD_OVERPOPULATION_SIZE`.
+- Offscreen spawn positions are determined via `FindWalkableOffset` with fallbacks to avoid water or walls.
+- Migrated deer receive the `"queuegrowantler"` and `"deerherdmigration"` events.

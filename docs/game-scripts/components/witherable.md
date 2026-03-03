@@ -1,110 +1,130 @@
 ---
 id: witherable
 title: Witherable
-description: Manages temperature-dependent withering and rejuvenation behavior for plants and crops, including rain sensitivity, protection windows, and state transitions.
+description: Manages cyclic withering and rejuvenation of plants based on temperature and weather conditions, and supports temporary protection periods.
+tags: [plant, weather, lifecycle, environmental]
 sidebar_position: 1
-
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: f9f7bff8
+system_scope: environment
 ---
-
 # Witherable
 
-## Overview
-The `Witherable` component controls the environmental life cycle of plants and crops by dynamically toggling their withered state based on local temperature and rain conditions. It schedules timed transitions between withered, barren, and active states, supports protection periods that suspend decay, and persists state across saves/loadups. Entities gain the `"witherable"` tag on initialization, and adopt the `"withered"` tag when decayed.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Requires components:** `crop` (optional), `pickable` (optional), `rainimmunity` (optional, for rain exposure logic).
-- **Adds tags:** `"witherable"` on entity initialization; `"withered"` when decayed.
-- **Removes tags on removal:** `"witherable"` and `"withered"`.
+## Overview
+`Witherable` enables an entity to dynamically transition between active (healthy) and withered states in response to environmental conditions — primarily temperature and rain. It integrates with the `crop` and `pickable` components to apply state changes (e.g., crop turning into cutgrass, or pickable entering barren state) and supports temporary protection against withering. The component operates asynchronously using scheduled tasks and persists state across saves.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("witherable")
+-- Entity is now subject to temperature- and rain-based withering/rejuvenation cycles
+inst.components.witherable:Enable(true) -- explicitly enable
+inst.components.witherable:Protect(60) -- prevent withering for 60 seconds
+```
+
+## Dependencies & tags
+**Components used:** `crop`, `pickable`, `rainimmunity`
+**Tags:** Adds `witherable` (always), `withered` (conditionally based on state)
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `enabled` | `boolean` | `true` | Enables/disables scheduled withering/rejuvenation tasks. |
-| `withered` | `boolean` | `false` | Current decayed state of the entity. |
-| `wither_temp` | `number` | Random between `TUNING.MIN_PLANT_WITHER_TEMP` and `TUNING.MAX_PLANT_WITHER_TEMP` | Temperature threshold above which the entity *can* wither (provided not rained on). |
-| `rejuvenate_temp` | `number` | Random between `TUNING.MIN_PLANT_REJUVENATE_TEMP` and `TUNING.MAX_PLANT_REJUVENATE_TEMP` | Temperature threshold below which the entity *can* rejuvenate (or if rained on). |
-| `delay_to_time` | `number?` | `nil` | Future timestamp until which scheduling is postponed (e.g., during rain protection or manual delay). |
-| `task_to_time` | `number?` | `nil` | Timestamp for the next scheduled check (withering/rejuvenation). |
-| `task` | `Task?` | `nil` | Active task handle for pending checks. |
-| `restore_cycles` | `number?` | `nil` | Stores pickable's cycle count prior to barrening for later restoration. |
-| `is_watching_rain` | `boolean?` | `nil` | Whether the component is listening to world `"startrain"` events. |
-| `protect_to_time` | `number?` | `nil` | Timestamp when current protection ends. |
-| `protect_task` | `Task?` | `nil` | Task handle for ending protection period. |
+| `enabled` | boolean | `true` | Whether the component is active and schedules tasks. |
+| `withered` | boolean | `false` | Whether the entity is currently in a withered state. |
+| `wither_temp` | number | Random value in `[TUNING.MIN_PLANT_WITHER_TEMP, TUNING.MAX_PLANT_WITHER_TEMP]` | Threshold temperature above which withering may occur. |
+| `rejuvenate_temp` | number | Random value in `[TUNING.MIN_PLANT_REJUVENATE_TEMP, TUNING.MAX_PLANT_REJUVENATE_TEMP]` | Threshold temperature below which rejuvenation may occur. |
+| `delay_to_time` | number or `nil` | `nil` | Epoch time at which the current delay period ends (used for weather/forced delays). |
+| `task_to_time` | number or `nil` | `nil` | Epoch time at which the next scheduled wither/rejuvenate task should run. |
+| `task` | Task or `nil` | `nil` | Scheduled task handle for wither/rejuvenate logic. |
+| `restore_cycles` | number or `nil` | `nil` | Stores pickable cycles count before withering for later restoration. |
+| `is_watching_rain` | boolean or `nil` | `nil` | Whether the component listens for `startrain` world state events. |
+| `protect_to_time` | number or `nil` | `nil` | Epoch time until which the entity is protected from withering. |
+| `protect_task` | Task or `nil` | `nil` | Scheduled task handle for ending protection. |
 
-## Main Functions
-
+## Main functions
 ### `Enable(enable)`
-* **Description:** Enables or disables scheduled withering/rejuvenation. Disabling pauses checks; re-enabling resumes based on current state and conditions.
-* **Parameters:**  
-  `enable` (`boolean?`) — If `false`, disables the component and cancels pending tasks. If truthy (and currently disabled), re-enables and restarts scheduling.
+* **Description:** Enables or disables the component. When disabled, all scheduled tasks are cancelled and no new tasks are started.
+* **Parameters:** `enable` (boolean) — `true` to enable, `false` to disable.
+* **Returns:** Nothing.
 
 ### `IsWithered()`
-* **Description:** Returns whether the entity is currently in the withered state.
-* **Returns:** `boolean`
+* **Description:** Returns whether the entity is currently in a withered state.
+* **Parameters:** None.
+* **Returns:** `true` if withered, otherwise `false`.
 
 ### `IsProtected()`
-* **Description:** Indicates whether the entity is currently under a protection window that delays withering and triggers rejuvenation.
-* **Returns:** `boolean`
+* **Description:** Returns whether the entity is currently under protection (e.g., from `Protect()`).
+* **Parameters:** None.
+* **Returns:** `true` if protected, otherwise `false`.
 
 ### `CanWither()`
-* **Description:** Checks if the entity *can* wither (i.e., is not already withered and has no active protection).
-* **Returns:** `boolean`
+* **Description:** Returns whether the entity *can* wither (i.e., is not already withered and is active).
+* **Parameters:** None.
+* **Returns:** `true` if withering is possible, otherwise `false`.
 
 ### `CanRejuvenate()`
-* **Description:** Checks if the entity *can* rejuvenate (i.e., is withered and not a crop; crops rejuvenate via `crop:Rejuvenate()` logic, not pickable logic).
-* **Returns:** `boolean`
+* **Description:** Returns whether the entity *can* rejuvenate (i.e., is currently withered and is *not* a `crop`).
+* **Parameters:** None.
+* **Returns:** `true` if rejuvenation is possible, otherwise `false`.
 
 ### `ForceWither()`
-* **Description:** Immediately transitions the entity to withered state, bypassing all timers and conditions. Cancels pending tasks.
-* **Parameters:** None
+* **Description:** Immediately triggers the withering process, bypassing temperature and rain checks. Requires `CanWither()` to be true.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No-op if `CanWither()` is `false`.
 
 ### `ForceRejuvenate()`
-* **Description:** Immediately transitions a withered pickable to a non-barren state (rejuvenation), bypassing timers and conditions. Cancels pending tasks.
-* **Parameters:** None
+* **Description:** Immediately triggers the rejuvenation process, bypassing temperature and rain checks. Requires `CanRejuvenate()` to be true.
+* **Parameters:** None.
+* **Returns:** Nothing.
+* **Error states:** No-op if `CanRejuvenate()` is `false`.
 
 ### `DelayWither(delay)`
-* **Description:** Postpones the next withering check by `delay` seconds. Only triggers if not already withered.
-* **Parameters:**  
-  `delay` (`number`) — Time in seconds to delay the withering timer.
+* **Description:** Schedules the next withering attempt no earlier than `delay` seconds from now. Does *not* prevent withering — only delays the *next scheduled check*. Requires `CanWither()` to be true.
+* **Parameters:** `delay` (number) — delay in seconds.
+* **Returns:** Nothing.
 
 ### `DelayRejuvenate(delay)`
-* **Description:** Postpones the next rejuvenation check by `delay` seconds *only if not rained on*. Does nothing if rained on (since rejuvenation is imminent).
-* **Parameters:**  
-  `delay` (`number`) — Time in seconds to delay the rejuvenation timer.
+* **Description:** Schedules the next rejuvenation attempt no earlier than `delay` seconds from now. Respects rain state: if exposed to rain, no delay is scheduled (rejuv can proceed). Requires `CanRejuvenate()` to be true.
+* **Parameters:** `delay` (number) — delay in seconds.
+* **Returns:** Nothing.
 
 ### `Protect(duration)`
-* **Description:** Applies a protection window of `duration` seconds: during this period, withering is delayed and rejuvenation is forced. Also starts a delayed task to end protection.
-* **Parameters:**  
-  `duration` (`number`) — Length of protection in seconds.
+* **Description:** Applies temporary protection: prevents withering for `duration` seconds and immediately triggers forced rejuvenation. Multiple calls extend protection.
+* **Parameters:** `duration` (number) — protection duration in seconds.
+* **Returns:** Nothing.
 
 ### `Start()`
-* **Description:** Begins or resumes scheduling checks (withering/rejuvenation/delay) if the component is enabled, the entity is awake, and no task is pending.
-* **Parameters:** None
+* **Description:** Starts the component’s behavior by scheduling the next task (wither, rejuvenate, or delay) based on current conditions and `delay_to_time`/`task_to_time`. Only runs if `enabled`, not sleeping, and no task is pending.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `Stop()`
-* **Description:** Cancels any pending task and stops listening to world state events (e.g., rain).
-* **Parameters:** None
+* **Description:** Cancels the currently scheduled task (`self.task`) and stops watching world state events (`startrain`). Does *not* modify state.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Returns a serializable table containing current state for persistence: whether withered, remaining cycles, and time remaining for delays, tasks, and protection.
-* **Returns:** `table?` — Non-empty data table or `nil` if no state to save.
+* **Description:** Returns a table containing relevant state data (`withered`, `restore_cycles`, `delay_time_remaining`, `task_time_remaining`, `protect_time_remaining`) for persistence.
+* **Parameters:** None.
+* **Returns:** Table or `nil` (if no data to save).
 
 ### `OnLoad(data)`
-* **Description:** Restores state from saved data. Handles loading of withered status, restore cycles, and pending delays/timers.
-* **Parameters:**  
-  `data` (`table`) — Saved state data.
+* **Description:** Restores state after loading from a save. Handles `withered`, `restore_cycles`, delay and task timing, and protection.
+* **Parameters:** `data` (table) — saved state data.
+* **Returns:** Nothing.
 
 ### `GetDebugString()`
-* **Description:** Returns a human-readable debug string summarizing current state, temperatures, and active timers.
-* **Returns:** `string`
+* **Description:** Returns a human-readable debug string summarizing the current state (e.g., `"withered: true wither temp: 15 rejuve temp: 5 PROTECTED: 20.00 DELAYING: 12.34"`).
+* **Parameters:** None.
+* **Returns:** String.
 
-## Events & Listeners
-- Listens for `"startrain"` world state event → triggers `OnStartRain(self)` handler to restart scheduling when rain begins.
-- Triggers `OnEndProtect(self)` via task when protection period ends (via `Protect`).
-- Calls `OnInit(inst, self)` at time `0` after construction (via `DoTaskInTime`) to ensure initialization is deferred to frame 0.
+## Events & listeners
+- **Listens to:** `startrain` (world state) — triggers immediate reschedule (`OnStartRain`).
+- **Pushes:** None directly (but triggers `onwithered` callbacks via `crop:MakeWithered()`).
+- **Hooks:** `OnEntitySleep`, `OnEntityWake` — delegates to `Stop()` and `Start()` respectively.

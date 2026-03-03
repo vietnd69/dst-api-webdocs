@@ -1,68 +1,94 @@
 ---
 id: workmultiplier
 title: Workmultiplier
-description: Manages per-action work rate multipliers for an entity by tracking additive modifiers from different sources.
+description: Manages action-specific work multipliers for an entity, allowing dynamic modification of work output via additive source-based modifiers.
+tags: [work, modifier, entity]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 7f0dc60e
+system_scope: entity
 ---
 
 # Workmultiplier
 
-## Overview
-This component enables an entity to apply dynamic, source-tracked multipliers to the amount of work done for specific actions (e.g., chopping, mining). It uses `SourceModifierList` to maintain separate modifier stacks per action, allowing multiple modifiers (e.g., from equipped tools, status effects) to combine multiplicatively via their `Get()` method. It also supports a custom override function (`specialfn`) for action-specific work calculation logic.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Dependencies:** `util/sourcemodifierlist` module.
-- **No components are added/removed** on the entity (`inst`) by this component.
-- **No tags are added/removed** on the entity by this component.
+## Overview
+`WorkMultiplier` is a component that tracks and computes effective work multipliers for specific actions performed by an entity. It supports multiple sources contributing to a multiplier for the same action via the `SourceModifierList` utility, where the final multiplier for an action is determined by its active modifiers. The component also supports a custom resolution function (`specialfn`) that can override the default multiplier behavior for specific work actions.
+
+This component is typically attached to entities capable of performing work, such as characters or machines, and integrates with the action system to adjust how much work is performed per interaction.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("workmultiplier")
+
+-- Set a multiplier for "chop" action from a specific source
+inst.components.workmultiplier:AddMultiplier("chop", 1.5, "axe_bonus")
+
+-- Query the current multiplier for "chop"
+local mult = inst.components.workmultiplier:GetMultiplier("chop")  -- returns 1.5
+
+-- Remove the source modifier
+inst.components.workmultiplier:RemoveMultiplier("chop", "axe_bonus")
+
+-- Register a custom resolution function
+inst.components.workmultiplier:SetSpecialMultiplierFn(function(inst, action, target, tool, numworks, recoil)
+    if action == "mine" and recoil then
+        return numworks * 0.5
+    end
+    return numworks
+end)
+```
+
+## Dependencies & tags
+**Components used:** None directly via `inst.components.X`. Relies on the external utility `util/sourcemodifierlist.lua`.
+**Tags:** None identified.
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `inst` | `Entity` | *none* | The entity this component is attached to (passed into constructor). |
-| `actions` | `table<string, SourceModifierList>` | `{}` | Maps action names (strings) to `SourceModifierList` instances, each storing source-based modifiers for that action. |
-| `specialfn` | `function?` | `nil` | Optional custom function to override default work amount calculation; takes `(inst, action, target, tool, numworks, recoil)` and returns the final work amount. |
+No public properties.
 
-## Main Functions
-
+## Main functions
 ### `GetMultiplier(action)`
-* **Description:** Returns the current multiplicative work modifier for a given action. Returns `1` if no modifiers exist for the action.
-* **Parameters:**
-  * `action` (`string`): The name of the action (e.g., `"chop"`, `"mine"`) to query.
+* **Description:** Returns the effective multiplier for a given action. The multiplier is computed by aggregating all modifiers added for that action via `AddMultiplier`.
+* **Parameters:** `action` (string) - the action name (e.g., `"chop"`, `"mine"`, `"dig"`).
+* **Returns:** number — the multiplier value. Defaults to `1` if no modifiers exist for the action.
+* **Error states:** Returns `1` if no modifiers are present for `action`.
 
 ### `AddMultiplier(action, multiplier, source)`
-* **Description:** Adds or updates a work multiplier for a specific action, associated with a named source (e.g., `" equipped_axe"`, `"hunger_bonus"`). Creates a new `SourceModifierList` for the action if needed.
-* **Parameters:**
-  * `action` (`string`): The action to modify.
-  * `multiplier` (`number`): The numeric modifier value to apply (e.g., `1.5`, `0.8`).
-  * `source` (`string`): A unique identifier for the origin of this modifier (used to allow multiple sources and to remove later).
+* **Description:** Registers a modifier for a specific action, identified by a unique source string. If multiple sources apply multipliers to the same action, they are combined by `SourceModifierList`.
+* **Parameters:** 
+  - `action` (string) - the action name.
+  - `multiplier` (number) - the multiplier value to apply (typically `>= 0`).
+  - `source` (string) - a unique identifier for the modifier source (e.g., `"perk_dig_speed"`).
+* **Returns:** Nothing.
 
 ### `RemoveMultiplier(action, source)`
-* **Description:** Removes a previously added modifier for a given action and source. Does nothing if the action has no modifiers or the source is not present.
-* **Parameters:**
-  * `action` (`string`): The action whose modifier to remove.
-  * `source` (`string`): The source identifier previously passed to `AddMultiplier`.
+* **Description:** Removes a previously registered modifier for a given action and source.
+* **Parameters:** 
+  - `action` (string) - the action name.
+  - `source` (string) - the source identifier of the modifier to remove.
+* **Returns:** Nothing.
 
 ### `SetSpecialMultiplierFn(fn)`
-* **Description:** Sets or clears the custom work calculation function. Setting `nil` disables override behavior.
-* **Parameters:**
-  * `fn` (`function?`): A function with signature `(inst, action, target, tool, numworks, recoil) -> number`, or `nil`.
+* **Description:** Assigns a custom function to override how work amounts are resolved for specific actions. This function is invoked by `ResolveSpecialWorkAmount`.
+* **Parameters:** `fn` (function) - a function that accepts `(inst, action, target, tool, numworks, recoil)` and returns a modified work amount (typically `number`).
+* **Returns:** Nothing.
 
 ### `ResolveSpecialWorkAmount(action, target, tool, numworks, recoil)`
-* **Description:** Invokes the custom work function (if set); otherwise, returns the original `numworks` unchanged. Used to handle edge cases requiring full control over work output.
-* **Parameters:**
-  * `action` (`string`): The action being performed.
-  * `target` (`Entity?`): The target entity of the action (may be `nil`).
-  * `tool` (`Entity?`): The tool entity used (may be `nil`).
-  * `numworks` (`number`): The base or calculated work amount before override.
-  * `recoil` (`boolean?`): Whether the action includes recoil logic (e.g., tool durability loss).
-* **Returns:** `number` — The final work amount, either computed by `specialfn` or passed through as `numworks`.
+* **Description:** Applies the custom resolution function (if set) to determine the effective work amount. If no function is set, returns `numworks` unchanged.
+* **Parameters:** 
+  - `action` (string) - the action being performed.
+  - `target` (Entity or nil) - the target entity of the action, if any.
+  - `tool` (Entity or nil) - the tool used, if any.
+  - `numworks` (number) - the base number of work units.
+  - `recoil` (boolean) - whether the action is being processed in the recoil phase.
+* **Returns:** number — the resolved work amount.
+* **Error states:** Returns `numworks` if no custom function is set.
 
-## Events & Listeners
+## Events & listeners
 None identified.

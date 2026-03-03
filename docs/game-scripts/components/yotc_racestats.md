@@ -1,109 +1,147 @@
 ---
 id: yotc_racestats
 title: Yotc Racestats
-description: Manages a player's race-specific statistical attributes (speed, direction, reaction, stamina) and provides tools to modify, compare, save, and load these stats.
+description: Manages point-based racing statistics for entities, including stats modification, random point allocation, degradation, and baseline tracking.
+tags: [race, stats, entity, combat]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: player
+category_type: components
 source_hash: 5196a224
+system_scope: entity
 ---
 
 # Yotc Racestats
 
-## Overview
-This component stores and manipulates a player's core racing statistics—speed, direction, reaction, and stamina—each represented as an integer stat value within configurable min/max bounds. It supports stat modifications via point adjustments, random point distribution, stat degradation (including to baseline), and saving/loading for persistence. It also provides helper methods to compute stat modifiers, retrieve the best stats, and generate debug strings.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- Requires `TUNING.RACE_STATS` constants: `INIT_STAT_VALUE`, `MIN_STAT_VALUE`, `MAX_STAT_VALUE`
-- Does not add or require any entity components or tags.
+## Overview
+`YOTC_RaceStats` is an entity component that stores and manipulates four core racing statistics—speed, direction, reaction, and stamina—as integer point values within configurable bounds defined in `TUNING.RACE_STATS`. It supports dynamic modification via additive adjustments, random point distribution, and point degradation, while preserving a configurable baseline for reset functionality. The component also provides serialization support via `OnSave`/`OnLoad` and includes debugging utilities.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("yotc_racestats")
+
+-- Set stats via additive modification
+inst.components.yotc_racestats:ModifySpeed(5)
+inst.components.yotc_racestats:ModifyDirection(-2)
+
+-- Allocate random point spread
+inst.components.yotc_racestats:AddRandomPointSpread(3)
+
+-- Save current stats as baseline
+inst.components.yotc_racestats:SaveCurrentStatsAsBaseline()
+
+-- Degrade 2 points randomly from stats above baseline
+local remaining = inst.components.yotc_racestats:DegradePoints(2)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `inst` (passed to constructor) | The entity the component is attached to (typically a player). |
-| `speed` | `number` | `TUNING.RACE_STATS.INIT_STAT_VALUE` | Current speed stat value. |
-| `direction` | `number` | `TUNING.RACE_STATS.INIT_STAT_VALUE` | Current direction stat value. |
-| `reaction` | `number` | `TUNING.RACE_STATS.INIT_STAT_VALUE` | Current reaction stat value. |
-| `stamina` | `number` | `TUNING.RACE_STATS.INIT_STAT_VALUE` | Current stamina stat value. |
-| `baseline_speed` | `number?` | `nil` | Saved baseline for speed (used in degradation logic); `nil` until `SaveCurrentStatsAsBaseline()` is called. |
-| `baseline_direction` | `number?` | `nil` | Saved baseline for direction. |
-| `baseline_reaction` | `number?` | `nil` | Saved baseline for reaction. |
-| `baseline_stamina` | `number?` | `nil` | Saved baseline for stamina. |
+| `speed` | number | `TUNING.RACE_STATS.INIT_STAT_VALUE` | Current speed stat value. |
+| `direction` | number | `TUNING.RACE_STATS.INIT_STAT_VALUE` | Current direction stat value. |
+| `reaction` | number | `TUNING.RACE_STATS.INIT_STAT_VALUE` | Current reaction stat value. |
+| `stamina` | number | `TUNING.RACE_STATS.INIT_STAT_VALUE` | Current stamina stat value. |
+| `baseline_speed` | number \| nil | `nil` | Saved baseline for speed; `nil` until explicitly set. |
+| `baseline_direction` | number \| nil | `nil` | Saved baseline for direction; `nil` until explicitly set. |
+| `baseline_reaction` | number \| nil | `nil` | Saved baseline for reaction; `nil` until explicitly set. |
+| `baseline_stamina` | number \| nil | `nil` | Saved baseline for stamina; `nil` until explicitly set. |
 
-## Main Functions
-
+## Main functions
 ### `GetSpeedModifier()`
-* **Description:** Returns the speed stat as a normalized modifier (ratio to `MAX_STAT_VALUE`).  
-* **Returns:** `number` — A float between `0` and `1`, calculated as `speed / MAX_STAT_VALUE`.
+* **Description:** Returns the speed stat normalized as a decimal modifier between 0 and 1, based on `TUNING.RACE_STATS.MAX_STAT_VALUE`.
+* **Parameters:** None.
+* **Returns:** number — `speed / MAX_STAT_VALUE`.
+* **Error states:** Returns `0` if `speed` is `0`.
 
 ### `GetDirectionModifier()`
-* **Description:** Returns the direction stat as a normalized modifier.  
-* **Returns:** `number` — `direction / MAX_STAT_VALUE`.
+* **Description:** Returns the direction stat normalized as a decimal modifier.
+* **Parameters:** None.
+* **Returns:** number — `direction / MAX_STAT_VALUE`.
 
 ### `GetReactionModifier()`
-* **Description:** Returns the reaction stat as a normalized modifier.  
-* **Returns:** `number` — `reaction / MAX_STAT_VALUE`.
+* **Description:** Returns the reaction stat normalized as a decimal modifier.
+* **Parameters:** None.
+* **Returns:** number — `reaction / MAX_STAT_VALUE`.
 
 ### `GetStaminaModifier()`
-* **Description:** Returns the stamina stat as a normalized modifier.  
-* **Returns:** `number` — `stamina / MAX_STAT_VALUE`.
+* **Description:** Returns the stamina stat normalized as a decimal modifier.
+* **Parameters:** None.
+* **Returns:** number — `stamina / MAX_STAT_VALUE`.
 
 ### `ModifySpeed(point_mod)`
-* **Description:** Adjusts the `speed` stat by `point_mod`, clamped between `baseline_speed` (if set) and `MAX_STAT_VALUE`.  
-* **Parameters:**
-  * `point_mod` (`number?`) — Signed integer change to apply (e.g., `+2`, `-1`). Ignored if `nil` or `0`.
+* **Description:** Adjusts the speed stat by the given point modifier, clamped between baseline (or `MIN_STAT_VALUE`) and `MAX_STAT_VALUE`.
+* **Parameters:** `point_mod` (number) — amount to add to `speed`. Must be non-zero and non-`nil`.
+* **Returns:** Nothing.
+* **Error states:** No-op if `point_mod` is `nil` or `0`. Clamps the resulting value to `[min, MAX_STAT_VALUE]`.
 
 ### `ModifyDirection(point_mod)`
-* **Description:** Adjusts the `direction` stat by `point_mod`, clamped between `baseline_direction` (if set) and `MAX_STAT_VALUE`.  
-* **Parameters:** Same as `ModifySpeed`.
+* **Description:** Adjusts the direction stat with clamping behavior identical to `ModifySpeed`.
+* **Parameters:** `point_mod` (number).
+* **Returns:** Nothing.
 
 ### `ModifyReaction(point_mod)`
-* **Description:** Adjusts the `reaction` stat by `point_mod`, clamped between `baseline_reaction` (if set) and `MAX_STAT_VALUE`.  
-* **Parameters:** Same as `ModifySpeed`.
+* **Description:** Adjusts the reaction stat with clamping behavior identical to `ModifySpeed`.
+* **Parameters:** `point_mod` (number).
+* **Returns:** Nothing.
 
 ### `ModifyStamina(point_mod)`
-* **Description:** Adjusts the `stamina` stat by `point_mod`, clamped between `baseline_stamina` (if set) and `MAX_STAT_VALUE`.  
-* **Parameters:** Same as `ModifySpeed`.
+* **Description:** Adjusts the stamina stat with clamping behavior identical to `ModifySpeed`.
+* **Parameters:** `point_mod` (number).
+* **Returns:** Nothing.
 
 ### `GetBestStats()`
-* **Description:** Returns a list of indices (1–4) corresponding to the highest stat(s). All stats tied for highest are included.  
-* **Returns:** `table<number>` — e.g., `{1, 3}` if speed and reaction are tied for highest. Order follows: speed (1), direction (2), reaction (3), stamina (4).
+* **Description:** Identifies which stat(s) hold the highest current value.
+* **Parameters:** None.
+* **Returns:** table — a list of stat indices (1 = speed, 2 = direction, 3 = reaction, 4 = stamina) that tie for highest value. Returns empty table if all stats are `0` (edge case).
+* **Error states:** May return a multi-element list for ties.
 
 ### `GetNumStatPoints()`
-* **Description:** Returns the total sum of all stat values.  
-* **Returns:** `number` — Sum of `speed + direction + reaction + stamina`.
+* **Description:** Computes the total sum of all stat points.
+* **Parameters:** None.
+* **Returns:** number — sum of `speed`, `direction`, `reaction`, and `stamina`.
 
 ### `AddRandomPointSpread(num_points)`
-* **Description:** Distributes `num_points` randomly among stats *below* `MAX_STAT_VALUE`, using uniform random selection among eligible stats. Modifies stats in-place using `Modify*` methods. Stops when all points are assigned or no stats remain below max.  
-* **Parameters:**
-  * `num_points` (`number?`) — Number of points to distribute. Ignored if `nil`.
+* **Description:** Distributes `num_points` randomly among stats that are below `MAX_STAT_VALUE`, incrementing each by `1`. Skips stats already at max.
+* **Parameters:** `num_points` (number) — number of points to distribute.
+* **Returns:** Nothing.
+* **Error states:** No-op if `num_points` is `nil` or `0`. Stops distributing if no stats remain below `MAX_STAT_VALUE`.
 
 ### `DegradePoints(num_points)`
-* **Description:** Reduces stats *above* their baseline by up to `num_points`. If `num_points` is `nil`, resets all stats to their baseline values. Returns whether any stats still exceed baseline after degradation.  
-* **Parameters:**
-  * `num_points` (`number?`) — Max number of points to degrade. If `nil`, reset to baseline.  
-* **Returns:** `boolean` — `true` if any stat remains *above* its baseline after operation.
+* **Description:** Reduces points from stats that exceed the current baseline (or initial default values if baseline is unset), either up to `num_points` or down to the baseline.
+* **Parameters:** `num_points` (number) — number of points to degrade (if `nil`, degrades all excess points to baseline).
+* **Returns:** boolean — `true` if any stats remain above their baseline after degradation; otherwise `false`.
+* **Error states:** Degradation stops early if no stats are above baseline; returns `false` in that case.
 
 ### `SaveCurrentStatsAsBaseline()`
-* **Description:** Copies current stat values to the corresponding `baseline_*` fields.  
-* **Effect:** Subsequent degradation operations will use these values as the floor.
+* **Description:** Saves the current stat values as new baselines for use during future degradation.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `OnSave()`
-* **Description:** Returns a serializable table containing all stat values and baseline stats.  
-* **Returns:** `table` — Keys: `speed`, `direction`, `reaction`, `stamina`, `baseline_speed`, `baseline_direction`, `baseline_reaction`, `baseline_stamina`.
+* **Description:** Returns a serializable table containing current and baseline stat values for persistence.
+* **Parameters:** None.
+* **Returns:** table — `{ speed, direction, reaction, stamina, baseline_speed, baseline_direction, baseline_reaction, baseline_stamina }`.
 
 ### `OnLoad(data)`
-* **Description:** Loads stat and baseline values from a previously saved `data` table.  
-* **Parameters:**
-  * `data` (`table?`) — Table returned by `OnSave()`. Ignored if `nil`.
+* **Description:** Loads stat and baseline values from a saved table.
+* **Parameters:** `data` (table) — deserialized data from `OnSave`.
+* **Returns:** Nothing.
+* **Error states:** No-op if `data` is `nil`. Does not validate contents.
 
 ### `GetDebugString()`
-* **Description:** Returns a formatted debug string showing all current stats and (if present) their baseline values.  
-* **Returns:** `string` — e.g., `"Sp: 10,  Dr:  8,  Re: 12,  St:  7\n        Baseline:     10,        6,        8,        5"`.
+* **Description:** Formats current and baseline stat values as a multi-line debug string.
+* **Parameters:** None.
+* **Returns:** string — e.g., `"Sp: 10,  Dr: 12,  Re:  8,  St: 10\n        Baseline:     10,       10,       10,       10"`.
+* **Error states:** Omits the baseline line if `baseline_speed` is `nil` (assumes other baselines are also `nil`).
 
-## Events & Listeners
-None identified.
+## Events & listeners
+None identified

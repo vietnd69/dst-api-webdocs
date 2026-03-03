@@ -1,75 +1,99 @@
 ---
 id: chargingreticule
 title: Chargingreticule
-description: Manages the visual reticule used for targeting charged abilities, positioning and orienting it based on player input.
+description: Manages a visual reticle that follows a target entity and points toward a dynamic aim direction (mouse or controller), used for indicating where a charging attack will land.
+tags: [combat, ui, visual, aim]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: ui
+category_type: components
 source_hash: eb5077a1
+system_scope: ui
 ---
 
 # Chargingreticule
 
-## Overview
-This component is responsible for creating and managing a visual reticule entity that aids in targeting abilities requiring a charge or specific direction. It dynamically updates the reticule's position and rotation based on the current player input method (mouse or controller), ensuring it accurately reflects the intended target location or direction relative to its owner.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-This component implicitly relies on the entity having the `transform` component for position/rotation manipulation and the `animstate` component for visual representation.
-None identified.
+## Overview
+`Chargingreticule` is a UI-related component that renders and animates a visual reticle (typically used for charging attacks like the Beekeeper's hammer or other directed mechanics). It tracks a designated owner entity, updates its position to match the owner, and dynamically points toward a target direction derived from mouse position (when using keyboard/mouse) or analog stick input (when using a controller). It supports eased rotation smoothing and integrates with the camera system for proper world-space projection.
+
+## Usage example
+```lua
+local inst = Prefab("chargingreticule")
+inst:AddComponent("chargingreticule")
+inst:AddTag("worldfx")
+inst:AddTag("do_not_pickle")
+-- After the owner entity is created:
+inst.components.chargingreticule:LinkToEntity(owner_entity)
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `worldfx`, `do_not_pickle` internally viaPrefab setup (not directly by this component). This component itself does not manipulate tags on its owner.
 
 ## Properties
-| Property          | Type      | Default Value | Description                                                                                             |
-| :---------------- | :-------- | :------------ | :------------------------------------------------------------------------------------------------------ |
-| `inst`            | `Entity`  | -             | The entity instance this component is attached to.                                                      |
-| `ease`            | `boolean` | `false`       | Determines if rotation updates should be smoothly eased (interpolated) or snap directly.                  |
-| `smoothing`       | `number`  | `6.66`        | Controls the speed of rotation easing when `ease` is `true`. Higher values mean faster interpolation.   |
-| `targetpos`       | `Vector3` | `nil`         | The current world position (x, 0, z) the reticule is targeting. Updated by mouse or controller input. |
-| `followhandler`   | `function`| `nil`         | A handler function registered with `TheInput` for mouse movement, if a mouse is being used.           |
-| `owner`           | `Entity`  | `nil`         | The entity (e.g., player character) that "owns" and is using this reticule.                             |
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `ease` | boolean | `false` | Whether rotation should be eased/smoothed. |
+| `smoothing` | number | `6.66` | Controls the speed of rotation easing when `ease` is true. |
+| `targetpos` | Vector3? | `nil` | The `(x, z)` world position the reticle should point toward (y is always `0`). |
+| `followhandler` | function? | `nil` | Internal handler ID for mouse movement updates (set only when using mouse). |
+| `owner` | Entity? | `nil` | The entity this reticle is associated with (its position is tied to this entity). |
 
-## Main Functions
+## Main functions
 ### `OnRemoveEntity()`
-*   **Description:** Cleans up internal resources when the reticule entity is removed from the game world. This includes unregistering the mouse move handler and removing the `TheCamera` listener to prevent memory leaks or errors.
-*   **Parameters:** None.
+* **Description:** Cleans up internal references and removes listeners when the owning entity is removed. Prevents memory leaks and dangling callbacks.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `GetMouseTargetXZ(x, y)`
-*   **Description:** Projects screen coordinates (e.g., mouse position) into the game world's XZ plane to determine a target position. This function returns the X and Z world coordinates.
-*   **Parameters:**
-    *   `x` (`number`): The screen X coordinate.
-    *   `y` (`number`): The screen Y coordinate.
+* **Description:** Projects screen-space coordinates `(x, y)` into world-space `(x, z)` using `TheSim:ProjectScreenPos`. Returns `nil` if projection fails.
+* **Parameters:**  
+  - `x` (number) – Screen X coordinate.  
+  - `y` (number) – Screen Y coordinate.  
+* **Returns:**  
+  - `x` (number?) – World X coordinate or `nil` on failure.  
+  - `z` (number?) – World Z coordinate or `nil` on failure.
 
 ### `GetControllerTargetXZ()`
-*   **Description:** Calculates a target XZ plane position based on controller input (directional controls) relative to the camera's orientation. This is used when a controller is attached. Returns the X and Z world coordinates.
-*   **Parameters:** None.
+* **Description:** Computes a target world position based on the controller’s analog stick input. Uses camera relative vectors to derive a direction and offsets the owner’s position by that direction.
+* **Parameters:** None.
+* **Returns:**  
+  - `x` (number?) – World X coordinate or `nil` if input is within deadzone.  
+  - `z` (number?) – World Z coordinate or `nil` if input is within deadzone.
 
 ### `LinkToEntity(target)`
-*   **Description:** Initializes and links the reticule to a specified `target` entity. It sets the `owner`, updates the reticule's initial position, and sets up the appropriate input handlers (mouse or controller) and camera listener for continuous targeting updates. If no direct target can be determined initially, it defaults to a position in front of the owner.
-*   **Parameters:**
-    *   `target` (`Entity`): The entity that will own and use this reticule.
+* **Description:** Associates this reticle with a target entity (the owner), initializes its position, sets up input handlers (mouse or controller), and configures the initial aim direction. Registers for camera updates.
+* **Parameters:**  
+  - `target` (Entity) – The entity this reticle will follow and point toward.  
+* **Returns:** Nothing.
+* **Error states:** If neither mouse nor controller input yields a valid target position, it defaults to a position one unit ahead of the owner in the owner’s facing direction.
 
 ### `UpdatePosition_Internal()`
-*   **Description:** Internal helper function that sets the reticule's world position to match its `owner`'s world position. The Y coordinate is always set to 0.
-*   **Parameters:** None.
+* **Description:** Syncs the reticle’s position to the owner’s current `(x, z)` world position (y is always set to `0`). This is called on every camera update and after linking.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
 ### `UpdateRotation_Internal(dt)`
-*   **Description:** Internal helper function that updates the reticule's rotation to face its `targetpos`. If easing is enabled (`self.ease` is true) and a `dt` (delta time) is provided, the rotation will smoothly interpolate; otherwise, it snaps instantly.
-*   **Parameters:**
-    *   `dt` (`number`, optional): The delta time since the last frame, used for smooth rotation easing.
+* **Description:** Rotates the reticle to face `targetpos`. If `ease` is `true` and `dt` is provided, applies linear interpolation to rotation change based on `smoothing`.
+* **Parameters:**  
+  - `dt` (number?) – Delta time for smoothing. If `nil`, rotation updates instantly.  
+* **Returns:** Nothing.
 
 ### `OnCameraUpdate(dt)`
-*   **Description:** A callback function invoked whenever the camera updates (typically every frame). It ensures the reticule's position and target are up-to-date and handles rotation based on the active input method.
-*   **Parameters:**
-    *   `dt` (`number`): The delta time since the last camera update.
+* **Description:** Callback for camera updates. Refreshes the reticle’s position (due to owner movement) and updates the aim direction based on current input (mouse or controller), then updates rotation.
+* **Parameters:**  
+  - `dt` (number) – Delta time since last frame.  
+* **Returns:** Nothing.
 
 ### `Snap()`
-*   **Description:** Instantly updates the reticule's position to match its owner and forces it to face the `targetpos` directly, bypassing any easing. This is useful for immediate targeting adjustments.
-*   **Parameters:** None.
+* **Description:** Instantly updates position and forces the reticle to face `targetpos` without smoothing.
+* **Parameters:** None.
+* **Returns:** Nothing.
 
-## Events & Listeners
-*   **Listens For:**
-    *   `TheCamera:AddListener(self, self._oncameraupdate)`: Listens for general camera update events, triggering `self:OnCameraUpdate(dt)` to refresh the reticule's position and orientation.
-    *   `TheInput:AddMoveHandler(function(x, y)...)`: When using mouse input, this handler listens for mouse movement events to update the `targetpos`.
+## Events & listeners
+- **Listens to:** `OnCameraUpdate` (via `TheCamera:AddListener`) — triggers `OnCameraUpdate(dt)`.
+- **Pushes:** None identified.

@@ -1,110 +1,138 @@
 ---
 id: deckcontainer
 title: Deckcontainer
-description: This component allows an entity to manage a collection of 'cards' in a deck-like structure, offering operations such as adding, removing, shuffling, and combining.
+description: Manages a collection of playing cards as a deck, supporting add, remove, shuffle, split, and merge operations.
+tags: [inventory, deck, card]
 sidebar_position: 1
 
-last_updated: 2026-02-14
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: inventory
+category_type: components
 source_hash: 87487a05
+system_scope: entity
 ---
 
 # Deckcontainer
 
-## Overview
-The `Deckcontainer` component provides an entity with the ability to function as a container for a collection of "cards" (represented by numerical IDs). It offers a robust set of functionalities for manipulating this collection, including adding, removing, peeking at, shuffling, reversing, and combining or splitting decks. It also integrates with the game's save/load system.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-This component does not explicitly rely on other components being added to the entity via `inst:AddComponent()`.
-It adds the `deckcontainer` tag to its host entity during initialization and removes it upon entity removal.
-It uses global helper functions `shuffleArray`, `table.reverse_inplace`, and `ConcatArrays` which are assumed to be available in the environment.
+## Overview
+`DeckContainer` is a component that maintains an ordered list of playing card IDs (`self.cards`) and provides utilities for standard deck operations such as shuffling, reversing, peeking, and merging. It is attached to an entity via `inst:AddComponent("deckcontainer")` and automatically adds the `deckcontainer` tag to the entity. When the entity is removed, the tag is cleaned up. This component is typically used for interactive deck objects (e.g., a deck of cards on a table or held by a character).
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("deckcontainer")
+inst.components.deckcontainer:AddRandomCard()
+inst.components.deckcontainer:AddCards({113, 205, 307})
+inst.components.deckcontainer:Shuffle()
+print(inst.components.deckcontainer:Count()) -- e.g., 3
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `deckcontainer` on construction, removes on entity removal.
 
 ## Properties
 | Property | Type | Default Value | Description |
-| :------- | :--- | :------------ | :---------- |
-| `inst` | `Entity` | (reference) | A reference to the entity this component is attached to. |
-| `cards` | `table` | `{}` | A table storing the numerical IDs of the cards currently in the deck. |
-| `on_card_added` | `function` | `nil` | An optional callback function invoked when a single card is added to the deck, taking `(inst, card_id)` as arguments. |
-| `on_cards_added_bulk` | `function` | `nil` | An optional callback function invoked when multiple cards are added using `AddCards`, taking `(inst, ids_table)` as arguments. |
-| `on_card_removed` | `function` | `nil` | An optional callback function invoked when a card is removed from the deck, taking `(inst, removed_card_id)` as arguments. |
-| `on_split_deck` | `function` | `nil` | An optional callback function invoked after `SplitDeck` completes, taking `(self_inst, source_deck_inst)` as arguments. |
-| `on_deck_shuffled` | `function` | `nil` | An optional callback function invoked after `Shuffle` completes, taking `(inst)` as arguments. |
+|----------|------|---------------|-------------|
+| `cards` | table (array of numbers) | `{}` | Ordered list of card IDs currently in the deck. |
+| `on_card_added` | function (optional) | `nil` | Callback invoked when a single card is added (`function(inst, card_id)`). |
+| `on_cards_added_bulk` | function (optional) | `nil` | Callback invoked when multiple cards are added (`function(inst, card_ids)`). |
+| `on_card_removed` | function (optional) | `nil` | Callback invoked when a card is removed (`function(inst, card_id)`). |
+| `on_split_deck` | function (optional) | `nil` | Callback invoked after splitting from another deck (`function(this_inst, source_inst)`). |
+| `on_deck_shuffled` | function (optional) | `nil` | Callback invoked after shuffling (`function(inst)`). |
 
-## Main Functions
-### `OnRemoveEntity()`
-*   **Description:** This function is called when the entity this component is attached to is being removed. It handles cleanup by removing the "deckcontainer" tag from the entity.
-*   **Parameters:** None.
+> Note: Callbacks are stored as callable fields on the component instance and can be assigned by modders.
 
-### `OnRemoveFromEntity()`
-*   **Description:** An alias for `OnRemoveEntity()`, providing backward compatibility or alternative naming.
-*   **Parameters:** None.
-
+## Main functions
 ### `MergeDecks(other_deck, moved_count)`
-*   **Description:** Merges cards from another `DeckContainer` component (`other_deck`) into this deck. By default, it moves all cards from `other_deck`, but a `moved_count` can specify a subset. Cards are moved in order from the `other_deck`'s front.
-*   **Parameters:**
-    *   `other_deck`: (`DeckContainer`) The target `DeckContainer` instance from which cards will be moved.
-    *   `moved_count`: (`number`, optional) The number of cards to move from `other_deck`. Defaults to the total count of cards in `other_deck`.
+*   **Description:** Moves cards from another deck (`other_deck`) into this deck. Moves at most `moved_count` cards (defaults to the full count of `other_deck`).
+*   **Parameters:** 
+    *   `other_deck` (DeckContainer) — the source deck to move cards from.
+    *   `moved_count` (number, optional) — number of cards to move. Defaults to `other_deck:Count()`.
+*   **Returns:** Nothing.
+*   **Error states:** No explicit error handling; relies on `other_deck` having a `.cards` table and `other_deck:Count()` returning a non-negative number.
 
 ### `SplitDeck(source_deck, num_to_get)`
-*   **Description:** Moves a specified number of cards from a `source_deck` into this deck. The cards are added to this deck and then this deck is reversed, effectively placing the first card taken at the top of this new deck. An optional `on_split_deck` callback is triggered if set.
-*   **Parameters:**
-    *   `source_deck`: (`DeckContainer`) The `DeckContainer` instance from which cards will be taken.
-    *   `num_to_get`: (`number`) The number of cards to move from `source_deck` to this deck.
+*   **Description:** Moves `num_to_get` cards from `source_deck` into this deck, then reverses this deck in-place.
+*   **Parameters:** 
+    *   `source_deck` (DeckContainer) — the deck to draw cards from.
+    *   `num_to_get` (number) — number of cards to transfer.
+*   **Returns:** Nothing.
+*   **Error states:** If `num_to_get` exceeds `source_deck:Count()`, it may remove more than intended; no bounds check is performed.
 
 ### `AddCard(id, position)`
-*   **Description:** Adds a single card ID to the deck. If `position` is specified, the card is inserted at that index; otherwise, it's added to the end. An optional `on_card_added` callback is triggered if set.
-*   **Parameters:**
-    *   `id`: (`number`) The numerical ID of the card to add.
-    *   `position`: (`number`, optional) The 1-based index where the card should be inserted.
+*   **Description:** Inserts a card (`id`) into the deck. If `position` is provided, inserts at that index (1-based); otherwise appends to the end.
+*   **Parameters:** 
+    *   `id` (number) — card identifier.
+    *   `position` (number, optional) — 1-based index for insertion.
+*   **Returns:** Nothing.
+*   **Error states:** None.
 
 ### `AddRandomCard()`
-*   **Description:** Generates a random card ID (in the format `(100 * random_1_4) + random_1_13`) and adds it to the deck using `AddCard()`.
+*   **Description:** Generates a random card ID using formula `(100 * suit) + rank`, where `suit` is 1–4 and `rank` is 1–13, then adds it to the deck.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** None.
 
 ### `AddCards(ids)`
-*   **Description:** Adds multiple card IDs from a provided table to the end of the deck. An optional `on_cards_added_bulk` callback is triggered if set.
-*   **Parameters:**
-    *   `ids`: (`table`) A table containing the numerical IDs of the cards to add.
+*   **Description:** Appends all card IDs in the `ids` table to the deck (in order).
+*   **Parameters:** 
+    *   `ids` (table of numbers) — list of card IDs to append.
+*   **Returns:** Nothing.
+*   **Error states:** None.
 
 ### `RemoveCard(position)`
-*   **Description:** Removes a card from the deck. If `position` is specified, the card at that index is removed; otherwise, the last card is removed. If the deck becomes empty after removal, the host entity itself is removed. An optional `on_card_removed` callback is triggered if set.
-*   **Parameters:**
-    *   `position`: (`number`, optional) The 1-based index of the card to remove.
-*   **Returns:** (`number`) The ID of the card that was removed.
+*   **Description:** Removes and returns a card from the deck. If `position` is provided and less than deck size, removes from that index; otherwise removes from the end.
+*   **Parameters:** 
+    *   `position` (number, optional) — 1-based index to remove.
+*   **Returns:** `removed_id` (number) — the card ID that was removed, or `nil` if deck was empty.
+*   **Error states:** If the deck becomes empty after removal (`#cards == 0`), the owning entity (`self.inst`) is automatically destroyed via `self.inst:Remove()`.
 
 ### `PeekCard(position)`
-*   **Description:** Returns the ID of a card in the deck without removing it. If `position` is specified, the card at that index is returned; otherwise, the last card in the deck is returned.
-*   **Parameters:**
-    *   `position`: (`number`, optional) The 1-based index of the card to peek at.
-*   **Returns:** (`number`) The ID of the card at the specified (or last) position.
+*   **Description:** Returns the card ID at the specified position without removing it. If `position` is omitted, returns the last card.
+*   **Parameters:** 
+    *   `position` (number, optional) — 1-based index. Defaults to `#cards`.
+*   **Returns:** `card_id` (number) — the card at that position, or `nil` if the deck is empty.
+*   **Error states:** Returns `nil` if deck is empty.
 
 ### `Shuffle()`
-*   **Description:** Randomizes the order of cards within the deck using the global `shuffleArray` function. An optional `on_deck_shuffled` callback is triggered if set.
+*   **Description:** Randomly reorders the deck in-place using `shuffleArray`.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** None.
 
 ### `Reverse()`
-*   **Description:** Reverses the order of all cards in the deck using the global `table.reverse_inplace` function.
+*   **Description:** Reverses the deck order in-place using `table.reverse_inplace`.
 *   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** None.
 
 ### `Count()`
-*   **Description:** Returns the current number of cards in the deck.
+*   **Description:** Returns the number of cards currently in the deck.
 *   **Parameters:** None.
-*   **Returns:** (`number`) The total count of cards.
+*   **Returns:** `count` (number) — number of cards.
+*   **Error states:** None.
 
 ### `OnSave()`
-*   **Description:** Prepares the component's data for saving. It returns a table containing the `cards` table.
+*   **Description:** Returns a serializable snapshot of the deck for persistence.
 *   **Parameters:** None.
-*   **Returns:** (`table`) A table with a `cards` key holding the current deck's card IDs.
+*   **Returns:** `{cards = self.cards}` (table).
 
 ### `OnLoad(data)`
-*   **Description:** Loads saved data into the component. If `data.cards` exists, it concatenates the loaded cards into the current deck using the global `ConcatArrays` function.
-*   **Parameters:**
-    *   `data`: (`table`) The table containing the saved component data.
+*   **Description:** Restores the deck from saved data. Copies all IDs from `data.cards` into `self.cards`.
+*   **Parameters:** 
+    *   `data` (table) — must contain a `cards` array of card IDs.
+*   **Returns:** Nothing.
+*   **Error states:** If `data.cards` is missing or `nil`, no cards are loaded.
 
 ### `GetDebugString()`
-*   **Description:** Returns a formatted string representing the current count of cards in the deck, useful for debugging overlays.
+*   **Description:** Returns a fixed-width string showing the current card count for debugging UI.
 *   **Parameters:** None.
-*   **Returns:** (`string`) A string indicating the number of cards.
+*   **Returns:** `debug_string` (string) — e.g., `"   5"` for five cards.
+
+## Events & listeners
+- **Listens to:** None identified (no events registered via `inst:ListenForEvent`).
+- **Pushes:** None identified (no events fired via `inst:PushEvent`). Callbacks are direct function calls, not events.

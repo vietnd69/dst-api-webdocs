@@ -3,8 +3,7 @@ id: boons
 title: Boons
 description: Defines static layout templates for level-specific resource and item spawns (boons) used in world generation, grouped by rarity and difficulty tier.
 tags: [world, generation, static_layout, spawn, map]
-sidebar_position: 1
-
+sidebar_position: 100
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable
@@ -12,7 +11,6 @@ category_type: map
 system_scope: world
 source_hash: 9f18cf44
 ---
-
 # Boons
 
 > Based on game build **714014** | Last updated: 2026-02-27
@@ -55,4 +53,3 @@ No callable functions are exported. The module only returns a table with two key
 ## Events & listeners
 None.
 
----

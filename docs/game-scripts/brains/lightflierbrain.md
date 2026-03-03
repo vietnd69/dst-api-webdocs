@@ -1,62 +1,63 @@
 ---
 id: lightflierbrain
 title: Lightflierbrain
-description: Controls the autonomous behavior of lightflier entities by managing threat avoidance, home-finding logic, and formation following through a behavior tree.
+description: Controls the AI behavior of lightfliers, managing movement, threat response, home seeking, and formation following.
+tags: [ai, locomotion, combat, environment]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 339afd05
+system_scope: brain
 ---
 
 # Lightflierbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
-`LightFlierBrain` is a brain component that defines the decision-making logic for lightflier entities (e.g., fireflies) in Don't Starve Together. It orchestrates movement, threat response, and home-seeking behavior using a behavior tree (`BT`). The brain integrates with several components—including `formationfollower`, `homeseeker`, `locomotor`, `childspawner`, `burnable`, and `pickable`—to dynamically adjust behavior based on environmental conditions, formation leadership status, and proximity to threats or suitable nesting locations.
+`Lightflierbrain` defines the behavior tree logic for lightflier entities. It orchestrates movement, fleeing from threats (especially when not in formation), returning to a designated home (a `lightflier_home` tile), and syncs with the `formationfollower` component. It integrates with several components including `homeseeker`, `locomotor`, `burnable`, `pickable`, and `childspawner`, and uses helper behaviors like `RunAway`, `Panic`, `Wander`, and `Follow`.
 
-The brain prioritizes escaping from threats (`RunAway`), returning to a home location under specific conditions, and resuming normal wandering or following behavior when safe. It resets locomotion and formation flags at the start of behavior execution, ensuring correct movement control transitions between autonomous and formation-driven states.
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddBrain("lightflierbrain")
+-- The brain automatically initializes upon stategraph entry via OnStart()
+-- No direct instantiation or method calls are needed by modders.
+```
 
-## Dependencies & Tags
-- **Components used:** `burnable`, `childspawner`, `formationfollower`, `homeseeker`, `knownlocations`, `locomotor`, `pickable`
-- **Tags:** `scarytoprey` (hunter tags), `NOCLICK` (excluded from threat detection), `lightflier_home` (home location tags), `burnt`, `fire` (excluded from valid home locations)
+## Dependencies & tags
+**Components used:** `homeseeker`, `locomotor`, `formationfollower`, `burnable`, `pickable`, `childspawner`, `knownlocations`  
+**Tags added/checked:** `scarytoprey` (via `huntertags`), `lightflier_home` (via `NEW_HOME_TAGS`), `burnt`, `fire` (excluded via `NEW_HOME_NOTAGS`), `NOCLICK` (excluded), `busy` (state tag check)
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | The entity instance this brain controls. Inherited from `Brain`. |
-| `huntertags` | `table` | `{"scarytoprey"}` | Tags used to identify threatening entities. |
-| `NEW_HOME_TAGS` | `table` | `{"lightflier_home"}` | Tags that qualify an entity as a potential home location. |
-| `NEW_HOME_NOTAGS` | `table` | `{"burnt", "fire"}` | Tags that disqualify an entity as a valid home location. |
+No public properties.
 
-## Main Functions
-
-### `LightFlierBrain:OnStart()`
-* **Description:** Initializes the behavior tree for the lightflier entity. Sets initial locomotion and formation-following flags, then constructs a priority-based behavior tree that handles panic events, recent attacks, lack of a leader, and home-finding logic. This function is called when the entity is spawned or its brain is activated.
+## Main functions
+### `OnStart()`
+* **Description:** Initializes the behavior tree with a hierarchical priority-based state machine. It configures locomotion and behavior based on formation status, threat proximity, and home conditions.
 * **Parameters:** None.
-* **Returns:** None.
+* **Returns:** Nothing.
 
 ### `GoHomeAction(inst)`
-* **Description:** Generates a buffered action to move toward the lightflier's assigned home location. Only returns an action if the lightflier is not currently busy, the home exists and is valid, and the home is neither burning nor pickable.
-* **Parameters:** `inst` (`Entity`) — The entity instance.
-* **Returns:** `BufferedAction` if conditions are met, otherwise `nil`.
+* **Description:** Constructs and returns a buffered `GOHOME` action if conditions are met (e.g., home is valid, not burning, and not pickable), or `nil` otherwise.
+* **Parameters:** `inst` (entity) — the lightflier entity.
+* **Returns:** `BufferedAction` or `nil`.
+* **Error states:** Returns `nil` if `inst.sg:HasStateTag("busy")` is true, or if any required component or home condition fails.
 
 ### `FindHome(inst)`
-* **Description:** Ensures the `homeseeker` component exists and assigns a suitable home location to the lightflier if none exists. A valid home is an entity with the `lightflier_home` tag, without `burnt` or `fire` tags, within wandering range.
-* **Parameters:** `inst` (`Entity`) — The entity instance.
-* **Returns:** None. Assigns the found home via `childspawner:TakeOwnership(inst)`.
+* **Description:** Ensures the `homeseeker` component exists and assigns a valid `lightflier_home` tile as the home if none is currently assigned. Takes ownership of the lightflier in the home’s `childspawner`.
+* **Parameters:** `inst` (entity) — the lightflier entity.
+* **Returns:** Nothing.
 
 ### `ShouldGoHome(inst)`
-* **Description:** Evaluates whether the lightflier should initiate movement to its home. Returns `true` if the lightflier has been alive for more than 60 seconds and enough offspring are outside (`numchildrenoutside > TUNING.LIGHTFLIER_FLOWER_TARGET_NUM_CHILDREN_OUTSIDE`), OR if it has already been assigned as the designated returning lightflier for this home.
-* **Parameters:** `inst` (`Entity`) — The entity instance.
-* **Returns:** `boolean` — `true` if the lightflier should go home, otherwise `false`.
+* **Description:** Determines whether the lightflier should return home. Returns `true` if the lightflier has just returned home (`_lightflier_returning_home == inst`) or if enough time has passed (`>60` seconds) and sufficient offspring are outside (`numchildrenoutside` exceeds `TUNING.LIGHTFLIER_FLOWER_TARGET_NUM_CHILDREN_OUTSIDE`).
+* **Parameters:** `inst` (entity) — the lightflier entity.
+* **Returns:** `boolean`.
+* **Error states:** Returns `false` if home is invalid, not set, or conditions are not met.
 
-## Events & Listeners
-* **Listens to:** `"panic"` — Triggers immediate panic behavior combined with a 6-second wait.
-* **Pushes:** None explicitly defined in this file.
-
-> Note: The brain uses `BrainCommon.PanicTrigger(self.inst)` and `BrainCommon.ElectricFencePanicTrigger(self.inst)` which internally register and respond to relevant panic-inducing events (e.g., fire, electric fences, predators). These helpers abstract event listening logic but are not defined in this file.
+## Events & listeners
+- **Listens to:** `panic` — triggers a panic behavior and waits 6 seconds.
+- **Pushes:** None directly (events are handled internally via behaviors and the behavior tree).

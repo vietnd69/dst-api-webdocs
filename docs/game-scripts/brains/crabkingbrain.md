@@ -1,107 +1,71 @@
 ---
 id: crabkingbrain
 title: Crabkingbrain
-description: Defines the AI behavior tree for the Crab King boss, orchestrating its core actions such as healing, freezing, summoning claws, and targeting players and creatures via priority-based decision nodes.
+description: Controls the AI behavior of the Crab King boss, managing phase transitions and targeting actions via behavior trees.
+tags: [ai, boss, combat]
 sidebar_position: 1
 
-last_updated: 2026-02-27
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
 category_type: brain
-system_scope: brain
 source_hash: 2c23c926
+system_scope: brain
 ---
 
 # Crabkingbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-03
 
 ## Overview
+`Crabkingbrain` implements the boss AI logic for the Crab King entity in DST. It uses a behavior tree (`BT`) to orchestrate high-priority actions such as healing, casting claws, freezing, and cannon fire, triggered conditionally based on the entity's state, health, and surroundings. The brain integrates with components like `health`, `timer`, `knownlocations`, and `combat`, and depends on external behavior modules like `doaction`, `panic`, and `wander`. It does not override standard `Brain` lifecycle methods beyond `OnStart` and `OnInitializationComplete`.
 
-This brain component implements the artificial intelligence for the Crab King boss entity in `Don't Starve Together`. It uses a Behavior Tree (`BT`) architecture to determine high-priority actions such as casting freezing projectiles, summoning ice claws, and seeking to heal when damaged. The behavior tree is rooted in an `IfNode` that evaluates whether the Crab King is not currently performing inert, casting, fixing, or spawning states. Within the `doing` branch, priority-based `DoAction` nodes evaluate helper functions (`ShouldHeal`, `ShouldFreeze`, `ShouldHaveClaws`) to trigger corresponding actions only when their specific conditions are met.
+## Usage example
+This brain is attached automatically to the Crab King prefab during entity initialization. Modders typically do not instantiate it directly but can inspect or override its behavior tree by hooking into the entity's state graph or behavior setup.
 
-## Dependencies & Tags
+```lua
+-- Example: Attaching the brain to a custom boss entity (conceptual only)
+local inst = CreateEntity()
+inst:AddComponent("brain")
+inst:AddComponent("health")
+inst:AddComponent("combat")
+inst:AddComponent("timer")
+inst:AddComponent("knownlocations")
+inst:AddTag("monster")
+inst:AddTag("icewall")
+inst.components.brain = CrabkingBrain(inst)
+inst.components.brain:OnStart()
+```
 
-- **Components used:**
-  - `combat`: accessed via `inst.components.combat.target` to check active targets.
-  - `freezable`: accessed via `inst.components.freezable:IsFrozen()` to verify entity freeze state.
-  - `health`: accessed via `inst.components.health:GetPercent()` to determine healing threshold.
-  - `knownlocations`: used to remember the spawn point on initialization.
-  - `timer`: accessed via `inst.components.timer:TimerExists(name)` to check for active timers (e.g., `"taunt"`, `"cannon_timer"`).
+## Dependencies & tags
+**Components used:**  
+- `combat` (`target` property referenced)  
+- `freezable` (`IsFrozen` called)  
+- `health` (`GetPercent` called)  
+- `knownlocations` (`RememberLocation` called)  
+- `timer` (`TimerExists` called)  
 
-- **Tags:**
-  - `icewall`: checked to modify behavior (e.g., enables healing, disables some summoning/casting).
-  - `boat`, `character`, `animal`, `monster`, `smallcreature`: used for entity filtering during targeting logic.
+**Tags:**  
+- `character`, `animal`, `monster`, `smallcreature` — used in `TheSim:FindEntities` filtering for valid targets.  
+- `icewall`, `boat`, `boat_ice` — used to conditionally gate actions (e.g., freezing, healing).  
+- No tags are added/removed directly by this brain.
 
 ## Properties
+No public properties are initialized in this brain. All state is managed internally or via attached components.
 
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `wantstosummonclaws` | `boolean?` | `nil` | Set to `true` if claws should be summoned; cleared otherwise. |
-| `wantstoheal` | `boolean?` | `nil` | Set to `true` if healing is triggered; cleared otherwise. |
-| `wantstotaunt` | `boolean?` | `nil` | Set to `true` if taunt timer is active; cleared otherwise. |
-| `wantstofreeze` | `boolean?` | `nil` | Set to `true` when freezing is possible (no ice wall, cooldowns clear, valid targets near). |
-| `wantstocannon` | `boolean?` | `nil` | Set to `true` when cannon attack is possible (no `"icewall"` tag, no `"cannon_timer"`, valid targets). |
-| `damagetotal` | `number?` | `nil` | Cumulative damage value used to determine stage transitions and freeze eligibility. |
-
-## Main Functions
-
+## Main functions
 ### `OnStart()`
-* **Description:** Initializes the behavior tree for the Crab King. Constructs a priority-based node tree that first checks if the entity is *not* in an `inert`, `casting`, `fixing`, or `spawning` state. Within that condition, it evaluates three `DoAction` nodes in order: `ShouldHeal`, `ShouldFreeze`, and `ShouldHaveClaws`. The first one returning `true` executes its associated behavior.
-* **Parameters:** None.
-* **Returns:** `nil`.
+*   **Description:** Initializes the behavior tree (`bt`) with a priority-based root node. The root evaluates high-priority actions (`heal`, `freeze`, `claws?`) in sequence, but only if the entity is not in `inert`, `casting`, `fixing`, or `spawning` state tags.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** None identified; assumes required components and state graph tags exist.
 
 ### `OnInitializationComplete()`
-* **Description:** Records the Crab King's initial spawn position using the `knownlocations` component under the key `"spawnpoint"`.
-* **Parameters:** None.
-* **Returns:** `nil`.
+*   **Description:** Records the Crab King's starting position as `"spawnpoint"` in the `knownlocations` component for future reference (e.g., retreat or teleport logic).
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-## Helper Functions (used in Behavior Tree)
+## Events & listeners
+None identified — this brain does not register event listeners or push custom events. All decision logic resides in the behavior tree preconditions (`ShouldHeal`, `ShouldFreeze`, etc.).
 
-### `ShouldHaveClaws(inst)`
-* **Description:** Sets `inst.wantstosummonclaws = true` if the Crab King should summon ice claws. This occurs only when it lacks the `"icewall"` tag, has no arms (`inst.arms` is falsy), is not in a `"taunt"` timer state, and is not currently casting.
-* **Parameters:**  
-  - `inst` (`Entity`): The Crab King entity.
-* **Returns:** `nil`.
-
-### `ShouldHeal(inst)`
-* **Description:** Sets `inst.wantstoheal = true` if the Crab King’s health is below full (`health:GetPercent() < 1`), it has the `"icewall"` tag, and is not currently taunting. Otherwise, clears `wantstoheal`.
-* **Parameters:**  
-  - `inst` (`Entity`): The Crab King entity.
-* **Returns:** `nil`.
-
-### `ShouldTaunt(inst)`
-* **Description:** Sets `inst.wantstotaunt = true` if a `"taunt"` timer exists, otherwise clears it.
-* **Parameters:**  
-  - `inst` (`Entity`): The Crab King entity.
-* **Returns:** `nil`.
-
-### `ShouldFreeze(inst)`
-* **Description:** Evaluates whether the Crab King can execute a freeze attack. Triggers only when:
-  - Not having the `"icewall"` tag,
-  - Cumulative damage `damagetotal <= TUNING.CRABKING_FREEZE_THRESHOLD`,
-  - Health is at or below stage 1 threshold (`health:GetPercent() <= TUNING.CRABKING_STAGE1_THRESHOLD`).
-  
-  Then checks if a `"boat_ice"` entity is present within a 25-unit radius, or if valid combat targets (`character`/`animal`/`monster`/`smallcreature`) exist within 20 units *and* are either characters or non-character entities with `"combat"` component targeting the Crab King. If either condition is satisfied, `inst.wantstofreeze` is set to `true`.
-* **Parameters:**  
-  - `inst` (`Entity`): The Crab King entity.
-* **Returns:** `nil`.
-
-### `ShouldCannon(inst)`
-* **Description:** Evaluates whether the Crab King can perform a cannon attack. Triggers when:
-  - No active `"cannon_timer"` is running,
-  - Not having the `"icewall"` tag.
-  
-  It searches for `"boat_ice"` within 25 units and potential targets within 20 units. Target filtering removes any entity that is:
-  - Not a `character` and does *not* have `"combat"` targeting the Crab King, *or*
-  - Lacks a `freezable` component, *or*
-  - Is currently frozen (`freezable:IsFrozen()`).
-  
-  If valid entities (boats or targets) are found, `inst.wantstocannon` is set to `true`.
-* **Parameters:**  
-  - `inst` (`Entity`): The Crab King entity.
-* **Returns:** `nil`.
-
-## Events & Listeners
-
-None identified.
+> **Note:** Functions like `ShouldHeal`, `ShouldFreeze`, `ShouldHaveClaws`, and `ShouldCannon` are helpers used by `DoAction` behavior nodes. They are not exposed as brain methods but define the conditions under which actions execute. `ShouldCannon` is referenced in the file but not used in the current behavior tree root.

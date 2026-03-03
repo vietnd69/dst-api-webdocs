@@ -1,38 +1,54 @@
 ---
 id: simplebook
 title: Simplebook
-description: Adds a simple interactive component that allows an entity to be "read", optionally executing a custom callback when read.
+description: Provides a read interaction for simple books, triggering a custom callback when read by an entity.
+tags: [interaction, inventory, book]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 78df29c0
+system_scope: entity
 ---
 
 # Simplebook
 
-## Overview
-The `Simplebook` component enables an entity to act as a readable object (e.g., a book or note). When an entity with this component is "read" (typically via player interaction), it checks line-of-sight/visibility and, if valid, executes an optional callback function (`onreadfn`) provided externally. It also automatically adds and removes the `"simplebook"` tag on attachment/removal from an entity.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Component Tags:** Adds the `"simplebook"` tag to the entity on initialization; removes it on `OnRemoveFromEntity`.
-- **External Dependencies:** Relies on the global function `CanEntitySeeTarget(doer, target)` for visibility checks.
+## Overview
+`Simplebook` enables an entity to function as a simple readable book. It adds the `simplebook` tag to its owner and defines a `Read` function that checks visibility and invokes a customizable callback (`onreadfn`) when the book is successfully read. This component is typically used for journal entries, instructions, or narrative items that require no state persistence beyond a one-time read event.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("simplebook")
+inst.components.simplebook.onreadfn = function(book, doer)
+    print(doer.prefab .. " read " .. book.prefab)
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified  
+**Tags:** Adds `simplebook`; removes `simplebook` on component removal.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | *(assigned from constructor)* | Reference to the owning entity. |
-| `onreadfn` | `function?` | `nil` | Optional callback function that executes when the book is read. Signature: `function(inst, doer)`. Not initialized in the constructor but used by the `Read` method. |
+| `onreadfn` | function or `nil` | `nil` | Callback invoked when the book is read successfully. Signature: `function(book_inst, reader_inst)`. |
 
-## Main Functions
-
+## Main functions
 ### `Read(doer)`
-* **Description:** Handles the "read" action on the entity. First verifies that the `doer` (e.g., a player) can see the book. If visible and an `onreadfn` callback is set, it invokes the callback with the book entity and the `doer` as arguments. Returns `false` if the action fails (e.g., not visible); otherwise returns `nil`.
-* **Parameters:**
-  * `doer` (**Entity**): The entity performing the read action (typically a player).
+*   **Description:** Attempts to read the book. Verifies that the reader can see the book, then executes the `onreadfn` callback if present.
+*   **Parameters:** `doer` (entity) - The entity performing the read action.
+*   **Returns:** `false` if visibility check fails; otherwise, no return value (callback may return arbitrarily).
+*   **Error states:** Returns `false` early if `CanEntitySeeTarget(doer, self.inst)` evaluates to `false`.
 
-## Events & Listeners
-None.
+### `OnRemoveFromEntity()`
+*   **Description:** Cleanup handler called when the component is removed from its entity. Removes the `simplebook` tag.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+## Events & listeners
+None identified

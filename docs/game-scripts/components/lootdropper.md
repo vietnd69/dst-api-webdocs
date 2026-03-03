@@ -1,173 +1,192 @@
 ---
 id: lootdropper
 title: Lootdropper
-description: This component manages the generation and spawning of loot when an entity is destroyed or processed, supporting static loot, weighted random loot, chance-based drops, and burnt/cooked loot transformations.
+description: Handles the generation, modification, and spawning of loot items dropped by an entity upon destruction or deconstruction.
+tags: [loot, inventory, combat]
 sidebar_position: 1
 
-last_updated: 2026-02-26
+last_updated: 2026-03-03
 build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: d704937e
+system_scope: entity
 ---
 
 # Lootdropper
 
-## Overview
-The `Lootdropper` component is responsible for determining what items are dropped when an entity (e.g., a structure, creature, or item) is destroyed, hammered, or otherwise processed. It supports multiple loot types: static loot, weighted random loot (with haunted variants), chance-based single-item drops, and recipe-based deconstruction loot. It also handles post-processing such as loot flinging, moisture inheritance, and event-specific loot (e.g., Winters Feast ornaments). The component integrates with tags (e.g., `burnt`, `structure`) and conditions (e.g., `burnable` state) to dynamically adjust loot outcomes.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Requires**:
-  - `inst.components.health` (for tracking cause of death and lucky user in luck-based chance adjustments)
-  - `inst.components.workable` (for tracking last worker, used to determine lucky user)
-  - `inst.components.burnable` (to detect controlled burning and burnt state)
-  - `inst.components.finiteuses` (to apply remaining durability to deconstruction loot)
-  - `inst.components.hauntable` (to switch to haunted random loot when applicable)
-  - `inst.components.fuel` (indirectly referenced via checks like `burnable.ignorefuel`)
-  - `inst.components.inventoryitem` (for moisture inheritance)
-  - `inst.components.heavyobstaclephysics` (for physics state adjustment on spawn)
-- **Tags relevant to behavior**:
-  - `burnt`: Alters dropped loot (e.g., raw → cooked, wood → charcoal/ash)
-  - `structure`: Exempts certain entities from being converted to ash on burnout
-  - `tree`, `boulder`: Exempt from ash conversion when burnt
-  - `hive`: Treated as a structure that *does* convert to ash when burnt
+## Overview
+`Lootdropper` is a utility component responsible for determining and releasing items (loot) associated with an entity when it is destroyed, deconstructed, or otherwise triggers a loot drop. It supports deterministic loot (direct item lists), weighted random loot, chance-based loot, and contextual loot generation based on entity state (e.g., burnt, haunted). It integrates with `burnable`, `finiteuses`, `fueled`, `hauntable`, `health`, `heavyobstaclephysics`, `inventoryitem`, and `workable` components to adjust loot behavior dynamically.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("lootdropper")
+
+-- Set static loot
+inst.components.lootdropper:SetLoot({"plank", "nail"})
+
+-- Add weighted random loot
+inst.components.lootdropper:AddRandomLoot("slurtle", 5)
+inst.components.lootdropper:AddRandomLoot("slurtle_shell", 10)
+
+-- Add chance-based loot
+inst.components.lootdropper:AddChanceLoot("gem_pearl", 0.1)
+
+-- Trigger the drop
+inst.components.lootdropper:DropLoot()
+```
+
+## Dependencies & tags
+**Components used:**  
+`burnable`, `finiteuses`, `fueled`, `hauntable`, `health`, `heavyobstaclephysics`, `inventoryitem`, `workable`
+
+**Tags:**  
+Checks: `burnt`, `structure`, `hive`, `tree`, `boulder`, `monster`, `animal`, `creaturecorpse`, `fireimmune`  
+Modifies: none directly (does not add/remove tags)
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `numrandomloot` | `number` (int) | `nil` | Number of random loot items to attempt dropping if chance passes. |
-| `randomloot` | `table` | `nil` | List of `{prefab, weight}` tables for regular (non-haunted) random loot. |
-| `randomhauntedloot` | `table` | `nil` | List of `{prefab, weight}` tables used when entity is haunted (overrides `randomloot`). |
-| `totalrandomweight` / `totalhauntedrandomweight` | `number` | `nil` | Sum of weights in respective random loot lists (used for weighted selection). |
-| `chancerandomloot` | `number` (float) | `nil` | Probability (0–1) of attempting to drop random loot. Defaults to `1` if `nil`. |
-| `chanceloot` | `table` | `nil` | List of `{prefab, chance}` tables for chance-based single-item drops. |
-| `chanceloottable` | `string` | `nil` | Name of a shared loot table (from `LootTables`) to pull chance-based drops from. |
-| `ifnotchanceloot` | `table` | `nil` | List of `{prefab}` tables that drop only if *no* chance-based loot (`chanceloot`) was dropped. |
-| `droppingchanceloot` | `boolean` | `false` | Flag tracking whether any chance-based loot was successfully dropped. |
-| `loot` | `table` | `nil` | List of static loot prefabs to drop unconditionally. |
-| `lootsetupfn` / `self.lootsetupfn` | `function` | `nil` | Optional callback function invoked before loot generation (e.g., for dynamic setup). |
-| `trappable` | `boolean` | `true` | Indicates whether the loot dropper can be trapped (used externally; no logic in this file). |
-| `droprecipeloot` | `boolean` | `true` | Whether to drop deconstruction loot based on the entity’s recipe. |
-| `min_speed`, `max_speed`, `y_speed`, `y_speed_variance` | `number` | `0`, `2`, `8`, `4` | Physical fling parameters used in `FlingItem`. |
-| `flingtargetpos` | `Vector3?` | `nil` | Target position for loots to be flung toward (overrides random direction). |
-| `flingtargetvariance` | `number` | `0` | Angular variance (in degrees) applied when flinging toward target. |
-| `droprecipeloot` | `boolean` | `true` | Flag enabling/disabling recipe-based deconstruction loot. |
+| `inst` | `entity` | (injected) | Reference to the owning entity instance. |
+| `numrandomloot` | `number` | `nil` | Number of items to pick from random loot tables. |
+| `randomloot` | `table` | `nil` | List of `{prefab, weight}` pairs for normal random loot. |
+| `chancerandomloot` | `number` | `nil` | Chance (0–1) for the random loot block to trigger. |
+| `totalrandomweight` | `number` | `nil` | Sum of weights in `randomloot` (computed automatically). |
+| `chanceloot` | `table` | `nil` | List of `{prefab, chance}` pairs for chance-based loot. |
+| `ifnotchanceloot` | `table` | `nil` | List of `{prefab}` to drop *only if* no chance loot was dropped. |
+| `droppingchanceloot` | `boolean` | `false` | Internal flag tracking whether any chance-based loot was successfully dropped. |
+| `loot` | `table` | `nil` | Static list of prefabs to drop unconditionally. |
+| `chanceloottable` | `string` | `nil` | Name of a shared loot table (via `LootTables[name]`) to draw from. |
+| `trappable` | `boolean` | `true` | Whether this entity can be trapped (e.g., by bear traps); unused in logic. |
+| `droprecipeloot` | `boolean` | `true` | Whether to generate deconstruction loot from the recipe. |
+| `randomhauntedloot` | `table` | `nil` | Random loot list used instead of `randomloot` when the entity is haunted. |
+| `totalhauntedrandomweight` | `number` | `nil` | Sum of weights for haunted loot. |
+| `lootsetupfn` | `function` | `nil` | Optional callback to run before loot generation. |
+| `flingtargetpos` | `Vector3` | `nil` | Target position used to orient fling direction. |
+| `flingtargetvariance` | `number` | `nil` | Angular variance (degrees) for fling direction. |
 
-## Main Functions
-
+## Main functions
 ### `SetChanceLootTable(name)`
-* **Description:** Sets the name of a shared loot table (registered via `SetSharedLootTable`) to be used for chance-based loot entries.
-* **Parameters:**
-  * `name` (`string`): Key in `LootTables` table containing a list of `{prefab, chance}` entries.
+*   **Description:** Associates this dropper with a named shared loot table (e.g., `"treasure_chest"`). The table must be registered via `SetSharedLootTable`.
+*   **Parameters:** `name` (string) – the key in `LootTables`.
+*   **Returns:** Nothing.
 
 ### `SetLoot(loots)`
-* **Description:** Assigns static loot prefabs (dropped unconditionally). Clears random and chance loot entries.
-* **Parameters:**
-  * `loots` (`table`): Array of prefab strings to drop.
+*   **Description:** Sets the static list of prefabs to always drop. Clears random and chance loot.
+*   **Parameters:** `loots` (table of strings) – prefabs to drop.
+*   **Returns:** Nothing.
 
 ### `SetLootSetupFn(fn)`
-* **Description:** Assigns a callback function to run *before* `GenerateLoot()` computes the final loot list (e.g., for dynamic configuration).
-* **Parameters:**
-  * `fn` (`function`): A function accepting `self` (the `Lootdropper` instance) as its argument.
+*   **Description:** Registers a callback function called before loot generation starts.
+*   **Parameters:** `fn` (function) – signature `fn(self)` where `self` is the `Lootdropper` instance.
+*   **Returns:** Nothing.
 
 ### `AddRandomLoot(prefab, weight)`
-* **Description:** Adds a weighted random loot entry to the standard (non-haunted) pool.
-* **Parameters:**
-  * `prefab` (`string`): Prefab name to drop if selected.
-  * `weight` (`number`): Relative weight determining selection probability.
+*   **Description:** Adds a weighted random loot option. Higher weight = higher probability.
+*   **Parameters:**  
+    `prefab` (string) – prefab name to add.  
+    `weight` (number) – positive weight for selection.
+*   **Returns:** Nothing.
 
 ### `ClearRandomLoot()`
-* **Description:** Removes all weighted random loot entries and resets weight totals.
+*   **Description:** Removes all random loot entries and resets weight totals.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `AddRandomHauntedLoot(prefab, weight)`
-* **Description:** Adds a weighted random loot entry to the *haunted* pool, which overrides standard random loot when the entity is haunted (per `hauntable` component).
-* **Parameters:**
-  * `prefab` (`string`)
-  * `weight` (`number`)
+*   **Description:** Adds weighted random loot *only used when the entity is haunted*. Overrides `AddRandomLoot` in haunted state.
+*   **Parameters:**  
+    `prefab` (string) – haunted loot prefab.  
+    `weight` (number) – weight.
+*   **Returns:** Nothing.
 
 ### `AddChanceLoot(prefab, chance)`
-* **Description:** Adds a single-item drop with a given probability (0–1 or >1 for guaranteed).
-* **Parameters:**
-  * `prefab` (`string`)
-  * `chance` (`number`): Drop probability. Values ≥1 guarantee drop.
+*   **Description:** Adds a chance-based loot entry (e.g., 10% drop chance).
+*   **Parameters:**  
+    `prefab` (string) – prefab name.  
+    `chance` (number) – drop chance, 0–1.
+*   **Returns:** Nothing.
 
 ### `AddIfNotChanceLoot(prefab)`
-* **Description:** Adds an item to be dropped *only if no chance-based loot was successfully dropped* (i.e., if `droppingchanceloot` remains `false`).
-* **Parameters:**
-  * `prefab` (`string`)
+*   **Description:** Adds a fallback loot item that drops *only if no chance-based loot was triggered*.
+*   **Parameters:** `prefab` (string) – fallback prefab.
+*   **Returns:** Nothing.
 
 ### `GetRandomLootTable()`
-* **Description:** Returns the active random loot table: haunted if applicable, otherwise standard.
-* **Returns:** `table?` — The relevant loot table (`randomhauntedloot` or `randomloot`), or `nil`.
+*   **Description:** Returns the active random loot table (`randomhauntedloot` or `randomloot`) based on haunt status.
+*   **Parameters:** None.
+*   **Returns:** (table or `nil`) – current random loot table.
 
 ### `PickRandomLoot()`
-* **Description:** Selects one random loot prefab based on weight. Does not apply chance adjustments.
-* **Returns:** `string?` — The selected prefab name, or `nil` if no loot available.
+*   **Description:** Selects a single random loot prefab using weighted probability.
+*   **Parameters:** None.
+*   **Returns:** (string or `nil`) – selected prefab, or `nil` if no loot available.
 
 ### `GetFullRecipeLoot(recipe)`
-* **Description:** Recursively extracts *all* base ingredients from a recipe (e.g., for crafting/debug), including deconstructed sub-recipes.
-* **Parameters:**
-  * `recipe` (`table`): A recipe object with an `ingredients` array.
-* **Returns:** `table` — A flat list of ingredient prefab names.
+*   **Description:** Recursively computes the *full* deconstruction output of a recipe (i.e., all original materials), ignoring multiplier reductions.
+*   **Parameters:** `recipe` (table) – a recipe from `AllRecipes`.
+*   **Returns:** (table of strings) – list of all ingredient prefabs.
 
 ### `GetRecipeLoot(recipe)`
-* **Description:** Computes loot gained from *deconstructing* an entity using a hammer. Applies `HAMMER_LOOT_PERCENT` or `BURNT_HAMMER_LOOT_PERCENT`, and current durability (`finiteuses`), with burnt status reducing yield.
-* **Parameters:**
-  * `recipe` (`table`)
-* **Returns:** `table` — A list of ingredient prefabs (deconstructed and processed).
+*   **Description:** Computes deconstruction loot for a recipe using TUNING constants (`HAMMER_LOOT_PERCENT`, `BURNT_HAMMER_LOOT_PERCENT`). Reduces output based on `finiteuses` current percentage and entity state (`burnt`).
+*   **Parameters:** `recipe` (table) – a recipe from `AllRecipes`.
+*   **Returns:** (table of strings) – list of deconstructed items.
 
 ### `GetLuckyUser()`
-* **Description:** Determines the "lucky user" to apply luck modifiers to drop chances. Prioritizes cause of death, then last worker.
-* **Returns:** `Entity?` — The valid `inst` of the user, or `nil`.
+*   **Description:** Finds the most relevant player to apply luck modifiers to loot chances. Prioritizes killer over last worker.
+*   **Parameters:** None.
+*   **Returns:** (`entity` or `nil`) – the player entity responsible (cause of death or last worker).
 
 ### `GetChance(chance)`
-* **Description:** Applies luck-based chance scaling to a base probability. Returns `chance` unchanged if `chance ≥ 1`.
-* **Parameters:**
-  * `chance` (`number`): Base probability (0–1).
-* **Returns:** `number` — Adjusted probability.
+*   **Description:** Applies luck from the `GetLuckyUser` to a base chance using `GetEntityLuckChance`.
+*   **Parameters:** `chance` (number) – base chance (0–1).
+*   **Returns:** (number) – adjusted chance.
 
 ### `GenerateLoot()`
-* **Description:** Constructs and returns the final loot list. Executes `lootsetupfn`, then processes random, chance, and static loot according to rules (including haunted, `ifnotchanceloot`, and recipe deconstruction). Marks `droppingchanceloot` if any chance-based loot drops.
-* **Returns:** `table` — List of prefab names to drop.
+*   **Description:** Builds and returns the final loot list. Runs setup fn, random, chance, recipe, and burnt loot logic in order.
+*   **Parameters:** None.
+*   **Returns:** (table of strings) – list of prefabs to drop.
 
 ### `GetAllPossibleLoot(setuploot)`
-* **Description:** Returns a *set-like* table of *all possible* loot prefabs (keys = `true`) without running chance logic or setup functions (unless `setuploot` is true). Includes Winters Feast ornament loot if applicable.
-* **Parameters:**
-  * `setuploot` (`boolean`): If true, runs `lootsetupfn` (used for debugging/encyclopedia).
-* **Returns:** `table` — Table mapping prefabs to `true`.
+*   **Description:** Returns a *set* (table of `{prefab = true}`) of all possible loot outcomes, ignoring chance thresholds and modifiers. Used for UI/debug (e.g., scrapbook).
+*   **Parameters:** `setuploot` (boolean) – if true, run `lootsetupfn`; otherwise skip setup fn to avoid side effects.
+*   **Returns:** (table) – set of possible prefab names.
 
 ### `SetFlingTarget(pos, variance)`
-* **Description:** Sets the target position and angular variance for loot flinging behavior.
-* **Parameters:**
-  * `pos` (`Vector3`): Target point in world space.
-  * `variance` (`number`): Angular variance (degrees).
+*   **Description:** Sets a target position and variance used to determine fling direction.
+*   **Parameters:**  
+    `pos` (`Vector3`) – target point.  
+    `variance` (number) – angular variance (degrees).
+*   **Returns:** Nothing.
 
 ### `FlingItem(loot, pt)`
-* **Description:** Applies physics velocity to a spawned loot entity. Uses fling target if set, otherwise random direction.
-* **Parameters:**
-  * `loot` (`Entity`): The spawned loot instance.
-  * `pt` (`Vector3?`): Spawn position. Defaults to `inst:GetPosition()`.
+*   **Description:** Applies physics velocity and initial position to spawned loot, possibly flinging it toward `flingtargetpos`.
+*   **Parameters:**  
+    `loot` (`entity`) – spawned item entity.  
+    `pt` (`Vector3` or `nil`) – spawn position (defaults to owner position).
+*   **Returns:** Nothing.
 
 ### `SpawnLootPrefab(lootprefab, pt, linked_skinname, skin_id, userid)`
-* **Description:** Spawns a loot entity, inherits moisture/wetness, flings it, sets events, and handles smoldering if parent was in controlled burn.
-* **Parameters:**
-  * `lootprefab` (`string`)
-  * `pt` (`Vector3?`)
-  * `linked_skinname` (`string?`)
-  * `skin_id` (`string?`)
-  * `userid` (`string?`)
-* **Returns:** `Entity?` — The spawned entity, or `nil`.
+*   **Description:** Spawns a single loot item, applies moisture inheritance, forces physics mode (if `heavyobstaclephysics`), flings it, and fires `on_loot_dropped`/`loot_prefab_spawned` events. Also initiates wildfire propagation if the parent was in controlled burn.
+*   **Parameters:**  
+    `lootprefab` (string) – prefab to spawn.  
+    `pt` (`Vector3` or `nil`) – spawn position.  
+    `linked_skinname`, `skin_id`, `userid` – optional parameters passed to `SpawnPrefab`.
+*   **Returns:** (`entity` or `nil`) – spawned loot entity, or `nil` if spawn failed.
 
 ### `DropLoot(pt, prefabs)`
-* **Description:** Executes the full drop sequence: applies burnt loot overrides (raw→cooked/charcoal/ash), spawns each loot prefab via `SpawnLootPrefab`, and appends Winters Feast loot if active.
-* **Parameters:**
-  * `pt` (`Vector3?`): Drop position. Defaults to `inst:GetPosition()`.
-  * `prefabs` (`table?`): Loot list. Defaults to `GenerateLoot()`.
+*   **Description:** Generates (or uses provided) loot, applies burn-based overrides (e.g., "ash" or "_cooked"), spawns all items via `SpawnLootPrefab`, and adds Winters Feast ornament loot if active.
+*   **Parameters:**  
+    `pt` (`Vector3` or `nil`) – base spawn position.  
+    `prefabs` (table or `nil`) – pre-generated loot list; if `nil`, `GenerateLoot()` is called.
+*   **Returns:** Nothing.
 
-## Events & Listeners
-- **Emits on `self.inst`**:
-  - `"ifnotchanceloot"`: Pushed when `ifnotchanceloot` items are triggered (only if no chance loot dropped).
-  - `"loot_prefab_spawned"`: Pushed after each loot item spawns (includes `{loot = entity}`).
-- **Global event emitted**:
-  - `"entity_droploot"`: Pushed to `TheWorld` with `{ inst = self.inst }` at end of `DropLoot`.
+## Events & listeners
+- **Listens to:** none directly (does not register listeners).
+- **Pushes:**  
+  - `ifnotchanceloot` – fired before dropping fallback chance loot.  
+  - `loot_prefab_spawned` – fired after each item spawn, with `{loot = loot}`.  
+  - `entity_droploot` – fired at world level (via `TheWorld:PushEvent`) after all loot is dropped.

@@ -1,38 +1,67 @@
 ---
 id: battery
 title: Battery
-description: Manages an entity's 'battery' state, allowing for custom logic to determine if it can be used and what happens upon use.
+description: Manages whether an entity can be used as a power source and tracks usage callbacks for gameplay interactions.
+tags: [power, inventory, utility]
 sidebar_position: 1
 
-last_updated: 2026-02-13
-build_version: 712555
+last_updated: 2026-03-03
+build_version: 714014
 change_status: stable
-category_type: component
-system_scope: entity
+category_type: components
 source_hash: 5ad54de1
+system_scope: entity
 ---
 
 # Battery
 
-## Overview
-The Battery component provides a generic framework for items that can be "used". It allows developers to define custom logic for checking if the item is usable and for handling the consequences of its use through assignable callback functions. It is commonly used for items that have a limited number of uses or a specific condition for activation.
+> Based on game build **714014** | Last updated: 2026-03-03
 
-## Dependencies & Tags
-- **Tags:** Adds the `battery` tag to the entity upon initialization and removes it when the component is removed.
+## Overview
+`Battery` is a lightweight component that marks an entity as a potential power source by adding the `battery` tag. It supports custom logic for determining whether the entity can be used and for executing side effects when it is used, via optional callback functions (`canbeused` and `onused`). This component is typically attached to items or prefabs intended to function as batteries or consumable power sources in the game.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("battery")
+
+-- Optional: Define custom behavior
+inst.components.battery.canbeused = function(inst, user)
+    return user:HasTag("wielder")
+end
+
+inst.components.battery.onused = function(inst, user)
+    inst:PushEvent("battery_used", { user = user })
+end
+
+-- Later in gameplay:
+if inst.components.battery:CanBeUsed(player) then
+    inst.components.battery:OnUsed(player)
+end
+```
+
+## Dependencies & tags
+**Components used:** None identified.  
+**Tags:** Adds `battery` tag; removes `battery` tag on removal from entity.
 
 ## Properties
 | Property | Type | Default Value | Description |
-|---|---|---|---|
-| `canbeused` | function | `nil` | A callback function that determines if the entity can be used. It receives the entity instance and the user as arguments and should return `true` or `false`. |
-| `onused` | function | `nil` | A callback function that executes when the entity is used. It receives the entity instance and the user as arguments. |
+|----------|------|---------------|-------------|
+| `canbeused` | function or `nil` | `nil` | Optional callback `(inst, user) -> boolean` that determines if the battery can be used by a given user. If `nil`, defaults to `true`. |
+| `onused` | function or `nil` | `nil` | Optional callback `(inst, user)` executed when the battery is used. No return value. |
 
-## Main Functions
+## Main functions
 ### `CanBeUsed(user)`
-* **Description:** Checks if the entity can currently be used by another entity. If the `canbeused` property is set to a function, this method will call it and return its result. Otherwise, it defaults to `true`.
-* **Parameters:**
-    - `user`: The entity attempting to use this battery-equipped entity.
+*   **Description:** Checks whether the battery entity can be used by the specified user. Delegates to `self.canbeused` if defined, otherwise returns `true`.
+*   **Parameters:** `user` (entity instance) — the entity attempting to use the battery.
+*   **Returns:** `true` if usage is allowed, `false` otherwise.
+*   **Error states:** Returns `true` if `canbeused` callback is not set.
 
 ### `OnUsed(user)`
-* **Description:** Called when another entity uses this entity. If the `onused` property is set to a function, this method will execute it, passing along the instance and the user.
-* **Parameters:**
-    - `user`: The entity that used this battery-equipped entity.
+*   **Description:** Executes the usage callback `self.onused`, if defined, allowing custom logic (e.g., damage removal, sound, or event triggers).
+*   **Parameters:** `user` (entity instance) — the entity that used the battery.
+*   **Returns:** Nothing.
+*   **Error states:** Does nothing if `onused` callback is not set.
+
+## Events & listeners
+None identified.
