@@ -3,7 +3,7 @@ id: teleportato_base_layout
 title: Teleportato Base Layout
 description: Defines the static layout data for the Teleportato base area in the caves, including background tiles and placed objects.
 tags: [world, level, map, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

@@ -3,7 +3,7 @@ id: small_boon
 title: Small Boon
 description: A static map layout file defining the layout and object placement for a small boon chamber in the world generation system.
 tags: [world, map, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

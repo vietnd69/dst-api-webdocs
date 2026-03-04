@@ -3,7 +3,7 @@ id: static_layout
 title: Static Layout
 description: Converts static Tiled map files into runtime layout data structures for level generation, including ground tile arrays and object placements with prefab resolution and property parsing.
 tags: [world, map, generation, layout]
-sidebar_position: 100
+sidebar_position: 10
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable

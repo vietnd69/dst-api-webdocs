@@ -1,9 +1,10 @@
 {
-"label": "room",
-"collapsed": true,
-"link": {
-"type": "generated-index",
-"title": "room",
-"description": "DST rooms API documentation"
-}
+    "position": 1,
+    "label": "room",
+    "collapsed": true,
+    "link": {
+        "type": "generated-index",
+        "title": "room",
+        "description": "DST rooms API documentation"
+    }
 }

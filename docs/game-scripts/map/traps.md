@@ -3,7 +3,7 @@ id: traps
 title: Traps
 description: Provides static layout mappings for world tile types and sandbox mode trap configurations used in map generation.
 tags: [map, generation, world, sandbox]
-sidebar_position: 100
+sidebar_position: 10
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable

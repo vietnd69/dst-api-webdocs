@@ -3,7 +3,7 @@ id: sculptures_1
 title: Sculptures 1
 description: Defines static layout data for a game map region containing decorative and gameplay-related sculptures and objects.
 tags: [map, environment, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

@@ -3,7 +3,7 @@ id: monkeyisland_retrofitlarge_01
 title: Monkeyisland Retrofitlarge 01
 description: A Tiled map layout file defining the static tile and object configuration for the Monkey Island island environment.
 tags: [world, map, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-02
 build_version: 714014
 change_status: stable

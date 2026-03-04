@@ -3,7 +3,7 @@ id: walls_corner2
 title: Walls Corner2
 description: Defines a static map layout containing Ruined Walls and Broken Walls for dungeon generation.
 tags: [map, environment, walls, ruins]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

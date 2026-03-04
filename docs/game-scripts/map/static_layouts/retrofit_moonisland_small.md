@@ -3,7 +3,7 @@ id: retrofit_moonisland_small
 title: Retrofit Moonisland Small
 description: Defines the static layout and worldgen data for a small Moon Island map using Tiled map format.
 tags: [world, map, environment, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

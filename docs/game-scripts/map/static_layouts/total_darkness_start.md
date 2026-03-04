@@ -3,7 +3,7 @@ id: total_darkness_start
 title: Total Darkness Start
 description: Defines a static map layout for the starting area of the Total Darkness scenario, containing fixed-position objects and tile data.
 tags: [world, map, scenario]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

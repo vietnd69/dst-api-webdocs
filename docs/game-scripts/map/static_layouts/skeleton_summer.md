@@ -3,7 +3,7 @@ id: skeleton_summer
 title: Skeleton Summer
 description: Defines the static layout data for the Skeleton Summer map room using Tiled map format specifications.
 tags: [map, room, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-02
 build_version: 714014
 change_status: stable

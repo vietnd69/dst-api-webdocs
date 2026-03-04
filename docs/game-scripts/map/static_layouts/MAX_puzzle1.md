@@ -3,7 +3,7 @@ id: MAX_puzzle1
 title: Max Puzzle1
 description: Static layout definition for a puzzle map area containing stone walls, wooden walls, and rocks arranged in a structured pattern.
 tags: [map, static_layout, puzzle, environment]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-28
 build_version: 714014
 change_status: stable

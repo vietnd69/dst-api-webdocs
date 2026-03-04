@@ -3,7 +3,7 @@ id: locations
 title: Locations
 description: Defines and registers distinct world locations with their configuration overrides for world generation in Don't Starve Together.
 tags: [world, generation, location]
-sidebar_position: 100
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

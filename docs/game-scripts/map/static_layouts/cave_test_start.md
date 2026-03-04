@@ -3,7 +3,7 @@ id: cave_test_start
 title: Cave Test Start
 description: A static layout configuration file for the cave test start area, defining tilemap data, object placements, and spawn points used for early-game testing and tutorial scenarios in Don't Starve Together.
 tags: [map, layout, test, spawn, cave]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-28
 build_version: 714014
 change_status: stable

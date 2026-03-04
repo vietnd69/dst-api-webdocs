@@ -3,7 +3,7 @@ id: levels
 title: Levels
 description: Central registry and manager for level configurations, settings presets, and world generation definitions in Don't Starve Together.
 tags: [world, level, settings, worldgen, map]
-sidebar_position: 100
+sidebar_position: 10
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable

@@ -3,7 +3,7 @@ id: cave_entrance
 title: Cave Entrance
 description: Static Tiled map layout defining the visual and structural setup for cave entrances in the DST caves.
 tags: [map, layout, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

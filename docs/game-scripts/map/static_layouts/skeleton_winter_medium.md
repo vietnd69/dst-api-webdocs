@@ -3,7 +3,7 @@ id: skeleton_winter_medium
 title: Skeleton Winter Medium
 description: A Tiled map layout definition for a winter-themed skeleton structure containing lootable items.
 tags: [map, static_layout, loot]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

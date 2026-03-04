@@ -3,7 +3,7 @@ id: presummer_start
 title: Presummer Start
 description: A static map layout used for the Presummer scenario start zone, defining terrain tiles, background elements, and interactive world objects such as trees, grass, campfires, and treasure chests.
 tags: [map, worldgen, scenario]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-02
 build_version: 714014
 change_status: stable

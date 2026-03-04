@@ -3,7 +3,7 @@ id: caves_retrofit_land
 title: Caves Retrofit Land
 description: Provides utility functions to retroactively inject specific biome layouts and maze structures into generated cave maps during world loading for the Return of Them and From Beyond updates.
 tags: [world, map, biome, retrofit, worldgen]
-sidebar_position: 100
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

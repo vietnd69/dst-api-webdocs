@@ -3,7 +3,7 @@ id: maxwell_1
 title: Maxwell 1
 description: Tiled map data layout for the Maxwell level in Don't Starve Together, defining static tile layers and object placements for the arena environment.
 tags: [map, static, level, layout, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

@@ -3,7 +3,7 @@ id: thismeanswar_start
 title: Thismeanswar Start
 description: Defines the static map layout for the "This Means War" scenario starting area, including tile data and object placement for scenario initialization.
 tags: [scenario, map, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

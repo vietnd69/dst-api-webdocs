@@ -3,7 +3,7 @@ id: chessy_2
 title: Chessy 2
 description: Static tile-based map layout for a dungeon room, defining background tile patterns and object placements (e.g., statues, gears, bishops) using Tiled map format metadata.
 tags: [map, static_layout, room]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

@@ -3,7 +3,7 @@ id: forest
 title: Forest
 description: Defines a collection of world generation task templates for the Forest world type in Don't Starve Together.
 tags: [worldgen, task, forest, adventure]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-04
 build_version: 714014

@@ -3,7 +3,7 @@ id: maxwell_7
 title: Maxwell 7
 description: Map layout definition for the Maxwell 7 world generation template, specifying background tiles and placed objects.
 tags: [world, map, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

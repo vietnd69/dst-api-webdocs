@@ -3,7 +3,7 @@ id: ruined_base
 title: Ruined Base
 description: Stores static layout data for the Ruined Base map area, defining background tiles and foreground object placement using Tiled Map Editor format.
 tags: [map, static_layout, tilemap]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

@@ -3,7 +3,7 @@ id: pigguard_berries_easy
 title: Pigguard Berries Easy
 description: Defines a static map layout for a "pigguard berries easy" scenario containing decorative torches and berry bushes.
 tags: [map, layout, static, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

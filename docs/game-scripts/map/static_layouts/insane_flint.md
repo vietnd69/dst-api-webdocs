@@ -3,7 +3,7 @@ id: insane_flint
 title: Insane Flint
 description: Static layout file defining the arrangement of flint, sanity rocks, and basalt objects for a map room in the caves.
 tags: [map, static_layout, caves, object_placement]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

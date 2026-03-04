@@ -3,7 +3,7 @@ id: pigguard_grass_easy
 title: Pigguard Grass Easy
 description: A static map layout definition for a pig guard area with easy difficulty, containing fixed tile layers and object placements for perma grass and pig torches.
 tags: [world, environment, map, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

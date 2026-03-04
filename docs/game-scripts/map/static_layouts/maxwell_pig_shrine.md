@@ -3,7 +3,7 @@ id: maxwell_pig_shrine
 title: Maxwell Pig Shrine
 description: A static world layout file defining the tile-based map and object placement for the Maxwell Pig Shrine scene in DST.
 tags: [world, environment, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

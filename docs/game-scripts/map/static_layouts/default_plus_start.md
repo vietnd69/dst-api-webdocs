@@ -3,7 +3,7 @@ id: default_plus_start
 title: Default Plus Start
 description: Static map layout definition for the default plus start area containing initial resources and spawn points.
 tags: [map, spawn, resources, layout]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-28
 build_version: 714014
 change_status: stable

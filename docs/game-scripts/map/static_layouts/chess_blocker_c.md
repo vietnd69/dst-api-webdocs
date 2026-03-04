@@ -3,7 +3,7 @@ id: chess_blocker_c
 title: Chess Blocker C
 description: A static layout file for a chess-themed map used in Don't Starve Together, defining tile layers and object placements for a chessboard-like arena environment.
 tags: [map, layout, chess, arena, static]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

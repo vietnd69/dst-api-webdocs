@@ -3,7 +3,7 @@ id: bunch_spawner
 title: Bunch Spawner
 description: Spawns groups of entities (bunches) around predefined spawner positions during world generation, enforcing placement rules and spacing constraints.
 tags: [world-generation, spawner, grouping]
-sidebar_position: 100
+sidebar_position: 10
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable

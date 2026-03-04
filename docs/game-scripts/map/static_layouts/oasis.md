@@ -3,7 +3,7 @@ id: oasis
 title: Oasis
 description: Defines the static layout for an oasis environment using Tiled map data, specifying background tiles and foreground object placements.
 tags: [map, environment, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

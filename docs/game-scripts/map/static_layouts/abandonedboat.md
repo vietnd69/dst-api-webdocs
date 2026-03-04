@@ -3,7 +3,7 @@ id: abandonedboat
 title: Abandonedboat
 description: Defines the static layout and object placement for the Abandoned Boat map room, including tile data, object zones, and scenario-linked entities.
 tags: [map, layout, static, room, scenario]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

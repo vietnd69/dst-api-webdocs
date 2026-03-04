@@ -3,7 +3,7 @@ id: monkeyisland_worldgen
 title: Monkeyisland Worldgen
 description: Generates dock systems and associated assets for monkey islands during world generation.
 tags: [worldgen, map, island, dock, procedural]
-sidebar_position: 100
+sidebar_position: 10
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable

@@ -3,7 +3,7 @@ id: vault_lobby
 title: Vault Lobby
 description: Defines the static layout data for the Vault Lobby map room, including tile configuration and object placements.
 tags: [map, layout, vault]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-02
 build_version: 714014
 change_status: stable

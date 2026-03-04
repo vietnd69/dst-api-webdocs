@@ -3,7 +3,7 @@ id: symmetry_test
 title: Symmetry Test
 description: A test map layout file used to validate symmetry in map rendering and object placement.
 tags: [test, map, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

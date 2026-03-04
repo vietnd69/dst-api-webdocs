@@ -3,7 +3,7 @@ id: blue_mushy_entrance
 title: Blue Mushy Entrance
 description: Defines the static layout data for the blue mushroom entrance room in the caves, including background tiles, spawn points, and object placements.
 tags: [map, room, layout]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

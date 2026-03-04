@@ -3,7 +3,7 @@ id: moonisland_tasks
 title: Moonisland Tasks
 description: Placeholder module containing no functional code — all its tasks were migrated to dst_tasks_forestworld.
 tags: [map, task, deprecated]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-04
 build_version: 714014

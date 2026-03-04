@@ -3,7 +3,7 @@ id: trap_icestaff
 title: Trap Icestaff
 description: A static map layout defining spawn positions for an ice staff and multiple ice hounds in Don't Starve Together.
 tags: [map, spawn, environment, trap]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

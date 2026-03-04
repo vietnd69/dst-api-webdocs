@@ -3,7 +3,7 @@ id: wasphive_grass_easy
 title: Wasphive Grass Easy
 description: Static map layout for the wasphive biome with easy difficulty grass placement and wasphive structures.
 tags: [map, terrain, environment, structure]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-02
 build_version: 714014
 change_status: stable

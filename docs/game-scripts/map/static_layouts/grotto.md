@@ -3,7 +3,7 @@ id: grotto
 title: Grotto
 description: Defines static layout data for the Grotto map room using Tiled JSON structure, specifying tile placement and object instance configurations for procedural world generation.
 tags: [world, map, layout, procedural-generation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

@@ -3,7 +3,7 @@ id: skeleton_winter_hard
 title: Skeleton Winter Hard
 description: Defines a static map layout for the Skeleton Winter boss arena, specifying tile configuration and placement of interactive objects.
 tags: [world, environment, boss, level-design, map]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

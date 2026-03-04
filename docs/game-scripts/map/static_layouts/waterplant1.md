@@ -3,7 +3,7 @@ id: waterplant1
 title: Waterplant1
 description: Provides static layout data for a waterplant room, including tilemap geometry and object placement.
 tags: [map, environment, room]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-02
 build_version: 714014
 change_status: stable

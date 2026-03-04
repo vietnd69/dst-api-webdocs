@@ -3,7 +3,7 @@ id: resurrectionstone
 title: Resurrectionstone
 description: Static layout configuration for the Resurrection Stone stage, defining its tilemap and object placement.
 tags: [map, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

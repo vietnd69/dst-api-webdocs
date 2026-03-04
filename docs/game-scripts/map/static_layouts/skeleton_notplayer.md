@@ -3,7 +3,7 @@ id: skeleton_notplayer
 title: Skeleton Notplayer
 description: A static map layout file defining the placement of background tiles and foreground objects (including skeleton entities and ambient elements) for a non-player skeleton scene.
 tags: [map, static_layout, level_design]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-02
 build_version: 714014
 change_status: stable

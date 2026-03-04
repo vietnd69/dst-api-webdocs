@@ -3,7 +3,7 @@ id: teleportato_potato_layout
 title: Teleportato Potato Layout
 description: Defines a static world layout for the Teleportato potato teleporter structure using Tiled map format data.
 tags: [worldgen, map, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-02
 build_version: 714014
 change_status: stable

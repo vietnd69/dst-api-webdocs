@@ -3,7 +3,7 @@ id: simple_base
 title: Simple Base
 description: A static map layout definition for a simple base structure used in world generation, containing tile data and object placements.
 tags: [map, level-design, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

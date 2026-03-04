@@ -3,7 +3,7 @@ id: military_entrance
 title: Military Entrance
 description: Defines a static map layout for a military-themed entrance area, including background tile data and placement of world objects such as ruins, statues, and cave holes.
 tags: [map, static_layout, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

@@ -3,7 +3,7 @@ id: moontrees_1
 title: Moontrees 1
 description: Map layout definition for the Moon Tree region using Tiled map data format; specifies tile layer backgrounds and object groups for moon tree placement and petal worldgen zones.
 tags: [world, map, environment, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

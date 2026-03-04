@@ -3,7 +3,7 @@ id: skeleton_farmer
 title: Skeleton farmer
 description: A static map layout file used to define the placement of skeleton-themed decorative objects and items in the world.
 tags: [world, layout, environment, static]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

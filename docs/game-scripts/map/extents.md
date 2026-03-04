@@ -3,7 +3,7 @@ id: extents
 title: Extents
 description: Provides utility functions to compute bounding boxes and minimum bounding radii for collections of nodes and polygon points.
 tags: [map, utilities, geometry]
-sidebar_position: 100
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

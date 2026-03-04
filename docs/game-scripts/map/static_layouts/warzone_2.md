@@ -3,7 +3,7 @@ id: warzone_2
 title: Warzone 2
 description: Static map layout definition for the Warzone 2 area, specifying tile placement and entity spawn points.
 tags: [map, static_layout, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

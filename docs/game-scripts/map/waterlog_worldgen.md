@@ -3,7 +3,7 @@ id: waterlog_worldgen
 title: Waterlog Worldgen
 description: Generates waterlog terrain features and marker entities in ocean regions during world generation.
 tags: [worldgen, terrain, entity, ocean]
-sidebar_position: 100
+sidebar_position: 10
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable

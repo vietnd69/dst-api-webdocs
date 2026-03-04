@@ -3,7 +3,7 @@ id: balatro
 title: Balatro
 description: Static map layout file defining the layout and static entities for the Balatro arena stage in Don't Starve Together.
 tags: [map, layout, static, arena]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

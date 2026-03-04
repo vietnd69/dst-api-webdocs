@@ -3,7 +3,7 @@ id: tentacle_pillar
 title: Tentacle Pillar
 description: Static map layout data for tentacle pillar structures, defining tile placement and object markers for world generation.
 tags: [map, worldgen, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

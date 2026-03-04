@@ -3,7 +3,7 @@ id: retrofit_fumarole
 title: Retrofit Fumarole
 description: Defines a static map layout for a fumarole region in the Caves, using Tiled map format with tile layers and object groups to place props and spawners.
 tags: [map, worldgen, props, spawner]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

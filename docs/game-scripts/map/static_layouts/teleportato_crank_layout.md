@@ -3,7 +3,7 @@ id: teleportato_crank_layout
 title: Teleportato Crank Layout
 description: Static tilemap layout for the Teleportato crank area, defining background tiles and object placements in the game world.
 tags: [world, map, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

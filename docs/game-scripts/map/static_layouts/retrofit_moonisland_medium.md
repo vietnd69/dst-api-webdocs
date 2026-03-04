@@ -3,7 +3,7 @@ id: retrofit_moonisland_medium
 title: Retrofit Moonisland Medium
 description: Defines the Tiled map layout for a medium-sized moon island environment, including tile layers and object groups for terrain, scenery, and gameplay elements.
 tags: [world, map, level, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

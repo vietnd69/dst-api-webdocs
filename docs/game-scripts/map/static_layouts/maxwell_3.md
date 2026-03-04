@@ -3,7 +3,7 @@ id: maxwell_3
 title: Maxwell 3
 description: A static map layout defining the visual tile layer and object placement for the Maxwell 3 challenge arena.
 tags: [world, environment, static_layout, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

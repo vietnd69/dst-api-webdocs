@@ -3,7 +3,7 @@ id: archive_worldgen
 title: Archive Worldgen
 description: This module initializes and adjusts entities for the Ancient Archive worldgen pass, specifically populating lockbox dispensers with predefined products in a cyclic order.
 tags: [worldgen, archive, map, layout, item]
-sidebar_position: 100
+sidebar_position: 10
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable

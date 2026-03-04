@@ -3,7 +3,7 @@ id: brokenaltar
 title: Brokenaltar
 description: Static map layout definition for the Broken Altar location in the Ruins, containing background tiles and object spawners.
 tags: [map, static_layout, ruins]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

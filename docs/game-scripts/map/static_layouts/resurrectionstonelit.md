@@ -3,7 +3,7 @@ id: resurrectionstonelit
 title: Resurrectionstonelit
 description: Defines a static-layout map configuration for the resurrection stone stage with specific tile layer and object placement data.
 tags: [map, layout, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

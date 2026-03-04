@@ -3,7 +3,7 @@ id: skeleton_mushjack
 title: Skeleton Mushjack
 description: Static layout data for the skeleton mushjack map room, defining background tiles and object placements for world generation.
 tags: [map, worldgen, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

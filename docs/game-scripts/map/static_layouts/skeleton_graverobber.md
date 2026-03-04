@@ -3,7 +3,7 @@ id: skeleton_graverobber
 title: Skeleton Graverobber
 description: Static map layout definition for a skeleton grave robbing scene, containing predefined object placements for narrative and environmental context.
 tags: [map, layout, static, scene]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

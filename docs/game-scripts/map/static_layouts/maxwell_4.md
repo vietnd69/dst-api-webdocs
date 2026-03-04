@@ -3,7 +3,7 @@ id: maxwell_4
 title: Maxwell 4
 description: A static map layout file defining the physical structure of the Maxwell 4 level, including background tile layers and object placement for statues and marble trees.
 tags: [world, map, level, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

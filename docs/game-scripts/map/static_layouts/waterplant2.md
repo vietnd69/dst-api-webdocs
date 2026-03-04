@@ -3,7 +3,7 @@ id: waterplant2
 title: Waterplant2
 description: Defines the static layout data for a waterplant map room using Tiled map format.
 tags: [map, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

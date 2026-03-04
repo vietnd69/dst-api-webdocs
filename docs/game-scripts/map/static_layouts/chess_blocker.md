@@ -3,7 +3,7 @@ id: chess_blocker
 title: Chess Blocker
 description: Defines a static map layout used for the chess minigame world generation, specifying tile backgrounds and object placements.
 tags: [world, map, minigame]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

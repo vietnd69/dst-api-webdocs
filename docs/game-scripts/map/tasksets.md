@@ -3,7 +3,7 @@ id: tasksets
 title: Tasksets
 description: Manages registration, retrieval, and listing of task group definitions for world generation across different game locations (forest, caves, lava arena, quagmire).
 tags: [worldgen, map, tasks, frontend]
-sidebar_position: 100
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

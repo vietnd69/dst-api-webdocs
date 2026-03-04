@@ -3,7 +3,7 @@ id: cave_exit
 title: Cave Exit
 description: This component defines a static map layout for the cave exit region, specifying tile data, object placement (such as cave lights, spawn points, and flora), and structural metadata for world generation.
 tags: [map, worldgen, static_layout, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

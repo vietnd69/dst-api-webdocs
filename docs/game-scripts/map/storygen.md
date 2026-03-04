@@ -3,7 +3,7 @@ id: storygen
 title: Storygen
 description: Generates and connects map regions, tasks, and narrative-driven room layouts using lock-and-key progression, node graphs, and setpieces for world generation in DST.
 tags: [world, narrative, generation, graph, map]
-sidebar_position: 100
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

@@ -3,7 +3,7 @@ id: level
 title: Level
 description: Manages level configuration including task selection, set piece assignment, and world generation overrides for map generation in Don't Starve Together.
 tags: [map, level, task, worldgen, setpiece]
-sidebar_position: 100
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

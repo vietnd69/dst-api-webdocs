@@ -3,7 +3,7 @@ id: cave_art_test_start
 title: Cave Art Test Start
 description: Static layout definition file for a cave test area containing spawn points, objects, and background tile data.
 tags: [map, layout, static, cave, test]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-28
 build_version: 714014
 change_status: stable

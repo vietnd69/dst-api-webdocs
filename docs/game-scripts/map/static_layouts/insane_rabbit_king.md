@@ -3,7 +3,7 @@ id: insane_rabbit_king
 title: Insane Rabbit King
 description: A static layout map definition used for the Insane Rabbit King arena, containing background tile data and foreground object placements for the boss encounter.
 tags: [map, boss, arena, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

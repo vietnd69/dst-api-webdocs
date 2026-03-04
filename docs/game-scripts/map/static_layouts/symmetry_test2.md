@@ -3,7 +3,7 @@ id: symmetry_test2
 title: Symmetry Test2
 description: A static map layout definition used for testing symmetry in world generation, containing tile and object placement data.
 tags: [map, worldgen, test]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

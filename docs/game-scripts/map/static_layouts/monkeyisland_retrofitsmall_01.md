@@ -3,7 +3,7 @@ id: monkeyisland_retrofitsmall_01
 title: Monkeyisland Retrofitsmall 01
 description: Tiled map layout file defining static environmental assets for the Monkey Island static layout, including ground tiles, docks, pirates, monkey structures, and portal debris.
 tags: [map, static, environment, tilelayer, objectgroup]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

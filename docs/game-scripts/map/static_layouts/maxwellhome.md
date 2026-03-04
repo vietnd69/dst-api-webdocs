@@ -3,7 +3,7 @@ id: maxwellhome
 title: Maxwellhome
 description: Defines static map layout data for the Maxwell home scenario, containing pre-configured entities with fixed positions and properties.
 tags: [map, scene, static, level-design, maxwell]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

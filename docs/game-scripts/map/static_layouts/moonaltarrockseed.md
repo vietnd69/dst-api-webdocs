@@ -3,7 +3,7 @@ id: moonaltarrockseed
 title: Moonaltarrockseed
 description: Defines the static layout data for the Moon Altar Rock seed in the game world, specifying its placement and metadata for map generation.
 tags: [map, level-design, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

@@ -3,7 +3,7 @@ id: nightmare_begin_blocker
 title: Nightmare Begin Blocker
 description: Defines the initial static layout for the nightmare event map, specifying tile data and object placements.
 tags: [map, worldgen, event]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

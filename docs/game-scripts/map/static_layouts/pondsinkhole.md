@@ -3,7 +3,7 @@ id: pondsinkhole
 title: Pondsinkhole
 description: Defines the static map layout data for a pond sinkhole room, including tile layers and object group metadata for placement in world generation.
 tags: [map, room, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

@@ -3,7 +3,7 @@ id: stack
 title: Stack
 description: A utility class implementing a generic LIFO stack data structure for storing and retrieving ordered values.
 tags: [utility, data-structure, helper]
-sidebar_position: 100
+sidebar_position: 10
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable

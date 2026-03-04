@@ -3,7 +3,7 @@ id: mactusk_city
 title: Mactusk City
 description: A static map layout file defining background tile positions and foreground object placements for the Mactusk City level area in DST.
 tags: [world, map, layout, static]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-28
 build_version: 714014
 change_status: stable

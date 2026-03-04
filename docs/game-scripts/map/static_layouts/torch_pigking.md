@@ -3,7 +3,7 @@ id: torch_pigking
 title: Torch Pigking
 description: Defines a static map layout used to place Torch Pig King related entities in the world, including the Pig King and three Pig Torches.
 tags: [map, layout, boss, event]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-02
 build_version: 714014
 change_status: stable

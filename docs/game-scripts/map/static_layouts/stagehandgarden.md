@@ -3,7 +3,7 @@ id: stagehandgarden
 title: Stagehandgarden
 description: A static map layout definition for the Stagehand Garden area, containing background tile data and placement metadata for in-world objects like the Stagehand and rose flowers.
 tags: [map, static_layout, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-02
 build_version: 714014
 change_status: stable

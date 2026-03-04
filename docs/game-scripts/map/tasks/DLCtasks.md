@@ -3,7 +3,7 @@ id: DLCtasks
 title: Dlctasks
 description: Registers the 'Oasis' custom task for the DST map system, defining its progression requirements and room placement rules.
 tags: [map, task, progression]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-04
 build_version: 714014

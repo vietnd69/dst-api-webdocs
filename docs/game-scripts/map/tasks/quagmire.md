@@ -3,7 +3,7 @@ id: quagmire
 title: Quagmire
 description: Registers a single optional task (`Quagmire_KitchenTask`) for Quagmire map generation, specifying room placement rules and visual properties.
 tags: [quagmire, map, task, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-04
 build_version: 714014

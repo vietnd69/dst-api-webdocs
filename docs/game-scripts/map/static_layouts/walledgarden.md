@@ -3,7 +3,7 @@ id: walledgarden
 title: Walledgarden
 description: A static map layout definition for the Walled Garden world generation room, containing tile layers and object groups used to construct the arena's visuals and structures.
 tags: [map, worldgen, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

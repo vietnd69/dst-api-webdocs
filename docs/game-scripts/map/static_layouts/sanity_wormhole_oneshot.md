@@ -3,7 +3,7 @@ id: sanity_wormhole_oneshot
 title: Sanity Wormhole Oneshot
 description: A Tiled map definition file specifying static layout data for a sanity wormhole room, including tile layers and object placement for sanity rocks and one wormhole.
 tags: [map, worldgen, static]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

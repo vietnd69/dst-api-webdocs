@@ -3,7 +3,7 @@ id: grotto_pool_small
 title: Grotto Pool Small
 description: A static map layout definition representing a small grotto pool region, used to define placement and structure for in-game environmental features in the Grotto biome.
 tags: [map, environment, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

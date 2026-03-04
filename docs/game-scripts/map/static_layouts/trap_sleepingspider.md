@@ -3,7 +3,7 @@ id: trap_sleepingspider
 title: Trap Sleepingspider
 description: Defines a Tiled map layout for the sleeping spider ambush trap, containing spawn positions for the spider and decorative world objects.
 tags: [trap, environment, level-design]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

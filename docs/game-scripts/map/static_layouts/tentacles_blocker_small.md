@@ -3,7 +3,7 @@ id: tentacles_blocker_small
 title: Tentacles Blocker Small
 description: Defines a static map layout used to place tentacles and marshland flora in the Caves biome, serving as a template for world generation.
 tags: [map, generation, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

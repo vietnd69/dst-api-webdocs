@@ -3,7 +3,7 @@ id: maxwell_merm_shrine
 title: Maxwell Merm Shrine
 description: Defines the Tiled map layout for the Maxwell Merm Shrine level, specifying tile layers and object placements for tentacles, merm houses, statues, and evil flowers.
 tags: [level, map, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

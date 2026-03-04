@@ -3,7 +3,7 @@ id: bathbombedhotspring
 title: Bathbombedhotspring
 description: Defines a static map layout for a hotspring that has been enhanced with a bathbomb, including placed objects and tile data.
 tags: [map, static_layout, bathbomb, hotspring]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

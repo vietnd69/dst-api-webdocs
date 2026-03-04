@@ -3,7 +3,7 @@ id: livingtree
 title: Livingtree
 description: Provides the static layout data for the Livingtree map room, specifying tile placement and object positions for Tiled-based world generation.
 tags: [map, room, static_layout, procedural_generation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

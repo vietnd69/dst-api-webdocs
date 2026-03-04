@@ -3,7 +3,7 @@ id: ruins_start
 title: Ruins Start
 description: A Tiled map definition for the Ruins starting area, specifying tile layout and spawnpoint/object placements.
 tags: [map, layout, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

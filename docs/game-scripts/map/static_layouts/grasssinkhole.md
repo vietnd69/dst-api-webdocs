@@ -3,7 +3,7 @@ id: grasssinkhole
 title: Grasssinkhole
 description: Map layout definition for a grass-themed sinkhole environment, specifying tile layers and object group configurations used in world generation.
 tags: [map, worldgen, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

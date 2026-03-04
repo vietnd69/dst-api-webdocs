@@ -3,7 +3,7 @@ id: network
 title: Network
 description: Manages world map graph structure including nodes, edges, and child subgraphs for procedural level generation and rendering in Don't Starve Together.
 tags: [map, graph, procedural, network, worldgen]
-sidebar_position: 100
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

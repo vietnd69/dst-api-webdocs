@@ -3,7 +3,7 @@ id: adventure_portal_layout
 title: Adventure Portal Layout
 description: A static map layout definition used to position entities (e.g., adventure portals, flora, lighting) in the Adventure mode portal room.
 tags: [map, layout, worldgen, adventure, static]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

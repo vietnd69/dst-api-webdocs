@@ -3,7 +3,7 @@ id: maxwell
 title: Maxwell
 description: Registers four pre-defined map tasks for the Maxwell campaign (MaxPuzzle1–3 and MaxHome) with specific room constraints and visual settings.
 tags: [map, level-design, campaign]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-04
 build_version: 714014

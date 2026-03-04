@@ -3,7 +3,7 @@ id: bullkelpfarmmedium
 title: Bullkelpfarmmedium
 description: Defines a Tiled map layout for a medium-sized bull kelp farm static map, containing tile layer data and object group definitions for kelp placement and a driftwood log.
 tags: [map, static_layout, kelp, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

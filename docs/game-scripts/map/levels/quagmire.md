@@ -3,7 +3,7 @@ id: quagmire
 title: Quagmire
 description: Registers Quagmire as a custom game level preset with predefined world generation overrides and versioning.
 tags: [world, level, preset, configuration]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

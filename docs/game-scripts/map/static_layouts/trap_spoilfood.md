@@ -3,7 +3,7 @@ id: trap_spoilfood
 title: Trap Spoilfood
 description: A static layout file defining the placement of world objects for the Spoiled Food trap event in DST.
 tags: [event, map, static_layout, spawn]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

@@ -3,7 +3,7 @@ id: pigtown
 title: Pigtown
 description: Defines static layout data for the Pig Town biome using Tiled map format, specifying tile layers and object placements for Pig houses.
 tags: [map, world, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

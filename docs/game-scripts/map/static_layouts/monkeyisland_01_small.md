@@ -3,7 +3,7 @@ id: monkeyisland_01_small
 title: Monkeyisland 01 Small
 description: A static layout definition for Monkey Island in DST, containing tilemap data and object group metadata for static structures, portals, docks, and prefabs.
 tags: [map, static_layout, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

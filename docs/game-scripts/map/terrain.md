@@ -3,7 +3,7 @@ id: terrain
 title: Terrain
 description: Defines global terrain spawn filtering rules that specify which items or structures can or cannot appear on specific tile types in the game world.
 tags: [world, map, spawning, terrain, filtering]
-sidebar_position: 100
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

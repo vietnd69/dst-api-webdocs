@@ -3,7 +3,7 @@ id: rabbittown
 title: Rabbittown
 description: Static layout definition for the Rabbit Town pre-built map room, specifying tile patterns and object placements.
 tags: [map, static, room, rabbithouse]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

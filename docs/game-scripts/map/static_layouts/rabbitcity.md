@@ -3,7 +3,7 @@ id: rabbitcity
 title: Rabbitcity
 description: Defines a static map layout for rabbit cities using TMX map data with tile and object layers.
 tags: [world, map, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

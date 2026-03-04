@@ -3,7 +3,7 @@ id: skeleton_hunter
 title: Skeleton Hunter
 description: A static map layout defining spawn locations and placement of loot items and a skeleton hunter NPC in the game world.
 tags: [map, environment, loot]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

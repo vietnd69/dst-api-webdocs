@@ -3,7 +3,7 @@ id: cave_base_1
 title: Cave Base 1
 description: Defines the static layout of the initial cave base room using Tiled map format, including background tile layers and object placement for starting game infrastructure.
 tags: [map, worldgen, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

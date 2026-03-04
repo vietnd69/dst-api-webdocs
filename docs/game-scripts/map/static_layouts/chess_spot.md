@@ -3,7 +3,7 @@ id: chess_spot
 title: Chess Spot
 description: Static layout file defining the structure and object placement for the Chess Spot map room in DST.
 tags: [world, map, static_layout, room, level_design]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-28
 build_version: 714014
 change_status: stable

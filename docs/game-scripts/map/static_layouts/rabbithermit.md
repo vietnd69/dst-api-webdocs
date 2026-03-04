@@ -3,7 +3,7 @@ id: rabbithermit
 title: Rabbithermit
 description: Defines a static map layout for a rabbit-themed area containing placed objects (e.g., rabbit house, carrot plants, tools) using Tiled TMX format data.
 tags: [map, static, layout, environment]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-02
 build_version: 714014
 change_status: stable

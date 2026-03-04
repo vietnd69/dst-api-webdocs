@@ -3,7 +3,7 @@ id: sanity_wormhole_1
 title: Sanity Wormhole 1
 description: Defines a static 16x16 tilemap layout containing sanity rocks and a central wormhole object for use in world generation.
 tags: [map, static_layout, sanity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

@@ -3,7 +3,7 @@ id: torch_rabbit_cave
 title: Torch Rabbit Cave
 description: Defines the static layout data for the torch rabbit cave map room using Tiled map format.
 tags: [map, world, room, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

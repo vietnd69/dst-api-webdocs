@@ -3,7 +3,7 @@ id: walls_straight2
 title: Walls Straight2
 description: A static map layout containing wall segments with varying health states for use in dungeon generation.
 tags: [map, environment, walls]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

@@ -3,7 +3,7 @@ id: chessy_6
 title: Chessy 6
 description: A static map layout file defining tile-based background structures and object placements for a chess-themed arena.
 tags: [map, layout, static]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

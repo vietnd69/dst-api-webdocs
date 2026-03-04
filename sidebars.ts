@@ -695,6 +695,11 @@ const sidebars: SidebarsConfig = {
 			],
 		},
 		{
+			type: "html",
+			value: "<hr/>",
+			className: "sidebar-divider",
+		},
+		{
 			type: "category",
 			label: "Components",
 			collapsed: true,

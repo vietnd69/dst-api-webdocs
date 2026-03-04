@@ -3,7 +3,7 @@ id: junk_yard1
 title: Junk Yard1
 description: Tiled map layout definition for the Junk Yard biome, containing static tile data and object placement metadata for procedural world generation.
 tags: [world, map, layout, static]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-28
 build_version: 714014
 change_status: stable

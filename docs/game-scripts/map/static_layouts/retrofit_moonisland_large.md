@@ -3,7 +3,7 @@ id: retrofit_moonisland_large
 title: Retrofit Moonisland Large
 description: Map layout data structure defining terrain tiles and static world object placements for a large moon island map segment.
 tags: [world, map, environment, level_design]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

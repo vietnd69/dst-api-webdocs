@@ -3,7 +3,7 @@ id: wormhole_grass
 title: Wormhole Grass
 description: Defines a static map layout containing no procedural content—used purely as a visual placeholder for wormhole-related areas in the game world.
 tags: [map, layout, placeholder]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

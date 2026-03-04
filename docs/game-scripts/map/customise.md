@@ -3,7 +3,7 @@ id: customise
 title: Customise
 description: This file is deprecated and serves only as a legacy alias that redirects to the actual customize.lua script.
 tags: [deprecated, redirect, map]
-sidebar_position: 100
+sidebar_position: 10
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable

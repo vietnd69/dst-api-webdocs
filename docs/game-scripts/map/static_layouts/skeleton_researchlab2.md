@@ -3,7 +3,7 @@ id: skeleton_researchlab2
 title: Skeleton Researchlab2
 description: Defines the layout and static object placement for the Skeleton Researchlab2 map area using Tiled data format.
 tags: [map, static_layout, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

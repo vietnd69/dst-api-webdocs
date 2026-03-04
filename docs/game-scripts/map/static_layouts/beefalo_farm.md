@@ -3,7 +3,7 @@ id: beefalo_farm
 title: Beefalo Farm
 description: A static map layout defining the arrangement of tiles, walls, objects, and entities in the Beefalo Farm location.
 tags: [map, layout, static, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

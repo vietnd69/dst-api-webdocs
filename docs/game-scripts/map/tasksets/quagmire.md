@@ -3,7 +3,7 @@ id: quagmire
 title: Quagmire
 description: Registers the Quagmire task set used to define valid and initial tasks for Quagmire gameplay.
 tags: [task, world, quagmire]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-04
 build_version: 714014

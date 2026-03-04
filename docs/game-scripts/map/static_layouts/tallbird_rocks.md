@@ -3,7 +3,7 @@ id: tallbird_rocks
 title: Tallbird Rocks
 description: A static map layout defining the placement of tallbird nests and rocks in a specific region of the game world.
 tags: [map, environment, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

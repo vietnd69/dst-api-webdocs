@@ -3,7 +3,7 @@ id: sacred_barracks
 title: Sacred Barracks
 description: Defines a static map layout using Tiled map format for the Sacred Barracks area, containing tile layers for background tiles and an object group with spawners and ruins for gameplay content.
 tags: [map, layout, static, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

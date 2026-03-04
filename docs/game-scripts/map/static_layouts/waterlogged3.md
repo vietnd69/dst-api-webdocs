@@ -3,7 +3,7 @@ id: waterlogged3
 title: Waterlogged3
 description: Defines the static layout configuration for a water-themed zone using Tiled map data, including background tile layers and foreground object placements.
 tags: [map, layout, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

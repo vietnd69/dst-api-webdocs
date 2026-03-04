@@ -3,7 +3,7 @@ id: oceanwhirlbigportal
 title: Oceanwhirlbigportal
 description: A static map layout definition for the Ocean Whirl big portal structure, containing tile data and object groups used by the world generator.
 tags: [map, worldgen, static_layout, ocean]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

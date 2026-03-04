@@ -3,7 +3,7 @@ id: sculptures_2
 title: Sculptures 2
 description: Defines a static layout for decorative and interactive sculptures in the game world using Tiled map data.
 tags: [map, decoration, static]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-02
 build_version: 714014
 change_status: stable

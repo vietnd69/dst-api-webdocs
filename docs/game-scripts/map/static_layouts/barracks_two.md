@@ -3,7 +3,7 @@ id: barracks_two
 title: Barracks Two
 description: A static layout definition for the Ruins map section that specifies background tiles, foreground objects (ruins walls, broken walls), and spawner placements for monsters and decoratives.
 tags: [map, layout, ruins, spawner]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

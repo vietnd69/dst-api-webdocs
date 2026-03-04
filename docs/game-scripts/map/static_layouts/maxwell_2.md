@@ -3,7 +3,7 @@ id: maxwell_2
 title: Maxwell 2
 description: Static layout definition for the Maxwell arena map in Don't Starve Together, containing tile layer data and object placements.
 tags: [map, static_layout, arena, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

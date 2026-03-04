@@ -3,7 +3,7 @@ id: moonaltarrockidol
 title: Moonaltarrockidol
 description: Static layout data defining the placement and configuration of a moon altar rock idol in a static map layout.
 tags: [layout, static, decor]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

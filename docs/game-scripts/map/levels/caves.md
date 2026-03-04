@@ -3,7 +3,7 @@ id: caves
 title: Caves
 description: Registers and configures cave-level world generation presets and settings for the Caves dimension in Don't Starve Together, including default, enhanced (Cave Plus), and Terraria-style variants.
 tags: [worldgen, level, configuration]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

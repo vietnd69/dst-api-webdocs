@@ -3,7 +3,7 @@ id: monkeyisland_retrofitlarge_02
 title: Monkeyisland Retrofitlarge 02
 description: A Tiled map layout defining static environmental assets for a monkey island zone, including ground tiles, dock infrastructure, pirate boats, cannons, monkey structures, and portal debris.
 tags: [map, environment, static, dock, monkey]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

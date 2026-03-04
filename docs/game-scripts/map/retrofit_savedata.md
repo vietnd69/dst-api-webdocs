@@ -3,7 +3,7 @@ id: retrofit_savedata
 title: Retrofit Savedata
 description: A utility module that applies worldgen retrofits to saved game data, updating legacy maps with new content and mechanics introduced in the Return of Them, Waterlogged, and other DLC updates.
 tags: [world, retrofit, worldgen, save, network]
-sidebar_position: 100
+sidebar_position: 10
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable

@@ -3,7 +3,7 @@ id: tentacle_pillar_atrium_outer
 title: Tentacle Pillar Atrium Outer
 description: Defines the static layout data for the outer atrium region of the tentacle pillar event in DST.
 tags: [map, event, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

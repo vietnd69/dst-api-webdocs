@@ -3,7 +3,7 @@ id: chessy_1
 title: Chessy 1
 description: Static map layout definition for a chess-themed environment containing background tiles and placed objects such as knight, skeleton, gears, and spear entities.
 tags: [map, layout, static]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

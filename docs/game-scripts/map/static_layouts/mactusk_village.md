@@ -3,7 +3,7 @@ id: mactusk_village
 title: Mactusk Village
 description: A static layout definition file representing the Mactusk Village map section, containing tile data and object placements for world generation.
 tags: [map, worldgen, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

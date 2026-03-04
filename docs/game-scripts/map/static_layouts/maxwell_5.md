@@ -3,7 +3,7 @@ id: maxwell_5
 title: Maxwell 5
 description: Static map layout data for the Maxwell 5 level, defining tile placements and object positions for a custom level in DST.
 tags: [world, level, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

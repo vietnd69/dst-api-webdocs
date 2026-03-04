@@ -3,7 +3,7 @@ id: skeleton_lumberjack
 title: Skeleton Lumberjack
 description: A static map layout containing loot and structural elements for the Lumberjack arena event.
 tags: [world, layout, event]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

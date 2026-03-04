@@ -3,7 +3,7 @@ id: maptags
 title: Maptags
 description: Provides a central registry of map-specific tags and spawner configurations used during level generation in DST's worldgen system.
 tags: [map, worldgen, entity, tag]
-sidebar_position: 100
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

@@ -3,7 +3,7 @@ id: retrofit_moonmush
 title: Retrofit Moonmush
 description: Static map layout definition for the Moonmush Retrofit area, containing tile data and placed game objects such as mushtrees, lighting, spawners, and decorative elements.
 tags: [map, static_layout, environment, moonmush]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

@@ -3,7 +3,7 @@ id: walls_straight
 title: Walls Straight
 description: Defines a static map layout containing wall placement data and object metadata for ruin-style wall segments.
 tags: [map, world, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

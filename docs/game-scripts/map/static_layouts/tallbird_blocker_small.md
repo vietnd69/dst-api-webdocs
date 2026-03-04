@@ -3,7 +3,7 @@ id: tallbird_blocker_small
 title: Tallbird Blocker Small
 description: A static map layout defining geometry and object placement for small tallbird-related map areas.
 tags: [map, static_layout, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

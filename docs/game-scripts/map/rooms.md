@@ -3,7 +3,7 @@ id: rooms
 title: Rooms
 description: Manages the registration and retrieval of world room definitions for procedural map generation in Don't Starve Together.
 tags: [map, procedural-generation, world-creation]
-sidebar_position: 100
+sidebar_position: 10
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable

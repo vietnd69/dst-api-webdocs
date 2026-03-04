@@ -3,7 +3,7 @@ id: skeleton_dapper
 title: Skeleton Dapper
 description: Defines a static map layout containing decorative skeleton and clothing loot items for use in DST world generation.
 tags: [world, map, loot]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

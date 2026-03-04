@@ -3,7 +3,7 @@ id: ruins_start2
 title: Ruins Start2
 description: Defines the static map layout for the Ruins starting area in DST, including tile layers and object placement for spawn points and cave exits.
 tags: [map, layout, static]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

@@ -3,7 +3,7 @@ id: skeleton_entomologist
 title: Skeleton Entomologist
 description: A static map layout defining the layout and object placement for the Skeleton Entomologist room in the Caves.
 tags: [room, map, static, layout, decoration]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

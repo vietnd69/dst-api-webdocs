@@ -3,7 +3,7 @@ id: abandonedwarf
 title: Abandonedwarf
 description: Defines a static map layout for the Abandoned Dwarf encounter in Don't Starve Together using Tiled map format data.
 tags: [map, layout, static, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

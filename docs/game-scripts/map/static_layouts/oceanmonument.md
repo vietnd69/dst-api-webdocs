@@ -3,7 +3,7 @@ id: oceanmonument
 title: Oceanmonument
 description: Defines the static layout data for the Ocean Monument map room using Tiled JSON format, including tile layer configurations and object placements for ocean-based encounters.
 tags: [map, room, ocean]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

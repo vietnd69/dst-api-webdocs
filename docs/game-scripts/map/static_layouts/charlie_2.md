@@ -3,7 +3,7 @@ id: charlie_2
 title: Charlie 2
 description: A Tiled map layout defining static terrain tiles and object placement for the Charlie_2 boss arena.
 tags: [boss, arena, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

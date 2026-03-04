@@ -3,7 +3,7 @@ id: tentacle_pillar_atrium
 title: Tentacle Pillar Atrium
 description: Static layout data for the tentacle pillar atrium map room, defining tile layers and object placements for dungeon generation.
 tags: [map, level-design, dungeon]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

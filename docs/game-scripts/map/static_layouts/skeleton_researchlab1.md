@@ -3,7 +3,7 @@ id: skeleton_researchlab1
 title: Skeleton Researchlab1
 description: Defines the layout data for a static map room containing skeleton-themed assets and gameplay objects.
 tags: [world, environment, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

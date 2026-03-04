@@ -3,7 +3,7 @@ id: resurrectionstone_winter
 title: Resurrectionstone Winter
 description: Defines the tilemap layout for the Resurrection Stone in the winter season, including background tiles and object placements (e.g., resurrection stone, pig heads, resource area).
 tags: [map, static_layout, seasonal]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

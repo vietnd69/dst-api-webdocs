@@ -3,7 +3,7 @@ id: skeleton_miner
 title: Skeleton Miner
 description: Tiled map layout file defining the placement of entities and decorative objects for the skeleton miner encounter in DST.
 tags: [map, world, environment]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-02
 build_version: 714014
 change_status: stable

@@ -3,7 +3,7 @@ id: spider_blocker
 title: Spider Blocker
 description: A static layout definition for a 40x40 world region containing evergreen trees and fully mature spider dens, used to block or partition map areas in procedural generation.
 tags: [worldgen, layout, spider]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

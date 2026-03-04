@@ -3,7 +3,7 @@ id: tenticle_reeds
 title: Tenticle Reeds
 description: Defines the layout data for a static map room containing tentacle and reeds placement objects in the game world.
 tags: [map, layout, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

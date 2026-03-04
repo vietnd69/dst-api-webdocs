@@ -3,7 +3,7 @@ id: test
 title: Test
 description: Static map layout data for a test world area, defining tile layers and object groups for level generation.
 tags: [map, worldgen, test]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

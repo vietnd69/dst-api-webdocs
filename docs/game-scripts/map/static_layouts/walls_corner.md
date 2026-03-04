@@ -3,7 +3,7 @@ id: walls_corner
 title: Walls Corner
 description: A Tiled map data file defining static wall corner decorations and ruins for the game world.
 tags: [environment, map, static, walls, ruins]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

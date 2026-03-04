@@ -3,7 +3,7 @@ id: sculptures_5
 title: Sculptures 5
 description: Defines a static map layout containing decorative sculptures and statues for in-game environments.
 tags: [map, decoration, static]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

@@ -3,7 +3,7 @@ id: warzone_1
 title: Warzone 1
 description: Defines a static battle arena layout for special events, containing spawn positions for enemy units such as pigmen and mermen.
 tags: [event, layout, spawn]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-02
 build_version: 714014
 change_status: stable

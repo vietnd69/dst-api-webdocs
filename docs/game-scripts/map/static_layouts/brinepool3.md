@@ -3,7 +3,7 @@ id: brinepool3
 title: Brinepool3
 description: Static map layout for a brine pool area, defining background tile placement and foreground object zones for saltstacks and cookiecutter spawners.
 tags: [world, map, layout, spawn]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

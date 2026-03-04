@@ -3,7 +3,7 @@ id: lavaarena
 title: Lavaarena
 description: Registers the Lava Arena game mode as a preset level with fixed world generation settings.
 tags: [world, level, preset]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-04
 build_version: 714014

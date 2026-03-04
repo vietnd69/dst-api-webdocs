@@ -3,7 +3,7 @@ id: spider_forest
 title: Spider Forest
 description: Static map layout configuration for the Spider Forest biome, defining background tiles, foreground objects, and spider den placements with growth and sleep state metadata.
 tags: [world, map, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

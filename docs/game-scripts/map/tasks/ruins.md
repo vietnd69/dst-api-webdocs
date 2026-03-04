@@ -3,7 +3,7 @@ id: ruins
 title: Ruins
 description: Defines task configurations for generating Ruins-level cave maps with progressively difficult room sets, lock requirements, and reward keys.
 tags: [map, dungeon, level-gen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-04
 build_version: 714014

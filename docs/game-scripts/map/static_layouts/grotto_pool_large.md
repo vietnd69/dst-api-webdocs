@@ -3,7 +3,7 @@ id: grotto_pool_large
 title: Grotto Pool Large
 description: A Tiled map layout file defining the static tile and object configuration for a large grotto pool environment in DST.
 tags: [map, environment, static, grotto]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

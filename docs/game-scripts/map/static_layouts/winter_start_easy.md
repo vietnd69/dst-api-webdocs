@@ -3,7 +3,7 @@ id: winter_start_easy
 title: Winter Start Easy
 description: A static map layout defining the initial player starting area in the Easy difficulty winter season.
 tags: [map, winter, spawn, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

@@ -3,7 +3,7 @@ id: hound_rocks
 title: Hound Rocks
 description: Static layout configuration for the Hound Rock map region containing rocks and hound mounds as placed objects and background tiles.
 tags: [world, map, static_layout, entity_placement]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

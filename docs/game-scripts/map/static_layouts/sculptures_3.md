@@ -3,7 +3,7 @@ id: sculptures_3
 title: Sculptures 3
 description: A Tiled map file defining static layout data for sculptural decorations in the game world.
 tags: [map, decoration, static-layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

@@ -3,7 +3,7 @@ id: default_start
 title: Default Start
 description: Defines the default starting layout for new worlds in Don't Starve Together, including tile placement and object spawn points.
 tags: [world, spawn, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

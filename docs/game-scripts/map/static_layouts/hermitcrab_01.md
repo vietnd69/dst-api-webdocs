@@ -3,7 +3,7 @@ id: hermitcrab_01
 title: Hermitcrab 01
 description: Static map layout definition for the Hermit Crab island, containing tile data, foreground objects (e.g., structures, flora, markers), and their spawn positions.
 tags: [map, layout, static, level_design]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

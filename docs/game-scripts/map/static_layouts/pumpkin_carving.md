@@ -3,7 +3,7 @@ id: pumpkin_carving
 title: Pumpkin Carving
 description: Static map layout data for a pumpkin carving-themed level in Don't Starve Together.
 tags: [map, level_design, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

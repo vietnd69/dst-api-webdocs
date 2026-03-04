@@ -3,7 +3,7 @@ id: teleportato_box_layout
 title: Teleportato Box Layout
 description: Defines the static layout data for the Teleportato's chamber, including tile layer specifications and object placements used in world generation.
 tags: [world, map, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

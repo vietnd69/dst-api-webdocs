@@ -3,7 +3,7 @@ id: altar
 title: Altar
 description: Static map layout definition for the Altar environment in DST, containing tile data, object placements, and static structures.
 tags: [map, environment, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

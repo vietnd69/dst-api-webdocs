@@ -3,7 +3,7 @@ id: teleportato_base_layout_adv
 title: Teleportato Base Layout Adv
 description: Defines the static Tiled map layout for the Advanced Teleportato base, specifying tile layers, background tiles, and object placements for game world generation.
 tags: [map, world, layout, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

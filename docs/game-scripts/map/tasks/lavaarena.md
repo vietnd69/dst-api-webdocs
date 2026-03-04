@@ -3,7 +3,7 @@ id: lavaarena
 title: Lavaarena
 description: Defines the Lava Arena map task configuration used during world generation to specify layout rules and constraints.
 tags: [world, map, task]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-04
 build_version: 714014

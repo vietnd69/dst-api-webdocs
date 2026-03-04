@@ -3,7 +3,7 @@ id: insane_wormhole
 title: Insane Wormhole
 description: Static map layout for the Insane World's wormhole room, defining tile configurations and static object placements (e.g., basalt, insanity rocks, and wormhole trigger).
 tags: [wormhole, environment, map, layout, static]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-28
 build_version: 714014
 change_status: stable

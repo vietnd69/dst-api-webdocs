@@ -3,7 +3,7 @@ id: terrarium_forest_spiders
 title: Terrarium Forest Spiders
 description: Static layout definition for the Terrarium Forest Spiders room, specifying tile layout, background layers, and placed objects such as spider dens, logs, and items.
 tags: [world, map, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

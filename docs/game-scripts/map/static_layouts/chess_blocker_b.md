@@ -3,7 +3,7 @@ id: chess_blocker_b
 title: Chess Blocker B
 description: Defines the layout and object configuration for a chess-themed static map zone, including background tiles and placed objects such as marble pillars, marble trees, and chess-piece prefabs.
 tags: [map, worldgen, staticlayout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

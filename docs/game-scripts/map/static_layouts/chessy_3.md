@@ -3,7 +3,7 @@ id: chessy_3
 title: Chessy 3
 description: Static layout map definition for a chess-themed room used in the game's world generation system.
 tags: [map, layout, static]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

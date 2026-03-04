@@ -3,7 +3,7 @@ id: evergreensinkhole
 title: Evergreensinkhole
 description: Provides static layout data for the Evergreen Sinkhole map region, defining background tile placement and foreground object regions.
 tags: [map, static_layout, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

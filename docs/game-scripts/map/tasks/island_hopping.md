@@ -3,7 +3,7 @@ id: island_hopping
 title: Island Hopping
 description: Registers a series of linked task nodes for the "Island Hopping" world generation sequence, defining how islands are procedurally connected and what rooms they contain.
 tags: [world, procedural, tasks]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-04
 build_version: 714014

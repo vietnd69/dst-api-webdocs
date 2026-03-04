@@ -3,7 +3,7 @@ id: insane_eyebone
 title: Insane Eyebone
 description: A static layout file defining the visual structure and object placement for the Insane Eyebone stage in DST's boss arenas.
 tags: [map, layout, boss, arena, static]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-28
 build_version: 714014
 change_status: stable

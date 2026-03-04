@@ -3,7 +3,7 @@ id: grass_spots
 title: Grass Spots
 description: Static layout definition containing background tile patterns used to render grassy terrain in DST maps.
 tags: [map, static_layout, tileset, terrain]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

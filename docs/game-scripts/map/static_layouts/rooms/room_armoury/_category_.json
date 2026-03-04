@@ -1,9 +1,10 @@
 {
-"label": "room_armoury",
-"collapsed": true,
-"link": {
-"type": "generated-index",
-"title": "room_armoury",
-"description": "DST rooms API documentation"
-}
+    "position": 1,
+    "label": "room_armoury",
+    "collapsed": true,
+    "link": {
+        "type": "generated-index",
+        "title": "room_armoury",
+        "description": "DST rooms API documentation"
+    }
 }

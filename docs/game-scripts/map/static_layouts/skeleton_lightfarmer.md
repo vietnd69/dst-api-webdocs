@@ -3,7 +3,7 @@ id: skeleton_lightfarmer
 title: Skeleton Lightfarmer
 description: Defines a static layout for a skeleton farmer decoration in the game world, containing background tiles and object placements.
 tags: [environment, decoration, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

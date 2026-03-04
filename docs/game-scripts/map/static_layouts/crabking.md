@@ -3,7 +3,7 @@ id: crabking
 title: Crabking
 description: Defines a static map layout for the Crab King boss arena, specifying tile data and spawn regions for game entities.
 tags: [boss, map, layout, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

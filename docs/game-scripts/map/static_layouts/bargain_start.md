@@ -3,7 +3,7 @@ id: bargain_start
 title: Bargain Start
 description: Defines the initial world layout for the Bargain mode, specifying tile layers and object placements used to seed the forest world with starter resources.
 tags: [world, map, spawn, resources]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

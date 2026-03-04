@@ -3,7 +3,7 @@ id: retrofit_brinepool_tiny
 title: Retrofit Brinepool Tiny
 description: Defines a compact static map layout for retrofit brinepool environments with designated salt stack placement zones and a cookiecutter spawner.
 tags: [map, layout, environment, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

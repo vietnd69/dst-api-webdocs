@@ -3,7 +3,7 @@ id: waterlogged2
 title: Waterlogged2
 description: Defines the layout and object placement for a water-themed map room in DST, including background tile patterns and object groups for tree areas and pillars.
 tags: [map, room, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

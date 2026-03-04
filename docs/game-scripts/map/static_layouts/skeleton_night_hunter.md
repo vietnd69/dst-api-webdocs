@@ -3,7 +3,7 @@ id: skeleton_night_hunter
 title: Skeleton Night Hunter
 description: A static layout configuration for the Skeleton Night Hunter event, defining the placement of loot items and character references in a 12x12 tile area.
 tags: [event, loot, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

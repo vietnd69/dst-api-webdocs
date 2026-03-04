@@ -3,7 +3,7 @@ id: dragonfly_arena
 title: Dragonfly Arena
 description: A static map layout file defining the environment for the Dragonfly Arena boss encounter, including terrain, lava ponds, scorched ground, and spawn points.
 tags: [boss, arena, environment, map]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-28
 build_version: 714014
 change_status: stable

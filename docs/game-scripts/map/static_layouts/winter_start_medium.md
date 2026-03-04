@@ -3,7 +3,7 @@ id: winter_start_medium
 title: Winter Start Medium
 description: Defines a pre-built winter starting map layout with static resources and spawnpoints for the Winter game scenario.
 tags: [map, layout, resources, winter, static]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

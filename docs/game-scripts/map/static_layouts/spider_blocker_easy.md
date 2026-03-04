@@ -3,7 +3,7 @@ id: spider_blocker_easy
 title: Spider Blocker Easy
 description: Defines a static map layout used as a beginner-friendly spider den blocker with three spider dens and vegetation.
 tags: [spider, terrain, map, level-design]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

@@ -3,7 +3,7 @@ id: vault_vault
 title: Vault Vault
 description: Defines the static map layout for the Vault structure, including background tiles and object markers for key locations.
 tags: [map, layout, vault]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

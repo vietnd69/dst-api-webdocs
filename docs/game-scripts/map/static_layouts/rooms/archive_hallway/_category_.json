@@ -1,9 +1,10 @@
 {
-"label": "archive_hallway",
-"collapsed": true,
-"link": {
-"type": "generated-index",
-"title": "archive_hallway",
-"description": "DST rooms API documentation"
-}
+    "position": 1,
+    "label": "archive_hallway",
+    "collapsed": true,
+    "link": {
+        "type": "generated-index",
+        "title": "archive_hallway",
+        "description": "DST rooms API documentation"
+    }
 }

@@ -3,7 +3,7 @@ id: layout
 title: Layout
 description: Provides utility functions for force-directed layout of nodes in 2D space, including repulsion from walls and points.
 tags: [layout, physics, map]
-sidebar_position: 100
+sidebar_position: 10
 
 last_updated: 2026-03-04
 build_version: 714014

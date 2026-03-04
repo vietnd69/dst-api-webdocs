@@ -3,7 +3,7 @@ id: deciduous_pond
 title: Deciduous Pond
 description: Defines the static layout configuration for a deciduous forest pond area using Tiled map data, specifying floor tiles and placement of decorative and gameplay-relevant objects such as trees, statues, flowers, fireflies, and a chance-based panflute spawn.
 tags: [map, static_layout, worldgen, props, environment]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-28
 build_version: 714014
 change_status: stable

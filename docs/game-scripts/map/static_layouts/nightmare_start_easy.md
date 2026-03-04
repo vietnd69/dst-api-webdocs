@@ -3,7 +3,7 @@ id: nightmare_start_easy
 title: Nightmare Start Easy
 description: Static layout configuration for the Nightmare Start area with predefined objects, spawning points, and decorative tiles.
 tags: [world, map, level_design]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

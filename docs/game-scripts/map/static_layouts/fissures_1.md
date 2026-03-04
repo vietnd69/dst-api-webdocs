@@ -3,7 +3,7 @@ id: fissures_1
 title: Fissures 1
 description: A static map layout file defining the placement of three moon fissure entities in a 3x3 tile grid for world generation.
 tags: [map, static_layout, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

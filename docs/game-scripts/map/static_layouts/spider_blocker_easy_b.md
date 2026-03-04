@@ -3,7 +3,7 @@ id: spider_blocker_easy_b
 title: Spider Blocker Easy B
 description: A static layout file defining map content for a spider-blocking area, specifying background tiles and object placements including spider dens at growth stage 1 or 2.
 tags: [map, layout, blocker, spider]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

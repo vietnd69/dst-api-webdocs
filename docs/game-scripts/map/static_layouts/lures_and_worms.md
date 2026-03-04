@@ -3,7 +3,7 @@ id: lures_and_worms
 title: Lures And Worms
 description: Static map layout definition for the Lures and Worms level, specifying tile grid dimensions, layer structure, and object placement metadata.
 tags: [map, static_layout, level]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

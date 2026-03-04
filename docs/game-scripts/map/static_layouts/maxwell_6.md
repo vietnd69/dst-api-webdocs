@@ -3,7 +3,7 @@ id: maxwell_6
 title: Maxwell 6
 description: A Tiled map data file representing the static layout for the Maxwell 6 level, defining background tile layers and foreground object placements for the Don't Starve Together world generation system.
 tags: [world, map, level, static, tiling]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

@@ -3,7 +3,7 @@ id: chess_spot3
 title: Chess Spot3
 description: Static map layout definition for a chess-themed area containing embedded game objects and tile data.
 tags: [map, static, layout, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

@@ -3,7 +3,7 @@ id: moontreehiddenaxe
 title: Moontreehiddenaxe
 description: Defines a static map layout containing moon trees and a hidden moonglass axe for world generation in DST.
 tags: [worldgen, map, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

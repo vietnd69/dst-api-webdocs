@@ -3,7 +3,7 @@ id: terrarium_forest_pigs
 title: Terrarium Forest Pigs
 description: Static map layout definition for the Terrarium forest biome with pig-themed decorative and functional objects.
 tags: [map, static_layout, terrarium]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

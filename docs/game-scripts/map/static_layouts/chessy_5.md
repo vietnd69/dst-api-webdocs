@@ -3,7 +3,7 @@ id: chessy_5
 title: Chessy 5
 description: Static map layout definition for a 16x16 grid used in DST world generation, containing background tiles and foreground object placements for a decorative/chess-themed scene.
 tags: [map, level-design, static-layout, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-28
 build_version: 714014
 change_status: stable

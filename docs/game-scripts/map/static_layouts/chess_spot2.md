@@ -3,7 +3,7 @@ id: chess_spot2
 title: Chess Spot2
 description: A static map layout used in the game world, containing background tiles and object placements for a specific map area.
 tags: [map, layout, static]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-28
 build_version: 714014
 change_status: stable

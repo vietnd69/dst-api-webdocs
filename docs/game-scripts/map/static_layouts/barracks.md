@@ -3,7 +3,7 @@ id: barracks
 title: Barracks
 description: Tiled map layout data defining the static structure of the Barracks level, including background tiles, foreground object placements, and spawner entities for ruins and nightmare chess pieces.
 tags: [map, level, spawner, ruins]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

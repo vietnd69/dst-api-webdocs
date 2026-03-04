@@ -3,7 +3,7 @@ id: tentacles_blocker
 title: Tentacles Blocker
 description: Stores static layout data for tentacle and marsh vegetation objects in the Marsh region map layers.
 tags: [map, environment, static_layout, level_design]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

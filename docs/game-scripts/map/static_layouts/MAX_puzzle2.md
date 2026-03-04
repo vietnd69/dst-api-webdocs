@@ -3,7 +3,7 @@ id: MAX_puzzle2
 title: Max Puzzle2
 description: Static map layout data for a puzzle-related zone, defining background tiles and foreground object placements using Tiled map format.
 tags: [map, static_layout, puzzle]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

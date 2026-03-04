@@ -3,7 +3,7 @@ id: moontrees_2
 title: Moontrees 2
 description: Static layout definition for moon tree placements and terrain regions in a moon-themed world room.
 tags: [worldgen, layout, static, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

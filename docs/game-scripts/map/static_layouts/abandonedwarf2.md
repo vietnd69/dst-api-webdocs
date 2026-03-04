@@ -3,7 +3,7 @@ id: abandonedwarf2
 title: Abandonedwarf2
 description: A static map layout defining the tile-based geometry and object placements for the Abandoned Dwarf 2 map room.
 tags: [map, room, static, layout, tile]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

@@ -3,7 +3,7 @@ id: skeleton_batfight
 title: Skeleton Batfight
 description: A static map layout describing the skeleton batfight arena scene configuration, including placement markers for entities like skeletons, bats, and guano.
 tags: [map, layout, scene]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

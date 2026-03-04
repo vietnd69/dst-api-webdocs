@@ -3,7 +3,7 @@ id: skeleton_fisher
 title: Skeleton Fisher
 description: Static layout data for the Skeleton Fisher room used in cave world generation.
 tags: [worldgen, map, room]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

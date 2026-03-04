@@ -3,7 +3,7 @@ id: pigguards_b
 title: Pigguards B
 description: Defines a static map layout for the Pig Guards arena, containing tile data, decorative torches, and wooden walls for environmental structure.
 tags: [map, environment, static_layout, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

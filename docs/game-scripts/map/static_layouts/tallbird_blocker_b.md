@@ -3,7 +3,7 @@ id: tallbird_blocker_b
 title: Tallbird Blocker B
 description: Defines a static map layout containing background tiles and foreground objects (tallbird nests and rocks) used to block or partition terrain in DST world generation.
 tags: [map, worldgen, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

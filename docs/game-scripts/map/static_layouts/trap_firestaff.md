@@ -3,7 +3,7 @@ id: trap_firestaff
 title: Trap Firestaff
 description: Defines a static world map layout for a trap event that spawns a firestaff and multiple fire hounds.
 tags: [map, event, hound, trap, fire]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

@@ -3,7 +3,7 @@ id: caves
 title: Caves
 description: Defines the cave world taskset configuration used for procedural level generation in Don't Starve Together.
 tags: [world, generation, taskset]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-04
 build_version: 714014

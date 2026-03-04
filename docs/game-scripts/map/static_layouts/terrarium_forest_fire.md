@@ -3,7 +3,7 @@ id: terrarium_forest_fire
 title: Terrarium Forest Fire
 description: Static map layout definition for the terrarium forest fire scenario, specifying tile configuration and object placement for a predefined environment.
 tags: [map, static_layout, scenario]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

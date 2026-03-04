@@ -3,7 +3,7 @@ id: trap_winter
 title: Trap Winter
 description: Defines the static layout data for the winter season trap room in DST's world generation system using Tiled map format.
 tags: [map, layout, winter]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

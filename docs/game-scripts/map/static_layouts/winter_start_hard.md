@@ -3,7 +3,7 @@ id: winter_start_hard
 title: Winter Start Hard
 description: Defines the static layout data for the winter_start_hard map scene, specifying tile configurations, background layers, and object placements for the hard-mode winter starting area.
 tags: [map, environment, layout, static, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

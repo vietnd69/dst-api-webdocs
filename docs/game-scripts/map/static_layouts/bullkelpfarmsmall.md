@@ -3,7 +3,7 @@ id: bullkelpfarmsmall
 title: Bullkelpfarmsmall
 description: Static map layout file defining the Tiled map structure for a small bullkelp farm instance, containing object-group metadata for kelp spawn zones.
 tags: [map, static_layout, kelp, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

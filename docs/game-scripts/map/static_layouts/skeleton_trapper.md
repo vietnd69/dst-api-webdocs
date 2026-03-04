@@ -3,7 +3,7 @@ id: skeleton_trapper
 title: Skeleton Trapper
 description: A static layout configuration for a skeleton trapper scene, defining placement of entities like traps, birds, and food within a Tiled map structure.
 tags: [map, layout, static]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

@@ -3,7 +3,7 @@ id: cave_base_2
 title: Cave Base 2
 description: Static layout definition for a pre-designed cave chamber containing environmental objects, loot containers, and structural tiles.
 tags: [map, layout, static, cave, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

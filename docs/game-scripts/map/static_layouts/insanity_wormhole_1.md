@@ -3,7 +3,7 @@ id: insanity_wormhole_1
 title: Insanity Wormhole 1
 description: Defines a static map layout for an Insanity-themed wormhole arena using Tiled JSON-style data, including tile layers for background visuals and an object group for placing scenery and wormhole entry points.
 tags: [map, static_layout, wormhole, arena]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

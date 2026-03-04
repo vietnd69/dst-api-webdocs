@@ -3,7 +3,7 @@ id: MAX_puzzle3
 title: Max Puzzle3
 description: A static map layout definition for a puzzle chamber used in the MAX encounter sequence, containing background tiles and foreground object placements.
 tags: [map, puzzle, max, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-28
 build_version: 714014
 change_status: stable

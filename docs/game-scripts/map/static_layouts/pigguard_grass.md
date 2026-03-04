@@ -3,7 +3,7 @@ id: pigguard_grass
 title: Pigguard Grass
 description: Defines static decorative layout data for a pigguard environment, including background tile patterns and foreground object placement.
 tags: [environment, layout, static, decoration]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-02
 build_version: 714014
 change_status: stable

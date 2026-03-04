@@ -3,7 +3,7 @@ id: trap_winter_deciduous
 title: Trap Winter Deciduous
 description: A static map layout used for winter-themed deciduous forests, containing predefined scenery objects and placement data.
 tags: [map, static_layout, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

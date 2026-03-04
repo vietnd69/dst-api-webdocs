@@ -1,9 +1,10 @@
 {
-"label": "atrium_start",
-"collapsed": true,
-"link": {
-"type": "generated-index",
-"title": "atrium_start",
-"description": "DST rooms API documentation"
-}
+    "position": 1,
+    "label": "atrium_start",
+    "collapsed": true,
+    "link": {
+        "type": "generated-index",
+        "title": "atrium_start",
+        "description": "DST rooms API documentation"
+    }
 }

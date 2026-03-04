@@ -3,7 +3,7 @@ id: brinepool2
 title: Brinepool2
 description: Defines a static map layout for the Brine Pool biome with ground tile configuration and object placement data for saltstacks and cookiecutter spawners.
 tags: [map, static_layout, environment]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-28
 build_version: 714014
 change_status: stable

@@ -3,7 +3,7 @@ id: default_pigking
 title: Default Pigking
 description: Static map layout definition for the Pig King arena in Don't Starve Together, specifying background tiles and object placements including Pig King and sanity/insanity rocks.
 tags: [map, layout, boss, arena, environment]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-28
 build_version: 714014
 change_status: stable

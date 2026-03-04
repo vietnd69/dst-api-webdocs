@@ -3,7 +3,7 @@ id: skeleton_winter_easy
 title: Skeleton Winter Easy
 description: Defines a static pregenerated dungeon layout containing loot and skeletal remains for the winter season in DST's world generation system.
 tags: [map, loot, dungeon]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

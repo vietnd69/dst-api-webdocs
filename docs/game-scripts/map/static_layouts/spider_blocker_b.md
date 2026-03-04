@@ -3,7 +3,7 @@ id: spider_blocker_b
 title: Spider Blocker B
 description: A static map layout configuration defining terrain tiles and dynamic spider den placements for a specific arena zone.
 tags: [map, environment, spawn, arena]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

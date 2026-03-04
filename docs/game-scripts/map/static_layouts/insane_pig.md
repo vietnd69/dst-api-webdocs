@@ -3,7 +3,7 @@ id: insane_pig
 title: Insane Pig
 description: Defines a static map layout for a world region containing pig-related structures and environmental assets.
 tags: [world, layout, static, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

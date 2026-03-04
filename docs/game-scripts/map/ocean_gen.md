@@ -3,7 +3,7 @@ id: ocean_gen
 title: Ocean Gen
 description: Provides procedural generation functions for ocean tile placement, terrain smoothing, set piece placement, and entity population within ocean world regions.
 tags: [world, generation, ocean, terrain, setpiece]
-sidebar_position: 100
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

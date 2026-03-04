@@ -3,7 +3,7 @@ id: charlie_1
 title: Charlie 1
 description: Static map layout definition for Charlie's first phase encounter using Tiled map format, specifying background tiles and a stage post object.
 tags: [map, static_layout, charlie, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

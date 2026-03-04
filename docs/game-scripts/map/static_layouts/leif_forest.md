@@ -3,7 +3,7 @@ id: leif_forest
 title: Leif Forest
 description: A static map layout definition for the Leif Forest region, containing background tiles and object placements for trees and the boss Leif.
 tags: [world, map, boss, layout, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

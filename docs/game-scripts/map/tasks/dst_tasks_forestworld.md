@@ -3,7 +3,7 @@ id: dst_tasks_forestworld
 title: Dst Tasks Forestworld
 description: Defines and registers all world generation tasks used for constructing the forest world in Don't Starve Together.
 tags: [worldgen, forest, tasks]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-04
 build_version: 714014

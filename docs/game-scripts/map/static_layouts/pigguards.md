@@ -3,7 +3,7 @@ id: pigguards
 title: Pigguards
 description: Defines a Tiled map layout for pig guard enclosures, specifying background tiles and object placements for walls and pig torches.
 tags: [map, level, environment, prefabs]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

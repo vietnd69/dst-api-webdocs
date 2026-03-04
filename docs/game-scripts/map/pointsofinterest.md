@@ -3,7 +3,7 @@ id: pointsofinterest
 title: Pointsofinterest
 description: Provides a centralized registry of static map layouts used as points of interest in sandbox mode world generation.
 tags: [map, generation, static]
-sidebar_position: 100
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

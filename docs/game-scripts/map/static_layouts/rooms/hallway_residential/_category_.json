@@ -1,9 +1,10 @@
 {
-"label": "hallway_residential",
-"collapsed": true,
-"link": {
-"type": "generated-index",
-"title": "hallway_residential",
-"description": "DST rooms API documentation"
-}
+    "position": 1,
+    "label": "hallway_residential",
+    "collapsed": true,
+    "link": {
+        "type": "generated-index",
+        "title": "hallway_residential",
+        "description": "DST rooms API documentation"
+    }
 }

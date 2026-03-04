@@ -3,7 +3,7 @@ id: moonaltarrockglass
 title: Moonaltarrockglass
 description: Defines a static map layout asset for a decorative rock glass object associated with the moon altar, used in level design.
 tags: [map, static, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

@@ -3,7 +3,7 @@ id: spiral
 title: Spiral
 description: Defines a static map layout for the spiral arena using Tiled map format, including background tiles and object placements for the ruins and relics.
 tags: [map, environment, arena]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

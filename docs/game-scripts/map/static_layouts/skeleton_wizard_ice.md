@@ -3,7 +3,7 @@ id: skeleton_wizard_ice
 title: Skeleton Wizard Ice
 description: Defines a static layout map layer for the Skeleton Wizard's ice-themed boss lair, specifying tile placements and object spawn positions.
 tags: [world, map, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

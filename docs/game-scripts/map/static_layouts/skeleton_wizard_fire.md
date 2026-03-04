@@ -3,7 +3,7 @@ id: skeleton_wizard_fire
 title: Skeleton Wizard Fire
 description: Static map layout data for a burnt forest area associated with the Skeleton Wizard boss encounter.
 tags: [map, boss, environment, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

@@ -3,7 +3,7 @@ id: brinepool1
 title: Brinepool1
 description: A static map layout definition for the Brinepool biome, specifying tile placement and game object spawn regions such as saltstacks and cookiecutter spawners.
 tags: [map, layout, worldgen, environment, spawner]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-28
 build_version: 714014
 change_status: stable

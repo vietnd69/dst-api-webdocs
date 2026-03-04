@@ -3,7 +3,7 @@ id: eyebone_grave
 title: Eyebone Grave
 description: A static map layout file defining the visual and structural configuration for the Eyebone Grave location, including placement of gravestone objects and optional entity prefabs via object properties.
 tags: [map, static_layout, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-28
 build_version: 714014
 change_status: stable

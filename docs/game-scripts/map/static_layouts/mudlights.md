@@ -3,7 +3,7 @@ id: mudlights
 title: Mudlights
 description: A static map layout definition used to place cave flowers and background tiles in specific positions during world generation.
 tags: [world, map, generation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014

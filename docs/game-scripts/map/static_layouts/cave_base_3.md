@@ -3,7 +3,7 @@ id: cave_base_3
 title: Cave Base 3
 description: Static layout definition for a specific cave base map configuration used in the world generation system.
 tags: [world, map, static_layout, generation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

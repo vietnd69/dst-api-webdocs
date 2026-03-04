@@ -3,7 +3,7 @@ id: dev_graveyard
 title: Dev Graveyard
 description: A static world layout defining decorative and narrative elements for a developer graveyard area, including named gravestones, statues, trees, pillars, and evil flowers.
 tags: [world, static, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-28
 build_version: 714014

@@ -3,7 +3,7 @@ id: monkeyisland_retrofitsmall_02
 title: Monkeyisland Retrofitsmall 02
 description: Static map layout configuration for a monkey island area in DST, defining background tiles, objects, and structural elements via Tiled JSON.
 tags: [map, static, environment, level, prefabs]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-02
 build_version: 714014
