@@ -3,7 +3,7 @@ id: fungusnoise
 title: Fungusnoise
 description: Defines procedural room templates for fungal cave environments, specifying spawn rules for mushtrees, mushrooms, flowers, and slurpers with distribution probabilities.
 tags: [world, procedural_generation, map, cave, room]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

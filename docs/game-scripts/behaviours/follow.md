@@ -3,7 +3,7 @@ id: follow
 title: Follow
 description: Controls an entity's movement to maintain a specified distance from a target, supporting approach, retreat, and idle behaviors based on distance thresholds.
 tags: [ai, locomotion, targeting]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

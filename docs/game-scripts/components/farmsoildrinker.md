@@ -3,7 +3,7 @@ id: farmsoildrinker
 title: Farmsoildrinker
 description: Tracks and calculates the time a soil entity spends in wet and dry states for farming-related moisture logic.
 tags: [farming, soil, moisture, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

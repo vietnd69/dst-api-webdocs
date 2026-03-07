@@ -3,7 +3,7 @@ id: lunarriftmutationsmanager
 title: Lunarriftmutationsmanager
 description: Manages thequest progression and defeated mutation tracking for lunar rift boss encounters, including Wagstaff NPC appearances and reward logic.
 tags: [boss, quest, world, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

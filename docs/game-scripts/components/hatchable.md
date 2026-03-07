@@ -3,7 +3,7 @@ id: hatchable
 title: Hatchable
 description: Manages the incubation process for eggs, tracking progress toward hatching or failure based on thermal conditions and time.
 tags: [egg, thermoregulation, lifecycle, incubation, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

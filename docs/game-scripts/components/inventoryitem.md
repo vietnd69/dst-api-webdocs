@@ -3,7 +3,7 @@ id: inventoryitem
 title: Inventoryitem
 description: Manages item properties and behavior related to inventory interaction, moisture, physics, and owner relationships.
 tags: [inventory, physics, moisture, pickup, components]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

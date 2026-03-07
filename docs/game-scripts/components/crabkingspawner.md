@@ -3,7 +3,7 @@ id: crabkingspawner
 title: Crabkingspawner
 description: Manages the spawning and respawn timing of the Crab King boss during world generation restoration.
 tags: [boss, spawner, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

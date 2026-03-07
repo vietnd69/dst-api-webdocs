@@ -3,7 +3,7 @@ id: two
 title: Two
 description: Static room layout definition for the archive_fourblock region, specifying background tile patterns and a single pillar placement.
 tags: [map, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

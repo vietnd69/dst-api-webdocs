@@ -3,7 +3,7 @@ id: herd
 title: Herd
 description: Manages a group of herd members (e.g., beefalo) around a central entity, handling membership, gathering, merging, position updates, and persistence.
 tags: [herd, group, entity, movement]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

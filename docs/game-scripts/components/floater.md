@@ -3,7 +3,7 @@ id: floater
 title: Floater
 description: Manages visual and behavioral effects when an entity enters or remains in water, including wetness application, splash spawning, and floating animations.
 tags: [water, visual, inventory, physics]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

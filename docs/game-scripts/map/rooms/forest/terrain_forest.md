@@ -3,7 +3,7 @@ id: terrain_forest
 title: Terrain Forest
 description: Registers multiple forest-themed world room templates with specific tile values, spawn weights, and static layout counts for procedural map generation.
 tags: [world, map, procedural]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

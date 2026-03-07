@@ -3,7 +3,7 @@ id: moonstormstaticbrain
 title: Moonstormstaticbrain
 description: Assigns a wandering behavior to an entity that restricts movement to land tiles within active moonstorm zones.
 tags: [ai, movement, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

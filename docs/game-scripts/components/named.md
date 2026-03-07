@@ -3,7 +3,7 @@ id: named
 title: Named
 description: Assigns and manages a custom display name for an entity, including support for formatting, author tracking, and network replication.
 tags: [entity, name, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

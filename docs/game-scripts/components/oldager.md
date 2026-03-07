@@ -3,7 +3,7 @@ id: oldager
 title: Oldager
 description: Manages time-based aging mechanics by converting accumulated damage into health damage over time, simulating biological aging effects on entities.
 tags: [aging, combat, time, health]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

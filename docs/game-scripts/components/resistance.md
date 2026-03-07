@@ -3,7 +3,7 @@ id: resistance
 title: Resistance
 description: Manages damage resistance by tracking tags that grant immunity or mitigation against specific damage sources.
 tags: [combat, damage, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

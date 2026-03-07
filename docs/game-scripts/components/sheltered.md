@@ -3,7 +3,7 @@ id: sheltered
 title: Sheltered
 description: Tracks whether an entity is under cover (e.g., from trees or structures) and manages shelter state transitions, including communication and networking.
 tags: [weather, environment, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: terrain_noise
 title: Terrain Noise
 description: Adds a room template for procedural ground noise assets in forest and cave biomes, including flora, rocks, and spawn markers with weighted distribution rules.
 tags: [world, procedural, terrain, room, spawn]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

@@ -3,7 +3,7 @@ id: shadowthrall_horns_brain
 title: Shadowthrall Horns Brain
 description: Controls the AI decision-making logic for Shadowthrall Horns, orchestrating attack timing, movement, and coordination with teammate entities.
 tags: [ai, combat, boss, behavior_tree]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

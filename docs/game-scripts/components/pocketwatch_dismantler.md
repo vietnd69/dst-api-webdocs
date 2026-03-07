@@ -3,7 +3,7 @@ id: pocketwatch_dismantler
 title: Pocketwatch Dismantler
 description: Validates and executes the dismantling of pocket watch–related items into component parts when used by a Clockmaker.
 tags: [inventory, crafting, validation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

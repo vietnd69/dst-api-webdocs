@@ -3,7 +3,7 @@ id: two
 title: Two
 description: A static map layout definition for the "armoury" room in DST, specifying background tile patterns and spawn positions for special in-game entities.
 tags: [map, room, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: lava_arena
 title: Lava Arena
 description: Static map layout definition for the Lava Arena event, specifying tiled background data and object placements for spawners, platforms, and crowd stands.
 tags: [world, event, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

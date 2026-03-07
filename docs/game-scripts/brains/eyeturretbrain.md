@@ -3,7 +3,7 @@ id: eyeturretbrain
 title: Eyeturretbrain
 description: Manages the AI behavior for an eye turret entity, determining target acquisition and prioritizing attack and orientation actions.
 tags: [ai, combat, stationary]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

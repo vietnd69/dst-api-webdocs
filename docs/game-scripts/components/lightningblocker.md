@@ -3,7 +3,7 @@ id: lightningblocker
 title: Lightningblocker
 description: Manages lightning protection range and strike handling for an entity, adding or removing the `lightningblocker` tag based on block range.
 tags: [lightning, protection, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

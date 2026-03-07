@@ -3,7 +3,7 @@ id: wobsterlandbrain
 title: Wobsterlandbrain
 description: Controls the movement and ocean-escape behavior of the Wobster entity, prioritizing hopping into the ocean when near water while wandering otherwise.
 tags: [ai, brain, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

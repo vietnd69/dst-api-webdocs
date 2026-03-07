@@ -3,7 +3,7 @@ id: shadowlevel
 title: Shadowlevel
 description: Manages the shadow level state of an entity by storing a base level and an optional dynamic level function.
 tags: [shadow, entity, level]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

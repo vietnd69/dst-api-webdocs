@@ -3,7 +3,7 @@ id: moontrader
 title: Moontrader
 description: Manages acceptance and processing of offerings for moon-based trading interactions, typically used by entities like Moon Moths or Moon Altars.
 tags: [trading, moon, inventory, interaction]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

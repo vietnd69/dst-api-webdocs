@@ -3,7 +3,7 @@ id: mermcandidate
 title: Mermcandidate
 description: Tracks calorie consumption to determine if a merm should transform into a stronger variant.
 tags: [entity, lifecycle, merm]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: health_replica
 title: Health Replica
 description: Manages network-synchronized health state for player entities, mirroring properties from the master-side Health component for client-side UI and logic.
 tags: [network, player, health, replication]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

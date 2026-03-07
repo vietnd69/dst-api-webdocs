@@ -3,7 +3,7 @@ id: hideandseekgame
 title: Hideandseekgame
 description: Manages the Hide and Seek minigame logic, tracking seekers, hiding spots, game state, and rewards.
 tags: [minigame, player, event]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

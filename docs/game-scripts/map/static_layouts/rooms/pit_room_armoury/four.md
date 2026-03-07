@@ -3,7 +3,7 @@ id: four
 title: Four
 description: Defines static tilemap layout data for the Pit Room Armoury area in DST's world generation system.
 tags: [map, worldgen, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

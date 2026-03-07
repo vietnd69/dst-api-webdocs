@@ -3,7 +3,7 @@ id: dumbbelllifter
 title: Dumbbelllifter
 description: Manages the ability for an entity to lift and use a dumbbell for workout-related gameplay effects.
 tags: [workout, combat, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

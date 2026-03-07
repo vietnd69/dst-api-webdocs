@@ -3,7 +3,7 @@ id: ambientsound
 title: Ambientsound
 description: Manages dynamic ambient and wave sound mixing based on the player's location, season, weather, and sanity states.
 tags: [audio, environment, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

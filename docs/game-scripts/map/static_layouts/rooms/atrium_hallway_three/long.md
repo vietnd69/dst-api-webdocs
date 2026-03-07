@@ -3,7 +3,7 @@ id: long
 title: Long
 description: Static map layout definition for a long hallway room in the Atrium level, specifying tilemap data and object placements for visual and environmental context.
 tags: [map, layout, static, atrium]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

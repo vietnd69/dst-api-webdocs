@@ -3,7 +3,7 @@ id: preserver
 title: Preserver
 description: Controls how perish and temperature decay rates are multiplied for an entity's items or contents.
 tags: [inventory, decay, utilities]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: retrofitcavemap_anr
 title: Retrofitcavemap Anr
 description: Applies worldgen retrofits for "A New Reign" and other DLC content to existing worlds by spawning missing prefabs, adjusting topology, and scheduling server resets.
 tags: [world, retrofit, dlc, map, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

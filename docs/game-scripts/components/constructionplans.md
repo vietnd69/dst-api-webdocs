@@ -3,7 +3,7 @@ id: constructionplans
 title: Constructionplans
 description: Manages blueprint mappings for construction sites, enabling conversion of target prefabs into their corresponding construction site prefabs.
 tags: [crafting, world, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: plantregistryupdater
 title: Plantregistryupdater
 description: Manages plant and fertilizer discovery data for a player, syncing learned content across clients in multiplayer.
 tags: [network, plant, player]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

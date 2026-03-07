@@ -3,7 +3,7 @@ id: magician
 title: Magician
 description: Manages the state and lifecycle of a magician tool currently being used by an entity, including equipping, holding, and dropping behavior.
 tags: [inventory, equipment, tool]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

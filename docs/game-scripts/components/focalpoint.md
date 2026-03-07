@@ -3,7 +3,7 @@ id: focalpoint
 title: Focalpoint
 description: Manages camera focal point targeting on the client, updating camera offset based on prioritized sources and distance constraints.
 tags: [camera, client, focus, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

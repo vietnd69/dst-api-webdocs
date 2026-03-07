@@ -3,7 +3,7 @@ id: aoeweapon_leap
 title: Aoeweapon Leap
 description: Enables a leap-based area-of-effect weapon attack that hits multiple targets in a radius and optionally tosses physics-enabled entities.
 tags: [combat, aoe, leap, weapon]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: drownable
 title: Drownable
 description: Manages drowning and void-falling logic for entities, including damage application, item dropping, and teleportation behavior.
 tags: [drowning, physics, inventory, damage, player]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

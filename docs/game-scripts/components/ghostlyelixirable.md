@@ -3,7 +3,7 @@ id: ghostlyelixirable
 title: Ghostlyelixirable
 description: Marks an entity as a ghostly elixir item by adding the `ghostlyelixirable` tag for use in gameplay logic.
 tags: [item, ghost, elixir]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

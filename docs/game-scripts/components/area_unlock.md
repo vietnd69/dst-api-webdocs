@@ -3,7 +3,7 @@ id: area_unlock
 title: Area Unlock
 description: Tracks and manages story unlock progression for map areas based on player exploration events.
 tags: [map, progression, story]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

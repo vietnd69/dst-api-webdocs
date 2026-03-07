@@ -3,7 +3,7 @@ id: minotaurbrain
 title: Minotaurbrain
 description: Controls the behavior tree logic for the Minotaur boss, coordinating combat, movement, and special attacks (jump and ram) in response to environment and state conditions.
 tags: [ai, combat, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

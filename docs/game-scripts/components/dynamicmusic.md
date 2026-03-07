@@ -3,7 +3,7 @@ id: dynamicmusic
 title: Dynamicmusic
 description: Manages adaptive background music for the player entity based on gameplay context such as location, actions, time of day, season, and nearby events.
 tags: [audio, player, environment, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: sanityaura
 title: Sanityaura
 description: Computes and provides sanity-affecting aura values for an entity within a defined radius.
 tags: [sanity, aura, environmental]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

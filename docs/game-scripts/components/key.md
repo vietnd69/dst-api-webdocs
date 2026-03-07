@@ -3,7 +3,7 @@ id: key
 title: Key
 description: Manages the type of key associated with an entity and provides callbacks for lock interactions.
 tags: [lock, key, interaction]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

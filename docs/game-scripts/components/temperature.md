@@ -3,7 +3,7 @@ id: temperature
 title: Temperature
 description: Manages entity body temperature, including heating/cooling logic, insulation, moisture penalties, and health impact from extreme temperatures.
 tags: [temperature, player, entity, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

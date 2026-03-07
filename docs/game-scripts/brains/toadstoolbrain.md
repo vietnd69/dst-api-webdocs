@@ -3,7 +3,7 @@ id: toadstoolbrain
 title: Toadstoolbrain
 description: Implements the behavior tree for the Toadstool entity, managing its channeling, homing, combat engagement, and fleeing states using custom logic and behavior nodes.
 tags: [ai, brain, boss, combat, homing]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

@@ -3,7 +3,7 @@ id: berniebigbrain
 title: Berniebigbrain
 description: Manages AI behavior for Bernie the bee, including leader following, combat targeting, and activation/deactivation logic.
 tags: [ai, brain, combat, follow]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

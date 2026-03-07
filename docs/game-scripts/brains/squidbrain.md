@@ -3,7 +3,7 @@ id: squidbrain
 title: Squidbrain
 description: Controls AI behavior for squid entities, managing movement, combat, fishing interactions, and herd coordination.
 tags: [ai, combat, fishing, herd, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

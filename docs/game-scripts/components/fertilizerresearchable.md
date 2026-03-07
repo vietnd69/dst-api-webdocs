@@ -3,7 +3,7 @@ id: fertilizerresearchable
 title: Fertilizerresearchable
 description: Enables an entity to provide researchable fertilizer data to the game, typically used by compost bins or similar structures in biomes like the Ruins.
 tags: [crafting, research, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

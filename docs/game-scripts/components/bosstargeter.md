@@ -3,7 +3,7 @@ id: bosstargeter
 title: Bosstargeter
 description: Tracks and manages boss entities for gameplay systems that need to know when a boss is present in the world.
 tags: [boss, combat, world, ai]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

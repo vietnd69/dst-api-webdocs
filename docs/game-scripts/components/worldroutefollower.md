@@ -3,7 +3,7 @@ id: worldroutefollower
 title: Worldroutefollower
 description: Coordinates movement along a predefined path in the world, handling walking, teleportation on failure, and sleep/wake synchronization.
 tags: [locomotion, ai, route, entity]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

@@ -3,7 +3,7 @@ id: chessunlocks
 title: Chessunlocks
 description: Manages locking and unlocking of chess piece sketches and associated trinkets in the Don't Starve Together chess minigame system.
 tags: [minigame, unlocks, save, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

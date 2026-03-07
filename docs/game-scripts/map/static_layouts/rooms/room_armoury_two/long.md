@@ -3,7 +3,7 @@ id: long
 title: Long
 description: Maps the layout data for the "Armoury Two" room in the Caves, including static tile backgrounds and object placement for gameplay elements like spawners and lights.
 tags: [room, map, static_layout, caves]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: foodmemory
 title: Foodmemory
 description: Tracks remembered food items and calculates consumption-based multipliers for an entity over time.
 tags: [food, memory, multiplier, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

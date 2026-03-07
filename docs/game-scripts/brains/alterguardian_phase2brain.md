@@ -3,7 +3,7 @@ id: alterguardian_phase2brain
 title: Alterguardian Phase2Brain
 description: Manages the AI behavior tree for the Alterguardian boss during Phase 2, coordinating movement, targeting, and state-aware actions.
 tags: [ai, boss, combat, navigation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

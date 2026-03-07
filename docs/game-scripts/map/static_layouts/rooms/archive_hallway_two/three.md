@@ -3,7 +3,7 @@ id: three
 title: Three
 description: Defines the Tiled map layout for a hallway room (archive_hallway_two/three) used in DST's cave world generation, specifying tile layers and object placement for static dungeon architecture.
 tags: [map, environment, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

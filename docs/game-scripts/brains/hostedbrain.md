@@ -3,7 +3,7 @@ id: hostedbrain
 title: Hostedbrain
 description: Manages AI behavior for shadow thrall parasite hosts, coordinating coordinated attacks, formation positioning, and leash tracking using a behavior tree.
 tags: [ai, combat, boss, parasite, formation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

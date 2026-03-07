@@ -3,7 +3,7 @@ id: ghostlybond
 title: GhostlyBond
 description: Manages a spectral companion (ghost) tied to a player, handling summoning, recall, bonding progression, and state synchronization.
 tags: [ghost, summoning, bond, pet, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

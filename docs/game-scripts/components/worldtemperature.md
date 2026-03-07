@@ -3,7 +3,7 @@ id: worldtemperature
 title: Worldtemperature
 description: Calculates and broadcasts the current world temperature based on season, phase, noise, and global modifiers, while managing summer bloom visual effects.
 tags: [temperature, environment, seasonal, network, fx]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

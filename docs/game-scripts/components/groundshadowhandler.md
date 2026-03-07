@@ -3,7 +3,7 @@ id: groundshadowhandler
 title: Groundshadowhandler
 description: Manages a ground shadow effect that dynamically scales and positions beneath an entity based on its vertical height.
 tags: [fx, environment, rendering]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: guardian
 title: Guardian
 description: Manages the lifecycle of a summoned guardian entity, tracking summon progress, spawning and dismissing the guardian, and handling its death.
 tags: [summoning, combat, ai, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

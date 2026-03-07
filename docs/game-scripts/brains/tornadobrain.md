@@ -3,7 +3,7 @@ id: tornadobrain
 title: Tornadobrain
 description: Implements decision-making logic for a tornado entity, directing it to move toward or wander near a target location.
 tags: [ai, movement, weather]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

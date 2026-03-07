@@ -3,7 +3,7 @@ id: schoolspawner
 title: Schoolspawner
 description: Spawns fish schools and triggers special ocean predators like gnarwails and sharks in oceanic regions based on player proximity and environmental conditions.
 tags: [ocean, fish, ai, spawner, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

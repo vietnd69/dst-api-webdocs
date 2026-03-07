@@ -3,7 +3,7 @@ id: tallbird
 title: Tallbird
 description: Defines a room template named TallbirdNests used in the forest level to procedurally generate nest clusters containing tallbird nests, rocks, and other sparse environmental objects.
 tags: [world, procedural, room, generation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

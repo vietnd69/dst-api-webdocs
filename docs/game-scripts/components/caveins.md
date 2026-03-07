@@ -3,7 +3,7 @@ id: caveins
 title: Caveins
 description: Manages cave-in events triggered by sinkholes, including debris spawning, camera shake, and player warnings in the caves.
 tags: [environment, cave, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

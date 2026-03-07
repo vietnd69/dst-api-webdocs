@@ -3,7 +3,7 @@ id: abigailbrain
 title: Abigailbrain
 description: Controls the behavior tree logic for Abigail, determining her movement, combat, and social actions based on leader proximity, mode (defensive/aggressive), and environmental context.
 tags: [ai, boss, ghost]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: worldvoter
 title: WorldVoter
 description: Manages world-wide voting sessions, including dialog display, vote collection, timeout handling, and result enforcement across master and secondary shards.
 tags: [network, voting, world]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

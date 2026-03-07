@@ -3,7 +3,7 @@ id: lightpostpartner
 title: Lightpostpartner
 description: Manages shackle relationships between a lantern post and connected light sources in Don't Starve Together.
 tags: [network, entity, lighting]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

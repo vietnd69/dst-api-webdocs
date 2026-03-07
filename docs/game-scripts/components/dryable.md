@@ -3,7 +3,7 @@ id: dryable
 title: Dryable
 description: Marks an entity as capable of being dried and stores associated drying data, such as product yield, drying time, and associated build files for raw and dried states.
 tags: [drying, crafting, inventory, world, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

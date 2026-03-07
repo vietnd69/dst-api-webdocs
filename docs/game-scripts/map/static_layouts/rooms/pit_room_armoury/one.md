@@ -3,7 +3,7 @@ id: one
 title: One
 description: Provides Tiled map data for the Pit Room Armoury layout used in world generation.
 tags: [map, static_layout, generation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

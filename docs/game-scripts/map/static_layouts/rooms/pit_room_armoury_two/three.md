@@ -3,7 +3,7 @@ id: three
 title: Three
 description: Represents a static room layout (pit_room_armoury_two) for world generation, defining tilemap data and spawn points for dungeon objects.
 tags: [map, room, procedural]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

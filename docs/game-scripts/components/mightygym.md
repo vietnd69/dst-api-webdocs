@@ -3,7 +3,7 @@ id: mightygym
 title: Mightygym
 description: Manages weight loading, workout state, and visual/sound feedback for the Mighty Gym structure in the game.
 tags: [gym, player, combat, ui, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

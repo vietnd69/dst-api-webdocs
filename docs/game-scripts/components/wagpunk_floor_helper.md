@@ -3,7 +3,7 @@ id: wagpunk_floor_helper
 title: Wagpunk Floor Helper
 description: Manages the active arena and barrier state for Wagpunk boss encounters, including spatial containment logic and networked synchronization.
 tags: [boss, arena, barrier, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

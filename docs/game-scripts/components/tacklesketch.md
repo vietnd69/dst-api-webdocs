@@ -3,7 +3,7 @@ id: tacklesketch
 title: Tacklesketch
 description: Provides a prototype for teaching a tackle sketch recipe to a crafting station when consumed or applied.
 tags: [crafting, item, recipe]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

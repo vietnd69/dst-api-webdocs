@@ -3,7 +3,7 @@ id: replayproxy
 title: Replayproxy
 description: Stores and provides access to the GUID and prefab name of a real entity during replay playback.
 tags: [network, replay, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

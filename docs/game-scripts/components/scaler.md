@@ -3,7 +3,7 @@ id: scaler
 title: Scaler
 description: Manages the uniform scaling of an entity's visual representation by applying a scale factor to its transform.
 tags: [visual, transform, scale]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

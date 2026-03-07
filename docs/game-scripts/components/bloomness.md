@@ -3,7 +3,7 @@ id: bloomness
 title: Bloomness
 description: Manages the growth stage and bloom progression of a plant entity, including timer-based progression, fertilization effects, and rate calculation.
 tags: [plant, growth, progress, stage]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

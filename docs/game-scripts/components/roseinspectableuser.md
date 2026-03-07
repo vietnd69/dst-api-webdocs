@@ -3,7 +3,7 @@ id: roseinspectableuser
 title: Roseinspectableuser
 description: Manages the Rose Glasses' inspection logic, including cooldown tracking, residue spawning, and interaction with roseinspectable targets.
 tags: [inspection, cooldown, item, interaction]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: dryingracksaltcollector
 title: Dryingracksaltcollector
 description: Tracks salt slots in a drying rack and manages salt count changes with optional callback notification.
 tags: [world, crafting, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

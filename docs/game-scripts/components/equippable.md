@@ -3,7 +3,7 @@ id: equippable
 title: Equippable
 description: Manages item equipping behavior, including slot assignment, unequip prevention, movement speed modifiers, dapperness, moisture, and equip/unequip callbacks for entities in DST.
 tags: [inventory, equipment, networking, player]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: penguinspawner
 title: Penguinspawner
 description: Manages penguin flock spawning, colony formation, and seasonal population control in winter.
 tags: [spawn, season, colony, winter, ai]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

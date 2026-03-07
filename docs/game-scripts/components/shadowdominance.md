@@ -3,7 +3,7 @@ id: shadowdominance
 title: Shadowdominance
 description: Manages the "shadowdominance" tag on an entity based on equip state and presence of other shadow-dominant items.
 tags: [inventory, tags, equipment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

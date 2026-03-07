@@ -3,7 +3,7 @@ id: followermemory
 title: Followermemory
 description: Remembers and tracks a follower's last known leader across sessions and entity state changes, enabling reunification when the leader returns.
 tags: [ai, leader, persistence, tracking, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

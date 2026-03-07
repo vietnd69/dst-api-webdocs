@@ -3,7 +3,7 @@ id: charliecutscene
 title: Charliecutscene
 description: Manages the Charlie cutscene event for the Atrium gate, including camera control, NPC spawning, gate repair logic, and world state synchronization.
 tags: [cutscene, camera, boss, world, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

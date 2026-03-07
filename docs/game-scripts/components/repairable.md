@@ -3,7 +3,7 @@ id: repairable
 title: Repairable
 description: Manages repair logic and tags for entities based on their state (health, durability, perishability, uses) and associated repair materials.
 tags: [repair, inventory, state, component]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

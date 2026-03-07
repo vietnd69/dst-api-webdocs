@@ -3,7 +3,7 @@ id: two
 title: Two
 description: Defines a static map layout for an archive hallway room, containing tiled floor data and embedded game objects like statues, walls, and areas.
 tags: [map, room, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

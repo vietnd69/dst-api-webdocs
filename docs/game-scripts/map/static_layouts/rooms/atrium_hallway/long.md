@@ -3,7 +3,7 @@ id: long
 title: Long
 description: Defines a static layout for the Atrium Hallway room in the caves, containing tile data and embedded objects such as lights and droppers.
 tags: [map, room, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

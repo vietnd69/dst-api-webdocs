@@ -3,7 +3,7 @@ id: playingcard
 title: Playingcard
 description: Manages the identity (suit and pips) of a playing card entity in the game.
 tags: [inventory, entity, save_load]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

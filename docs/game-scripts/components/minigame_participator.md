@@ -3,7 +3,7 @@ id: minigame_participator
 title: Minigame Participator
 description: Tracks and manages an entity’s participation in a minigame, including automatic cleanup, follower disengagement, and timeout handling.
 tags: [minigame, entity, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

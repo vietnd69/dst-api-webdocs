@@ -3,7 +3,7 @@ id: four
 title: Four
 description: Defines a static map layout for the residential hallway room variant "four" using Tiled map format.
 tags: [map, room, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

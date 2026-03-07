@@ -3,7 +3,7 @@ id: three
 title: Three
 description: Static map layout definition for the archive hallway's three-room configuration, specifying tilemap and object placement via Tiled JSON data.
 tags: [map, static_layout, architecture]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

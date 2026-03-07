@@ -3,7 +3,7 @@ id: occupiable
 title: Occupiable
 description: Manages an entity's ability to be occupied by another entity, handling tag updates, nesting, and lifecycle callbacks.
 tags: [ai, entity, nesting, lifecycle]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

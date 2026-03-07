@@ -3,7 +3,7 @@ id: formationfollower
 title: Formationfollower
 description: Manages an entity's participation in a formation, including leader detection, positioning updates, and sleep/wake lifecycle handling.
 tags: [formation, ai, locomotion, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

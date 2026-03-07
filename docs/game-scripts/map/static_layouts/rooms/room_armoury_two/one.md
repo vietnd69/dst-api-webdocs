@@ -3,7 +3,7 @@ id: one
 title: One
 description: Defines the static layout data for the 'room_armoury_two' room using Tiled Map Editor format, including background tile layers and object spawner positions.
 tags: [map, room, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

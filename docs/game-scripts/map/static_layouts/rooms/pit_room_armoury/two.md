@@ -3,7 +3,7 @@ id: two
 title: Two
 description: A static map layout file defining the 'pit_room_armoury' sub-room configuration for level generation, including background tiles and object spawners.
 tags: [map, procedural_generation, room]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: wormwood_lightflierbrain
 title: Wormwood Lightflierbrain
 description: Controls the behavior tree logic for the Wormwood Lightflier entity, primarily managing panic responses and walk speed adjustments via the locomotor component.
 tags: [ai, brain, panic, movement, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

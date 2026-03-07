@@ -3,7 +3,7 @@ id: skeletonsweeper
 title: Skeletonsweeper
 description: Manages a cap on the number of active skeletons in the world by removing the oldest skeletons when the limit is exceeded.
 tags: [skeleton, entity, world, cleanup, limit]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

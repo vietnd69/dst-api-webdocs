@@ -3,7 +3,7 @@ id: worldsettingstimer
 title: Worldsettingstimer
 description: Manages named, resumable, and persistent timers for world-scale settings or events.
 tags: [timer, persistence, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

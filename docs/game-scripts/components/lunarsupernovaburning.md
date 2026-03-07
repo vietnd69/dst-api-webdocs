@@ -3,7 +3,7 @@ id: lunarsupernovaburning
 title: Lunarsupernovaburning
 description: Applies and manages damage and visual effects for the Alter Guardian's lunar supernova ability during Phase 4.
 tags: [combat, boss, fx, utility]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

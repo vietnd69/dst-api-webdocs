@@ -3,7 +3,7 @@ id: waterplantbrain
 title: Waterplantbrain
 description: Controls the decision-making logic for water plants, determining behavior states such as emergency pollen spraying, stage-specific combat, and cloud spraying based on internal state and environmental conditions.
 tags: [ai, environment, combat, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

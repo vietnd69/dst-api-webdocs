@@ -3,7 +3,7 @@ id: rechargeable
 title: Rechargeable
 description: Manages charge progression and recharge logic for inventory items and other entities with variable charge capacity.
 tags: [inventory, charge, combat, entity, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

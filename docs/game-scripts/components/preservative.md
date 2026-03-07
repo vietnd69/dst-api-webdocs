@@ -3,7 +3,7 @@ id: preservative
 title: Preservative
 description: Stores configuration for how preservation affects item decay rates, primarily used by the game's preservation and spoilage systems.
 tags: [decay, inventory, preservation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

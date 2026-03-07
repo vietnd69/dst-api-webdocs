@@ -3,7 +3,7 @@ id: colouraddersync
 title: Colouraddersync
 description: Synchronizes colour addition data from the server to clients and triggers visual updates and callbacks when the colour changes.
 tags: [network, visual, sync]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

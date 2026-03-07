@@ -3,7 +3,7 @@ id: shadowparasitemanager
 title: Shadowparasitemanager
 description: Manages shadow parasite waves and host spawning for the Shadow Thrall mechanic during rift events.
 tags: [combat, boss, rift, wave, world]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

@@ -3,7 +3,7 @@ id: steeringwheel
 title: Steeringwheel
 description: Manages the logic and state for a steering wheel entity that allows sailors to control boat movement.
 tags: [locomotion, vehicle, interaction]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

@@ -3,7 +3,7 @@ id: vault_teleporter
 title: Vault Teleporter
 description: Stores and manages teleport destination data (marker name, room ID, direction) for vault-related entities in the game.
 tags: [vault, teleporter, navigation]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

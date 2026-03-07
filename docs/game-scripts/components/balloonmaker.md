@@ -3,7 +3,7 @@ id: balloonmaker
 title: Balloonmaker
 description: Spawns a balloon entity at a specified world position.
 tags: [spawn, world, prop]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

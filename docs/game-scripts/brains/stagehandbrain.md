@@ -3,7 +3,7 @@ id: stagehandbrain
 title: Stagehandbrain
 description: Implements AI behavior for the Stagehand entity, prioritizing panic responses at night while seeking nearby light sources.
 tags: [ai, brain, npc, light, panic]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

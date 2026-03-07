@@ -3,7 +3,7 @@ id: boatrotator
 title: Boatrotator
 description: Manages the rotation direction synchronization between a character entity and its current boat platform.
 tags: [locomotion, boat, platform]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: canopyshadows
 title: Canopyshadows
 description: Manages the spawning and despawning of leaf canopy shadow tiles around an entity within a configurable radius.
 tags: [environment, lighting, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

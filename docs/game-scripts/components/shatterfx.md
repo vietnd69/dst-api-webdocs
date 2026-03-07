@@ -3,7 +3,7 @@ id: shatterfx
 title: Shatterfx
 description: Manages animated shatter effects for an entity by cycling through pre-defined animation sequences based on a numeric level.
 tags: [fx, animation]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

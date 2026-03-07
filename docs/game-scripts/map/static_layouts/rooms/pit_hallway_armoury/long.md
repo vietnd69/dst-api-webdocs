@@ -3,7 +3,7 @@ id: long
 title: Long
 description: Defines a static map layout for the Pit Hallway Armoury room in DST’s caves worldgen.
 tags: [map, worldgen, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

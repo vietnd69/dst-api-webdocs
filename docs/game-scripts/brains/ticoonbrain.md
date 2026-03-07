@@ -3,7 +3,7 @@ id: ticoonbrain
 title: Ticoonbrain
 description: AI brain that controls a leader-following quest-related mob (Ticoon) during tracking sequences, coordinating wander, follow, and quest completion behaviors.
 tags: [ai, quest, follow, tracking, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

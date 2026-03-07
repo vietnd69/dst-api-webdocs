@@ -3,7 +3,7 @@ id: playermetrics
 title: Playermetrics
 description: Tracks player-related gameplay events and forwards them to the metrics system for analytics.
 tags: [network, analytics, player]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

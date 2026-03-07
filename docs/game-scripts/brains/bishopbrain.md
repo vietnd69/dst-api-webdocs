@@ -3,7 +3,7 @@ id: bishopbrain
 title: Bishopbrain
 description: Manages the behavior tree for the Clockwork Bishop entity, orchestrating combat, navigation, and social behaviors like following and facing.
 tags: [ai, boss, combat, navigation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

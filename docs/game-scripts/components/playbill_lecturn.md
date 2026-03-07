@@ -3,7 +3,7 @@ id: playbill_lecturn
 title: Playbill Lecturn
 description: Manages the interactive lecturn that displays and tracks the current playbill, synchronizes with the stage performance, and handles playbill item swapping.
 tags: [inventory, performance, stage]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

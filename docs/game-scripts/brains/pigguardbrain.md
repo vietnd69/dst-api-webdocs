@@ -3,7 +3,7 @@ id: pigguardbrain
 title: Pigguardbrain
 description: Controls the AI behavior of pig guard NPCs, managing combat, navigation, and environmental interactions via a behavior tree.
 tags: [ai, combat, npc, brain, behavior-tree]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

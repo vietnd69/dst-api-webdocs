@@ -3,7 +3,7 @@ id: sharkboimanagerhelper
 title: Sharkboimanagerhelper
 description: Helper component for managing and querying the Sharkboi arena’s spatial boundaries in the game world.
 tags: [arena, map, networking]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

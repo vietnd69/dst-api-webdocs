@@ -3,7 +3,7 @@ id: long
 title: Long
 description: Static layout data for a hallway room in the Archive world generation system, defining background tiles and foreground objects for map room placement.
 tags: [map, level_design, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

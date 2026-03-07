@@ -3,7 +3,7 @@ id: acidbatwavemanager
 title: Acidbatwavemanager
 description: Manages spawning and tracking of acid bat waves in response to players accumulating nitre during acid rain.
 tags: [environment, combat, boss, npc]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

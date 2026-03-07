@@ -3,7 +3,7 @@ id: seasons
 title: Seasons
 description: Manages seasonal cycles, progression, and world clock segment assignment for the game world.
 tags: [seasons, world, network, clock]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

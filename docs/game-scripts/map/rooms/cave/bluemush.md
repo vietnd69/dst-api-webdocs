@@ -3,7 +3,7 @@ id: bluemush
 title: Bluemush
 description: Defines cave-level blue mushroom biome room types and their content distributions for world generation.
 tags: [world, generation, environment, biome]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable

@@ -3,7 +3,7 @@ id: vault_floor_helper
 title: Vault Floor Helper
 description: Tracks the active position and state of a vault arena floor region, enabling point-in-room checks for client-side collision and rendering.
 tags: [arena, vault, map]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

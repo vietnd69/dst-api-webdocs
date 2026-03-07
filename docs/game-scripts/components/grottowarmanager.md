@@ -3,7 +3,7 @@ id: grottowarmanager
 title: Grottowarmanager
 description: Manages Grotto War dynamic spawners and population logic, spawning nightmares and brightmares near players based on area and population limits.
 tags: [combat, ai, boss, environment, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

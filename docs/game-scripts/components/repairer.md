@@ -3,7 +3,7 @@ id: repairer
 title: Repairer
 description: Adds repair capability to an entity by exposing material-specific repair properties and managing associated tags.
 tags: [repair, tags, inventory, crafting]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

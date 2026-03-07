@@ -3,7 +3,7 @@ id: walkingplankuser
 title: Walkingplankuser
 description: Manages a player's or entity's current mounting state on a walking plank.
 tags: [locomotion, mounting, utility]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

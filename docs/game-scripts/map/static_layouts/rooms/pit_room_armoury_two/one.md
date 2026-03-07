@@ -3,7 +3,7 @@ id: one
 title: One
 description: Defines the static layout for the Pit Room Armoury Two map room, including background tilemap data and object placement markers for in-game spawners.
 tags: [map, layout, room]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

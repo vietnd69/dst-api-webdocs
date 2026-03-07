@@ -3,7 +3,7 @@ id: cookable
 title: Cookable
 description: Enables an entity to be transformed into a cooked product when processed in a cooking station.
 tags: [cooking, inventory, crafting]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: autosaver
 title: Autosaver
 description: Manages automated world saving and synchronization across master and secondary shards in DST's networking model.
 tags: [network, save, shard]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

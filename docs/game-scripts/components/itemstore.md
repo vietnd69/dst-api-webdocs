@@ -3,7 +3,7 @@ id: itemstore
 title: Itemstore
 description: Manages a storage list of item records for an entity, supporting adding, retrieving, saving, and loading of items without persisting the actual item instances.
 tags: [inventory, storage, persistence]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

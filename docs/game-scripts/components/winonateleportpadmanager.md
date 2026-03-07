@@ -3,7 +3,7 @@ id: winonateleportpadmanager
 title: Winonateleportpadmanager
 description: Tracks and manages all registered Winona teleport pads on the map for network synchronization and world-wide navigation.
 tags: [teleport, map, network, winona]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

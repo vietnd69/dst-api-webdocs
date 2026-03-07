@@ -3,7 +3,7 @@ id: wintersfeasttable
 title: Wintersfeasttable
 description: Manages the state and consumption logic for the Winters Eve Feast Table, tracking which entities are feasting and handling food usage.
 tags: [crafting, event, inventory, multiplayer]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

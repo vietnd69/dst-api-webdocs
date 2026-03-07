@@ -3,7 +3,7 @@ id: wereeater
 title: Wereeater
 description: Tracks consumption of monster meat and forces transformation to were-form when the internal counter reaches a threshold.
 tags: [transform, combat, state]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

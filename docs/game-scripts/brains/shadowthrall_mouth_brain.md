@@ -3,7 +3,7 @@ id: shadowthrall_mouth_brain
 title: Shadowthrall Mouth Brain
 description: Controls the AI behavior for the Shadowthrall Mouth entity, managing transitions between combat, idle, and stealth states using a behavior tree.
 tags: [ai, brain, stealth, combat, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

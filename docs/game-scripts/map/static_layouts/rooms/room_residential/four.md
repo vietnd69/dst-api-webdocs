@@ -3,7 +3,7 @@ id: four
 title: Four
 description: Static map layout for a residential-style room in the game's world generation system, defining tile background layers and object placements.
 tags: [map, room, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

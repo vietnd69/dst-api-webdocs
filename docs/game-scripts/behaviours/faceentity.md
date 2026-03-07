@@ -3,7 +3,7 @@ id: faceentity
 title: Faceentity
 description: A behavior node that orients an entity toward a target entity, optionally triggering alert states and stopping locomotion during the facing operation.
 tags: [ai, behavior, rotation, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

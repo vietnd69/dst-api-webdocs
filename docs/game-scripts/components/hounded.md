@@ -3,7 +3,7 @@ id: hounded
 title: Hounded
 description: Manages timed, escalating hound waves targeting players based on world age and group proximity.
 tags: [combat, ai, boss, world, scheduling]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

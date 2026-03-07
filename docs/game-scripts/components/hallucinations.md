@@ -3,7 +3,7 @@ id: hallucinations
 title: Hallucinations
 description: Manages the spawning and tracking of hallucination entities based on player sanity, time of day, and environment lighting.
 tags: [sanity, environment, fx]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

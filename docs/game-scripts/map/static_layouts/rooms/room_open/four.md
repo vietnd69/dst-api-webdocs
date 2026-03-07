@@ -3,7 +3,7 @@ id: four
 title: Four
 description: A static map layout definition for a room in the Don't Starve Together world generation system, containing tile data for the background layer.
 tags: [world, map, room, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

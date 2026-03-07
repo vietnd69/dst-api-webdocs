@@ -3,7 +3,7 @@ id: two
 title: Two
 description: A static room layout used in world generation for the Hallway Armoury region, containing background tile data and an object spawner.
 tags: [map, static_layout, generation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

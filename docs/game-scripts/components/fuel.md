@@ -3,7 +3,7 @@ id: fuel
 title: Fuel
 description: Manages fuel properties and behavior for entities, including fuel type tagging and fuel consumption events.
 tags: [inventory, item, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: avengingghost
 title: Avengingghost
 description: Manages the avenging ghost state for Wendy, increasing damage over time while in ghost form if a nearby player has the 'wendy_avenging_ghost' skill activated.
 tags: [combat, player, ghost, skill, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

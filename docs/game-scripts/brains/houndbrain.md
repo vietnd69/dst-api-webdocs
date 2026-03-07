@@ -3,7 +3,7 @@ id: houndbrain
 title: Houndbrain
 description: Implements the behavior tree for hound entities, governing movement, combat, and social behaviors based on hound type, leadership, and environmental state.
 tags: [ai, combat, locomotion, social]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

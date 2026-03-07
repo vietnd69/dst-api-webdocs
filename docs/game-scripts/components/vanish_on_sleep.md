@@ -3,7 +3,7 @@ id: vanish_on_sleep
 title: Vanish On Sleep
 description: Automatically removes an entity after 10 seconds of sleep, optionally invoking a custom vanish callback.
 tags: [sleep, entity_lifecycle, removal]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

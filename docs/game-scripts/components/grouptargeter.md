@@ -3,7 +3,7 @@ id: grouptargeter
 title: Grouptargeter
 description: Implements weighted target selection and dynamic weight redistribution for entities managing multiple potential targets.
 tags: [ai, combat, targeting]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

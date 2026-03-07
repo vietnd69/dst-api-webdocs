@@ -3,7 +3,7 @@ id: malbatrossbrain
 title: Malbatrossbrain
 description: Controls the AI behavior of the Malbatross boss, managing combat aggression, drowning logic, dive attacks, and land departure.
 tags: [ai, boss, combat, locomotion, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

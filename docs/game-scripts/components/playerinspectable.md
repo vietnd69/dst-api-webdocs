@@ -3,7 +3,7 @@ id: playerinspectable
 title: Playerinspectable
 description: Syncs player equipment and skill selections to the network for client-side rendering of character appearance.
 tags: [network, player, equipment, skills]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

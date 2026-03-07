@@ -3,7 +3,7 @@ id: itemweigher
 title: Itemweigher
 description: Manages trophy scale type tagging and provides a hook for weighing in items.
 tags: [inventory, entity, tags]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

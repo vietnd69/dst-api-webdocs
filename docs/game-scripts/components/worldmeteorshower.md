@@ -3,7 +3,7 @@ id: worldmeteorshower
 title: Worldmeteorshower
 description: Controls meteor loot generation logic, including conditional replacement of moon rocks with moon rock shells based on accumulated odds.
 tags: [meteor, loot, world, weather, event]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

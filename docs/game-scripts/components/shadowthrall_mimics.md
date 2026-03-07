@@ -3,7 +3,7 @@ id: shadowthrall_mimics
 title: Shadowthrall Mimics
 description: Manages spontaneous spawning of item mimics for the Shadowthrall boss during Cavenights when shadow rifts are active.
 tags: [boss, entity, spawn, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

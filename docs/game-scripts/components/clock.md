@@ -3,7 +3,7 @@ id: clock
 title: Clock
 description: Manages game time, day/night cycles, and moon phase progression for the world.
 tags: [world, time, cycle, moon]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

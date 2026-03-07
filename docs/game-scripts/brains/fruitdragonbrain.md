@@ -3,7 +3,7 @@ id: fruitdragonbrain
 title: Fruitdragonbrain
 description: Implements the behavior tree for the Fruit Dragon boss, handling combat, home tracking, wandering, and panic responses.
 tags: [ai, boss, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

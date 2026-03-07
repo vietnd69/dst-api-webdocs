@@ -3,7 +3,7 @@ id: pumpkincarvable
 title: Pumpkincarvable
 description: Manages carving, visual rendering, and state persistence of pumpkins in the game, including cut shapes, lighting effects, and synchronization between client and server.
 tags: [crafting, fx, lighting, persistence, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

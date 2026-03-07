@@ -3,7 +3,7 @@ id: vase
 title: Vase
 description: Manages flower placement, wilting behavior, and dynamic lighting for decorative vases in the game.
 tags: [flower, lighting, decoration, timer, map]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

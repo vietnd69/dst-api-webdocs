@@ -3,7 +3,7 @@ id: wanderingtraderbrain
 title: Wanderingtraderbrain
 description: Controls the AI behavior of the Wandering Trader, managing movement, face-targeting, stock exhaustion chattering, and route following.
 tags: [ai, movement, trader]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: lavaepetbrain
 title: Lavaepetbrain
 description: Implements the decision-making logic for the Lavae pet, handling hunger-driven behavior, following its owner, and interacting with food and the owner through a behavior tree.
 tags: [ai, brain, hunger, pet]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

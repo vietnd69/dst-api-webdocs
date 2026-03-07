@@ -3,7 +3,7 @@ id: grassgatorbrain
 title: Grassgatorbrain
 description: AI brain that governs the movement and combat behavior of the grass gator creature, handling panic, chasing, fleeing, orientation toward players, and land-based wandering.
 tags: [ai, combat, locomotion, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

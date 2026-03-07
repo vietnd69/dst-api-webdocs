@@ -3,7 +3,7 @@ id: one
 title: One
 description: Defines the static layout data for the Pit Hallway Armoury room's first variation using Tiled JSON format.
 tags: [map, layout, room]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

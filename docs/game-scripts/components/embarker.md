@@ -3,7 +3,7 @@ id: embarker
 title: Embarker
 description: Manages the movement and positioning of an entity during embarkation or disembarkation onto/from a platform or designated position.
 tags: [locomotion, platform, movement]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

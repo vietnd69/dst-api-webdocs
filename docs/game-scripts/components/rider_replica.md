@@ -3,7 +3,7 @@ id: rider_replica
 title: Rider Replica
 description: Manages networked state and replicated data for a rider entity, synchronizing mount, saddle, and riding status between server and client.
 tags: [network, player, mount, controller, replication]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

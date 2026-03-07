@@ -3,7 +3,7 @@ id: homeseeker
 title: Homeseeker
 description: Tracks and provides navigation logic to a designated home entity for an actor.
 tags: [navigation, ai, home]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: skinner
 title: Skinner
 description: Manages character skin and clothing appearance for entities, including skin type switching, clothing application, and skin synchronization between players.
 tags: [appearance, network, player, clothing]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

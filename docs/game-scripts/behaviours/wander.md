@@ -3,7 +3,7 @@ id: wander
 title: Wander
 description: Controls an entity to move randomly within a defined area relative to a home position, using pathfinding and obstacle avoidance to navigate.
 tags: [ai, locomotion, navigation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

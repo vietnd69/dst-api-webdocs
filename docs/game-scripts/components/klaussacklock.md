@@ -3,7 +3,7 @@ id: klaussacklock
 title: Klaussacklock
 description: Manages keyed interaction logic for Klaus sack locks, allowing or denying access based on a callback function and key consumption behavior.
 tags: [lock, key, interaction]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

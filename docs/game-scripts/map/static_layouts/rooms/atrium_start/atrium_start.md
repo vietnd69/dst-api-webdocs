@@ -3,7 +3,7 @@ id: atrium_start
 title: Atrium Start
 description: Static map layout data for the Atrium Start room, defining tile placements and object positions used in world generation.
 tags: [worldgen, room, static]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

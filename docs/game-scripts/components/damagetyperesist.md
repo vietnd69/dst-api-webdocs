@@ -3,7 +3,7 @@ id: damagetyperesist
 title: Damagetyperesist
 description: Manages resistances to damage based on the tag(s) of the attacker or weapon applying the damage.
 tags: [combat, damage, resistance]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

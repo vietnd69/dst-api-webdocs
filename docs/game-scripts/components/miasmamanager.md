@@ -3,7 +3,7 @@ id: miasmamanager
 title: Miasmamanager
 description: Manages miasma cloud generation, spread, strength, and decay in the world map, primarily in relation to rifts and vents.
 tags: [environment, world, spawn, map]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

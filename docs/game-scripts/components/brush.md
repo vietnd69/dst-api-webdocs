@@ -3,7 +3,7 @@ id: brush
 title: Brush
 description: A placeholder component with no implemented functionality, likely reserved for future use or placeholder objects.
 tags: [placeholder]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: three
 title: Three
 description: Tiled map data structure for the Armoury Two (room_armoury_two/three) static layout, defining tile layers and object placement for a dungeon room.
 tags: [map, static_layout, room, dungeon]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

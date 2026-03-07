@@ -3,7 +3,7 @@ id: blinkstaff
 title: Blinkstaff
 description: Handles teleportation logic and visual/audio effects for the Blink Staff item in DST.
 tags: [teleport, item, fx, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

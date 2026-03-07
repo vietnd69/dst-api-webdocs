@@ -3,7 +3,7 @@ id: moosespawner
 title: Moosespawner
 description: Manages the spawning and scheduling of moose entities in relation to moose nesting grounds during spring season.
 tags: [environment, boss, seasonal, world, spawning]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

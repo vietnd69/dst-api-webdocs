@@ -3,7 +3,7 @@ id: mosslingbrain
 title: Mosslingbrain
 description: AI decision engine for mossling entities, coordinating foraging, stealing, guardian summoning, and panic responses via behavior trees.
 tags: [ai, brain, foraging, combat, guardian]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

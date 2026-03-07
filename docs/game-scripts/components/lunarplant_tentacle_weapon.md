@@ -3,7 +3,7 @@ id: lunarplant_tentacle_weapon
 title: Lunarplant Tentacle Weapon
 description: Spawns lunar tentacles as secondary attacks when equipped and used in combat, conditional on skill tree activation.
 tags: [combat, equipment, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

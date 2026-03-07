@@ -3,7 +3,7 @@ id: kitcoon
 title: Kitcoon
 description: A placeholder component with no functional behavior; provides a minimal implementation for debugging or future expansion.
 tags: [debug, placeholder]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

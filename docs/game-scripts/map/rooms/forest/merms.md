@@ -3,7 +3,7 @@ id: merms
 title: Merms
 description: Defines the MermTown room template for forest worlds, specifying tile type, visual color, and spawn rules for merm-related structures and entities.
 tags: [map, room, spawning]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable

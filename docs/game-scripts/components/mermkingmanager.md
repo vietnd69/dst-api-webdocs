@@ -3,7 +3,7 @@ id: mermkingmanager
 title: Mermkingmanager
 description: Manages the lifecycle of Merm Kings, including throne selection, candidate transformation, and world-wide king state tracking in Don't Starve Together.
 tags: [boss, ai, merm, quest, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

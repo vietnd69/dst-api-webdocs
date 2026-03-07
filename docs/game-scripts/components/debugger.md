@@ -3,7 +3,7 @@ id: debugger
 title: Debugger
 description: Provides runtime line-drawing debug visualization for entities by rendering debug lines between specified origin and target points.
 tags: [debug, rendering, tools]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

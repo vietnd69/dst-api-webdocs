@@ -3,7 +3,7 @@ id: maprevealable
 title: Maprevealable
 description: Manages dynamic map revealed areas by spawning and tracking mini-map icons based on nearby map revealers and custom sources.
 tags: [map, world, visibility]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

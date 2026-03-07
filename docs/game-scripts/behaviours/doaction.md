@@ -3,7 +3,7 @@ id: doaction
 title: Doaction
 description: Executes a dynamically retrieved action on an entity and manages its lifecycle within a behaviour tree.
 tags: [ai, behaviour, action]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: sandstorms
 title: Sandstorms
 description: Manages global sandstorm state and calculates storm intensity based on season, weather, location, and nearby oases.
 tags: [environment, weather, world, map]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

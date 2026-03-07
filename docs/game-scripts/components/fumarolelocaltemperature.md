@@ -3,7 +3,7 @@ id: fumarolelocaltemperature
 title: Fumarolelocaltemperature
 description: Calculates and provides local temperature values near fumaroles based on seasonal cycles, noise, and multipliers, for use by the temperature override system.
 tags: [temperature, environment, map, network, simulation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

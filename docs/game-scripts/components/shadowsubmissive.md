@@ -3,7 +3,7 @@ id: shadowsubmissive
 title: Shadowsubmissive
 description: Grants an entity the `shadowsubmissive` tag and manages its behavioral response to shadow-dominant entities by tracking attacks and restoring the `shadowdominance` tag after a delay if conditions are met.
 tags: [shadow, behavior, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: pigelitebrain
 title: Pigelitebrain
 description: AI brain controlling Pig Elite behavior during minigames, including gold diving, prop pickup, panic responses, and post-match posing.
 tags: [ai, combat, minigame, panic, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

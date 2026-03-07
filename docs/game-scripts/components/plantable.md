@@ -3,7 +3,7 @@ id: plantable
 title: Plantable
 description: Initializes core growth parameters for plants, such as grow time and final product.
 tags: [plant, growth, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

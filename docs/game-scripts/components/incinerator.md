@@ -3,7 +3,7 @@ id: incinerator
 title: Incinerator
 description: Handles the destruction of items inside a container when triggered, including optional sound playback, event dispatching, and kill/murder event propagation for living items.
 tags: [inventory, destruction, combat, sound]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

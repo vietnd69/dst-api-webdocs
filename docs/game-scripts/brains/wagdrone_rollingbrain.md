@@ -3,7 +3,7 @@ id: wagdrone_rollingbrain
 title: Wagdrone Rollingbrain
 description: Controls the targeting and movement logic for the Wagdrone in rolling mode, managing locomotion, recoil correction, and work target selection within a deploy radius.
 tags: [ai, locomotion, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

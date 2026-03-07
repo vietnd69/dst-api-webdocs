@@ -3,7 +3,7 @@ id: pethealthbar
 title: Pethealthbar
 description: Manages network-synchronized pet health visualization and status indicators for companion entities.
 tags: [combat, pet, ui, network, status]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

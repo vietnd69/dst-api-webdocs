@@ -3,7 +3,7 @@ id: shadow_bishopbrain
 title: Shadow Bishopbrain
 description: Controls the AI behavior of the Shadow Bishop boss entity, handling movement, facing, taunting, and timed despawn logic.
 tags: [ai, boss, combat, behavior]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

@@ -3,7 +3,7 @@ id: chess
 title: Chess
 description: Defines corruption-themed world rooms (ChessArea, MarbleForest, etc.) with randomized static layouts and prefab spawn probabilities for procedural map generation.
 tags: [world, generation, room, corruption]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

@@ -3,7 +3,7 @@ id: chaseandram
 title: Chaseandram
 description: A behavior node that executes a charged ram attack toward a target, managing pursuit, alignment, and termination conditions such as distance, time, or attack count limits.
 tags: [ai, combat, locomotion, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

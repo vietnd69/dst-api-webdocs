@@ -3,7 +3,7 @@ id: summoningitem
 title: Summoningitem
 description: A placeholder component with no functional behavior, intended for future extension or as a stub in the component registry.
 tags: [stub]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-04
 build_version: 714014

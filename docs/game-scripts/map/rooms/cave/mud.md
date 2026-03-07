@@ -3,7 +3,7 @@ id: mud
 title: Mud
 description: Defines cave environment room templates containing mud terrain tiles and procedurally placed flora, wildlife, and structures.
 tags: [world, cave, terrain, room]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

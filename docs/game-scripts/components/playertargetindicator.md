@@ -3,7 +3,7 @@ id: playertargetindicator
 title: Playertargetindicator
 description: Tracks players who should display target indicators on screen and manages their visibility based on frustum culling and tracking eligibility.
 tags: [ui, camera, player, frustum]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

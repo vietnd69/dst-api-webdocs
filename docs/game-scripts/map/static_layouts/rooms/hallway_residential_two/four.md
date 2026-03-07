@@ -3,7 +3,7 @@ id: four
 title: Four
 description: A static layout room definition for residential-style hallways in the Caves, using tile layer data to define background patterns.
 tags: [map, room, tile, static]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

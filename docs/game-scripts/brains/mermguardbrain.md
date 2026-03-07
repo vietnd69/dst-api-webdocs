@@ -3,7 +3,7 @@ id: mermguardbrain
 title: Mermguardbrain
 description: Implements the decision-making logic for a merm guard entity, handling combat, following, trading, armor acquisition, healing requests, and interaction with offering pots.
 tags: [ai, combat, npc, trader]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

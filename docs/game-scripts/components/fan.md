@@ -3,7 +3,7 @@ id: fan
 title: Fan
 description: Provides configurable callback-based functionality for channeling and fanning actions on an entity, optionally managing the 'channelingfan' tag.
 tags: [actions, channeling, callbacks]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

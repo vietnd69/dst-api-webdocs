@@ -3,7 +3,7 @@ id: stalker_minionbrain
 title: Stalker Minionbrain
 description: Manages the AI behavior of stalker minions, which remain stationary while their stalker is present but die shortly after the stalker is destroyed.
 tags: [ai, boss, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

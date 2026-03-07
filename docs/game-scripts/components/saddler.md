@@ -3,7 +3,7 @@ id: saddler
 title: Saddler
 description: Manages item-saddle modifiers such as bonus damage, speed multiplier, and damage absorption, and applies modified damage calculations during combat.
 tags: [combat, inventory, modifier, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

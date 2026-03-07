@@ -3,7 +3,7 @@ id: spiderbrain
 title: Spiderbrain
 description: Manages the AI behavior tree for spiders, handling combat, following, hiding, foraging, and navigation based on spider type and state.
 tags: [ai, combat, behavior-tree, spider]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

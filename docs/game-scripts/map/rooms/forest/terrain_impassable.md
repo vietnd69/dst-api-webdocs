@@ -3,7 +3,7 @@ id: terrain_impassable
 title: Terrain Impassable
 description: Defines impassable room templates for the forest world map, including visual and gameplay properties for untraversable terrain.
 tags: [map, terrain, room]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

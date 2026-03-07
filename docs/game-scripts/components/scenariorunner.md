@@ -3,7 +3,7 @@ id: scenariorunner
 title: Scenariorunner
 description: Manages loading, executing, and cleaning up scenario scripts associated with an entity.
 tags: [scenario, lifecycle, script]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

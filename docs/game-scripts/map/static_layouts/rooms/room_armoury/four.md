@@ -3,7 +3,7 @@ id: four
 title: Four
 description: Defines the layout data for the 'four' room variant in the armoury map room, including tile positions and object placements using Tiled map format.
 tags: [map, room, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

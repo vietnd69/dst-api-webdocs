@@ -3,7 +3,7 @@ id: recallmark
 title: Recallmark
 description: Marks a specific world position as a recall point for teleportation, storing coordinates and shard ID for later use.
 tags: [teleportation, memory, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

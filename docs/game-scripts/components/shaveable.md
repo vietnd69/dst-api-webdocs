@@ -3,7 +3,7 @@ id: shaveable
 title: Shaveable
 description: Manages the ability for an entity to be shaved, producing configurable loot items upon successful shaving.
 tags: [inventory, entity, interaction]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

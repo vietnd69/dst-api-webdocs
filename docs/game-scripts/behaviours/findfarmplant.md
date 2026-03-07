@@ -3,7 +3,7 @@ id: findfarmplant
 title: Findfarmplant
 description: Selects a suitable farm plant for tending based on stress state and proximity, then initiates movement to it.
 tags: [ai, behavior, farming]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

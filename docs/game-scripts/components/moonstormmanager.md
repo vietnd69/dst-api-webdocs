@@ -3,7 +3,7 @@ id: moonstormmanager
 title: Moonstormmanager
 description: Manages moonstorm events, wagstaff hunts, and storm-related gameplay progression in DST's Moon Altar and Wagboss systems.
 tags: [moonstorm, boss, events, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

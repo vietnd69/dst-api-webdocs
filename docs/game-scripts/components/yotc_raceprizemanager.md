@@ -3,7 +3,7 @@ id: yotc_raceprizemanager
 title: Yotc Raceprizemanager
 description: Manages prize distribution for carrat races, tracking race data and awarding loot based on race completion.
 tags: [racing, loot, world, event]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

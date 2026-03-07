@@ -3,7 +3,7 @@ id: container
 title: Container
 description: Manages item storage and interactions for entities, providing slot-based inventory logic, opening/closing behavior, and item transfer operations.
 tags: [inventory, storage, interaction, ui]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

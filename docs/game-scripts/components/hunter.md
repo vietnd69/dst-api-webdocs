@@ -3,7 +3,7 @@ id: hunter
 title: Hunter
 description: Manages dynamic monster hunting sequences triggered by players investigating dirt piles, including track generation, beast selection, and spawn logic based on world state and active shrines.
 tags: [world, combat, quest]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

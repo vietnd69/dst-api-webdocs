@@ -3,7 +3,7 @@ id: raindome
 title: Raindome
 description: Manages a dynamic rain-shield dome entity that grants rain immunity to nearby entities within its active radius.
 tags: [environment, weather, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

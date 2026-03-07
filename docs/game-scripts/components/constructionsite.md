@@ -3,7 +3,7 @@ id: constructionsite
 title: Constructionsite
 description: Manages the state and materials required to construct a building or object at a construction site.
 tags: [crafting, inventory, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

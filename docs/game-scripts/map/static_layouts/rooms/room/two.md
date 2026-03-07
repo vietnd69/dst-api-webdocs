@@ -3,7 +3,7 @@ id: two
 title: Two
 description: Static room layout data for a 32x32 tile room used in DST's world generation system.
 tags: [map, room, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

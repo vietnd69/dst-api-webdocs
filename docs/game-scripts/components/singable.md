@@ -3,7 +3,7 @@ id: singable
 title: Singable
 description: Provides a sing interaction that triggers a song effect on a singer with the SingingInspiration component.
 tags: [audio, interaction, song]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

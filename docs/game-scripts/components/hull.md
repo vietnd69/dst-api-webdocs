@@ -3,7 +3,7 @@ id: hull
 title: Hull
 description: Manages visual and logical attachment of boat-related accessories (plank, lip) and handles entity attachment offsets during boat placement.
 tags: [boat, decoration, attachment, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

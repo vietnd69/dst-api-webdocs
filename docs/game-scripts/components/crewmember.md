@@ -3,7 +3,7 @@ id: crewmember
 title: Crewmember
 description: Manages the rowing behavior and boat association for entities acting as crew members on boats.
 tags: [locomotion, boat, rowing]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

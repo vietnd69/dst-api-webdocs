@@ -3,7 +3,7 @@ id: klaussackkey
 title: Klaussackkey
 description: Manages the state and lifecycle of a Klaus sack key item, including tag management and delayed restoration logic for true keys.
 tags: [inventory, event, network, item, quest]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

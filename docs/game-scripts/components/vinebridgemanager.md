@@ -3,7 +3,7 @@ id: vinebridgemanager
 title: Vinebridgemanager
 description: Manages dynamic vine bridge tiles in the game world, including creation, damage, destruction, and animation.
 tags: [world, environment, map, boss]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

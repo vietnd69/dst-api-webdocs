@@ -3,7 +3,7 @@ id: nutrients_visual_manager
 title: Nutrients Visual Manager
 description: Manages visibility and rendering state of nutrient-related visual effects based on the player's nutrient vision toggle.
 tags: [visual, effect, world, networking]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

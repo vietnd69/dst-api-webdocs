@@ -3,7 +3,7 @@ id: bathbombable
 title: Bathbombable
 description: Manages whether an entity can be transformed by bath bombs, tracking its bath-bombable state and providing a callback hook for bath-bomb activation.
 tags: [item, transform, interaction]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

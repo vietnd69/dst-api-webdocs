@@ -3,7 +3,7 @@ id: furnituredecor
 title: Furnituredecor
 description: Manages the visual and logical state of furniture decorations, such as being enabled and whether it's placed on furniture.
 tags: [furniture, visual, state]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

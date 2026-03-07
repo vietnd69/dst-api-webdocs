@@ -3,7 +3,7 @@ id: cooker
 title: Cooker
 description: Validates and executes cooking operations for items placed on a cooking entity, ensuring required conditions are met and handling side effects like sound playback and event callbacks.
 tags: [crafting, cooking, interaction]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

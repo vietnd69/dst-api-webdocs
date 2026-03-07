@@ -3,7 +3,7 @@ id: pigbrain
 title: Pigbrain
 description: Controls the AI behavior tree for pigs, handling movement, combat, foraging, trading, minigame spectating, and response to threats or environment.
 tags: [ai, entity, combat, foraging, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

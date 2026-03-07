@@ -3,7 +3,7 @@ id: terrain_grass
 title: Terrain Grass
 description: Defines forest floor terrain room templates for procedural world generation, including grassland variants with randomized vegetation and structures.
 tags: [world, procedural, map, generation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

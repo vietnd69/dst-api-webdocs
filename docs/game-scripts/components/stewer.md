@@ -3,7 +3,7 @@ id: stewer
 title: Stewer
 description: Manages cooking and spoilage timers for stew pot entities, handling cooking progression, product generation, and spoilage logic.
 tags: [cooking, inventory, timer, perishable]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

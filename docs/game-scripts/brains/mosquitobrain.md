@@ -3,7 +3,7 @@ id: mosquitobrain
 title: Mosquitobrain
 description: Controls the AI decision-making behavior for the mosquito entity, coordinating movement, combat, and homing logic via behavior trees.
 tags: [ai, brain, combat, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

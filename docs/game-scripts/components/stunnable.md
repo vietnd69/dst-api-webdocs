@@ -3,7 +3,7 @@ id: stunnable
 title: Stunnable
 description: Tracks incoming damage over time and triggers a stun effect when damage exceeds a threshold within a specified window.
 tags: [combat, ai, status_effect]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

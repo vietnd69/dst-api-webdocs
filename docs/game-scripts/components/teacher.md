@@ -3,7 +3,7 @@ id: teacher
 title: Teacher
 description: Teaches a specific recipe to a target entity by interacting with the Builder component.
 tags: [crafting, teaching, interaction]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: walrus
 title: Walrus
 description: Registers three room variants for walrus camps in forest worlds, each with distinct tile types, spawn configurations, and weighted prefab distributions.
 tags: [room, spawn, distribution, worldgen, forest]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable

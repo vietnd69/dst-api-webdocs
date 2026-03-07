@@ -3,7 +3,7 @@ id: wobsterbrain
 title: Wobsterbrain
 description: AI controller for the Wobster entity that manages its behavior while fishing, including struggling when hooked, returning home during the day, and interacting with fishing lures.
 tags: [ai, fishing, ocean, behavior, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

@@ -3,7 +3,7 @@ id: boattrailmover
 title: Boattrailmover
 description: Manages movement and trajectory tracking for a boat entity in the game world.
 tags: [locomotion, boat, physics]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

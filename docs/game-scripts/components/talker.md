@@ -3,7 +3,7 @@ id: talker
 title: Talker
 description: Manages speech and chatter functionality for entities, including text display, network replication, and interaction with AI states like death and sleep.
 tags: [ai, speech, network, combat]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

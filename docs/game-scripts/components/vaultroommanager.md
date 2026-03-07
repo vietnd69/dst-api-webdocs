@@ -3,7 +3,7 @@ id: vaultroommanager
 title: Vaultroommanager
 description: Manages the layout, state, and teleportation logic for the Vault dungeon, including room connections, marker registration, player tracking, and randomization.
 tags: [vault, mapping, teleport, world]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

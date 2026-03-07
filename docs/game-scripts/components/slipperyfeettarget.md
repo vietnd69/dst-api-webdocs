@@ -3,7 +3,7 @@ id: slipperyfeettarget
 title: Slipperyfeettarget
 description: Marks an entity as a target location where slippery surface effects can be evaluated.
 tags: [physics, environment, slippery]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

@@ -3,7 +3,7 @@ id: minperiod
 title: Minperiod
 description: Enforces a minimum time interval between successful executions of a child behaviour node in the AI decision tree.
 tags: [ai, behaviour, cooldown]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

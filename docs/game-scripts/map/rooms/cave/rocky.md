@@ -3,7 +3,7 @@ id: rocky
 title: Rocky
 description: Defines several cave room templates containing variable distributions of rocks, pillars, slurtle holes, bats, and other environmental props for world generation.
 tags: [worldgen, room, environment, cave]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

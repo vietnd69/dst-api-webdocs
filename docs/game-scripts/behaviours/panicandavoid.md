@@ -3,7 +3,7 @@ id: panicandavoid
 title: Panicandavoid
 description: Triggers panicked movement in a random direction while avoiding nearby threats when a specified avoidance condition is met.
 tags: [ai, locomotion, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

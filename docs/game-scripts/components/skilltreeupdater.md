@@ -3,7 +3,7 @@ id: skilltreeupdater
 title: Skilltreeupdater
 description: Manages player skill tree activation, XP progression, and network synchronization across client and server.
 tags: [skill_tree, progression, network, player]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

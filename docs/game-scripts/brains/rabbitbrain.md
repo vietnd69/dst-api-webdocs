@@ -3,7 +3,7 @@ id: rabbitbrain
 title: Rabbitbrain
 description: Controls the AI behavior of rabbit-like entities, managing panic responses to predators, home seeking, foraging for edible bait, and wandering.
 tags: [ai, entity, brain, wander, panic]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

@@ -3,7 +3,7 @@ id: playervoter
 title: Playervoter
 description: Manages player vote state and submission for shared world voting systems.
 tags: [network, player, voting]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: sanity
 title: Sanity
 description: Manages sanity value, mode (Insanity/Lunacy), and related mechanics for an entity, including dynamic rate calculation from environmental and aura sources.
 tags: [sanity, player, entity, aura, environment]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

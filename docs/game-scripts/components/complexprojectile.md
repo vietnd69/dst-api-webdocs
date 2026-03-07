@@ -3,7 +3,7 @@ id: complexprojectile
 title: Complexprojectile
 description: Manages physics-based projectile trajectories with configurable launch conditions, gravity, and hit/miss callbacks for ranged attacks.
 tags: [combat, projectile, physics]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

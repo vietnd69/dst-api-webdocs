@@ -3,7 +3,7 @@ id: colourcube
 title: Colourcube
 description: Manages dynamic colour grading via colour cubes (LUTs) to reflect in-game conditions such as time of day, season, sanity, and environment (caves or overworld).
 tags: [fx, lighting, player, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

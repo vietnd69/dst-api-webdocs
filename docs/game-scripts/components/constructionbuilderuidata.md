@@ -3,7 +3,7 @@ id: constructionbuilderuidata
 title: Constructionbuilderuidata
 description: Provides UI-facing accessor methods for construction-related data, specifically the container and target entities of a construction builder, and helper functions to query construction plan ingredients.
 tags: [ui, construction, replication]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

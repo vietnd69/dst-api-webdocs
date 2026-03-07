@@ -1,11 +1,11 @@
 ---
 id: upgrademoduleremover
 title: Upgrademoduleremover
-description: A placeholder component with no functional logic; provides no operations or event handling.
-tags: []
-sidebar_position: 1
+description: A placeholder component with no functional behavior, typically used as a stub for future functionality or placeholder logic.
+tags: [stub]
+sidebar_position: 10
 
-last_updated: 2026-03-04
+last_updated: 2026-03-07
 build_version: 714014
 change_status: stable
 category_type: components
@@ -15,16 +15,16 @@ system_scope: entity
 
 # Upgrademoduleremover
 
-> Based on game build **714014** | Last updated: 2026-03-04
+> Based on game build **714014** | Last updated: 2026-03-07
 
 ## Overview
-`UpgradeModuleRemover` is a minimal, non-functional component. It initializes with an instance (`self.inst`) but contains no methods, properties, event listeners, or behavior logic. It serves no operational purpose in the current codebase and appears to be a stub or placeholder.
+`UpgradeModuleRemover` is a minimal, non-functional component that currently serves no operational purpose in the game logic. It only initializes `self.inst` and exits. This component is likely a stub intended for future use, possibly related to removing upgrade modules from entities (e.g., in the context of modded content or planned features), but it is not actively used in any core DST systems.
 
 ## Usage example
 ```lua
--- This component has no functional use and should not be added to entities.
 local inst = CreateEntity()
--- inst:AddComponent("upgrademoduleremover") -- Not recommended
+inst:AddComponent("upgrademoduleremover")
+-- No methods are currently available or functional.
 ```
 
 ## Dependencies & tags
@@ -35,7 +35,7 @@ local inst = CreateEntity()
 No public properties
 
 ## Main functions
-No public methods
+No public functions
 
 ## Events & listeners
-None identified
+No events or listeners identified

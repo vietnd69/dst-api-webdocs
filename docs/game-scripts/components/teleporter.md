@@ -3,7 +3,7 @@ id: teleporter
 title: Teleporter
 description: Manages inter- and intra-world teleportation of entities, including followers and items, with support for migration, camera transitions, and walkable offset alignment.
 tags: [teleport, world, entity, migration]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

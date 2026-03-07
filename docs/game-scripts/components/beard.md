@@ -3,7 +3,7 @@ id: beard
 title: Beard
 description: Manages beard growth, appearance, and related inventory mechanics for bearded characters in DST.
 tags: [entity, inventory, progression]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

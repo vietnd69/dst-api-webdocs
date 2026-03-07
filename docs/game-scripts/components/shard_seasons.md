@@ -3,7 +3,7 @@ id: shard_seasons
 title: Shard Seasons
 description: Manages season state synchronization between master shard and clients for a specific shard entity in Don't Starve Together.
 tags: [network, season, shard, sync]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

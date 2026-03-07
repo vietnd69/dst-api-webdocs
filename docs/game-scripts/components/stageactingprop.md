@@ -3,7 +3,7 @@ id: stageactingprop
 title: Stageactingprop
 description: Manages theatrical performance logic for stage props, including script selection, cast collection, and line delivery coordination.
 tags: [theater, ai, performance, script, event]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

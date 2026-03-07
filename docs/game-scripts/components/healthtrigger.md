@@ -3,7 +3,7 @@ id: healthtrigger
 title: Healthtrigger
 description: Triggers custom callbacks when an entity's health percentage crosses specified thresholds during damage or healing events.
 tags: [health, event, callback]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

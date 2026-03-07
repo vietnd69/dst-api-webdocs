@@ -3,7 +3,7 @@ id: shadowthrall_hands_brain
 title: Shadowthrall Hands Brain
 description: Controls the AI behavior for shadow thrall hands, managing attack timing, movement, and coordination with allies (horns and wings) during boss encounters.
 tags: [ai, combat, boss, coordination, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

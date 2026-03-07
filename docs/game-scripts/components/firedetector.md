@@ -3,7 +3,7 @@ id: firedetector
 title: FireDetector
 description: Monitors entities within range for fire-related hazards, supporting normal fire detection and emergency mode responses based on burning, smoldering, or withering targets.
 tags: [combat, environment, ai]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: fishingrod
 title: Fishingrod
 description: Manages the fishing mechanic for a fishing rod, including casting, nibbling, strain, and reeling interactions with a fishable entity.
 tags: [fishing, inventory, player]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

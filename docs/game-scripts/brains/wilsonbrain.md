@@ -3,7 +3,7 @@ id: wilsonbrain
 title: Wilsonbrain
 description: AI brain component that defines Wilson's default behavior tree for combat and movement, prioritizing player-held primary input while enabling fallback automated attacks.
 tags: [ai, combat, player]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

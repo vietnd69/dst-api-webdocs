@@ -3,7 +3,7 @@ id: wormwood_carratbrain
 title: Wormwood Carratbrain
 description: AI behavior tree controller that governs Carrat movement and interaction with the environment and leader in Don't Starve Together.
 tags: [ai, brain, follower, behavior_tree]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

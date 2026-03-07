@@ -3,7 +3,7 @@ id: centipedebody
 title: Centipedebody
 description: Manages the physical structure and movement coordination of a multi-segment centipede-like entity, including segment spawning, constraint linking, rotation synchronization, and brain control handover.
 tags: [ai, locomotion, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

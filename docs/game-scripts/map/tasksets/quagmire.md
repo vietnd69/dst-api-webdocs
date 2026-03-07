@@ -41,4 +41,3 @@ Not applicable — this file contains only a single top-level call to `AddTaskSe
 
 ## Events & listeners
 Not applicable — no event listeners or event firing occurs in this file.
-(End of documentation)

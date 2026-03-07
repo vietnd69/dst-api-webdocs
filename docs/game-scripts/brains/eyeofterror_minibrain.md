@@ -3,7 +3,7 @@ id: eyeofterror_minibrain
 title: Eyeofterror Minibrain
 description: Controls the AI behavior of the Eye of Terror entity, managing its pathfinding, combat, and foraging actions via a behavior tree.
 tags: [ai, combat, boss, navigation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

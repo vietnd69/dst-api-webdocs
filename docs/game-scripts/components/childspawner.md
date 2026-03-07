@@ -3,7 +3,7 @@ id: childspawner
 title: Childspawner
 description: Manages the spawning, tracking, and regeneration of child entities for parent entities such as bosses or nest structures.
 tags: [spawn, boss, entity, regen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

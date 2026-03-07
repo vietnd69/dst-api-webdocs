@@ -3,7 +3,7 @@ id: seamlessplayerswapper
 title: Seamlessplayerswapper
 description: Handles seamless in-game player character transitions without exiting to character select, preserving inventory, tags, and clothing while updating prefabs.
 tags: [player, inventory, network, transition]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

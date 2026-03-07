@@ -3,7 +3,7 @@ id: grotto_start
 title: Grotto Start
 description: Defines the static layout data for the Grotto starting area, including tilemap configuration, light placements, and spawn points.
 tags: [map, layout, static, grotto]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

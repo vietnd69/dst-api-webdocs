@@ -3,7 +3,7 @@ id: rabbits
 title: Rabbits
 description: Defines cave-level room templates for rabbit warrens and related environments, including RabbitArea, RabbitTown, RabbitCity, RabbitSinkhole, and SpiderIncursion.
 tags: [map, worldgen, room, biome]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

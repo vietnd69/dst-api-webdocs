@@ -3,7 +3,7 @@ id: deerclopsspawner
 title: Deerclopsspawner
 description: Manages the spawning, timing, and targeting logic for Deerclops boss attacks in DST.
 tags: [boss, combat, world, spawning, seasonal]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

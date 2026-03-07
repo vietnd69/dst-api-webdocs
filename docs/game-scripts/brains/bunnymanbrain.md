@@ -3,7 +3,7 @@ id: bunnymanbrain
 title: Bunnymanbrain
 description: AI controller that manages autonomous behavior for bunnyman entities, including combat, fleeing, foraging, home-seeking, and trading interactions.
 tags: [ai, entity, combat, foraging, home]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

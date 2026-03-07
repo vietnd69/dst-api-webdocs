@@ -3,7 +3,7 @@ id: ruins
 title: Ruins
 description: Defines procedural cave room templates for the Ruins biome, including layouts and distribution rules for flora, structures, and spawners.
 tags: [world, map, rooms, procedural]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

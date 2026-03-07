@@ -3,7 +3,7 @@ id: one
 title: One
 description: Defines static layout data for a residential room tilemap used in world generation.
 tags: [map, worldgen, room]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

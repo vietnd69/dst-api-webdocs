@@ -3,7 +3,7 @@ id: two
 title: Two
 description: Tiled map data configuration for the archive hallway two room layout, defining tile layers and object placements for procedural dungeon generation.
 tags: [map, generation, room]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

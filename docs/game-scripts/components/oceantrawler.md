@@ -3,7 +3,7 @@ id: oceantrawler
 title: Oceantrawler
 description: Manages the catching, storage, and release of ocean fish in a trawler net, including timing-based collection while sleeping, overflow handling, and animation synchronization.
 tags: [fishing, inventory, ocean, animation, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

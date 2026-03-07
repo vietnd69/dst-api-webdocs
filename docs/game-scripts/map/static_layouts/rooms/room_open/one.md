@@ -3,7 +3,7 @@ id: one
 title: One
 description: Defines a 32x32 tiled map layout for open rooms in the DST world generation system.
 tags: [map, worldgen, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

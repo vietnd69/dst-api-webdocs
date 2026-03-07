@@ -3,7 +3,7 @@ id: harvestable
 title: Harvestable
 description: Manages plant-like entities that grow over time and can be harvested to yield items, handling growth progress, pausing, and item dropping.
 tags: [growth, harvesting, production, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: lightcrabbrain
 title: Lightcrabbrain
 description: Controls the AI behavior of a light-crab entity by managing state execution through a behavior tree, including fleeing from threats, seeking bait, wandering, and returning home.
 tags: [ai, brain, movement, predation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

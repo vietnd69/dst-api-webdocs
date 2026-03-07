@@ -3,7 +3,7 @@ id: lunarthrall_plantspawner
 title: Lunarthrall Plantspawner
 description: Manages the spawning and wave-based infestation of Lunarthrall plants by spawning Gestalt entities and infesting target plants during lunar rift events.
 tags: [boss, event, world, spawn, lunar]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

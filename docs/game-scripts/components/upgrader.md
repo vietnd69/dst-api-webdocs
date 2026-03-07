@@ -3,7 +3,7 @@ id: upgrader
 title: Upgrader
 description: Determines whether a given entity can be upgraded based on type and user permissions.
 tags: [upgrades, validation, permissions]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: updatelooper
 title: Updatelooper
 description: Manages multiple per-frame, long-interval, wall-logic, and post-update callbacks for an entity.
 tags: [update, loop, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: maxhealer
 title: Maxhealer
 description: Applies a health penalty reduction to a target entity when consumed, typically used for revive-like consumable items.
 tags: [consumable, health, revival, item]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

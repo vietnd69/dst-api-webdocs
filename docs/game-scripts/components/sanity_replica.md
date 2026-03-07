@@ -3,7 +3,7 @@ id: sanity_replica
 title: Sanity Replica
 description: Network-replicated component that synchronizes sanity state, mode, and related properties between server and client for player entities.
 tags: [network, player, sanity]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

@@ -3,7 +3,7 @@ id: nonslipgritpool
 title: Nonslipgritpool
 description: Provides logic to determine whether a point on the ground is covered in non-slip grit, used to prevent entities from sliding on ice or slippery surfaces.
 tags: [physics, environment, slippery]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

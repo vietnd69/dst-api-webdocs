@@ -3,7 +3,7 @@ id: beefalobrain
 title: Beefalobrain
 description: Controls the AI behavior and decision-making logic for beefalo entities, including greeting feeders, loitering, wandering, and following leaders or herd members.
 tags: [ai, locomotion, social, halloween, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: nightlightmanager
 title: Nightlightmanager
 description: Manages registration, tracking, and filtering of night light entities within the world for master simulation.
 tags: [world, lighting, network, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

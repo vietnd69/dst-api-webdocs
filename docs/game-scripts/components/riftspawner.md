@@ -3,7 +3,7 @@ id: riftspawner
 title: Riftspawner
 description: Manages the spawning, tracking, and state of lunar and shadow rifts in the game world based on difficulty settings and world conditions.
 tags: [ rifts, world, spawner, event ]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

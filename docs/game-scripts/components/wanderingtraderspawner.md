@@ -3,7 +3,7 @@ id: wanderingtraderspawner
 title: Wanderingtraderspawner
 description: Manages the spawning, tracking, and removal of the Wandering Trader entity in the game world.
 tags: [spawn, trader, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

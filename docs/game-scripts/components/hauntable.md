@@ -3,7 +3,7 @@ id: hauntable
 title: Hauntable
 description: Manages haunting mechanics—including cooldowns, visual flicker effects, and haunted state—for entities that can be haunted or cause haunting.
 tags: [haunting, visual, status, ai]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

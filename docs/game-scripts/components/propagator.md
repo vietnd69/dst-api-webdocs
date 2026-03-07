@@ -3,7 +3,7 @@ id: propagator
 title: Propagator
 description: Manages heat propagation and thermal effects (e.g., fire melting, freezing relief, damage) between nearby entities.
 tags: [heat, fire, environment, damage]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

@@ -3,7 +3,7 @@ id: symbolswapdata
 title: Symbolswapdata
 description: Stores and manages symbol-swapping configuration data for world symbols (e.g., for map generation or prefabs).
 tags: [map, data, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

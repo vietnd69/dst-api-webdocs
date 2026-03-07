@@ -3,7 +3,7 @@ id: stackable_replica
 title: Stackable Replica
 description: Manages networked stack size, max size, and preview stack size state for items that can be stacked in inventories.
 tags: [inventory, network, ui]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

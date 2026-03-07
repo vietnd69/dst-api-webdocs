@@ -3,7 +3,7 @@ id: anchor
 title: Anchor
 description: Manages the raising and lowering state of an anchor attached to a boat, handling drag physics, animation timing, and multiplayer coordination via sailor tasks.
 tags: [physics, locomotion, multiplayer, boat, animation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

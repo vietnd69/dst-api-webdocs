@@ -3,7 +3,7 @@ id: flotationdevice
 title: Flotationdevice
 description: Prevents drowning damage and optionally executes custom logic when drowning is prevented.
 tags: [water, damage, drowning]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

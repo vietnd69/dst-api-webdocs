@@ -3,7 +3,7 @@ id: beargeroffscreen
 title: Beargeroffscreen
 description: Controls off-screen roaming behavior for Bearger by moving it along a predefined wandering path and destroying objects in its path.
 tags: [ai, movement, boss, environment, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

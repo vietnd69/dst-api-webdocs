@@ -3,7 +3,7 @@ id: long
 title: Long
 description: Provides layout data for a static map room named 'long', defining tile layers and object placements using TMX format.
 tags: [map, room, static, layout, tilemap]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

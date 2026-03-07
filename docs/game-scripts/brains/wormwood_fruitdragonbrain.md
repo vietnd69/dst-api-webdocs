@@ -3,7 +3,7 @@ id: wormwood_fruitdragonbrain
 title: Wormwood Fruitdragonbrain
 description: AI brain component for the Wormwood Fruit Dragon entity that manages its movement and combat behavior using a behavior tree.
 tags: [ai, brain, movement, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

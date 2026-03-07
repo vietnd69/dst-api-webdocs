@@ -3,7 +3,7 @@ id: boatrace_primematebrain
 title: Boatrace Primematebrain
 description: Implements the AI behavior for the prime mate in boat races, prioritizing buoy tossing, leak repair, fire suppression, and rowing to keep the boat functional and competitive.
 tags: [ai, boat, race, crew, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

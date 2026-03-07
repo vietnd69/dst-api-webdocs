@@ -3,7 +3,7 @@ id: batspawner
 title: Batspawner
 description: Manages the spawning and tracking of bats for a given entity, ensuring bats are only active when the owner is awake and respecting spawn limits.
 tags: [environment, entity, ai]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: sleeper
 title: Sleeper
 description: Manages sleep/wake cycles for entities based on environmental conditions, sleepiness accumulation, and custom test functions.
 tags: [ai, sleep, state, boss]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

@@ -3,7 +3,7 @@ id: bathingpool
 title: Bathingpool
 description: Manages entities entering and occupying a bathing pool, tracking occupants, enforcing space limits, and calculating valid entry positions.
 tags: [entity, pool, space, occupancy]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: deergemmedbrain
 title: Deergemmedbrain
 description: AI brain controlling deer gemmed behavior, managing responses to keeper status, combat, panic, and positioning relative to the keeper.
 tags: [ai, combat, movement, boss, leash]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: one
 title: One
 description: Defines a static hallway layout for archive areas using Tiled map data, including tile layers for background visuals and object groups for interactive and decorative entities.
 tags: [map, static_layout, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

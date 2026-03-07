@@ -3,7 +3,7 @@ id: attackwall
 title: Attackwall
 description: An AI behavior node that rotates the entity toward nearby walls within a narrow angular cone and attempts to attack the nearest valid target.
 tags: [ai, combat, wall]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

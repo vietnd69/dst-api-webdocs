@@ -3,7 +3,7 @@ id: graveyard
 title: Graveyard
 description: Defines the Graveyard map room template with forest-level tile properties, mist visuals, and procedural prefab generation for graves and natural elements.
 tags: [room, map, generation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

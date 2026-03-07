@@ -3,7 +3,7 @@ id: wargbrain
 title: Wargbrain
 description: Controls AI behavior for warg hounds, including carcass consumption, hound summoning, and statue mechanics.
 tags: [ai, combat, hound, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

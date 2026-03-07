@@ -3,7 +3,7 @@ id: discoverable
 title: Discoverable
 description: Manages the discovery state and visual representation (icon) of an entity on the minimap and UI.
 tags: [minimap, ui, state]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: formationleader
 title: Formationleader
 description: Manages a group of followers arranged in a dynamic formation around a target entity, handling formation membership, positioning, and disbanding.
 tags: [formation, ai, movement, group]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

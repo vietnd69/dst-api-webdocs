@@ -3,7 +3,7 @@ id: oceanwhirlportalphysics
 title: Oceanwhirlportalphysics
 description: Simulates physics forces (pull and radial rotation) on entities near an ocean whirlpool portal, and handles interaction with static objects and winch targets.
 tags: [physics, environment, ocean, winch]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

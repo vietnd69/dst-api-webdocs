@@ -3,7 +3,7 @@ id: shadowcreaturebrain
 title: Shadowcreaturebrain
 description: Implements the AI behavior for shadow creatures, including target tracking, harassment mechanics, and conditional chasing or loitering based on combat state and locomotion speed.
 tags: [ai, combat, boss, shadow, navigation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

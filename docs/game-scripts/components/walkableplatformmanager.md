@@ -3,7 +3,7 @@ id: walkableplatformmanager
 title: Walkableplatformmanager
 description: Manages the registration, lookup, and update of walkable platforms in the world.
 tags: [world, entity, locomotion, physics]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: amorphous
 title: Amorphous
 description: Manages shape-shifting behavior for an entity by switching between predefined forms based on inventory contents.
 tags: [transform, inventory, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

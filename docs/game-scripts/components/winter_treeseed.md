@@ -3,7 +3,7 @@ id: winter_treeseed
 title: Winter Treeseed
 description: Stores and manages theprefab name reference for a winter tree associated with a winter tree seed entity.
 tags: [seed, tree, environment, map]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

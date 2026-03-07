@@ -3,7 +3,7 @@ id: touchstonetracker
 title: Touchstonetracker
 description: Tracks which touchstones have been used by the player and persists this data across sessions and shards.
 tags: [touchstone, save, network, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

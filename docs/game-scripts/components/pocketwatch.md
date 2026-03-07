@@ -3,7 +3,7 @@ id: pocketwatch
 title: Pocketwatch
 description: Controls whether an entity can cast spells based on its inactive state and optional custom casting conditions.
 tags: [spellcasting, state, ability]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

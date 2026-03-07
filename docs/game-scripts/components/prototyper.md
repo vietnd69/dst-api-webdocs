@@ -3,7 +3,7 @@ id: prototyper
 title: Prototyper
 description: Manages prototype unlock states for crafting stations by tracking active doers and maintaining linked tech trees.
 tags: [crafting, techtree, unlock]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

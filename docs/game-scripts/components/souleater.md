@@ -3,7 +3,7 @@ id: souleater
 title: Souleater
 description: Enables an entity to consume soul entities, triggering custom logic and removing the consumed soul.
 tags: [combat, soul, consumption]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: highlightchild
 title: Highlightchild
 description: Manages the highlighting of an entity when it is associated with a specific owner entity, primarily for visual feedback in non-dedicated server environments.
 tags: [visual, owner, highlight]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

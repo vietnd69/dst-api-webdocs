@@ -3,7 +3,7 @@ id: singingshellmanager
 title: Singingshellmanager
 description: Manages active singing shell entities and controls whether players should update their shell detection logic.
 tags: [shell, world, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

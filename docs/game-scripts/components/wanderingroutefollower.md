@@ -3,7 +3,7 @@ id: wanderingroutefollower
 title: Wanderingroutefollower
 description: Manages path routes and interpolation for entities that follow wandering paths, used for AI navigation in maps.
 tags: [ai, locomotion, map, path]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

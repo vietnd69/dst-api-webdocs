@@ -3,7 +3,7 @@ id: sharkboi_waterbrain
 title: Sharkboi Waterbrain
 description: Defines the behavior tree for the Sharkboi entity when submerged in water, primarily using a simple wander task.
 tags: [ai, brain, water, movement]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

@@ -3,7 +3,7 @@ id: otterbrain
 title: Otterbrain
 description: AI behavior controller for the Otter character, managing foraging, looting, fishing, and home-stashing behaviors via a priority-based behavior tree.
 tags: [ai, behavior, animal, inventory, home]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

@@ -3,7 +3,7 @@ id: terrain_mazes
 title: Terrain Mazes
 description: Defines cave map room templates used for labyrinthine cave structures, specifying visual properties, tile types, tags, and content generation rules.
 tags: [world, map, room, generation, cave]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

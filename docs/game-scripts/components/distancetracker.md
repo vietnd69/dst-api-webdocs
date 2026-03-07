@@ -3,7 +3,7 @@ id: distancetracker
 title: Distancetracker
 description: Tracks the distance an entity travels between update frames by recording its position and computing Euclidean displacement.
 tags: [locomotion, tracking, utility]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

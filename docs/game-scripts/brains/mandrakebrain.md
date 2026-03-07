@@ -3,7 +3,7 @@ id: mandrakebrain
 title: Mandrakebrain
 description: Defines the behavior tree for a mandrake entity, managing its panic responses, following behavior, and movement patterns.
 tags: [ai, brain, movement]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

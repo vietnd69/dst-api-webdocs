@@ -3,7 +3,7 @@ id: activatable
 title: Activatable
 description: Manages activation state and behavior for entities, including activation conditions, state tags, and callback execution.
 tags: [activation, state, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

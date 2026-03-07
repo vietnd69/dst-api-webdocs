@@ -3,7 +3,7 @@ id: digester
 title: Digester
 description: Periodically digests random non-irreplaceable items from an entity's inventory at fixed intervals.
 tags: [inventory, automation, periodic]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: physicsmodifiedexternally
 title: Physicsmodifiedexternally
 description: Manages externally applied velocity contributions to an entity's physics, aggregating multiple sources and updating physics and locomotor state.
 tags: [physics, locomotion, network, entity]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

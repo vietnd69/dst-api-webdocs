@@ -3,7 +3,7 @@ id: deckcontainer
 title: Deckcontainer
 description: Manages a collection of playing cards as a deck, supporting add, remove, shuffle, split, and merge operations.
 tags: [inventory, deck, card]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

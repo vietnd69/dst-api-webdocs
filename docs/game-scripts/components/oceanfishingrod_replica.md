@@ -3,7 +3,7 @@ id: oceanfishingrod_replica
 title: Oceanfishingrod Replica
 description: Manages networked state for the ocean fishing rod, including hook target, line tension level, and maximum cast distance.
 tags: [fishing, network, equipment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

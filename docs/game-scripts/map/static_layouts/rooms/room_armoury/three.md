@@ -3,7 +3,7 @@ id: three
 title: Three
 description: Defines the layout data for the "Armoury" map room (three.lua), specifying background tile patterns and object spawn points using Tiled Map Editor format.
 tags: [map, layout, spawn]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

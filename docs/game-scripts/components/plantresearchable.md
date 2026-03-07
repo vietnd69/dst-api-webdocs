@@ -3,7 +3,7 @@ id: plantresearchable
 title: Plantresearchable
 description: Enables an entity to provide researchable plant information and supports unlocking plant stages for research purposes.
 tags: [research, plant, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

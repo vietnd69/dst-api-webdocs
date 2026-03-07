@@ -3,7 +3,7 @@ id: luckuser
 title: Luckuser
 description: Manages luck modifiers and adjusts hounded target behavior based on cumulative luck value.
 tags: [luck, combat, ai, modifier]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

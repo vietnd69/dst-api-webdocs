@@ -3,7 +3,7 @@ id: malbatrossspawner
 title: Malbatrossspawner
 description: Manages the spawning and tracking of Malbatross entities near fish shoals in the game world.
 tags: [boss, spawner, world, event]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

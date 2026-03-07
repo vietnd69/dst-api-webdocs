@@ -3,7 +3,7 @@ id: moisture_replica
 title: Moisture Replica
 description: Tracks and synchronizes whether an entity is wet across the network in Don't Starve Together.
 tags: [network, environment, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

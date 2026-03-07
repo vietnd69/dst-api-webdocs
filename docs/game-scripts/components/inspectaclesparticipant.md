@@ -3,7 +3,7 @@ id: inspectaclesparticipant
 title: Inspectaclesparticipant
 description: Manages the state and behavior of the Inspectacles minigame system for an entity, including puzzle generation, game setup, reward granting, and client-server synchronization.
 tags: [minigame, puzzle, inventory, synchronization, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

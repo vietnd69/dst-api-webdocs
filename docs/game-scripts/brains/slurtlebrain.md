@@ -3,7 +3,7 @@ id: slurtlebrain
 title: Slurtlebrain
 description: Controls AI behavior for slurtle entities, coordinating actions like fleeing, attacking, eating, stealing food, and returning home using a behavior tree.
 tags: [ai, combat, inventory, navigation, eating]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

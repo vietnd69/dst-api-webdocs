@@ -3,7 +3,7 @@ id: cookiecutterdrill
 title: CookieCutterDrill
 description: Manages the drilling progression for a cookie-cutter boat leak repair mechanism, handling animation state and damage application upon completion.
 tags: [boat, repair, damage, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

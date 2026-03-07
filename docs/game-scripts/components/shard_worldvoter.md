@@ -3,7 +3,7 @@ id: shard_worldvoter
 title: Shard Worldvoter
 description: Manages network synchronization of world voting state between master shard and other shards in a DST shard setup.
 tags: [network, world, sync, shard]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

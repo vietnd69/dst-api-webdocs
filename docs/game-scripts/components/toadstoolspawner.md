@@ -3,7 +3,7 @@ id: toadstoolspawner
 title: Toadstoolspawner
 description: Manages the spawning and respawn logic for toadstools across registered spawner entities.
 tags: [spawn, world, map]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -47,17 +47,17 @@ const config: Config = {
 		[
 			"@docusaurus/plugin-client-redirects",
 			{
-				fromExtensions: ["html", "htm"],
-				redirects: [
-					// Removed the root redirect as it's handled by index.tsx
-				],
-				createRedirects: function (existingPath) {
-					// Redirect to /docs/introduction from /docs
-					if (existingPath.includes("/")) {
-						return [existingPath.replace("docs/game-scripts/getting-started/about-game-scripts", "")];
-					}
-					return undefined; // Return undefined if no redirect needed
-				},
+				// fromExtensions: ["html", "htm"],
+				// redirects: [
+				// 	// Removed the root redirect as it's handled by index.tsx
+				// ],
+				// createRedirects: function (existingPath) {
+				// 	// Redirect to /docs/introduction from /docs
+				// 	if (existingPath.includes("/")) {
+				// 		return [existingPath.replace("docs/game-scripts/getting-started/about-game-scripts", "")];
+				// 	}
+				// 	return undefined; // Return undefined if no redirect needed
+				// },
 			},
 		],
 		[

@@ -3,7 +3,7 @@ id: corpse_gestalt_brain
 title: Corpse Gestalt Brain
 description: Controls movement and behavior of a corpse-infesting entity in relation to its tracked corpse target and nearby players.
 tags: [ai, brain, movement, boss, corpse]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

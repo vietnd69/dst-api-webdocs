@@ -3,7 +3,7 @@ id: deerbrain
 title: Deerbrain
 description: Manages the behavior tree for deer entities, coordinating solo and herd-based AI including fleeing, wandering, grazing, and alert responses.
 tags: [ai, animal, herd, combat, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

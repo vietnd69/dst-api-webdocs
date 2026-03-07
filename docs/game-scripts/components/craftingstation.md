@@ -3,7 +3,7 @@ id: craftingstation
 title: Craftingstation
 description: Tracks which items and recipes a crafting station has learned and manages per-recipe crafting limits.
 tags: [crafting, progression, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

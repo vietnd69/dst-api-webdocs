@@ -3,7 +3,7 @@ id: oceanshadowcreaturebrain
 title: Oceanshadowcreaturebrain
 description: Controls the AI behavior of ocean-based shadow creatures, including target management, harassment actions, and conditional teleportation to land.
 tags: [ai, combat, boss, movement, shadow]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

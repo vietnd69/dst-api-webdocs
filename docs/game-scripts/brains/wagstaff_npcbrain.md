@@ -3,7 +3,7 @@ id: wagstaff_npcbrain
 title: Wagstaff Npcbrain
 description: Controls the behavior tree and state machine of the Wagstaff NPC, managing quest progression, clue-following, arena interactions, and dialogue triggers across different game contexts.
 tags: [ai, brain, npc, quest, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

@@ -3,7 +3,7 @@ id: stormwatcher
 title: Stormwatcher
 description: Tracks active storms on a player entity and synchronizes storm-related properties and speed modifiers.
 tags: [storm, player, world, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

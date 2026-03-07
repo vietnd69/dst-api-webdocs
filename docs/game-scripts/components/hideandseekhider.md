@@ -3,7 +3,7 @@ id: hideandseekhider
 title: Hideandseekhider
 description: Manages hide-and-seek gameplay logic for an entity acting as a hider, including hiding spot assignment, timing, and state transitions.
 tags: [gameplay, hideandseek, state]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

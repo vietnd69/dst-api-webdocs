@@ -3,7 +3,7 @@ id: driedsalticon
 title: Driedsalticon
 description: Manages the visibility and overlay image of a dried salt icon on an inventory item in DST's UI and world representation.
 tags: [inventory, ui, overlay]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

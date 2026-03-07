@@ -3,7 +3,7 @@ id: quagmire_map
 title: Quagmire Map
 description: Extends the world map functionality with Quagmire-specific terrain checks, specifically identifying farmable Quagmire soil and evaluating tillability at a given point.
 tags: [quagmire, terrain, map, farming]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

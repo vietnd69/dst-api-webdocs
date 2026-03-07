@@ -3,7 +3,7 @@ id: researchpointconverter
 title: Researchpointconverter
 description: A placeholder component that provides stub methods for activation and toggle states; it is intended to be replaced by prototyper.lua.
 tags: [research, placeholder]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

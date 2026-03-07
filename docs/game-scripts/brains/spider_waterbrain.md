@@ -3,7 +3,7 @@ id: spider_waterbrain
 title: Spider Waterbrain
 description: AI brain for water spiders that prioritizes survival behaviors including fleeing, aggression, following leaders, trading, and consuming food or oceanfish while managing environmental risks.
 tags: [ai, combat, navigation, feeding, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

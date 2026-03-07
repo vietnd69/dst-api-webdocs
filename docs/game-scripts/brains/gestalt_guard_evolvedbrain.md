@@ -3,7 +3,7 @@ id: gestalt_guard_evolvedbrain
 title: Gestalt Guard Evolvedbrain
 description: Implements the decision-making logic for an evolved Gestalt guard enemy, handling combat targeting, movement, and ranged/telporting attacks via behavior trees.
 tags: [ai, combat, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

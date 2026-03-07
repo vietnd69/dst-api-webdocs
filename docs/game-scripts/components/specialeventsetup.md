@@ -3,7 +3,7 @@ id: specialeventsetup
 title: Specialeventsetup
 description: Manages the lifecycle and setup logic for special in-game events such as Halloween and Year of the Catcoon.
 tags: [event, world, setup]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

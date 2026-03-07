@@ -3,7 +3,7 @@ id: transformer
 title: Transformer
 description: Manages switching an entity between two prefabs based on events or world state, preserving component and prefab data across transformations.
 tags: [entity, network, save, transformation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

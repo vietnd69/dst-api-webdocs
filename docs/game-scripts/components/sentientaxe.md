@@ -3,7 +3,7 @@ id: sentientaxe
 title: Sentientaxe
 description: Manages sentient behavior and speech for the Lucy (Woodie's axe) entity, including owner interaction, transformation alerts, and conversational triggers.
 tags: [combat, npc, inventory, ai, player]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: moonstorms
 title: Moonstorms
 description: Manages the active moonstorm zones and calculates moonstorm intensity for entities based on their position relative to node indices in the world topology.
 tags: [environment, storm, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

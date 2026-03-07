@@ -3,7 +3,7 @@ id: sharkbrain
 title: Sharkbrain
 description: Manages the AI decision-making logic for sharks, controlling movement, aggression, feeding, and boat-following behavior in Don't Starve Together.
 tags: [ai, combat, entity, movement, feeding]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

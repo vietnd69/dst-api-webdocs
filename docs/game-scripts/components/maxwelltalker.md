@@ -3,7 +3,7 @@ id: maxwelltalker
 title: Maxwelltalker
 description: Manages scripted dialogue and cutscenes for Maxwell, handling speech synchronization, input skipping, player control disable/enable, and camera control during narrative events.
 tags: [narrative, ai, cutscene, input, camera]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

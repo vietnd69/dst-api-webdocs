@@ -3,7 +3,7 @@ id: pollinator
 title: Pollinator
 description: Manages flower collection and planting behavior for entities capable of pollinating and reproducing flora.
 tags: [flora, reproduction, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

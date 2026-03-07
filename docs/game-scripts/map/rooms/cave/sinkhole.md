@@ -3,7 +3,7 @@ id: sinkhole
 title: Sinkhole
 description: Defines procedural cave room templates for sinkhole biomes in the world generation system, specifying decoration rules, static layouts, and visual properties.
 tags: [worldgen, room, cave, biome]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

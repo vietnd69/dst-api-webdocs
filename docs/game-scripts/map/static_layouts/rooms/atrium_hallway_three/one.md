@@ -3,7 +3,7 @@ id: one
 title: One
 description: Defines the static layout data for the Atrium Hallway Three room in the Don't Starve Together world generation system.
 tags: [map, room, static_layout, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

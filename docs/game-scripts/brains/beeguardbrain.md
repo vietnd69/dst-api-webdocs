@@ -3,7 +3,7 @@ id: beeguardbrain
 title: Beeguardbrain
 description: Implements the AI behavior tree for the Bee Guard entity, which patrols near the Bee Queen and engages threats while maintaining formation.
 tags: [ai, combat, boss, formation, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

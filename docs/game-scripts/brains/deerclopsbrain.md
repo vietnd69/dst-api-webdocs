@@ -3,7 +3,7 @@ id: deerclopsbrain
 title: Deerclopsbrain
 description: Controls the decision-making behavior of the Deerclops boss, coordinating combat, movement, base destruction, and ice regeneration.
 tags: [combat, ai, boss, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

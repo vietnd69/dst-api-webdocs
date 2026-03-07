@@ -3,7 +3,7 @@ id: terrain_marsh
 title: Terrain Marsh
 description: Registers marsh-themed room templates for procedural map generation with specific prefabs, distribution rules, and visual properties.
 tags: [world, procedural, room, terrain]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

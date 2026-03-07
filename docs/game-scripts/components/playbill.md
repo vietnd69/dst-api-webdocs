@@ -3,7 +3,7 @@ id: playbill
 title: Playbill
 description: Manages state for a theatrical playbill, tracking the current act and persisting it across save/load cycles.
 tags: [theatre, save, state]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

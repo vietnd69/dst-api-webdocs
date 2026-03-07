@@ -3,7 +3,7 @@ id: sinkholespawner
 title: Sinkholespawner
 description: Manages the spawning and timing of antlion sinkhole attacks targeting specific players during the Antlion event.
 tags: [event, boss, combat, environment, network]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

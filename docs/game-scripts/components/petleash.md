@@ -3,7 +3,7 @@ id: petleash
 title: Petleash
 description: Manages a set of pet entities associated with an owner, including limits, spawning, attaching, and despawning.
 tags: [pet, inventory, entity]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

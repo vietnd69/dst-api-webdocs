@@ -3,7 +3,7 @@ id: farmplantable
 title: Farmplantable
 description: Enables a seed or item to be planted into soil by spawning a plant prefab at the target's position.
 tags: [farming, planting, world, item]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

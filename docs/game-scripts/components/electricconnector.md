@@ -3,7 +3,7 @@ id: electricconnector
 title: Electricconnector
 description: Manages electrical connections between electric fence segments by creating visual beam effects and tracking bidirectional links.
 tags: [combat, environment, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: autoterraformer
 title: Autoterraformer
 description: Automatically transforms the terrain tile beneath an entity by repeatedly replacing it with the first item in its container.
 tags: [terrain, world, automation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

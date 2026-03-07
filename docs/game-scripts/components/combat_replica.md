@@ -3,7 +3,7 @@ id: combat_replica
 title: Combat Replica
 description: Provides a network-replicated interface for combat-related operations, synchronizing combat state (target, panic, range) and attack logic between client and server in Don't Starve Together.
 tags: [combat, network, ai]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

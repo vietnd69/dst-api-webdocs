@@ -3,7 +3,7 @@ id: fillable
 title: Fillable
 description: Manages the logic for transforming an empty container or vessel into a filled version when interacting with a water source.
 tags: [inventory, item, interaction, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

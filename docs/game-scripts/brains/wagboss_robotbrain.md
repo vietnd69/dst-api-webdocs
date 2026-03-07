@@ -3,7 +3,7 @@ id: wagboss_robotbrain
 title: Wagboss Robotbrain
 description: Controls the AI behavior of the Wagboss robot, with distinct hostile and friendly logic paths determined by the inst.hostile property.
 tags: [ai, boss, combat, zone]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

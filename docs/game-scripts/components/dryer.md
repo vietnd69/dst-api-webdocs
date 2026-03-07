@@ -3,7 +3,7 @@ id: dryer
 title: Dryer
 description: Manages the drying process of ingredients into preserved food products, handling timers, rain exposure, and state transitions.
 tags: [crafting, inventory, preservation, weather, food]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

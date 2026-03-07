@@ -3,7 +3,7 @@ id: trophyscale
 title: Trophyscale
 description: Manages trophy data for a weighable item, including comparison logic, storage, and spawner functionality for trophy instances.
 tags: [inventory, weight, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

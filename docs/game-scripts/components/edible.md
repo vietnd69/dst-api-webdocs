@@ -3,7 +3,7 @@ id: edible
 title: Edible
 description: Manages nutritional and thermal properties of food items, including health/hunger/sanity restoration, spoilage effects, and temperature impact on consumers.
 tags: [food, nutrition, temperature, perishable, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

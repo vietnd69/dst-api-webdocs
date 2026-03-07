@@ -3,7 +3,7 @@ id: ghostgestalter
 title: Ghostgestalter
 description: Manages activation flags and mutation logic for ghost entities in the world.
 tags: [ghost, activation, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

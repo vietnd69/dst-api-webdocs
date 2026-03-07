@@ -3,7 +3,7 @@ id: fuelmaster
 title: Fuelmaster
 description: Manages fuel-burning multiplier bonuses for entities that consume fuel, such as fire sources or lanterns.
 tags: [fuel, entity, utility]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

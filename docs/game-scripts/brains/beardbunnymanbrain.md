@@ -3,7 +3,7 @@ id: beardbunnymanbrain
 title: Beardbunnymanbrain
 description: An unused and unmaintained brain class intended for a WerePig-style AI behavior in DST.
 tags: [ai, brain, unused]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

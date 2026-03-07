@@ -3,7 +3,7 @@ id: worldmigrator
 title: Worldmigrator
 description: Manages portal-based world migration logic, including status validation, item migration rules, and event triggering for players and items.
 tags: [world, migration, network, inventory, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

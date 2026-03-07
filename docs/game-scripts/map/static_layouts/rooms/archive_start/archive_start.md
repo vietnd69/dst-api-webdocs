@@ -3,7 +3,7 @@ id: archive_start
 title: Archive Start
 description: Defines the tilemap layout and static objects for the Archive Start room in DST's world generation system.
 tags: [map, room, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: useshield
 title: Useshield
 description: Controls shield mechanics by determining when an entity should enter or exit a shielded state based on recent damage, fire, projectiles, or fear events.
 tags: [combat, ai, shield, state]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

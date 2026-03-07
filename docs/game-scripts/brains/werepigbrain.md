@@ -3,7 +3,7 @@ id: werepigbrain
 title: Werepigbrain
 description: Manages AI behavior for Werepigs, including panic responses, food-seeking when safe, combat aggression, and wandering with home-based navigation.
 tags: [ai, brain, combat, wander, monster]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

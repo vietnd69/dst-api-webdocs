@@ -3,7 +3,7 @@ id: coach
 title: Coach
 description: Provides periodic support effects (sanity and fight buffs) to nearby players and followers when the host entity is tagged as "coaching".
 tags: [support, buff, leadership, sanity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

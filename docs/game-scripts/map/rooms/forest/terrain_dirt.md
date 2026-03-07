@@ -3,7 +3,7 @@ id: terrain_dirt
 title: Terrain Dirt
 description: Registers a room template named BGDirt with dirt tile type, specific tags, and probabilistic contents for rock prefabs.
 tags: [world, room, terrain]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

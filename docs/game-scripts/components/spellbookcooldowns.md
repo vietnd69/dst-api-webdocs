@@ -3,7 +3,7 @@ id: spellbookcooldowns
 title: Spellbookcooldowns
 description: Manages spell cooldowns for spellbook-equipped entities by tracking active cooldown instances and providing query and manipulation methods.
 tags: [spellbook, cooldown, inventory, magic]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: targettracker
 title: Targettracker
 description: Tracks a single target entity and manages tracking duration, pausing, and automatic invalidation.
 tags: [combat, ai, tracking]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

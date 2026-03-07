@@ -3,7 +3,7 @@ id: firefx
 title: Firefx
 description: Manages visual and audio effects for fire-based entities, including dynamic lighting, sound, and animation transitions across multiple intensity levels.
 tags: [environment, fx, audio, lighting]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

@@ -3,7 +3,7 @@ id: one
 title: One
 description: Defines a static room layout for the Atrium Hallway Two using Tiled map data, containing background tiles, foreground objects (sanity/insanity rocks, fences, rubble), and chests.
 tags: [map, level-design, static-layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: inventoryitemholder
 title: Inventoryitemholder
 description: Holds a single item for indirect interaction, allowing other entities to take or stack items under controlled conditions.
 tags: [inventory, holder, interaction]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

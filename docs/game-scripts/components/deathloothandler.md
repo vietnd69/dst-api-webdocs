@@ -3,7 +3,7 @@ id: deathloothandler
 title: Deathloothandler
 description: Stores and persists loot information associated with an entity's death, such as item prefabs and an optional level value.
 tags: [loot, persistence, death]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

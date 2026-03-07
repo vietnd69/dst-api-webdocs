@@ -3,7 +3,7 @@ id: spellcaster
 title: Spellcaster
 description: Manages spell casting behavior and restrictions for an entity, including target validity, casting conditions, and tag management.
 tags: [spellcasting, target, inventory, ai]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

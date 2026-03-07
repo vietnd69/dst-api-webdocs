@@ -3,7 +3,7 @@ id: carnivalgame_herding_chick_brain
 title: Carnivalgame Herding Chick Brain
 description: Controls the AI behavior of a herding minigame chick, managing movement via wandering and runaway responses relative to a home location and station markers.
 tags: [ai, minigame, locomotion, behaviour]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

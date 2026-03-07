@@ -3,7 +3,7 @@ id: colouradder
 title: Colouradder
 description: Manages additive colour blending stacks for an entity and propagates colour updates to child entities and render systems.
 tags: [rendering, colour, entity, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: inkable
 title: Inkable
 description: Tracks and manages temporary ink status on players affected by squid attacks.
 tags: [combat, debuff, player]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

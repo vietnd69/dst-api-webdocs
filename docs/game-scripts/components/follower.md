@@ -3,7 +3,7 @@ id: follower
 title: Follower
 description: Manages an entity's relationship to a leader, including loyalty mechanics, teleportation on separation, and handling player reconnection or respawning.
 tags: [ai, leader, loyalty, networking]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

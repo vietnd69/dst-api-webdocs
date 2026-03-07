@@ -3,7 +3,7 @@ id: abysspillargroup
 title: Abysspillargroup
 description: Manages a group of abyss pillars, tracking their lifecycle, spawn points, and synchronization during save/load operations.
 tags: [boss, environment, map, persistence]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

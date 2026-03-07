@@ -3,7 +3,7 @@ id: shadowheart_infusedbrain
 title: Shadowheart Infusedbrain
 description: Provides AI behavior for shadowheart-infused entities by prioritizing fleeing from players over standing still.
 tags: [ai, brain, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

@@ -3,7 +3,7 @@ id: healer
 title: Healer
 description: Applies healing to a target entity and consumes the healer item upon use.
 tags: [healing, consumable, utility]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

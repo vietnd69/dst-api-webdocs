@@ -3,7 +3,7 @@ id: wereness
 title: Wereness
 description: Manages the wereness meter and its dynamic behavior, including draining and state persistence for player entities.
 tags: [combat, player, state]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: instrument
 title: Instrument
 description: Manages the playback logic and event callbacks for in-game musical instruments, including range-based listener detection and custom asset overrides.
 tags: [audio, entity, music]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

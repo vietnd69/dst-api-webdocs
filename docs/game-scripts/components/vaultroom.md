@@ -3,7 +3,7 @@ id: vaultroom
 title: Vaultroom
 description: Manages loading, saving, unloading, and layout of procedural vault rooms in the world map.
 tags: [world, map, room, save]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

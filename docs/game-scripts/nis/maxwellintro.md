@@ -3,7 +3,7 @@ id: maxwellintro
 title: Maxwellintro
 description: Controls a scripted narrative sequence where Maxwell appears, delivers dialogue, and disappears while Wilson is unconscious, restoring normal gameplay afterward.
 tags: [nis, camera, animation, dialogue]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-04
 build_version: 714014

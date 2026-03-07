@@ -3,7 +3,7 @@ id: killerbeebrain
 title: Killerbeebrain
 description: Manages the AI behavior of the killer bee entity using a behavior tree to handle attacking, retreating, homing, and wandering.
 tags: [ai, combat, navigation, bee]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

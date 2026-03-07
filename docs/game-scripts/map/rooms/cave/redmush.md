@@ -3,7 +3,7 @@ id: redmush
 title: Redmush
 description: Defines and registers five distinct cave mushroom-themed room templates with varying prop distributions for world generation in DST.
 tags: [world, room, generation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

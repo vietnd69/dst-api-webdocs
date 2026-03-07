@@ -3,7 +3,7 @@ id: locomotor
 title: Locomotor
 description: Manages entity movement, pathfinding, and speed calculations, including walking, running, platform hopping, and speed modifier interactions.
 tags: [locomotion, pathfinding, movement, physics, player]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

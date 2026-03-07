@@ -3,7 +3,7 @@ id: pushable
 title: Pushable
 description: Enables an entity to be pushed by another entity and maintains relative positioning during the push.
 tags: [locomotion, physics, interaction]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

@@ -3,7 +3,7 @@ id: leashandavoid
 title: Leashandavoid
 description: Manages AI movement to return an entity toward a home location while optionally avoiding specified obstacles, used primarily for leash-based behavior in world navigation.
 tags: [ai, locomotion, pathfinding]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: rooted
 title: Rooted
 description: Prevents an entity from moving by stopping physics and applying a speed multiplier of 0 via the locomotor component, while managing lifecycle via sources.
 tags: [movement, physics, control]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

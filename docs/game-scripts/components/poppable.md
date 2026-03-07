@@ -3,7 +3,7 @@ id: poppable
 title: Poppable
 description: Manages a one-time "pop" event trigger for an entity, optionally invoking a callback when popped.
 tags: [event, callback, lifecycle]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

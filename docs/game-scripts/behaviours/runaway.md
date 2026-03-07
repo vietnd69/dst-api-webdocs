@@ -3,7 +3,7 @@ id: runaway
 title: Runaway
 description: Causes an entity to flee from a detected hunter or threat by calculating a safe escape direction and moving away, optionally returning home if near a safe location.
 tags: [ai, locomotion, evasion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

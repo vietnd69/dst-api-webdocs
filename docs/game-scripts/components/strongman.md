@@ -3,7 +3,7 @@ id: strongman
 title: Strongman
 description: Manages a character's gym workout session, pausing mightiness while active and resuming it upon completion.
 tags: [combat, gym, workout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

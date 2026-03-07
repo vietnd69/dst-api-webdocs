@@ -3,7 +3,7 @@ id: boatdrifter
 title: Boatdrifter
 description: Manages the physics and movement state of a boat entity, including drift detection, physics activation/deactivation, and wake test lifecycle.
 tags: [boat, movement, physics, state]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

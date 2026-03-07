@@ -3,7 +3,7 @@ id: inventory
 title: Inventory
 description: Manages the storage, equipping, and inventory interactions for player entities, including slot-based item management, equipment handling, and container integration.
 tags: [player, inventory, equipment, container]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

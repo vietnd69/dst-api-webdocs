@@ -3,7 +3,7 @@ id: quagmire_music
 title: Quagmire Music
 description: Manages background music playback for the Quagmire arena based on world level and win state, synchronized across clients.
 tags: [audio, world, network, event]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

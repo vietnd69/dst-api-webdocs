@@ -3,7 +3,7 @@ id: chesterbrain
 title: Chesterbrain
 description: Controls the AI behavior of Chester, the treasure-hunting monster, managing navigation, panic responses, and interaction with its leader entity.
 tags: [ai, boss, navigation, panic]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

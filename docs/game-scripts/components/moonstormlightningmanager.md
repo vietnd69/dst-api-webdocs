@@ -3,7 +3,7 @@ id: moonstormlightningmanager
 title: Moonstormlightningmanager
 description: Manages periodic ground lightning spawns during moonstorms based on player proximity and network node data.
 tags: [environment, weather, fx]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

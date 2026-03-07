@@ -3,7 +3,7 @@ id: oceanfishingrod
 title: Oceanfishingrod
 description: Manages the ocean fishing rod's casting, targeting, tension tracking, and fish capture logic, acting as the central controller for ocean fishing interactions.
 tags: [fishing, combat, network, physics, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

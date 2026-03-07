@@ -3,7 +3,7 @@ id: playercontroller
 title: Playercontroller
 description: Manages player input, locomotion prediction, targeting, placement, and combat actions for the player entity in Don't Starve Together.
 tags: [player, input, locomotion, combat, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

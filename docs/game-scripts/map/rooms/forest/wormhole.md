@@ -3,7 +3,7 @@ id: wormhole
 title: Wormhole
 description: Defines room templates for procedural world generation that represent wormhole entrance variations, each configured with specific tile types and biome content.
 tags: [world, generation, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

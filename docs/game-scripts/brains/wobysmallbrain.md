@@ -3,7 +3,7 @@ id: wobysmallbrain
 title: Wobysmallbrain
 description: Implements the AI behavior tree for the Woby small variant, handling combat avoidance, playful interaction with other critters, affection towards its owner, and helper actions such as fetching and foraging.
 tags: [ai, behavior-tree, companion, combat-avoidance, affection]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

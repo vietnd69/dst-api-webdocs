@@ -3,7 +3,7 @@ id: occupier
 title: Occupier
 description: Stores and manages ownership information for an entity, typically used for map regions or structures claimed by a specific entity (e.g., a boss or character).
 tags: [map, ownership, region]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

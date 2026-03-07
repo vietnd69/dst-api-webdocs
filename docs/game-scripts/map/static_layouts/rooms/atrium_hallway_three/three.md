@@ -3,7 +3,7 @@ id: three
 title: Three
 description: Defines the structure and tile data for a specific hallway room layout used in map generation.
 tags: [map, level-design, room-layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

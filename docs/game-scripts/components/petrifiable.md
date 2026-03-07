@@ -3,7 +3,7 @@ id: petrifiable
 title: Petrifiable
 description: Enables an entity to be petrified and chain-petrify nearby petrifiable entities within a radius.
 tags: [petrify, chaining, entity_state, network_sync]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

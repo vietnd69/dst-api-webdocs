@@ -3,7 +3,7 @@ id: crabking_mobbrain
 title: Crabking Mobbrain
 description: Controls the behavior tree logic for Crab King mobs, handling platform abandonment, panic responses, combat pursuit, and homing to their known home location.
 tags: [ai, boss, combat, platform]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

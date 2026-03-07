@@ -3,7 +3,7 @@ id: epicscare
 title: Epicscare
 description: Triggers a scare effect on nearby entities within a specified radius, excluding certain tags and including only entities matching one of a set of required tags.
 tags: [combat, ai, crowd-control]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: placer
 title: Placer
 description: Manages placement positioning, orientation, and visual feedback for deployable structures and items in the game world, including support for axis-aligned placement and boat edge snapping.
 tags: [placement, positioning, visual, boat]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

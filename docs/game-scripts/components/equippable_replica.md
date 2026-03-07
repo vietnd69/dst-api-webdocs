@@ -3,7 +3,7 @@ id: equippable_replica
 title: Equippable Replica
 description: Manages network-replicated equipment slot and restriction logic for equippable items in DST's client-server architecture.
 tags: [network, inventory, equipment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

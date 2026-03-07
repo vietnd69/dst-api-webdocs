@@ -3,7 +3,7 @@ id: boatracecrew
 title: Boatracecrew
 description: Manages a crew of entities assigned to a boat, tracking members, handling their life-cycle events, and supporting network serialization.
 tags: [crew, boat, network, lifecycle]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

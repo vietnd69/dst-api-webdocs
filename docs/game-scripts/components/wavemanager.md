@@ -3,7 +3,7 @@ id: wavemanager
 title: Wavemanager
 description: Manages procedural spawning of ocean wave visual effects (shimmers and shore waves) near the player based on terrain type and distance from the camera.
 tags: [environment, fx, ocean, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

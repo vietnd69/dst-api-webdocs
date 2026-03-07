@@ -3,7 +3,7 @@ id: perdbrain
 title: Perdbrain
 description: Controls the behavior tree for the Perd character, managing movement, foraging, shrine interaction, and threat response.
 tags: [ai, brain, npc, foraging, shrine]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

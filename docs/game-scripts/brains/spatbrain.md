@@ -3,7 +3,7 @@ id: spatbrain
 title: Spatbrain
 description: Controls the behavioral logic for the Spat creature, managing combat prioritization, movement, weapon switching, and threat response via a behavior tree.
 tags: [ai, combat, movement, behavior-tree]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

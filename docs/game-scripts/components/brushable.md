@@ -3,7 +3,7 @@ id: brushable
 title: Brushable
 description: Manages brushable interactions for an entity, calculating prizes awarded based on time elapsed since last brushing and handling brush events.
 tags: [world, interaction, loot]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

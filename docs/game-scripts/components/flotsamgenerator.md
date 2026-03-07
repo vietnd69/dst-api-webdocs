@@ -3,7 +3,7 @@ id: flotsamgenerator
 title: Flotsamgenerator
 description: Spawns and manages floating debris (flotsam) in ocean environments, including scheduled natural spawns and guaranteed items like message bottles.
 tags: [world, entity, spawning, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

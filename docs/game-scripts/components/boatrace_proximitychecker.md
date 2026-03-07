@@ -3,7 +3,7 @@ id: boatrace_proximitychecker
 title: Boatrace Proximitychecker
 description: Checks for proximity to boatrace proximity beacons and triggers detection events after a sustained overlap period.
 tags: [boatrace, proximity, event, world, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

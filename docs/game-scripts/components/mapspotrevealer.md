@@ -3,7 +3,7 @@ id: mapspotrevealer
 title: Mapspotrevealer
 description: Adds functionality to an entity to reveal map areas at specified locations, supporting pre-reveal hooks and conditional map opening.
 tags: [map, reveal, interaction]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

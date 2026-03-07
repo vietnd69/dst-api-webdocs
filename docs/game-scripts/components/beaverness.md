@@ -3,7 +3,7 @@ id: beaverness
 title: Beaverness
 description: Manages the beaver-related "beaverness" hunger subtype for entities, including starvation state, time-based decay, and network synchronization.
 tags: [hunger, network, starvation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

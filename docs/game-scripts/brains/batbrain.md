@@ -3,7 +3,7 @@ id: batbrain
 title: Batbrain
 description: AI brain responsible for controlling bat behavior, including foraging, stealing nitre, escaping caves, and following team/formation rules.
 tags: [ai, locomotion, combat, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

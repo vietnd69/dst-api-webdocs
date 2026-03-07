@@ -3,7 +3,7 @@ id: ghostbabysitter
 title: Ghostbabysitter
 description: Manages the tracking and lifecycle of ghosts being watched over by an entity, handling state tags and persistence.
 tags: [ghost, persistence, entity_state, network_sync]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

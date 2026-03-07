@@ -3,7 +3,7 @@ id: lordfruitflytrigger
 title: Lordfruitflytrigger
 description: Monitors entities within a range to activate or deactivate fruit fly spawners when they enter or remain inside the trigger zone.
 tags: [environment, entity, trigger]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

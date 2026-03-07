@@ -3,7 +3,7 @@ id: positionalwarp
 title: Positionalwarp
 description: Caches entity position history for rollback-style teleportation and manages visual position markers.
 tags: [teleport, position, history, marker]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

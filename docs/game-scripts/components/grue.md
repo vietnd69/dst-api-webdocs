@@ -3,7 +3,7 @@ id: grue
 title: Grue
 description: Manages the darkness-based threat system that damages entities when they remain in darkness for extended periods.
 tags: [darkness, damage, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: quagmire_hangriness
 title: Quagmire Hangriness
 description: Manages the hangriness meter and progression system for Quagmire-era entities, including hunger depletion simulation, acceleration-based speed modeling, and rumble sound triggering.
 tags: [combat, hunger, boss, quagmire]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

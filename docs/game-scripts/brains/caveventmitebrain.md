@@ -3,7 +3,7 @@ id: caveventmitebrain
 title: Caveventmitebrain
 description: Manages the AI behavior of cave vent mites, including combat, foraging, and navigation using a behavior tree.
 tags: [ai, combat, foraging, navigation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: vaultmusiclistener
 title: Vaultmusiclistener
 description: Triggers a one-time vault event when the entity remains stationary inside a vault area for 3.5 seconds without entering another vault.
 tags: [audio, environment, vault]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

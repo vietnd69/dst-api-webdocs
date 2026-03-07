@@ -3,7 +3,7 @@ id: farmplantstress
 title: Farmplantstress
 description: Tracks and evaluates stress conditions on farm plants to determine their final stress state based on environmental and gameplay factors.
 tags: [agriculture, plant, entity, stress]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

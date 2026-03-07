@@ -3,7 +3,7 @@ id: upgradeable
 title: Upgradeable
 description: Tracks and manages upgrade progression for entities, handling stage advancement and upgrade counting logic.
 tags: [crafting, progression, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

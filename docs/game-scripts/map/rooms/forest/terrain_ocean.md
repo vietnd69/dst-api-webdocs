@@ -3,7 +3,7 @@ id: terrain_ocean
 title: Terrain Ocean
 description: Registers ocean terrain room definitions for procedural world generation, mapping tile types to loot and static layout spawn rules.
 tags: [world, generation, room]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

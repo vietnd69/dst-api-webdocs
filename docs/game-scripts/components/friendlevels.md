@@ -3,7 +3,7 @@ id: friendlevels
 title: Friendlevels
 description: Manages friendship progression and reward distribution for friendly NPC entities based on completed tasks.
 tags: [friendship, npc, rewards, progression]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

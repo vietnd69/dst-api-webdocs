@@ -3,7 +3,7 @@ id: worker
 title: Worker
 description: Tracks which actions an entity can perform and their relative effectiveness.
 tags: [action, utility, performance]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

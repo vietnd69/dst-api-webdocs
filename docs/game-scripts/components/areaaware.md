@@ -3,7 +3,7 @@ id: areaaware
 title: Areaaware
 description: Tracks the current map area (visual node) an entity occupies and notifies when the entity moves between areas.
 tags: [world, map, area]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

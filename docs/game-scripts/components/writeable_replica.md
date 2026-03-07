@@ -3,7 +3,7 @@ id: writeable_replica
 title: Writeable Replica
 description: Manages client-side networked writing interactions for writeable entities by coordinating with the server-hosted writeable component and classified data.
 tags: [network, ui, interaction]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

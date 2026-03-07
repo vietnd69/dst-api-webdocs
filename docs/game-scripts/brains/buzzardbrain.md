@@ -3,7 +3,7 @@ id: buzzardbrain
 title: Buzzardbrain
 description: Controls the AI decision-making logic for buzzards, including food targeting, threat detection, and corpse defense or abandonment behavior.
 tags: [ai, combat, behaviour, food]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

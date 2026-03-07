@@ -3,7 +3,7 @@ id: fader
 title: Fader
 description: Manages time-based value interpolation (fading) between start and end values using custom setter callbacks.
 tags: [animation, interpolation, component]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

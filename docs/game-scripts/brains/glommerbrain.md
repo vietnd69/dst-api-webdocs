@@ -3,7 +3,7 @@ id: glommerbrain
 title: Glommerbrain
 description: Controls the AI behavior for Glommer, an entity that follows its leader while avoiding danger and wandering within proximity limits.
 tags: [ai, brain, follower, wander, panic]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

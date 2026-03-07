@@ -3,7 +3,7 @@ id: heavyobstaclephysics
 title: Heavyobstaclephysics
 description: Manages dynamic physics behavior for large in-game obstacles that transition between solid, falling, and pushed states based on proximity and interactions.
 tags: [physics, environment, obstacle]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

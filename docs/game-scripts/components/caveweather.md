@@ -3,7 +3,7 @@ id: caveweather
 title: Caveweather
 description: Manages weather simulation including precipitation, moisture, wetness, and associated visual/audio effects in the Cave biome.
 tags: [weather, cave, environment, network, simulation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

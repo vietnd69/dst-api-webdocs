@@ -3,7 +3,7 @@ id: useableitem
 title: UseableItem
 description: Manages the "in use" state of an equippable item and provides callbacks for when it starts or stops being used.
 tags: [inventory, equipment, state]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

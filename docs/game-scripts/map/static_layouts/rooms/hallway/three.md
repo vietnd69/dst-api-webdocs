@@ -3,7 +3,7 @@ id: three
 title: Three
 description: Defines the layout and static geometry for the "three" hallway room used in world generation.
 tags: [room, hallway, procedural, static_layout, map]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

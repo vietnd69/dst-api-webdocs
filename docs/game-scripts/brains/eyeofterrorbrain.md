@@ -3,7 +3,7 @@ id: eyeofterrorbrain
 title: Eyeofterrorbrain
 description: Controls the AI behavior of the Eye of Terror boss, coordinating special attacks, leashing, facing, and spawning mini-eyes via behavior trees.
 tags: [ai, boss, combat, locomotion, spawning]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

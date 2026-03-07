@@ -3,7 +3,7 @@ id: farmplanttendable
 title: Farmplanttendable
 description: Controls whether a farm plant entity can be tended to, managing the `tendable_farmplant` tag and tend completion logic.
 tags: [farm, plant, interaction]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

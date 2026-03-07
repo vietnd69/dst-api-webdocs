@@ -3,7 +3,7 @@ id: snowballmelting
 title: Snowballmelting
 description: Tracks ambient temperature and manages melting state transitions for entities like snowballs in response to environmental conditions and snow cover.
 tags: [environment, weather, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

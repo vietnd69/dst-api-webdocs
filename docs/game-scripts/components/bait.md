@@ -3,7 +3,7 @@ id: bait
 title: Bait
 description: Manages bait behavior for traps, handling attachment to and detachment from trap entities via lifecycle events.
 tags: [trap, inventory, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

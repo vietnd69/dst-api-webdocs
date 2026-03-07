@@ -3,7 +3,7 @@ id: followcamera
 title: Followcamera
 description: Manages camera positioning, movement, and update logic for following a target entity in the game world.
 tags: [camera, entity, movement, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

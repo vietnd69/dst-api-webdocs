@@ -3,7 +3,7 @@ id: hitcher
 title: Hitcher
 description: Manages hitching state and tag synchronization for entities that can be hitched to or from other entities.
 tags: [hitching, entity, tags, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

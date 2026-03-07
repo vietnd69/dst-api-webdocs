@@ -3,7 +3,7 @@ id: trader
 title: Trader
 description: Manages trade logic and acceptance conditions for an entity acting as a merchant or trade partner.
 tags: [inventory, trade, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

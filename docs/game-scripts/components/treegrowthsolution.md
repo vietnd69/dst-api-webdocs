@@ -3,7 +3,7 @@ id: treegrowthsolution
 title: Treegrowthsolution
 description: Applies growth progression to a target tree entity, consuming the solution item after use.
 tags: [growth, utility, environment, item]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

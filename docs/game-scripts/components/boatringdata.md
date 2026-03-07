@@ -3,7 +3,7 @@ id: boatringdata
 title: Boatringdata
 description: Stores and synchronizes visual ring configuration data for boat-related effects, including radius, segment count, and rotation state.
 tags: [boat, visual, network, data]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

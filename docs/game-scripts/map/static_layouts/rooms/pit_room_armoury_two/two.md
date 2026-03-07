@@ -3,7 +3,7 @@ id: two
 title: Two
 description: Static map layout definition for the Pit Room Armoury Two room in DST, specifying tile data and object spawner positions for a specific dungeon layout.
 tags: [map, room, static, dungeon]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

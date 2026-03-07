@@ -3,7 +3,7 @@ id: inventoryitem_replica
 title: Inventoryitem Replica
 description: Manages network-replicated properties and synchronization of inventory items between server and client, including pickup restrictions, deploy modes, weapon stats, and usage state serialization.
 tags: [inventory, network, client, server]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

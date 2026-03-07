@@ -3,7 +3,7 @@ id: mandrake
 title: Mandrake
 description: Registers a custom forest room (MandrakeHome) that occasionally spawns a mandrake_planted prefab among natural flora and structures.
 tags: [room, worldgen, forest, spawn, flora]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

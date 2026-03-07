@@ -3,7 +3,7 @@ id: decay
 title: Decay
 description: Manages a consumable fuel meter that decays over time and triggers events when fuel is spent or added.
 tags: [fuel, timer, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: swamp
 title: Swamp
 description: Defines cave swamp map room templates with varying layouts, densities, and prefab distributions for procedural world generation.
 tags: [map, procedural, room, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable

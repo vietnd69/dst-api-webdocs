@@ -3,7 +3,7 @@ id: archive_end
 title: Archive End
 description: Defines the static layout data for the archive hallway end room, including background tile configuration and object placement for walls, chandeliers, and lockbox dispensers.
 tags: [map, level-design, static-layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

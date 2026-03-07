@@ -3,7 +3,7 @@ id: area_trigger
 title: Area Trigger
 description: Applies runtime tuning overrides when the player enters specific story zones during world generation.
 tags: [world, tuning, zone]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

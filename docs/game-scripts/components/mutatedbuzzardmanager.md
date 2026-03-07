@@ -3,7 +3,7 @@ id: mutatedbuzzardmanager
 title: Mutatedbuzzardmanager
 description: Manages mutated buzzard gestalt populations, tracks circling shadows for players, and controls spawning/dropping behavior in response to rift states, megaflares, and deaths.
 tags: [boss, ai, migration, environment, rift]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

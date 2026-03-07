@@ -3,7 +3,7 @@ id: shard_daywalkerspawner
 title: Shard Daywalkerspawner
 description: Manages networked location state for the Daywalker boss between cave and surface spawns.
 tags: [boss, network, map]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: damagetypebonus
 title: Damagetypebonus
 description: Calculates multiplicative damage bonuses based on target tags by aggregating source-specific modifiers per tag.
 tags: [combat, damage, modifier]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

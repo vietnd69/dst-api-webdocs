@@ -3,7 +3,7 @@ id: avoidlight
 title: Avoidlight
 description: Controls an entity's movement to avoid being in direct light by changing direction periodically or when transitioning between light and shadow.
 tags: [ai, locomotion, lighting]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: rampingspawner
 title: Rampingspawner
 description: Manages progressive spawning of entities in waves, ramping up spawn count over time based on wave progression.
 tags: [spawning, boss, wave, ai]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

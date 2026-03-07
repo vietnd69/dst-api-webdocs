@@ -3,7 +3,7 @@ id: feasts
 title: Feasts
 description: Manages group coordination, buff application, and announcement logic for winter feast events when multiple players and tables interact.
 tags: [event, buff, multiplayer, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

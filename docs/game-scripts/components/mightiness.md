@@ -3,7 +3,7 @@ id: mightiness
 title: Mightiness
 description: Manages Wolfgang's physical transformation system based on his current mightiness level, dynamically adjusting stats, animations, sounds, and gameplay modifiers.
 tags: [player, transformation, combat, work, ai]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

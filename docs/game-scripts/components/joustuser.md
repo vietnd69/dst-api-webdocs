@@ -3,7 +3,7 @@ id: joustuser
 title: Joustuser
 description: Manages joust-specific logic and callbacks for entities capable of performing jousting actions, including edge detection and custom validation.
 tags: [combat, locomotion, ai]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: fencerotator
 title: Fencerotator
 description: Rotates a target entity's orientation and spawns a visual effect upon completion.
 tags: [rotation, fx, world, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

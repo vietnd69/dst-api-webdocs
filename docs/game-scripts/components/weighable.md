@@ -3,7 +3,7 @@ id: weighable
 title: Weighable
 description: Manages weight-related data and tags for entities that can be weighed (e.g., trophies, items used in weighing mechanics), including owner information and weight percentage calculation.
 tags: [weight, inventory, data, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

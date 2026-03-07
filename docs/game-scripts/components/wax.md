@@ -3,7 +3,7 @@ id: wax
 title: Wax
 description: Controls whether an entity functions as a wax spray, applying or removing the `waxspray` tag accordingly.
 tags: [wax, item, tag]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

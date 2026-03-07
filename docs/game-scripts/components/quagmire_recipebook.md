@@ -3,7 +3,7 @@ id: quagmire_recipebook
 title: Quagmire Recipebook
 description: Manages the discovery and network sync of Quagmire recipes, queueing and broadcasting recipe data across clients in the Quagmire DLC.
 tags: [crafting, quagmire, network, recipe]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: compostingbin
 title: Compostingbin
 description: Manages composting progress and material storage for composting bins, calculating processing time based on green-to-brown material ratios.
 tags: [crafting, inventory, timer, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

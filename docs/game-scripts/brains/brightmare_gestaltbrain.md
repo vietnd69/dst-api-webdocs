@@ -3,7 +3,7 @@ id: brightmare_gestaltbrain
 title: Brightmare Gestaltbrain
 description: Controls combat and movement behavior for the Brightmare Gestalt boss based on its current behavior level and surrounding threats.
 tags: [ai, boss, combat, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

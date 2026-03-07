@@ -3,7 +3,7 @@ id: walkableplatform
 title: Walkableplatform
 description: Manages a physical platform (e.g., a boat or raft) that players and objects can stand on, handling entity attachment, detachment, and interaction with surrounding systems like drowning, physics halting, and network registration.
 tags: [locomotion, physics, entity, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

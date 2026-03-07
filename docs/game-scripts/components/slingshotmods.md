@@ -3,7 +3,7 @@ id: slingshotmods
 title: Slingshotmods
 description: Manages the containerized parts and modding interface for a slingshot, including part validation, skill requirements, and UI interaction.
 tags: [inventory, crafting, ui, component]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

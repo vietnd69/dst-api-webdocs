@@ -3,7 +3,7 @@ id: witherable
 title: Witherable
 description: Manages cyclic withering and rejuvenation of plants based on temperature and weather conditions, and supports temporary protection periods.
 tags: [plant, weather, lifecycle, environmental]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

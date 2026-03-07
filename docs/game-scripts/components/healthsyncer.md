@@ -3,7 +3,7 @@ id: healthsyncer
 title: Healthsyncer
 description: Synchronizes health status and percentage between server and client, tracking health regen/degen sources for UI indicators.
 tags: [network, health, ui, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: gravedigger
 title: Gravedigger
 description: A callback-triggering component invoked when a gravesite is used, commonly attached to grave-related prefabs.
 tags: [grave, interaction, callback]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

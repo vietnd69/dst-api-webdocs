@@ -3,7 +3,7 @@ id: long
 title: Long
 description: Defines the Tiled map layout data for a long hallway room in the Archive biome.
 tags: [map, archive, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

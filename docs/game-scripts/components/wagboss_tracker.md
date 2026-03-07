@@ -3,7 +3,7 @@ id: wagboss_tracker
 title: Wagboss Tracker
 description: Tracks whether the Wagboss boss entity has been defeated and notifies the world of changes.
 tags: [boss, world, state, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

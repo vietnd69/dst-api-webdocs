@@ -3,7 +3,7 @@ id: sharklistener
 title: Sharklistener
 description: Tracks nearby sharks and adjusts shark sound parameters for players based on proximity and shark state.
 tags: [audio, world, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

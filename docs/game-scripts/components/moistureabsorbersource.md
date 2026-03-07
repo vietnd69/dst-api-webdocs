@@ -3,7 +3,7 @@ id: moistureabsorbersource
 title: Moistureabsorbersource
 description: Provides a source of drying capability for entities equipped with moisture absorption items.
 tags: [moisture, item, inventory, drying]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

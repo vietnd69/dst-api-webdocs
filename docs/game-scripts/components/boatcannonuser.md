@@ -3,7 +3,7 @@ id: boatcannonuser
 title: Boatcannonuser
 description: Manages the state and synchronization of boat cannon aiming for a player entity, handling client-side aiming visuals and server-side cannon assignment.
 tags: [boat, combat, aiming, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

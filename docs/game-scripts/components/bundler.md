@@ -3,7 +3,7 @@ id: bundler
 title: Bundler
 description: Manages the bundling workflow for items, including spawning bundling containers, wrapping items, and persisting state across saves.
 tags: [inventory, crafting, persistence]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

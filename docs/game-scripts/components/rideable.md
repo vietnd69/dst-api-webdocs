@@ -3,7 +3,7 @@ id: rideable
 title: Rideable
 description: Manages the ability for an entity to be ridden, including saddle attachment, rider assignment, and ride-tick events.
 tags: [locomotion, riding, domestication]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

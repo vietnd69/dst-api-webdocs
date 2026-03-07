@@ -3,7 +3,7 @@ id: wagpunk_manager
 title: Wagpunk Manager
 description: Manages the lifecycle of Wagstaff machinery spawns, hints, and fence generation in the Wagpunk minigame area.
 tags: [boss, event, map, spawn, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

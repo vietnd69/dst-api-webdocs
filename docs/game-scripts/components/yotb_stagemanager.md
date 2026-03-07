@@ -3,7 +3,7 @@ id: yotb_stagemanager
 title: Yotb Stagemanager
 description: Manages the lifecycle and state of contest stages in a structured world progression system, including stage registration, contest activation, and save/load synchronization.
 tags: [progression, boss, world, save, event]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

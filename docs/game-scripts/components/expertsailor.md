@@ -3,7 +3,7 @@ id: expertsailor
 title: Expertsailor
 description: Controls configuration values that modify boat sailing physics and anchor behavior for a boat entity.
 tags: [boat, physics, sailing, vehicle]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

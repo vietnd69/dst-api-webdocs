@@ -3,7 +3,7 @@ id: shadowcreaturespawner
 title: Shadowcreaturespawner
 description: Manages the spawning, tracking, and population control of shadow creatures (e.g., Crawling Horrors, Ocean Horrors, Terrorbeaks) for players based on sanity levels and game mode.
 tags: [sanity, spawning, environment, player]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

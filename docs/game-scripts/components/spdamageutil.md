@@ -3,7 +3,7 @@ id: spdamageutil
 title: Spdamageutil
 description: A singleton utility for managing and calculating special damage types and their interaction with special defenses across entities.
 tags: [combat, damage, utility]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

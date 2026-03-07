@@ -3,7 +3,7 @@ id: winch
 title: Winch
 description: Manages rope line extension and retraction for anchor-based mechanics, updating depth-based state and triggering callbacks during operation.
 tags: [mechanics, anchor, depth, map, update]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

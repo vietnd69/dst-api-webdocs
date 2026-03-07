@@ -3,7 +3,7 @@ id: shadowhandspawner
 title: Shadowhandspawner
 description: Spawns shadow hands for players during nighttime when they meet specific conditions, including sanity thresholds, proximity to fire or repairable boats, and vault room restrictions.
 tags: [boss, night, environmental, multiplayer]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

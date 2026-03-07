@@ -3,7 +3,7 @@ id: workmultiplier
 title: Workmultiplier
 description: Manages action-specific work multipliers for an entity, allowing dynamic modification of work output via additive source-based modifiers.
 tags: [work, modifier, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

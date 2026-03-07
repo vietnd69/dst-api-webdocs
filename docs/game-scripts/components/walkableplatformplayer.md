@@ -3,7 +3,7 @@ id: walkableplatformplayer
 title: Walkableplatformplayer
 description: Manages player behavior and camera integration when the player is on a walkable platform (such as a boat), including movement prediction, boat-based camera effects, and zoom handling.
 tags: [locomotion, camera, physics, network]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

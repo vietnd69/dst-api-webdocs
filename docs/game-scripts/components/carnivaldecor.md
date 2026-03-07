@@ -3,7 +3,7 @@ id: carnivaldecor
 title: Carnivaldecor
 description: Tracks and reports the decorative value of an entity for carnival ranking systems by integrating with nearby CarnivalDecorRanker components.
 tags: [carnival, decoration, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

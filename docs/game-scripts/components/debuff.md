@@ -3,7 +3,7 @@ id: debuff
 title: Debuff
 description: Manages the attachment, detachment, extension, and symbol-following behavior of a debuff applied to a target entity.
 tags: [combat, effect, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

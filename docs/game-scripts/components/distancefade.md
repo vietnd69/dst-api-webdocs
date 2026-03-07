@@ -3,7 +3,7 @@ id: distancefade
 title: Distancefade
 description: Controls the visual fade effect of an entity based on its distance from the camera relative to the ground plane.
 tags: [visual, environment, camera]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: beecommon
 title: Beecommon
 description: Provides shared constants and utility functions for bee behavior, including combat targeting, hive defense, and home-seeking logic.
 tags: [combat, ai, hive, bees]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

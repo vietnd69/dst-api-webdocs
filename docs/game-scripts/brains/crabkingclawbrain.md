@@ -3,7 +3,7 @@ id: crabkingclawbrain
 title: Crabkingclawbrain
 description: Controls the AI behavior of a Crab King claw unit, coordinating attack, circling, leashing, and wandering actions using a behavior tree.
 tags: [ai, combat, boss, locomotion, brain]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

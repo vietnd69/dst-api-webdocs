@@ -3,7 +3,7 @@ id: smallghostbrain
 title: Smallghostbrain
 description: AI brain controlling small ghost behavior, including following leader, locating lost toys, hinting with jump-in actions, and avoiding combat.
 tags: [ai, ghost, behavior_tree]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

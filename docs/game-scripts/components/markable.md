@@ -3,7 +3,7 @@ id: markable
 title: Markable
 description: Manages a pool of integer identifiers to track which entities have marked this instance, supporting mark/unmark operations with optional callbacks.
 tags: [entity, tracking, pool]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

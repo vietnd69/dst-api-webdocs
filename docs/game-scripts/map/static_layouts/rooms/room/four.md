@@ -3,7 +3,7 @@ id: four
 title: Four
 description: Defines a static map layout using Tiled JSON data for a 32x32 tileroom with decorative background tiles and foreground objects.
 tags: [world, map, room]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

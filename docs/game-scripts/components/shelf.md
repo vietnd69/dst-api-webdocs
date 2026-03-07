@@ -3,7 +3,7 @@ id: shelf
 title: Shelf
 description: Manages items stored on a shelf entity, including item placement, retrieval, and accessibility state.
 tags: [inventory, storage, interaction]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

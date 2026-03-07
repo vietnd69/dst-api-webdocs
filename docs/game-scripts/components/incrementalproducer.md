@@ -3,7 +3,7 @@ id: incrementalproducer
 title: IncrementalProducer
 description: Manages incremental resource production on an entity, with configurable delay, capacity limits, and custom callbacks for production logic and state queries.
 tags: [production, resource, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

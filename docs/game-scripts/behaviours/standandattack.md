@@ -3,7 +3,7 @@ id: standandattack
 title: Standandattack
 description: Controls an entity to remain stationary while pursuing and attacking a target until a timeout or target death occurs, commonly used for combat AI.
 tags: [combat, ai, behaviour]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

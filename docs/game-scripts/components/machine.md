@@ -3,7 +3,7 @@ id: machine
 title: Machine
 description: Manages machine state including power (on/off), cooldowns, and interaction permissions.
 tags: [machine, state, cooldown, interaction]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

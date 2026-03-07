@@ -3,7 +3,7 @@ id: uniqueid
 title: Uniqueid
 description: Assigns and manages a unique numeric identifier for an entity, incrementing per prefab type via the UniquePrefabIDs system.
 tags: [network, serialization, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

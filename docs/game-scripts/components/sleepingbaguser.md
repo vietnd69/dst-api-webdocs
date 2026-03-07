@@ -3,7 +3,7 @@ id: sleepingbaguser
 title: Sleepingbaguser
 description: Manages a player's sleeping behavior and associated stat regeneration while using a sleeping bag.
 tags: [sleep, player, stat, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

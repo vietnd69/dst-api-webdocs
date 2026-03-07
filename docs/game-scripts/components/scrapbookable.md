@@ -3,7 +3,7 @@ id: scrapbookable
 title: Scrapbookable
 description: Enables an entity to be taught or learned via a callback function when interacted with in the scrapbook system.
 tags: [crafting, ui, learning]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

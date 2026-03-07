@@ -3,7 +3,7 @@ id: squidspawner
 title: Squidspawner
 description: Manages squid spawning based on player locations, moon phase, time of day, and nearby ocean trawlers during nights and dusk.
 tags: [world, spawning, mob, moon]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

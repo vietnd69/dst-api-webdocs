@@ -3,7 +3,7 @@ id: gestaltcage
 title: Gestaltcage
 description: Manages targeting and capturing of Gestalt creatures using a cage item.
 tags: [combat, capture, gestalt]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

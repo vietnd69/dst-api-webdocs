@@ -3,7 +3,7 @@ id: shadowthrallmanager
 title: Shadowthrallmanager
 description: Manages the lifecycle of shadow fissures and their associated thralls during nightmare events, including spawning, tracking, and releasing fissures and their thralls.
 tags: [combat, boss, ai, event, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

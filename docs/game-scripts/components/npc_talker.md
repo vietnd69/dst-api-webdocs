@@ -3,7 +3,7 @@ id: npc_talker
 title: Npc Talker
 description: Manages a queue of NPC dialogue lines and associated sounds for sequential, non-blocking speech.
 tags: [dialogue, queue, npc, audio]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: battery
 title: Battery
 description: Manages whether an entity can be used as a power source and tracks usage callbacks for gameplay interactions.
 tags: [power, inventory, utility]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

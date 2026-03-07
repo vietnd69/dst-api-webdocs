@@ -3,7 +3,7 @@ id: boatcannon
 title: Boatcannon
 description: Manages loading, aiming, and firing operations for a boat-mounted cannon, including ammo state tracking and projectile launch with recoil physics.
 tags: [combat, vehicle, physics, projectile]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

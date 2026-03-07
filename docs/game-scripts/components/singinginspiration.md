@@ -3,7 +3,7 @@ id: singinginspiration
 title: Singinginspiration
 description: Manages a player's inspiration resource and active battle songs, handling inspiration gain/loss, song activation, and buff application to nearby allies.
 tags: [combat, buff, ai, audio]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

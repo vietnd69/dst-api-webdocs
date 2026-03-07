@@ -3,7 +3,7 @@ id: loc
 title: Loc
 description: Provides locale and language management functionality for localization, including language selection, string file loading, and text scaling.
 tags: [language, localization, ui, network]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable

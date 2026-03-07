@@ -3,7 +3,7 @@ id: playingcardsmanager
 title: Playingcardsmanager
 description: Manages the pool of available playing card IDs and handles the creation and lifecycle of playing card prefabs and decks.
 tags: [inventory, networking, savegame]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

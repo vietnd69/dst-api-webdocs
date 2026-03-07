@@ -3,7 +3,7 @@ id: yotc_racestats
 title: Yotc Racestats
 description: Manages point-based racing statistics for entities, including stats modification, random point allocation, degradation, and baseline tracking.
 tags: [race, stats, entity, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

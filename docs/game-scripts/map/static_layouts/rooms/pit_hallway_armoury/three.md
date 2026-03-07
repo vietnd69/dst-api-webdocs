@@ -3,7 +3,7 @@ id: three
 title: Three
 description: Defines the static layout data for a specific map room (pit_hallway_armoury/three) used in world generation.
 tags: [map, worldgen, room]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: carnivalevent
 title: Carnivalevent
 description: Manages the lifecycle and world presence of the Carnival Host during the Carnival event, including spawning, plaza tracking, and summoning logic.
 tags: [event, world, host, spawn]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

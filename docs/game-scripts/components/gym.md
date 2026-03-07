@@ -3,7 +3,7 @@ id: gym
 title: Gym
 description: Manages training interactions with a trainee entity, including training timer management, perishability checks, music state transitions, and phase-based rest behavior.
 tags: [training, entity, timer, perishable]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

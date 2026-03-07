@@ -3,7 +3,7 @@ id: channelcaster
 title: Channelcaster
 description: Manages channeling state and item usage for entities performing channel-based actions, such as casting spells or using artifacts.
 tags: [combat, channeling, network, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

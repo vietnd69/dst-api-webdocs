@@ -3,7 +3,7 @@ id: lightninggoatbrain
 title: Lightninggoatbrain
 description: Controls the AI behavior of the Lightning Goat, managing state transitions between wandering, fleeing, facing, and attacking.
 tags: [ai, combat, locomotion, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

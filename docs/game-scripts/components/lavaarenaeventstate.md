@@ -3,7 +3,7 @@ id: lavaarenaeventstate
 title: Lavaarenaeventstate
 description: Manages the state and progression of the Lava Arena event, including round tracking, victory condition reporting, and player quest data for network synchronization.
 tags: [event, boss, combat, network, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

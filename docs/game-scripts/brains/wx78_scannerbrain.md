@@ -3,7 +3,7 @@ id: wx78_scannerbrain
 title: Wx78 Scannerbrain
 description: AI behavior controller for the Wx78 Scanner that manages scanning target tracking, following, and return-to-player logic.
 tags: [ai, brain, scanner, entitytracking]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

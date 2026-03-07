@@ -3,7 +3,7 @@ id: maxlightspawner
 title: Maxlightspawner
 description: Spawns and manages a fixed number of light prefabs in a circular pattern around an entity.
 tags: [light, environment, spawner]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: pumpkinhatcarvable
 title: Pumpkinhatcarvable
 description: Manages the carving interaction and face customization logic for pumpkin-based wearable items, including validation, state transitions, and tool requirements.
 tags: [crafting, interaction, inventory, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

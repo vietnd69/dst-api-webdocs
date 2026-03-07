@@ -3,7 +3,7 @@ id: klaussackspawner
 title: Klaussackspawner
 description: Manages spawning and respawning of Klaus sacks in winter, tracking spawn counts and coordinating with world timers and spawner locations.
 tags: [klaus, winter, spawner, event]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

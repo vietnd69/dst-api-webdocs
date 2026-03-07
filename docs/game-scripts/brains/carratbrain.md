@@ -3,7 +3,7 @@ id: carratbrain
 title: Carratbrain
 description: Manages the AI behavior tree for the Carrat character, including racing logic, panic responses, and food foraging.
 tags: [ai, locomotion, racing, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

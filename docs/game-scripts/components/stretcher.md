@@ -3,7 +3,7 @@ id: stretcher
 title: Stretcher
 description: Dynamically scales an entity along its facing axis to match the distance to a target entity, commonly used for stretchy visual effects like slingshots or elastic attachments.
 tags: [visual, animation, entity, physics]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: repellent
 title: Repellent
 description: Causes nearby entities with specified repel tags to stop following their leader or drop combat targets when activated.
 tags: [combat, ai, follower, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

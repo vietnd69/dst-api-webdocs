@@ -3,7 +3,7 @@ id: planardefense
 title: PlanarDefense
 description: Manages planar defense values for an entity, combining base defense with external multiplicative and additive modifiers.
 tags: [combat, defense, modifiers]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: four
 title: Four
 description: Defines static layout data for the Atrium Hallway Three room in the DST world generation system.
 tags: [map, rooms, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

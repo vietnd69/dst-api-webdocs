@@ -3,7 +3,7 @@ id: setbonus
 title: Setbonus
 description: Manages equipment set bonus logic for entities, enabling or disabling set-based effects when matching gear is equipped.
 tags: [inventory, equipment, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

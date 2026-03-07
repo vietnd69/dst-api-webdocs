@@ -3,7 +3,7 @@ id: beequeenbrain
 title: Beequeenbrain
 description: Controls the combat behavior, special abilities, and movement logic of the Bee Queen boss entity.
 tags: [combat, ai, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

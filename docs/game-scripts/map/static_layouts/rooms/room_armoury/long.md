@@ -3,7 +3,7 @@ id: long
 title: Long
 description: Defines the static layout data for the Armory room's long variant using Tiled map format for DST world generation.
 tags: [map, room, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

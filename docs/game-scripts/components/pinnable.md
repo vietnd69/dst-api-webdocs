@@ -3,7 +3,7 @@ id: pinnable
 title: Pinnable
 description: Manages the pinned state and visual wear-off effect for entities that can be stuck by goo-based attacks.
 tags: [combat, physics, fx]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

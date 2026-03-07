@@ -3,7 +3,7 @@ id: beargerbrain
 title: Beargerbrain
 description: Controls the behavior tree and AI logic for the Bearger boss, managing combat, foraging, and seasonal movement patterns.
 tags: [ai, combat, boss, season, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

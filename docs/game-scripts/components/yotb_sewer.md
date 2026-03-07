@@ -3,7 +3,7 @@ id: yotb_sewer
 title: Yotb Sewer
 description: Manages the sewing animation and recipe processing pipeline for a sewer-based crafting station, including task scheduling, inventory handling, and save/load synchronization.
 tags: [crafting, inventory, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

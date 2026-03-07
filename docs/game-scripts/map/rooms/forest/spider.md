@@ -3,7 +3,7 @@ id: spider
 title: Spider
 description: Defines three procedural room templates (SpiderCity, SpiderVillage, SpiderVillageSwamp) for generating spider-infested areas in the Forest, Rocky, and Marsh biomes.
 tags: [world, procedural, room, spider, generation]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable

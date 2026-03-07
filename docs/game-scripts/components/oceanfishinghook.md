@@ -3,7 +3,7 @@ id: oceanfishinghook
 title: Oceanfishinghook
 description: Manages fishing lure behavior and fish attraction mechanics in the ocean, including charm calculation, interest tracking, and reel-based modifiers.
 tags: [fishing, environment, fish, attraction, multiplayer]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: drawable
 title: Drawable
 description: Manages the visual appearance of an entity by storing and synchronizing image, atlas, and background assets for rendering in the UI or world.
 tags: [visuals, rendering, ui]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

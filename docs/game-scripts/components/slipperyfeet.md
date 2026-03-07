@@ -3,7 +3,7 @@ id: slipperyfeet
 title: Slipperyfeet
 description: Manages the accumulation and decay of slippiness on an entity, enabling ice-related movement mechanics and slip events based on speed and environmental factors.
 tags: [locomotion, physics, environment]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

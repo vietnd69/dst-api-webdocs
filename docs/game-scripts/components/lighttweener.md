@@ -3,7 +3,7 @@ id: lighttweener
 title: Lighttweener
 description: Interpolates light properties (radius, intensity, falloff, colour) over time for an entity's attached light component.
 tags: [light, animation, tween]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

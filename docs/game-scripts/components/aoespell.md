@@ -3,7 +3,7 @@ id: aoespell
 title: Aoespell
 description: Manages casting and validation logic for area-of-effect (AoE) spells in DST, integrating with targeting, spellbook, inventory, and world constraint systems.
 tags: [combat, spell, targeting, aoe]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: playeravatardata
 title: Playeravatardata
 description: Manages player avatar data including name, skins, age, and equipment, with support for network replication and save/load operations.
 tags: [network, player, save, data]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

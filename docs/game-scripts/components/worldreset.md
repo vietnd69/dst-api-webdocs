@@ -3,7 +3,7 @@ id: worldreset
 title: Worldreset
 description: Manages the countdown and execution of world reset logic when all players become ghosts, including dialog display, network synchronization, and termination handling.
 tags: [world, network, reset, ui]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

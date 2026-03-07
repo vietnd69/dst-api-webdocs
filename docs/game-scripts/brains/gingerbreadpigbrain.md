@@ -3,7 +3,7 @@ id: gingerbreadpigbrain
 title: Gingerbreadpigbrain
 description: Implements AI behavior for the Gingerbread Pig entity, handling panic, fleeing, leashing, and orientation logic.
 tags: [ai, brain, combat, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

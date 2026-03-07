@@ -3,7 +3,7 @@ id: brightmare_gestaltinvaderbrain
 title: Brightmare Gestaltinvaderbrain
 description: AI brain for the Brightmare Gestalt invader entity, managing aggression, pursuit, projectile spitting, and structural interaction during invasion behavior.
 tags: [ai, brain, combat, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

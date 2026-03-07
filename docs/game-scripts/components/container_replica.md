@@ -3,7 +3,7 @@ id: container_replica
 title: Container Replica
 description: Manages the client-side replica of a container's state and user interaction, synchronizing with the server-hosted container component for UI and network coordination.
 tags: [inventory, network, ui]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: finiteuses
 title: Finiteuses
 description: Manages a finite number of uses for an entity's actions, updating repair status and tags as uses deplete.
 tags: [inventory, durability, repair]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

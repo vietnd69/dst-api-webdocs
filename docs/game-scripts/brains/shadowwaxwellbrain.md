@@ -3,7 +3,7 @@ id: shadowwaxwellbrain
 title: Shadowwaxwellbrain
 description: Controls AI behavior for Shadow Waxwell minions (e.g., shadowworker, shadowprotector, shadowduelist) by managing priority-based behavior trees focused on following, dancing, avoiding danger, performing work, and combat.
 tags: [ai, brain, boss, minion, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

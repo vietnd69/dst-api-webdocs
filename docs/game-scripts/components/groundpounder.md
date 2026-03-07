@@ -3,7 +3,7 @@ id: groundpounder
 title: Groundpounder
 description: Simulates a radial ground pound attack that triggers delayed damage, destruction, platform pushing, and inventory item launch effects across concentric rings.
 tags: [combat, destruction, physics,AoE, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

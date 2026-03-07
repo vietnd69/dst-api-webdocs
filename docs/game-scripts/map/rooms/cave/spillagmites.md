@@ -3,7 +3,7 @@ id: spillagmites
 title: Spillagmites
 description: Registers cave room templates populated with stalagmites, pillars, spider holes, and other ambient cave debris for world generation.
 tags: [world, room, generation]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable

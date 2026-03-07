@@ -3,7 +3,7 @@ id: cookbookupdater
 title: Cookbookupdater
 description: Manages recipe and food stat acquisition for the in-game cookbook, handling both local updates and network synchronization between server and clients.
 tags: [crafting, network, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

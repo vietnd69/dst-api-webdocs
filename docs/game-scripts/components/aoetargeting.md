@@ -3,7 +3,7 @@ id: aoetargeting
 title: Aoetargeting
 description: Manages AOE (area-of-effect) targeting state and visual feedback for deployable items, including reticule management, range validation, and FX spawning.
 tags: [combat, targeting, aoe, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

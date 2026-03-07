@@ -3,7 +3,7 @@ id: kitcoonbrain
 title: Kitcoonbrain
 description: Manages the AI behavior of a kitcoon, handling owner following, combat avoidance, playful interactions with other kitcoons and toys, and minigame observation.
 tags: [ai, mob, companion, minigame]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

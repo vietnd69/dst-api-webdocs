@@ -3,7 +3,7 @@ id: keyroom_1
 title: Keyroom 1
 description: Defines the layout and static object placement for the Archive Keyroom in DST, used during the Ruins gameplay sequence.
 tags: [map, environment, ruins]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

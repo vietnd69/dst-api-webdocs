@@ -3,7 +3,7 @@ id: lunarthrall_plant_gestalt_brain
 title: Lunarthrall Plant Gestalt Brain
 description: Controls the AI behavior of a Lunar Thrall Gestalt entity that moves toward and infests specific lunar thrall plants.
 tags: [ai, boss, combat, locust]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: findflower
 title: Findflower
 description: Selects the nearest unoccupied flower within sight and plans a pollination action for the entity.
 tags: [ai, pollination, locomotion, behavior]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

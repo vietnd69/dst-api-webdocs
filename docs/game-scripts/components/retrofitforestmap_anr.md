@@ -3,7 +3,7 @@ id: retrofitforestmap_anr
 title: Retrofitforestmap Anr
 description: Applies world-retrofitting changes for post-launch content (e.g., Return of Them, Terraria, Balatro) by dynamically spawning, repositioning, or removing prefabs after world generation completes.
 tags: [world, retrofittng, environment]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

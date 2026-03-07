@@ -3,7 +3,7 @@ id: wisecracker
 title: Wisecracker
 description: Manages contextual voice lines and announcements for entities based on game events, states, and interactions.
 tags: [ai, dialogue, audio]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

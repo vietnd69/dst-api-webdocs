@@ -3,7 +3,7 @@ id: bathbomb
 title: Bathbomb
 description: Marks an entity as a bath bomb item by adding the 'bathbomb' tag.
 tags: [inventory, fx]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

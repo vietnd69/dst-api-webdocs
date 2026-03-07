@@ -1,69 +1,56 @@
 ---
 id: terrain
 title: Terrain
-description: Defines global terrain spawn filtering rules that specify which items or structures can or cannot appear on specific tile types in the game world.
-tags: [world, map, spawning, terrain, filtering]
+description: Defines terrain tile restrictions for spawning in-game objects and provides access to room definitions via a deprecated lookup mechanism.
+tags: [world, spawning, room, environment]
 sidebar_position: 10
 
-last_updated: 2026-02-27
+last_updated: 2026-03-07
 build_version: 714014
 change_status: stable
 category_type: map
-system_scope: world
 source_hash: 362ac1b1
+system_scope: world
 ---
 
 # Terrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **714014** | Last updated: 2026-03-07
 
 ## Overview
-This file defines a global `TERRAIN_FILTER` table that specifies, for each entity type (e.g., `berrybush`, `rock1`, `tentacle`), which `WORLD_TILES` types are *not allowed* for spawning that entity. In other words, an entity will not spawn on any terrain tile listed in its corresponding filter array.
+`terrain` is a global table that specifies which terrain tile types are allowed or disallowed for spawning specific in-game objects (e.g., trees, bushes, structures). It contains two key elements:
+- `filter`: A mapping from object type names to lists of disallowed terrain tile types (`WORLD_TILES.*` constants).
+- `rooms`: A legacy accessor to room definitions via `map/rooms.lua`, now deprecated and triggers a warning on use.
 
-It also provides the helper function `OnlyAllow(approved)` that returns the *inverse* of a list—i.e., all tile types *except* those in `approved`, useful for specifying "whitelist-only" behavior concisely.
+This table is used by the world generation system to prevent invalid placements (e.g., grass on carpet tiles) and ensure compatibility with tile sets used in different biomes and game modes.
 
-A read-only `terrain.rooms` entry is exposed for legacy compatibility (though direct access triggers a deprecation warning), sourcing room definitions via `map/rooms.lua` internally.
+## Usage example
+```lua
+-- Check if a berrybush can spawn on a given tile (e.g., WORLD_TILES.DIRT)
+if not table.contains(terrain.filter.berrybush, WORLD_TILES.DIRT) then
+    print("berrybush can spawn on dirt")
+end
 
-This module is central to worldgen logic: it prevents invalid placements (e.g., trees on wood floors) to maintain world integrity and gameplay consistency.
+-- Access a room via the deprecated API (triggers a moderror warning)
+-- local room = terrain.rooms["forest_tree_large"]
+```
 
 ## Dependencies & tags
-**Components used:**  
-- `GetWorldTileMap()` — global utility function (not a component), returns list of all `WORLD_TILES` enum values.
-- `table.contains(t, val)` — utility function to check membership in a table.
-- `moderror(msg)` — global error function (triggers warning in log when deprecated patterns are used).
-
-**Tags:**  
-- `WORLD_TILES` constants are used extensively (e.g., `WORLD_TILES.ROAD`, `WORLD_TILES.METEOR`).  
-- No entity tags are added/removed by this file.
+**Components used:** None. This is a pure data table.
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `TERRAIN_FILTER` | `table<string, table<WORLD_TILES, boolean>>` | Structured lookup table keyed by entity prefabs, each value being a list of forbidden `WORLD_TILES` constants | Defines, per entity type, the set of terrain types where that entity cannot spawn. Includes helper functions like `.Print()`. |
-| `terrain` | `table` | `{ rooms = old_rooms, filter = TERRAIN_FILTER }` | Global export table containing legacy `rooms` accessor (deprecated) and the `filter` table. |
+| `filter` | table | `{}` | A dictionary mapping object prefabs to lists of disallowed `WORLD_TILES.*` tile types. |
+| `rooms` | table (deprecated) | `{}` | Legacy proxy to `map/rooms.lua` room definitions; triggers `moderror` on access. |
 
 ## Main functions
-
 ### `OnlyAllow(approved)`
-* **Description:** Returns a list of all `WORLD_TILES` values *except* those in the `approved` list. Used to define "allow only these tiles" rules by generating the inverse (i.e., forbidden) list for inclusion in `TERRAIN_FILTER`.  
-* **Parameters:**  
-  - `approved` (`table<WORLD_TILES>`) — List of `WORLD_TILES` constants considered valid for the associated entity.  
-* **Returns:** `table<WORLD_TILES>` — All tile types *not* in `approved`.  
-* **Error states:** None—returns empty table if `approved` includes all known tile types.
+*   **Description:** Helper function that returns a list of *all* terrain tiles *except* those in `approved`. Used to define `TERRAIN_FILTER` entries where only specific tile types are allowed.
+*   **Parameters:** `approved` (table) — A list of `WORLD_TILES.*` constants that *are* allowed; all others are included in the returned filter list.
+*   **Returns:** table — A list of disallowed `WORLD_TILES.*` constants.
+*   **Error states:** None.
 
 ## Events & listeners
-None.
-
-## Usage example
-```lua
--- Check whether a berrybush can spawn on a given tile type
-local tile = GetTile(x, y)
-local allowed = not table.contains(TERRAIN_FILTER.berrybush, tile)
-
--- Verify allowed tiles using the helper .Print() function
-print("Forbidden tiles for berrybush:", TERRAIN_FILTER.berrybush:Print())
-
--- Add a custom entity to the filter (e.g., for a modded item)
-TERRAIN_FILTER.mymodded_shrub = { WORLD_TILES.ROAD, WORLD_TILES.WOODFLOOR }
-```
-Note: Direct modification of `TERRAIN_FILTER` at runtime is possible but strongly discouraged outside mod pre-init stages; use `AddRoomPreInit` for room-specific placement changes.
+Not applicable.

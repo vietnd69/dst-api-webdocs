@@ -3,7 +3,7 @@ id: two
 title: Two
 description: Defines the static layout data for the Pit Hallway Armoury room variant 'two' in DST's world generation system.
 tags: [worldgen, map, room]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

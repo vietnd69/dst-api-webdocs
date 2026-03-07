@@ -3,7 +3,7 @@ id: alterguardian_phase4_lunarriftbrain
 title: Alterguardian Phase4 Lunarriftbrain
 description: Controls the combat and movement behavior of the Alterguardian during its Phase 4 Lunar Rift transition, prioritizing ranged attacks while chasing andwandering within the arena.
 tags: [ai, combat, boss, locomotion, brain]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

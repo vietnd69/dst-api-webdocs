@@ -3,7 +3,7 @@ id: quaker
 title: Quaker
 description: Manages environmental quaking events that spawn falling debris and trigger player-specific particle and audio effects in response to time, explosions, or forced triggers.
 tags: [environment, event, debris, world]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

@@ -3,7 +3,7 @@ id: monkeybrain
 title: Monkeybrain
 description: AI brain controller for monkey characters that manages combat, foraging, item gathering, leash behavior, and leader harassment via behavior tree logic.
 tags: [ai, combat, inventory, item, leader]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

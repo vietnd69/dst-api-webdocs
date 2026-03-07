@@ -3,7 +3,7 @@ id: two
 title: Two
 description: Defines a static hallway map layout using Tiled map format, containing background tile data and foreground object placements for in-game level generation.
 tags: [map, static_layout, room]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

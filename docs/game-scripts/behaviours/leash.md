@@ -3,7 +3,7 @@ id: leash
 title: Leash
 description: Controls entity movement to enforce a "leash" distance from a home point, guiding the entity toward home if it strays too far.
 tags: [ai, locomotion, behavior]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

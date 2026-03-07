@@ -3,7 +3,7 @@ id: one
 title: One
 description: Defines the static layout data for an atrium hallway room in the game world using Tiled map format.
 tags: [map, layout, room, static]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

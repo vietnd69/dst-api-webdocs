@@ -3,7 +3,7 @@ id: cattoy
 title: Cattoy
 description: Manages a callback-based interaction handler for cat toy items in DST, invoked when an entity plays with the item.
 tags: [item, interaction, event]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

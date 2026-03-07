@@ -3,7 +3,7 @@ id: aoeweapon_lunge
 title: Aoeweapon Lunge
 description: Implements a forward-lunge area-of-effect weapon mechanic that calculates directional hit and toss zones, then triggers OnHit/OnToss callbacks with physics-aware overlap checks.
 tags: [combat, aoe, movement]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

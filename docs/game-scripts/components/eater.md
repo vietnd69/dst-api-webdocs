@@ -3,7 +3,7 @@ id: eater
 title: Eater
 description: Manages an entity's ability to consume food items, applying health, hunger, and sanity effects while handling diet restrictions and spoilage tolerance.
 tags: [consumption, diet, food, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

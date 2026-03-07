@@ -3,7 +3,7 @@ id: nightmarecreaturebrain
 title: Nightmarecreaturebrain
 description: AI brain component for Nightmare Creatures that manages combat, harassment, and loiter behaviors, including conditional battle cries and shadow dominance submissions.
 tags: [ai, combat, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

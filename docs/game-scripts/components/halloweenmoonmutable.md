@@ -3,7 +3,7 @@ id: halloweenmoonmutable
 title: Halloweenmoonmutable
 description: Provides mutation functionality for entities under the influence of the Halloween Moon, allowing them to transform into a different prefab or be processed via a custom override function.
 tags: [event, transform, halloween]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

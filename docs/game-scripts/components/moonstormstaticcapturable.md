@@ -3,7 +3,7 @@ id: moonstormstaticcapturable
 title: Moonstormstaticcapturable
 description: Tracks whether an entity is being targeted by moonstormstaticcatcher components and manages callbacks and events for targeting and catching interactions.
 tags: [moonstorm, target, event, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

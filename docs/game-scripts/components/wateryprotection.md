@@ -3,7 +3,7 @@ id: wateryprotection
 title: Wateryprotection
 description: Applies protective effects (withering, cooling, extinguishing, and wetting) to entities within a radius, typically used for environmental interactions like rain or water-based abilities.
 tags: [environment, protection, weather]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: terrain_moonisland
 title: Terrain Moonisland
 description: Defines procedural room templates and static layout placements for the Moon Island biome in Don't Starve Together.
 tags: [world, map, generation, biome]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

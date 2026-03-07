@@ -3,7 +3,7 @@ id: antlionbrain
 title: Antlionbrain
 description: Controls the decision-making logic for the antlion boss using a behavior tree to manage combat, rock-eating recovery, and post-combat calm periods.
 tags: [ai, combat, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: three
 title: Three
 description: A static map layout file defining the pit_room_armoury room configuration using Tiled map data.
 tags: [map, room, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

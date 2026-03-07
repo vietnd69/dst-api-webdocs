@@ -3,7 +3,7 @@ id: attackdodger
 title: Attackdodger
 description: Manages attack dodging logic including cooldown state and custom dodge/can-dodge behavior callbacks for an entity.
 tags: [combat, ai, utility]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

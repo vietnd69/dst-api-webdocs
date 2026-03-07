@@ -3,7 +3,7 @@ id: chargingreticule
 title: Chargingreticule
 description: Manages a visual reticle that follows a target entity and points toward a dynamic aim direction (mouse or controller), used for indicating where a charging attack will land.
 tags: [combat, ui, visual, aim]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

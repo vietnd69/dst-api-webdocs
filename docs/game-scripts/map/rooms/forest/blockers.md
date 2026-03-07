@@ -3,7 +3,7 @@ id: blockers
 title: Blockers
 description: Registers forest biome-specific room templates that act as visual and gameplay blockers, containing fixed or randomly distributed prefabs to shape the world layout.
 tags: [world, map, room, blocker, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

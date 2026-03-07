@@ -3,7 +3,7 @@ id: shard_wagbossinfo
 title: Shard Wagbossinfo
 description: Tracks whether the Wagboss boss has been defeated on the master shard, for use across shards in DST's networked world.
 tags: [network, boss, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

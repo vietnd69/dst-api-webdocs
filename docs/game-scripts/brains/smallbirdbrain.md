@@ -3,7 +3,7 @@ id: smallbirdbrain
 title: Smallbirdbrain
 description: Controls the AI behavior of small birds, prioritizing survival (starvation, food), following leaders, evading players when not companions, and engaging in combat when necessary.
 tags: [ai, brain, smallbird, follower, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

@@ -3,7 +3,7 @@ id: grogginess
 title: Grogginess
 description: Manages temporary impairment effects including grogginess, knockouts, and associated speed penalties on an entity.
 tags: [knockout, movement, status, combat, ai]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

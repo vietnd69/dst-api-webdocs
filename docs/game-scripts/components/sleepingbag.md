@@ -3,7 +3,7 @@ id: sleepingbag
 title: Sleepingbag
 description: Manages sleep state and associated gameplay effects for entities interacting with a sleeping bag (e.g., healing, hunger loss, sanity restoration).
 tags: [sleep, healing, inventory, multiplayer]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: perishable
 title: Perishable
 description: Manages spoilage progress, state transitions (fresh/stale/spoiled), and lifecycle events for perishable items in response to environmental and ownership conditions.
 tags: [inventory, food, time, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

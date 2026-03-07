@@ -3,7 +3,7 @@ id: worldroutes
 title: Worldroutes
 description: Stores and manages cached static route data for circular paths across the world's traversable terrain.
 tags: [world, routing, navigation, save, cache]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

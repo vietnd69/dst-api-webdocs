@@ -3,7 +3,7 @@ id: upgrademodule
 title: Upgrademodule
 description: Manages the activation state and lifecycle callbacks for a modular upgrade attached to an entity.
 tags: [upgrade, gameplay, component]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

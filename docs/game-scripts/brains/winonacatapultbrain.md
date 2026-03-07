@@ -3,7 +3,7 @@ id: winonacatapultbrain
 title: WinonaCatapultbrain
 description: AI brain that controls Winona's catapult entity to stand and attack the nearest valid target.
 tags: [ai, combat, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

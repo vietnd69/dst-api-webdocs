@@ -3,7 +3,7 @@ id: unsaddler
 title: Unsaddler
 description: A marker component with no functional logic, used solely to indicate that an entity has been processed by the unsaddler system.
 tags: [marker]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

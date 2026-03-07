@@ -3,7 +3,7 @@ id: projectile
 title: Projectile
 description: Handles the logic for projectiles, including trajectory, homing, collisions, and throwing behavior in DST.
 tags: [combat, physics, entity]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

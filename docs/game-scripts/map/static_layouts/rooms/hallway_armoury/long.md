@@ -3,7 +3,7 @@ id: long
 title: Long
 description: Static map layout definition for the Hallway Armoury's long corridor in Don't Starve Together.
 tags: [map, layout, static]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

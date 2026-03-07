@@ -3,7 +3,7 @@ id: krampusbrain
 title: Krampusbrain
 description: Implements the decision-making logic for the Krampus character, handling stealing, chest-emptying, aggression, fleeing, and departure behaviors.
 tags: [ai, combat, inventory, stealth, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

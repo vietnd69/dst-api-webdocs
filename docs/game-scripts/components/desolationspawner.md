@@ -3,7 +3,7 @@ id: desolationspawner
 title: Desolationspawner
 description: Manages timed regrowth of trees and plants in desolation zones based on world topology and time multipliers.
 tags: [world, map, regrowth]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

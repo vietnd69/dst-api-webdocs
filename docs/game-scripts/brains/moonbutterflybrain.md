@@ -3,7 +3,7 @@ id: moonbutterflybrain
 title: Moonbutterflybrain
 description: Controls the AI behavior of the Moon Butterfly, prioritizing escape from threats, homing to a remembered location, and wandering within a limited radius.
 tags: [ai, creature, movement, escape]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

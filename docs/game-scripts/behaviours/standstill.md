@@ -3,7 +3,7 @@ id: standstill
 title: Standstill
 description: A behavior node that forces an entity to stop moving and remain stationary, conditionally invoking start/keep functions to determine ongoing validity.
 tags: [ai, behavior, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

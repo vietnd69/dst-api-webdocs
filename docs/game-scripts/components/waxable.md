@@ -3,7 +3,7 @@ id: waxable
 title: Waxable
 description: Manages waxing interactions for an entity, including tag state and callback-based waxing logic.
 tags: [wax, item, interaction, utility]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

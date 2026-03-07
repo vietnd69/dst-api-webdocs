@@ -3,7 +3,7 @@ id: oceancolor
 title: Oceancolor
 description: Manages dynamic color and texture blending for the ocean floor and sky based on time of day phases (day, dusk, night, no_ocean).
 tags: [environment, world, map, rendering]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

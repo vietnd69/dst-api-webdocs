@@ -3,7 +3,7 @@ id: ruinsshadelingspawner
 title: Ruinsshadelingspawner
 description: Manages spawning and lifecycle of a shadeling entity tied to an unsittable chair in a Nightmare-zone node, with cooldown enforcement.
 tags: [spawn, boss, night, environment, chair]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

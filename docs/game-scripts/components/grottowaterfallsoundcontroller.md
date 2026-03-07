@@ -3,7 +3,7 @@ id: grottowaterfallsoundcontroller
 title: Grottowaterfallsoundcontroller
 description: Manages dynamic spatial audio for grotto waterfalls by tracking nearby pools and assigning sound emitters to the closest valid ones.
 tags: [audio, environment, map]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

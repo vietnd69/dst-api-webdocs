@@ -3,7 +3,7 @@ id: four
 title: Four
 description: Represents a static map layout file for a specific room (pit_room_armoury_two) using Tiled map format, containing tile layers and object groups for level geometry and entity spawners.
 tags: [map, static_layout, room]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

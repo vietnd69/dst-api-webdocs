@@ -3,7 +3,7 @@ id: attuner
 title: Attuner
 description: Manages attunement relationships between a player and attunable entities, tracking which entities the player is attuned to and enabling server/client-side attunement queries and transfers.
 tags: [attunement, player, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

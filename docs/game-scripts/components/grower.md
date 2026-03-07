@@ -3,7 +3,7 @@ id: grower
 title: Grower
 description: Manages crop growth and fertility for plot-like entities, tracking soil cycles and planted crops.
 tags: [farming, fertility, growth, plot]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

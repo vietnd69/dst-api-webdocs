@@ -3,7 +3,7 @@ id: recipescanner
 title: Recipescanner
 description: Enables scanning of entities to automatically unlock associated recipes for a builder.
 tags: [crafting, discovery, interaction]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

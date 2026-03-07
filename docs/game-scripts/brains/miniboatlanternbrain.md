@@ -1,30 +1,37 @@
 ---
 id: miniboatlanternbrain
 title: Miniboatlanternbrain
-description: Controls the behavior of the Mini Boat Lantern entity by determining when and how it wanders over ocean terrain while fuel is available.
-tags: [ai, brain, navigation, boat, lantern]
-sidebar_position: 1
+description: Controls the movement behavior of a small lantern-carrying entity that navigates ocean terrain using a wander-based AI.
+tags: [ai, locomotion, ocean]
+sidebar_position: 10
 
-last_updated: 2026-03-03
+last_updated: 2026-03-07
 build_version: 714014
 change_status: stable
 category_type: brain
 source_hash: d3dcc53e
-system_scope: brain
+system_scope: locomotion
 ---
 
 # Miniboatlanternbrain
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **714014** | Last updated: 2026-03-07
 
 ## Overview
-`MiniBoatLanternBrain` is a behavior tree–based AI component for the Mini Boat Lantern entity. It implements logic that allows the lantern to move autonomously when it is positioned on ocean terrain and has fuel remaining. The brain relies on the `KnownLocations` component to remember its spawn position as `"home"` and uses the `Fueled` component to verify it is not empty before initiating movement. It does not define custom behavior beyond initiating wander movement under the stated conditions.
+`MiniBoatLanternBrain` is a behavior tree-based AI controller for a small entity (e.g., the Boat Lantern) that patrols ocean terrain. It uses a `Wander` behavior when the entity is positioned on ocean water, has a non-empty `fueled` component, and is not grounded. It records the starting position as `"home"` upon initialization for use as a wander reference point.
+
+## Usage example
+```lua
+local inst = CreateEntity()
+inst:AddComponent("fueled")
+inst:AddComponent("knownlocations")
+inst:AddBrain("miniboatlanternbrain")
+
+-- The brain automatically records "home" on initialization and begins wandering when conditions are met.
+```
 
 ## Dependencies & tags
-**Components used:**  
-- `fueled` — checks `IsEmpty()` to ensure fuel remains.  
-- `knownlocations` — records `"home"` location on initialization; retrieves it for navigation.
-
+**Components used:** `fueled`, `knownlocations`  
 **Tags:** None identified.
 
 ## Properties
@@ -32,34 +39,15 @@ No public properties.
 
 ## Main functions
 ### `OnStart()`
-* **Description:** Initializes the behavior tree. Creates a `PriorityNode` root with a single `WhileNode` that triggers when `ShouldMove()` returns true. The while condition runs a `Wander` behavior using `"home"` as the reference point, configurable distance, and custom direction logic.
+* **Description:** Initializes and assigns the behavior tree. Sets up a priority root node that executes a `Wander` behavior only when `ShouldMove()` returns `true` — i.e., the entity is on ocean terrain, has a `fueled` component, and the fuel is not empty.
 * **Parameters:** None.
 * **Returns:** Nothing.
+* **Error states:** The `Wander` behavior uses `"home"` location via `knownlocations:GetLocation("home")`, which must have been previously set.
 
 ### `OnInitializationComplete()`
-* **Description:** Records the entity's initial world position as `"home"` location in the `knownlocations` component. The `dont_overwrite` flag is set to `true`, ensuring the location is only stored if not already present.
+* **Description:** Records the entity’s current world position as `"home"` in the `knownlocations` component. Prevents overwriting if `"home"` already exists.
 * **Parameters:** None.
 * **Returns:** Nothing.
 
-### `ShouldMove(inst)`
-* **Description:** Helper function (not a class method) that determines whether the Mini Boat Lantern should move. Returns `true` if the lantern is on ocean terrain, has a `fueled` component attached, and that component is not empty.
-* **Parameters:**  
-  - `inst`: (Entity) — the entity instance to check.
-* **Returns:** `boolean` — `true` if conditions for movement are met; otherwise `false`.
-
-### `getdirectionFn(inst)`
-* **Description:** Helper function (not a class method) that computes a random direction offset based on the entity's current rotation. The offset is skewed by cubing a uniform random value and scaled by `40` degrees.
-* **Parameters:**  
-  - `inst`: (Entity) — used to read current rotation.
-* **Returns:** `number` — direction in radians.
-
 ## Events & listeners
-None identified.
-
-## Usage example
-```lua
--- The brain is automatically attached and initialized for the Mini Boat Lantern prefab.
--- It does not need to be manually added or invoked.
--- Typical lifecycle is:
--- 1. On prefab spawn, OnInitializationComplete() records "home".
--- 2. On each tick, OnStart() behavior evaluates ShouldMove() and triggers Wander if true.
+Not applicable.

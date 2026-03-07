@@ -3,7 +3,7 @@ id: boatrace_proximitybeacon
 title: Boatrace Proximitybeacon
 description: Registers event callbacks for boat race start and finish events on an entity, enabling custom logic when a boat race begins or ends.
 tags: [event, race, callback]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

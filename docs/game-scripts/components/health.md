@@ -3,7 +3,7 @@ id: health
 title: Health
 description: Manages entity health state, including damage, healing, regeneration, penalties, and fire damage handling.
 tags: [combat, entity, network, damage]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: powdermonkeybrain
 title: Powdermonkeybrain
 description: AI brain controlling powder monkey characters, managing movement, looting, combat, and boat operations such as rowing, tinking, and cannon firing.
 tags: [ai, entity, combat, inventory, movement]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

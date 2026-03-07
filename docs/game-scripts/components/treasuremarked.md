@@ -3,7 +3,7 @@ id: treasuremarked
 title: Treasuremarked
 description: Manages the visual marker (messagebottletreasure_marker) that appears above an entity when it holds or emits treasure messages.
 tags: [treasure, marker, visual]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

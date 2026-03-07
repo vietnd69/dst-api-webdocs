@@ -3,7 +3,7 @@ id: terraformer
 title: Terraformer
 description: Modifies terrain tiles at a given point in the world, handling soil replacement, entity collapse events, and custom callbacks.
 tags: [world, terrain, map]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

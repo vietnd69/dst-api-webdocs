@@ -3,7 +3,7 @@ id: bundlemaker
 title: Bundlemaker
 description: Stores configuration for bundling items, including the source and target prefabs, optional skin data, and a callback for when bundling begins.
 tags: [crafting, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

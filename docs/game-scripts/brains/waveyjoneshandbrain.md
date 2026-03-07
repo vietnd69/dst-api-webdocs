@@ -3,7 +3,7 @@ id: waveyjoneshandbrain
 title: Waveyjoneshandbrain
 description: Controls the behavior of Wavey Jones' hand entity by selecting and performing repair-related actions on boat components based on current conditions and player sanity.
 tags: [ai, boat, repair, boss, sanity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

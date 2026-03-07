@@ -3,7 +3,7 @@ id: book
 title: Book
 description: Manages interactive reading and perusing behavior for books, including sanity effects, use consumption, and optional visual FX.
 tags: [inventory, sanity, interaction]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

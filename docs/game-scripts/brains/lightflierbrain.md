@@ -3,7 +3,7 @@ id: lightflierbrain
 title: Lightflierbrain
 description: Controls the AI behavior of lightfliers, managing movement, threat response, home seeking, and formation following.
 tags: [ai, locomotion, combat, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

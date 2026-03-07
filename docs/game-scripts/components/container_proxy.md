@@ -3,7 +3,7 @@ id: container_proxy
 title: Container Proxy
 description: Acts as a proxy layer between a container's master entity and its openers, managing network synchronization and opener lifecycle for multiplayer consistency.
 tags: [network, inventory, container, ui]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

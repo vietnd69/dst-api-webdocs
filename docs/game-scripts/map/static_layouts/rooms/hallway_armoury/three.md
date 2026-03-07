@@ -3,7 +3,7 @@ id: three
 title: Three
 description: A static layout definition for the hallway_armoury room containing background tile data and foreground object placement.
 tags: [world, map, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

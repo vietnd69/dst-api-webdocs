@@ -3,7 +3,7 @@ id: one
 title: One
 description: Defines the layout and static object placement for a residential-style room in the game map.
 tags: [map, room, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: strafer
 title: Strafer
 description: Manages strafing input and facing direction for player entities during movement, integrating with locomotion and player controller systems.
 tags: [player, locomotion, input]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

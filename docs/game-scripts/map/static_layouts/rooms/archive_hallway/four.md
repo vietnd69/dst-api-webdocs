@@ -3,7 +3,7 @@ id: four
 title: Four
 description: A Tiled map static layout defining the architecture and object placement for a hallway room in the archive worldgen.
 tags: [map, room, worldgen, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

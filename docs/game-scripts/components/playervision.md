@@ -3,7 +3,7 @@ id: playervision
 title: Playervision
 description: Manages player visual modifiers (e.g., night vision, ghost vision, nightmare vision) by controlling colour cube overrides and related events.
 tags: [vision, player, lighting]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

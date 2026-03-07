@@ -3,7 +3,7 @@ id: fishschool
 title: Fishschool
 description: Manages a fish school entity that spawns fish when caught by a fishing net and replenishes its fish over time.
 tags: [environment, entity, loot]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

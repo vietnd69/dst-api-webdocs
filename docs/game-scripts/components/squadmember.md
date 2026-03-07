@@ -3,7 +3,7 @@ id: squadmember
 title: Squadmember
 description: Manages an entity's membership in a named squad, tracking other members and broadcasting squad join/leave events.
 tags: [squad, group, event, ai]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

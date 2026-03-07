@@ -3,7 +3,7 @@ id: simplebook
 title: Simplebook
 description: Provides a read interaction for simple books, triggering a custom callback when read by an entity.
 tags: [interaction, inventory, book]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

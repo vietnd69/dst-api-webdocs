@@ -3,7 +3,7 @@ id: quagmire_kitchen
 title: Quagmire Kitchen
 description: Provides map data structure for Quagmire kitchen layouts with no runtime logic or entity behavior.
 tags: [quagmire, map, data]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: boatcrew
 title: Boatcrew
 description: Manages the crew roster, AI behavior state, and loot tracking for a boat entity in pirate encounters.
 tags: [ai, crew, loot, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

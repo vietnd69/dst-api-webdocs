@@ -3,7 +3,7 @@ id: damagetracker
 title: Damagetracker
 description: Tracks cumulative damage dealt by an entity and triggers a callback when a specified damage threshold is reached.
 tags: [combat, tracking]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

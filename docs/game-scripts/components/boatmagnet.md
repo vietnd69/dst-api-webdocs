@@ -3,7 +3,7 @@ id: boatmagnet
 title: Boatmagnet
 description: Manages the magnetic attraction behavior of a boat toward a paired beacon, calculating forces and velocity to pull the boat toward the beacon's location while avoiding collisions and adapting to motion.
 tags: [locomotion, physics, boat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: minionspawner
 title: Minionspawner
 description: Spawns and manages groups of minion entities around a central spawner entity, tracking their positions, lifecycle, and synchronization across network sessions.
 tags: [minion, spawner, network, ai]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

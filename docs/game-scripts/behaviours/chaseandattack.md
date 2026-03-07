@@ -3,7 +3,7 @@ id: chaseandattack
 title: Chaseandattack
 description: A behavior node that orchestrates chasing and attacking logic by interacting with the combat, locomotor, and health components.
 tags: [combat, ai, behavior]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

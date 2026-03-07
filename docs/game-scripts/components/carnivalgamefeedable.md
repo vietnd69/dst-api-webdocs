@@ -3,7 +3,7 @@ id: carnivalgamefeedable
 title: Carnivalgamefeedable
 description: Manages whether an entity can be fed during carnival minigames by toggling the `carnivalgame_canfeed` tag and providing a callback hook for feeding logic.
 tags: [game, carnival, interaction]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

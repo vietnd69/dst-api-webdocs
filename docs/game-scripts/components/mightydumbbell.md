@@ -3,7 +3,7 @@ id: mightydumbbell
 title: Mightydumbbell
 description: Manages workout and attack interactions for strongman characters, dynamically adjusting mightiness gain rates and consumption based on current mightiness state.
 tags: [combat, player, interaction, stamina]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

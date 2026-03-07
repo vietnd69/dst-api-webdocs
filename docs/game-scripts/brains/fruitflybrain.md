@@ -3,7 +3,7 @@ id: fruitflybrain
 title: Fruitflybrain
 description: Defines the AI behavior tree for fruit flies, governing their movement, targeting, planting, and spawning logic.
 tags: [ai, combat, locomotion, planting, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: four
 title: Four
 description: Defines a static hallway room layout for the game's world generation system using Tiled map format metadata.
 tags: [map, room, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

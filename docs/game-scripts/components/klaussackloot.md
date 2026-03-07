@@ -3,7 +3,7 @@ id: klaussackloot
 title: Klaussackloot
 description: Generates and manages loot tables for Klaus boss encounters, including seasonal (Winters' Feast) and standard loot pools.
 tags: [loot, boss, event, component]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

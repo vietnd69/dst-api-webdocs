@@ -3,7 +3,7 @@ id: custombuildmanager
 title: Custombuildmanager
 description: Manages visual symbol overrides for entity build groups, allowing dynamic replacement of animation symbols based on current build configuration.
 tags: [animation, visual, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

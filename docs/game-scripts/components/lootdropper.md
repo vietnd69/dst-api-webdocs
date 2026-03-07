@@ -3,7 +3,7 @@ id: lootdropper
 title: Lootdropper
 description: Handles the generation, modification, and spawning of loot items dropped by an entity upon destruction or deconstruction.
 tags: [loot, inventory, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

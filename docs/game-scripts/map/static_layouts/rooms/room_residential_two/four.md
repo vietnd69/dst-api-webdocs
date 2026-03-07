@@ -3,7 +3,7 @@ id: four
 title: Four
 description: Defines the tilemap layout and static objects for the 'residential_two' room variant in DST's world generation system.
 tags: [map, worldgen, room]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

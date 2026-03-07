@@ -3,7 +3,7 @@ id: two
 title: Two
 description: A Tiled map data structure for the Atrium Hallway (two) room layout, containing background tile information and foreground object placement definitions.
 tags: [map, room, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

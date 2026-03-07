@@ -3,7 +3,7 @@ id: firebug
 title: Firebug
 description: Triggers periodic announcements and spawns a prefab when an entity's fire timer expires, optionally subject to sanity thresholds.
 tags: [component, sanity, announcement, spawn]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

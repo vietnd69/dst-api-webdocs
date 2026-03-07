@@ -3,7 +3,7 @@ id: dataanalyzer
 title: Dataanalyzer
 description: Manages creature data collection, regeneration, and consumption for scanner-like entities in the game.
 tags: [scanner, data, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: sharkboibrain
 title: Sharkboibrain
 description: Controls the AI behavior of the Sharkboi character, handling combat, trading, wandering, and chatter states in Don't Starve Together.
 tags: [ai, combat, trader, wandering, chatter]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

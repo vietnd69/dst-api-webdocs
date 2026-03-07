@@ -3,7 +3,7 @@ id: bottler
 title: Bottler
 description: Provides a mechanism to bottle certain entities, invoking a customizable callback when the action succeeds.
 tags: [entity, interaction, utility]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

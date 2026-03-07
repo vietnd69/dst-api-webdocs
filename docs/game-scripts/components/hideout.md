@@ -3,7 +3,7 @@ id: hideout
 title: Hideout
 description: Manages an internal inventory of creatures, allowing an entity to store and release creature entities as needed—typically used for nest-like or lair-like behaviors.
 tags: [creature, storage, ai, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

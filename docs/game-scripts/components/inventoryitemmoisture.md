@@ -3,7 +3,7 @@ id: inventoryitemmoisture
 title: Inventoryitemmoisture
 description: Manages moisture level and wet state for inventory items, synchronizing them with environmental conditions, owner state, or external control.
 tags: [inventory, moisture, environment, networking]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

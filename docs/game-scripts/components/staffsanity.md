@@ -3,7 +3,7 @@ id: staffsanity
 title: Staffsanity
 description: Modifies the rate of sanity change when used as a staff-like item to cast abilities.
 tags: [sanity, item, magic]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

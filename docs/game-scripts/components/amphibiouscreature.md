@@ -3,7 +3,7 @@ id: amphibiouscreature
 title: AmphibiousCreature
 description: Manages automatic swimming state and animation bank switching for entities that transition between land and water tiles.
 tags: [locomotion, animation, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: gingerbreadhunter
 title: Gingerbreadhunter
 description: Manages the spawning and progression of gingerbread-themed hunts during events, including generating crumb trails and spawning gingerbread pigs or houses.
 tags: [combat, event, spawning]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

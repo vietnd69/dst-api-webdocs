@@ -3,7 +3,7 @@ id: oceanfishable
 title: Oceanfishable
 description: Manages the fishable state and behavior of ocean creatures when interacting with fishing rods, including stamina-based struggle mechanics and movement speed adjustments based on line tension.
 tags: [ocean, fishing, behavior, stamina, movement]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

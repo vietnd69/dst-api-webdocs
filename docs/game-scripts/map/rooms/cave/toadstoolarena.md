@@ -3,7 +3,7 @@ id: toadstoolarena
 title: Toadstoolarena
 description: Defines decorative and structural room layouts for the Toadstool Arena biome in the game's cave world generation system.
 tags: [world, generation, map, room]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable

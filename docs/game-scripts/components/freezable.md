@@ -3,7 +3,7 @@ id: freezable
 title: Freezable
 description: Manages freeze states, coldness accumulation, and thawing behavior for entities, including visual tinting, shatter effects, and resistance mechanics.
 tags: [freeze, visual, combat, state, physics]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

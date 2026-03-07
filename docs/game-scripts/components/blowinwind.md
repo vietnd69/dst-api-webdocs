@@ -3,7 +3,7 @@ id: blowinwind
 title: Blowinwind
 description: Simulates wind-driven movement and speed variation for an entity by accumulating velocity in the wind direction and applying it to the locomotor component.
 tags: [locomotion, environment, physics]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

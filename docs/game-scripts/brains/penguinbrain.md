@@ -3,7 +3,7 @@ id: penguinbrain
 title: Penguinbrain
 description: AI brain governing penguin behavior including egg laying, retrieval, foraging, fleeing from predators, and group migration.
 tags: [ai, animal, egg, aggression, migration]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

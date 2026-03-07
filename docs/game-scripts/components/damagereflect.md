@@ -3,7 +3,7 @@ id: damagereflect
 title: Damagereflect
 description: Provides a callback-based mechanism for reflecting damage back to attackers, typically used by the combat component.
 tags: [combat, callback, damage]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

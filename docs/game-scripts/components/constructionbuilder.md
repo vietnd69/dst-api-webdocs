@@ -3,7 +3,7 @@ id: constructionbuilder
 title: Constructionbuilder
 description: Manages the construction state and UI container for a builder entity performing construction tasks.
 tags: [crafting, inventory, state, container]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

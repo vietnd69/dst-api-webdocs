@@ -3,7 +3,7 @@ id: minigame_spectator
 title: Minigame Spectator
 description: Attaches an entity as a passive spectator to a minigame, automatically removing itself when the minigame ends or is deactivated.
 tags: [minigame, spectator, state]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

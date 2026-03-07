@@ -3,7 +3,7 @@ id: mushgnomebrain
 title: Mushgnomebrain
 description: AI brain component that governs the behavior of the Mushgnome enemy, managing combat, panic responses, and wandering actions through a behavior tree.
 tags: [ai, combat, enemy, brain]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

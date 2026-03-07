@@ -3,7 +3,7 @@ id: ropebridgemanager
 title: Ropebridgemanager
 description: Manages rope bridge creation, destruction, health tracking, and earthquake damage response across the world grid.
 tags: [world, map, physics, entity, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: migrationmanager
 title: Migrationmanager
 description: Manages population groups of migratory creatures (e.g., Crystal-Crested Buzzards) by tracking their location in world nodes, migration paths, and group membership.
 tags: [migration, world, population]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

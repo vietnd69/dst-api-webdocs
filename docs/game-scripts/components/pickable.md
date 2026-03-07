@@ -3,7 +3,7 @@ id: pickable
 title: Pickable
 description: Manages the harvestable lifecycle of entities that regrow over time, including regen timers, fertility states, and loot dropping behavior.
 tags: [harvest, regen, loot, growth]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

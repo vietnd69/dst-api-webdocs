@@ -3,7 +3,7 @@ id: furnituredecortaker
 title: Furnituredecortaker
 description: Manages the attachment and detachment of decorative items to furniture entities in the game.
 tags: [inventory, decoration, furniture, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

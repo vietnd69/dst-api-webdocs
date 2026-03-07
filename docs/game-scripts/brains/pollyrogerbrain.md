@@ -3,7 +3,7 @@ id: pollyrogerbrain
 title: Pollyrogerbrain
 description: AI brain controlling Polly Rogers and Salt Dogs, handling leader following, ocean-based wandering, salt management, and panic responses.
 tags: [ai, combat, npc, wander, panic]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

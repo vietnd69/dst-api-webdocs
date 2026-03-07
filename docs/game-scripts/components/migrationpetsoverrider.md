@@ -3,7 +3,7 @@ id: migrationpetsoverrider
 title: Migrationpetsoverrider
 description: Provides a mechanism to override positioning logic for migration pets spawned by the player spawner system.
 tags: [migration, spawner, positioning]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

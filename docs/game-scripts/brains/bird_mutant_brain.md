@@ -3,7 +3,7 @@ id: bird_mutant_brain
 title: Bird Mutant Brain
 description: Controls AI behavior for mutant bird entities, including swarming, combat, skeleton breaking, and (for spitters) projectile spitting.
 tags: [ai, combat, boss, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

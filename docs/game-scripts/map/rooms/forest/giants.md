@@ -3,7 +3,7 @@ id: giants
 title: Giants
 description: Registers the MooseGooseBreedingGrounds room configuration for forest world generation, defining its visual style, tags, and biome content rules.
 tags: [world, map, procedural, room, forest]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

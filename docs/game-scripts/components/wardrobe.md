@@ -3,7 +3,7 @@ id: wardrobe
 title: Wardrobe
 description: Manages dressing interactions for entities, including skin and clothing changes, shared usage, and animation states.
 tags: [inventory, dressing, entity]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

@@ -3,7 +3,7 @@ id: shard_sinkholes
 title: Shard Sinkholes
 description: Manages network synchronization of sinkhole target data between master and shard.
 tags: [network, world, synchronization]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

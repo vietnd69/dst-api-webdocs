@@ -3,7 +3,7 @@ id: stalkerchaseandattack
 title: Stalkerchaseandattack
 description: A deprecated AI behavior component that implements chasing, attacking, and avoidance logic by delegating to ChaseAndAttackAndAvoid with fixed avoidance distance.
 tags: [ai, combat, deprecated]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

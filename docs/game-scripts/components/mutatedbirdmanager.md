@@ -3,7 +3,7 @@ id: mutatedbirdmanager
 title: Mutatedbirdmanager
 description: A deprecated and unused component that previously handled mutated bird logic (e.g., migration and buzzard behavior) but now serves no functional purpose.
 tags: [deprecated, cut-content]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

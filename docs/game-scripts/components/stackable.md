@@ -3,7 +3,7 @@ id: stackable
 title: Stackable
 description: Manages stacking behavior for inventory items, including size tracking, consolidation, splitting, and propagation of related states like perishability and moisture.
 tags: [inventory, stacking, item]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: itemmimic_revealedbrain
 title: Itemmimic Revealedbrain
 description: Controls the AI behavior of a revealed item mimic entity, making it flee from players while scanning for nearby mimicable entities to imitate.
 tags: [ai, combat, npc]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

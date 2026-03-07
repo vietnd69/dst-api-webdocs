@@ -3,7 +3,7 @@ id: possessedaxe
 title: Possessedaxe
 description: Manages the transformation and reversion logic for Lucy, a possessed axe that links to a woodcutter player and reverts to a standard axe under specific conditions.
 tags: [inventory, transformation, player, combat, persistence]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

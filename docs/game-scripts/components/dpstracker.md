@@ -3,7 +3,7 @@ id: dpstracker
 title: DpsTracker
 description: Tracks damage per second (DPS) by monitoring health changes over a sliding time window.
 tags: [combat, tracking, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

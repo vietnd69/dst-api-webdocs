@@ -3,7 +3,7 @@ id: one
 title: One
 description: Defines a static 32x32 tilemap room layout for DST's world generation system using Tiled JSON format.
 tags: [room, worldgen, map]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

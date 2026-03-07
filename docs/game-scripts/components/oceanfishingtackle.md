@@ -3,7 +3,7 @@ id: oceanfishingtackle
 title: Oceanfishingtackle
 description: Manages casting data and lure configuration for ocean fishing mechanics.
 tags: [fishing, ocean, equipment, loot]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

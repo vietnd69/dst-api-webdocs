@@ -3,7 +3,7 @@ id: spectatorcorpse
 title: Spectatorcorpse
 description: Manages camera focus behavior for a player entity when spectating from a corpse, smoothly adjusting the camera range toward the nearest living player.
 tags: [camera, spectator, networking, player]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

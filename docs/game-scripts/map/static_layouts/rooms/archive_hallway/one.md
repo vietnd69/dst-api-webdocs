@@ -3,7 +3,7 @@ id: one
 title: One
 description: Defines a static rectangular room layout for the Archive Hallway in Don't Starve Together, including tile data and object placements.
 tags: [map, room, static, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

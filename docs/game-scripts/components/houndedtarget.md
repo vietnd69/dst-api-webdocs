@@ -3,7 +3,7 @@ id: houndedtarget
 title: Houndedtarget
 description: Manages weighting for entity selection as a hound target and tracks sources that qualify it as a hound thief.
 tags: [ai, combat, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

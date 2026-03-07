@@ -3,7 +3,7 @@ id: magiciantool
 title: Magiciantool
 description: Manages the usage lifecycle of magical tools by tracking user context and invoking custom callbacks when tools are started or stopped being used.
 tags: [combat, equipment, magic, utility]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

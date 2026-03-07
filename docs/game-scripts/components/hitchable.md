@@ -3,7 +3,7 @@ id: hitchable
 title: Hitchable
 description: Manages the hitched state of an entity, allowing it to be attached to or detached from another entity via a hitching mechanic.
 tags: [locomotion, interaction, state]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

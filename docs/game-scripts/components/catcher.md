@@ -3,7 +3,7 @@ id: catcher
 title: Catcher
 description: Manages the ability to catch thrown projectiles based on proximity and state.
 tags: [combat, projectile, state, interaction]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

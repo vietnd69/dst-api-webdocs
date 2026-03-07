@@ -3,7 +3,7 @@ id: starts
 title: Starts
 description: Registers predefined room templates for the forest world type, including custom starting areas like Burnt Forest and Safe Swamp, defining tile type, visual appearance, and content distribution rules.
 tags: [room, worldgen, forest]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable

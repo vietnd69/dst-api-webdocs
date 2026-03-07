@@ -3,7 +3,7 @@ id: graveguard_ghostbrain
 title: Graveguard Ghostbrain
 description: Controls the AI behavior of a ghost entity in DST, including following living targets, playful interaction with other ghosts, and periodic despawning.
 tags: [ai, ghost, combat, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

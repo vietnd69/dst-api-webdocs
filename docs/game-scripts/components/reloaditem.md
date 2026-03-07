@@ -3,7 +3,7 @@ id: reloaditem
 title: Reloaditem
 description: A placeholder component with no functionality; does not implement any logic, properties, or event handling.
 tags: [placeholder]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

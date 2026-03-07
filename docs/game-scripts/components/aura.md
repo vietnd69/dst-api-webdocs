@@ -3,7 +3,7 @@ id: aura
 title: Aura
 description: Applies periodic area-of-effect damage or effects to nearby entities within a defined radius.
 tags: [combat, area-damage, buff]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

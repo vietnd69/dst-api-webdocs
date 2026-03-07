@@ -3,7 +3,7 @@ id: colourtweener
 title: Colourtweener
 description: Animates an entity's colour over time using linear interpolation.
 tags: [fx, animation, visual]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

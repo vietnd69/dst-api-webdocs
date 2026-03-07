@@ -3,7 +3,7 @@ id: four
 title: Four
 description: Defines the layout data for a specific Atrium hallway map room variant in DST's world generation system.
 tags: [world, map, room]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

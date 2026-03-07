@@ -3,7 +3,7 @@ id: lunarfissureburning
 title: Lunarfissureburning
 description: Applies periodic lunar burn damage to an entity and its mount while the entity stands over a fissure, managing visual FX and health state updates.
 tags: [environment, combat, boss, fx]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

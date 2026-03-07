@@ -3,7 +3,7 @@ id: mast
 title: Mast
 description: Manages sail state and forces for a boat mast, including furling/unfurling mechanics, physics interaction with the boat, and animation synchronization.
 tags: [boat, physics, animation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

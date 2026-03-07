@@ -3,7 +3,7 @@ id: friendlyfruitflybrain
 title: Friendlyfruitflybrain
 description: Controls the AI behavior of friendly fruit fly entities, managing tasks like following a leader, wandering, and interacting with farm plants.
 tags: [ai, locomotion, behavior, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: linkeditemmanager
 title: Linkeditemmanager
 description: Manages persistent associations between player entities and linked items, ensuring items track their creator/owner and respond appropriately when players join or leave the world.
 tags: [player, inventory, network, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

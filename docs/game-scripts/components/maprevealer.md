@@ -3,7 +3,7 @@ id: maprevealer
 title: Maprevealer
 description: Reveals map areas to players in a轮播 manner across multiple ticks, typically used by map-related entities like the Map Room or Map Table.
 tags: [map, world, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

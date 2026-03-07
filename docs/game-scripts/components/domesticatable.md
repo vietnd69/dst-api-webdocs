@@ -3,7 +3,7 @@ id: domesticatable
 title: Domesticatable
 description: Manages the domestication and obedience mechanics for tameable entities, tracking changes via periodic decay tasks and broadcasting relevant events.
 tags: [domestication, ai, entity, npc, behavior]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

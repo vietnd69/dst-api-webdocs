@@ -3,7 +3,7 @@ id: unwrappable
 title: Unwrappable
 description: Manages the ability for an entity (such as a bundle or gift box) to be unwrapped, storing wrapped items and defining behavior during unwrap actions.
 tags: [inventory, wrapping, container, persistence]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

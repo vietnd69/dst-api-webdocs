@@ -3,7 +3,7 @@ id: age
 title: Age
 description: Tracks and manages a player entity's elapsed time since spawn, including pause/resume functionality and age-based notifications.
 tags: [player, time, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: spooked
 title: Spooked
 description: Manages seasonal spook level accumulation and triggers spook events (e.g., tree-specific FX) when spook level exceeds a threshold.
 tags: [season, environment, fx]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

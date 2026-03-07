@@ -3,7 +3,7 @@ id: combat
 title: Combat
 description: Manages combat logic including targeting, attack readiness, damage calculation, attack execution, and aggro behavior for entities.
 tags: [combat, ai, ai-behavior, damage, targeting]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

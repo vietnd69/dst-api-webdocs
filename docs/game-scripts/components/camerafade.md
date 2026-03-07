@@ -3,7 +3,7 @@ id: camerafade
 title: Camerafade
 description: Manages dynamic camera-based fading of entity visuals based on distance and screen position.
 tags: [camera, visual, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

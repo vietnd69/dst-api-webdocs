@@ -3,7 +3,7 @@ id: dockmanager
 title: Dockmanager
 description: Manages the creation, destruction, health tracking, and structural integrity of monkey docks on Monkey Island maps.
 tags: [map, structure, destroy, health, integrity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

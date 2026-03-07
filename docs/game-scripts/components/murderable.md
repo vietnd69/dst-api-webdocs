@@ -3,7 +3,7 @@ id: murderable
 title: Murderable
 description: Adds the `murderable` tag to an entity, marking it as a valid target for murder-related game logic.
 tags: [tag, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

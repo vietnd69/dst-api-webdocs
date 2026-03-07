@@ -3,7 +3,7 @@ id: reader
 title: Reader
 description: Enables an entity to read books and track bookworm status and sanity penalties.
 tags: [reading, sanity, player]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

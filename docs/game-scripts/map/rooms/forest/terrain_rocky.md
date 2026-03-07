@@ -3,7 +3,7 @@ id: terrain_rocky
 title: Terrain Rocky
 description: Defines forest-level room templates with rocky terrain characteristics for procedural world generation.
 tags: [world, generation, terrain, room]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-02-27
 build_version: 714014
 change_status: stable

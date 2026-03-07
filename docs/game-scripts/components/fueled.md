@@ -3,7 +3,7 @@ id: fueled
 title: Fueled
 description: Manages fuel consumption, storage, and state transitions for entities that consume fuel over time.
 tags: [fuel, consumption, entity, state]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

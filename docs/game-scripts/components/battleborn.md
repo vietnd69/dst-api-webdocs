@@ -3,7 +3,7 @@ id: battleborn
 title: Battleborn
 description: Manages the "Battleborn" mechanic—accumulating a resource when attacking enemies and consuming it to heal, repair equipment, or restore sanity when a threshold is reached.
 tags: [combat, buff, resource]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

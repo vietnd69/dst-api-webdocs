@@ -3,7 +3,7 @@ id: forestdaywalkerspawner
 title: Forestdaywalkerspawner
 description: Manages the spawning and state tracking of the Day Walker boss in the Forest world, coordinating with the junk pile and shard-level spawner.
 tags: [boss, spawner, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

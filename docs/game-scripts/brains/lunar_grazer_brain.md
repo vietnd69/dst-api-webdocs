@@ -3,7 +3,7 @@ id: lunar_grazer_brain
 title: Lunar Grazer Brain
 description: Implements the AI behavior tree for the Lunar Grazer entity, managing combat, movement, and despawn logic based on target status and entity state.
 tags: [ai, combat, behavior-tree]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

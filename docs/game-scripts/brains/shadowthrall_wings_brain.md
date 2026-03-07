@@ -3,7 +3,7 @@ id: shadowthrall_wings_brain
 title: Shadowthrall Wings Brain
 description: Controls the AI behavior of the Shadowthrall wings entity, implementing coordinated attack timing with teammates and movement using formation positioning.
 tags: [ai, combat, coordination, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

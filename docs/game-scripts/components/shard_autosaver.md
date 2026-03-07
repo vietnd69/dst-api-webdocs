@@ -3,7 +3,7 @@ id: shard_autosaver
 title: Shard Autosaver
 description: Synchronizes snapshot state between the master shard and shard instances for world autosave coordination.
 tags: [network, world, save]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

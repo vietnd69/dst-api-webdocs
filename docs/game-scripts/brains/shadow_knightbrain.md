@@ -3,7 +3,7 @@ id: shadow_knightbrain
 title: Shadow Knightbrain
 description: Controls the AI behavior of the Shadow Knight entity, coordinating combat actions, movement, and despawning logic via a behavior tree.
 tags: [ai, combat, boss, movement]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

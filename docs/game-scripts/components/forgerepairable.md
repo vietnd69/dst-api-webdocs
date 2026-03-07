@@ -3,7 +3,7 @@ id: forgerepairable
 title: Forgerepairable
 description: Tracks and manages forge-repair eligibility of an entity based on repair material compatibility and current condition.
 tags: [crafting, repair, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

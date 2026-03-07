@@ -3,7 +3,7 @@ id: snowmandecoratable
 title: Snowmandecoratable
 description: Manages snowman decoration, stacking, hat placement, and state persistence for snowman entities in DST.
 tags: [decoration, stacking, entity, persistence]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

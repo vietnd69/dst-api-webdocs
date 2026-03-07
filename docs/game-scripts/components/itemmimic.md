@@ -3,7 +3,7 @@ id: itemmimic
 title: Itemmimic
 description: Manages the transformation of an item mimic from an inert object into a hostile entity upon player interaction or time-based triggers.
 tags: [decoration, enemy, transformation, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

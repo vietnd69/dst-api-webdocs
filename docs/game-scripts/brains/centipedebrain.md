@@ -3,7 +3,7 @@ id: centipedebrain
 title: Centipedebrain
 description: Implements AI behavior for centipede enemies, managing combat tracking, charging, face-targeting, and autonomous movement.
 tags: [ai, combat, movement]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

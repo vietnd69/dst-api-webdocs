@@ -3,7 +3,7 @@ id: growable
 title: Growable
 description: Manages staged growth progress for entities, supporting timed, paused, and sleep-aware growth with stage transitions and save/load persistence.
 tags: [growth, stages, save-load, animation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

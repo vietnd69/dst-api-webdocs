@@ -3,7 +3,7 @@ id: plantregrowth
 title: Plantregrowth
 description: Manages periodic regrowth of plants by tracking per-prefab timers and spawning nearby instances when growth conditions are met.
 tags: [plant, regrowth, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

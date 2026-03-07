@@ -3,7 +3,7 @@ id: entitytracker
 title: Entitytracker
 description: Manages a set of named entity references and tracks their lifecycle to prevent dangling references.
 tags: [entity, lifecycle, tracking]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

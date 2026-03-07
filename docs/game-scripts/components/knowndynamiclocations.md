@@ -3,7 +3,7 @@ id: knowndynamiclocations
 title: Knowndynamiclocations
 description: Manages named dynamic positions associated with an entity, supporting platform-relative storage and persistence across saves.
 tags: [world, position, persistence, dynamic]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

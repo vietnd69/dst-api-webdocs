@@ -3,7 +3,7 @@ id: shadow_rookbrain
 title: Shadow Rookbrain
 description: Controls the AI behavior of the Shadow Rook chess piece, managing chasing, facing, taunting, and despawning logic.
 tags: [ai, boss, combat, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

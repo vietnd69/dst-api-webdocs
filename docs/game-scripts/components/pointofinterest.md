@@ -3,7 +3,7 @@ id: pointofinterest
 title: Pointofinterest
 description: Manages visual indicators (HUD and world-space) for points of interest tied to entities, particularly when they are unlocked in the scrapbook and visible to the player.
 tags: [hud, world, indicator, scrapbook]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

@@ -3,7 +3,7 @@ id: tallbirdbrain
 title: Tallbirdbrain
 description: Controls the AI behavior of the Tallbird, implementing tasks such as nest defense, egg laying, homing, and threat response using a behavior tree.
 tags: [ai, npc, bird, boss, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

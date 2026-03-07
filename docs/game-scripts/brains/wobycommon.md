@@ -3,7 +3,7 @@ id: wobycommon
 title: Wobycommon
 description: Provides shared AI behavior logic and utility functions for Woby, a companion entity in Don't Starve Together, including fetching, foraging, ammo retrieval, courier, and minigame watching.
 tags: [ai, companion, behavior, woby, minigame]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

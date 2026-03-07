@@ -3,7 +3,7 @@ id: healthbar
 title: Healthbar
 description: Renders a visual health bar and percentage label above an entity, updating in response to health changes.
 tags: [ui, health, rendering]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

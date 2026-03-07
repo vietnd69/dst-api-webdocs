@@ -3,7 +3,7 @@ id: panic
 title: Panic
 description: Causes an entity to move in a random direction repeatedly with brief pauses, simulating a panic-flee behavior.
 tags: [ai, locomotion, behaviour]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

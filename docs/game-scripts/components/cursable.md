@@ -3,7 +3,7 @@ id: cursable
 title: Cursable
 description: Manages application, removal, and state tracking of curses on an entity, primarily by interacting with cursed items and inventory.
 tags: [inventory, combat, debuff, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: savedrotation
 title: SavedRotation
 description: Persists and restores an entity's rotation during save/load operations, primarily for entities that must maintain orientation relative to moving platforms like boats.
 tags: [save, rotation, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: groundcreep
 title: Groundcreep
 description: Enables serialization and deserialization of a ground creep object attached to an entity, primarily for world persistence across sessions.
 tags: [serialization, world, persistence]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

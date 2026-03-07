@@ -3,7 +3,7 @@ id: boatleak
 title: Boatleak
 description: Manages visual, audio, and state transitions for boat leaks and repairs in DST, including plugged/unplugged states, repair timers, and integration with HullHealth for dynamic leak tracking.
 tags: [boat, water, repair, visual, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: oasis
 title: Oasis
 description: Checks entity proximity to a circular oasis area and calculates proximity levels relative to its boundary.
 tags: [world, environment, proximity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

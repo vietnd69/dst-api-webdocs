@@ -3,7 +3,7 @@ id: hunger_replica
 title: Hunger Replica
 description: Provides network-replicated access to hunger state (current, max, and starvation status) for entities on client or non-master simulation instances.
 tags: [network, hunger, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

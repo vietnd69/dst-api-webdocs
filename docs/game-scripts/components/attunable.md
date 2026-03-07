@@ -3,7 +3,7 @@ id: attunable
 title: Attunable
 description: Manages attunement relationships between an entity and players, supporting online/offline tracking and networked persistence.
 tags: [network, persistence, player]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

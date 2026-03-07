@@ -3,7 +3,7 @@ id: boatai
 title: Boatai
 description: Controls a boat's AI behavior by scanning for nearby sail-raised vessels and adjusting its own sail to follow them.
 tags: [ai, boat, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

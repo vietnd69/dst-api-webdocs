@@ -3,7 +3,7 @@ id: messagebottlemanager
 title: Messagebottlemanager
 description: Manages message bottle treasure hunts and hermit crab interactions in DST's ocean world.
 tags: [ocean, loot, quest, world, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

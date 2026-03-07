@@ -3,7 +3,7 @@ id: map
 title: Map
 description: Provides world geometry and terrain query utilities for placement, navigation, and arena validation.
 tags: [terrain, deployment, navigation, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: playerhearing
 title: Playerhearing
 description: Manages dynamic audio DSP filters applied to the player based on equipped items, such as muffling hats.
 tags: [audio, player, equipment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: parryweapon
 title: Parryweapon
 description: Provides parry detection logic and event hooks for combat weapons, validating whether an attack can be successfully parried based on angular alignment and stimuli type.
 tags: [combat, weapon]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

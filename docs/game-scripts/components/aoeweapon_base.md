@@ -3,7 +3,7 @@ id: aoeweapon_base
 title: Aoeweapon Base
 description: Provides shared behavior for area-of-effect weapons that can destroy workables, pick pickables, or attack combat targets.
 tags: [combat, workable, pickable, aoe]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

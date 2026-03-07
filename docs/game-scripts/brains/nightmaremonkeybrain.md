@@ -3,7 +3,7 @@ id: nightmaremonkeybrain
 title: Nightmaremonkeybrain
 description: Implements the AI decision tree for the Nightmare Monkey boss, prioritizing panic responses, weapon equipping, chasing and attacking, and wandering behavior.
 tags: [ai, boss, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

@@ -3,7 +3,7 @@ id: explosive
 title: Explosive
 description: Manages the behavior and effects of explosive entities, including area-of-effect damage, building destruction, ignition of flammable objects, and camera effects upon detonation.
 tags: [combat, environment, physics]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

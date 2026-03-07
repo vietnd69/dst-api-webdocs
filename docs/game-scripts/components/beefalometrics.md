@@ -3,7 +3,7 @@ id: beefalometrics
 title: Beefalometrics
 description: Records and reports metric events related to beefalo domestication, riding, attacks, and death for analytics purposes.
 tags: [analytics, entity, metrics, behavior]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

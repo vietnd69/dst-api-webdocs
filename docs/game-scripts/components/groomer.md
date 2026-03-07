@@ -3,7 +3,7 @@ id: groomer
 title: Groomer
 description: Manages clothing and grooming interactions for dressable entities, handling entering/exiting the grooming state, skin changes, and shared/single-user access.
 tags: [clothing, dressing, interaction, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

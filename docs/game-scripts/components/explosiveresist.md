@@ -3,7 +3,7 @@ id: explosiveresist
 title: Explosiveresist
 description: Manages resistance to explosive damage over time, including accumulation and gradual decay.
 tags: [combat, damage, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

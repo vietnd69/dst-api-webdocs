@@ -3,7 +3,7 @@ id: lunaralterguardianspawner
 title: Lunaralterguardianspawner
 description: Manages the spawning and lifecycle of lunar rift guardian entities at designated locations in the world.
 tags: [boss, world, entity, spawn]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: riftthralltype
 title: RiftThrallType
 description: Stores and manages the type classification for a rift thrall entity.
 tags: [ rift, entity, classification ]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

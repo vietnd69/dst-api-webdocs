@@ -3,7 +3,7 @@ id: dragonflybrain
 title: Dragonflybrain
 description: Manages AI behavior for the Dragonfly boss, including fight reset logic, Lavae spawning, chase/combat, and home patrolling.
 tags: [ai, boss, combat, spawning, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

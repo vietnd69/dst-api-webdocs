@@ -3,7 +3,7 @@ id: sandstormwatcher
 title: Sandstormwatcher
 description: Manages movement speed penalties during sandstorms based on vision state, mounting, and storm intensity.
 tags: [environment, movement, weather]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: kramped
 title: Kramped
 description: Manages the Krampus spawning system by tracking player naughtiness and spawning Krampus entities when thresholds are exceeded.
 tags: [combat, boss, world, event]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: three
 title: Three
 description: Static layout data structure for a 32x32 tile-based room using Tiled map format.
 tags: [map, room, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

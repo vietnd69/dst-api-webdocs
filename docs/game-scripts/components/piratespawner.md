@@ -3,7 +3,7 @@ id: piratespawner
 title: Piratespawner
 description: Manages the spawning, behavior, and persistence of pirate raids and associated assets (boats, captains, crew, loot stash) in the game world.
 tags: [ai, boss, loot, spawn, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

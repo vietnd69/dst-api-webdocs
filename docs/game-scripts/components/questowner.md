@@ -3,7 +3,7 @@ id: questowner
 title: Questowner
 description: Manages quest state and lifecycle events for an entity, including tracking whether a quest is active or completed, and invoking custom callbacks for begin, abandon, and complete operations.
 tags: [quest, state, entity]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

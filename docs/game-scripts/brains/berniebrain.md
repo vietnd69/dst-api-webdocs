@@ -3,7 +3,7 @@ id: berniebrain
 title: Berniebrain
 description: Manages the AI behavior of Bernie the Big Bernie, including detecting when to transform, finding a leader to follow, taunting nearby sanity monsters, and switching between wandering and following states.
 tags: [ai, brain, sanity, combat, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

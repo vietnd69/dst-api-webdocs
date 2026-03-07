@@ -3,7 +3,7 @@ id: debuffable
 title: Debuffable
 description: Manages application, tracking, and removal of debuff effects on an entity, including persistence across save/load cycles and entity transfers.
 tags: [combat, effects, persistence]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

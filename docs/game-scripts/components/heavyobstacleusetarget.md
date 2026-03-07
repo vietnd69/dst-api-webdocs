@@ -3,7 +3,7 @@ id: heavyobstacleusetarget
 title: Heavyobstacleusetarget
 description: Controls whether an entity can interact with heavy obstacles and updates the `can_use_heavy` tag accordingly.
 tags: [interaction, obstacle, tag]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

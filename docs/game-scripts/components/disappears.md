@@ -3,7 +3,7 @@ id: disappears
 title: Disappears
 description: Manages scheduled or immediate entity removal with optional animation, sound, and pickup inhibition.
 tags: [removal, animation, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

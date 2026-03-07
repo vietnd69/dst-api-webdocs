@@ -3,7 +3,7 @@ id: slingshotmodder
 title: Slingshotmodder
 description: Validates ownership restrictions and manages opening/closing of slingshot modification interfaces on target items.
 tags: [inventory, crafting, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

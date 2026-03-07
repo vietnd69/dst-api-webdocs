@@ -3,7 +3,7 @@ id: foodaffinity
 title: Foodaffinity
 description: Manages hunger bonus bonuses a character receives when eating food, based on prefab, foodtype, or tag matches.
 tags: [hunger, character, food, affinity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

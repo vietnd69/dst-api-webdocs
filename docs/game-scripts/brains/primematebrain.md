@@ -3,7 +3,7 @@ id: primematebrain
 title: Primematebrain
 description: Implements AI behavior for the Primemate character, managing actions like boat rowing, leak repair, fleeing, wandering, chasing, and abandoning a boat when it sinks.
 tags: [ai, boat, combat, locomotion, NPC]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: daywalkerbrain
 title: Daywalkerbrain
 description: Controls the AI behavior of the Daywalker boss, coordinating combat targeting, dodging, stalk-in, and home-leash mechanics via a behavior tree.
 tags: [ai, combat, boss, locomotion, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

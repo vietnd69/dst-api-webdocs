@@ -3,7 +3,7 @@ id: shadowthrall_parasite_brain
 title: Shadowthrall Parasite Brain
 description: Controls the movement and lifecycle behavior of a shadow thrall parasite entity by removing it when no players are nearby and fleeing from players and shadow rift portals.
 tags: [ai, brain, movement, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

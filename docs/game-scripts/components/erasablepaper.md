@@ -3,7 +3,7 @@ id: erasablepaper
 title: Erasablepaper
 description: Manages the conversion of a paper item into a configurable number of erasure产物 (e.g., papyrus), handling stack splitting and item distribution.
 tags: [inventory, utility, conversion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

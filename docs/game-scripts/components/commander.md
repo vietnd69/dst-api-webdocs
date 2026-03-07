@@ -3,7 +3,7 @@ id: commander
 title: Commander
 description: Manages a group of unit entities (soldiers) that respond to shared commands such as targeting, wake/alert, and distance tracking.
 tags: [ai, combat, group, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

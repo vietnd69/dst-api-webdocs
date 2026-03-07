@@ -3,7 +3,7 @@ id: shard_players
 title: Shard Players
 description: Tracks and synchronizes the total number of players and ghosts across the local shard and secondary shards in a dedicated server environment.
 tags: [network, multiplayer, server]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

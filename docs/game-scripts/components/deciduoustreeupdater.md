@@ -3,7 +3,7 @@ id: deciduoustreeupdater
 title: Deciduoustreeupdater
 description: Manages the transformation of a deciduous tree into a hostile monster state, controlling drake spawning, root attacks, and state transitions.
 tags: [combat, ai, monster, spawning, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

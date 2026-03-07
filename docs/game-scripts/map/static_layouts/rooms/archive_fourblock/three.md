@@ -3,7 +3,7 @@ id: three
 title: Three
 description: Defines the static Tiled map layout data for a three-tile-wide chamber in the archive_fourblock map layout set.
 tags: [map, static_layout, room]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

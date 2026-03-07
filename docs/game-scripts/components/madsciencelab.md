@@ -3,7 +3,7 @@ id: madsciencelab
 title: Madsciencelab
 description: Manages a multi-stage lab-based science-generating process with stage timing and persistence support.
 tags: [crafting, persistence, workflow]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

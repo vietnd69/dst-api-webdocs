@@ -3,7 +3,7 @@ id: klausbrain
 title: Klausbrain
 description: AI brain component that controls Klaus's behavior, including rage states, combat, wandering, and chomp attacks.
 tags: [ai, boss, combat, behavior_tree]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

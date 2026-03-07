@@ -3,7 +3,7 @@ id: boatmagnetbeacon
 title: Boatmagnetbeacon
 description: Coordinates beacon behavior for boat magnet pairs, including pairing/unpairing logic, beacon activation state, and platform (boat) tracking.
 tags: [boat, magnet, platform, state, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

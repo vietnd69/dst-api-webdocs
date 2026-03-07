@@ -3,7 +3,7 @@ id: forestpetrification
 title: Forestpetrification
 description: Tracks nearby petrifiable entities and periodically triggers large-scale petrification events in the forest based on cooldown cycles.
 tags: [forest, petrification, world, event]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

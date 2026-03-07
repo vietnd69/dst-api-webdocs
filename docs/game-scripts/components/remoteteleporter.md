@@ -3,7 +3,7 @@ id: remoteteleporter
 title: Remoteteleporter
 description: Handles remote teleportation logic by selecting a valid destination pad and moving the doer and nearby items.
 tags: [teleport, navigation, map, inventory]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

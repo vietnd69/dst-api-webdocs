@@ -3,7 +3,7 @@ id: shard_mermkingwatcher
 title: Shard Mermkingwatcher
 description: Tracks and synchronizes the presence of merm king artifacts (king, trident, crown, pauldron) across shards in multiplayer.
 tags: [network, multiplayer, boss, synchronization]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

@@ -3,7 +3,7 @@ id: deployable
 title: Deployable
 description: Manages deployment behavior and constraints for inventory items that can be placed into the world, such as walls, plants, boats, and masts.
 tags: [inventory, world, placement, gameplay]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

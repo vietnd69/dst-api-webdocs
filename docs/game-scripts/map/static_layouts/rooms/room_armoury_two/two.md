@@ -3,7 +3,7 @@ id: two
 title: Two
 description: Room layout definition for the 'armoury_two' static room used in world generation.
 tags: [map, room, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

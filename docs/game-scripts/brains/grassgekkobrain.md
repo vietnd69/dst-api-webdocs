@@ -3,7 +3,7 @@ id: grassgekkobrain
 title: Grassgekkobrain
 description: Implements AI behavior for the grassgekko entity, coordinating panic responses, fleeing, and wandering.
 tags: [ai, locomotion, panic]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

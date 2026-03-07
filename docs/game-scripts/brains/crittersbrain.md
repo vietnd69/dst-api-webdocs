@@ -3,7 +3,7 @@ id: crittersbrain
 title: Crittersbrain
 description: Manages AI behavior for small wildlife entities, handling movement toward owners, avoidance of combat zones, playful interactions with other critters, and observation of active minigames.
 tags: [ai, locomotion, combat, minigame]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

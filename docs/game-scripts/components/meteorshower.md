@@ -3,7 +3,7 @@ id: meteorshower
 title: Meteorshower
 description: Manages timed meteor shower events on a map spawner entity, including level selection, spawning logic, cooldown handling, and save/load state persistence.
 tags: [environment, world, event]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: boatrace_spectator_dragonlingbrain
 title: Boatrace Spectator Dragonlingbrain
 description: Controls the behavior of a spectator dragonling that follows a boat race indicator entity during boat races.
 tags: [ai, locomotion, event, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

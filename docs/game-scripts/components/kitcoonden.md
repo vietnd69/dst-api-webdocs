@@ -3,7 +3,7 @@ id: kitcoonden
 title: Kitcoonden
 description: Manages a collection of kitcoons associated with an entity, tracking their presence and responding to their removal.
 tags: [creature, collection, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

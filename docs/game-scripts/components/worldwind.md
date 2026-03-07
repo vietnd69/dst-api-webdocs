@@ -3,7 +3,7 @@ id: worldwind
 title: Worldwind
 description: Manages dynamic wind orientation and speed for the world, updating periodically and broadcasting wind change events.
 tags: [world, environment, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

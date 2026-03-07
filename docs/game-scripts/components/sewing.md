@@ -3,7 +3,7 @@ id: sewing
 title: Sewing
 description: Enables repair of entities with the 'needssewing' tag using fuel-based or consumable sewing kits.
 tags: [crafting, repair, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

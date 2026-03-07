@@ -3,7 +3,7 @@ id: rabbitking_bunnymanbrain
 title: Rabbitking Bunnymanbrain
 description: Provides AI behavior for rabbit-related minions under the Rabbit King's command, implementing movement, aggression, fleeing, and burrowing logic via a behavior tree.
 tags: [ai, brain, combat, movement, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

@@ -3,7 +3,7 @@ id: yotc_racestart
 title: Yotc Racestart
 description: Manages race state transitions and callback hooks for a yotc race event on an entity.
 tags: [race, state, event]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: mutatedbuzzardcircler
 title: Mutatedbuzzardcircler
 description: Controls the circling behavior of a mutated buzzard around a target entity, managing movement, migration, and interactions like flare detonations and corpse landings.
 tags: [ai, migration, combat, npc]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

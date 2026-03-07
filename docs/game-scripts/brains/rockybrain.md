@@ -3,7 +3,7 @@ id: rockybrain
 title: Rockybrain
 description: Controls the AI behavior of Rocky, a boss character that manages combat, shield usage, loyalty retention under stress, and goal-driven actions like eating and wandering.
 tags: [ai, combat, boss, loyalty, shield]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

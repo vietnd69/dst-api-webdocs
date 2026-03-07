@@ -3,7 +3,7 @@ id: findlight
 title: Findlight
 description: A behavior tree node that moves an entity toward the nearest valid light source and maintains a safe distance within it.
 tags: [ai, behavior, light, navigation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

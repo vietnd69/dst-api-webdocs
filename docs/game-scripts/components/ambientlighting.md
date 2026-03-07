@@ -3,7 +3,7 @@ id: ambientlighting
 title: Ambientlighting
 description: Manages dynamic ambient lighting color transitions based on world phase, moon phase, season, weather, and player night vision state.
 tags: [environment, lighting, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

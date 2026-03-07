@@ -3,7 +3,7 @@ id: weapon
 title: Weapon
 description: Manages weapon properties, attack behavior, and ranged projectile launch logic for combat entities.
 tags: [combat, projectile, inventory]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

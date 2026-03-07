@@ -3,7 +3,7 @@ id: long
 title: Long
 description: A static room layout definition for the Pit Room Armoury map section, containing background tile data and object placement metadata.
 tags: [map, layout, worldgen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

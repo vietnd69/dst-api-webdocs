@@ -3,7 +3,7 @@ id: efficientuser
 title: Efficientuser
 description: Manages action-specific multipliers using source-modifiable lists to support flexible, multi-source efficiency calculations.
 tags: [inventory, crafting, modifier, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

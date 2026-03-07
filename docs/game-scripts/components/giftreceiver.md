@@ -3,7 +3,7 @@ id: giftreceiver
 title: Giftreceiver
 description: Manages the receiver side of gift items, tracking gift count and coordinating with gift machines.
 tags: [inventory, networking, player]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

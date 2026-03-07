@@ -3,7 +3,7 @@ id: four
 title: Four
 description: Provides map layout data for the archive_fourblock room, defining background tile patterns and foreground object placements for the four-block area.
 tags: [map, room, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

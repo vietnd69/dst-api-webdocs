@@ -3,7 +3,7 @@ id: fueler
 title: Fueler
 description: Tracks and manages the fuel properties and consumption behavior of an entity within the game's burning system.
 tags: [fuel, entity, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

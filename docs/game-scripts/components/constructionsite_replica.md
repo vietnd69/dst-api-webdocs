@@ -3,7 +3,7 @@ id: constructionsite_replica
 title: Constructionsite Replica
 description: Provides a network-replicated interface for client-side access to construction site state, mirroring server-side construction data.
 tags: [network, crafting, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

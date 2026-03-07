@@ -3,7 +3,7 @@ id: storage_robotbrain
 title: Storage Robotbrain
 description: Manages the decision-making logic for storage robots to pick up, store, and return items based on inventory state and fuel levels.
 tags: [ai, inventory, brain, storage, automation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

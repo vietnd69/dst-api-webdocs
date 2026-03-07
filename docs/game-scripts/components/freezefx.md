@@ -3,7 +3,7 @@ id: freezefx
 title: Freezefx
 description: Manages dynamic visual and audio effects for fire-based entities, including flickering light, radius scaling, intensity control, and sound effects across multiple flame levels.
 tags: [fx, lighting, sound]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

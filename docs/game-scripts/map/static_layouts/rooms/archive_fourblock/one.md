@@ -3,7 +3,7 @@ id: one
 title: One
 description: Defines a static room layout for the archive_fourblock map section, containing background tile patterns and object placements for cave lighting and pillars.
 tags: [map, room, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

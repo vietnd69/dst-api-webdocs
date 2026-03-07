@@ -3,7 +3,7 @@ id: one
 title: One
 description: Represents a Tiled map file for the Hallway Armoury room's "one" layout configuration.
 tags: [map, room, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

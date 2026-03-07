@@ -3,7 +3,7 @@ id: waterphysics
 title: Waterphysics
 description: Applies basic physical properties to entities that interact with water, specifically defining their bounciness (restitution).
 tags: [physics, water, entity]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

@@ -3,7 +3,7 @@ id: spawner
 title: Spawner
 description: Manages a single persistent entity (e.g., a named NPC) by spawning, housing, and releasing it according to configured timing and occupancy rules.
 tags: [spawn, entity, persistence, ai]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

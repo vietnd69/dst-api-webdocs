@@ -3,7 +3,7 @@ id: useabletargeteditem
 title: Useabletargeteditem
 description: Manages the targeted use behavior and tags for items that can be actively used on specific targets.
 tags: [inventory, interaction, tag, item]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

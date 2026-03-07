@@ -3,7 +3,7 @@ id: followerherder
 title: Followerherder
 description: Manages herd behavior for a leader entity, toggling hostile state of all followers and consuming finite uses when triggered.
 tags: [ai, leader, follower]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

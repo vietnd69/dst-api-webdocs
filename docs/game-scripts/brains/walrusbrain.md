@@ -3,7 +3,7 @@ id: walrusbrain
 title: Walrusbrain
 description: AI controller for walrus entities, managing movement, combat, homing, and social behaviors like following leaders.
 tags: [ai, locomotion, combat, social]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

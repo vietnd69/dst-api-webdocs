@@ -3,7 +3,7 @@ id: carnivalgameshooter
 title: Carnivalgameshooter
 description: Manages the aiming and shooting mechanics for the carnival shooting mini-game, controlling projectile launch parameters and aim animation.
 tags: [minigame, combat, animation, physics]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

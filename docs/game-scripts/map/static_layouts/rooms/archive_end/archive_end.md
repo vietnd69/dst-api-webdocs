@@ -3,7 +3,7 @@ id: archive_end
 title: Archive End
 description: Defines the static Tiled map layout for the archive end room, including tile layers and object placements for environmental props and interactive elements.
 tags: [map, room, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

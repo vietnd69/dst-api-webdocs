@@ -3,7 +3,7 @@ id: teamattacker
 title: Teamattacker
 description: Manages an entity’s participation in a team-based combat formation, including movement to formation positions and attack orders derived from a team leader.
 tags: [combat, ai, team]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

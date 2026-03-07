@@ -3,7 +3,7 @@ id: maprecorder
 title: Maprecorder
 description: Stores and manages recorded map data for teaching exploration progress between players.
 tags: [map, teaching, player, data, persistence]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

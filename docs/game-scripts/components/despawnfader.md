@@ -3,7 +3,7 @@ id: despawnfader
 title: Despawnfader
 description: Manages visual fading and removal of an entity when it is marked for despawning.
 tags: [fade, despawn, entity, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

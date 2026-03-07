@@ -3,7 +3,7 @@ id: cooldown
 title: Cooldown
 description: Manages charging and recharging states for an entity's abilities, tracking cooldown duration and triggering callbacks when fully charged.
 tags: [combat, ability, state]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

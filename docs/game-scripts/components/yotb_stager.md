@@ -3,7 +3,7 @@ id: yotb_stager
 title: Yotb Stager
 description: Manages the flow of the YOTB contest event, including registration, evaluation, suspense-building, winner declaration, and prize distribution for beefalo contests.
 tags: [contest, event, ai, evaluation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: fishingrod_replica
 title: Fishingrod Replica
 description: Manages networked state for a fishing rod entity, tracking hooked and caught fish across the client-server boundary.
 tags: [network, fishing, replica]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

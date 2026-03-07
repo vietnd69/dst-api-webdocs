@@ -3,7 +3,7 @@ id: miasmawatcher
 title: MiasmaWatcher
 description: Tracks whether an entity is inside a miasma cloud and applies movement speed penalties accordingly.
 tags: [miasma, movement, debuff, environment, player]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

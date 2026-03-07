@@ -3,7 +3,7 @@ id: mermbrain
 title: Mermbrain
 description: Defines the AI decision tree and behavior logic for merms, including combat, tool management, throne seeking, garden assistance, and social interactions.
 tags: [ai, combat, npc, social]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

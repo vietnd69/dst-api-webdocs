@@ -3,7 +3,7 @@ id: revivablecorpse
 title: Revivablecorpse
 description: Manages whether an entity can be revived from its corpse state and controls revive behavior, including health restoration and speed modifiers based on reviver tags.
 tags: [combat, death, ai, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

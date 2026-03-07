@@ -3,7 +3,7 @@ id: two
 title: Two
 description: Defines a static 32x32 tilemap layout for a residential hallway used in world generation, containing background tile data and an empty foreground object layer.
 tags: [world, map, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: bedazzler
 title: Bedazzler
 description: Determines whether a target entity can be bedazzled and performs the bedazzlement action, consuming uses if applicable.
 tags: [environment, interaction, state_change]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

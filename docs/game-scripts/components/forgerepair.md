@@ -3,7 +3,7 @@ id: forgerepair
 title: Forgerepair
 description: Handles repair of damaged equipment using forge-based materials, consuming itself in the process and updating entity tags based on the repair material used.
 tags: [crafting, repair, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

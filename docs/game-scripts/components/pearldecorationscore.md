@@ -3,7 +3,7 @@ id: pearldecorationscore
 title: Pearldecorationscore
 description: Calculates and maintains a scoring value for pearl-based decorations based on nearby entities and terrain tiles, used for Hermit Crab home aesthetics.
 tags: [hermitcrab, decoration, scoring, world]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

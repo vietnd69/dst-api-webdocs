@@ -3,7 +3,7 @@ id: oceanthrowable
 title: Oceanthrowable
 description: Manages the attachment and configuration of the complexprojectile component for entities intended to be thrown into ocean water.
 tags: [projectile, ocean, water, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

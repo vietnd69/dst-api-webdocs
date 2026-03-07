@@ -3,7 +3,7 @@ id: three
 title: Three
 description: A static map layout definition for an atrium hallway corridor, containing tile data and placement information for foreground objects.
 tags: [map, room, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

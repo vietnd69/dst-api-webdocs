@@ -3,7 +3,7 @@ id: highlight
 title: Highlight
 description: Manages dynamic highlight color effects (including flashing and persistent highlights) on entity renderables.
 tags: [render, visual, fx]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

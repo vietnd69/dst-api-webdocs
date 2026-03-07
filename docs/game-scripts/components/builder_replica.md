@@ -3,7 +3,7 @@ id: builder_replica
 title: Builder Replica
 description: Serves as the client-side replica component for the Builder, syncing crafting, recipe, and technology tree state between server and client.
 tags: [crafting, network, inventory, player, techtree]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

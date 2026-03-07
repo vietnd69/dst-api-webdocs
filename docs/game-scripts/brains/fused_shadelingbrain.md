@@ -3,7 +3,7 @@ id: fused_shadelingbrain
 title: Fused Shadelingbrain
 description: AI brain component for the fused shadeling enemy that manages combat behavior including leashing, chasing, and combat jumps.
 tags: [ai, combat, boss, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

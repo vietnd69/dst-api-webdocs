@@ -3,7 +3,7 @@ id: platformhopdelay
 title: Platformhopdelay
 description: Manages a delay period measured in frame ticks before allowing a platform-hopping action (e.g., moving between floating platforms) to occur.
 tags: [locomotion, platform, delay, physics]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

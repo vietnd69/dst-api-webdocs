@@ -3,7 +3,7 @@ id: heater
 title: Heater
 description: Manages thermal output properties and behavior for an entity, supporting configurable heat sources, carried heat, and endothermic/exothermic states.
 tags: [thermal, environment, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

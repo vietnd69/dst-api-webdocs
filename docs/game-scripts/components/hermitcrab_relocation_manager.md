@@ -3,7 +3,7 @@ id: hermitcrab_relocation_manager
 title: Hermitcrab Relocation Manager
 description: Manages teleportation and rotation-aware positioning of Hermitcrab-related entities (pearls and structures) relative to Monkey Island during world loading and relocation.
 tags: [locomotion, map, relocation, worldgen, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

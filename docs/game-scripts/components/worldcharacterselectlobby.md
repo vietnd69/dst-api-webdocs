@@ -3,7 +3,7 @@ id: worldcharacterselectlobby
 title: Worldcharacterselectlobby
 description: Manages the lobby state and countdown sequence before players spawn into a world, including tracking player readiness and handling analytics during match startup.
 tags: [lobby, network, multiplayer, countdown, analytics]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

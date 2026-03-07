@@ -3,7 +3,7 @@ id: butterflyspawner
 title: Butterflyspawner
 description: Manages butterfly spawning behavior based on active players and world conditions.
 tags: [spawn, world, entity, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: decoratedgrave_ghostmanager
 title: Decoratedgrave Ghostmanager
 description: Manages the spawning, tracking, and despawning of grave guard ghosts for Wendy's skill-related grave mechanics.
 tags: [wenda, ghost, grave, skill, map]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

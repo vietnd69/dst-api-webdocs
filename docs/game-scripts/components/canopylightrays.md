@@ -3,7 +3,7 @@ id: canopylightrays
 title: Canopylightrays
 description: Spawns and manages reusable light ray prefabs in a radial area around the owner entity for visual canopy effects.
 tags: [environment, fx, lighting, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

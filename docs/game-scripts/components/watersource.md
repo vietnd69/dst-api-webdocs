@@ -3,7 +3,7 @@ id: watersource
 title: Watersource
 description: Manages the presence of the "watersource" tag on an entity based on availability state.
 tags: [water, tag, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

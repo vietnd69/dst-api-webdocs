@@ -3,7 +3,7 @@ id: moonaltarlinktarget
 title: Moonaltarlinktarget
 description: Enables moon altars to detect and link with nearby altars of compatible types to form a valid triangle for cosmic events.
 tags: [moon, environment, networking]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

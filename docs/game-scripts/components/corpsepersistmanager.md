@@ -3,7 +3,7 @@ id: corpsepersistmanager
 title: Corpsepersistmanager
 description: Manages corpse persistence logic by tracking registered corpses and applying persistence sources based on configured callback functions.
 tags: [world, entity, lifecycle]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

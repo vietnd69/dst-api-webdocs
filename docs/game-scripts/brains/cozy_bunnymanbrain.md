@@ -3,7 +3,7 @@ id: cozy_bunnymanbrain
 title: Cozy Bunnymanbrain
 description: Manages the AI behavior of the Cozy Bunnyman during minigames and normal gameplay, including pillow fights, carrot-spinning contests, and home management.
 tags: [ai, minigame, combat, inventory, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

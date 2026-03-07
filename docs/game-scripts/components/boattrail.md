@@ -3,7 +3,7 @@ id: boattrail
 title: Boattrail
 description: Generates visual water wake effects behind a boat entity as it moves.
 tags: [water, fx, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

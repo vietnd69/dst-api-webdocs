@@ -3,7 +3,7 @@ id: birdspawner
 title: Birdspawner
 description: Manages the spawning and behavior of birds in the game world, including timed spawning for players, lunar hail event responses, and dynamic environmental adjustments.
 tags: [environment, spawning, weather, ai]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

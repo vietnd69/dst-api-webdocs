@@ -3,7 +3,7 @@ id: wintersurprisespawner
 title: Wintersurprisespawner
 description: Manages the spawning of winter surprise trees during winter seasons, based on world state and player positioning rules.
 tags: [winter, spawning, event, environment, seasonal]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: yotc_racecompetitor
 title: Yotc Racecompetitor
 description: Manages race participation logic for entities competing in YOTC-style races, including checkpoint navigation, stamina management, and race completion or abort handling.
 tags: [race, ai, navigation, stamina]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

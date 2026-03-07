@@ -3,7 +3,7 @@ id: alterguardian_phase3brain
 title: Alterguardian Phase3Brain
 description: Controls the AI behavior of the Alter Guardian in phase 3, managing combat prioritization, home-finding, and dodging via behavior trees.
 tags: [ai, combat, boss, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

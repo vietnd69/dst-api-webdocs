@@ -3,7 +3,7 @@ id: terrain_savanna
 title: Terrain Savanna
 description: Registers Savanna-style terrain room templates for world generation in DST, defining biome-specific prefabs and placement probabilities for forest biomes.
 tags: [world, terrain, roomgen]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

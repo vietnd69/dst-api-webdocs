@@ -3,7 +3,7 @@ id: alterguardian_phase1brain
 title: Alterguardian Phase1Brain
 description: Controls the AI behavior of the Alterguardian in its first combat phase, coordinating shield usage, targeted attacks, and wandering behavior.
 tags: [ai, combat, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

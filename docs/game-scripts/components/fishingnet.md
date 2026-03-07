@@ -3,7 +3,7 @@ id: fishingnet
 title: Fishingnet
 description: Manages the casting of a fishing net by spawning and configuring a visualizer prefab to handle the animation and trajectory.
 tags: [fishing, animation, network, fx]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: moonbeastspawner
 title: Moonbeastspawner
 description: Manages periodic spawning of moonbeasts (moonhounds and moonpigs) near the Moon Base entity and handles petrification of nearby ghouls when active.
 tags: [boss, world, spawn, transformation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: nonslipgritsource
 title: Nonslipgritsource
 description: Acts as an inventory-based source of non-slip grit that can be applied to entities with slippery feet, enabling temporary traction.
 tags: [locomotion, inventory, gameplay]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

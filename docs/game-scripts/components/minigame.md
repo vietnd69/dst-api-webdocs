@@ -3,7 +3,7 @@ id: minigame
 title: Minigame
 description: Manages the lifecycle and participant/spectator logic for minigame events in the world.
 tags: [minigame, event, entity, spectator, participant]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

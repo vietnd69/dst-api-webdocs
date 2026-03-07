@@ -3,7 +3,7 @@ id: carnival_hostbrain
 title: Carnival Hostbrain
 description: Controls the AI behavior of the Carnival Host, managing its interactions with minigames, crowd behavior, and environment navigation.
 tags: [ai, minigame, navigation, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

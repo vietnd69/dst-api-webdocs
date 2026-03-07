@@ -3,7 +3,7 @@ id: bedazzlement
 title: Bedazzlement
 description: Manages the bedazzled state for a spider den, applying visual and gameplay effects such as pacifying nearby spiders and altering creep radius.
 tags: [spider, state, visual, ai]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

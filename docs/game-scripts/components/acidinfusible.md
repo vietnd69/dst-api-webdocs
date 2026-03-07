@@ -3,7 +3,7 @@ id: acidinfusible
 title: Acidinfusible
 description: Applies and removes an acid infusion effect based on world rain state and entity rain immunity, adjusting combat stats, movement speed, and visual effects accordingly.
 tags: [combat, environment, entity, effect, weather]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

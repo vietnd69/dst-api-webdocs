@@ -3,7 +3,7 @@ id: boatphysics
 title: Boatphysics
 description: Manages boat movement, physics, steering, sail/magnet forces, drag, and collision response for watercraft entities.
 tags: [physics, locomotion, water, vehicle, collision]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

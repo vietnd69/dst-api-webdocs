@@ -3,7 +3,7 @@ id: gravediggable
 title: Gravediggable
 description: Marks an entity as diggable by grave-digging actions and provides a hook for custom dig behavior.
 tags: [digging, interaction, state]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

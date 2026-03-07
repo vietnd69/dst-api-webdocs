@@ -3,7 +3,7 @@ id: talkable
 title: Talkable
 description: Manages the conversation state for an entity, including tracking the current conversation and dialogue index.
 tags: [dialogue, npc, ai]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

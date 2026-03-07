@@ -3,7 +3,7 @@ id: two
 title: Two
 description: Defines the tilemap layout for a residential room in the caves, including background tiles and decorative foreground objects.
 tags: [map, room, decoration]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

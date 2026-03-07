@@ -3,7 +3,7 @@ id: grabbable
 title: Grabbable
 description: Marks an entity as grabbable by players and provides a callback for custom grab conditions; however, this component is deprecated in favor of using the inventoryitem component's grabbableoverridetag.
 tags: [deprecated, inventory, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: shard_clock
 title: Shard Clock
 description: Manages synchronization of clock-related state (phases, cycles, moon data) across the network for the master shard and game clients.
 tags: [network, world, clock]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: long
 title: Long
 description: Defines the static layout data for a long hallway room using Tiled map format, including background tile layer and foreground object placement.
 tags: [room, map, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

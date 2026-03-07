@@ -3,7 +3,7 @@ id: dryingrack
 title: Dryingrack
 description: Manages drying behavior for items placed in a container, handling time-based drying, weather effects (rain/acid rain), and state persistence.
 tags: [inventory, weather, drying, persistence]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

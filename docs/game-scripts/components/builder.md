@@ -3,7 +3,7 @@ id: builder
 title: Builder
 description: Manages crafting recipes, prototyper access, tech tree progress, and ingredient consumption for builder-type entities.
 tags: [crafting, inventory, player, techtree]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

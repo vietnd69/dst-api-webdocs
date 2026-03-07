@@ -3,7 +3,7 @@ id: quagmire_recipeprices
 title: Quagmire Recipeprices
 description: Manages the cooking recipe appraisal queue and network synchronization of recipe prices, dish types, and craving matches for Quagmire mode.
 tags: [quagmire, crafting, network, queue]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

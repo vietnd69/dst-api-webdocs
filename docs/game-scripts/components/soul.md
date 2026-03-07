@@ -3,7 +3,7 @@ id: soul
 title: Soul
 description: Assigns the 'soul' tag to an entity, primarily used for identification and gameplay logic.
 tags: [tagging, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

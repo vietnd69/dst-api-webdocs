@@ -3,7 +3,7 @@ id: gnarwailbrain
 title: Gnarwailbrain
 description: AI brain controller for the Gnarwail creature that manages navigation, combat, trading, tossing, and feeding behaviors in a water-centric world.
 tags: [ai, combat, boat, trader, feeding]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

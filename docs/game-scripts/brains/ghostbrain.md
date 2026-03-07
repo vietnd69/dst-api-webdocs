@@ -3,7 +3,7 @@ id: ghostbrain
 title: Ghostbrain
 description: Manages the behavior tree for ghost entities, handling targeting of living characters and switching between following and wandering states.
 tags: [ai, brain, combat, locomotion, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

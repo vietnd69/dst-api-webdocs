@@ -3,7 +3,7 @@ id: emitter
 title: Emitter
 description: Manages particle emission for an entity by scheduling and dispatching particles over time using a custom update loop.
 tags: [fx, particle, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

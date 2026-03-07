@@ -3,7 +3,7 @@ id: leifbrain
 title: Leifbrain
 description: AI brain for Leif that manages behavior via a behavior tree, prioritizing wall attacks, combat, and wandering.
 tags: [ai, brain, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

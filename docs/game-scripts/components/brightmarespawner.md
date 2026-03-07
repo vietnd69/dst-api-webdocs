@@ -3,7 +3,7 @@ id: brightmarespawner
 title: Brightmarespawner
 description: Tracks players in Lunacy Mode and periodically spawns Brightmare Gestalt entities based on player sanity levels and population rules.
 tags: [spawn, boss, sanity, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

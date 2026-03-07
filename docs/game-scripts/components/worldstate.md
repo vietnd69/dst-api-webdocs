@@ -3,7 +3,7 @@ id: worldstate
 title: Worldstate
 description: Tracks and broadcasts global world state variables such as time, phase, season, weather, and moon cycles for the entire world entity.
 tags: [world, time, weather, season]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: koalefantbrain
 title: Koalefantbrain
 description: Implements the AI behavior tree for the koalefant, managing movement, targeting, fleeing, and salt-lick anchoring.
 tags: [ai, brain, monster]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: undertile
 title: Undertile
 description: Manages a data grid representing the tile types directly beneath map tiles, used for layered terrain storage in the world.
 tags: [world, terrain, save, grid]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

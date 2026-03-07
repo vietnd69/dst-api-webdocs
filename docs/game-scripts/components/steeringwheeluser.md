@@ -3,7 +3,7 @@ id: steeringwheeluser
 title: Steeringwheeluser
 description: Manages a character's interaction with a steering wheel to control boat movement, including state transitions and rudder direction updates.
 tags: [boat, locomotion, player]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

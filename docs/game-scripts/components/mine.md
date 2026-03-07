@@ -3,7 +3,7 @@ id: mine
 title: Mine
 description: Triggers an explosion effect when a valid nearby entity enters its detection radius, commonly used for traps.
 tags: [trap, combat, trigger]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

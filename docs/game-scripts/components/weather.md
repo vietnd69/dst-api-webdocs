@@ -3,7 +3,7 @@ id: weather
 title: Weather
 description: Manages dynamic weather systems including precipitation, temperature, moisture, wetness, snow accumulation, lightning, and atmospheric lighting.
 tags: [weather, environment, lighting, precipitation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: slurperbrain
 title: Slurperbrain
 description: Provides AI behavior logic for the Slurper entity, managing panic responses, enemy chasing, and homing wandering using known locations.
 tags: [ai, locomotion, combat, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

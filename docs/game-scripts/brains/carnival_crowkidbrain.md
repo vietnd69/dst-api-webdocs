@@ -3,7 +3,7 @@ id: carnival_crowkidbrain
 title: Carnival Crowkidbrain
 description: Controls the AI behavior of the carnival crow kid, managing movement, minigame spectating, decor interaction, campfire watching, and vocalizations based on game state and environment.
 tags: [ai, minigame, npc, environment, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

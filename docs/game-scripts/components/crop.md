@@ -3,7 +3,7 @@ id: crop
 title: Crop
 description: Manages growth, maturation, fertilization, and harvesting logic for plant entities in the game world.
 tags: [growth, harvest, farming, plant, lifecycle]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

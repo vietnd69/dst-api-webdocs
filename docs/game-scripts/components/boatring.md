@@ -3,7 +3,7 @@ id: boatring
 title: Boatring
 description: Manages rotation behavior and bumper collision detection for a boat entity in the game world.
 tags: [boat, rotation, collision, map, movement]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

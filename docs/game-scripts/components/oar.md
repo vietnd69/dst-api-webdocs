@@ -3,7 +3,7 @@ id: oar
 title: Oar
 description: Handles rowing mechanics for boats, applying directional force and managing rowing success/fail behavior.
 tags: [locomotion, physics, boat, player]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

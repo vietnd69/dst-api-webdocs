@@ -3,7 +3,7 @@ id: bloomer
 title: Bloomer
 description: Manages bloom effect stacking and propagation for entities and their children, supporting priority-based bloom layering and automatic cleanup on source removal.
 tags: [fx, visual, entity, lighting]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

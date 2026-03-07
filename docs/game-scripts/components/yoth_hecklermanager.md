@@ -3,7 +3,7 @@ id: yoth_hecklermanager
 title: Yoth Hecklermanager
 description: Manages the availability and flight behavior of the Yoth heckler entity across Knight shrines in the Year of the Horse event.
 tags: [event, boss, combat, world, ai]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

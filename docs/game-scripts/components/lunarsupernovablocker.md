@@ -3,7 +3,7 @@ id: lunarsupernovablocker
 title: Lunarsupernovablocker
 description: Manages visual and gameplay effects for the Lunar Supernova ability by tracking blocking sources and updating related FX and colour properties.
 tags: [boss, combat, visual, world, lavaarena]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

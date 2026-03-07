@@ -3,7 +3,7 @@ id: oceanicemanager
 title: Oceanicemanager
 description: Manages dynamic creation, damage, and destruction of ocean ice tiles in the world map, including entity interactions and visual effects.
 tags: [ice, world, environment, physics]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

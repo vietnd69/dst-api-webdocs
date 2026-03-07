@@ -3,7 +3,7 @@ id: lavaarenamobtracker
 title: Lavaarenamobtracker
 description: Tracks entities designated as mobs in the Lava Arena minigame, supporting querying by radius and tags.
 tags: [minigame, arena, tracking, filtering]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

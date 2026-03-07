@@ -3,7 +3,7 @@ id: wobycourier
 title: Wobycourier
 description: Manages and synchronizes the chest location for the Woby Courier quest system across shards, storing world coordinates and updating network replication.
 tags: [quest, map, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

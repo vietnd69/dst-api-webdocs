@@ -3,7 +3,7 @@ id: spiderqueenbrain
 title: Spiderqueenbrain
 description: Controls the AI behavior of the Spider Queen entity, including nest placement, spawning followers, panic responses, and combat logic.
 tags: [ai, boss, combat, spawner]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

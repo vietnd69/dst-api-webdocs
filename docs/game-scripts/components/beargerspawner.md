@@ -3,7 +3,7 @@ id: beargerspawner
 title: Beargerspawner
 description: Manages spawning and timers for Bearger events in DST, tracking players, seasonal logic, and countdown warnings.
 tags: [boss, spawning, world, timer, event]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014
@@ -99,5 +99,3 @@ inst.components.beargerspawner:SummonMonster(player)
   - `beargerkilled` → triggers `OnHasslerKilled`
   - Timer callback: `TUNING.SPAWN_BEARGER` → triggers `OnBeargerTimerDone`
 - **Pushes:** None.
-
-*(End of documentation)*

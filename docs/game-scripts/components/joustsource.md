@@ -3,7 +3,7 @@ id: joustsource
 title: Joustsource
 description: Manages the lance-based melee attack logic for jousting entities, including collision detection against targets within the lance's arc and pushback/knockback behavior.
 tags: [combat, physics, joust]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

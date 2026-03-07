@@ -3,7 +3,7 @@ id: leader
 title: Leader
 description: Manages a group of follower entities, coordinates shared combat targets, and handles follower lifecycle events.
 tags: [ai, group, combat, leadership]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

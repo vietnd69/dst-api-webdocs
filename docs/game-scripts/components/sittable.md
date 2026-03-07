@@ -3,7 +3,7 @@ id: sittable
 title: Sittable
 description: Manages entity seating state and occupier tracking for interactive furniture-like objects.
 tags: [interaction, entity, state, furniture, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

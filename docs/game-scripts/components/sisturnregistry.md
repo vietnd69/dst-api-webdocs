@@ -3,7 +3,7 @@ id: sisturnregistry
 title: Sisturnregistry
 description: Tracks the presence and activation state of sisturns attached to an entity and broadcasts state changes when sisturn status changes.
 tags: [world, event, state]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

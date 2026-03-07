@@ -3,7 +3,7 @@ id: armor
 title: Armor
 description: Manages damage resistance, durability, and breakdown behavior for wearable items like gear and clothing.
 tags: [combat, durability, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

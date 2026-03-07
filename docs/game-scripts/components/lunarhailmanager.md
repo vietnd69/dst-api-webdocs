@@ -3,7 +3,7 @@ id: lunarhailmanager
 title: Lunarhailmanager
 description: Manages spawning, physics, and impact behavior of falling debris during lunar hail storms, including damage application, shelter detection, and interaction with the world topology.
 tags: [weather, damage, world, events]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

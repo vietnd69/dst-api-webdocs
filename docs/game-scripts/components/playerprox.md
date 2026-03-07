@@ -3,7 +3,7 @@ id: playerprox
 title: Playerprox
 description: Monitors proximity of players to an entity and triggers callbacks when players enter or leave defined zones.
 tags: [player, proximity, detection, ai]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

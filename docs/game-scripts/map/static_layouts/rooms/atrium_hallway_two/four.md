@@ -3,7 +3,7 @@ id: four
 title: Four
 description: Static layout data for an Atrium hallway segment in DST's map system.
 tags: [map, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

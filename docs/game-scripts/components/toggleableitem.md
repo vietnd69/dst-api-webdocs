@@ -3,7 +3,7 @@ id: toggleableitem
 title: Toggleableitem
 description: Manages the toggle state (on/off) of an item and executes a user-defined callback when toggled.
 tags: [inventory, utility]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

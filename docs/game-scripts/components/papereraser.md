@@ -3,7 +3,7 @@ id: papereraser
 title: Papereraser
 description: Enables an entity to erase erasable paper items, converting them into their erased form via the ErasablePaper component.
 tags: [crafting, inventory, interaction]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

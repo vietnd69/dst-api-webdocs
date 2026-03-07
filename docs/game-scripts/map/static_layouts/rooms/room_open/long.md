@@ -3,7 +3,7 @@ id: long
 title: Long
 description: Defines the static layout data for the 'Long' room used in world generation.
 tags: [world, room, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

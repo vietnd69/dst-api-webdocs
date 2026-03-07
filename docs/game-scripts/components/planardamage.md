@@ -3,7 +3,7 @@ id: planardamage
 title: Planardamage
 description: Calculates and manages planar damage by combining a base value with additive bonuses and multiplicative multipliers.
 tags: [combat, damage, modifier]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

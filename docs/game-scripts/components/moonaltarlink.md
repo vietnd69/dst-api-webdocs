@@ -3,7 +3,7 @@ id: moonaltarlink
 title: Moonaltarlink
 description: Manages bidirectional linking between an entity and a set of moon altar targets, updating positions and triggering callbacks on connection or disconnection.
 tags: [world, map, interaction]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

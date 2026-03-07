@@ -3,7 +3,7 @@ id: worldoverseer
 title: Worldoverseer
 description: Tracks player activity, equipment usage, crafting, and session metrics for analytics reporting in multiplayer games.
 tags: [analytics, multiplayer, tracking]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

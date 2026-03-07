@@ -3,7 +3,7 @@ id: sheltered_replica
 title: Sheltered Replica
 description: Manages the dynamic shadeoverride state for an entity's animation based on its sheltered status, with smooth interpolation between exposed and sheltered values.
 tags: [animation, rendering, world, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: rider
 title: Rider
 description: Manages a player entity mounting and dismounting rideable creatures (such as beefalo), handling animations, physics, damage redirection, and serialization.
 tags: [locomotion, entity, mount, combat]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

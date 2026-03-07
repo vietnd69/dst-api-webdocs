@@ -3,7 +3,7 @@ id: acidlevel
 title: Acidlevel
 description: Manages acid rain damage and effects for entities, tracking accumulated acid exposure and applying damage to health, equipment, and perishable items over time.
 tags: [environment, combat, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

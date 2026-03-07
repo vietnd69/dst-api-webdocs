@@ -3,7 +3,7 @@ id: spellbook
 title: Spellbook
 description: Manages the spell wheel UI and spell execution logic for player entities, including item lists, sound effects, and conditional access rules.
 tags: [ui, inventory, player, spell]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

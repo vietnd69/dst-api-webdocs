@@ -3,7 +3,7 @@ id: writeable
 title: Writeable
 description: Manages the ability for entities to hold and display custom text written by players.
 tags: [interaction, text, network, item, player]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: saltlicker
 title: Saltlicker
 description: Manages the salt-licking behavior for entities, including detecting nearby saltlicks, applying timed salted states, and consuming uses from the saltlick.
 tags: [interaction, state, environment, networking]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

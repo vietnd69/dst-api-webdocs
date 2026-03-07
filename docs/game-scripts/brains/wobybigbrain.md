@@ -3,7 +3,7 @@ id: wobybigbrain
 title: Wobybigbrain
 description: Controls the decision-making behavior of Woby (Walter's Woby), including following, combat avoidance, assisting with CHOP/MINE tasks, and interacting with players and the player link UI.
 tags: [ai, brain, boss, combat, helper]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

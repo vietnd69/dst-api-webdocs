@@ -3,7 +3,7 @@ id: lunarthrall_plant_vine_brain
 title: Lunarthrall Plant Vine Brain
 description: Controls the movement and行为 logic for a Lunar Thrall gestalt entity tasked with moving toward and infesting a lunar plant target.
 tags: [ai, locomotion, plant, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

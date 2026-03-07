@@ -3,7 +3,7 @@ id: playeractionpicker
 title: Playeractionpicker
 description: Determines valid player actions based on context (mouse position, target, held item, and modifiers).
 tags: [player, input, action, inventory, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

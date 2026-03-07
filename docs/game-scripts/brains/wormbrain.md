@@ -3,7 +3,7 @@ id: wormbrain
 title: Wormbrain
 description: Manages AI decision-making for the Worm boss, coordinating behavior such as hunting, returning to a home location, eating, and executing lure-based attacks.
 tags: [ai, boss, combat, navigation, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

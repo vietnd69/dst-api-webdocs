@@ -3,7 +3,7 @@ id: hideandseeker
 title: Hideandseeker
 description: Monitors a seeker entity’s distance from a hide-and-seek game instance and triggers announcements or removal when the entity strays too far or returns within range.
 tags: [game, game_logic, communication]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

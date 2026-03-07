@@ -3,7 +3,7 @@ id: containerinstallableitem
 title: Containerinstallableitem
 description: Manages installation and uninstallation behavior for items that can be placed into containers or wielded by entities.
 tags: [inventory, container, installable]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

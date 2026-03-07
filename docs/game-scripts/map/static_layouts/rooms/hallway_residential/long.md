@@ -3,7 +3,7 @@ id: long
 title: Long
 description: Defines the Tiled map data for a long residential hallway room layout in DST's world generation system.
 tags: [map, worldgen, layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

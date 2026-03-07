@@ -3,7 +3,7 @@ id: yotb_skinunlocker
 title: Yotb Skinunlocker
 description: Stores and provides access to a skin identifier for a YOTB (Year of the Beard) character entity.
 tags: [skin, character, yotb]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

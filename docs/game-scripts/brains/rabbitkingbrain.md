@@ -3,7 +3,7 @@ id: rabbitkingbrain
 title: Rabbitkingbrain
 description: Manages the AI behavior tree for the Rabbit King entity, handling distinct behavioral states such as passive trading, aggressive combat, and lucky fleeing.
 tags: [ai, boss, combat, locomotion, brain]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

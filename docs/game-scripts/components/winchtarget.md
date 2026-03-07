@@ -3,7 +3,7 @@ id: winchtarget
 title: Winchtarget
 description: Manages salvagable objects attached to winches, handling their retrieval logic and sunken object interactions.
 tags: [salvage, winch, inventory, submersible]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: shadow_leechbrain
 title: Shadow Leechbrain
 description: Implements AI behavior for the Shadow Leech entity, coordinating jumping attacks, leash-based movement toward the Daywalker, facing the target, and wandering when no target is present.
 tags: [ai, combat, boss, entity, controller]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-02-27
 build_version: 714014

@@ -3,7 +3,7 @@ id: moisture
 title: Moisture
 description: Manages a character's moisture level, including precipitation absorption, drying rates, waterproofing modifiers, and state transitions like wet or soaked.
 tags: [weather, player, status, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

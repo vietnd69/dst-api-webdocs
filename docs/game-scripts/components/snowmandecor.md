@@ -3,7 +3,7 @@ id: snowmandecor
 title: Snowmandecor
 description: Marks an entity as a decorated snowman, likely for cosmetic or gameplay identification purposes.
 tags: [visual, entity, decorative]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

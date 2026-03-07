@@ -3,7 +3,7 @@ id: daywalker2brain
 title: Daywalker2Brain
 description: AI brain controlling the Daywalker 2 boss, coordinating combat behavior including rummaging, stalk chasing, tackling, and avoidance of junk entities.
 tags: [ai, combat, boss, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

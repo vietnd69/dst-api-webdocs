@@ -3,7 +3,7 @@ id: fishable
 title: Fishable
 description: Manages a pool of fish that can be caught via fishing mechanics, including respawning, freezing states, and hooking/release logic.
 tags: [fishing, entity, water, inventory]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

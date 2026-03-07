@@ -3,7 +3,7 @@ id: brightmare_gestaltguardbrain
 title: Brightmare Gestaltguardbrain
 description: Implements the AI behavior tree for the Brightmare Gestaltguard, handling aggression, player proximity response, and target tracking using a hierarchical state machine.
 tags: [ai, brain, combat, boss]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

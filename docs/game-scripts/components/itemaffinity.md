@@ -3,7 +3,7 @@ id: itemaffinity
 title: Itemaffinity
 description: Manages a priority-based sanity bonus for characters based on specific items carried in inventory.
 tags: [sanity, inventory, character]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

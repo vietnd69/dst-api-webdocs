@@ -3,7 +3,7 @@ id: powerload
 title: Powerload
 description: Stores and manages a numeric power load value and idle state for an entity.
 tags: [power, state, storage]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

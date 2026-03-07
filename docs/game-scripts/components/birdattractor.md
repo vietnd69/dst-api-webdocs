@@ -3,7 +3,7 @@ id: birdattractor
 title: Birdattractor
 description: Stores and calculates spawn limits and timing modifiers for bird-related world entities via a additive source modifier list.
 tags: [world, spawn, modifier, environment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

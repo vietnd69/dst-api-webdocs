@@ -3,7 +3,7 @@ id: mood
 title: Mood
 description: Manages timed and seasonal mood states for entities, such as mating behavior in beefalo, by tracking mood duration, season-based activation, and world settings multipliers.
 tags: [entity, ai, season, behavior, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

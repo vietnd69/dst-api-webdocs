@@ -3,7 +3,7 @@ id: avoidelectricfence
 title: Avoidelectricfence
 description: A behavior node that forces an entity to flee away from an active electric fence when it detects proximity or shock events.
 tags: [ai, behavior, electric, panic, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

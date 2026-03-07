@@ -3,7 +3,7 @@ id: crittertraits
 title: Crittertraits
 description: Manages a critter entity's personality traits, including tracking scores for behaviors like combat, playfulness, and crafting, and determining the dominant trait that influences the critter's emotes and stats.
 tags: [ai, personality, combat, crafting, social]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

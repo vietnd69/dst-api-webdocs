@@ -3,7 +3,7 @@ id: knownlocations
 title: Knownlocations
 description: Manages a collection of named coordinate positions associated with an entity for persistent tracking and recall.
 tags: [map, persistence, storage]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

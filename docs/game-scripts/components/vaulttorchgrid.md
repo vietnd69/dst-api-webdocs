@@ -3,7 +3,7 @@ id: vaulttorchgrid
 title: Vaulttorchgrid
 description: Manages a grid of vault torch entities and their state persistence in the game world.
 tags: [torch, grid, persistence, lighting]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: townportalregistry
 title: Townportalregistry
 description: Manages the registration, activation, and linking of town portals in the game world, particularly in relation to the Wag Punk Arena barrier.
 tags: [portal, world, arena]
-sidebar_position: 1
+sidebar_position: 10
 last_updated: 2026-03-03
 build_version: 714014
 change_status: stable

@@ -3,7 +3,7 @@ id: channelcastable
 title: Channelcastable
 description: Manages the state and callbacks for an item being channel-cast by a user, including tracking the active user and handling startup/shutdown logic.
 tags: [combat, channeling, item, interaction]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

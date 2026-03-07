@@ -3,7 +3,7 @@ id: circuitnode
 title: Circuitnode
 description: Manages networked connections between entities within a specified range, enabling bidirectional node relationships for circuit-based logic.
 tags: [network, circuit, connection, world]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

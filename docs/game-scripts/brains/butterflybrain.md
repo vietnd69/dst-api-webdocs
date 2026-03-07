@@ -3,7 +3,7 @@ id: butterflybrain
 title: Butterflybrain
 description: Controls the AI behavior of butterfly entities, managing idle wandering, flower collection, and escape responses.
 tags: [ai, pollination, flee]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

@@ -3,7 +3,7 @@ id: shadowthrall_centipede_controller_brain
 title: Shadowthrall Centipede Controller Brain
 description: Manages control succession between centipede head segments based on control priority and randomized switching logic.
 tags: [ai, combat, boss, controller, locomotion]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

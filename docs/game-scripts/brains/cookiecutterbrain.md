@@ -3,7 +3,7 @@ id: cookiecutterbrain
 title: Cookiecutterbrain
 description: Manages the AI behavior tree for the Cookiecutter entity, handling fleeing, wandering, boat boarding, and home return logic.
 tags: [ai, brain, locomotion, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

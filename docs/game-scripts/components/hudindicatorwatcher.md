@@ -3,7 +3,7 @@ id: hudindicatorwatcher
 title: Hudindicatorwatcher
 description: Manages on-screen HUD target indicators for nearby entities tracked via the hudindicatable system.
 tags: [ui, hud, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

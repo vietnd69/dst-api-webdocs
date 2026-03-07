@@ -3,7 +3,7 @@ id: playerfloater
 title: Playerfloater
 description: Manages equipping and deployment behavior for player-held floating items, such as the Cloud In A Bottle.
 tags: [inventory, equippable, player, deployment]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

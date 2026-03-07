@@ -3,7 +3,7 @@ id: selfstacker
 title: Selfstacker
 description: Enables an item to automatically find and merge with another identical item within range when it is stationary, not held, not burning, not in a trap, and not fully stacked.
 tags: [inventory, stacking, automation]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

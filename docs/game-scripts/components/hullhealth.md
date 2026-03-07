@@ -3,7 +3,7 @@ id: hullhealth
 title: Hullhealth
 description: Manages hull integrity and leak damage for boats, handling collision impacts, degradation over time, and dynamic leak indicators.
 tags: [boat, damage, physics, degradation, network]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

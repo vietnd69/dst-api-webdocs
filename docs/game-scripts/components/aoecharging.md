@@ -3,7 +3,7 @@ id: aoecharging
 title: Aoecharging
 description: Manages the state and visual feedback for a charging area-of-effect attack, synchronizing charge progress and owner tracking across networked clients.
 tags: [combat, network, ui, player]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

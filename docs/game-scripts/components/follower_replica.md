@@ -3,7 +3,7 @@ id: follower_replica
 title: Follower Replica
 description: Manages networked references to an entity's leader or item owner for follower behavior synchronization between client and server.
 tags: [network, entity, leader, follower]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

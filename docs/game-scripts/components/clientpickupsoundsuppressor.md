@@ -3,7 +3,7 @@ id: clientpickupsoundsuppressor
 title: Clientpickupsoundsuppressor
 description: Temporarily suppresses pickup sound playback for an entity on the client to avoid duplicate sounds during network synchronization.
 tags: [audio, network, synchronization]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

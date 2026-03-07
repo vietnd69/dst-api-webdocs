@@ -3,7 +3,7 @@ id: storyteller
 title: Storyteller
 description: Manages scripted narrative sequences for entities, controlling story activation, line delivery, and lifecycle callbacks.
 tags: [narrative, dialogue, event]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

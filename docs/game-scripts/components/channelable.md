@@ -3,7 +3,7 @@ id: channelable
 title: Channelable
 description: Manages entity channeling behavior, supporting single or multiple simultaneous channelers with state transition control.
 tags: [channeling, state, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

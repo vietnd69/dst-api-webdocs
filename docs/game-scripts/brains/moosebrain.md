@@ -3,7 +3,7 @@ id: moosebrain
 title: Moosebrain
 description: Controls the AI behavior tree for the Moose entity, managing operations like returning home, leashing, chasing targets, laying eggs, facing players, and wandering.
 tags: [ai, brain, locomotion, combat, reproduction]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

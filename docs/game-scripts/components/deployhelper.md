@@ -3,7 +3,7 @@ id: deployhelper
 title: Deployhelper
 description: Manages activation and deactivation of deployable helper entities based on recipe or key triggers within a specified range.
 tags: [deployment, trigger, entity, helper]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

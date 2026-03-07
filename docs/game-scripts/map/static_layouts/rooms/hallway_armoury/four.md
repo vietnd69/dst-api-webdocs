@@ -3,7 +3,7 @@ id: four
 title: Four
 description: Defines the tile layout and object placement for the 'hallway_armoury' room variant 'four' in DST map generation.
 tags: [map, procedural, room, static_layout]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

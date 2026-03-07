@@ -3,7 +3,7 @@ id: boatdrag
 title: Boatdrag
 description: Calculates and applies drag and velocity modifiers to watercraft entities during movement.
 tags: [locomotion, physics, boat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-04
 build_version: 714014

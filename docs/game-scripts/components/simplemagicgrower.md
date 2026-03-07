@@ -3,7 +3,7 @@ id: simplemagicgrower
 title: Simplemagicgrower
 description: Triggers incremental growth stages on an entity using repeated automatic calls to Growable:DoGrowth until a target stage is reached.
 tags: [growth, magic, entity]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

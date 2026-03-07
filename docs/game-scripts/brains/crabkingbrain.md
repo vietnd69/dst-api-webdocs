@@ -3,7 +3,7 @@ id: crabkingbrain
 title: Crabkingbrain
 description: Controls the AI behavior of the Crab King boss, managing phase transitions and targeting actions via behavior trees.
 tags: [ai, boss, combat]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014

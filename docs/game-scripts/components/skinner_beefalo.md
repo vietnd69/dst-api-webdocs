@@ -3,7 +3,7 @@ id: skinner_beefalo
 title: Skinner Beefalo
 description: Manages wearable equipment slots (body, feet, head, horn, tail) and skin application for beefalo entities.
 tags: [equipment, skin, animation, beefalo, clothing]
-sidebar_position: 1
+sidebar_position: 10
 
 last_updated: 2026-03-03
 build_version: 714014
