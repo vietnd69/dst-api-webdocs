@@ -103,16 +103,7 @@ const config: Config = {
 				sitemap: {
 					changefreq: "weekly",
 					priority: 0.5,
-					ignorePatterns: [
-						"/tags/**",
-						"/pages/**",
-						"/dst-api-webdocs/docs/game-scripts/scenarios/**",
-						"/dst-api-webdocs/docs/game-scripts/screens/**",
-						"/dst-api-webdocs/docs/game-scripts/stategraphs/**",
-						"/dst-api-webdocs/docs/game-scripts/tools/**",
-						"/dst-api-webdocs/docs/game-scripts/util/**",
-						"/dst-api-webdocs/docs/game-scripts/widgets/**",
-					],
+					ignorePatterns: ["/tags/**", "/pages/**", "/dst-api-webdocs/docs/game-scripts/screens/**"],
 					filename: "sitemap.xml",
 				},
 			} satisfies Preset.Options,

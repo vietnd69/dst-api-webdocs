@@ -1,11 +1,11 @@
 ---
 id: wilson
 title: Wilson
-description: Wilson is the default scientist character prefab that manages his beard growth progression, inventory interactions, and specialized torch-tossing mechanics.
-tags: [player, beard, combat, inventory]
+description: Defines Wilson’s default player character, including beard mechanics, special actions, reticule behavior, and game-mode-specific tags.
+tags: [player, character, beard, events, inventory]
 sidebar_position: 10
 
-last_updated: 2026-03-07
+last_updated: 2026-03-08
 build_version: 714014
 change_status: stable
 category_type: prefabs
@@ -15,89 +15,91 @@ system_scope: player
 
 # Wilson
 
-> Based on game build **714014** | Last updated: 2026-03-07
+> Based on game build **714014** | Last updated: 2026-03-08
 
 ## Overview
-Wilson is the canonical scientist character prefab constructed via `MakePlayerCharacter`. It implements beard progression mechanics (short → medium → long) triggered on specific in-game days, and enables a special torch-toss action when the corresponding skill is activated. The prefab integrates with the `beard`, `reticule`, `foodaffinity`, `inventory`, `playeractionpicker`, and `skilltreeupdater` components to manage appearance, combat actions, and inventory behavior.
+Wilson is the base player character prefab, implemented via `MakePlayerCharacter` and extended with domain-specific behavior for beard progression, special torch toss actions, reticule targeting, and game-mode tagging. It integrates heavily with the `beard`, `inventory`, `foodaffinity`, `reticule`, and `playeractionpicker` components to deliver core gameplay identity.
 
 ## Usage example
 ```lua
--- Wilson is typically instantiated by the game engine as the default character.
--- For modding reference, here's how the beard callbacks are registered:
-inst.components.beard:AddCallback(4, OnGrowShortBeard)
-inst.components.beard:AddCallback(8, OnGrowMediumBeard)
-inst.components.beard:AddCallback(16, OnGrowLongBeard)
-
--- The special torch toss is enabled via the playeractionpicker:
-inst.components.playeractionpicker.pointspecialactionsfn = GetPointSpecialActions
+local wilson = MakePlayerCharacter("wilson", prefabs, assets, common_postinit, master_postinit)
+-- Wilson is automatically instantiated by the game for new players using default settings.
+-- Modders typically extend or override via post-init hooks rather than direct instantiation.
 ```
 
 ## Dependencies & tags
-**Components used:** `beard`, `reticule`, `foodaffinity`, `inventory`, `playeractionpicker`, `skilltreeupdater`, `container`
-**Tags:** Adds `bearded`, `scientist`; conditionally adds `quagmire_foodie`, `quagmire_potmaster`, `quagmire_shopper` in Quagmire mode.
+**Components used:** `beard`, `inventory`, `foodaffinity`, `reticule`, `playeractionpicker`, `skilltreeupdater`, `container`, `playercommon`
+**Tags:** Adds `bearded`, `scientist`, and conditionally `quagmire_foodie`, `quagmire_potmaster`, `quagmire_shopper` (Quagmire mode only).
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `customidleanim` | string | `"idle_wilson"` | Override for the default idle animation, updated during beard growth stages. |
-| `EmptyBeard` | function | `EmptyBeard(inst)` | Public method to drop all items from the equipped beard sack on the ground. |
+| `start_inv` | table | Dynamic (TUNING.GAMEMODE_STARTING_ITEMS) | Starting inventory items keyed by game mode. |
+| `BEARD_DAYS` | table | `{4, 8, 16}` | Beard growth thresholds (in days). |
+| `BEARD_BITS` | table | `TUNING.WILSON_BEARD_BITS` | Bitmask values assigned to beard levels 1–3. |
+| `customidleanim` | string | `"idle_wilson"` or `"idle_wilson_beard"` | Active idle animation name (changed by beard state). |
+| `EmptyBeard` | function | Defined locally | Event callback to clear and remove beard sack on death. |
 
 ## Main functions
 ### `GetPointSpecialActions(inst, pos, useitem, right)`
-* **Description:** Determines available special actions (e.g., `ACTIONS.TOSS`) for Wilson when holding a torch and having the skill `wilson_torch_7` activated. Used by `playeractionpicker` to populate the context menu.
-* **Parameters:**  
-  - `inst` (Entity) — Wilson’s entity instance.  
-  - `pos` (Vector3) — Target position.  
-  - `useitem` (Entity or `nil`) — Currently equipped item; if `nil`, defaults to the item in `EQUIPSLOTS.HANDS`.  
-  - `right` (boolean) — Indicates a right-click or equivalent input.
-* **Returns:** Table `{ ACTIONS.TOSS }` if conditions are met; otherwise `{}`.
-* **Error states:** No errors; returns empty table if `right` is `false`, `useitem` is not a tossable torch, or the skill is not activated.
+*   **Description:** Determines special actions available at the reticule target point (e.g., Toss for特长 torch when skill activated). Used by `playeractionpicker`.
+*   **Parameters:**  
+  - `inst` (Entity) – The player entity.  
+  - `pos` (Vector) – Target position (unused, for signature compatibility).  
+  - `useitem` (Entity or `nil`) – Currently equipped hands item (if `nil`, inventory is queried).  
+  - `right` (boolean) – Whether this is the right-hand control (e.g., mouse right-click).  
+*   **Returns:** `{ACTIONS.TOSS}` if all conditions match (torch, skill `wilson_torch_7` active, tag `special_action_toss`), otherwise `{}`.
 
 ### `ReticuleTargetFn()`
-* **Description:** Computes a valid ground target position for Wilson’s torch toss, scanning outward up to range `8` to find a passable, unblocked spot.
-* **Parameters:** None.
-* **Returns:** `Vector3` — Target position on the ground; defaults to player’s current position if no valid spot is found.
+*   **Description:** Computes the ground target point for reticule interactions, using a radial search to find the first passable and unblocked point out to 8 units.
+*   **Parameters:** None.
+*   **Returns:** `Vector3` – World position of the reticule target. Falls back to player’s world position if no valid point found.
 
 ### `OnSetOwner(inst)`
-* **Description:** Called when the entity’s owner changes (e.g., network owner assignment). Assigns `GetPointSpecialActions` as the special actions callback for `playeractionpicker`.
-* **Parameters:** `inst` (Entity) — The entity whose owner has been set.
-* **Returns:** Nothing.
-
-### `common_postinit(inst)`
-* **Description:** Initializes shared logic for both server and client. Sets up reticule behavior and tags for specific game modes.
-* **Parameters:** `inst` (Entity) — Wilson’s entity instance.
-* **Returns:** Nothing.
-
-### `master_postinit(inst)`
-* **Description:** Server-only initialization logic. Configures starting inventory, beard growth callbacks, and food affinity. Registers death/shave listeners.
-* **Parameters:** `inst` (Entity) — Wilson’s entity instance.
-* **Returns:** Nothing.
-
-### `OnGrowShortBeard(inst, skinname)`, `OnGrowMediumBeard(inst, skinname)`, `OnGrowLongBeard(inst, skinname)`
-* **Description:** Callbacks triggered by the `beard` component when beard length thresholds are reached. Updates animation symbols, beard bits value, and idle animation.
-* **Parameters:**  
-  - `inst` (Entity) — Wilson’s entity instance.  
-  - `skinname` (string or `nil`) — Optional character skin name.
-* **Returns:** Nothing.
+*   **Description:** Attaches the `GetPointSpecialActions` handler to `playeractionpicker.pointspecialactionsfn` when the entity gains a network owner.
+*   **Parameters:** `inst` (Entity) – The player instance.
+*   **Returns:** Nothing.
 
 ### `OnResetBeard(inst)`
-* **Description:** Resets beard animation override on respawn or reset.
-* **Parameters:** `inst` (Entity).
-* **Returns:** Nothing.
+*   **Description:** Clears beard animation override on entity reset.
+*   **Parameters:** `inst` (Entity).
+*   **Returns:** Nothing.
 
-### `OnShaved(inst)`
-* **Description:** Resets idle animation to non-bearded state when Wilson is shaved.
-* **Parameters:** `inst` (Entity).
-* **Returns:** Nothing.
+### `OnGrowShortBeard(inst, skinname)`
+*   **Description:** Applies short beard visual override, sets beard bitmask, and updates idle animation.
+*   **Parameters:**  
+  - `inst` (Entity).  
+  - `skinname` (string or `nil`) – Optional skin override identifier.  
+*   **Returns:** Nothing.
+
+### `OnGrowMediumBeard(inst, skinname)`
+*   **Description:** Applies medium beard visual override, sets beard bitmask, and updates idle animation.
+*   **Parameters:** Same as `OnGrowShortBeard`.
+*   **Returns:** Nothing.
+
+### `OnGrowLongBeard(inst, skinname)`
+*   **Description:** Applies long beard visual override, sets beard bitmask, and updates idle animation.
+*   **Parameters:** Same as `OnGrowShortBeard`.
+*   **Returns:** Nothing.
 
 ### `EmptyBeard(inst)`
-* **Description:** Drops all items from the equipped beard sack container onto the ground and removes the sack entity.
-* **Parameters:** `inst` (Entity).
-* **Returns:** Nothing.
+*   **Description:** Drops all items from the equipped beard sack (if any) and removes the sack entity.
+*   **Parameters:** `inst` (Entity).
+*   **Returns:** Nothing.
+
+### `common_postinit(inst)`
+*   **Description:** Applies common initialization steps: game-mode tags, beard tag (for optimization), reticule component configuration, and event listener registration.
+*   **Parameters:** `inst` (Entity).
+*   **Returns:** Nothing.
+
+### `master_postinit(inst)`
+*   **Description:** Performs server-side initialization: sets starting inventory, food affinity, beard component configuration (callbacks, prize, skinnability), death hook, and optional Lava Arena extension.
+*   **Parameters:** `inst` (Entity).
+*   **Returns:** Nothing.
 
 ## Events & listeners
 - **Listens to:**  
-  - `setowner` — Triggers `OnSetOwner`.  
-  - `death` — Triggers `EmptyBeard`.  
-  - `shaved` — Triggers `OnShaved`.
-- **Pushes:** None.
+  - `setowner` – Triggers `OnSetOwner(inst)`.  
+  - `death` – Triggers `EmptyBeard(inst)`.  
+  - `shaved` – Triggers `OnShaved(inst)`.  
+- **Pushes:** None (this file does not fire events; only listens for them).

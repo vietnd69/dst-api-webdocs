@@ -18,7 +18,7 @@ system_scope: inventory
 > Based on game build **714014** | Last updated: 2026-03-04
 
 ## Overview
-The `multitool_axe_pickaxe` prefab represents the in-game Axe Pickaxe item — a reusable multitool that combines chopping (tree斧) and mining (pickaxe⛏️) functionality. It uses the `tool`, `weapon`, `finiteuses`, and `equippable` components to handle durability, combat, and equip/unequip behavior. Tags like `"tool"`, `"weapon"`, `"sharp"`, and `"shadowlevel"` are added at creation for optimized runtime checks and compatibility with gameplay systems.
+The `multitool_axe_pickaxe` prefab represents the in-game Axe Pickaxe item — a reusable multitool that combines chopping (tree斧) and mining (pickaxe) functionality. It uses the `tool`, `weapon`, `finiteuses`, and `equippable` components to handle durability, combat, and equip/unequip behavior. Tags like `"tool"`, `"weapon"`, `"sharp"`, and `"shadowlevel"` are added at creation for optimized runtime checks and compatibility with gameplay systems.
 
 ## Usage example
 This is not a component but a prefab definition — it is instantiated via the `Prefab()` function and referenced in other prefabs or game logic. Example usage in a mod or override:
