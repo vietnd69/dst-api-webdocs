@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-game-scripts/stategraphs/SGalterguardian_phase4_lunarrift" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">Sgalterguardian Phase4 Lunarrift | Don&#x27;t Starve Together Vanilla API</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://vietnd69.github.io/dst-api-webdocs/img/docusaurus-social-card.png"><meta data-rh="true" name="twitter:image" content="https://vietnd69.github.io/dst-api-webdocs/img/docusaurus-social-card.png"><meta data-rh="true" property="og:url" content="https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/stategraphs/SGalterguardian_phase4_lunarrift"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="robots" content="index, follow"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Sgalterguardian Phase4 Lunarrift | Don&#x27;t Starve Together Vanilla API"><meta data-rh="true" name="description" content="Manages thePhase 4 lunar rift boss behavior including attack sequencing, AOE effects, camera shake, and multiple defeat/cinematic states."><meta data-rh="true" property="og:description" content="Manages thePhase 4 lunar rift boss behavior including attack sequencing, AOE effects, camera shake, and multiple defeat/cinematic states."><link data-rh="true" rel="icon" href="/dst-api-webdocs/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/stategraphs/SGalterguardian_phase4_lunarrift"><link data-rh="true" rel="alternate" href="https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/stategraphs/SGalterguardian_phase4_lunarrift" hreflang="en"><link data-rh="true" rel="alternate" href="https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/stategraphs/SGalterguardian_phase4_lunarrift" hreflang="x-default"><link data-rh="true" rel="preconnect" href="https://P9GA1YAAFR-dsn.algolia.net" crossorigin="anonymous"><link rel="search" type="application/opensearchdescription+xml" title="Don&#39;t Starve Together Vanilla API" href="/dst-api-webdocs/opensearch.xml">
+
+<link rel="preconnect" href="https://www.googletagmanager.com">
+<script>window.dataLayer=window.dataLayer||[]</script>
+<script>!function(e,t,a,n){e[n]=e[n]||[],e[n].push({"gtm.start":(new Date).getTime(),event:"gtm.js"});var g=t.getElementsByTagName(a)[0],m=t.createElement(a);m.async=!0,m.src="https://www.googletagmanager.com/gtm.js?id=GTM-P6HHVZPW",g.parentNode.insertBefore(m,g)}(window,document,"script","dataLayer")</script>
+<link rel="sitemap" type="application/xml" title="Sitemap" href="https://vietnd69.github.io/dst-api-webdocs/sitemap.xml"><link rel="stylesheet" href="/dst-api-webdocs/assets/css/styles.01f1fa4b.css">
+<script src="/dst-api-webdocs/assets/js/runtime~main.7d655f02.js" defer="defer"></script>
+<script src="/dst-api-webdocs/assets/js/main.2d995327.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")),document.documentElement.setAttribute("data-theme-choice",t||"system")}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script>
+
+
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-P6HHVZPW" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript><div id="__docusaurus"><link rel="preload" as="image" href="/dst-api-webdocs/img/logo.png"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/dst-api-webdocs/"><div class="navbar__logo"><img src="/dst-api-webdocs/img/logo.png" alt="Don&#x27;t Starve Together Logo" class="themedComponent_mlkZ themedComponent--light_NVdE"><img src="/dst-api-webdocs/img/logo.png" alt="Don&#x27;t Starve Together Logo" class="themedComponent_mlkZ themedComponent--dark_xIcU"></div></a><a class="navbar__item navbar__link" href="/dst-api-webdocs/docs/game-scripts/getting-started">Game Scripts</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://github.com/vietnd69/dst-api-webdocs" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub Docs<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><a href="https://github.com/vietnd69/dst-scripts" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Base Game Scripts Code<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"><button type="button" class="DocSearch DocSearch-Button" aria-label="Search (Meta+k)" aria-keyshortcuts="Meta+k"><span class="DocSearch-Button-Container"><svg width="20" height="20" class="DocSearch-Search-Icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8" stroke="currentColor" fill="none" stroke-width="1.4"></circle><path d="m21 21-4.3-4.3" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg><span class="DocSearch-Button-Placeholder">Search</span></span><span class="DocSearch-Button-Keys"></span></button></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Sgalterguardian Phase4 Lunarrift</h1></header>
+<blockquote>
+<p>Based on game build <strong>714014</strong> | Last updated: 2026-03-08</p>
+</blockquote>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="overview">Overview<a href="#overview" class="hash-link" aria-label="Direct link to Overview" title="Direct link to Overview" translate="no">​</a></h2>
+<p>This stategraph component implements the Phase 4 combat logic for the Lunar Rift variant of the Alter Guardian boss. It handles attack selection, multiple AOE types (slam, dash, supernova), camera shake effects, item toss mechanics, fissure generation, and a multi-stage defeat sequence including cinematic transitions, wagstaff interactions, and self-destruction. The component is tightly integrated with the boss entity&#x27;s combat, locomotion, and timeline systems, using tags to manage interruptibility and state isolation.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="usage-example">Usage example<a href="#usage-example" class="hash-link" aria-label="Direct link to Usage example" title="Direct link to Usage example" translate="no">​</a></h2>
+<div class="language-lua codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-lua codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#393A34"><span class="token comment" style="color:#999988;font-style:italic">-- During combat, the boss receives a doattack event</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">inst</span><span class="token punctuation" style="color:#393A34">:</span><span class="token function" style="color:#d73a49">PushEvent</span><span class="token punctuation" style="color:#393A34">(</span><span class="token string" style="color:#e3116c">&quot;doattack&quot;</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token comment" style="color:#999988;font-style:italic">-- On animation completion, the stategraph advances automatically via animover handler</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token comment" style="color:#999988;font-style:italic">-- Example of triggering slam AOE from within a state timeline</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token comment" style="color:#999988;font-style:italic">-- inst.sg:GoToState(&quot;slam&quot;) → animover → slam_pst → calls DoSlamAOE via timeline callback</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token comment" style="color:#999988;font-style:italic">-- Internally, ChooseAttack selects between supernova/dash/slam based on cooldowns</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token keyword" style="color:#00009f">local</span><span class="token plain"> success </span><span class="token operator" style="color:#393A34">=</span><span class="token plain"> </span><span class="token function" style="color:#d73a49">ChooseAttack</span><span class="token punctuation" style="color:#393A34">(</span><span class="token plain">inst</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"> target</span><span class="token punctuation" style="color:#393A34">)</span><br></span></code></pre></div></div>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="dependencies--tags">Dependencies &amp; tags<a href="#dependencies--tags" class="hash-link" aria-label="Direct link to Dependencies &amp; tags" title="Direct link to Dependencies &amp; tags" translate="no">​</a></h2>
+<p><strong>Components used:</strong> health, combat, locomotor, timer, planardamage, lootdropper, workable, mine, inventoryitem, physics</p>
+<p><strong>Tags:</strong></p>
+<ul>
+<li class=""><code>&quot;busy&quot;</code> — added during attack sequences to block new inputs</li>
+<li class=""><code>&quot;idle&quot;</code> — added in hit recovery and idle states to allow idle behaviors</li>
+<li class=""><code>&quot;canrotate&quot;</code> — added when boss can rotate (idle states, hit recovery)</li>
+<li class=""><code>&quot;caninterrupt&quot;</code> — added during taunt post and dash post states</li>
+<li class=""><code>&quot;nointerrupt&quot;</code> — added during dash prep, charging, and most attack states</li>
+<li class=""><code>&quot;noattack&quot;</code> — added during taunt, supernova, charging, burst states</li>
+<li class=""><code>&quot;tempinvincible&quot;</code> — added only during spawn to prevent premature death</li>
+<li class=""><code>&quot;attack&quot;</code> — added during slam, dash, supernova states to indicate active damage</li>
+<li class=""><code>&quot;hit&quot;</code> — added during hit recovery</li>
+<li class=""><code>&quot;jumping&quot;</code> — added during dash states</li>
+<li class=""><code>&quot;supernova&quot;</code> — added in supernova and retained through charging/burst_pre/burst_loop</li>
+<li class=""><code>&quot;supernovaburning&quot;</code> — referenced by external component for burn tracking</li>
+<li class=""><code>&quot;INLIMBO&quot;</code>, <code>&quot;flight&quot;</code>, <code>&quot;invisible&quot;</code>, <code>&quot;notarget&quot;</code>, <code>&quot;brightmare&quot;</code>, <code>&quot;FX&quot;</code>, <code>&quot;DECOR&quot;</code>, <code>&quot;NPC_workable&quot;</code>, <code>&quot;CHOP_workable&quot;</code>, <code>&quot;HAMMER_workable&quot;</code>, <code>&quot;MINE_workable&quot;</code>, <code>&quot;locomotor&quot;</code>, <code>&quot;_inventoryitem&quot;</code>, <code>&quot;_health&quot;</code>, <code>&quot;_combat&quot;</code>, <code>&quot;_inventoryitem&quot;</code> — used in filtering for <code>FindEntities</code> and AOE logic but not actively added/removed in this component</li>
+<li class=""><code>&quot;NOCLICK&quot;</code> — added in selfdestruct at frame 16 to disable interaction</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="properties">Properties<a href="#properties" class="hash-link" aria-label="Direct link to Properties" title="Direct link to Properties" translate="no">​</a></h2>
+<table><thead><tr><th>Property</th><th>Type</th><th>Default Value</th><th>Description</th></tr></thead><tbody><tr><td>None</td><td>—</td><td>—</td><td>No documented properties defined in this stategraph.</td></tr></tbody></table>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="main-functions">Main functions<a href="#main-functions" class="hash-link" aria-label="Direct link to Main functions" title="Direct link to Main functions" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="chooseattackinst-target"><code>ChooseAttack(inst, target)</code><a href="#chooseattackinst-target" class="hash-link" aria-label="Direct link to chooseattackinst-target" title="Direct link to chooseattackinst-target" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Selects and executes the next attack for the boss (supernova, dash, or slam), based on cooldowns, combo counts, and randomization flags. Returns true if an attack was initiated, false otherwise.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>: The boss entity instance.</li>
+<li class=""><code>target</code>: Optional target; defaults to <code>inst.components.combat.target</code>.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>true</code> if an attack state was transitioned to, <code>false</code> otherwise.</li>
+<li class=""><strong>Error states:</strong> None explicitly handled; relies on <code>target:IsValid()</code> check.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="dotauntshakeinst"><code>DoTauntShake(inst)</code><a href="#dotauntshakeinst" class="hash-link" aria-label="Direct link to dotauntshakeinst" title="Direct link to dotauntshakeinst" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Triggers a full camera shake for taunt animations.</li>
+<li class=""><strong>Parameters:</strong> <code>inst</code>: Boss entity instance.</li>
+<li class=""><strong>Returns:</strong> None.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="doslamshakeinst"><code>DoSlamShake(inst)</code><a href="#doslamshakeinst" class="hash-link" aria-label="Direct link to doslamshakeinst" title="Direct link to doslamshakeinst" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Triggers a vertical camera shake for slam (first impact).</li>
+<li class=""><strong>Parameters:</strong> <code>inst</code>: Boss entity instance.</li>
+<li class=""><strong>Returns:</strong> None.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="doslamshake2inst"><code>DoSlamShake2(inst)</code><a href="#doslamshake2inst" class="hash-link" aria-label="Direct link to doslamshake2inst" title="Direct link to doslamshake2inst" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Triggers a lighter vertical camera shake for slam (second impact).</li>
+<li class=""><strong>Parameters:</strong> <code>inst</code>: Boss entity instance.</li>
+<li class=""><strong>Returns:</strong> None.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="dochargingshakeinst"><code>DoChargingShake(inst)</code><a href="#dochargingshakeinst" class="hash-link" aria-label="Direct link to dochargingshakeinst" title="Direct link to dochargingshakeinst" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Triggers a strong full camera shake during supernova charging.</li>
+<li class=""><strong>Parameters:</strong> <code>inst</code>: Boss entity instance.</li>
+<li class=""><strong>Returns:</strong> None.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="dochargingshakemildinst"><code>DoChargingShakeMild(inst)</code><a href="#dochargingshakemildinst" class="hash-link" aria-label="Direct link to dochargingshakemildinst" title="Direct link to dochargingshakemildinst" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Triggers a milder full camera shake during supernova charging on first loop.</li>
+<li class=""><strong>Parameters:</strong> <code>inst</code>: Boss entity instance.</li>
+<li class=""><strong>Returns:</strong> None.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="dosupernovashakeinst"><code>DoSupernovaShake(inst)</code><a href="#dosupernovashakeinst" class="hash-link" aria-label="Direct link to dosupernovashakeinst" title="Direct link to dosupernovashakeinst" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Triggers a full camera shake for supernova burst.</li>
+<li class=""><strong>Parameters:</strong> <code>inst</code>: Boss entity instance.</li>
+<li class=""><strong>Returns:</strong> None.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="doselfdestructshakeinst"><code>DoSelfDestructShake(inst)</code><a href="#doselfdestructshakeinst" class="hash-link" aria-label="Direct link to doselfdestructshakeinst" title="Direct link to doselfdestructshakeinst" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Triggers a full camera shake for self-destruct.</li>
+<li class=""><strong>Parameters:</strong> <code>inst</code>: Boss entity instance.</li>
+<li class=""><strong>Returns:</strong> None.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="_aoeattackinst-x-z-radius-heavymult-mult-forcelanded-targets"><code>_AOEAttack(inst, x, z, radius, heavymult, mult, forcelanded, targets)</code><a href="#_aoeattackinst-x-z-radius-heavymult-mult-forcelanded-targets" class="hash-link" aria-label="Direct link to _aoeattackinst-x-z-radius-heavymult-mult-forcelanded-targets" title="Direct link to _aoeattackinst-x-z-radius-heavymult-mult-forcelanded-targets" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Performs area-of-effect combat damage on entities within a circle centered at (x, z), respecting tags and validity. Handles heavy armor multiplier and knockback.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>: Boss instance.</li>
+<li class=""><code>x, z</code>: Center coordinates of the AOE.</li>
+<li class=""><code>radius</code>: Base radius of effect.</li>
+<li class=""><code>heavymult</code>: Damage multiplier against heavy-armored targets.</li>
+<li class=""><code>mult</code>: Base damage multiplier.</li>
+<li class=""><code>forcelanded</code>: Whether knockback forces landing.</li>
+<li class=""><code>targets</code>: Table to avoid duplicate hits (updated in-place).</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> None.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="_aoeworkinst-x-z-radius-targets"><code>_AOEWork(inst, x, z, radius, targets)</code><a href="#_aoeworkinst-x-z-radius-targets" class="hash-link" aria-label="Direct link to _aoeworkinst-x-z-radius-targets" title="Direct link to _aoeworkinst-x-z-radius-targets" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Destroys workable objects (e.g., camps, walls, mines) within AOE radius that match collapsible criteria.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>: Boss instance.</li>
+<li class=""><code>x, z</code>: Center coordinates.</li>
+<li class=""><code>radius</code>: AOE radius.</li>
+<li class=""><code>targets</code>: Table to avoid duplicate destructions.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> None.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="_tosslaunchinst-x0-z0-basespeed-startheight"><code>_TossLaunch(inst, x0, z0, basespeed, startheight)</code><a href="#_tosslaunchinst-x0-z0-basespeed-startheight" class="hash-link" aria-label="Direct link to _tosslaunchinst-x0-z0-basespeed-startheight" title="Direct link to _tosslaunchinst-x0-z0-basespeed-startheight" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Launches a tossed item (e.g., loot, mine) from a base position toward the boss, applying velocity.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>: Item entity to toss.</li>
+<li class=""><code>x0, z0</code>: Launch origin.</li>
+<li class=""><code>basespeed</code>: Base speed multiplier.</li>
+<li class=""><code>startheight</code>: Initial Y position for teleport.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> None.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="_tossitemsinst-x-z-radius"><code>_TossItems(inst, x, z, radius)</code><a href="#_tossitemsinst-x-z-radius" class="hash-link" aria-label="Direct link to _tossitemsinst-x-z-radius" title="Direct link to _tossitemsinst-x-z-radius" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Finds and tosses items within radius; deactivates mines and launches tossable items.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>: Boss instance.</li>
+<li class=""><code>x, z</code>: Center coordinates.</li>
+<li class=""><code>radius</code>: AOE radius.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> None.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="doslamaoeinst-x-z-targets-shouldtoss"><code>DoSlamAOE(inst, x, z, targets, shouldtoss)</code><a href="#doslamaoeinst-x-z-targets-shouldtoss" class="hash-link" aria-label="Direct link to doslamaoeinst-x-z-targets-shouldtoss" title="Direct link to doslamaoeinst-x-z-targets-shouldtoss" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Executes slam AOE: <code>_AOEWork</code>, <code>_AOEAttack</code>, and optionally <code>_TossItems</code>.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>, <code>x</code>, <code>z</code>, <code>targets</code>: As above.</li>
+<li class=""><code>shouldtoss</code>: Boolean whether to toss items.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> None.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="dodashaoeinst-targets"><code>DoDashAOE(inst, targets)</code><a href="#dodashaoeinst-targets" class="hash-link" aria-label="Direct link to dodashaoeinst-targets" title="Direct link to dodashaoeinst-targets" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Executes dash AOE with fixed radius 3.6 (same as slam, but no toss).</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>: Boss instance.</li>
+<li class=""><code>targets</code>: Table to avoid duplicate hits/destructions.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> None.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="updatesupernovaaoeinst-dt-firsthit"><code>UpdateSupernovaAOE(inst, dt, firsthit)</code><a href="#updatesupernovaaoeinst-dt-firsthit" class="hash-link" aria-label="Direct link to updatesupernovaaoeinst-dt-firsthit" title="Direct link to updatesupernovaaoeinst-dt-firsthit" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Applies supernova damage/affliction to entities in range, respecting blockers and arena boundaries.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>: Boss instance.</li>
+<li class=""><code>dt</code>: Time delta (used for throttling).</li>
+<li class=""><code>firsthit</code>: Whether to apply initial hit logic (e.g., attack check before burning).</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> None.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="snapto45sangle"><code>SnapTo45s(angle)</code><a href="#snapto45sangle" class="hash-link" aria-label="Direct link to snapto45sangle" title="Direct link to snapto45sangle" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Snaps an angle to nearest 45-degree increment.</li>
+<li class=""><strong>Parameters:</strong> <code>angle</code> (degrees).</li>
+<li class=""><strong>Returns:</strong> Angle rounded to nearest multiple of 45.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="dofissuresinst-offset"><code>DoFissures(inst, offset)</code><a href="#dofissuresinst-offset" class="hash-link" aria-label="Direct link to dofissuresinst-offset" title="Direct link to dofissuresinst-offset" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Generates fissure placement positions in the arena grid, following snap-to-45s orientation; spawns fissures and returns table of fissure prefabs.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>: Boss instance.</li>
+<li class=""><code>offset</code>: Initial offset iteration (default 1).</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> Array of fissure entities or calls itself recursively on failure.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="setpreventdeathinst-prevent"><code>SetPreventDeath(inst, prevent)</code><a href="#setpreventdeathinst-prevent" class="hash-link" aria-label="Direct link to setpreventdeathinst-prevent" title="Direct link to setpreventdeathinst-prevent" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Sets boss health minimum to prevent death if <code>prevent</code> is true, otherwise resets.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>: Boss instance.</li>
+<li class=""><code>prevent</code>: Boolean.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> None.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="events--listeners">Events &amp; listeners<a href="#events--listeners" class="hash-link" aria-label="Direct link to Events &amp; listeners" title="Direct link to Events &amp; listeners" translate="no">​</a></h2>
+<ul>
+<li class="">
+<p><strong>Listens to:</strong> <code>doattack</code> — When boss receives a doattack event, if not in busy state, initiates attack choice via <code>ChooseAttack</code>. If in busy state (e.g., during hit/taunt), defers to memory for later execution.</p>
+</li>
+<li class="">
+<p><strong>Listens to:</strong> <code>animover</code> — On animation completion, transitions to next appropriate state (e.g., idle, slam post, dash loop, supernova charging); used in death/quickdefeated/defeated states to advance state sequence.</p>
+</li>
+<li class="">
+<p><strong>Listens to:</strong> <code>animqueueover</code> — Triggers when full animation queue completes; used in “finale” state to advance to selfdestruct.</p>
+</li>
+<li class="">
+<p><strong>Pushes:</strong> <code>ms_wagstaff_arena_oneshot</code> — Pushes from “defeated” state to trigger wagstaff monologue/movement.</p>
+</li>
+<li class="">
+<p><strong>Pushes:</strong> <code>ms_wagboss_alter_defeated</code> — Pushes from “selfdestruct” when defeat occurs inside the arena.</p>
+</li>
+<li class="">
+<p><strong>Pushes:</strong> <code>wagboss_defeated</code> — Pushes from “selfdestruct” when wagstaff is present (from finale or otherwise).</p>
+</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-tags-row"><div class="col"><b>Tags:</b><ul class="tags_jXut padding--none margin-left--sm"><li class="tag_QGVx"><a rel="tag" class="tag_zVej tagRegular_sFm0" href="/dst-api-webdocs/docs/tags/combat">combat</a></li><li class="tag_QGVx"><a rel="tag" class="tag_zVej tagRegular_sFm0" href="/dst-api-webdocs/docs/tags/cinematic">cinematic</a></li><li class="tag_QGVx"><a rel="tag" class="tag_zVej tagRegular_sFm0" href="/dst-api-webdocs/docs/tags/physics">physics</a></li><li class="tag_QGVx"><a rel="tag" class="tag_zVej tagRegular_sFm0" href="/dst-api-webdocs/docs/tags/stategraph">stategraph</a></li><li class="tag_QGVx"><a rel="tag" class="tag_zVej tagRegular_sFm0" href="/dst-api-webdocs/docs/tags/boss">boss</a></li></ul></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#overview" class="table-of-contents__link toc-highlight">Overview</a></li><li><a href="#usage-example" class="table-of-contents__link toc-highlight">Usage example</a></li><li><a href="#dependencies--tags" class="table-of-contents__link toc-highlight">Dependencies &amp; tags</a></li><li><a href="#properties" class="table-of-contents__link toc-highlight">Properties</a></li><li><a href="#main-functions" class="table-of-contents__link toc-highlight">Main functions</a><ul><li><a href="#chooseattackinst-target" class="table-of-contents__link toc-highlight"><code>ChooseAttack(inst, target)</code></a></li><li><a href="#dotauntshakeinst" class="table-of-contents__link toc-highlight"><code>DoTauntShake(inst)</code></a></li><li><a href="#doslamshakeinst" class="table-of-contents__link toc-highlight"><code>DoSlamShake(inst)</code></a></li><li><a href="#doslamshake2inst" class="table-of-contents__link toc-highlight"><code>DoSlamShake2(inst)</code></a></li><li><a href="#dochargingshakeinst" class="table-of-contents__link toc-highlight"><code>DoChargingShake(inst)</code></a></li><li><a href="#dochargingshakemildinst" class="table-of-contents__link toc-highlight"><code>DoChargingShakeMild(inst)</code></a></li><li><a href="#dosupernovashakeinst" class="table-of-contents__link toc-highlight"><code>DoSupernovaShake(inst)</code></a></li><li><a href="#doselfdestructshakeinst" class="table-of-contents__link toc-highlight"><code>DoSelfDestructShake(inst)</code></a></li><li><a href="#_aoeattackinst-x-z-radius-heavymult-mult-forcelanded-targets" class="table-of-contents__link toc-highlight"><code>_AOEAttack(inst, x, z, radius, heavymult, mult, forcelanded, targets)</code></a></li><li><a href="#_aoeworkinst-x-z-radius-targets" class="table-of-contents__link toc-highlight"><code>_AOEWork(inst, x, z, radius, targets)</code></a></li><li><a href="#_tosslaunchinst-x0-z0-basespeed-startheight" class="table-of-contents__link toc-highlight"><code>_TossLaunch(inst, x0, z0, basespeed, startheight)</code></a></li><li><a href="#_tossitemsinst-x-z-radius" class="table-of-contents__link toc-highlight"><code>_TossItems(inst, x, z, radius)</code></a></li><li><a href="#doslamaoeinst-x-z-targets-shouldtoss" class="table-of-contents__link toc-highlight"><code>DoSlamAOE(inst, x, z, targets, shouldtoss)</code></a></li><li><a href="#dodashaoeinst-targets" class="table-of-contents__link toc-highlight"><code>DoDashAOE(inst, targets)</code></a></li><li><a href="#updatesupernovaaoeinst-dt-firsthit" class="table-of-contents__link toc-highlight"><code>UpdateSupernovaAOE(inst, dt, firsthit)</code></a></li><li><a href="#snapto45sangle" class="table-of-contents__link toc-highlight"><code>SnapTo45s(angle)</code></a></li><li><a href="#dofissuresinst-offset" class="table-of-contents__link toc-highlight"><code>DoFissures(inst, offset)</code></a></li><li><a href="#setpreventdeathinst-prevent" class="table-of-contents__link toc-highlight"><code>SetPreventDeath(inst, prevent)</code></a></li></ul></li><li><a href="#events--listeners" class="table-of-contents__link toc-highlight">Events &amp; listeners</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/dst-api-webdocs/docs/game-scripts/getting-started/about-game-scripts">DST Vanilla</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Community</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://forums.kleientertainment.com/" target="_blank" rel="noopener noreferrer" class="footer__link-item">Klei Forums<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/vietnd69/dst-api-webdocs" target="_blank" rel="noopener noreferrer" class="footer__link-item">Contribute<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://github.com/vietnd69/dst-scripts" target="_blank" rel="noopener noreferrer" class="footer__link-item">Game Scripts<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://vietnd69.github.io/dst-api-webdocs/sitemap.xml" target="_blank" rel="noopener noreferrer" class="footer__link-item">Sitemap<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Don't Starve Together Vanilla API v2.0.0 Docs.</div></div></div></footer></div>
+</body>
+</html>

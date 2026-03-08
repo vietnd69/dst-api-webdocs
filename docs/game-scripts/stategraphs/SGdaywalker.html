@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-game-scripts/stategraphs/SGdaywalker" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">Sgdaywalker | Don&#x27;t Starve Together Vanilla API</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://vietnd69.github.io/dst-api-webdocs/img/docusaurus-social-card.png"><meta data-rh="true" name="twitter:image" content="https://vietnd69.github.io/dst-api-webdocs/img/docusaurus-social-card.png"><meta data-rh="true" property="og:url" content="https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/stategraphs/SGdaywalker"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="robots" content="index, follow"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Sgdaywalker | Don&#x27;t Starve Together Vanilla API"><meta data-rh="true" name="description" content="Manages the Daywalker&#x27;s state machine and combat behaviors, including movement, attacks (pounce/slam), struggle/tired states, defeat, and electrocution handling."><meta data-rh="true" property="og:description" content="Manages the Daywalker&#x27;s state machine and combat behaviors, including movement, attacks (pounce/slam), struggle/tired states, defeat, and electrocution handling."><link data-rh="true" rel="icon" href="/dst-api-webdocs/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/stategraphs/SGdaywalker"><link data-rh="true" rel="alternate" href="https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/stategraphs/SGdaywalker" hreflang="en"><link data-rh="true" rel="alternate" href="https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/stategraphs/SGdaywalker" hreflang="x-default"><link data-rh="true" rel="preconnect" href="https://P9GA1YAAFR-dsn.algolia.net" crossorigin="anonymous"><link rel="search" type="application/opensearchdescription+xml" title="Don&#39;t Starve Together Vanilla API" href="/dst-api-webdocs/opensearch.xml">
+
+<link rel="preconnect" href="https://www.googletagmanager.com">
+<script>window.dataLayer=window.dataLayer||[]</script>
+<script>!function(e,t,a,n){e[n]=e[n]||[],e[n].push({"gtm.start":(new Date).getTime(),event:"gtm.js"});var g=t.getElementsByTagName(a)[0],m=t.createElement(a);m.async=!0,m.src="https://www.googletagmanager.com/gtm.js?id=GTM-P6HHVZPW",g.parentNode.insertBefore(m,g)}(window,document,"script","dataLayer")</script>
+<link rel="sitemap" type="application/xml" title="Sitemap" href="https://vietnd69.github.io/dst-api-webdocs/sitemap.xml"><link rel="stylesheet" href="/dst-api-webdocs/assets/css/styles.01f1fa4b.css">
+<script src="/dst-api-webdocs/assets/js/runtime~main.7d655f02.js" defer="defer"></script>
+<script src="/dst-api-webdocs/assets/js/main.2d995327.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")),document.documentElement.setAttribute("data-theme-choice",t||"system")}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script>
+
+
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-P6HHVZPW" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript><div id="__docusaurus"><link rel="preload" as="image" href="/dst-api-webdocs/img/logo.png"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/dst-api-webdocs/"><div class="navbar__logo"><img src="/dst-api-webdocs/img/logo.png" alt="Don&#x27;t Starve Together Logo" class="themedComponent_mlkZ themedComponent--light_NVdE"><img src="/dst-api-webdocs/img/logo.png" alt="Don&#x27;t Starve Together Logo" class="themedComponent_mlkZ themedComponent--dark_xIcU"></div></a><a class="navbar__item navbar__link" href="/dst-api-webdocs/docs/game-scripts/getting-started">Game Scripts</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://github.com/vietnd69/dst-api-webdocs" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub Docs<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><a href="https://github.com/vietnd69/dst-scripts" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Base Game Scripts Code<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"><button type="button" class="DocSearch DocSearch-Button" aria-label="Search (Meta+k)" aria-keyshortcuts="Meta+k"><span class="DocSearch-Button-Container"><svg width="20" height="20" class="DocSearch-Search-Icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8" stroke="currentColor" fill="none" stroke-width="1.4"></circle><path d="m21 21-4.3-4.3" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg><span class="DocSearch-Button-Placeholder">Search</span></span><span class="DocSearch-Button-Keys"></span></button></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Sgdaywalker</h1></header>
+<blockquote>
+<p>Based on game build <strong>714014</strong> | Last updated: 2026-03-08</p>
+</blockquote>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="overview">Overview<a href="#overview" class="hash-link" aria-label="Direct link to Overview" title="Direct link to Overview" translate="no">​</a></h2>
+<p>SGdaywalker is the stategraph component that controls the Daywalker entity’s behavior in Don&#x27;t Starve Together. It orchestrates transitions between movement states (idle, walk, run), combat states (pounce, slam), fatigue management (struggle, tired), defeat, and electrocution resistance — using event listeners and reusable helper functions. It integrates with common handler modules for shared behaviors (locomotion, electrocution, sink) and interfaces with the combat, health, locomotor, and sound systems to execute coordinated animations, knockback, and entity reactions.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="usage-example">Usage example<a href="#usage-example" class="hash-link" aria-label="Direct link to Usage example" title="Direct link to Usage example" translate="no">​</a></h2>
+<p>The Daywalker is instantiated as part of the entity definition, with its stategraph assigned via <code>inst:AddStateGraph(&quot;SGdaywalker&quot;)</code>. When the entity receives combat or environmental triggers, the stategraph responds automatically:</p>
+<div class="language-lua codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-lua codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#393A34"><span class="token plain">inst</span><span class="token punctuation" style="color:#393A34">:</span><span class="token function" style="color:#d73a49">AddStateGraph</span><span class="token punctuation" style="color:#393A34">(</span><span class="token string" style="color:#e3116c">&quot;SGdaywalker&quot;</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">inst</span><span class="token punctuation" style="color:#393A34">:</span><span class="token function" style="color:#d73a49">ListenForEvent</span><span class="token punctuation" style="color:#393A34">(</span><span class="token string" style="color:#e3116c">&quot;doattack&quot;</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"> </span><span class="token keyword" style="color:#00009f">function</span><span class="token punctuation" style="color:#393A34">(</span><span class="token plain">inst</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain"> </span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token keyword" style="color:#00009f">if</span><span class="token plain"> </span><span class="token keyword" style="color:#00009f">not</span><span class="token plain"> inst</span><span class="token punctuation" style="color:#393A34">.</span><span class="token plain">sg</span><span class="token punctuation" style="color:#393A34">:</span><span class="token function" style="color:#d73a49">HasStateTag</span><span class="token punctuation" style="color:#393A34">(</span><span class="token string" style="color:#e3116c">&quot;busy&quot;</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain"> </span><span class="token keyword" style="color:#00009f">then</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        inst</span><span class="token punctuation" style="color:#393A34">.</span><span class="token plain">sg</span><span class="token punctuation" style="color:#393A34">:</span><span class="token function" style="color:#d73a49">GoToState</span><span class="token punctuation" style="color:#393A34">(</span><span class="token string" style="color:#e3116c">&quot;idlewalk&quot;</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token keyword" style="color:#00009f">end</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token keyword" style="color:#00009f">end</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">inst</span><span class="token punctuation" style="color:#393A34">:</span><span class="token function" style="color:#d73a49">ListenForEvent</span><span class="token punctuation" style="color:#393A34">(</span><span class="token string" style="color:#e3116c">&quot;attacked&quot;</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"> </span><span class="token keyword" style="color:#00009f">function</span><span class="token punctuation" style="color:#393A34">(</span><span class="token plain">inst</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"> data</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain"> </span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    inst</span><span class="token punctuation" style="color:#393A34">.</span><span class="token plain">sg</span><span class="token punctuation" style="color:#393A34">:</span><span class="token function" style="color:#d73a49">GoToState</span><span class="token punctuation" style="color:#393A34">(</span><span class="token string" style="color:#e3116c">&quot;hit&quot;</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain"> </span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token keyword" style="color:#00009f">end</span><span class="token punctuation" style="color:#393A34">)</span><br></span></code></pre></div></div>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="dependencies--tags">Dependencies &amp; tags<a href="#dependencies--tags" class="hash-link" aria-label="Direct link to Dependencies &amp; tags" title="Direct link to Dependencies &amp; tags" translate="no">​</a></h2>
+<p><strong>Components used:</strong></p>
+<ul>
+<li class=""><code>Physics</code> — for motor velocity control and movement stop</li>
+<li class=""><code>Transform</code> — for rotation, facing, and world position</li>
+<li class=""><code>AnimState</code> — for animation playback and progress monitoring</li>
+<li class=""><code>SoundEmitter</code> — for sound effects (footsteps, voice, attacks)</li>
+<li class=""><code>Locomotor</code> — for movement speed and ground alignment</li>
+<li class=""><code>Combat</code> — for targeting, cooldowns, damage setting/reset</li>
+<li class=""><code>Health</code> — for absorption control and regen suppression</li>
+<li class=""><code>Timer</code> — for roar/stalk/despawn cooldowns</li>
+<li class=""><code>Epicscare</code> — for area-of-effect scare during taunt</li>
+<li class=""><code>Lootdropper</code> — for loot drop on defeat</li>
+</ul>
+<p><strong>Tags:</strong><br>
+<!-- -->State tags used in transitions: <code>&quot;running&quot;</code>, <code>&quot;busy&quot;</code>, <code>&quot;idle&quot;</code>, <code>&quot;nointerrupt&quot;</code>, <code>&quot;canattach&quot;</code>, <code>&quot;notiredhit&quot;</code>, <code>&quot;canelectrocute&quot;</code>, <code>&quot;canrotate&quot;</code>, <code>&quot;struggle&quot;</code>, <code>&quot;pounce_recovery&quot;</code>, <code>&quot;tired&quot;</code>, <code>&quot;defeated&quot;</code>, <code>&quot;caninterrupt&quot;</code>, <code>&quot;struggling&quot;</code>, <code>&quot;shrugging&quot;</code>, <code>&quot;colliding&quot;</code>, <code>&quot;shadow_aligned&quot;</code>, <code>&quot;stalking&quot;</code>, <code>&quot;noattack&quot;</code>.<br>
+<!-- -->Entity tags used in work/AOE logic: <code>&quot;daywalker_pillar&quot;</code>, <code>&quot;MINE_workable&quot;</code>, <code>&quot;NPC_workable&quot;</code>, <code>&quot;FX&quot;</code>, <code>&quot;DECOR&quot;</code>, <code>&quot;INLIMBO&quot;</code>, <code>&quot;blocker&quot;</code>, <code>&quot;_combat&quot;</code>, <code>&quot;flight&quot;</code>, <code>&quot;invisible&quot;</code>, <code>&quot;notarget&quot;</code>, <code>&quot;noattack&quot;</code>, <code>&quot;heavyarmor&quot;</code>, <code>&quot;heavybody&quot;</code>, <code>&quot;stump&quot;</code>, <code>&quot;player&quot;</code>, <code>&quot;playerghost&quot;</code>.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="properties">Properties<a href="#properties" class="hash-link" aria-label="Direct link to Properties" title="Direct link to Properties" translate="no">​</a></h2>
+<table><thead><tr><th>Property</th><th>Type</th><th>Default Value</th><th>Description</th></tr></thead></table>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="main-functions">Main functions<a href="#main-functions" class="hash-link" aria-label="Direct link to Main functions" title="Direct link to Main functions" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="chooseattackinst"><code>ChooseAttack(inst)</code><a href="#chooseattackinst" class="hash-link" aria-label="Direct link to chooseattackinst" title="Direct link to chooseattackinst" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Determines the next attack type for the Daywalker based on state and conditions. Selects between a slam attack (if conditions are met) or a pounce attack.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>: The entity instance (the Daywalker).</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>true</code> (explicitly returned at end).</li>
+<li class=""><strong>Error states:</strong> None identified.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="isplayermeleedata"><code>IsPlayerMelee(data)</code><a href="#isplayermeleedata" class="hash-link" aria-label="Direct link to isplayermeleedata" title="Direct link to isplayermeleedata" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Checks whether a combat event (<code>attacked</code>) was caused by a player’s melee attack (non-projectile).</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>data</code>: Event data from the <code>attacked</code> event.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>true</code> if the attacker is a player using a melee weapon (or no weapon) with damage &gt; 0; else <code>false</code>.</li>
+<li class=""><strong>Error states:</strong> Returns <code>false</code> if <code>data</code> or <code>data.attacker</code> is nil, or if weapon is projectile-based.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="hit_recovery_skip_cooldown_fninst-last_t-delay"><code>hit_recovery_skip_cooldown_fn(inst, last_t, delay)</code><a href="#hit_recovery_skip_cooldown_fninst-last_t-delay" class="hash-link" aria-label="Direct link to hit_recovery_skip_cooldown_fninst-last_t-delay" title="Direct link to hit_recovery_skip_cooldown_fninst-last_t-delay" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Custom filter function used by <code>CommonHandlers.HitRecoveryDelay</code>. Determines whether hit recovery should skip its usual delay.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>: Entity instance.</li>
+<li class=""><code>last_t</code>: Last hit time (unused in body).</li>
+<li class=""><code>delay</code>: Delay duration (unused in body).</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>true</code> if hit recovery delay should be skipped (i.e., when <code>inst.hit_recovery == TUNING.DAYWALKER_HIT_RECOVERY</code>, combat is in cooldown, and state has <code>&quot;idle&quot;</code> tag); otherwise <code>false</code>.</li>
+<li class=""><strong>Error states:</strong> None identified.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="_transfer_statemem_to_electrocuteinst-playermelee"><code>_transfer_statemem_to_electrocute(inst, playermelee)</code><a href="#_transfer_statemem_to_electrocuteinst-playermelee" class="hash-link" aria-label="Direct link to _transfer_statemem_to_electrocuteinst-playermelee" title="Direct link to _transfer_statemem_to_electrocuteinst-playermelee" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Transfers state tag memories (<code>struggle</code>, <code>tired</code>, <code>pounce_recovery</code>) into <code>inst.sg.mem</code> for use during electrocution state transitions.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>: Entity instance.</li>
+<li class=""><code>playermelee</code>: Boolean indicating if attack was from player melee.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code>.</li>
+<li class=""><strong>Error states:</strong> None identified.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="randompillarfacinginst"><code>RandomPillarFacing(inst)</code><a href="#randompillarfacinginst" class="hash-link" aria-label="Direct link to randompillarfacinginst" title="Direct link to randompillarfacinginst" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Calculates an average facing toward nearby pillars and sets a slightly randomized rotation. Falls back to random rotation if no pillars found.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>: Entity instance.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code>.</li>
+<li class=""><strong>Error states:</strong> None identified.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="trycollidepillarinst-forward"><code>TryCollidePillar(inst, forward)</code><a href="#trycollidepillarinst-forward" class="hash-link" aria-label="Direct link to trycollidepillarinst-forward" title="Direct link to trycollidepillarinst-forward" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Checks for nearby pillars in a small AOE area, triggers collision response on them, and forces transition to <code>&quot;collide&quot;</code> state if any are found.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>: Entity instance.</li>
+<li class=""><code>forward</code>: Boolean — if true, searches slightly ahead in facing direction.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code>.</li>
+<li class=""><strong>Error states:</strong> None identified.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="trydetachleechinst-attachpos-speedmult-randomdir"><code>TryDetachLeech(inst, attachpos, speedmult, randomdir)</code><a href="#trydetachleechinst-attachpos-speedmult-randomdir" class="hash-link" aria-label="Direct link to trydetachleechinst-attachpos-speedmult-randomdir" title="Direct link to trydetachleechinst-attachpos-speedmult-randomdir" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Attempts to detach leeches under specific conditions (no active incoming jumps, cooldown passed), and records new detach cooldown timestamp.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>: Entity instance.</li>
+<li class=""><code>attachpos</code>: Optional position/keys for detachment.</li>
+<li class=""><code>speedmult</code>: Velocity multiplier for detachment.</li>
+<li class=""><code>randomdir</code>: Whether to use random direction for detachment.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code> (actual detach success is internal to <code>inst:DetachLeech()</code>).</li>
+<li class=""><strong>Error states:</strong> Cooldown enforced via <code>inst.sg.mem.detachtime</code>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="doaoeattackinst-dist-radius-heavymult-mult-forcelanded-targets"><code>DoAOEAttack(inst, dist, radius, heavymult, mult, forcelanded, targets)</code><a href="#doaoeattackinst-dist-radius-heavymult-mult-forcelanded-targets" class="hash-link" aria-label="Direct link to doaoeattackinst-dist-radius-heavymult-mult-forcelanded-targets" title="Direct link to doaoeattackinst-dist-radius-heavymult-mult-forcelanded-targets" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Performs area-of-effect combat attack in a circle, optionally offset by <code>dist</code>, targeting valid entities within <code>radius</code>. Applies knockback and tracks already-hit targets via <code>targets</code> table.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>: Entity instance.</li>
+<li class=""><code>dist</code>: Forward offset distance.</li>
+<li class=""><code>radius</code>: Attack radius.</li>
+<li class=""><code>heavymult</code>: Knockback multiplier for heavy-armored/heavy-body targets.</li>
+<li class=""><code>mult</code>: Knockback multiplier for non-heavy targets.</li>
+<li class=""><code>forcelanded</code>: Boolean passed to knockback event.</li>
+<li class=""><code>targets</code>: Table used to deduplicate target hits.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code>.</li>
+<li class=""><strong>Error states:</strong> Targets already in <code>targets</code> table are skipped; invalid or dead targets excluded.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="doaoeworkinst-dist-radius-targets-overridenontags-trampledelays"><code>DoAOEWork(inst, dist, radius, targets, overridenontags, trampledelays)</code><a href="#doaoeworkinst-dist-radius-targets-overridenontags-trampledelays" class="hash-link" aria-label="Direct link to doaoeworkinst-dist-radius-targets-overridenontags-trampledelays" title="Direct link to doaoeworkinst-dist-radius-targets-overridenontags-trampledelays" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Performs area-of-effect work destruction (e.g., chopping, mining, hammering) on workable obstacles within radius. Implements trampling delay logic for blocker-tagged obstacles.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>: Entity instance.</li>
+<li class=""><code>dist</code>: Forward offset.</li>
+<li class=""><code>radius</code>: Work radius.</li>
+<li class=""><code>targets</code>: Table to track processed entities (optional).</li>
+<li class=""><code>overridenontags</code>: List of tags to <em>exclude</em> (overrides default).</li>
+<li class=""><code>trampledelays</code>: Table used for tracking per-obstacle trample delays.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code>.</li>
+<li class=""><strong>Error states:</strong> Pillars trigger <code>OnCollided</code>, others proceed normally; blockers use trample threshold logic.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="dofootstepaoeinst"><code>DoFootstepAOE(inst)</code><a href="#dofootstepaoeinst" class="hash-link" aria-label="Direct link to dofootstepaoeinst" title="Direct link to dofootstepaoeinst" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Convenience wrapper calling <code>DoAOEWork</code> with footstep-specific defaults.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>: Entity instance.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code>.</li>
+<li class=""><strong>Error states:</strong> None identified.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="isslamtargetx-z-guy-rangesq-checkrot"><code>IsSlamTarget(x, z, guy, rangesq, checkrot)</code><a href="#isslamtargetx-z-guy-rangesq-checkrot" class="hash-link" aria-label="Direct link to isslamtargetx-z-guy-rangesq-checkrot" title="Direct link to isslamtargetx-z-guy-rangesq-checkrot" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Checks if <code>guy</code> is a valid slam target (alive, visible, on above-ground map, within <code>rangesq</code> distance; optionally within rotation range).</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>x</code>, <code>z</code>: Center position of detection.</li>
+<li class=""><code>guy</code>: Entity to test.</li>
+<li class=""><code>rangesq</code>: Squared detection range.</li>
+<li class=""><code>checkrot</code>: Optional rotation (in degrees) to further filter by direction.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>true</code> if valid target; else <code>false</code>.</li>
+<li class=""><strong>Error states:</strong> Skips dead, ghost, invisible, or non-visible entities.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="findslamtargetinst-rangesq"><code>FindSlamTarget(inst, rangesq)</code><a href="#findslamtargetinst-rangesq" class="hash-link" aria-label="Direct link to findslamtargetinst-rangesq" title="Direct link to findslamtargetinst-rangesq" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Searches for a valid slam target starting from <code>inst</code>&#x27;s combat target, then random sampling from <code>inst.components.grouptargeter:GetTargets()</code>.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>: Entity instance.</li>
+<li class=""><code>rangesq</code>: Squared detection range for <code>IsSlamTarget</code>.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> First valid target found, or <code>nil</code>.</li>
+<li class=""><strong>Error states:</strong> May skip targets if they fail visibility, position, or map checks.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="trychatterinst-strtblname-index-ignoredelay-echotochatpriority"><code>TryChatter(inst, strtblname, index, ignoredelay, echotochatpriority)</code><a href="#trychatterinst-strtblname-index-ignoredelay-echotochatpriority" class="hash-link" aria-label="Direct link to trychatterinst-strtblname-index-ignoredelay-echotochatpriority" title="Direct link to trychatterinst-strtblname-index-ignoredelay-echotochatpriority" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Wrapper that forwards chatter call to <code>SGDaywalkerCommon.TryChatter</code>, passing <code>CHATTER_DELAYS</code> table and other parameters.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>: Entity instance.</li>
+<li class=""><code>strtblname</code>: Key in <code>CHATTER_DELAYS</code> (e.g., <code>&quot;DAYWALKER_TIRED&quot;</code>).</li>
+<li class=""><code>index</code>: Optional extra index for chatter selection.</li>
+<li class=""><code>ignoredelay</code>: Bypass chatter cooldown if <code>true</code>.</li>
+<li class=""><code>echotochatpriority</code>: Chat priority; defaults to <code>CHATPRIORITIES.LOW</code>.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code>.</li>
+<li class=""><strong>Error states:</strong> None identified.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="dofootstepinst-volume"><code>DoFootstep(inst, volume)</code><a href="#dofootstepinst-volume" class="hash-link" aria-label="Direct link to dofootstepinst-volume" title="Direct link to dofootstepinst-volume" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Records the time of the last footstep and plays the footstep sound at the specified volume.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>: The entity instance (daywalker).</li>
+<li class=""><code>volume</code>: Float — volume multiplier for the footstep sound.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> None.</li>
+<li class=""><strong>Error states:</strong> None identified.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="events--listeners">Events &amp; listeners<a href="#events--listeners" class="hash-link" aria-label="Direct link to Events &amp; listeners" title="Direct link to Events &amp; listeners" translate="no">​</a></h2>
+<ul>
+<li class=""><strong><code>doattack</code></strong> — Triggers <code>ChooseAttack</code> if not busy or defeated; in <code>hit</code> state, sets <code>inst.sg.statemem.doattack = true</code> and prevents transition if not busy.</li>
+<li class=""><strong><code>electrocute</code></strong> — Triggers <code>CommonHandlers.TryElectrocuteOnEvent</code> with <code>_transfer_statemem_to_electrocute</code> callback.</li>
+<li class=""><strong><code>attacked</code></strong> — Handles struggle/tired/defeated states; triggers <code>hit</code> transition on player melee; manages hit recovery and electrocution state entry.</li>
+<li class=""><strong><code>leechattached</code></strong> — Enters <code>&quot;attach&quot;</code> or <code>&quot;collide&quot;</code> state based on struggle state and interruption tags.</li>
+<li class=""><strong><code>roar</code></strong> — Enters <code>&quot;taunt&quot;</code> if not defeated/busy.</li>
+<li class=""><strong><code>minhealth</code></strong> — Enters <code>&quot;defeat&quot;</code> if defeated and not yet in <code>&quot;defeated&quot;</code> state tag.</li>
+<li class=""><strong><code>teleported</code></strong> — Triggers recovery paths based on struggle/tired states.</li>
+<li class=""><strong><code>animover</code></strong> — Internal state transitions after animation completion:<!-- -->
+<ul>
+<li class="">In <code>idlewalk</code>/<code>idle</code>: no explicit handler (assumed handled elsewhere).</li>
+<li class="">In <code>hit</code>: transitions to <code>tired_pre</code> if fatigued/defeated; otherwise removes <code>busy</code> tag and loops/moves on.</li>
+<li class="">In <code>attack_pounce_pre</code>: transitions to <code>attack_pounce</code>.</li>
+<li class="">In <code>attack_pounce</code>: processes pounce success/failure → <code>attack_slam</code>, <code>attack_pounce_pst</code>, or <code>attack_pounce_pst_tired</code>.</li>
+<li class="">In <code>attack_pounce_pst</code>/<code>pounce_pst_tired</code>: transitions to <code>idle</code>, <code>taunt</code>, or <code>tired_pre</code>.</li>
+<li class="">In <code>attack_slam_pre</code>: transitions to <code>attack_slam</code>.</li>
+<li class="">In <code>attack_slam</code>: transitions to <code>idle</code> or <code>taunt</code>.</li>
+<li class="">In <code>taunt</code>: transitions to <code>idle</code>.</li>
+<li class="">In <code>defeat</code>: transitions to <code>defeat_idle_pre</code>.</li>
+<li class="">In <code>defeat_idle_pre</code>: transitions to <code>defeat_idle</code>.</li>
+<li class="">In electrocute states: transitions to <code>struggle_idle</code>, <code>tired_pre</code>, <code>tired</code>, or <code>idle</code> based on tags.</li>
+</ul>
+</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-tags-row"><div class="col"><b>Tags:</b><ul class="tags_jXut padding--none margin-left--sm"><li class="tag_QGVx"><a rel="tag" class="tag_zVej tagRegular_sFm0" href="/dst-api-webdocs/docs/tags/entity">entity</a></li><li class="tag_QGVx"><a rel="tag" class="tag_zVej tagRegular_sFm0" href="/dst-api-webdocs/docs/tags/combat">combat</a></li><li class="tag_QGVx"><a rel="tag" class="tag_zVej tagRegular_sFm0" href="/dst-api-webdocs/docs/tags/locomotion">locomotion</a></li><li class="tag_QGVx"><a rel="tag" class="tag_zVej tagRegular_sFm0" href="/dst-api-webdocs/docs/tags/state">state</a></li><li class="tag_QGVx"><a rel="tag" class="tag_zVej tagRegular_sFm0" href="/dst-api-webdocs/docs/tags/ai">ai</a></li></ul></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#overview" class="table-of-contents__link toc-highlight">Overview</a></li><li><a href="#usage-example" class="table-of-contents__link toc-highlight">Usage example</a></li><li><a href="#dependencies--tags" class="table-of-contents__link toc-highlight">Dependencies &amp; tags</a></li><li><a href="#properties" class="table-of-contents__link toc-highlight">Properties</a></li><li><a href="#main-functions" class="table-of-contents__link toc-highlight">Main functions</a><ul><li><a href="#chooseattackinst" class="table-of-contents__link toc-highlight"><code>ChooseAttack(inst)</code></a></li><li><a href="#isplayermeleedata" class="table-of-contents__link toc-highlight"><code>IsPlayerMelee(data)</code></a></li><li><a href="#hit_recovery_skip_cooldown_fninst-last_t-delay" class="table-of-contents__link toc-highlight"><code>hit_recovery_skip_cooldown_fn(inst, last_t, delay)</code></a></li><li><a href="#_transfer_statemem_to_electrocuteinst-playermelee" class="table-of-contents__link toc-highlight"><code>_transfer_statemem_to_electrocute(inst, playermelee)</code></a></li><li><a href="#randompillarfacinginst" class="table-of-contents__link toc-highlight"><code>RandomPillarFacing(inst)</code></a></li><li><a href="#trycollidepillarinst-forward" class="table-of-contents__link toc-highlight"><code>TryCollidePillar(inst, forward)</code></a></li><li><a href="#trydetachleechinst-attachpos-speedmult-randomdir" class="table-of-contents__link toc-highlight"><code>TryDetachLeech(inst, attachpos, speedmult, randomdir)</code></a></li><li><a href="#doaoeattackinst-dist-radius-heavymult-mult-forcelanded-targets" class="table-of-contents__link toc-highlight"><code>DoAOEAttack(inst, dist, radius, heavymult, mult, forcelanded, targets)</code></a></li><li><a href="#doaoeworkinst-dist-radius-targets-overridenontags-trampledelays" class="table-of-contents__link toc-highlight"><code>DoAOEWork(inst, dist, radius, targets, overridenontags, trampledelays)</code></a></li><li><a href="#dofootstepaoeinst" class="table-of-contents__link toc-highlight"><code>DoFootstepAOE(inst)</code></a></li><li><a href="#isslamtargetx-z-guy-rangesq-checkrot" class="table-of-contents__link toc-highlight"><code>IsSlamTarget(x, z, guy, rangesq, checkrot)</code></a></li><li><a href="#findslamtargetinst-rangesq" class="table-of-contents__link toc-highlight"><code>FindSlamTarget(inst, rangesq)</code></a></li><li><a href="#trychatterinst-strtblname-index-ignoredelay-echotochatpriority" class="table-of-contents__link toc-highlight"><code>TryChatter(inst, strtblname, index, ignoredelay, echotochatpriority)</code></a></li><li><a href="#dofootstepinst-volume" class="table-of-contents__link toc-highlight"><code>DoFootstep(inst, volume)</code></a></li></ul></li><li><a href="#events--listeners" class="table-of-contents__link toc-highlight">Events &amp; listeners</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/dst-api-webdocs/docs/game-scripts/getting-started/about-game-scripts">DST Vanilla</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Community</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://forums.kleientertainment.com/" target="_blank" rel="noopener noreferrer" class="footer__link-item">Klei Forums<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/vietnd69/dst-api-webdocs" target="_blank" rel="noopener noreferrer" class="footer__link-item">Contribute<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://github.com/vietnd69/dst-scripts" target="_blank" rel="noopener noreferrer" class="footer__link-item">Game Scripts<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://vietnd69.github.io/dst-api-webdocs/sitemap.xml" target="_blank" rel="noopener noreferrer" class="footer__link-item">Sitemap<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Don't Starve Together Vanilla API v2.0.0 Docs.</div></div></div></footer></div>
+</body>
+</html>

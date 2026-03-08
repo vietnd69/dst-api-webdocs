@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-game-scripts/stategraphs/SGdaywalker2" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">Sgdaywalker2 | Don&#x27;t Starve Together Vanilla API</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://vietnd69.github.io/dst-api-webdocs/img/docusaurus-social-card.png"><meta data-rh="true" name="twitter:image" content="https://vietnd69.github.io/dst-api-webdocs/img/docusaurus-social-card.png"><meta data-rh="true" property="og:url" content="https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/stategraphs/SGdaywalker2"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="robots" content="index, follow"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Sgdaywalker2 | Don&#x27;t Starve Together Vanilla API"><meta data-rh="true" name="description" content="Stategraph component managing Daywalker2 entity behavior, including attack chains (laser, cannon, tackle, pounce), rummaging, throwing junk, taunting, and defeat states."><meta data-rh="true" property="og:description" content="Stategraph component managing Daywalker2 entity behavior, including attack chains (laser, cannon, tackle, pounce), rummaging, throwing junk, taunting, and defeat states."><link data-rh="true" rel="icon" href="/dst-api-webdocs/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/stategraphs/SGdaywalker2"><link data-rh="true" rel="alternate" href="https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/stategraphs/SGdaywalker2" hreflang="en"><link data-rh="true" rel="alternate" href="https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/stategraphs/SGdaywalker2" hreflang="x-default"><link data-rh="true" rel="preconnect" href="https://P9GA1YAAFR-dsn.algolia.net" crossorigin="anonymous"><link rel="search" type="application/opensearchdescription+xml" title="Don&#39;t Starve Together Vanilla API" href="/dst-api-webdocs/opensearch.xml">
+
+<link rel="preconnect" href="https://www.googletagmanager.com">
+<script>window.dataLayer=window.dataLayer||[]</script>
+<script>!function(e,t,a,n){e[n]=e[n]||[],e[n].push({"gtm.start":(new Date).getTime(),event:"gtm.js"});var g=t.getElementsByTagName(a)[0],m=t.createElement(a);m.async=!0,m.src="https://www.googletagmanager.com/gtm.js?id=GTM-P6HHVZPW",g.parentNode.insertBefore(m,g)}(window,document,"script","dataLayer")</script>
+<link rel="sitemap" type="application/xml" title="Sitemap" href="https://vietnd69.github.io/dst-api-webdocs/sitemap.xml"><link rel="stylesheet" href="/dst-api-webdocs/assets/css/styles.01f1fa4b.css">
+<script src="/dst-api-webdocs/assets/js/runtime~main.7d655f02.js" defer="defer"></script>
+<script src="/dst-api-webdocs/assets/js/main.2d995327.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")),document.documentElement.setAttribute("data-theme-choice",t||"system")}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script>
+
+
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-P6HHVZPW" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript><div id="__docusaurus"><link rel="preload" as="image" href="/dst-api-webdocs/img/logo.png"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/dst-api-webdocs/"><div class="navbar__logo"><img src="/dst-api-webdocs/img/logo.png" alt="Don&#x27;t Starve Together Logo" class="themedComponent_mlkZ themedComponent--light_NVdE"><img src="/dst-api-webdocs/img/logo.png" alt="Don&#x27;t Starve Together Logo" class="themedComponent_mlkZ themedComponent--dark_xIcU"></div></a><a class="navbar__item navbar__link" href="/dst-api-webdocs/docs/game-scripts/getting-started">Game Scripts</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://github.com/vietnd69/dst-api-webdocs" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub Docs<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><a href="https://github.com/vietnd69/dst-scripts" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Base Game Scripts Code<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"><button type="button" class="DocSearch DocSearch-Button" aria-label="Search (Meta+k)" aria-keyshortcuts="Meta+k"><span class="DocSearch-Button-Container"><svg width="20" height="20" class="DocSearch-Search-Icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8" stroke="currentColor" fill="none" stroke-width="1.4"></circle><path d="m21 21-4.3-4.3" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg><span class="DocSearch-Button-Placeholder">Search</span></span><span class="DocSearch-Button-Keys"></span></button></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Sgdaywalker2</h1></header>
+<blockquote>
+<p>Based on game build <strong>714014</strong> | Last updated: 2026-03-08</p>
+</blockquote>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="overview">Overview<a href="#overview" class="hash-link" aria-label="Direct link to Overview" title="Direct link to Overview" translate="no">​</a></h2>
+<p>SGdaywalker2 is a stategraph component that controls the Daywalker2 entity&#x27;s behavioral sequences, including targeted attacks (laser, cannon, tackle, pounce), item-based actions (rummaging, junk throw), environmental interactions (AOE trampling, collapsing workables), and transitions through idle, aggressive, sleeping, and defeated states. It coordinates attack logic, particle effects, sound, and AI state transitions using event-driven callbacks and timeline frame events.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="usage-example">Usage example<a href="#usage-example" class="hash-link" aria-label="Direct link to Usage example" title="Direct link to Usage example" translate="no">​</a></h2>
+<div class="language-lua codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-lua codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#393A34"><span class="token comment" style="color:#999988;font-style:italic">-- Example: Triggering a cannon attack from the Daywalker2 entity</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">inst</span><span class="token punctuation" style="color:#393A34">:</span><span class="token function" style="color:#d73a49">PushEvent</span><span class="token punctuation" style="color:#393A34">(</span><span class="token string" style="color:#e3116c">&quot;doattack&quot;</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"> target </span><span class="token operator" style="color:#393A34">=</span><span class="token plain"> enemy_entity </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token comment" style="color:#999988;font-style:italic">-- Internally, ChooseAttack will select cannon if conditions are met</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token comment" style="color:#999988;font-style:italic">-- This transitions into &#x27;laser_pre&#x27; → &#x27;cannon&#x27; state sequence</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token comment" style="color:#999988;font-style:italic">-- firing multiple lasers via timeline frame events and handling knockback/damage</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token comment" style="color:#999988;font-style:italic">-- Example: Handling rummage completion</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token comment" style="color:#999988;font-style:italic">-- Upon &#x27;rummage&#x27; event payload, the &#x27;rummage&#x27; state begins</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token comment" style="color:#999988;font-style:italic">-- When ruminage times out, rummage_ontimeout() decides whether to throw or lift</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">inst</span><span class="token punctuation" style="color:#393A34">:</span><span class="token function" style="color:#d73a49">PushEvent</span><span class="token punctuation" style="color:#393A34">(</span><span class="token string" style="color:#e3116c">&quot;rummage&quot;</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"> data </span><span class="token operator" style="color:#393A34">=</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">...</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">}</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">)</span><br></span></code></pre></div></div>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="dependencies--tags">Dependencies &amp; tags<a href="#dependencies--tags" class="hash-link" aria-label="Direct link to Dependencies &amp; tags" title="Direct link to Dependencies &amp; tags" translate="no">​</a></h2>
+<p><strong>Components used:</strong></p>
+<ul>
+<li class=""><code>combat</code> (via <code>inst.components.combat:DoAttack()</code>)</li>
+<li class=""><code>workable</code> (via <code>components.workable</code>)</li>
+<li class=""><code>mine</code> (via <code>components.mine</code>)</li>
+<li class=""><code>physics</code> (via <code>physics</code>)</li>
+<li class=""><code>scare</code> (via <code>Scare(5)</code> call in epic scare component)</li>
+</ul>
+<p><strong>Tags:</strong></p>
+<ul>
+<li class=""><code>&quot;rummaging&quot;</code> — added during rummaging or rummage hit.</li>
+<li class=""><code>&quot;idle&quot;</code> — active during idle, talk, angry, etc.</li>
+<li class=""><code>&quot;canrotate&quot;</code> — allows facing rotation toward target.</li>
+<li class=""><code>&quot;busy&quot;</code> — blocks interruption (added during most non-idle states).</li>
+<li class=""><code>&quot;nosleep&quot;</code> — prevents sleep transitions during critical actions.</li>
+<li class=""><code>&quot;sleeping&quot;</code> — used internally to track sleep state.</li>
+<li class=""><code>&quot;caninterrupt&quot;</code> — allows interruption (added after attack phases).</li>
+<li class=""><code>&quot;notalksound&quot;</code> — suppresses talk sound during some attacks.</li>
+<li class=""><code>&quot;attack&quot;</code> — marks attack states.</li>
+<li class=""><code>&quot;hit&quot;</code> — active during hit states.</li>
+<li class=""><code>&quot;talking&quot;</code> — active during talk states.</li>
+<li class=""><code>&quot;angry&quot;</code> — active during angry state.</li>
+<li class=""><code>&quot;defeated&quot;</code> — block to prevent reactivation after defeat.</li>
+<li class=""><code>&quot;noelectrocute&quot;</code> — blocks electrocution during emerge/rummage.</li>
+<li class=""><code>&quot;stalking&quot;</code> — conditionally added in idle when stalking.</li>
+<li class=""><code>&quot;walk&quot;</code> — tracked for walking state.</li>
+<li class=""><code>&quot;nowake&quot;</code> — prevents wake transition.</li>
+<li class=""><code>&quot;flight&quot;</code>, <code>&quot;invisible&quot;</code>, <code>&quot;notarget&quot;</code>, <code>&quot;noattack&quot;</code>, <code>&quot;junk_fence&quot;</code>, <code>&quot;INLIMBO&quot;</code> — used in <code>AOE_TARGET_CANT_TAGS</code>.</li>
+<li class=""><code>&quot;NPC_workable&quot;</code>, <code>&quot;CHOP_workable&quot;</code>, <code>&quot;HAMMER_workable&quot;</code>, <code>&quot;MINE_workable&quot;</code> — used in <code>COLLAPSIBLE_TAGS</code>.</li>
+<li class=""><code>&quot;FX&quot;</code>, <code>&quot;DECOR&quot;</code>, <code>&quot;blocker&quot;</code>, <code>&quot;junk_pile_big&quot;</code> — used in <code>NON_COLLAPSIBLE_TAGS</code>.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="properties">Properties<a href="#properties" class="hash-link" aria-label="Direct link to Properties" title="Direct link to Properties" translate="no">​</a></h2>
+<table><thead><tr><th>Property</th><th>Type</th><th>Default Value</th><th>Description</th></tr></thead><tbody><tr><td>None identified</td><td></td><td></td><td></td></tr></tbody></table>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="main-functions">Main functions<a href="#main-functions" class="hash-link" aria-label="Direct link to Main functions" title="Direct link to Main functions" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="chooseattackinst"><code>ChooseAttack(inst)</code><a href="#chooseattackinst" class="hash-link" aria-label="Direct link to chooseattackinst" title="Direct link to chooseattackinst" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Selects and initiates the highest-priority attack based on available abilities (<code>canswing</code>, <code>cancannon</code>, <code>cantackle</code>) and distance to target. Falls back to pounce if rooted or stuck.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code> — the entity instance.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>true</code> if an attack state was initiated, <code>false</code> or <code>nil</code> otherwise.</li>
+<li class=""><strong>Error states:</strong> Relies on <code>inst.components.combat.target</code> being valid.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="hit_recovery_skip_cooldown_fninst-last_t-delay"><code>hit_recovery_skip_cooldown_fn(inst, last_t, delay)</code><a href="#hit_recovery_skip_cooldown_fninst-last_t-delay" class="hash-link" aria-label="Direct link to hit_recovery_skip_cooldown_fninst-last_t-delay" title="Direct link to hit_recovery_skip_cooldown_fninst-last_t-delay" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Determines whether hit recovery cooldown can be skipped. Skips only when hit recovery equals <code>DAYWALKER_HIT_RECOVERY</code>, combat is on cooldown, and state is idle.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>, <code>last_t</code>, <code>delay</code> — unused for compatibility.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>true</code> if skip allowed, <code>false</code> otherwise.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="_transfer_statemem_to_electrocuteinst"><code>_transfer_statemem_to_electrocute(inst)</code><a href="#_transfer_statemem_to_electrocuteinst" class="hash-link" aria-label="Direct link to _transfer_statemem_to_electrocuteinst" title="Direct link to _transfer_statemem_to_electrocuteinst" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> If currently rummaging, stores <code>inst.sg.statemem.data</code> into <code>inst.sg.mem.transfer_data</code> before electrocution.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="_aoeattackinst-dist-radius-arc-heavymult-mult-forcelanded-targets-overridenontags"><code>_AOEAttack(inst, dist, radius, arc, heavymult, mult, forcelanded, targets, overridenontags)</code><a href="#_aoeattackinst-dist-radius-arc-heavymult-mult-forcelanded-targets-overridenontags" class="hash-link" aria-label="Direct link to _aoeattackinst-dist-radius-arc-heavymult-mult-forcelanded-targets-overridenontags" title="Direct link to _aoeattackinst-dist-radius-arc-heavymult-mult-forcelanded-targets-overridenontags" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Performs area-of-effect (AOE) combat attacks on nearby valid targets within given range, angle, and position. Uses combat component to execute attacks and applies knockback.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>, <code>dist</code>, <code>radius</code>, <code>arc</code> — spatial parameters.</li>
+<li class=""><code>heavymult</code>, <code>mult</code> — knockback multipliers for heavy vs light armor.</li>
+<li class=""><code>forcelanded</code> — passed to knockback event.</li>
+<li class=""><code>targets</code> — table tracking already-hit targets.</li>
+<li class=""><code>overridenontags</code> — overrides <code>AOE_TARGET_CANT_TAGS</code> if truthy.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>true</code> if at least one target hit.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="_doaoeworkinst-dist-radius-arc-targets-canblock-overridenontags-trampledelays"><code>_DoAOEWork(inst, dist, radius, arc, targets, canblock, overridenontags, trampledelays)</code><a href="#_doaoeworkinst-dist-radius-arc-targets-canblock-overridenontags-trampledelays" class="hash-link" aria-label="Direct link to _doaoeworkinst-dist-radius-arc-targets-canblock-overridenontags-trampledelays" title="Direct link to _doaoeworkinst-dist-radius-arc-targets-canblock-overridenontags-trampledelays" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Performs AOE work actions (e.g., destroy, work) on collapsible workables. Supports trampling logic with delays.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>, <code>dist</code>, <code>radius</code>, <code>arc</code>, <code>targets</code>, <code>canblock</code>, <code>overridenontags</code>, <code>trampledelays</code>.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>hit</code> (<code>true</code> if any workable destroyed), <code>blocked</code> (<code>true</code> if first blocker hit and <code>canblock=true</code>).</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="tosslaunchinst-launcher-basespeed-startheight"><code>TossLaunch(inst, launcher, basespeed, startheight)</code><a href="#tosslaunchinst-launcher-basespeed-startheight" class="hash-link" aria-label="Direct link to tosslaunchinst-launcher-basespeed-startheight" title="Direct link to tosslaunchinst-launcher-basespeed-startheight" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Launches an item away from a launcher using physics velocity with slight random angle.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code> — item to launch.</li>
+<li class=""><code>launcher</code>, <code>basespeed</code>, <code>startheight</code>.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="tossitemsinst-dist-radius"><code>TossItems(inst, dist, radius)</code><a href="#tossitemsinst-dist-radius" class="hash-link" aria-label="Direct link to tossitemsinst-dist-radius" title="Direct link to tossitemsinst-dist-radius" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Finds and tosses nearby items in arc/distance. Deactivates mines first.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>inst</code>, <code>dist</code>, <code>radius</code>.</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="doarcattackinst-dist-radius-arc-heavymult-mult-forcelanded-targets"><code>DoArcAttack(inst, dist, radius, arc, heavymult, mult, forcelanded, targets)</code><a href="#doarcattackinst-dist-radius-arc-heavymult-mult-forcelanded-targets" class="hash-link" aria-label="Direct link to doarcattackinst-dist-radius-arc-heavymult-mult-forcelanded-targets" title="Direct link to doarcattackinst-dist-radius-arc-heavymult-mult-forcelanded-targets" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Combo of <code>_DoAOEWork</code> + <code>_AOEAttack</code> for arc-shaped attacks. Resets stuck detection if anything hit.</li>
+<li class=""><strong>Parameters:</strong> Same as <code>_AOEAttack</code>/<code>_DoAOEWork</code>.</li>
+<li class=""><strong>Returns:</strong> <code>true</code> if either hit or worked.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="doaoeattackinst-dist-radius-heavymult-mult-forcelanded-targets-canblock-ignoreblock"><code>DoAOEAttack(inst, dist, radius, heavymult, mult, forcelanded, targets, canblock, ignoreblock)</code><a href="#doaoeattackinst-dist-radius-heavymult-mult-forcelanded-targets-canblock-ignoreblock" class="hash-link" aria-label="Direct link to doaoeattackinst-dist-radius-heavymult-mult-forcelanded-targets-canblock-ignoreblock" title="Direct link to doaoeattackinst-dist-radius-heavymult-mult-forcelanded-targets-canblock-ignoreblock" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Full AOE attack (no arc). Optionally blocks on front blocker. Resets stuck detection.</li>
+<li class=""><strong>Parameters:</strong> Same as <code>_AOEAttack</code>/<code>_DoAOEWork</code> with <code>canblock</code>, <code>ignoreblock</code>.</li>
+<li class=""><strong>Returns:</strong> <code>true</code> if hit or worked, <code>blocked</code> (boolean).</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="dopounceaoeattackinst-dist-radius-heavymult-mult-forcelanded-targets"><code>DoPounceAOEAttack(inst, dist, radius, heavymult, mult, forcelanded, targets)</code><a href="#dopounceaoeattackinst-dist-radius-heavymult-mult-forcelanded-targets" class="hash-link" aria-label="Direct link to dopounceaoeattackinst-dist-radius-heavymult-mult-forcelanded-targets" title="Direct link to dopounceaoeattackinst-dist-radius-heavymult-mult-forcelanded-targets" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Pounce-specific AOE attack. Does <em>not</em> reset stuck detection.</li>
+<li class=""><strong>Parameters:</strong> Same as <code>_AOEAttack</code>.</li>
+<li class=""><strong>Returns:</strong> <code>hit</code> status (<code>true</code> if hit).</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="dopounceaoeworkinst-dist-radius-targets"><code>DoPounceAOEWork(inst, dist, radius, targets)</code><a href="#dopounceaoeworkinst-dist-radius-targets" class="hash-link" aria-label="Direct link to dopounceaoeworkinst-dist-radius-targets" title="Direct link to dopounceaoeworkinst-dist-radius-targets" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Pounce-specific AOE work. Does <em>not</em> reset stuck detection.</li>
+<li class=""><strong>Parameters:</strong> Same as <code>_DoAOEWork</code>.</li>
+<li class=""><strong>Returns:</strong> <code>worked</code> (boolean), <code>blocked</code>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="dofootstepaoeinst"><code>DoFootstepAOE(inst)</code><a href="#dofootstepaoeinst" class="hash-link" aria-label="Direct link to dofootstepaoeinst" title="Direct link to dofootstepaoeinst" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Runs <code>_DoAOEWork</code> on footstep radius to enable trampling of small obstacles. Resets stuck detection if worked.</li>
+<li class=""><strong>Parameters:</strong> <code>inst</code>.</li>
+<li class=""><strong>Returns:</strong> <code>nil</code>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="trychatterinst-strtblname-index-ignoredelay-echotochatpriority"><code>TryChatter(inst, strtblname, index, ignoredelay, echotochatpriority)</code><a href="#trychatterinst-strtblname-index-ignoredelay-echotochatpriority" class="hash-link" aria-label="Direct link to trychatterinst-strtblname-index-ignoredelay-echotochatpriority" title="Direct link to trychatterinst-strtblname-index-ignoredelay-echotochatpriority" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Wrapper calling <code>SGDaywalkerCommon.TryChatter</code> with pre-defined <code>CHATTER_DELAYS</code>.</li>
+<li class=""><strong>Parameters:</strong> Passed through from call site.</li>
+<li class=""><strong>Returns:</strong> <code>nil</code>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="spawndroppedjunkinst-offset"><code>SpawnDroppedJunk(inst, offset)</code><a href="#spawndroppedjunkinst-offset" class="hash-link" aria-label="Direct link to spawndroppedjunkinst-offset" title="Direct link to spawndroppedjunkinst-offset" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Spawns <code>junk_break_fx</code> at Daywalker2’s current facing position.</li>
+<li class=""><strong>Parameters:</strong> <code>inst</code>, <code>offset</code> (unused).</li>
+<li class=""><strong>Returns:</strong> <code>nil</code>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="spawnswipefxinst-offset-reverse"><code>SpawnSwipeFX(inst, offset, reverse)</code><a href="#spawnswipefxinst-offset-reverse" class="hash-link" aria-label="Direct link to spawnswipefxinst-offset-reverse" title="Direct link to spawnswipefxinst-offset-reverse" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Spawns <code>daywalker2_swipe_fx</code>, parents to <code>inst</code>, positions offset, optionally reverses animation.</li>
+<li class=""><strong>Parameters:</strong> <code>inst</code>, <code>offset</code>, <code>reverse</code>.</li>
+<li class=""><strong>Returns:</strong> <code>nil</code>. Stores fx in <code>inst.sg.statemem.fx</code>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="killswipefxinst"><code>KillSwipeFX(inst)</code><a href="#killswipefxinst" class="hash-link" aria-label="Direct link to killswipefxinst" title="Direct link to killswipefxinst" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Removes <code>inst.sg.statemem.fx</code> if valid.</li>
+<li class=""><strong>Parameters:</strong> <code>inst</code>.</li>
+<li class=""><strong>Returns:</strong> <code>nil</code>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="calcknockbackscale"><code>CalcKnockback(scale)</code><a href="#calcknockbackscale" class="hash-link" aria-label="Direct link to calcknockbackscale" title="Direct link to calcknockbackscale" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Returns knockback multiplier tuple. For <code>scale ≥ 1</code>, returns <code>(nil, Lerp(1, 1.5, scale-1))</code>. For <code>scale &lt; 1</code>, returns <code>(scale, scale * 1.3, true)</code>.</li>
+<li class=""><strong>Parameters:</strong> <code>scale</code>.</li>
+<li class=""><strong>Returns:</strong> <code>knockback mult</code>, optionally <code>strengthmult</code>, and <code>forcelanded</code> (boolean) if <code>scale &lt; 1</code>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="calcdamagedist"><code>CalcDamage(dist)</code><a href="#calcdamagedist" class="hash-link" aria-label="Direct link to calcdamagedist" title="Direct link to calcdamagedist" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Calculates damage based on distance using <code>Remap</code> between min/max tunings, clamped. Returns player damage percent.</li>
+<li class=""><strong>Parameters:</strong> <code>dist</code>.</li>
+<li class=""><strong>Returns:</strong> <code>damage</code>, <code>playerdamagepercent</code>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="spawnlaserhitonlyinst-dist-scale-targets"><code>SpawnLaserHitOnly(inst, dist, scale, targets)</code><a href="#spawnlaserhitonlyinst-dist-scale-targets" class="hash-link" aria-label="Direct link to spawnlaserhitonlyinst-dist-scale-targets" title="Direct link to spawnlaserhitonlyinst-dist-scale-targets" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Spawns <code>alterguardian_laserempty</code> (no visual), calculates damage/knockback, and triggers it.</li>
+<li class=""><strong>Parameters:</strong> <code>inst</code>, <code>dist</code>, <code>scale</code>, <code>targets</code>.</li>
+<li class=""><strong>Returns:</strong> <code>nil</code>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="spawnlaserinst-dist-angle_offset-scale-scorchscale-targets"><code>SpawnLaser(inst, dist, angle_offset, scale, scorchscale, targets)</code><a href="#spawnlaserinst-dist-angle_offset-scale-scorchscale-targets" class="hash-link" aria-label="Direct link to spawnlaserinst-dist-angle_offset-scale-scorchscale-targets" title="Direct link to spawnlaserinst-dist-angle_offset-scale-scorchscale-targets" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Spawns <code>alterguardian_laser</code>, calculates knockback/damage, sets anim scale (flips on alternate use).</li>
+<li class=""><strong>Parameters:</strong> <code>inst</code>, <code>dist</code>, <code>angle_offset</code>, <code>scale</code>, <code>scorchscale</code>, <code>targets</code>.</li>
+<li class=""><strong>Returns:</strong> <code>dist + 0.4</code>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="dofootstepinst-volume"><code>DoFootstep(inst, volume)</code><a href="#dofootstepinst-volume" class="hash-link" aria-label="Direct link to dofootstepinst-volume" title="Direct link to dofootstepinst-volume" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Records timestamp in <code>inst.sg.mem.lastfootstep</code> and plays footstep sound.</li>
+<li class=""><strong>Parameters:</strong> <code>inst</code>, <code>volume</code>.</li>
+<li class=""><strong>Returns:</strong> <code>nil</code>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="turntotargetfromnofacedinst"><code>TurnToTargetFromNoFaced(inst)</code><a href="#turntotargetfromnofacedinst" class="hash-link" aria-label="Direct link to turntotargetfromnofacedinst" title="Direct link to turntotargetfromnofacedinst" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> If <code>canrotate</code> and <code>busy</code> in last tags and target exists, forces facing toward target.</li>
+<li class=""><strong>Parameters:</strong> <code>inst</code>.</li>
+<li class=""><strong>Returns:</strong> <code>nil</code>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="rummage_ontimeoutinst"><code>rummage_ontimeout(inst)</code><a href="#rummage_ontimeoutinst" class="hash-link" aria-label="Direct link to rummage_ontimeoutinst" title="Direct link to rummage_ontimeoutinst" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Handles rummage completion: if loot is &quot;ball&quot;, goes to throw; otherwise lifts new item (object/spike/cannon) and supports double rummage.</li>
+<li class=""><strong>Parameters:</strong> <code>inst</code>.</li>
+<li class=""><strong>Returns:</strong> <code>nil</code>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="cleanupifsleepinterruptedinst"><code>CleanupIfSleepInterrupted(inst)</code><a href="#cleanupifsleepinterruptedinst" class="hash-link" aria-label="Direct link to cleanupifsleepinterruptedinst" title="Direct link to cleanupifsleepinterruptedinst" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Helper function: if sleep interrupted, restores four-faced orientation.</li>
+<li class=""><strong>Parameters:</strong> <code>inst</code>.</li>
+<li class=""><strong>Returns:</strong> <code>nil</code>.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="events--listeners">Events &amp; listeners<a href="#events--listeners" class="hash-link" aria-label="Direct link to Events &amp; listeners" title="Direct link to Events &amp; listeners" translate="no">​</a></h2>
+<ul>
+<li class=""><strong>Listens to:</strong> <code>freeze</code> — transitions to &quot;frozen&quot; state if not defeated.</li>
+<li class=""><strong>Listens to:</strong> <code>gotosleep</code> — sets <code>sg.mem.sleeping = true</code>; if not <code>defeated</code>, <code>nosleep</code>, or <code>sleeping</code>, goes to &quot;sleep&quot;.</li>
+<li class=""><strong>Listens to:</strong> <code>onwakeup</code> — clears <code>sg.mem.sleeping</code>; if sleeping and not <code>nowake</code>, sets <code>continuesleeping = true</code> and goes to &quot;wake&quot;.</li>
+<li class=""><strong>Listens to:</strong> <code>ontalk</code> — if not hostile/busy: goes to &quot;angry_taunt&quot; if <code>_thieflevel &gt; 2</code>; else goes to &quot;talk&quot; or &quot;angry&quot;. Sets <code>keepsixfaced</code> or <code>keepnofaced</code>.</li>
+<li class=""><strong>Listens to:</strong> <code>doattack</code> — calls <code>ChooseAttack</code> if not busy/defeated.</li>
+<li class=""><strong>Listens to:</strong> <code>electrocute</code> — calls <code>CommonHandlers.TryElectrocuteOnEvent</code> with <code>_transfer_statemem_to_electrocute</code> callback.</li>
+<li class=""><strong>Listens to:</strong> <code>attacked</code> — tries electrocute, or handles hit/recovery based on state tags; goes to &quot;rummage_hit&quot; if rummaging, otherwise &quot;hit&quot;.</li>
+<li class=""><strong>Listens to:</strong> <code>roar</code> — goes to &quot;taunt&quot; with optional target.</li>
+<li class=""><strong>Listens to:</strong> <code>minhealth</code> — if <code>defeated</code> and not yet &quot;defeated&quot; state, goes to &quot;defeat&quot;.</li>
+<li class=""><strong>Listens to:</strong> <code>teleported</code> — goes to &quot;hit&quot; unless busy/defeated (unless <code>caninterrupt</code>).</li>
+<li class=""><strong>Listens to:</strong> <code>rummage</code> — goes to &quot;rummage&quot; with data payload.</li>
+<li class=""><strong>Listens to:</strong> <code>tackle</code> — goes to &quot;tackle_pre&quot; with target if not busy/defeated and target valid.</li>
+<li class=""><strong>Listens to:</strong> <code>animover</code> — triggers state transition upon animation completion for multiple states: <code>&quot;laser_pre&quot;</code>, <code>&quot;cannon&quot;</code>, <code>&quot;throw_pre&quot;</code>, <code>&quot;throw_loop&quot;</code>, <code>&quot;throw&quot;</code>, <code>&quot;throw_pst&quot;</code>, <code>&quot;tackle_pre&quot;</code>, <code>&quot;tackle_loop&quot;</code>, <code>&quot;tackle_lift&quot;</code>, <code>&quot;tackle_collide&quot;</code>, <code>&quot;tackle_pst&quot;</code>, <code>&quot;attack_pounce_pre&quot;</code>, <code>&quot;attack_pounce&quot;</code>, <code>&quot;attack_pounce_pst&quot;</code>, <code>&quot;taunt&quot;</code>, <code>&quot;defeat&quot;</code>, <code>&quot;defeat_idle_pre&quot;</code>, <code>&quot;defeat_idle&quot;</code>.</li>
+<li class=""><strong>Listens to:</strong> <code>CommonHandlers.OnLocomote</code>, <code>CommonHandlers.OnSink</code>, <code>CommonHandlers.OnFallInVoid</code> — provided via <code>stategraphs/commonstates</code>.</li>
+</ul>
+<blockquote>
+<p>Note: Event names follow DST’s <code>inst:ListenForEvent()</code> convention. Events like <code>ontalk</code>, <code>roar</code>, <code>tackle</code>, etc., are typically pushed externally by AI or player interactions.</p>
+</blockquote></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-tags-row"><div class="col"><b>Tags:</b><ul class="tags_jXut padding--none margin-left--sm"><li class="tag_QGVx"><a rel="tag" class="tag_zVej tagRegular_sFm0" href="/dst-api-webdocs/docs/tags/entity">entity</a></li><li class="tag_QGVx"><a rel="tag" class="tag_zVej tagRegular_sFm0" href="/dst-api-webdocs/docs/tags/combat">combat</a></li><li class="tag_QGVx"><a rel="tag" class="tag_zVej tagRegular_sFm0" href="/dst-api-webdocs/docs/tags/stategraph">stategraph</a></li><li class="tag_QGVx"><a rel="tag" class="tag_zVej tagRegular_sFm0" href="/dst-api-webdocs/docs/tags/animation">animation</a></li><li class="tag_QGVx"><a rel="tag" class="tag_zVej tagRegular_sFm0" href="/dst-api-webdocs/docs/tags/ai">ai</a></li></ul></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#overview" class="table-of-contents__link toc-highlight">Overview</a></li><li><a href="#usage-example" class="table-of-contents__link toc-highlight">Usage example</a></li><li><a href="#dependencies--tags" class="table-of-contents__link toc-highlight">Dependencies &amp; tags</a></li><li><a href="#properties" class="table-of-contents__link toc-highlight">Properties</a></li><li><a href="#main-functions" class="table-of-contents__link toc-highlight">Main functions</a><ul><li><a href="#chooseattackinst" class="table-of-contents__link toc-highlight"><code>ChooseAttack(inst)</code></a></li><li><a href="#hit_recovery_skip_cooldown_fninst-last_t-delay" class="table-of-contents__link toc-highlight"><code>hit_recovery_skip_cooldown_fn(inst, last_t, delay)</code></a></li><li><a href="#_transfer_statemem_to_electrocuteinst" class="table-of-contents__link toc-highlight"><code>_transfer_statemem_to_electrocute(inst)</code></a></li><li><a href="#_aoeattackinst-dist-radius-arc-heavymult-mult-forcelanded-targets-overridenontags" class="table-of-contents__link toc-highlight"><code>_AOEAttack(inst, dist, radius, arc, heavymult, mult, forcelanded, targets, overridenontags)</code></a></li><li><a href="#_doaoeworkinst-dist-radius-arc-targets-canblock-overridenontags-trampledelays" class="table-of-contents__link toc-highlight"><code>_DoAOEWork(inst, dist, radius, arc, targets, canblock, overridenontags, trampledelays)</code></a></li><li><a href="#tosslaunchinst-launcher-basespeed-startheight" class="table-of-contents__link toc-highlight"><code>TossLaunch(inst, launcher, basespeed, startheight)</code></a></li><li><a href="#tossitemsinst-dist-radius" class="table-of-contents__link toc-highlight"><code>TossItems(inst, dist, radius)</code></a></li><li><a href="#doarcattackinst-dist-radius-arc-heavymult-mult-forcelanded-targets" class="table-of-contents__link toc-highlight"><code>DoArcAttack(inst, dist, radius, arc, heavymult, mult, forcelanded, targets)</code></a></li><li><a href="#doaoeattackinst-dist-radius-heavymult-mult-forcelanded-targets-canblock-ignoreblock" class="table-of-contents__link toc-highlight"><code>DoAOEAttack(inst, dist, radius, heavymult, mult, forcelanded, targets, canblock, ignoreblock)</code></a></li><li><a href="#dopounceaoeattackinst-dist-radius-heavymult-mult-forcelanded-targets" class="table-of-contents__link toc-highlight"><code>DoPounceAOEAttack(inst, dist, radius, heavymult, mult, forcelanded, targets)</code></a></li><li><a href="#dopounceaoeworkinst-dist-radius-targets" class="table-of-contents__link toc-highlight"><code>DoPounceAOEWork(inst, dist, radius, targets)</code></a></li><li><a href="#dofootstepaoeinst" class="table-of-contents__link toc-highlight"><code>DoFootstepAOE(inst)</code></a></li><li><a href="#trychatterinst-strtblname-index-ignoredelay-echotochatpriority" class="table-of-contents__link toc-highlight"><code>TryChatter(inst, strtblname, index, ignoredelay, echotochatpriority)</code></a></li><li><a href="#spawndroppedjunkinst-offset" class="table-of-contents__link toc-highlight"><code>SpawnDroppedJunk(inst, offset)</code></a></li><li><a href="#spawnswipefxinst-offset-reverse" class="table-of-contents__link toc-highlight"><code>SpawnSwipeFX(inst, offset, reverse)</code></a></li><li><a href="#killswipefxinst" class="table-of-contents__link toc-highlight"><code>KillSwipeFX(inst)</code></a></li><li><a href="#calcknockbackscale" class="table-of-contents__link toc-highlight"><code>CalcKnockback(scale)</code></a></li><li><a href="#calcdamagedist" class="table-of-contents__link toc-highlight"><code>CalcDamage(dist)</code></a></li><li><a href="#spawnlaserhitonlyinst-dist-scale-targets" class="table-of-contents__link toc-highlight"><code>SpawnLaserHitOnly(inst, dist, scale, targets)</code></a></li><li><a href="#spawnlaserinst-dist-angle_offset-scale-scorchscale-targets" class="table-of-contents__link toc-highlight"><code>SpawnLaser(inst, dist, angle_offset, scale, scorchscale, targets)</code></a></li><li><a href="#dofootstepinst-volume" class="table-of-contents__link toc-highlight"><code>DoFootstep(inst, volume)</code></a></li><li><a href="#turntotargetfromnofacedinst" class="table-of-contents__link toc-highlight"><code>TurnToTargetFromNoFaced(inst)</code></a></li><li><a href="#rummage_ontimeoutinst" class="table-of-contents__link toc-highlight"><code>rummage_ontimeout(inst)</code></a></li><li><a href="#cleanupifsleepinterruptedinst" class="table-of-contents__link toc-highlight"><code>CleanupIfSleepInterrupted(inst)</code></a></li></ul></li><li><a href="#events--listeners" class="table-of-contents__link toc-highlight">Events &amp; listeners</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/dst-api-webdocs/docs/game-scripts/getting-started/about-game-scripts">DST Vanilla</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Community</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://forums.kleientertainment.com/" target="_blank" rel="noopener noreferrer" class="footer__link-item">Klei Forums<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/vietnd69/dst-api-webdocs" target="_blank" rel="noopener noreferrer" class="footer__link-item">Contribute<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://github.com/vietnd69/dst-scripts" target="_blank" rel="noopener noreferrer" class="footer__link-item">Game Scripts<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://vietnd69.github.io/dst-api-webdocs/sitemap.xml" target="_blank" rel="noopener noreferrer" class="footer__link-item">Sitemap<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Don't Starve Together Vanilla API v2.0.0 Docs.</div></div></div></footer></div>
+</body>
+</html>
