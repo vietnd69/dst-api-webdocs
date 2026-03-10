@@ -1,0 +1,979 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-game-scripts/mainfunctions" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">Mainfunctions | Don&#x27;t Starve Together Vanilla API</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://vietnd69.github.io/dst-api-webdocs/img/docusaurus-social-card.png"><meta data-rh="true" name="twitter:image" content="https://vietnd69.github.io/dst-api-webdocs/img/docusaurus-social-card.png"><meta data-rh="true" property="og:url" content="https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/mainfunctions"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="robots" content="index, follow"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Mainfunctions | Don&#x27;t Starve Together Vanilla API"><meta data-rh="true" name="description" content="Central game logic component managing initialization, shutdown, loading, unloading, spawning, persistence, and state transitions for prefabs and player sessions in Don&#x27;t Starve Together."><meta data-rh="true" property="og:description" content="Central game logic component managing initialization, shutdown, loading, unloading, spawning, persistence, and state transitions for prefabs and player sessions in Don&#x27;t Starve Together."><link data-rh="true" rel="icon" href="/dst-api-webdocs/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/mainfunctions"><link data-rh="true" rel="alternate" href="https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/mainfunctions" hreflang="en"><link data-rh="true" rel="alternate" href="https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/mainfunctions" hreflang="x-default"><link data-rh="true" rel="preconnect" href="https://P9GA1YAAFR-dsn.algolia.net" crossorigin="anonymous"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Game Scripts","item":"https://vietnd69.github.io/dst-api-webdocs/docs/category/game-scripts"},{"@type":"ListItem","position":2,"name":"Mainfunctions","item":"https://vietnd69.github.io/dst-api-webdocs/docs/game-scripts/mainfunctions"}]}</script><link rel="search" type="application/opensearchdescription+xml" title="Don&#39;t Starve Together Vanilla API" href="/dst-api-webdocs/opensearch.xml">
+
+<link rel="preconnect" href="https://www.googletagmanager.com">
+<script>window.dataLayer=window.dataLayer||[]</script>
+<script>!function(e,t,a,n){e[n]=e[n]||[],e[n].push({"gtm.start":(new Date).getTime(),event:"gtm.js"});var g=t.getElementsByTagName(a)[0],m=t.createElement(a);m.async=!0,m.src="https://www.googletagmanager.com/gtm.js?id=GTM-P6HHVZPW",g.parentNode.insertBefore(m,g)}(window,document,"script","dataLayer")</script>
+<link rel="sitemap" type="application/xml" title="Sitemap" href="https://vietnd69.github.io/dst-api-webdocs/sitemap.xml"><link rel="stylesheet" href="/dst-api-webdocs/assets/css/styles.01f1fa4b.css">
+<script src="/dst-api-webdocs/assets/js/runtime~main.f5c6e1f3.js" defer="defer"></script>
+<script src="/dst-api-webdocs/assets/js/main.7d31c1c5.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")),document.documentElement.setAttribute("data-theme-choice",t||"system")}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script>
+
+
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-P6HHVZPW" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript><div id="__docusaurus"><link rel="preload" as="image" href="/dst-api-webdocs/img/logo.png"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/dst-api-webdocs/"><div class="navbar__logo"><img src="/dst-api-webdocs/img/logo.png" alt="Don&#x27;t Starve Together Logo" class="themedComponent_mlkZ themedComponent--light_NVdE"><img src="/dst-api-webdocs/img/logo.png" alt="Don&#x27;t Starve Together Logo" class="themedComponent_mlkZ themedComponent--dark_xIcU"></div></a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/dst-api-webdocs/docs/getting-started">Game Scripts</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://github.com/vietnd69/dst-api-webdocs" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub Docs<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><a href="https://github.com/vietnd69/dst-scripts" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Base Game Scripts Code<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"><button type="button" class="DocSearch DocSearch-Button" aria-label="Search (Meta+k)" aria-keyshortcuts="Meta+k"><span class="DocSearch-Button-Container"><svg width="20" height="20" class="DocSearch-Search-Icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8" stroke="currentColor" fill="none" stroke-width="1.4"></circle><path d="m21 21-4.3-4.3" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg><span class="DocSearch-Button-Placeholder">Search</span></span><span class="DocSearch-Button-Keys"></span></button></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class="sidebarViewport_aRkj"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist" href="/dst-api-webdocs/docs/getting-started"><span title="Getting Started" class="categoryLinkLabel_W154">Getting Started</span></a><button aria-label="Collapse sidebar category &#x27;Getting Started&#x27;" aria-expanded="true" type="button" class="clean-btn menu__caret"></button></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/getting-started"><span title="Getting Started with DST Lua" class="linkLabel_WmDU">Getting Started with DST Lua</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/getting-started/about-game-scripts"><span title="About Don&#x27;t Starve Together Game Scripts" class="linkLabel_WmDU">About Don&#x27;t Starve Together Game Scripts</span></a></li></ul></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 sidebar-divider"><hr></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--active" href="/dst-api-webdocs/docs/category/game-scripts"><span title="Game Scripts" class="categoryLinkLabel_W154">Game Scripts</span></a><button aria-label="Collapse sidebar category &#x27;Game Scripts&#x27;" aria-expanded="true" type="button" class="clean-btn menu__caret"></button></div><ul class="menu__list"><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/category/prefabs"><span title="Prefabs" class="categoryLinkLabel_W154">Prefabs</span></a><button aria-label="Expand sidebar category &#x27;Prefabs&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/category/components"><span title="Components" class="categoryLinkLabel_W154">Components</span></a><button aria-label="Expand sidebar category &#x27;Components&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/category/behaviours"><span title="Behaviours" class="categoryLinkLabel_W154">Behaviours</span></a><button aria-label="Expand sidebar category &#x27;Behaviours&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/category/brains"><span title="Brains" class="categoryLinkLabel_W154">Brains</span></a><button aria-label="Expand sidebar category &#x27;Brains&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/category/cameras"><span title="Cameras" class="categoryLinkLabel_W154">Cameras</span></a><button aria-label="Expand sidebar category &#x27;Cameras&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/category/widgets"><span title="Widgets" class="categoryLinkLabel_W154">Widgets</span></a><button aria-label="Expand sidebar category &#x27;Widgets&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/category/util"><span title="Util" class="categoryLinkLabel_W154">Util</span></a><button aria-label="Expand sidebar category &#x27;Util&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/category/tools"><span title="Tools" class="categoryLinkLabel_W154">Tools</span></a><button aria-label="Expand sidebar category &#x27;Tools&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/category/scenarios"><span title="Scenarios" class="categoryLinkLabel_W154">Scenarios</span></a><button aria-label="Expand sidebar category &#x27;Scenarios&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/category/map"><span title="Map" class="categoryLinkLabel_W154">Map</span></a><button aria-label="Expand sidebar category &#x27;Map&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/category/languages"><span title="Languages" class="categoryLinkLabel_W154">Languages</span></a><button aria-label="Expand sidebar category &#x27;Languages&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist" tabindex="0" href="/dst-api-webdocs/docs/category/nis"><span title="NIS" class="categoryLinkLabel_W154">NIS</span></a><button aria-label="Expand sidebar category &#x27;NIS&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/achievements"><span title="Achievements" class="linkLabel_WmDU">Achievements</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/actions"><span title="Actions" class="linkLabel_WmDU">Actions</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/beefalo_clothing"><span title="Beefalo Clothing" class="linkLabel_WmDU">Beefalo Clothing</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/behaviourtree"><span title="Behaviourtree" class="linkLabel_WmDU">Behaviourtree</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/brain"><span title="Brain" class="linkLabel_WmDU">Brain</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/bufferedaction"><span title="BufferedAction" class="linkLabel_WmDU">BufferedAction</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/builtinusercommands"><span title="Builtinusercommands" class="linkLabel_WmDU">Builtinusercommands</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/camerashake"><span title="Camerashake" class="linkLabel_WmDU">Camerashake</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/characterutil"><span title="Characterutil" class="linkLabel_WmDU">Characterutil</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/chathistory"><span title="Chathistory" class="linkLabel_WmDU">Chathistory</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/class"><span title="Class" class="linkLabel_WmDU">Class</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/clothing"><span title="Clothing" class="linkLabel_WmDU">Clothing</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/componentactions"><span title="Componentactions" class="linkLabel_WmDU">Componentactions</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/componentutil"><span title="Componentutil" class="linkLabel_WmDU">Componentutil</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/config"><span title="Config" class="linkLabel_WmDU">Config</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/consolecommands"><span title="Consolecommands" class="linkLabel_WmDU">Consolecommands</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/consolescreensettings"><span title="Consolescreensettings" class="linkLabel_WmDU">Consolescreensettings</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/constants"><span title="Constants" class="linkLabel_WmDU">Constants</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/containers"><span title="Containers" class="linkLabel_WmDU">Containers</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/cookbookdata"><span title="Cookbookdata" class="linkLabel_WmDU">Cookbookdata</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/cooking"><span title="Cooking" class="linkLabel_WmDU">Cooking</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/crafting_sorting"><span title="Crafting Sorting" class="linkLabel_WmDU">Crafting Sorting</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/craftingmenuprofile"><span title="CraftingMenuProfile" class="linkLabel_WmDU">CraftingMenuProfile</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/createstringspo"><span title="Createstringspo" class="linkLabel_WmDU">Createstringspo</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/createstringspo_dlc"><span title="Createstringspo Dlc" class="linkLabel_WmDU">Createstringspo Dlc</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/curse_monkey_util"><span title="Curse Monkey Util" class="linkLabel_WmDU">Curse Monkey Util</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/custompresets"><span title="Custompresets" class="linkLabel_WmDU">Custompresets</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/datagrid"><span title="Datagrid" class="linkLabel_WmDU">Datagrid</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/debugcommands"><span title="Debugcommands" class="linkLabel_WmDU">Debugcommands</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/debughelpers"><span title="Debughelpers" class="linkLabel_WmDU">Debughelpers</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/debugkeys"><span title="Debugkeys" class="linkLabel_WmDU">Debugkeys</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/debugmenu"><span title="Debugmenu" class="linkLabel_WmDU">Debugmenu</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/debugprint"><span title="Debugprint" class="linkLabel_WmDU">Debugprint</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/debugsounds"><span title="Debugsounds" class="linkLabel_WmDU">Debugsounds</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/debugtools"><span title="Debugtools" class="linkLabel_WmDU">Debugtools</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/dlcsupport"><span title="Dlcsupport" class="linkLabel_WmDU">Dlcsupport</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/dlcsupport_strings"><span title="Dlcsupport Strings" class="linkLabel_WmDU">Dlcsupport Strings</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/dlcsupport_worldgen"><span title="Dlcsupport Worldgen" class="linkLabel_WmDU">Dlcsupport Worldgen</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/dumper"><span title="Dumper" class="linkLabel_WmDU">Dumper</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/easing"><span title="Easing" class="linkLabel_WmDU">Easing</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/emitters"><span title="Emitters" class="linkLabel_WmDU">Emitters</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/emoji_items"><span title="Emoji Items" class="linkLabel_WmDU">Emoji Items</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/emote_items"><span title="Emote Items" class="linkLabel_WmDU">Emote Items</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/emotes"><span title="Emotes" class="linkLabel_WmDU">Emotes</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/entitlementlookups"><span title="Entitlementlookups" class="linkLabel_WmDU">Entitlementlookups</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/entityreplica"><span title="Entityreplica" class="linkLabel_WmDU">Entityreplica</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/entityscript"><span title="Entityscript" class="linkLabel_WmDU">Entityscript</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/entityscriptproxy"><span title="Entityscriptproxy" class="linkLabel_WmDU">Entityscriptproxy</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/equipslotutil"><span title="Equipslotutil" class="linkLabel_WmDU">Equipslotutil</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/eventachievements"><span title="Eventachievements" class="linkLabel_WmDU">Eventachievements</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/events"><span title="Events" class="linkLabel_WmDU">Events</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/falloffdefs"><span title="Falloffdefs" class="linkLabel_WmDU">Falloffdefs</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/fileutil"><span title="Fileutil" class="linkLabel_WmDU">Fileutil</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/firelevel"><span title="Firelevel" class="linkLabel_WmDU">Firelevel</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/fix_character_strings"><span title="Fix Character Strings" class="linkLabel_WmDU">Fix Character Strings</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/fonthelper"><span title="Fonthelper" class="linkLabel_WmDU">Fonthelper</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/fonts"><span title="Fonts" class="linkLabel_WmDU">Fonts</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/frontend"><span title="Frontend" class="linkLabel_WmDU">Frontend</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/fx"><span title="Fx" class="linkLabel_WmDU">Fx</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/gamelogic"><span title="Gamelogic" class="linkLabel_WmDU">Gamelogic</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/gamemodes"><span title="Gamemodes" class="linkLabel_WmDU">Gamemodes</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/generickv"><span title="Generickv" class="linkLabel_WmDU">Generickv</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/giantutils"><span title="Giantutils" class="linkLabel_WmDU">Giantutils</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/globalvariableoverrides"><span title="Globalvariableoverrides" class="linkLabel_WmDU">Globalvariableoverrides</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/globalvariableoverrides_clean"><span title="Globalvariableoverrides Clean" class="linkLabel_WmDU">Globalvariableoverrides Clean</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/globalvariableoverrides_monkey"><span title="Globalvariableoverrides Monkey" class="linkLabel_WmDU">Globalvariableoverrides Monkey</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/globalvariableoverrides_pax_server"><span title="Globalvariableoverrides Pax Server" class="linkLabel_WmDU">Globalvariableoverrides Pax Server</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/groundcreepdefs"><span title="Groundcreepdefs" class="linkLabel_WmDU">Groundcreepdefs</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/guitartab_dsmaintheme"><span title="Guitartab Dsmaintheme" class="linkLabel_WmDU">Guitartab Dsmaintheme</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/haptics"><span title="Haptics" class="linkLabel_WmDU">Haptics</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/input"><span title="Input" class="linkLabel_WmDU">Input</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/inspect"><span title="Inspect" class="linkLabel_WmDU">Inspect</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/item_blacklist"><span title="Item Blacklist" class="linkLabel_WmDU">Item Blacklist</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/json"><span title="Json" class="linkLabel_WmDU">Json</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/klump"><span title="Klump" class="linkLabel_WmDU">Klump</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/klump_files"><span title="Klump Files" class="linkLabel_WmDU">Klump Files</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/knownerrors"><span title="Knownerrors" class="linkLabel_WmDU">Knownerrors</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/lavaarena_achievement_quest_defs"><span title="Lavaarena Achievement Quest Defs" class="linkLabel_WmDU">Lavaarena Achievement Quest Defs</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/lavaarena_achievements"><span title="Lavaarena Achievements" class="linkLabel_WmDU">Lavaarena Achievements</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/lavaarena_communityprogression"><span title="Lavaarena Communityprogression" class="linkLabel_WmDU">Lavaarena Communityprogression</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/lighting"><span title="Lighting" class="linkLabel_WmDU">Lighting</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/loadingtipsdata"><span title="LoadingTipsData" class="linkLabel_WmDU">LoadingTipsData</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/main"><span title="Main" class="linkLabel_WmDU">Main</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/mainfunctions"><span title="Mainfunctions" class="linkLabel_WmDU">Mainfunctions</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/maputil"><span title="Maputil" class="linkLabel_WmDU">Maputil</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/math2d"><span title="Math2D" class="linkLabel_WmDU">Math2D</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/mathutil"><span title="Mathutil" class="linkLabel_WmDU">Mathutil</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/messagebottletreasures"><span title="Messagebottletreasures" class="linkLabel_WmDU">Messagebottletreasures</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/metaclass"><span title="Metaclass" class="linkLabel_WmDU">Metaclass</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/misc_items"><span title="Misc Items" class="linkLabel_WmDU">Misc Items</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/mixer"><span title="Mixer" class="linkLabel_WmDU">Mixer</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/mixes"><span title="Mixes" class="linkLabel_WmDU">Mixes</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/modcompatability"><span title="Modcompatability" class="linkLabel_WmDU">Modcompatability</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/modindex"><span title="Modindex" class="linkLabel_WmDU">Modindex</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/mods"><span title="Mods" class="linkLabel_WmDU">Mods</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/modutil"><span title="Modutil" class="linkLabel_WmDU">Modutil</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/motdmanager"><span title="Motdmanager" class="linkLabel_WmDU">Motdmanager</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/netvars"><span title="Netvars" class="linkLabel_WmDU">Netvars</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/networkclientrpc"><span title="Networkclientrpc" class="linkLabel_WmDU">Networkclientrpc</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/networking"><span title="Networking" class="linkLabel_WmDU">Networking</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/noisetilefunctions"><span title="Noisetilefunctions" class="linkLabel_WmDU">Noisetilefunctions</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/notetable_dsmaintheme"><span title="Notetable Dsmaintheme" class="linkLabel_WmDU">Notetable Dsmaintheme</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/ocean_util"><span title="Ocean Util" class="linkLabel_WmDU">Ocean Util</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/perfutil"><span title="Perfutil" class="linkLabel_WmDU">Perfutil</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/physics"><span title="Physics" class="linkLabel_WmDU">Physics</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/plantregistrydata"><span title="Plantregistrydata" class="linkLabel_WmDU">Plantregistrydata</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/platformpostload"><span title="Platformpostload" class="linkLabel_WmDU">Platformpostload</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/play_commonfn"><span title="Play Commonfn" class="linkLabel_WmDU">Play Commonfn</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/play_generalscripts"><span title="Play Generalscripts" class="linkLabel_WmDU">Play Generalscripts</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/play_the_doll"><span title="Play The Doll" class="linkLabel_WmDU">Play The Doll</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/play_the_princess_yoth"><span title="Play The Princess Yoth" class="linkLabel_WmDU">Play The Princess Yoth</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/play_the_vault"><span title="Play The Vault" class="linkLabel_WmDU">Play The Vault</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/play_the_veil"><span title="Play The Veil" class="linkLabel_WmDU">Play The Veil</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/playerdeaths"><span title="Playerdeaths" class="linkLabel_WmDU">Playerdeaths</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/playerhistory"><span title="PlayerHistory" class="linkLabel_WmDU">PlayerHistory</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/playerprofile"><span title="Playerprofile" class="linkLabel_WmDU">Playerprofile</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/popupmanager"><span title="Popupmanager" class="linkLabel_WmDU">Popupmanager</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/postprocesseffects"><span title="Postprocesseffects" class="linkLabel_WmDU">Postprocesseffects</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/prefablist"><span title="Prefablist" class="linkLabel_WmDU">Prefablist</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/prefabs"><span title="Prefabs" class="linkLabel_WmDU">Prefabs</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/prefabskin"><span title="Prefabskin" class="linkLabel_WmDU">Prefabskin</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/prefabskins"><span title="Prefabskins" class="linkLabel_WmDU">Prefabskins</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/prefabswaps"><span title="Prefabswaps" class="linkLabel_WmDU">Prefabswaps</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/prefabutil"><span title="Prefabutil" class="linkLabel_WmDU">Prefabutil</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/preloadsounds"><span title="Preloadsounds" class="linkLabel_WmDU">Preloadsounds</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/preparedfoods"><span title="Preparedfoods" class="linkLabel_WmDU">Preparedfoods</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/preparedfoods_warly"><span title="Preparedfoods Warly" class="linkLabel_WmDU">Preparedfoods Warly</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/preparednonfoods"><span title="Preparednonfoods" class="linkLabel_WmDU">Preparednonfoods</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/profiler"><span title="Profiler" class="linkLabel_WmDU">Profiler</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/progressionconstants"><span title="Progressionconstants" class="linkLabel_WmDU">Progressionconstants</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/quagmire_achievements"><span title="Quagmire Achievements" class="linkLabel_WmDU">Quagmire Achievements</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/quagmire_recipebook"><span title="Quagmire Recipebook" class="linkLabel_WmDU">Quagmire Recipebook</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/recipe"><span title="Recipe" class="linkLabel_WmDU">Recipe</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/recipes"><span title="Recipes" class="linkLabel_WmDU">Recipes</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/recipes_filter"><span title="Recipes Filter" class="linkLabel_WmDU">Recipes Filter</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/regrowthutil"><span title="Regrowthutil" class="linkLabel_WmDU">Regrowthutil</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/reload"><span title="Reload" class="linkLabel_WmDU">Reload</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/savefileupgrades"><span title="Savefileupgrades" class="linkLabel_WmDU">Savefileupgrades</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/saveindex"><span title="Saveindex" class="linkLabel_WmDU">Saveindex</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/scheduler"><span title="Scheduler" class="linkLabel_WmDU">Scheduler</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/scrapbook_prefabs"><span title="Scrapbook Prefabs" class="linkLabel_WmDU">Scrapbook Prefabs</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/scrapbookpartitions"><span title="Scrapbookpartitions" class="linkLabel_WmDU">Scrapbookpartitions</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/serverpreferences"><span title="Serverpreferences" class="linkLabel_WmDU">Serverpreferences</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/shadeeffects"><span title="Shadeeffects" class="linkLabel_WmDU">Shadeeffects</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/shardindex"><span title="Shardindex" class="linkLabel_WmDU">Shardindex</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/shardnetworking"><span title="Shardnetworking" class="linkLabel_WmDU">Shardnetworking</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/shardsaveindex"><span title="Shardsaveindex" class="linkLabel_WmDU">Shardsaveindex</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/signgenerator"><span title="Signgenerator" class="linkLabel_WmDU">Signgenerator</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/simutil"><span title="Simutil" class="linkLabel_WmDU">Simutil</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/skilltreedata"><span title="Skilltreedata" class="linkLabel_WmDU">Skilltreedata</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/skin_affinity_info"><span title="Skin Affinity Info" class="linkLabel_WmDU">Skin Affinity Info</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/skin_assets"><span title="Skin Assets" class="linkLabel_WmDU">Skin Assets</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/skin_gifts"><span title="Skin Gifts" class="linkLabel_WmDU">Skin Gifts</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/skin_set_info"><span title="Skin Set Info" class="linkLabel_WmDU">Skin Set Info</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/skin_strings"><span title="Skin Strings" class="linkLabel_WmDU">Skin Strings</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/skins_defs_data"><span title="Skins Defs Data" class="linkLabel_WmDU">Skins Defs Data</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/skinsfiltersutils"><span title="Skinsfiltersutils" class="linkLabel_WmDU">Skinsfiltersutils</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/skinstradeutils"><span title="Skinstradeutils" class="linkLabel_WmDU">Skinstradeutils</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/skinsutils"><span title="Skinsutils" class="linkLabel_WmDU">Skinsutils</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/speech_walter"><span title="Speech Walter" class="linkLabel_WmDU">Speech Walter</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/speech_wanda"><span title="Speech Wanda" class="linkLabel_WmDU">Speech Wanda</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/speech_warly"><span title="Speech Warly" class="linkLabel_WmDU">Speech Warly</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/speech_wathgrithr"><span title="Speech Wathgrithr" class="linkLabel_WmDU">Speech Wathgrithr</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/speech_waxwell"><span title="Speech Waxwell" class="linkLabel_WmDU">Speech Waxwell</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/speech_webber"><span title="Speech Webber" class="linkLabel_WmDU">Speech Webber</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/speech_wendy"><span title="Speech Wendy" class="linkLabel_WmDU">Speech Wendy</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/speech_wickerbottom"><span title="Speech Wickerbottom" class="linkLabel_WmDU">Speech Wickerbottom</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/speech_willow"><span title="Speech Willow" class="linkLabel_WmDU">Speech Willow</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/speech_wilson"><span title="Speech Wilson" class="linkLabel_WmDU">Speech Wilson</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/speech_winona"><span title="Speech Winona" class="linkLabel_WmDU">Speech Winona</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/speech_wolfgang"><span title="Speech Wolfgang" class="linkLabel_WmDU">Speech Wolfgang</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/speech_woodie"><span title="Speech Woodie" class="linkLabel_WmDU">Speech Woodie</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/speech_wormwood"><span title="Speech Wormwood" class="linkLabel_WmDU">Speech Wormwood</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/speech_wortox"><span title="Speech Wortox" class="linkLabel_WmDU">Speech Wortox</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/speech_wurt"><span title="Speech Wurt" class="linkLabel_WmDU">Speech Wurt</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/speech_wx78"><span title="Speech Wx78" class="linkLabel_WmDU">Speech Wx78</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/spicedfoods"><span title="Spicedfoods" class="linkLabel_WmDU">Spicedfoods</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/splitscreenutils_pc"><span title="Splitscreenutils Pc" class="linkLabel_WmDU">Splitscreenutils Pc</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/stacktrace"><span title="Stacktrace" class="linkLabel_WmDU">Stacktrace</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/standardcomponents"><span title="Standardcomponents" class="linkLabel_WmDU">Standardcomponents</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/stategraph"><span title="Stategraph" class="linkLabel_WmDU">Stategraph</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/stats"><span title="Stats" class="linkLabel_WmDU">Stats</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/strict"><span title="Strict" class="linkLabel_WmDU">Strict</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/strings"><span title="Strings" class="linkLabel_WmDU">Strings</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/strings_pretranslated"><span title="Strings Pretranslated" class="linkLabel_WmDU">Strings Pretranslated</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/strings_stageactor"><span title="Strings Stageactor" class="linkLabel_WmDU">Strings Stageactor</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/stringutil"><span title="Stringutil" class="linkLabel_WmDU">Stringutil</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/techtree"><span title="Techtree" class="linkLabel_WmDU">Techtree</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/tiledefs"><span title="Tiledefs" class="linkLabel_WmDU">Tiledefs</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/tilegroups"><span title="Tilegroups" class="linkLabel_WmDU">Tilegroups</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/tilemanager"><span title="Tilemanager" class="linkLabel_WmDU">Tilemanager</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/trade_recipes"><span title="Trade Recipes" class="linkLabel_WmDU">Trade Recipes</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/translator"><span title="Translator" class="linkLabel_WmDU">Translator</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/traps"><span title="Traps" class="linkLabel_WmDU">Traps</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/tuning"><span title="Tuning" class="linkLabel_WmDU">Tuning</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/tuning_override"><span title="Tuning Override" class="linkLabel_WmDU">Tuning Override</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/update"><span title="Update" class="linkLabel_WmDU">Update</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/upsell"><span title="Upsell" class="linkLabel_WmDU">Upsell</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/usercommands"><span title="Usercommands" class="linkLabel_WmDU">Usercommands</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/util"><span title="Util" class="linkLabel_WmDU">Util</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/vec3util"><span title="Vec3Util" class="linkLabel_WmDU">Vec3Util</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/vector3"><span title="Vector3" class="linkLabel_WmDU">Vector3</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/vecutil"><span title="Vecutil" class="linkLabel_WmDU">Vecutil</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/voteutil"><span title="Voteutil" class="linkLabel_WmDU">Voteutil</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/wintersfeastcookedfoods"><span title="Wintersfeastcookedfoods" class="linkLabel_WmDU">Wintersfeastcookedfoods</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/wordfilter"><span title="Wordfilter" class="linkLabel_WmDU">Wordfilter</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/worldentities"><span title="Worldentities" class="linkLabel_WmDU">Worldentities</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/worldgen_main"><span title="Worldgen Main" class="linkLabel_WmDU">Worldgen Main</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/worldsettings_overrides"><span title="Worldsettings Overrides" class="linkLabel_WmDU">Worldsettings Overrides</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/worldsettingsutil"><span title="Worldsettingsutil" class="linkLabel_WmDU">Worldsettingsutil</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/worldtiledefs"><span title="Worldtiledefs" class="linkLabel_WmDU">Worldtiledefs</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/writeables"><span title="Writeables" class="linkLabel_WmDU">Writeables</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/wx78_moduledefs"><span title="Wx78 Moduledefs" class="linkLabel_WmDU">Wx78 Moduledefs</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/wxputils"><span title="Wxputils" class="linkLabel_WmDU">Wxputils</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/yotb_costumes"><span title="Yotb Costumes" class="linkLabel_WmDU">Yotb Costumes</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/yotb_sewing"><span title="Yotb Sewing" class="linkLabel_WmDU">Yotb Sewing</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/behaviours/approach"><span title="behaviours" class="categoryLinkLabel_W154">behaviours</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/brains/abigailbrain"><span title="brains" class="categoryLinkLabel_W154">brains</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/cameras/followcamera"><span title="cameras" class="categoryLinkLabel_W154">cameras</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/components/abysspillargroup"><span title="components" class="categoryLinkLabel_W154">components</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/languages/language"><span title="languages" class="categoryLinkLabel_W154">languages</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/dst-api-webdocs/docs/category/levels-1"><span title="map" class="categoryLinkLabel_W154">map</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/nis/maxwellintro"><span title="nis" class="categoryLinkLabel_W154">nis</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/prefabs/abigail"><span title="prefabs" class="categoryLinkLabel_W154">prefabs</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/scenarios/archive_cookpot"><span title="scenarios" class="categoryLinkLabel_W154">scenarios</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/dst-api-webdocs/docs/category/redux-1"><span title="screens" class="categoryLinkLabel_W154">screens</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/stategraphs/SGBeefalo"><span title="stategraphs" class="categoryLinkLabel_W154">stategraphs</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/tools/generate_worldgenoverride"><span title="tools" class="categoryLinkLabel_W154">tools</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/dst-api-webdocs/docs/game-scripts/util/emoji"><span title="util" class="categoryLinkLabel_W154">util</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/dst-api-webdocs/docs/category/redux-2"><span title="widgets" class="categoryLinkLabel_W154">widgets</span></a></div></li></ul></li></ul></nav></div></div></aside><main class="docMainContainer_TBSr"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label="Breadcrumbs"><ul class="breadcrumbs"><li class="breadcrumbs__item"><a aria-label="Home page" class="breadcrumbs__link" href="/dst-api-webdocs/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_YNFT"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="breadcrumbs__item"><a class="breadcrumbs__link" href="/dst-api-webdocs/docs/category/game-scripts"><span>Game Scripts</span></a></li><li class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link">Mainfunctions</span></li></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Mainfunctions</h1></header>
+<blockquote>
+<p>Based on game build <strong>714014</strong> | Last updated: 2026-03-10</p>
+</blockquote>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="overview">Overview<a href="#overview" class="hash-link" aria-label="Direct link to Overview" title="Direct link to Overview" translate="no">​</a></h2>
+<p><code>mainfunctions.lua</code> serves as the foundational game logic module in Don&#x27;t Starve Together. It handles high-level lifecycle management including startup, shutdown, world loading/unloading, player session persistence and restoration, prefab registration and spawning, non-interactive sequence (NIS) playback, pause/simulation state control, and UI-driven state transitions. It coordinates across entities, world state, components, and frontend/backend systems—acting as the orchestrator for core simulation and session behavior.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="usage-example">Usage example<a href="#usage-example" class="hash-link" aria-label="Direct link to Usage example" title="Direct link to Usage example" translate="no">​</a></h2>
+<div class="language-lua codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#F8F8F2;--prism-background-color:#282A36"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-lua codeBlock_bY9V thin-scrollbar" style="color:#F8F8F2;background-color:#282A36"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#F8F8F2"><span class="token comment" style="color:rgb(98, 114, 164)">-- Initialize global systems and start game frontend</span><span class="token plain"></span><br></span><span class="token-line" style="color:#F8F8F2"><span class="token plain"></span><span class="token function" style="color:rgb(80, 250, 123)">GlobalInit</span><span class="token punctuation" style="color:rgb(248, 248, 242)">(</span><span class="token punctuation" style="color:rgb(248, 248, 242)">)</span><span class="token plain"></span><br></span><span class="token-line" style="color:#F8F8F2"><span class="token plain"></span><span class="token function" style="color:rgb(80, 250, 123)">Start</span><span class="token punctuation" style="color:rgb(248, 248, 242)">(</span><span class="token punctuation" style="color:rgb(248, 248, 242)">)</span><span class="token plain"></span><br></span><span class="token-line" style="color:#F8F8F2"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#F8F8F2"><span class="token plain"></span><span class="token comment" style="color:rgb(98, 114, 164)">-- Load and spawn a player from save record</span><span class="token plain"></span><br></span><span class="token-line" style="color:#F8F8F2"><span class="token plain"></span><span class="token keyword" style="color:rgb(189, 147, 249);font-style:italic">local</span><span class="token plain"> saved </span><span class="token operator">=</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(248, 248, 242)">{</span><span class="token plain"> x </span><span class="token operator">=</span><span class="token plain"> </span><span class="token number">0</span><span class="token punctuation" style="color:rgb(248, 248, 242)">,</span><span class="token plain"> y </span><span class="token operator">=</span><span class="token plain"> </span><span class="token number">0</span><span class="token punctuation" style="color:rgb(248, 248, 242)">,</span><span class="token plain"> z </span><span class="token operator">=</span><span class="token plain"> </span><span class="token number">0</span><span class="token punctuation" style="color:rgb(248, 248, 242)">,</span><span class="token plain"> puid </span><span class="token operator">=</span><span class="token plain"> </span><span class="token number">123</span><span class="token punctuation" style="color:rgb(248, 248, 242)">,</span><span class="token plain"> rx </span><span class="token operator">=</span><span class="token plain"> </span><span class="token number">0</span><span class="token punctuation" style="color:rgb(248, 248, 242)">,</span><span class="token plain"> ry </span><span class="token operator">=</span><span class="token plain"> </span><span class="token number">0</span><span class="token punctuation" style="color:rgb(248, 248, 242)">,</span><span class="token plain"> rz </span><span class="token operator">=</span><span class="token plain"> </span><span class="token number">0</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(248, 248, 242)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#F8F8F2"><span class="token plain"></span><span class="token keyword" style="color:rgb(189, 147, 249);font-style:italic">local</span><span class="token plain"> newents </span><span class="token operator">=</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(248, 248, 242)">{</span><span class="token punctuation" style="color:rgb(248, 248, 242)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#F8F8F2"><span class="token plain"></span><span class="token keyword" style="color:rgb(189, 147, 249);font-style:italic">local</span><span class="token plain"> player </span><span class="token operator">=</span><span class="token plain"> </span><span class="token function" style="color:rgb(80, 250, 123)">SpawnSaveRecord</span><span class="token punctuation" style="color:rgb(248, 248, 242)">(</span><span class="token plain">saved</span><span class="token punctuation" style="color:rgb(248, 248, 242)">,</span><span class="token plain"> newents</span><span class="token punctuation" style="color:rgb(248, 248, 242)">)</span><span class="token plain"></span><br></span><span class="token-line" style="color:#F8F8F2"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#F8F8F2"><span class="token plain"></span><span class="token comment" style="color:rgb(98, 114, 164)">-- Set and apply time scale</span><span class="token plain"></span><br></span><span class="token-line" style="color:#F8F8F2"><span class="token plain"></span><span class="token function" style="color:rgb(80, 250, 123)">SetDefaultTimeScale</span><span class="token punctuation" style="color:rgb(248, 248, 242)">(</span><span class="token number">1.0</span><span class="token punctuation" style="color:rgb(248, 248, 242)">)</span><span class="token plain"></span><br></span><span class="token-line" style="color:#F8F8F2"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#F8F8F2"><span class="token plain"></span><span class="token comment" style="color:rgb(98, 114, 164)">-- Save game before shutdown</span><span class="token plain"></span><br></span><span class="token-line" style="color:#F8F8F2"><span class="token plain"></span><span class="token function" style="color:rgb(80, 250, 123)">SaveGame</span><span class="token punctuation" style="color:rgb(248, 248, 242)">(</span><span class="token keyword" style="color:rgb(189, 147, 249);font-style:italic">true</span><span class="token punctuation" style="color:rgb(248, 248, 242)">,</span><span class="token plain"> </span><span class="token keyword" style="color:rgb(189, 147, 249);font-style:italic">function</span><span class="token punctuation" style="color:rgb(248, 248, 242)">(</span><span class="token punctuation" style="color:rgb(248, 248, 242)">)</span><span class="token plain"> </span><span class="token function" style="color:rgb(80, 250, 123)">Shutdown</span><span class="token punctuation" style="color:rgb(248, 248, 242)">(</span><span class="token punctuation" style="color:rgb(248, 248, 242)">)</span><span class="token plain"> </span><span class="token keyword" style="color:rgb(189, 147, 249);font-style:italic">end</span><span class="token punctuation" style="color:rgb(248, 248, 242)">)</span><br></span></code></pre></div></div>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="dependencies--tags">Dependencies &amp; tags<a href="#dependencies--tags" class="hash-link" aria-label="Direct link to Dependencies &amp; tags" title="Direct link to Dependencies &amp; tags" translate="no">​</a></h2>
+<p><strong>Components used:</strong></p>
+<ul>
+<li class=""><code>components/nis.lua</code> (<code>Play</code>, <code>SetCancel</code>, <code>SetInit</code>, <code>SetName</code>, <code>SetScript</code>)</li>
+<li class=""><code>components/playerspawner.lua</code> (<code>SpawnAtLocation</code>)</li>
+<li class=""><code>components/scenariorunner.lua</code> (<code>SetScript</code>)</li>
+<li class=""><code>components/vaultroommanager.lua</code> (<code>GetVaultLobbyCenterMarker</code>)</li>
+<li class=""><code>components/walkableplatformplayer.lua</code> (<code>TestForPlatform</code>)</li>
+<li class=""><code>components/worldoverseer.lua</code> (<code>QuitAll</code>)</li>
+<li class=""><code>components/worldstate.lua</code> (<code>Dump</code>)</li>
+<li class=""><code>dbui_no_package/debug_console.lua</code>, <code>dbui_no_package/debug_nodes.lua</code></li>
+<li class=""><code>debugsounds.lua</code></li>
+<li class=""><code>dlcsupport.lua</code></li>
+<li class=""><code>gamelogic.lua</code></li>
+<li class=""><code>map/customize.lua</code>, <code>map/levels.lua</code></li>
+<li class=""><code>savefileupgrades.lua</code></li>
+<li class=""><code>stats.lua</code></li>
+</ul>
+<p><strong>Tags:</strong><br>
+<!-- -->None explicitly declared in the chunks.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="properties">Properties<a href="#properties" class="hash-link" aria-label="Direct link to Properties" title="Direct link to Properties" translate="no">​</a></h2>
+<table><thead><tr><th>Property</th><th>Type</th><th>Default Value</th><th>Description</th></tr></thead><tbody><tr><td>(none)</td><td>—</td><td>—</td><td>No direct properties exposed; this module contains only functions and uses globals like <code>Settings</code>, <code>Purchases</code>, and <code>TheSim</code>.</td></tr></tbody></table>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="main-functions">Main functions<a href="#main-functions" class="hash-link" aria-label="Direct link to Main functions" title="Direct link to Main functions" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="savepersistentstringname-data-encode-callback"><code>SavePersistentString(name, data, encode, callback)</code><a href="#savepersistentstringname-data-encode-callback" class="hash-link" aria-label="Direct link to savepersistentstringname-data-encode-callback" title="Direct link to savepersistentstringname-data-encode-callback" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Saves a persistent string value, optionally showing a saving indicator in the frontend if <code>TheFrontEnd</code> exists.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>name</code>: string — key for the persistent storage</li>
+<li class=""><code>data</code>: string — value to persist</li>
+<li class=""><code>encode</code>: boolean (optional, default <code>false</code>) — whether to encode the data</li>
+<li class=""><code>callback</code>: function (optional) — called after persistence completes</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="erasepersistentstringname-callback"><code>ErasePersistentString(name, callback)</code><a href="#erasepersistentstringname-callback" class="hash-link" aria-label="Direct link to erasepersistentstringname-callback" title="Direct link to erasepersistentstringname-callback" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Erases a persistent string entry, optionally showing a saving indicator in the frontend.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>name</code>: string — key of the persistent entry to erase</li>
+<li class=""><code>callback</code>: function (optional) — called after erasure completes</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="printmsg_verbosity-"><code>Print(msg_verbosity, ...)</code><a href="#printmsg_verbosity-" class="hash-link" aria-label="Direct link to printmsg_verbosity-" title="Direct link to printmsg_verbosity-" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Conditionally prints messages to console based on <code>VERBOSITY_LEVEL</code>.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>msg_verbosity</code>: number — minimum verbosity level to print</li>
+<li class=""><code>...</code>: variadic arguments to pass to <code>print</code></li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="secondstotimestringtotal_seconds"><code>SecondsToTimeString(total_seconds)</code><a href="#secondstotimestringtotal_seconds" class="hash-link" aria-label="Direct link to secondstotimestringtotal_seconds" title="Direct link to secondstotimestringtotal_seconds" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Converts a number of seconds to a formatted time string: <code>M:SS</code>, <code>SS</code>, or <code>S</code>.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>total_seconds</code>: number — time in seconds</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> string</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="shouldignoreresolvefilename-assettype"><code>ShouldIgnoreResolve(filename, assettype)</code><a href="#shouldignoreresolvefilename-assettype" class="hash-link" aria-label="Direct link to shouldignoreresolvefilename-assettype" title="Direct link to shouldignoreresolvefilename-assettype" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Determines whether a given asset should be skipped during path resolution (e.g., sounds on dedicated servers, certain image types).</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>filename</code>: string</li>
+<li class=""><code>assettype</code>: string — asset type enum (e.g., <code>&quot;SOUNDPACKAGE&quot;</code>, <code>&quot;INV_IMAGE&quot;</code>)</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> boolean — <code>true</code> if asset should be ignored, <code>false</code> otherwise</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="registerprefabsimplprefab-resolve_fn"><code>RegisterPrefabsImpl(prefab, resolve_fn)</code><a href="#registerprefabsimplprefab-resolve_fn" class="hash-link" aria-label="Direct link to registerprefabsimplprefab-resolve_fn" title="Direct link to registerprefabsimplprefab-resolve_fn" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Registers a single prefab: resolves its assets using <code>resolve_fn</code>, registers post-init functions, and stores the prefab in global tables.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>prefab</code>: table — prefab definition</li>
+<li class=""><code>resolve_fn</code>: function — function to resolve asset paths</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="registerprefabs"><code>RegisterPrefabs(...)</code><a href="#registerprefabs" class="hash-link" aria-label="Direct link to registerprefabs" title="Direct link to registerprefabs" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Registers multiple prefabs using <code>RegisterPrefabsImpl</code> and asset resolution.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>...</code>: variadic list of prefab tables</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="loadprefabfilefilename-async_batch_validation-search_asset_first_path"><code>LoadPrefabFile(filename, async_batch_validation, search_asset_first_path)</code><a href="#loadprefabfilefilename-async_batch_validation-search_asset_first_path" class="hash-link" aria-label="Direct link to loadprefabfilefilename-async_batch_validation-search_asset_first_path" title="Direct link to loadprefabfilefilename-async_batch_validation-search_asset_first_path" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Loads a Lua file returning prefab definitions, validates, resolves assets, and registers them.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>filename</code>: string — path to prefab file</li>
+<li class=""><code>async_batch_validation</code>: boolean (optional) — if true, uses <code>VerifyPrefabAssetExistsAsync</code> for resolution</li>
+<li class=""><code>search_asset_first_path</code>: boolean (optional) — overrides asset resolution behavior</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> table — list of successfully loaded prefab instances</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="modunloadfrontendassetsmodname"><code>ModUnloadFrontEndAssets(modname)</code><a href="#modunloadfrontendassetsmodname" class="hash-link" aria-label="Direct link to modunloadfrontendassetsmodname" title="Direct link to modunloadfrontendassetsmodname" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Unloads and unregisters prefabs associated with frontend assets for a mod (or all mods if <code>modname</code> is <code>nil</code>).</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>modname</code>: string (optional) — mod identifier</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="modreloadfrontendassetsassets-modname"><code>ModReloadFrontEndAssets(assets, modname)</code><a href="#modreloadfrontendassetsassets-modname" class="hash-link" aria-label="Direct link to modreloadfrontendassetsassets-modname" title="Direct link to modreloadfrontendassetsassets-modname" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Reloads frontend assets for a mod: unloads existing, resolves paths, creates and registers a temporary prefab.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>assets</code>: table — list of asset definitions</li>
+<li class=""><code>modname</code>: string — mod identifier (validated via <code>KnownModIndex</code>)</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="modunloadpreloadassetsmodname"><code>ModUnloadPreloadAssets(modname)</code><a href="#modunloadpreloadassetsmodname" class="hash-link" aria-label="Direct link to modunloadpreloadassetsmodname" title="Direct link to modunloadpreloadassetsmodname" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Unloads and unregisters prefabs associated with preloaded assets for a mod (or all mods).</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>modname</code>: string (optional)</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="modpreloadassetsassets-modname"><code>ModPreloadAssets(assets, modname)</code><a href="#modpreloadassetsassets-modname" class="hash-link" aria-label="Direct link to modpreloadassetsassets-modname" title="Direct link to modpreloadassetsassets-modname" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Reloads preloaded assets for a mod: unloads existing, resolves paths, creates and registers a temporary prefab, loads prefabs into sim.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>assets</code>: table</li>
+<li class=""><code>modname</code>: string</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="loadachievementsfilename"><code>LoadAchievements(filename)</code><a href="#loadachievementsfilename" class="hash-link" aria-label="Direct link to loadachievementsfilename" title="Direct link to loadachievementsfilename" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Loads and registers achievements from a Lua file.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>filename</code>: string</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> table — return values from the loaded file</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="loadhapticeffectsfilename"><code>LoadHapticEffects(filename)</code><a href="#loadhapticeffectsfilename" class="hash-link" aria-label="Direct link to loadhapticeffectsfilename" title="Direct link to loadhapticeffectsfilename" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Loads haptic effects from a Lua file and registers them with <code>TheHaptics</code>.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>filename</code>: string</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> table — return values from the loaded file</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="awardfrontendachievementname"><code>AwardFrontendAchievement(name)</code><a href="#awardfrontendachievementname" class="hash-link" aria-label="Direct link to awardfrontendachievementname" title="Direct link to awardfrontendachievementname" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Awards an achievement in the frontend only (console-specific).</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>name</code>: string</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="awardplayerachievementname-player"><code>AwardPlayerAchievement(name, player)</code><a href="#awardplayerachievementname-player" class="hash-link" aria-label="Direct link to awardplayerachievementname-player" title="Direct link to awardplayerachievementname-player" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Awards an achievement for a specific player (console-specific).</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>name</code>: string</li>
+<li class=""><code>player</code>: entity (optional) — must have <code>&quot;player&quot;</code> tag</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="notifyplayerprogressname-value-player"><code>NotifyPlayerProgress(name, value, player)</code><a href="#notifyplayerprogressname-value-player" class="hash-link" aria-label="Direct link to notifyplayerprogressname-value-player" title="Direct link to notifyplayerprogressname-value-player" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Notifies progress toward an achievement for a player (console-specific).</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>name</code>: string</li>
+<li class=""><code>value</code>: number</li>
+<li class=""><code>player</code>: entity</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="notifyplayerpresencename-level-days-player"><code>NotifyPlayerPresence(name, level, days, player)</code><a href="#notifyplayerpresencename-level-days-player" class="hash-link" aria-label="Direct link to notifyplayerpresencename-level-days-player" title="Direct link to notifyplayerpresencename-level-days-player" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Notifies presence data (e.g., level, days survived) for a player (console-specific).</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>name</code>: string</li>
+<li class=""><code>level</code>: number</li>
+<li class=""><code>days</code>: number</li>
+<li class=""><code>player</code>: entity</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="awardradialachievementname-pos-radius"><code>AwardRadialAchievement(name, pos, radius)</code><a href="#awardradialachievementname-pos-radius" class="hash-link" aria-label="Direct link to awardradialachievementname-pos-radius" title="Direct link to awardradialachievementname-pos-radius" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Awards an achievement to all players within a radius of a position (console-specific).</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>name</code>: string</li>
+<li class=""><code>pos</code>: vector-like — <code>{x, y, z}</code></li>
+<li class=""><code>radius</code>: number</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="spawnprefabfromsimname"><code>SpawnPrefabFromSim(name)</code><a href="#spawnprefabfromsimname" class="hash-link" aria-label="Direct link to spawnprefabfromsimname" title="Direct link to spawnprefabfromsimname" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Instantiates a prefab on the sim thread only (does not replicate to clients). Returns GUID or <code>-1</code> on error.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>name</code>: string — prefab name</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> number (GUID) or <code>-1</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="prefabexistsname"><code>PrefabExists(name)</code><a href="#prefabexistsname" class="hash-link" aria-label="Direct link to prefabexistsname" title="Direct link to prefabexistsname" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Checks whether a prefab has been registered.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>name</code>: string</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> boolean</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="spawnprefabname-skin-skin_id-creator-skin_custom"><code>SpawnPrefab(name, skin, skin_id, creator, skin_custom)</code><a href="#spawnprefabname-skin-skin_id-creator-skin_custom" class="hash-link" aria-label="Direct link to spawnprefabname-skin-skin_id-creator-skin_custom" title="Direct link to spawnprefabname-skin-skin_id-creator-skin_custom" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Spawns a prefab with optional skin and metadata; returns instance reference via <code>Ents[guid]</code>.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>name</code>: string</li>
+<li class=""><code>skin</code>: string/number (optional) — skin ID</li>
+<li class=""><code>skin_id</code>: string/number (optional)</li>
+<li class=""><code>creator</code>: entity (optional)</li>
+<li class=""><code>skin_custom</code>: any (optional)</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> entity — <code>Ents[guid]</code> or <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="replaceprefaboriginal_inst-name-skin-skin_id-creator"><code>ReplacePrefab(original_inst, name, skin, skin_id, creator)</code><a href="#replaceprefaboriginal_inst-name-skin-skin_id-creator" class="hash-link" aria-label="Direct link to replaceprefaboriginal_inst-name-skin-skin_id-creator" title="Direct link to replaceprefaboriginal_inst-name-skin-skin_id-creator" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Destroys <code>original_inst</code>, spawns <code>name</code> at same position, returns new instance.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>original_inst</code>: entity</li>
+<li class=""><code>name</code>, <code>skin</code>, <code>skin_id</code>, <code>creator</code>: same as <code>SpawnPrefab</code></li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> entity</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="resolvesaverecordpositiondata"><code>ResolveSaveRecordPosition(data)</code><a href="#resolvesaverecordpositiondata" class="hash-link" aria-label="Direct link to resolvesaverecordpositiondata" title="Direct link to resolvesaverecordpositiondata" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Resolves save-record world position, preferring platform-relative coordinates if <code>data.puid</code> exists.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>data</code>: table — expected to contain <code>x</code>, <code>y</code>, <code>z</code>, <code>puid</code>, <code>rx</code>, <code>ry</code>, <code>rz</code></li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> number, number, number, platform (if applicable)</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="spawnsaverecordsaved-newents"><code>SpawnSaveRecord(saved, newents)</code><a href="#spawnsaverecordsaved-newents" class="hash-link" aria-label="Direct link to spawnsaverecordsaved-newents" title="Direct link to spawnsaverecordsaved-newents" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Spawns an entity from a save record, attaches scenario component if needed, sets position, and registers in <code>newents</code>.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>saved</code>: table — save record</li>
+<li class=""><code>newents</code>: table — output mapping (by ID or entity key)</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> entity or <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="createentityname"><code>CreateEntity(name)</code><a href="#createentityname" class="hash-link" aria-label="Direct link to createentityname" title="Direct link to createentityname" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Creates a new low-level entity, attaches script wrapper, adds to <code>Ents</code>.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>name</code>: string (optional)</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> entity script wrapper</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="onremoveentityentityguid"><code>OnRemoveEntity(entityguid)</code><a href="#onremoveentityentityguid" class="hash-link" aria-label="Direct link to onremoveentityentityguid" title="Direct link to onremoveentityentityguid" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Cleanup handler when entity is removed: cleans up debug state, brains, state graphs, schedulers, and entity tracking tables.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>entityguid</code>: number</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="removeentityguid"><code>RemoveEntity(guid)</code><a href="#removeentityguid" class="hash-link" aria-label="Direct link to removeentityguid" title="Direct link to removeentityguid" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Removes an entity immediately, unless <code>delayclientdespawn</code> is set.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>guid</code>: number</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="pushentityeventguid-event-data"><code>PushEntityEvent(guid, event, data)</code><a href="#pushentityeventguid-event-data" class="hash-link" aria-label="Direct link to pushentityeventguid-event-data" title="Direct link to pushentityeventguid-event-data" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Pushes an event to an entity if it exists.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>guid</code>: number</li>
+<li class=""><code>event</code>: string</li>
+<li class=""><code>data</code>: any</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="getentitydisplaynameguid"><code>GetEntityDisplayName(guid)</code><a href="#getentitydisplaynameguid" class="hash-link" aria-label="Direct link to getentitydisplaynameguid" title="Direct link to getentitydisplaynameguid" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Returns the display name of an entity or empty string if not found.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>guid</code>: number</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> string</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="getticktime-gettime-getstatictime-gettick-getstatictick-gettimereal-gettimerealseconds"><code>GetTickTime()</code>, <code>GetTime()</code>, <code>GetStaticTime()</code>, <code>GetTick()</code>, <code>GetStaticTick()</code>, <code>GetTimeReal()</code>, <code>GetTimeRealSeconds()</code><a href="#getticktime-gettime-getstatictime-gettick-getstatictick-gettimereal-gettimerealseconds" class="hash-link" aria-label="Direct link to getticktime-gettime-getstatictime-gettick-getstatictick-gettimereal-gettimerealseconds" title="Direct link to getticktime-gettime-getstatictime-gettick-getstatictick-gettimereal-gettimerealseconds" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Returns simulation-related timing data (tick duration, current sim time, real time, etc.).</li>
+<li class=""><strong>Parameters:</strong> none</li>
+<li class=""><strong>Returns:</strong> number</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="loadscriptfilename"><code>LoadScript(filename)</code><a href="#loadscriptfilename" class="hash-link" aria-label="Direct link to loadscriptfilename" title="Direct link to loadscriptfilename" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Loads and caches a script from <code>scripts/</code> by filename.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>filename</code>: string</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> value — return value of the loaded script’s top-level call</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="runscriptfilename"><code>RunScript(filename)</code><a href="#runscriptfilename" class="hash-link" aria-label="Direct link to runscriptfilename" title="Direct link to runscriptfilename" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Loads and runs a script if it returns a callable.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>filename</code>: string</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="getentitystringguid"><code>GetEntityString(guid)</code><a href="#getentitystringguid" class="hash-link" aria-label="Direct link to getentitystringguid" title="Direct link to getentitystringguid" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Returns debug string of an entity.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>guid</code>: number</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> string</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="getextendeddebugstring-getdebugstring-getdebugentity-setdebugentityinst-getdebugtable-setdebugtabletbl"><code>GetExtendedDebugString()</code>, <code>GetDebugString()</code>, <code>GetDebugEntity()</code>, <code>SetDebugEntity(inst)</code>, <code>GetDebugTable()</code>, <code>SetDebugTable(tbl)</code><a href="#getextendeddebugstring-getdebugstring-getdebugentity-setdebugentityinst-getdebugtable-setdebugtabletbl" class="hash-link" aria-label="Direct link to getextendeddebugstring-getdebugstring-getdebugentity-setdebugentityinst-getdebugtable-setdebugtabletbl" title="Direct link to getextendeddebugstring-getdebugstring-getdebugentity-setdebugentityinst-getdebugtable-setdebugtabletbl" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Debug utility functions for inspecting or setting debugging context (entity, table, strings).</li>
+<li class=""><strong>Parameters:</strong> varies</li>
+<li class=""><strong>Returns:</strong> varies</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="onentitysleepguid-onentitywakeguid"><code>OnEntitySleep(guid)</code>, <code>OnEntityWake(guid)</code><a href="#onentitysleepguid-onentitywakeguid" class="hash-link" aria-label="Direct link to onentitysleepguid-onentitywakeguid" title="Direct link to onentitysleepguid-onentitywakeguid" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Handles entity going to sleep or waking: pushes events, manages brain/SG/emitter state, and calls per-component hooks.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>guid</code>: number</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="onphysicswakeguid-onphysicssleepguid"><code>OnPhysicsWake(guid)</code>, <code>OnPhysicsSleep(guid)</code><a href="#onphysicswakeguid-onphysicssleepguid" class="hash-link" aria-label="Direct link to onphysicswakeguid-onphysicssleepguid" title="Direct link to onphysicswakeguid-onphysicssleepguid" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Calls per-component <code>OnPhysicsWake</code> or <code>OnPhysicsSleep</code> hooks for entity.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>guid</code>: number</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="onserverpausedirtypause-autopause-gameautopause-source"><code>OnServerPauseDirty(pause, autopause, gameautopause, source)</code><a href="#onserverpausedirtypause-autopause-gameautopause-source" class="hash-link" aria-label="Direct link to onserverpausedirtypause-autopause-gameautopause-source" title="Direct link to onserverpausedirtypause-autopause-gameautopause-source" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Syncs pause state across server and clients, updates UI, manages mixer mix and <code>&quot;serverpauseddirty&quot;</code> event.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>pause</code>: boolean</li>
+<li class=""><code>autopause</code>: boolean</li>
+<li class=""><code>gameautopause</code>: boolean</li>
+<li class=""><code>source</code>: string</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="replicateentityguid"><code>ReplicateEntity(guid)</code><a href="#replicateentityguid" class="hash-link" aria-label="Direct link to replicateentityguid" title="Direct link to replicateentityguid" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Forces replication of an entity to clients; handles seamless swap targets specially.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>guid</code>: number</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="disableloadingprotectionguid"><code>DisableLoadingProtection(guid)</code><a href="#disableloadingprotectionguid" class="hash-link" aria-label="Direct link to disableloadingprotectionguid" title="Direct link to disableloadingprotectionguid" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Disables loading protection on a player entity.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>guid</code>: number</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="playnisnisname-lines"><code>PlayNIS(nisname, lines)</code><a href="#playnisnisname-lines" class="hash-link" aria-label="Direct link to playnisnisname-lines" title="Direct link to playnisnisname-lines" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Loads and plays a non-interactive sequence using the <code>nis</code> component.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>nisname</code>: string — filename in <code>nis/</code></li>
+<li class=""><code>lines</code>: table — script lines to pass to <code>nis.script</code></li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> entity — NIS entity</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="ispaused-issimpaused"><code>IsPaused()</code>, <code>IsSimPaused()</code><a href="#ispaused-issimpaused" class="hash-link" aria-label="Direct link to ispaused-issimpaused" title="Direct link to ispaused-issimpaused" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Returns whether game is manually paused or simulation is paused.</li>
+<li class=""><strong>Parameters:</strong> none</li>
+<li class=""><strong>Returns:</strong> boolean</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="setdefaulttimescalescale"><code>SetDefaultTimeScale(scale)</code><a href="#setdefaulttimescalescale" class="hash-link" aria-label="Direct link to setdefaulttimescalescale" title="Direct link to setdefaulttimescalescale" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Sets default time scale; applies immediately if not paused.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>scale</code>: number</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="setsimpauseval"><code>SetSimPause(val)</code><a href="#setsimpauseval" class="hash-link" aria-label="Direct link to setsimpauseval" title="Direct link to setsimpauseval" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Sets <code>simpaused</code> flag. <strong>Note:</strong> Not used in DST.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>val</code>: boolean</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="setserverpausedpause"><code>SetServerPaused(pause)</code><a href="#setserverpausedpause" class="hash-link" aria-label="Direct link to setserverpausedpause" title="Direct link to setserverpausedpause" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Sets server pause state; ignores request if IMGUI window is focused.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>pause</code>: boolean (optional, default toggles current state)</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="setautopausedautopause"><code>SetAutopaused(autopause)</code><a href="#setautopausedautopause" class="hash-link" aria-label="Direct link to setautopausedautopause" title="Direct link to setautopausedautopause" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Increments/decrements <code>autopausecount</code> and updates net pause state via <code>DoAutopause()</code>.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>autopause</code>: boolean</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="setcraftingautopausedautopause"><code>SetCraftingAutopaused(autopause)</code><a href="#setcraftingautopausedautopause" class="hash-link" aria-label="Direct link to setcraftingautopausedautopause" title="Direct link to setcraftingautopausedautopause" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Sets crafting autopause state and updates net pause state.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>autopause</code>: boolean</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="setconsoleautopausedautopause"><code>SetConsoleAutopaused(autopause)</code><a href="#setconsoleautopausedautopause" class="hash-link" aria-label="Direct link to setconsoleautopausedautopause" title="Direct link to setconsoleautopausedautopause" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Increments/decrements <code>consoleautopausecount</code> and updates net pause state.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>autopause</code>: boolean</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="doautopause"><code>DoAutopause()</code><a href="#doautopause" class="hash-link" aria-label="Direct link to doautopause" title="Direct link to doautopause" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Determines whether to autopause based on profile settings and counts.</li>
+<li class=""><strong>Parameters:</strong> none</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="onsimpaused-onsimunpaused"><code>OnSimPaused()</code>, <code>OnSimUnpaused()</code><a href="#onsimpaused-onsimunpaused" class="hash-link" aria-label="Direct link to onsimpaused-onsimunpaused" title="Direct link to onsimpaused-onsimunpaused" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Stub for sim pause (<code>OnSimPaused</code>) and event <code>&quot;ms_simunpaused&quot;</code> fire on <code>&quot;ms_simunpaused&quot;</code> (<code>OnSimUnpaused</code>).</li>
+<li class=""><strong>Parameters:</strong> none</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="setpauseval-reason"><code>SetPause(val, reason)</code><a href="#setpauseval-reason" class="hash-link" aria-label="Direct link to setpauseval-reason" title="Direct link to setpauseval-reason" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Toggles pause state, updates mixer, and calls <code>PlayerPauseCheck</code> if defined.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>val</code>: boolean</li>
+<li class=""><code>reason</code>: any</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="setinstanceparameterssettings"><code>SetInstanceParameters(settings)</code><a href="#setinstanceparameterssettings" class="hash-link" aria-label="Direct link to setinstanceparameterssettings" title="Direct link to setinstanceparameterssettings" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Decodes JSON <code>settings</code> and stores in global <code>Settings</code>.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>settings</code>: string — JSON object</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="setpurchasespurchases"><code>SetPurchases(purchases)</code><a href="#setpurchasespurchases" class="hash-link" aria-label="Direct link to setpurchasespurchases" title="Direct link to setpurchasespurchases" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Decodes JSON <code>purchases</code> and stores in global <code>Purchases</code>.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>purchases</code>: string — JSON array/object</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="savegameisshutdown-cb"><code>SaveGame(isshutdown, cb)</code><a href="#savegameisshutdown-cb" class="hash-link" aria-label="Direct link to savegameisshutdown-cb" title="Direct link to savegameisshutdown-cb" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Saves game data on the server: entities, map, players, mods, snapshots, worldgen overrides.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>isshutdown</code>: boolean — whether shutdown is imminent</li>
+<li class=""><code>cb</code>: function (optional) — called after save completes</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="processjsonmessagemessage"><code>ProcessJsonMessage(message)</code><a href="#processjsonmessagemessage" class="hash-link" aria-label="Direct link to processjsonmessagemessage" title="Direct link to processjsonmessagemessage" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Processes JSON-encoded client commands (e.g., pause toggle, quit).</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>message</code>: string — JSON message</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="loadfonts-unloadfonts"><code>LoadFonts()</code>, <code>UnloadFonts()</code><a href="#loadfonts-unloadfonts" class="hash-link" aria-label="Direct link to loadfonts-unloadfonts" title="Direct link to loadfonts-unloadfonts" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Loads or unloads fonts via <code>TheSim</code>.</li>
+<li class=""><strong>Parameters:</strong> none</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="start-globalinit"><code>Start()</code>, <code>GlobalInit()</code><a href="#start-globalinit" class="hash-link" aria-label="Direct link to start-globalinit" title="Direct link to start-globalinit" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Initializes frontend, disk permissions, custom commands, and mod checks. Initializes global assets and hardware stats.</li>
+<li class=""><strong>Parameters:</strong> none</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="doloadingportalcb"><code>DoLoadingPortal(cb)</code><a href="#doloadingportalcb" class="hash-link" aria-label="Direct link to doloadingportalcb" title="Direct link to doloadingportalcb" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Triggers fade-out to white and logs stats.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>cb</code>: function — called after fade</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="loadmapfilemap_name"><code>LoadMapFile(map_name)</code><a href="#loadmapfilemap_name" class="hash-link" aria-label="Direct link to loadmapfilemap_name" title="Direct link to loadmapfilemap_name" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Loads map file in-game via <code>StartNextInstance</code>.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>map_name</code>: string</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="startnextinstancein_params"><code>StartNextInstance(in_params)</code><a href="#startnextinstancein_params" class="hash-link" aria-label="Direct link to startnextinstancein_params" title="Direct link to startnextinstancein_params" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Begins a new instance (load, new game, etc.) via <code>SimReset</code>.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>in_params</code>: table (optional)</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="forceassetreset"><code>ForceAssetReset()</code><a href="#forceassetreset" class="hash-link" aria-label="Direct link to forceassetreset" title="Direct link to forceassetreset" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Forces a full asset reset by clearing asset-set flags.</li>
+<li class=""><strong>Parameters:</strong> none</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="simresetinstanceparameters"><code>SimReset(instanceparameters)</code><a href="#simresetinstanceparameters" class="hash-link" aria-label="Direct link to simresetinstanceparameters" title="Direct link to simresetinstanceparameters" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Shuts down current instance and resets the sim with provided parameters.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>instanceparameters</code>: table (optional)</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="requestshutdown-doworldoverseershutdown-shutdown"><code>RequestShutdown()</code>, <code>DoWorldOverseerShutdown()</code>, <code>Shutdown()</code><a href="#requestshutdown-doworldoverseershutdown-shutdown" class="hash-link" aria-label="Direct link to requestshutdown-doworldoverseershutdown-shutdown" title="Direct link to requestshutdown-doworldoverseershutdown-shutdown" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Graceful shutdown: shows quit dialog, stops servers, notifies overseer, calls <code>TheSim:Quit()</code>.</li>
+<li class=""><strong>Parameters:</strong> none</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="displayerrorerror"><code>DisplayError(error)</code><a href="#displayerrorerror" class="hash-link" aria-label="Direct link to displayerrorerror" title="Direct link to displayerrorerror" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Displays a global error screen; handles mod vs. vanilla errors differently.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>error</code>: string</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="setpausefromcodepause"><code>SetPauseFromCode(pause)</code><a href="#setpausefromcodepause" class="hash-link" aria-label="Direct link to setpausefromcodepause" title="Direct link to setpausefromcodepause" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Pushes <code>PauseScreen</code> if pausing in gameplay.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>pause</code>: boolean</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="ingameplay-ismigrating"><code>InGamePlay()</code>, <code>IsMigrating()</code><a href="#ingameplay-ismigrating" class="hash-link" aria-label="Direct link to ingameplay-ismigrating" title="Direct link to ingameplay-ismigrating" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Returns <code>inGamePlay</code> flag or checks migration state.</li>
+<li class=""><strong>Parameters:</strong> none</li>
+<li class=""><strong>Returns:</strong> boolean</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="dorestartsave"><code>DoRestart(save)</code><a href="#dorestartsave" class="hash-link" aria-label="Direct link to dorestartsave" title="Direct link to dorestartsave" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Restarts game (new instance), optionally saving first.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>save</code>: boolean — whether to save before restart</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="onplayerleaveplayer_guid-expected"><code>OnPlayerLeave(player_guid, expected)</code><a href="#onplayerleaveplayer_guid-expected" class="hash-link" aria-label="Direct link to onplayerleaveplayer_guid-expected" title="Direct link to onplayerleaveplayer_guid-expected" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Handles server-side player disconnect: fires <code>&quot;ms_playerdisconnected&quot;</code> and <code>&quot;ms_playerdespawn&quot;</code> events.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>player_guid</code>: number</li>
+<li class=""><code>expected</code>: boolean</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="onpushpopupdialogmessage"><code>OnPushPopupDialog(message)</code><a href="#onpushpopupdialogmessage" class="hash-link" aria-label="Direct link to onpushpopupdialogmessage" title="Direct link to onpushpopupdialogmessage" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Displays a popup dialog with localized title/body.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>message</code>: string — key into <code>STRINGS.UI.POPUPDIALOG.BODY</code></li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="ondemotimeout"><code>OnDemoTimeout()</code><a href="#ondemotimeout" class="hash-link" aria-label="Direct link to ondemotimeout" title="Direct link to ondemotimeout" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Handles demo timeout: stops servers, serializes session, restarts.</li>
+<li class=""><strong>Parameters:</strong> none</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="onnetworkdisconnectmessage-should_reset-force_immediate_reset-details-miscdata"><code>OnNetworkDisconnect(message, should_reset, force_immediate_reset, details, miscdata)</code><a href="#onnetworkdisconnectmessage-should_reset-force_immediate_reset-details-miscdata" class="hash-link" aria-label="Direct link to onnetworkdisconnectmessage-should_reset-force_immediate_reset-details-miscdata" title="Direct link to onnetworkdisconnectmessage-should_reset-force_immediate_reset-details-miscdata" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Handles client/server disconnection events, including immediate resets, account-based blocks (e.g., bans), and UI flow (popups, screen transitions, fading).</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>message</code>: string — localized message key (e.g., <code>&quot;E_BANNED&quot;</code>)</li>
+<li class=""><code>should_reset</code>: boolean — whether full reset is appropriate</li>
+<li class=""><code>force_immediate_reset</code>: boolean — triggers immediate restart</li>
+<li class=""><code>details</code>: table (optional) — with <code>help_button</code> for UI controls</li>
+<li class=""><code>miscdata</code>: function (optional) — callback after screen pop</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>true</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="registeronaccounteventlistenerlistener"><code>RegisterOnAccountEventListener(listener)</code><a href="#registeronaccounteventlistenerlistener" class="hash-link" aria-label="Direct link to registeronaccounteventlistenerlistener" title="Direct link to registeronaccounteventlistenerlistener" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Adds a listener to the global account event listener list.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>listener</code>: object — expects <code>OnAccountEvent(success, event_code, custom_message)</code></li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="removeonaccounteventlistenerlistener_to_remove"><code>RemoveOnAccountEventListener(listener_to_remove)</code><a href="#removeonaccounteventlistenerlistener_to_remove" class="hash-link" aria-label="Direct link to removeonaccounteventlistenerlistener_to_remove" title="Direct link to removeonaccounteventlistenerlistener_to_remove" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Removes a listener from the account event listener list by reference.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>listener_to_remove</code>: object</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="onaccounteventsuccess-event_code-custom_message"><code>OnAccountEvent(success, event_code, custom_message)</code><a href="#onaccounteventsuccess-event_code-custom_message" class="hash-link" aria-label="Direct link to onaccounteventsuccess-event_code-custom_message" title="Direct link to onaccounteventsuccess-event_code-custom_message" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Broadcasts an account-related event to all registered listeners.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>success</code>: boolean</li>
+<li class=""><code>event_code</code>: string</li>
+<li class=""><code>custom_message</code>: string (optional)</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="tintbackgroundbg"><code>TintBackground(bg)</code><a href="#tintbackgroundbg" class="hash-link" aria-label="Direct link to tintbackgroundbg" title="Direct link to tintbackgroundbg" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Applies a tint to a background UI element using a color constant from <code>BGCOLOURS.FULL</code>.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>bg</code>: UI background widget — expects <code>:SetTint(r, g, b, a)</code></li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="onfocuslost-onfocusgained"><code>OnFocusLost()</code>, <code>OnFocusGained()</code><a href="#onfocuslost-onfocusgained" class="hash-link" aria-label="Direct link to onfocuslost-onfocusgained" title="Direct link to onfocuslost-onfocusgained" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Handles app focus loss/gain (save, mute/unmute, unpause).</li>
+<li class=""><strong>Parameters:</strong> none</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="onuserpickedcharacterchar-skin_base-clothing_body-clothing_hand-clothing_legs-clothing_feet"><code>OnUserPickedCharacter(char, skin_base, clothing_body, clothing_hand, clothing_legs, clothing_feet)</code><a href="#onuserpickedcharacterchar-skin_base-clothing_body-clothing_hand-clothing_legs-clothing_feet" class="hash-link" aria-label="Direct link to onuserpickedcharacterchar-skin_base-clothing_body-clothing_hand-clothing_legs-clothing_feet" title="Direct link to onuserpickedcharacterchar-skin_base-clothing_body-clothing_hand-clothing_legs-clothing_feet" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Handles player selection in character select screen; packages data and sends spawn request to server.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>char</code>: string — prefab name</li>
+<li class=""><code>skin_base</code>, <code>clothing_*</code>: string — skin names</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="resumerequestloadcompletesuccess"><code>ResumeRequestLoadComplete(success)</code><a href="#resumerequestloadcompletesuccess" class="hash-link" aria-label="Direct link to resumerequestloadcompletesuccess" title="Direct link to resumerequestloadcompletesuccess" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Handles post-resume-request outcome; on failure, deletes invalid session and returns to lobby.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>success</code>: boolean</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="parseusersessiondatadata"><code>ParseUserSessionData(data)</code><a href="#parseusersessiondatadata" class="hash-link" aria-label="Direct link to parseusersessiondatadata" title="Direct link to parseusersessiondatadata" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Safely parses raw save file string into a Lua table using sandboxed execution.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>data</code>: string — raw save file content</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>playerdata</code> (table or <code>nil</code>), <code>prefab</code> (string)</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="resumeexistingusersessiondata-guid"><code>ResumeExistingUserSession(data, guid)</code><a href="#resumeexistingusersessiondata-guid" class="hash-link" aria-label="Direct link to resumeexistingusersessiondata-guid" title="Direct link to resumeexistingusersessiondata-guid" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Spawns a player entity on the server using persisted session data, respecting vault room placement.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>data</code>: table — session payload (<code>data.data</code>, position info)</li>
+<li class=""><code>guid</code>: number</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>player.player_classified.entity</code> or <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="restoresnapshotusersessionsessionid-userid"><code>RestoreSnapshotUserSession(sessionid, userid)</code><a href="#restoresnapshotusersessionsessionid-userid" class="hash-link" aria-label="Direct link to restoresnapshotusersessionsessionid-userid" title="Direct link to restoresnapshotusersessionsessionid-userid" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Loads a session snapshot by ID, spawns a new player, and teleports it; sets <code>_snapshot_platform</code> metadata.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>sessionid</code>: string — snapshot file ID</li>
+<li class=""><code>userid</code>: string — associated user ID</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>player.player_classified.entity</code> or <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="executeconsolecommandfnstr-guid-x-z"><code>ExecuteConsoleCommand(fnstr, guid, x, z)</code><a href="#executeconsolecommandfnstr-guid-x-z" class="hash-link" aria-label="Direct link to executeconsolecommandfnstr-guid-x-z" title="Direct link to executeconsolecommandfnstr-guid-x-z" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Executes arbitrary Lua code in sandboxed context, temporarily overriding <code>ThePlayer</code> and <code>TheInput.overridepos</code>.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>fnstr</code>: string — Lua code</li>
+<li class=""><code>guid</code>, <code>x</code>, <code>z</code>: optional inputs</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="notifyloadingstateloading_state-match_results"><code>NotifyLoadingState(loading_state, match_results)</code><a href="#notifyloadingstateloading_state-match_results" class="hash-link" aria-label="Direct link to notifyloadingstateloading_state-match_results" title="Direct link to notifyloadingstateloading_state-match_results" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Coordinates loading screen transitions based on client/server role and worldgen settings.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>loading_state</code>: number — from <code>LoadingStates</code> (<code>None</code>, <code>Loading</code>, <code>Generating</code>, <code>DoneGenerating</code>, <code>DoneLoading</code>)</li>
+<li class=""><code>match_results</code>: string (optional JSON) — decoded into <code>TheFrontEnd.match_results</code></li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="createworldstatetagnamespace-atlas"><code>CreateWorldStateTag(namespace, atlas)</code><a href="#createworldstatetagnamespace-atlas" class="hash-link" aria-label="Direct link to createworldstatetagnamespace-atlas" title="Direct link to createworldstatetagnamespace-atlas" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Factory function for namespace-specific world state tag system using bit-encoding.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>namespace</code>: string — unique identifier (e.g., <code>&quot;WS:&quot;</code>)</li>
+<li class=""><code>atlas</code>: string — UI atlas path</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> table of tag functions (<code>DeclareTag</code>, <code>EncodeTags</code>, <code>DecodeTags</code>, etc.)</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="getworldstatetagobjectfromnamespacenamespace-getworldstatetagobjectfromtagtag-foreachworldstatetagobjectfn-"><code>GetWorldStateTagObjectFromNamespace(namespace)</code>, <code>GetWorldStateTagObjectFromTag(tag)</code>, <code>ForEachWorldStateTagObject(fn, ...)</code><a href="#getworldstatetagobjectfromnamespacenamespace-getworldstatetagobjectfromtagtag-foreachworldstatetagobjectfn-" class="hash-link" aria-label="Direct link to getworldstatetagobjectfromnamespacenamespace-getworldstatetagobjectfromtagtag-foreachworldstatetagobjectfn-" title="Direct link to getworldstatetagobjectfromnamespacenamespace-getworldstatetagobjectfromtagtag-foreachworldstatetagobjectfn-" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Retrieves or iterates over world state tag objects by namespace or tag.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>namespace</code>/<code>tag</code>/<code>fn</code>: varies</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> object or <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="buildtagsstringcommontagstable"><code>BuildTagsStringCommon(tagsTable)</code><a href="#buildtagsstringcommontagstable" class="hash-link" aria-label="Direct link to buildtagsstringcommontagstable" title="Direct link to buildtagsstringcommontagstable" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Builds a comma-separated string of server visibility tags, including game state, mod, language, and world state tags.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>tagsTable</code>: table of tag strings</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> string</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="saveandshutdown"><code>SaveAndShutdown()</code><a href="#saveandshutdown" class="hash-link" aria-label="Direct link to saveandshutdown" title="Direct link to saveandshutdown" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Performs server shutdown: despawns players, saves shard game index.</li>
+<li class=""><strong>Parameters:</strong> none</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="isinfrontend"><code>IsInFrontEnd()</code><a href="#isinfrontend" class="hash-link" aria-label="Direct link to isinfrontend" title="Direct link to isinfrontend" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Checks if game is in frontend using <code>Settings.reset_action</code>.</li>
+<li class=""><strong>Parameters:</strong> none</li>
+<li class=""><strong>Returns:</strong> boolean</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="createrepeatedsoundvolumereductionrepeat_time-lowered_volume_percent"><code>CreateRepeatedSoundVolumeReduction(repeat_time, lowered_volume_percent)</code><a href="#createrepeatedsoundvolumereductionrepeat_time-lowered_volume_percent" class="hash-link" aria-label="Direct link to createrepeatedsoundvolumereductionrepeat_time-lowered_volume_percent" title="Direct link to createrepeatedsoundvolumereductionrepeat_time-lowered_volume_percent" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Factory function returning a closure for time-based audio volume reduction.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>repeat_time</code>: number — seconds between triggers</li>
+<li class=""><code>lowered_volume_percent</code>: number — volume multiplier (e.g., <code>0.75</code>)</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> function — current volume level (0–1)</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="displayantiaddictionnotificationnotification"><code>DisplayAntiAddictionNotification(notification)</code><a href="#displayantiaddictionnotificationnotification" class="hash-link" aria-label="Direct link to displayantiaddictionnotificationnotification" title="Direct link to displayantiaddictionnotificationnotification" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Displays a persistent anti-addiction message for ~10 seconds. De-duplicates overlapping notifications.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>notification</code>: string — key into <code>STRINGS.ANTIADDICTION</code></li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="showbadhashui"><code>ShowBadHashUI()</code><a href="#showbadhashui" class="hash-link" aria-label="Direct link to showbadhashui" title="Direct link to showbadhashui" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Shows a modal popup when game file integrity is compromised.</li>
+<li class=""><strong>Parameters:</strong> none</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="hookloginbuttonfordatabundlefilehashesbutton"><code>HookLoginButtonForDataBundleFileHashes(button)</code><a href="#hookloginbuttonfordatabundlefilehashesbutton" class="hash-link" aria-label="Direct link to hookloginbuttonfordatabundlefilehashesbutton" title="Direct link to hookloginbuttonfordatabundlefilehashesbutton" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Registers a login button widget for enabling/disabling during integrity checks.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>button</code>: UI button widget</li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="begindatabundlefilehashes-databundlefilehashescalculatedhashes"><code>BeginDataBundleFileHashes()</code>, <code>DataBundleFileHashes(calculatedhashes)</code><a href="#begindatabundlefilehashes-databundlefilehashescalculatedhashes" class="hash-link" aria-label="Direct link to begindatabundlefilehashes-databundlefilehashescalculatedhashes" title="Direct link to begindatabundlefilehashes-databundlefilehashescalculatedhashes" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Description:</strong> Marks integrity check as in-progress, disables login, compares hashes.</li>
+<li class=""><strong>Parameters:</strong>
+<ul>
+<li class=""><code>calculatedhashes</code>: table — <code>{filename = hash}</code></li>
+</ul>
+</li>
+<li class=""><strong>Returns:</strong> <code>nil</code></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="events--listeners">Events &amp; listeners<a href="#events--listeners" class="hash-link" aria-label="Direct link to Events &amp; listeners" title="Direct link to Events &amp; listeners" translate="no">​</a></h2>
+<ul>
+<li class=""><strong><code>ms_playerdisconnected</code></strong> — fired server-side on player disconnect (via <code>OnPlayerLeave</code>)</li>
+<li class=""><strong><code>ms_playerdespawn</code></strong> — fired server-side on player disconnect (via <code>OnPlayerLeave</code>)</li>
+<li class=""><strong><code>serverpauseddirty</code></strong> — fired on pause state change (via <code>OnServerPauseDirty</code>)</li>
+<li class=""><strong><code>ms_simunpaused</code></strong> — fired on simulation unpaused (via <code>OnSimUnpaused</code>)</li>
+<li class=""><strong>Account event notifications</strong> — delivered to registered listeners via <code>OnAccountEvent</code></li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-tags-row"><div class="col"><b>Tags:</b><ul class="tags_jXut padding--none margin-left--sm"><li class="tag_QGVx"><a rel="tag" class="tag_zVej tagRegular_sFm0" href="/dst-api-webdocs/docs/tags/init">init</a></li><li class="tag_QGVx"><a rel="tag" class="tag_zVej tagRegular_sFm0" href="/dst-api-webdocs/docs/tags/shutdown">shutdown</a></li><li class="tag_QGVx"><a rel="tag" class="tag_zVej tagRegular_sFm0" href="/dst-api-webdocs/docs/tags/loading">loading</a></li><li class="tag_QGVx"><a rel="tag" class="tag_zVej tagRegular_sFm0" href="/dst-api-webdocs/docs/tags/persistence">persistence</a></li><li class="tag_QGVx"><a rel="tag" class="tag_zVej tagRegular_sFm0" href="/dst-api-webdocs/docs/tags/spawning">spawning</a></li></ul></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/dst-api-webdocs/docs/game-scripts/main"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Main</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/dst-api-webdocs/docs/game-scripts/maputil"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Maputil</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#overview" class="table-of-contents__link toc-highlight">Overview</a></li><li><a href="#usage-example" class="table-of-contents__link toc-highlight">Usage example</a></li><li><a href="#dependencies--tags" class="table-of-contents__link toc-highlight">Dependencies &amp; tags</a></li><li><a href="#properties" class="table-of-contents__link toc-highlight">Properties</a></li><li><a href="#main-functions" class="table-of-contents__link toc-highlight">Main functions</a><ul><li><a href="#savepersistentstringname-data-encode-callback" class="table-of-contents__link toc-highlight"><code>SavePersistentString(name, data, encode, callback)</code></a></li><li><a href="#erasepersistentstringname-callback" class="table-of-contents__link toc-highlight"><code>ErasePersistentString(name, callback)</code></a></li><li><a href="#printmsg_verbosity-" class="table-of-contents__link toc-highlight"><code>Print(msg_verbosity, ...)</code></a></li><li><a href="#secondstotimestringtotal_seconds" class="table-of-contents__link toc-highlight"><code>SecondsToTimeString(total_seconds)</code></a></li><li><a href="#shouldignoreresolvefilename-assettype" class="table-of-contents__link toc-highlight"><code>ShouldIgnoreResolve(filename, assettype)</code></a></li><li><a href="#registerprefabsimplprefab-resolve_fn" class="table-of-contents__link toc-highlight"><code>RegisterPrefabsImpl(prefab, resolve_fn)</code></a></li><li><a href="#registerprefabs" class="table-of-contents__link toc-highlight"><code>RegisterPrefabs(...)</code></a></li><li><a href="#loadprefabfilefilename-async_batch_validation-search_asset_first_path" class="table-of-contents__link toc-highlight"><code>LoadPrefabFile(filename, async_batch_validation, search_asset_first_path)</code></a></li><li><a href="#modunloadfrontendassetsmodname" class="table-of-contents__link toc-highlight"><code>ModUnloadFrontEndAssets(modname)</code></a></li><li><a href="#modreloadfrontendassetsassets-modname" class="table-of-contents__link toc-highlight"><code>ModReloadFrontEndAssets(assets, modname)</code></a></li><li><a href="#modunloadpreloadassetsmodname" class="table-of-contents__link toc-highlight"><code>ModUnloadPreloadAssets(modname)</code></a></li><li><a href="#modpreloadassetsassets-modname" class="table-of-contents__link toc-highlight"><code>ModPreloadAssets(assets, modname)</code></a></li><li><a href="#loadachievementsfilename" class="table-of-contents__link toc-highlight"><code>LoadAchievements(filename)</code></a></li><li><a href="#loadhapticeffectsfilename" class="table-of-contents__link toc-highlight"><code>LoadHapticEffects(filename)</code></a></li><li><a href="#awardfrontendachievementname" class="table-of-contents__link toc-highlight"><code>AwardFrontendAchievement(name)</code></a></li><li><a href="#awardplayerachievementname-player" class="table-of-contents__link toc-highlight"><code>AwardPlayerAchievement(name, player)</code></a></li><li><a href="#notifyplayerprogressname-value-player" class="table-of-contents__link toc-highlight"><code>NotifyPlayerProgress(name, value, player)</code></a></li><li><a href="#notifyplayerpresencename-level-days-player" class="table-of-contents__link toc-highlight"><code>NotifyPlayerPresence(name, level, days, player)</code></a></li><li><a href="#awardradialachievementname-pos-radius" class="table-of-contents__link toc-highlight"><code>AwardRadialAchievement(name, pos, radius)</code></a></li><li><a href="#spawnprefabfromsimname" class="table-of-contents__link toc-highlight"><code>SpawnPrefabFromSim(name)</code></a></li><li><a href="#prefabexistsname" class="table-of-contents__link toc-highlight"><code>PrefabExists(name)</code></a></li><li><a href="#spawnprefabname-skin-skin_id-creator-skin_custom" class="table-of-contents__link toc-highlight"><code>SpawnPrefab(name, skin, skin_id, creator, skin_custom)</code></a></li><li><a href="#replaceprefaboriginal_inst-name-skin-skin_id-creator" class="table-of-contents__link toc-highlight"><code>ReplacePrefab(original_inst, name, skin, skin_id, creator)</code></a></li><li><a href="#resolvesaverecordpositiondata" class="table-of-contents__link toc-highlight"><code>ResolveSaveRecordPosition(data)</code></a></li><li><a href="#spawnsaverecordsaved-newents" class="table-of-contents__link toc-highlight"><code>SpawnSaveRecord(saved, newents)</code></a></li><li><a href="#createentityname" class="table-of-contents__link toc-highlight"><code>CreateEntity(name)</code></a></li><li><a href="#onremoveentityentityguid" class="table-of-contents__link toc-highlight"><code>OnRemoveEntity(entityguid)</code></a></li><li><a href="#removeentityguid" class="table-of-contents__link toc-highlight"><code>RemoveEntity(guid)</code></a></li><li><a href="#pushentityeventguid-event-data" class="table-of-contents__link toc-highlight"><code>PushEntityEvent(guid, event, data)</code></a></li><li><a href="#getentitydisplaynameguid" class="table-of-contents__link toc-highlight"><code>GetEntityDisplayName(guid)</code></a></li><li><a href="#getticktime-gettime-getstatictime-gettick-getstatictick-gettimereal-gettimerealseconds" class="table-of-contents__link toc-highlight"><code>GetTickTime()</code>, <code>GetTime()</code>, <code>GetStaticTime()</code>, <code>GetTick()</code>, <code>GetStaticTick()</code>, <code>GetTimeReal()</code>, <code>GetTimeRealSeconds()</code></a></li><li><a href="#loadscriptfilename" class="table-of-contents__link toc-highlight"><code>LoadScript(filename)</code></a></li><li><a href="#runscriptfilename" class="table-of-contents__link toc-highlight"><code>RunScript(filename)</code></a></li><li><a href="#getentitystringguid" class="table-of-contents__link toc-highlight"><code>GetEntityString(guid)</code></a></li><li><a href="#getextendeddebugstring-getdebugstring-getdebugentity-setdebugentityinst-getdebugtable-setdebugtabletbl" class="table-of-contents__link toc-highlight"><code>GetExtendedDebugString()</code>, <code>GetDebugString()</code>, <code>GetDebugEntity()</code>, <code>SetDebugEntity(inst)</code>, <code>GetDebugTable()</code>, <code>SetDebugTable(tbl)</code></a></li><li><a href="#onentitysleepguid-onentitywakeguid" class="table-of-contents__link toc-highlight"><code>OnEntitySleep(guid)</code>, <code>OnEntityWake(guid)</code></a></li><li><a href="#onphysicswakeguid-onphysicssleepguid" class="table-of-contents__link toc-highlight"><code>OnPhysicsWake(guid)</code>, <code>OnPhysicsSleep(guid)</code></a></li><li><a href="#onserverpausedirtypause-autopause-gameautopause-source" class="table-of-contents__link toc-highlight"><code>OnServerPauseDirty(pause, autopause, gameautopause, source)</code></a></li><li><a href="#replicateentityguid" class="table-of-contents__link toc-highlight"><code>ReplicateEntity(guid)</code></a></li><li><a href="#disableloadingprotectionguid" class="table-of-contents__link toc-highlight"><code>DisableLoadingProtection(guid)</code></a></li><li><a href="#playnisnisname-lines" class="table-of-contents__link toc-highlight"><code>PlayNIS(nisname, lines)</code></a></li><li><a href="#ispaused-issimpaused" class="table-of-contents__link toc-highlight"><code>IsPaused()</code>, <code>IsSimPaused()</code></a></li><li><a href="#setdefaulttimescalescale" class="table-of-contents__link toc-highlight"><code>SetDefaultTimeScale(scale)</code></a></li><li><a href="#setsimpauseval" class="table-of-contents__link toc-highlight"><code>SetSimPause(val)</code></a></li><li><a href="#setserverpausedpause" class="table-of-contents__link toc-highlight"><code>SetServerPaused(pause)</code></a></li><li><a href="#setautopausedautopause" class="table-of-contents__link toc-highlight"><code>SetAutopaused(autopause)</code></a></li><li><a href="#setcraftingautopausedautopause" class="table-of-contents__link toc-highlight"><code>SetCraftingAutopaused(autopause)</code></a></li><li><a href="#setconsoleautopausedautopause" class="table-of-contents__link toc-highlight"><code>SetConsoleAutopaused(autopause)</code></a></li><li><a href="#doautopause" class="table-of-contents__link toc-highlight"><code>DoAutopause()</code></a></li><li><a href="#onsimpaused-onsimunpaused" class="table-of-contents__link toc-highlight"><code>OnSimPaused()</code>, <code>OnSimUnpaused()</code></a></li><li><a href="#setpauseval-reason" class="table-of-contents__link toc-highlight"><code>SetPause(val, reason)</code></a></li><li><a href="#setinstanceparameterssettings" class="table-of-contents__link toc-highlight"><code>SetInstanceParameters(settings)</code></a></li><li><a href="#setpurchasespurchases" class="table-of-contents__link toc-highlight"><code>SetPurchases(purchases)</code></a></li><li><a href="#savegameisshutdown-cb" class="table-of-contents__link toc-highlight"><code>SaveGame(isshutdown, cb)</code></a></li><li><a href="#processjsonmessagemessage" class="table-of-contents__link toc-highlight"><code>ProcessJsonMessage(message)</code></a></li><li><a href="#loadfonts-unloadfonts" class="table-of-contents__link toc-highlight"><code>LoadFonts()</code>, <code>UnloadFonts()</code></a></li><li><a href="#start-globalinit" class="table-of-contents__link toc-highlight"><code>Start()</code>, <code>GlobalInit()</code></a></li><li><a href="#doloadingportalcb" class="table-of-contents__link toc-highlight"><code>DoLoadingPortal(cb)</code></a></li><li><a href="#loadmapfilemap_name" class="table-of-contents__link toc-highlight"><code>LoadMapFile(map_name)</code></a></li><li><a href="#startnextinstancein_params" class="table-of-contents__link toc-highlight"><code>StartNextInstance(in_params)</code></a></li><li><a href="#forceassetreset" class="table-of-contents__link toc-highlight"><code>ForceAssetReset()</code></a></li><li><a href="#simresetinstanceparameters" class="table-of-contents__link toc-highlight"><code>SimReset(instanceparameters)</code></a></li><li><a href="#requestshutdown-doworldoverseershutdown-shutdown" class="table-of-contents__link toc-highlight"><code>RequestShutdown()</code>, <code>DoWorldOverseerShutdown()</code>, <code>Shutdown()</code></a></li><li><a href="#displayerrorerror" class="table-of-contents__link toc-highlight"><code>DisplayError(error)</code></a></li><li><a href="#setpausefromcodepause" class="table-of-contents__link toc-highlight"><code>SetPauseFromCode(pause)</code></a></li><li><a href="#ingameplay-ismigrating" class="table-of-contents__link toc-highlight"><code>InGamePlay()</code>, <code>IsMigrating()</code></a></li><li><a href="#dorestartsave" class="table-of-contents__link toc-highlight"><code>DoRestart(save)</code></a></li><li><a href="#onplayerleaveplayer_guid-expected" class="table-of-contents__link toc-highlight"><code>OnPlayerLeave(player_guid, expected)</code></a></li><li><a href="#onpushpopupdialogmessage" class="table-of-contents__link toc-highlight"><code>OnPushPopupDialog(message)</code></a></li><li><a href="#ondemotimeout" class="table-of-contents__link toc-highlight"><code>OnDemoTimeout()</code></a></li><li><a href="#onnetworkdisconnectmessage-should_reset-force_immediate_reset-details-miscdata" class="table-of-contents__link toc-highlight"><code>OnNetworkDisconnect(message, should_reset, force_immediate_reset, details, miscdata)</code></a></li><li><a href="#registeronaccounteventlistenerlistener" class="table-of-contents__link toc-highlight"><code>RegisterOnAccountEventListener(listener)</code></a></li><li><a href="#removeonaccounteventlistenerlistener_to_remove" class="table-of-contents__link toc-highlight"><code>RemoveOnAccountEventListener(listener_to_remove)</code></a></li><li><a href="#onaccounteventsuccess-event_code-custom_message" class="table-of-contents__link toc-highlight"><code>OnAccountEvent(success, event_code, custom_message)</code></a></li><li><a href="#tintbackgroundbg" class="table-of-contents__link toc-highlight"><code>TintBackground(bg)</code></a></li><li><a href="#onfocuslost-onfocusgained" class="table-of-contents__link toc-highlight"><code>OnFocusLost()</code>, <code>OnFocusGained()</code></a></li><li><a href="#onuserpickedcharacterchar-skin_base-clothing_body-clothing_hand-clothing_legs-clothing_feet" class="table-of-contents__link toc-highlight"><code>OnUserPickedCharacter(char, skin_base, clothing_body, clothing_hand, clothing_legs, clothing_feet)</code></a></li><li><a href="#resumerequestloadcompletesuccess" class="table-of-contents__link toc-highlight"><code>ResumeRequestLoadComplete(success)</code></a></li><li><a href="#parseusersessiondatadata" class="table-of-contents__link toc-highlight"><code>ParseUserSessionData(data)</code></a></li><li><a href="#resumeexistingusersessiondata-guid" class="table-of-contents__link toc-highlight"><code>ResumeExistingUserSession(data, guid)</code></a></li><li><a href="#restoresnapshotusersessionsessionid-userid" class="table-of-contents__link toc-highlight"><code>RestoreSnapshotUserSession(sessionid, userid)</code></a></li><li><a href="#executeconsolecommandfnstr-guid-x-z" class="table-of-contents__link toc-highlight"><code>ExecuteConsoleCommand(fnstr, guid, x, z)</code></a></li><li><a href="#notifyloadingstateloading_state-match_results" class="table-of-contents__link toc-highlight"><code>NotifyLoadingState(loading_state, match_results)</code></a></li><li><a href="#createworldstatetagnamespace-atlas" class="table-of-contents__link toc-highlight"><code>CreateWorldStateTag(namespace, atlas)</code></a></li><li><a href="#getworldstatetagobjectfromnamespacenamespace-getworldstatetagobjectfromtagtag-foreachworldstatetagobjectfn-" class="table-of-contents__link toc-highlight"><code>GetWorldStateTagObjectFromNamespace(namespace)</code>, <code>GetWorldStateTagObjectFromTag(tag)</code>, <code>ForEachWorldStateTagObject(fn, ...)</code></a></li><li><a href="#buildtagsstringcommontagstable" class="table-of-contents__link toc-highlight"><code>BuildTagsStringCommon(tagsTable)</code></a></li><li><a href="#saveandshutdown" class="table-of-contents__link toc-highlight"><code>SaveAndShutdown()</code></a></li><li><a href="#isinfrontend" class="table-of-contents__link toc-highlight"><code>IsInFrontEnd()</code></a></li><li><a href="#createrepeatedsoundvolumereductionrepeat_time-lowered_volume_percent" class="table-of-contents__link toc-highlight"><code>CreateRepeatedSoundVolumeReduction(repeat_time, lowered_volume_percent)</code></a></li><li><a href="#displayantiaddictionnotificationnotification" class="table-of-contents__link toc-highlight"><code>DisplayAntiAddictionNotification(notification)</code></a></li><li><a href="#showbadhashui" class="table-of-contents__link toc-highlight"><code>ShowBadHashUI()</code></a></li><li><a href="#hookloginbuttonfordatabundlefilehashesbutton" class="table-of-contents__link toc-highlight"><code>HookLoginButtonForDataBundleFileHashes(button)</code></a></li><li><a href="#begindatabundlefilehashes-databundlefilehashescalculatedhashes" class="table-of-contents__link toc-highlight"><code>BeginDataBundleFileHashes()</code>, <code>DataBundleFileHashes(calculatedhashes)</code></a></li></ul></li><li><a href="#events--listeners" class="table-of-contents__link toc-highlight">Events &amp; listeners</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/dst-api-webdocs/docs/getting-started/about-game-scripts">DST Vanilla</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Community</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://forums.kleientertainment.com/" target="_blank" rel="noopener noreferrer" class="footer__link-item">Klei Forums<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/vietnd69/dst-api-webdocs" target="_blank" rel="noopener noreferrer" class="footer__link-item">Contribute<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://github.com/vietnd69/dst-scripts" target="_blank" rel="noopener noreferrer" class="footer__link-item">Game Scripts<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://vietnd69.github.io/dst-api-webdocs/sitemap.xml" target="_blank" rel="noopener noreferrer" class="footer__link-item">Sitemap<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Don't Starve Together Vanilla API v2.0.0 Docs.</div></div></div></footer></div>
+</body>
+</html>
