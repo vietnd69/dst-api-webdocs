@@ -1,0 +1,10 @@
+{
+    "position": 1,
+    "label": "Panels",
+    "collapsed": true,
+    "link": {
+        "type": "generated-index",
+        "title": "Panels",
+        "description": "DST panels API documentation"
+    }
+}

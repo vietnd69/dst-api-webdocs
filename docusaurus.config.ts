@@ -54,7 +54,7 @@ const config: Config = {
 				// createRedirects: function (existingPath) {
 				// 	// Redirect to /docs/introduction from /docs
 				// 	if (existingPath.includes("/")) {
-				// 		return [existingPath.replace("docs/game-scripts/getting-started/about-game-scripts", "")];
+				// 		return [existingPath.replace("docs/getting-started/about-game-scripts", "")];
 				// 	}
 				// 	return undefined; // Return undefined if no redirect needed
 				// },
@@ -103,7 +103,7 @@ const config: Config = {
 				sitemap: {
 					changefreq: "weekly",
 					priority: 0.5,
-					ignorePatterns: ["/tags/**", "/pages/**", "/dst-api-webdocs/docs/game-scripts/screens/**"],
+					ignorePatterns: ["/tags/**", "/pages/**"],
 					filename: "sitemap.xml",
 				},
 			} satisfies Preset.Options,
@@ -147,7 +147,7 @@ const config: Config = {
 							label: "DST Vanilla",
 							// Sử dụng đường dẫn tương đối so với baseUrl
 							// Docusaurus sẽ tự động thêm baseUrl vào đường dẫn này
-							to: "/docs/game-scripts/getting-started/about-game-scripts",
+							to: "/docs/getting-started/about-game-scripts",
 						},
 					],
 				},
@@ -187,7 +187,7 @@ const config: Config = {
 		},
 		// Thêm cấu hình theo dõi theme hệ thống
 		colorMode: {
-			defaultMode: "light",
+			defaultMode: "dark",
 			disableSwitch: false,
 			respectPrefersColorScheme: true,
 		},

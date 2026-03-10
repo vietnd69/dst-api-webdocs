@@ -1,0 +1,10 @@
+{
+    "position": 1,
+    "label": "Redux",
+    "collapsed": true,
+    "link": {
+        "type": "generated-index",
+        "title": "Redux",
+        "description": "DST redux API documentation"
+    }
+}
