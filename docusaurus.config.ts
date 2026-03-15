@@ -110,6 +110,29 @@ const config: Config = {
 		],
 	],
 
+	themes: [
+		[
+			require.resolve("@easyops-cn/docusaurus-search-local"),
+			{
+				// Bật tính năng băm (hash) để tránh lỗi cache trình duyệt khi bạn update docs
+				hashed: true,
+
+				// Vì web của bạn có vẻ nhắm tới người Việt, nên thêm "vi" để search tốt hơn
+				language: ["en"],
+
+				// Cấu hình vùng cần index dữ liệu
+				indexDocs: true,
+				indexBlog: false, // Đổi thành true nếu web bạn có phần Blog
+				indexPages: true,
+
+				// Tùy chọn giao diện (nếu muốn)
+				highlightSearchTermsOnTargetPage: true, // Bôi vàng từ khóa khi click vào bài
+				searchBarShortcut: true, // Hiển thị hint phím tắt
+				searchBarPosition: "right", // Vị trí thanh search
+			},
+		],
+	],
+
 	themeConfig: {
 		// Replace with your project's social card
 		image: "img/docusaurus-social-card.png",
@@ -191,17 +214,7 @@ const config: Config = {
 			disableSwitch: false,
 			respectPrefersColorScheme: true,
 		},
-		// Thêm cấu hình Algolia DocSearch
-		algolia: {
-			// Các giá trị này sẽ được cung cấp sau khi đăng ký với DocSearch
-			appId: "P9GA1YAAFR",
-			apiKey: "5f8489e3578120b54de886d560f78022",
-			indexName: "dst-docs crawl",
 
-			// Các thiết lập tuỳ chọn
-			contextualSearch: true,
-			searchPagePath: "search",
-		},
 		metadata: [
 			{ name: "description", content: "Comprehensive API documentation for Don't Starve Together game scripts, components, and modding tools." },
 			{ name: "robots", content: "index, follow" },
