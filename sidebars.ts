@@ -22,7 +22,7 @@ const sidebars: SidebarsConfig = {
 				type: "doc",
 				id: "getting-started/index",
 			},
-			items: ["getting-started/index", "getting-started/about-game-scripts"],
+			items: ["getting-started/index", "getting-started/about-game-scripts", "getting-started/change-log"],
 		},
 		{
 			type: "html",

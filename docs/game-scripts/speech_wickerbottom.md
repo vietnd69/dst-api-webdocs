@@ -5,11 +5,11 @@ description: Provides speech dialogue data and definitions for the Wickerbottom 
 tags: [speech, character, dialogue, wickerbottom]
 sidebar_position: 10
 
-last_updated: 2026-03-10
-build_version: 714014
-change_status: stable
+last_updated: 2026-04-04
+build_version: 718694
+change_status: data_patched
 category_type: root
-source_hash: a27a3026
+source_hash: e575b218
 system_scope: player
 
 ---

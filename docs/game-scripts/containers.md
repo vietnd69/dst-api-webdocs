@@ -1,11 +1,11 @@
 ---
 id: containers
 title: Containers
-description: Manages container-specific behavior including item validation, UI configuration, and construction/interaction logic for game entities.
-tags: [inventory, ui, crafting, entity, network]
+description: This module defines widget configurations, validation logic, and item test functions for various inventory containers including backpacks, chests, cookers, and furnaces while handling construction site interactions and button action callbacks via UI callbacks.
+tags: [inventory, ui, containers, validation, widgets]
 sidebar_position: 10
 
-last_updated: 2026-03-10
+last_updated: 2026-03-21
 build_version: 714014
 change_status: stable
 category_type: root
@@ -15,192 +15,648 @@ system_scope: inventory
 
 # Containers
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **714014** | Last updated: 2026-03-21
 
 ## Overview
-The `containers.lua` script centralizes logic for configuring and validating container behavior across DST entities. It defines `itemtestfn` functions to restrict which items may be placed in specific containers (e.g., based on tags or component state), `widgetsetup` for UI parameter configuration, and specialized handlers for construction sites and interactive containers (e.g., Dragonfly Furnace, Quagmire Pot). It integrates with UI components like `RiftConfirmScreen` and leverages components such as `Container`, `ConstructionBuilderUIData`, `InventoryItem`, and `SkillTreeUpdater` to enforce game rules during item placement and action execution.
+
+The `containers` module serves as a central configuration system for inventory container widgets throughout Don't Starve Together. It defines parameter tables that specify slot layouts, item validation functions (`itemtestfn`), and widget button behaviors for diverse container types ranging from standard storage (chests, backpacks) to specialized containers (cooking pots, sewing machines, construction sites, soul jars). Each container type registers its own validation logic through the `params` table, checking entity tags, component states, and skill tree requirements to determine item placement eligibility. The module also handles UI button callbacks that execute player actions via buffered actions or RPC calls depending on network state, enabling interactive container operations like cooking, bundling, construction completion, and incineration. Modders can extend this system by adding new prefab entries to the `params` table with custom `itemtestfn` validators and widget configurations.
 
 ## Usage example
+
 ```lua
--- Example: Validate item placement in a Quagmire Pot
-local function CanStewItem(container, item)
-    return item:HasTag("quagmire_stewable") and
-           not item:HasTag("preparedfood") and
-           (not item.components.inventoryitem or not item.components.inventoryitem:IsHeld())
-end
+-- Access container widget setup for a custom chest prefab
+local container = inst.components.container
+containers.widgetsetup(container, "my_custom_chest", {
+    widget = "chest_ui",
+    pos = Vector3(0, 0, 0),
+    size = 9,
+    type = "generic",
+})
 
--- Example: Configure a container widget with prefab-specific params
-containers.widgetsetup(container, "quagmire_pot", { slots = 3 })
+-- Add custom item validation for the container
+params.my_custom_chest = {
+    widget = "chest_ui",
+    pos = Vector3(0, 0, 0),
+    size = 9,
+    type = "generic",
+    itemtestfn = function(container, item, slot)
+        return not item:HasTag("irreplaceable")
+    end,
+}
 
--- Example: Trigger construction action with confirmation UI
-if params.enable_shadow_rift_construction_container.widget.overrideactionfn(inst, doer) then
-    -- UI shown; action delayed until confirmed
-else
+-- Check if construction site is complete
+local is_complete = IsConstructionSiteComplete(inst, doer)
+if is_complete then
     EnableRiftsDoAct(inst, doer)
 end
 ```
 
 ## Dependencies & tags
+
+**External dependencies:**
+- `cooking` -- Required module used to check cooking ingredients
+- `screens/redux/riftconfirmscreen` -- Required module used to display confirmation dialogs for rift construction
+- `TheWorld` -- Global singleton used to check ismastersim for server-side logic
+- `TheFrontEnd` -- Global singleton used to push and pop UI screens
+- `STRINGS` -- Global table used to access action strings and popup text
+- `ACTIONS` -- Global table used to access action definitions for buffered actions
+- `BufferedAction` -- Global function used to queue player actions
+- `RPC` -- Global table used to reference RPC functions for network calls
+- `SendRPCToServer` -- Global function used to send RPC calls to the server
+- `deepcopy` -- Global utility function used to duplicate parameter tables
+- `Vector3` -- Global utility used to define spatial coordinates for widget slots
+- `ThePlayer` -- Used to identify local player as container opener
+- `FOODTYPE` -- Iterated to check edible tags
+- `FOODGROUP` -- Accessed for OMNI types in beard sacks
+- `containers` -- Referenced to update MAXITEMSLOTS and returned as module
+
 **Components used:**
-- `components/constructionbuilderuidata` (`GetConstructionSite`, `GetIngredientForSlot`)
-- `components/container` (`GetOpeners`, `IsBusy`, `IsEmpty`)
-- `components/inventoryitem` (`IsHeld`)
-- `components/skilltreeupdater` (`IsActivated`)
-- `cooking.lua` (via `IsCookingIngredient`)
-- `screens/redux/riftconfirmscreen.lua` (`RiftConfirmScreen`)
+- `container` -- Accessed via inst.components.container and inst.replica.container for item management and state checks
+- `constructionbuilderuidata` -- Accessed via doer.components.constructionbuilderuidata to validate construction ingredients
+- `skilltreeupdater` -- Checked on owner entity to verify skill activation
+- `health` -- Accessed via item.replica.health to check existence
+- `inventoryitem` -- Checked via item.components.inventoryitem:IsHeld()
 
 **Tags:**
-`"irreplaceable"`, `"_container"`, `"bundle"`, `"nobundling"`, `"burnt"`, `"dryable"`, `"lightbattery"`, `"spore"`, `"lightcontainer"`, `"yotb_pattern_fragment"`, `"preparedfood"`, `"spicedfood"`, `"spice"`, `"winter_ornament"`, `"hermithouse_ornament"`, `"petals"`, `"moon_tree_blossom"`, `"petals_evil"`, `"kelp"`, `"icebox_valid"`, `"fresh"`, `"stale"`, `"spoiled"`, `"smallcreature"`, `"edible_basic"`, `"edible_meat"`, `"edible_fish"`, `"edible_fruit"`, `"edible_veggie"`, `"edible_insect"`, `"edible_generic"`, `"edible_seeds"`, `"edible_mushroom"`, `"edible_egg"`, `"edible_creature"`, `"edible_fungus"`, `"edible_crab"`, `"edible_frog"`, `"edible_bug"`, `"edible_worm"`, `"edible_shellfish"`, `"edible_sea"`, `"edible_rope"`, `"edible_rodent"`, `"edible_pig"`, `"edible_krampus"`, `"edible_bird"`, `"edible_hound"`, `"edible_beefalo"`, `"edible_swan"`, `"edible_mermd"`, `"edible_lobstercrab"`, `"edible_penguin"`, `"edible_spider"`, `"edible_worm"`, `"edible_crab"`, `"edible_frog"`, `"edible_egg"`, `"edible_bug"`, `"edible_worm"`, `"cookable"`, `"deployable"`, `"groundtile"`, `"smalloceancreature"`, `"oceanfishing_bobber"`, `"oceanfishing_lure"`, `"halloween_ornament"`, `"slingshotammo"`, `"slingshot_band"`, `"slingshot_frame"`, `"slingshot_handle"`, `"seeds"`, `"treeseed"`, `"halloweencandy"`, `"nonpotatable"`, `"wetgoop"`, `"pocketwatchpart"`, `"bookcabinet_item"`, `"beargerfur_sack_valid"`, `"blowpipeammo"`, `"battlesong"`, `"soul"`, `"nosouljar"`, `"ghostlyelixir"`, `"ghostflower"`, `"quagmire_stewable"`, `"quagmire_sap"`, `"takeonly"`, `"lunarseed"`
+- `irreplaceable` -- check
+- `dryable` -- check
+- `yotb_pattern_fragment` -- check
+- `preparedfood` -- check
+- `spicedfood` -- check
+- `spice` -- check
+- `_container` -- check
+- `bundle` -- check
+- `nobundling` -- check
+- `burnt` -- check
+- `lightbattery` -- check
+- `lightcontainer` -- check
+- `spore` -- check
+- `winter_ornament` -- check
+- `hermithouse_ornament` -- check
+- `halloween_ornament` -- check
+- `icebox_valid` -- check
+- `fresh` -- check
+- `stale` -- check
+- `spoiled` -- check
+- `smallcreature` -- check
+- `edible_` -- check
+- `cookable` -- check
+- `deployable` -- check
+- `saltbox_valid` -- check
+- `nonpotatable` -- check
+- `groundtile` -- check
+- `smalloceancreature` -- check
+- `oceanfishing_bobber` -- check
+- `oceanfishing_lure` -- check
+- `slingshotammo` -- check
+- `slingshot_band` -- check
+- `slingshot_frame` -- check
+- `slingshot_handle` -- check
+- `treeseed` -- check
+- `halloweencandy` -- check
+- `lunarseed` -- check
+- `pocketwatchpart` -- check
+- `oceanfish` -- check
+- `bookcabinet_item` -- check
+- `beargerfur_sack_valid` -- check
+- `blowpipeammo` -- check
+- `battlesong` -- check
+- `soul` -- check
+- `nosouljar` -- check
+- `ghostlyelixir` -- check
+- `ghostflower` -- check
+- `quagmire_stewable` -- check
+- `overcooked` -- check
+- `takeonly` -- check
 
 ## Properties
+
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| N/A | N/A | N/A | No documented properties. Container behavior is defined via `params` tables and functions. |
 
 ## Main functions
+
 ### `containers.widgetsetup(container, prefab, data)`
-* **Description:** Configures container widget properties by copying parameters from `params[prefab]` or `data` into the container table and setting the number of slots.
+* **Description:** Applies widget configuration parameters to a container instance, setting slots and properties based on prefab or provided data.
 * **Parameters:**
-  - `container`: The container instance to configure.
-  - `prefab`: String identifier for the prefab (used to look up params if `data` is nil).
-  - `data`: Optional override table; defaults to `params[prefab]`.
-* **Returns:** `nil`.
+  - `container` -- The container component instance to configure
+  - `prefab` -- The prefab name string to lookup params, or nil
+  - `data` -- Optional data table to override params, or nil
+* **Returns:** nil
+
+### `params.shadow_container.itemtestfn(container, item, slot)`
+* **Description:** Validates if an item can be placed in the shadow container, rejecting irreplaceable items.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.woby_rack_container.itemtestfn(container, item, slot)`
+* **Description:** Validates items for the woby rack, checking for dryable tag or server-side timing conditions.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.meatrack.itemtestfn(container, item, slot)`
+* **Description:** Validates items for the meatrack, checking for dryable tag or server-side timing conditions.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.yotb_sewingmachine.itemtestfn(container, item, slot)`
+* **Description:** Validates items for the sewing machine, requiring the yotb_pattern_fragment tag.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.yotb_sewingmachine.widget.buttoninfo.fn(inst, doer)`
+* **Description:** Executes the YOTB_SEW action via buffered action or RPC.
+* **Parameters:**
+  - `inst` -- The entity instance owning the widget
+  - `doer` -- The player entity performing the action
+* **Returns:** nil
+
+### `params.yotb_sewingmachine.widget.buttoninfo.validfn(inst)`
+* **Description:** Checks if the container is full to enable the button.
+* **Parameters:**
+  - `inst` -- The entity instance owning the widget
+* **Returns:** boolean
+
+### `params.cookpot.itemtestfn(container, item, slot)`
+* **Description:** Validates cooking ingredients and checks if the pot is not burnt.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.cookpot.widget.buttoninfo.fn(inst, doer)`
+* **Description:** Executes the COOK action via buffered action or RPC.
+* **Parameters:**
+  - `inst` -- The entity instance owning the widget
+  - `doer` -- The player entity performing the action
+* **Returns:** nil
+
+### `params.cookpot.widget.buttoninfo.validfn(inst)`
+* **Description:** Checks if the container is full to enable the button.
+* **Parameters:**
+  - `inst` -- The entity instance owning the widget
+* **Returns:** boolean
+
+### `params.portablespicer.itemtestfn(container, item, slot)`
+* **Description:** Validates spice and food items for specific slots, excluding wetgoop and burnt cookers.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.portablespicer.widget.buttoninfo.fn(inst, doer)`
+* **Description:** Executes the COOK action via buffered action or RPC.
+* **Parameters:**
+  - `inst` -- The entity instance owning the widget
+  - `doer` -- The player entity performing the action
+* **Returns:** nil
+
+### `params.portablespicer.widget.buttoninfo.validfn(inst)`
+* **Description:** Checks if the container is full to enable the button.
+* **Parameters:**
+  - `inst` -- The entity instance owning the widget
+* **Returns:** boolean
+
+### `params.bundle_container.itemtestfn(container, item, slot)`
+* **Description:** Validates items for bundling, excluding irreplaceable, container, bundle, or nobundling tags.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.bundle_container.widget.buttoninfo.fn(inst, doer)`
+* **Description:** Executes the WRAPBUNDLE action via buffered action or RPC.
+* **Parameters:**
+  - `inst` -- The entity instance owning the widget
+  - `doer` -- The player entity performing the action
+* **Returns:** nil
+
+### `params.bundle_container.widget.buttoninfo.validfn(inst)`
+* **Description:** Checks if the container is not empty and not read-only to enable the button.
+* **Parameters:**
+  - `inst` -- The entity instance owning the widget
+* **Returns:** boolean
+
+### `params.construction_container.itemtestfn(container, item, slot)`
+* **Description:** Validates construction ingredients against the doer's construction builder UI data.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.construction_container.widget.buttoninfo.fn(inst, doer)`
+* **Description:** Executes the APPLYCONSTRUCTION action via buffered action or RPC.
+* **Parameters:**
+  - `inst` -- The entity instance owning the widget
+  - `doer` -- The player entity performing the action
+* **Returns:** nil
+
+### `params.construction_container.widget.buttoninfo.validfn(inst)`
+* **Description:** Checks if the container is not empty to enable the button.
+* **Parameters:**
+  - `inst` -- The entity instance owning the widget
+* **Returns:** boolean
 
 ### `IsConstructionSiteComplete(inst, doer)`
-* **Description:** Checks whether the construction site associated with `doer` has all required ingredients present in `inst`’s container with sufficient quantity.
+* **Description:** Checks if the construction site has all required ingredients in the container.
 * **Parameters:**
-  - `inst`: The container instance containing the ingredients.
-  - `doer`: The entity attempting construction (typically a player).
-* **Returns:** `true` if all required ingredients are present; `false` otherwise (including if container, construction site, or ingredients are missing/nil).
+  - `inst` -- The construction container entity instance
+  - `doer` -- The player entity attempting construction
+* **Returns:** boolean
 
 ### `EnableRiftsPopUpGoBack()`
-* **Description:** Pops the current frontend screen to close a confirmation dialog (e.g., for shadow/rift construction).
-* **Parameters:** None.
-* **Returns:** `nil`.
+* **Description:** Closes the current front end screen.
+* **Parameters:** None
+* **Returns:** nil
 
 ### `EnableRiftsDoAct(inst, doer)`
-* **Description:** Executes the `ApplyConstruction` action for `inst` using `doer`, via local buffered action or RPC.
+* **Description:** Executes the APPLYCONSTRUCTION action via buffered action or RPC.
 * **Parameters:**
-  - `inst`: The container instance.
-  - `doer`: The entity performing the action.
-* **Returns:** `nil`.
-
-### `params.enable_shadow_rift_construction_container.widget.overrideactionfn(inst, doer)`
-* **Description:** Shows a UI confirmation dialog for shadow/rift construction if the site is complete. Otherwise, allows fallback direct action.
-* **Parameters:**
-  - `inst`: The container instance.
-  - `doer`: The entity performing the action.
-* **Returns:** `true` if the confirmation UI was shown; `false` otherwise.
+  - `inst` -- The entity instance owning the widget
+  - `doer` -- The player entity performing the action
+* **Returns:** nil
 
 ### `params.enable_shadow_rift_construction_container.widget.buttoninfo.fn(inst, doer)`
-* **Description:** Button click handler for shadow/rift container UI; delegates to `overrideactionfn`. If that returns `false`, calls `EnableRiftsDoAct`.
+* **Description:** Handles button action, optionally triggering override logic for rifts.
 * **Parameters:**
-  - `inst`: The container instance.
-  - `doer`: The entity performing the action.
-* **Returns:** `nil`.
+  - `inst` -- The entity instance owning the widget
+  - `doer` -- The player entity performing the action
+* **Returns:** nil
+
+### `params.enable_shadow_rift_construction_container.widget.overrideactionfn(inst, doer)`
+* **Description:** Shows a confirmation dialog if the construction site is complete, otherwise returns false.
+* **Parameters:**
+  - `inst` -- The entity instance owning the widget
+  - `doer` -- The player entity performing the action
+* **Returns:** boolean
+
+### `params.mushroom_light.itemtestfn(container, item, slot)`
+* **Description:** Validates light battery or container items, excluding burnt lights.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.mushroom_light2.itemtestfn(container, item, slot)`
+* **Description:** Validates light battery, spore, or container items, excluding burnt lights.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.yots_lantern_post.itemtestfn(container, item, slot)`
+* **Description:** Validates light tags using helper table, excluding burnt lights.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.hermitcrab_lightpost.widget.bganim_visualfn(bganim, container, doer)`
+* **Description:** Sets the symbol mult colour of the coral symbol based on container anim state.
+* **Parameters:**
+  - `bganim` -- The background animation widget
+  - `container` -- The container component instance
+  - `doer` -- The player entity
+* **Returns:** nil
+
+### `params.hermithouse2.itemtestfn(container, item, slot)`
+* **Description:** Validates hermit house ornament items.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.winter_tree.itemtestfn(container, item, slot)`
+* **Description:** Validates winter or hermit house ornament items, excluding burnt trees.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.sisturn.itemtestfn(container, item, slot)`
+* **Description:** Determines if an item is valid for the sisturn container, checking owner skilltree activation.
+* **Parameters:**
+  - `container` -- The container component instance holding the items
+  - `item` -- The item entity being tested for validity
+  - `slot` -- The slot index in the container
+* **Returns:** boolean indicating if the item is accepted
+
+### `params.offering_pot.itemtestfn(container, item, slot)`
+* **Description:** Checks if the container is not burnt and the item is kelp.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.merm_toolshed.itemtestfn(container, item, slot)`
+* **Description:** Validates twigs or rocks for specific slots in the merm toolshed.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.merm_armory.itemtestfn(container, item, slot)`
+* **Description:** Validates log or cutgrass for specific slots in the merm armory.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.livingtree_halloween.itemtestfn(container, item, slot)`
+* **Description:** Checks if item has halloween_ornament tag and container is not burnt.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.icebox.itemtestfn(container, item, slot)`
+* **Description:** Validates perishable or edible items for the icebox.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.saltbox.itemtestfn(container, item, slot)`
+* **Description:** Validates cookable perishable items or saltbox_valid tagged items.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.teleportato_base.itemtestfn(container, item, slot)`
+* **Description:** Checks if item does not have nonpotatable tag.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.teleportato_base.widget.buttoninfo.fn(inst, doer)`
+* **Description:** Placeholder function for teleportato activation, currently unsupported.
+* **Parameters:**
+  - `inst` -- The entity instance owning the widget
+  - `doer` -- The player entity activating the button
+* **Returns:** nil
+
+### `params.balatro_machine.itemtestfn(container, item, slot)`
+* **Description:** Checks if container is not burnt.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.balatro_machine.widget.buttoninfo.fn(inst, doer)`
+* **Description:** Activates the container via BufferedAction or RPC depending on network state.
+* **Parameters:**
+  - `inst` -- The entity instance owning the widget
+  - `doer` -- The player entity activating the button
+* **Returns:** nil
+
+### `params.antlionhat.itemtestfn(container, item, slot)`
+* **Description:** Checks if item has groundtile tag and tile property.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.fish_box.itemtestfn(container, item, slot)`
+* **Description:** Checks if item has smalloceancreature tag.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.oceanfishingrod.itemtestfn(container, item, slot)`
+* **Description:** Validates oceanfishing_bobber or oceanfishing_lure tags for specific slots.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.beard_sack_1.itemtestfn(container, item, slot)`
+* **Description:** Checks if item is edible according to OMNI food group.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.beard_sack_2.itemtestfn(container, item, slot)`
+* **Description:** Checks if item is edible according to OMNI food group.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.beard_sack_3.itemtestfn(container, item, slot)`
+* **Description:** Checks if item is edible according to OMNI food group.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.slingshot.itemtestfn(container, item, slot)`
+* **Description:** Validates slingshotammo tag and checks owner skilltree for required skill.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The item entity being tested
+  - `slot` -- The slot index
+* **Returns:** boolean
+
+### `params.slingshotmodscontainer.itemtestfn(container, item, slot)`
+* **Description:** Validates items for the slingshot mods container based on skill requirements and specific slingshot tags.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The inventory item entity
+  - `slot` -- The slot index being checked
+* **Returns:** boolean indicating if the item is valid for the slot
+* **Error states:** Returns false if owner lacks required skill or item lacks correct tag
+
+### `params.tacklecontainer.itemtestfn(container, item, slot)`
+* **Description:** Validates items for the tackle container by checking for fishing bobber or lure tags.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The inventory item entity
+  - `slot` -- The slot index being checked
+* **Returns:** boolean indicating if the item is valid for the slot
+
+### `params.seedpouch.itemtestfn(container, item, slot)`
+* **Description:** Validates items for the seed pouch by checking prefab name or treeseed tag.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The inventory item entity
+  - `slot` -- The slot index being checked
+* **Returns:** boolean indicating if the item is valid for the slot
+
+### `params.candybag.itemtestfn(container, item, slot)`
+* **Description:** Validates items for the candy bag by checking halloween or trinket tags.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The inventory item entity
+  - `slot` -- The slot index being checked
+* **Returns:** boolean indicating if the item is valid for the slot
+
+### `params.alterguardianhatshard.itemtestfn(container, item, slot)`
+* **Description:** Validates items for the alter guardian hat shard container by checking spore tag.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The inventory item entity
+  - `slot` -- The slot index being checked
+* **Returns:** boolean indicating if the item is valid for the slot
 
 ### `params.alterguardianhat.itemtestfn(container, item, slot)`
-* **Description:** Determines if `item` can be placed in the Alter Guardian Hat container.
+* **Description:** Validates items for the alter guardian hat by checking spore or lunarseed tags.
 * **Parameters:**
-  - `container`: The container instance.
-  - `item`: The item being tested.
-  - `slot`: Slot index (unused).
-* **Returns:** `true` if `item` has tag `"spore"` or `"lunarseed"`; `false` otherwise.
+  - `container` -- The container component instance
+  - `item` -- The inventory item entity
+  - `slot` -- The slot index being checked
+* **Returns:** boolean indicating if the item is valid for the slot
 
 ### `params.pocketwatch.itemtestfn(container, item, slot)`
-* **Description:** Determines if `item` can be placed in the Pocket Watch container.
-* **Parameters:** Same as above.
-* **Returns:** `true` if `item` has tag `"pocketwatchpart"`; `false` otherwise.
+* **Description:** Validates items for the pocketwatch by checking pocketwatchpart tag.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The inventory item entity
+  - `slot` -- The slot index being checked
+* **Returns:** boolean indicating if the item is valid for the slot
 
 ### `params.ocean_trawler.itemtestfn(container, item, slot)`
-* **Description:** Determines if `item` can be cooked in the Ocean Trawler.
-* **Parameters:** Same as above.
-* **Returns:** `true` if `item` has tag `"cookable"` or `"oceanfish"`; `false` otherwise.
+* **Description:** Validates items for the ocean trawler by checking cookable or oceanfish tags.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The inventory item entity
+  - `slot` -- The slot index being checked
+* **Returns:** boolean indicating if the item is valid for the slot
 
 ### `params.bookstation.itemtestfn(container, item, slot)`
-* **Description:** Determines if `item` can be placed in the Book Station container.
-* **Parameters:** Same as above.
-* **Returns:** `true` if `item` has tag `"bookcabinet_item"`; `false` otherwise.
+* **Description:** Validates items for the book station by checking bookcabinet_item tag.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The inventory item entity
+  - `slot` -- The slot index being checked
+* **Returns:** boolean indicating if the item is valid for the slot
 
 ### `params.beargerfur_sack.itemtestfn(container, item, slot)`
-* **Description:** Determines if `item` can be placed in the Bearger Fur Sack.
-* **Parameters:** Same as above.
-* **Returns:** `true` if `item` has tag `"beargerfur_sack_valid"` or `"preparedfood"`; `false` otherwise.
+* **Description:** Validates items for the beargers fur sack by checking prepared food tags.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The inventory item entity
+  - `slot` -- The slot index being checked
+* **Returns:** boolean indicating if the item is valid for the slot
 
 ### `params.houndstooth_blowpipe.itemtestfn(container, item, slot)`
-* **Description:** Determines if `item` can be placed in the Hound’s Tooth Blowpipe container.
-* **Parameters:** Same as above.
-* **Returns:** `true` if `item` has tag `"blowpipeammo"`; `false` otherwise.
+* **Description:** Validates items for the houndstooth blowpipe by checking blowpipeammo tag.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The inventory item entity
+  - `slot` -- The slot index being checked
+* **Returns:** boolean indicating if the item is valid for the slot
 
 ### `params.battlesong_container.itemtestfn(container, item, slot)`
-* **Description:** Determines if `item` (a battlesong) can be placed in the container.
-* **Parameters:** Same as above.
-* **Returns:** `true` if `item` has tag `"battlesong"`; `false` otherwise.
+* **Description:** Validates items for the battlesong container by checking battlesong tag.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The inventory item entity
+  - `slot` -- The slot index being checked
+* **Returns:** boolean indicating if the item is valid for the slot
 
 ### `params.wortox_souljar.itemtestfn(container, item, slot)`
-* **Description:** Determines if `item` (a soul) can be placed in Wortox’s Soul Jar.
-* **Parameters:** Same as above.
-* **Returns:** `true` if `item` has tag `"soul"` and does **not** have tag `"nosouljar"`; `false` otherwise.
+* **Description:** Validates items for the wortox souljar by checking soul tag and excluding nosouljar.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The inventory item entity
+  - `slot` -- The slot index being checked
+* **Returns:** boolean indicating if the item is valid for the slot
 
 ### `params.elixir_container.itemtestfn(container, item, slot)`
-* **Description:** Determines if `item` can be placed in Wendy’s Elixir Container.
-* **Parameters:** Same as above.
-* **Returns:** `true` if `item` has tag `"ghostlyelixir"` or `"ghostflower"`; `false` otherwise.
+* **Description:** Validates items for the elixir container by checking ghostly elixir or ghostflower tags.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The inventory item entity
+  - `slot` -- The slot index being checked
+* **Returns:** boolean indicating if the item is valid for the slot
 
 ### `params.dragonflyfurnace.itemtestfn(container, item, slot)`
-* **Description:** Determines if `item` can be placed in the Dragonfly Furnace for incineration.
-* **Parameters:** Same as above.
-* **Returns:** `true` if `item` does **not** have tag `"irreplaceable"`; `false` otherwise.
+* **Description:** Validates items for the dragonfly furnace by excluding irreplaceable items.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The inventory item entity
+  - `slot` -- The slot index being checked
+* **Returns:** boolean indicating if the item is valid for the slot
 
 ### `params.dragonflyfurnace.widget.buttoninfo.fn(inst, doer)`
-* **Description:** Handler for the Incinerate button in Dragonfly Furnace UI. Executes incineration locally (if `BufferedAction` available) or via RPC.
+* **Description:** Executes the incinerate action when the dragonfly furnace button is clicked.
 * **Parameters:**
-  - `inst`: The furnace entity instance.
-  - `doer`: The player performing the action.
-* **Returns:** `nil`.
+  - `inst` -- The entity instance owning the widget
+  - `doer` -- The player entity performing the action
+* **Returns:** nil
+* **Error states:** Checks for container component or replica before sending RPC
 
 ### `params.dragonflyfurnace.widget.buttoninfo.validfn(inst)`
-* **Description:** Determines if the Incinerate button should be visible/enabled.
+* **Description:** Checks if the dragonfly furnace container is valid for interaction.
 * **Parameters:**
-  - `inst`: The furnace entity instance.
-* **Returns:** `true` if `inst.replica.container` exists and is not empty; `false` otherwise.
+  - `inst` -- The entity instance owning the widget
+* **Returns:** boolean indicating if the button is valid
 
 ### `params.slingshotammo_container.itemtestfn(container, item, slot)`
-* **Description:** Determines if `item` can be placed in the Slingshot Ammo container.
-* **Parameters:** Same as above.
-* **Returns:** `true` if `item` has tag `"slingshotammo"`; `false` otherwise.
+* **Description:** Validates items for the slingshot ammo container by checking slingshotammo tag.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The inventory item entity
+  - `slot` -- The slot index being checked
+* **Returns:** boolean indicating if the item is valid for the slot
 
 ### `params.quagmire_pot.itemtestfn(container, item, slot)`
-* **Description:** Determines if `item` can be stewed in the Quagmire Pot.
-* **Parameters:** Same as above.
-* **Returns:** `true` if:
-  - `item` has tag `"quagmire_stewable"`,
-  - `item.prefab` ≠ `"quagmire_sap"`,
-  - and either: `item.components.inventoryitem:IsHeld()` is `false`, or `item` is not `"spoiled_food"`/`"preparedfood"`/`"overcooked"` and container lacks tag `"takeonly"`.
-* **Assumes:** `item.components.inventoryitem` exists.
-
-### `params.quagmire_pot_small.itemtestfn(container, item, slot)`
-* **Description:** Alias for `params.quagmire_pot.itemtestfn`.
+* **Description:** Validates items for the quagmire pot by checking stewable tags and held status.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The inventory item entity
+  - `slot` -- The slot index being checked
+* **Returns:** boolean indicating if the item is valid for the slot
+* **Error states:** Excludes spoiled food, prepared food, overcooked, or takeonly tags
 
 ### `params.quagmire_pot_syrup.itemtestfn(container, item, slot)`
-* **Description:** Determines if `item` can be stewed in the Quagmire Pot (Syrup variant).
-* **Parameters:** Same as above.
-* **Returns:** `true` if:
-  - `item` has tag `"quagmire_stewable"`,
-  - and either: `item.components.inventoryitem:IsHeld()` is `false`, or `item.prefab == "quagmire_sap"` and container lacks tag `"takeonly"`.
-* **Assumes:** `item.components.inventoryitem` exists.
-
-### `params.quagmire_casseroledish.itemtestfn(container, item, slot)`
-* **Description:** Alias for `params.quagmire_pot.itemtestfn`.
-
-### `params.quagmire_casseroledish_small.itemtestfn(container, item, slot)`
-* **Description:** Alias for `params.quagmire_pot_small.itemtestfn`.
-
-### `params.quagmire_grill.itemtestfn(container, item, slot)`
-* **Description:** Alias for `params.quagmire_pot.itemtestfn`.
-
-### `params.quagmire_grill_small.itemtestfn(container, item, slot)`
-* **Description:** Alias for `params.quagmire_pot_small.itemtestfn`.
+* **Description:** Validates items for the quagmire pot syrup by checking stewable tags and sap logic.
+* **Parameters:**
+  - `container` -- The container component instance
+  - `item` -- The inventory item entity
+  - `slot` -- The slot index being checked
+* **Returns:** boolean indicating if the item is valid for the slot
 
 ## Events & listeners
-* No events or listeners are registered in this file.
+
+* **Listens to:** None
+* **Pushes:** None

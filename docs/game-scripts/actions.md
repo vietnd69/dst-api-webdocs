@@ -1,1892 +1,3013 @@
 ---
 id: actions
 title: Actions
-description: Defines the core action system that handles player interactions with entities, items, and the world through keyboard, mouse, and controller inputs.
-tags: [interaction, input, player, combat, inventory]
+description: This component defines the complete action system for Don't Starve Together, including action type registration, range validation helpers, distance adjustments for terrain and physics, and comprehensive player interaction handlers covering combat, crafting, exploration, boat mechanics, and special gameplay mechanics.
+tags: [actions, player, interactions, combat, crafting]
 sidebar_position: 10
 
-last_updated: 2026-03-10
+last_updated: 2026-03-21
 build_version: 714014
 change_status: stable
 category_type: root
 source_hash: 82eee1ae
-system_scope: player
+system_scope: gameplay
 ---
 
 # Actions
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **714014** | Last updated: 2026-03-21
 
 ## Overview
-The actions system implements the fundamental interaction layer for the Entity Component System, mapping user inputs (keyboard/mouse/controller) to functional operations across the game world. Each action is defined as a structured object with a name, priority, execution function, validation logic, range checks, and contextual string generators. The system integrates deeply with components like `combat`, `inventory`, `workable`, `builder`, `fueled`, `repairable`, `fertilizable`, `deployable`, `trap`, `craftingstation`, and `locator`, as well as subsystems for fishing, ocean navigation, construction, and map-based interactions. Actions support range constraints, state-dependent validity, special cases for ghosts, riding, or encumbrance, and provide feedback through UI strings and events.
+
+The Actions component is the central system for defining and executing player interactions in Don't Starve Together. It registers all available actions (such as ATTACK, PICKUP, EAT, DEPLOY, COOK, and hundreds more) into ordered lookup tables, implements specific action handlers that interface with entity components, and provides range validation helpers with distance adjustments for terrain and physics considerations. Each action is defined with properties like priority, distance requirements, ghost validity, and custom range check functions. The component handles player verb interactions through the BufferedAction system, supporting both standard gameplay actions and special-purpose mechanics including boat operations, Quagmire event mechanics, Year of the Beast content, and magical tool usage. Actions are triggered via player input, context menus, or programmatic calls, and each action handler validates conditions before executing component methods on target entities.
 
 ## Usage example
+
 ```lua
--- Register a custom action for harvesting a custom resource
-ACTIONS.CUSTOM_HARVEST = {
-    priority = 2,
-    strfn = function(act) return act.target.prefab == "my_resource" and "HARVEST" or nil end,
-    fn = function(act)
-        if act.target.components.myharvester then
-            return act.target.components.myharvester:Harvest(act.doer)
-        end
-    end,
-    validfn = function(act)
-        return act.target ~= nil and act.target:HasTag("harvestable") and
-               act.target.components.myharvester ~= nil and
-               act.target.components.health and not act.target.components.health:IsDead()
-    end,
-    rangecheckfn = MakeRangeCheckFn(4),
+-- Check if an action is valid for a target
+local act = {
+    doer = GetPlayer(),
+    target = some_entity,
+    invobject = GetPlayer().components.inventory:GetActiveItem(),
+    action = ACTIONS.CHOP
 }
 
--- Example: harvesting a crop with a tool
-local act = {
-    doer = player,
-    target = crop_entity,
-    invobject = hoe,
-    action = ACTIONS.CUSTOM_HARVEST,
-    GetActionPoint = function() return Vector3(0,0,0) end,
-}
-local success = ACTIONS.CUSTOM_HARVEST.fn(act)
+if ACTIONS.CHOP.validfn(act) then
+    -- Execute the chop action
+    local success = ACTIONS.CHOP.fn(act)
+    if success then
+        print("Chop succeeded!")
+    end
+end
+
+-- Create a custom action with range validation
+local my_action = Action({
+    priority = 5,
+    distance = 3,
+    rangecheckfn = MakeRangeCheckFn(3),
+    fn = function(act)
+        act.target.components.workable:WorkedBy(act.doer, 1)
+        return true
+    end
+})
 ```
 
 ## Dependencies & tags
-**Components used:** activatable, anchor, aoespell, appraisable, attunable, attuner, bait, balloonmaker, bathbomb, bathbombable, bathingpool, battery, batteryuser, beard, bedazzler, blinkstaff, boatcannon, boatcannonuser, boatleak, boatmagnet, boatmagnetbeacon, boatrotator, book, bottler, brushable, builder, bundler, burnable, carnivalgamefeedable, cattoy, channelable, channelcastable, channelcaster, childspawner, clientpickupsoundsuppressor, closeinspector, combat, complexprojectile, compostingbin, constructionbuilder, constructionbuilderuidata, constructionplans, constructionsite, container, container_proxy, containerinstallableitem, cookable, cooker, craftingstation, crewmember, crittertraits, crop, curseditem, cyclable, deckcontainer, deployable, drawable, drawingtool, dryer, dryingrack, dumbbelllifter, eater, edible, electricconnector, embarker, entitytracker, equippable, erasablepaper, expertsailor, fan, farmplantable, farmplantstress, farmplanttendable, farmtiller, fencerotator, fertilizable, fertilizer, fertilizerresearchable, fillable, finiteuses, fishingnet, fishingrod, follower, followerherder, forgerepair, forgerepairable, freezable, fueled, fueler, furnituredecortaker, gestaltcage, ghostgestalter, ghostlybond, ghostlyelixir, ghostlyelixirable, grabbable, gravediggable, gravedigger, groomer, grower, guardian, halloweenpotionmoon, harvestable, hauntable, healer, health, heavyobstacleusetarget, helmsplitter, hideandseekhidingspot, hideout, hitchable, hitcher, incinerator, inspectable, instrument, inventory, inventoryitem, inventoryitemholder, itemmimic, itemtyperestrictions, itemweigher, joustsource, joustuser, kitcoon, kitcoonden, klaussacklock, knownlocations, lighter, lock, locomotor, lootdropper, lunarhailbuildup, machine, magician, maprecorder, mapspotrevealer, markable, markable_proxy, mast, maxhealer, maxwelltalker, mightygym, mine, moonstormstaticcatcher, moontrader, multithruster, murderable, nabbag, npc_talker, oar, occupiable, occupier, oceanfishable, oceanfishingrod, oceanthrowable, oceantrawler, papereraser, perishable, petleash, pickable, pinnable, plantresearchable, playbill, playbill_lecturn, playercontroller, playingcard, playingcardsmanager, pocketwatch, pocketwatch_dismantler, pollinator, poppable, portablestructure, preservative, projectile, pumpkincarvable, pumpkinhatcarvable, pushable, quagmire_altar, quagmire_cookwaretrader, quagmire_fertilizable, quagmire_installable, quagmire_installations, quagmire_plantable, quagmire_replatable, quagmire_replater, quagmire_saltable, quagmire_saltextractor, quagmire_saltpond, quagmire_slaughtertool, quagmire_stewer, quagmire_tappable, quagmire_tapper, quagmire_tiller, questowner, reader, recipescanner, remoteteleporter, repairable, repairer, repellent, revivablecorpse, rideable, rider, roseinspectableuser, sanity, scrapbookable, searchable, sewing, shaveable, shaver, shelf, simplebook, singable, singinginspiration, sittable, skilltreeupdater, sleepingbag, slingshotmodder, slingshotmods, snowmandecoratable, soul, souleater, spawner, spellbook, spellcaster, spidermutator, spooked, stackable, stageactingprop, stageactor, steeringwheel, steeringwheeluser, stewer, storyteller, strongman, summoningitem, tackler, tacklesketch, talkable, talker, teacher, teleporter, terraformer, thief, toggleableitem, tool, trader, trap, treegrowthsolution, trophyscale, unwrappable, upgradeable, upgrademodule, upgrademoduleowner, upgrademoduleremover, upgrader, useableitem, useabletargeteditem, vase, walkingplank, wardrobe, wateryprotection, waxable, weighable, winch, workable, worker, workmultiplier, worldmigrator, writeable, yotb_sewer, yotb_skinunlocker, yotb_stagemanager, yotb_stager, yotc_racecompetitor, yotc_raceprizemanager, yotc_racestart
 
-**Tags:** burnt, anchor_lowered, anchor_transitioning, burnableignorefuel, INLIMBO, deployable, deployedplant, fire, stokeablefire, canbepicked, stuck, no_force_grow, stump, fueldepleted, hasemergencymode, pet_treat, has_aggressive_follower, near_kitcoonden, can_be_bathbombed, is_sail_raised, silt, has_silt, farm_debris, farm_plant, deployable_farmplant, deployable_groundtile, deployable_wall, deployable_plant, deployable_water, waterplant, deployable_mast, deployable_custom, decoratable, deployable_mast, deployable_custom, unwrappable, canpeek, pickapart, offerconstructionsite, constructionsite, repairconstructionsite, rebuildconstructionsite, repairable_moon_altar, repairable_vitae, spicer, deployable_farmplant, deployedfarmplant, soul, mine, trap, reloaditem_ammo, deployable_farmplant, deployedplant, farming, deployable_groundtile, deployable_wall, deployable_plant, deployable_water, waterplant, deployable_mast, deployable_custom, deployable_farmplant, deployedfarmplant, farming, deployable_groundtile, deployable_wall, deployable_plant, deployable_water, waterplant, deployable_mast, deployable_custom
+**External dependencies:**
+- `class` -- requires Class constructor
+- `util` -- requires module
+- `vecutil` -- requires module for Vector3, distsq
+- `TheWorld` -- used in multiple range/check functions via TheWorld.Map
+- `FindVirtualOceanEntity` -- global function used in ocean fishing range checks
+- `TILE_SCALE` -- global constant used in CheckTileWithinRange
+- `ACTIONS` -- global table storing action definitions
+- `STRINGS` -- Used to fetch localization strings for action names
+- `TUNING` -- Used for balance constants like SANITY_TINY
+- `Action` -- Function used to construct action objects
+- `SpawnPrefab` -- used to spawn loot and entities
+- `BufferedAction` -- used to create buffered actions
+- `GetMapExplorer` -- used by maprecorder:TeachMap
+- `weighted_random_choice` -- Used in PLANTWEED to select random weed
+- `FunctionOrValue` -- Used in various string override functions
+- `CanEntitySeeTarget` -- Used to check visibility before actions
+- `AllRecipes` -- used for recipe lookup
+- `GetDescription` -- Used to get descriptions for actions
+- `TheSim` -- Used to find entities around a position
+- `TheNet` -- Used to check PVP status
+- `EQUIPSLOTS` -- Used to identify equipped item slots
+
+**Components used:**
+- `appraisable` -- Called via CanAppraise and Appraise in APPRAISE action handler
+- `balloonmaker` -- Used in MAKEBALLOON action to spawn balloon at position
+- `burnable` -- Checked in PICKUP action to prevent picking up burning items
+- `container` -- Used in RUMMAGE, EMPTY_CONTAINER, and PICKUP actions
+- `container_proxy` -- Handled in RUMMAGE to manage proxy container opening
+- `curseditem` -- Used in PICKUP action to verify player has space for cursed items
+- `dryer` -- Drops item from dryer in STEAL action fallback path
+- `eater` -- Used in EAT action to handle eating edible items
+- `edible` -- Required in EAT action; may be on target or invobject
+- `entitytracker` -- Used in PICKUP action to check YOTC trainer ownership
+- `equippable` -- Used in EQUIP, UNEQUIP, and PICKUP to manage equipment slots
+- `follower` -- Used in PICKUP action to verify spider owner/leader relationship
+- `forgerepairable` -- Used in REPAIR action to repair with specific materials
+- `finiteuses` -- Referenced in SEW and repair handlers to consume uses
+- `fueled` -- Required for SEW target and ForgeRepair repairs
+- `health` -- Used in Eater:Eat to apply health changes
+- `inventory` -- Core dependency for Equip, Unequip, GiveItem, DropItem
+- `inventoryitem` -- Checks owner, canbepickedup, cangoincontainer
+- `itemtyperestrictions` -- Used in PICKUP to restrict item pickup per character
+- `oceanfishable` -- Used in EAT action for rod-target interaction
+- `projectile` -- Checked in PICKUP to prevent picking up thrown items
+- `repairable` -- Used in REPAIR action with repairer material
+- `repairer` -- Required in REPAIR to provide repair material
+- `rideable` -- Referenced in RUMMAGE and DROP handlers
+- `rider` -- Used in RUMMAGE to get mount when doer is riding
+- `sanity` -- Consumed in MAKEBALLOON action
+- `sewing` -- Required for SEW action to perform repair
+- `skilltreeupdater` -- Used in RUMMAGE to verify skill activation
+- `soul` -- Required in EAT action as target for SoulEater
+- `souleater` -- Used in EAT action to consume souls
+- `stackable` -- Referenced in SEW and repair handlers
+- `thief` -- Used in STEAL action to steal items
+- `workable` -- Used in EMPTY_CONTAINER to call onwork callback
+- `closeinspector` -- Used for inspecting targets with equipped items
+- `locomotor` -- Stopped before close inspection and talk actions
+- `inspectable` -- Provides descriptions for LOOKAT action
+- `talker` -- Used for speech output from various actions
+- `playercontroller` -- Controls directwalking flag and locomotor override
+- `book` -- Reads books via reader component
+- `simplebook` -- Reads simple books directly
+- `reader` -- Reads books via OnRead or OnPeruse methods
+- `crewmember` -- Used for rowing actions without oar
+- `oar` -- Executes rowing and row failure logic
+- `oceanfishingrod` -- Handles casting, reeling, catching ocean fishing
+- `complexprojectile` -- Launches projectiles during deploy
+- `deployable` -- Deploys items with placement logic
+- `trap` -- Checks and harvests traps, sets bait
+- `worker` -- Provides effectiveness multipliers for tool work
+- `tool` -- Provides effectiveness multipliers for tool work
+- `workmultiplier` -- Provides global and special work multipliers
+- `spooked` -- Triggers spooking on successful chop actions
+- `talkable` -- Handles talk interaction
+- `maxwelltalker` -- Handles Maxwell-specific speech behavior
+- `storyteller` -- Triggers story telling behavior
+- `stageactor` -- Performs stage acting with props
+- `stageactingprop` -- Provides performance capability
+- `farmplantstress` -- Applies stress during ATTACKPLANT action
+- `farmplanttendable` -- Tends to farm plants
+- `guardian` -- Called for guardian summoning
+- `itemmimic` -- Prevents tool work if item is mimic
+- `perishable` -- Used for handling stack swaps and spoilage
+- `crop` -- Called in FERTILIZE action to fertilize crops
+- `grower` -- Called in FERTILIZE action to fertilize empty growers
+- `pickable` -- Called in FERTILIZE and PICK actions
+- `fertilizer` -- Used to apply fertilizer from invobject
+- `grabbable` -- Checked in NET action to verify grabbability
+- `nabbag` -- Called in NET action to replicate netting
+- `fishingrod` -- Used in FISH and REEL actions
+- `searchable` -- Called in PICK action to search containers
+- `combat` -- Used in ATTACK action to get weapon and perform attack
+- `cooker` -- Used in COOK action for container cooking
+- `stewer` -- Used in COOK action for stewing logic
+- `cookable` -- Used in COOK action for direct-item cooking
+- `fillable` -- Used in FILL action to fill items with water
+- `fueler` -- Used in ADDFUEL for direct fuel interaction
+- `trader` -- Used in GIVE, GIVETOPLAYER, GIVEALLTOPLAYER actions
+- `moontrader` -- Used in GIVE action for celestial traders
+- `furnituredecortaker` -- Used in GIVE action to place decor
+- `inventoryitemholder` -- Used in GIVE action for item holders
+- `vase` -- Used in DECORATEVASE action
+- `carnivalgamefeedable` -- Used in CARNIVALGAME_FEED action
+- `constructionsite` -- Links builder and constructioninst
+- `harvestable` -- Handles harvesting via Harvest method
+- `occupiable` -- Manages occupation and harvesting
+- `lighter` -- Lights targets in LIGHT action
+- `sleepingbag` -- Handles sleeping in SLEEPIN action
+- `hitcher` -- Handles hitching/unhitching
+- `beard` -- Handles shaving in SHAVE action
+- `shaveable` -- Handles shaving when beard missing
+- `instrument` -- Handles playing instruments
+- `pollinator` -- Handles pollination and flower creation
+- `terraformer` -- Handles terraforming
+- `knownlocations` -- Stores and retrieves investigation locations
+- `npc_talker` -- Plays queued NPC speech
+- `spawner` -- Handles entity returning home
+- `childspawner` -- Handles child spawner GOHOME
+- `hideout` -- Handles hideout GOHOME
+- `teleporter` -- Checks teleporter validity
+- `activatable` -- Checks and performs activation
+- `markable` -- Handles marking/unmarking
+- `markable_proxy` -- Handles marking via proxy
+- `wardrobe` -- Handles wardrobe dressing
+- `groomer` -- Handles grooming/dressing
+- `builder` -- Handles building in BUILD and OPEN_CRAFTING
+- `murderable` -- accessed for murdersound
+- `lootdropper` -- accessed for GenerateLoot
+- `lock` -- accessed for IsLocked, Lock, Unlock
+- `klaussacklock` -- accessed for UseKey
+- `scrapbookable` -- accessed for Teach
+- `teacher` -- accessed for Teach
+- `maprecorder` -- accessed for TeachMap
+- `mapspotrevealer` -- accessed for RevealMap
+- `recipescanner` -- accessed for Scan
+- `machine` -- accessed for IsOn, TurnOn, TurnOff
+- `toggleableitem` -- accessed for CanInteract, ToggleItem
+- `useableitem` -- accessed for CanInteract, StartUsingItem
+- `useabletargeteditem` -- accessed for CanInteract, StartUsingItem
+- `shelf` -- accessed for TakeItem
+- `spellcaster` -- accessed for CanCast, CastSpell
+- `summoningitem` -- accessed for inst
+- `ghostlybond` -- accessed for Summon, Recall, ChangeBehaviour
+- `pinnable` -- accessed for IsStuck
+- `pethealthbar` -- used via ghostlybond for SetPetSkin
+- `freezable` -- IsFrozen in MOUNT
+- `hitchable` -- GetHitch in MOUNT
+- `attunable` -- LinkToPlayer in ATTUNE
+- `worldmigrator` -- Activate in MIGRATE
+- `attuner` -- GetAttunedTarget in REMOTERESURRECT
+- `revivablecorpse` -- CanBeRevivedBy, Revive in REVIVE_CORPSE
+- `petleash` -- DespawnPet in ABANDON
+- `crittertraits` -- OnPet in PET
+- `kitcoonden` -- AddKitcoon in RETURN_FOLLOWER
+- `hideandseekhidingspot` -- SearchHidingSpot in HIDEANSEEK_FIND
+- `papereraser` -- DoErase in ERASE_PAPER
+- `erasablepaper` -- Used in ERASE_PAPER condition
+- `fan` -- Fan in FAN
+- `poppable` -- Pop in CATPLAYGROUND, CATPLAYAIR
+- `brushable` -- Brush in BRUSH
+- `upgrader` -- CanUpgrade in UPGRADE
+- `upgradeable` -- CanUpgrade, Upgrade in UPGRADE
+- `writeable` -- IsWritten, IsBeingWritten, BeginWriting in WRITE
+- `bundler` -- CanStartBundling, IsBundling, StartBundling, FinishBundling
+- `unwrappable` -- canbeunwrapped, Unwrap, PeekInContainer
+- `channelcaster` -- StartChanneling in START_CHANNELCAST
+- `channelcastable` -- IsAnyUserChanneling, IsUserChanneling, StopChanneling
+- `channelable` -- StartChanneling, StopChanneling
+- `drawingtool` -- GetImageToDraw, Draw in DRAW
+- `drawable` -- CanDraw in DRAW
+- `anchor` -- Used by RAISE_ANCHOR and LOWER_ANCHOR actions
+- `aoespell` -- Used by CASTAOE action to validate and cast AoE spells
+- `boatcannon` -- Used by BOAT_CANNON_LOAD_AMMO, BOAT_CANNON_SHOOT actions
+- `boatcannonuser` -- Used by BOAT_CANNON_START_AIMING, BOAT_CANNON_STOP_AIMING
+- `boatleak` -- Used by REPAIR_LEAK action to repair leaks
+- `boatmagnet` -- Used by BOAT_MAGNET_ACTIVATE and BOAT_MAGNET_DEACTIVATE
+- `boatmagnetbeacon` -- Used by BOAT_MAGNET_BEACON_TURN_ON and TURN_OFF
+- `boatrotator` -- Used by ROTATE_BOAT actions to control rotation
+- `constructionbuilder` -- Used by CONSTRUCT, STOPCONSTRUCTION, APPLYCONSTRUCTION
+- `constructionplans` -- Used by CONSTRUCT action to start construction
+- `expertsailor` -- Used by LOWER_SAIL_BOOST to determine sailor strength
+- `farmplantable` -- Used by PLANTSOIL action to plant seeds
+- `farmtiller` -- Used by TILL action to till soil
+- `fishingnet` -- Used by CAST_NET action to cast nets
+- `halloweenpotionmoon` -- Used by HALLOWEENMOONMUTATE to mutate targets
+- `itemweigher` -- Used by WEIGH_ITEM action to weigh items
+- `mast` -- Used by RAISE_SAIL, LOWER_SAIL_BOOST actions
+- `oceantrawler` -- Used by OCEAN_TRAWLER_LOWER action
+- `portablestructure` -- Used by DISMANTLE action
+- `preservative` -- Used by APPLYPRESERVATIVE to apply preservation
+- `quagmire_installable` -- Used by INSTALL action
+- `quagmire_installations` -- Used by INSTALL action
+- `quagmire_plantable` -- Used by PLANTSOIL action
+- `quagmire_saltextractor` -- Used by INSTALL action
+- `quagmire_slaughtertool` -- Used by SLAUGHTER action
+- `quagmire_tiller` -- Used by TILL action
+- `quagmire_tapper` -- Used by TAPTREE action
+- `spellbook` -- Used by CASTAOE to get spell name
+- `steeringwheel` -- Used by STEER_BOAT to check sailor availability
+- `steeringwheeluser` -- Used by STEER_BOAT, SET_HEADING, STOP_STEERING_BOAT
+- `tackler` -- Used by TACKLE action
+- `trophyscale` -- Used by COMPARE_WEIGHABLE action
+- `walkingplank` -- Used by MOUNT_PLANK, DISMOUNT_PLANK, ABANDON_SHIP
+- `yotc_racestart` -- Used by START_CARRAT_RACE
+- `yotc_raceprizemanager` -- Used by START_CARRAT_RACE to fetch race data
+- `weighable` -- Used by COMPARE_WEIGHABLE action
+- `craftingstation` -- Used in GIVE_TACKLESKETCH and REPLATE
+- `cyclable` -- Used in CYCLE action to cycle states
+- `oceanthrowable` -- Used in OCEAN_TOSS to add projectile behavior
+- `questowner` -- Used in BEGIN_QUEST and ABANDON_QUEST actions
+- `plantresearchable` -- Used in PLANTREGISTRY_RESEARCH to research plants
+- `fertilizerresearchable` -- Used in PLANTREGISTRY_RESEARCH to research fertilizers
+- `quagmire_replatable` -- Used in REPLATE to replate dishes
+- `quagmire_saltable` -- Used in SALT to salt dishes
+- `quagmire_replater` -- Used in REPLATE as the replacement item
+- `wateryprotection` -- Used in POUR_WATER to spread protection
+- `compostingbin` -- Used in ADDCOMPOSTABLE to add items
+- `waxable` -- Used in WAX to apply wax
+- `winch` -- Used in UNLOAD_WINCH with custom unloadfn
+- `heavyobstacleusetarget` -- Used in USE_HEAVY_OBSTACLE
+- `yotb_sewer` -- Used in YOTB_SEW to manage sewing
+- `yotb_stagemanager` -- Used in YOTB_STARTCONTEST to manage contests
+- `yotb_stager` -- Used in YOTB_STARTCONTEST to start contest
+- `yotb_skinunlocker` -- Used in YOTB_UNLOCKSKIN to unlock skins
+- `spidermutator` -- Used in MUTATE_SPIDER to mutate spiders
+- `followerherder` -- Used in HERD_FOLLOWERS to herd followers
+- `bedazzler` -- Used in BEDAZZLE to bedazzle entities
+- `repellent` -- Used in REPEL to repel entities
+- `treegrowthsolution` -- Used in ADVANCE_TREE_GROWTH to grow trees
+- `pocketwatch_dismantler` -- Used in DISMANTLE_POCKETWATCH
+- `dumbbelllifter` -- Used in LIFT_DUMBBELL to manage lifting
+- `mightygym` -- Used in ENTER_GYM, LEAVE_GYM, and UNLOAD_GYM
+- `strongman` -- Used in LEAVE_GYM to access current gym
+- `upgrademoduleowner` -- Used in APPLYMODULE and REMOVEMODULES
+- `upgrademodule` -- Used in APPLYMODULE to apply modules
+- `upgrademoduleremover` -- Used in REMOVEMODULES to remove modules
+- `batteryuser` -- Used in CHARGE_FROM to charge items
+- `battery` -- Used in CHARGE_FROM as charge source
+- `fencerotator` -- Used in ROTATE_FENCE to rotate fences
+- `magician` -- Used in USEMAGICTOOL and STOPUSINGMAGICTOOL
+- `sittable` -- Checked for occupancy and setting occupier in SITON
+- `remoteteleporter` -- Used in remote teleport action
+- `incinerator` -- Used in incinerate action to destroy contents
+- `bottler` -- Used in bottle action to bottle target entity
+- `pumpkincarvable` -- Used in carvepumpkin action
+- `pumpkinhatcarvable` -- Alternative carver for pumpkins
+- `snowmandecoratable` -- Used in decoratesnowman action
+- `pushable` -- Used in startpushing action
+- `gravediggable` -- Used in gravedig action
+- `gravedigger` -- Used in gravedig action
+- `ghostgestalter` -- Used in mutate action
+- `deckcontainer` -- Used in drawfromdeck, flipdeck, addcardtodeck
+- `playingcard` -- Used in drawfromdeck and addcardtodeck
+- `playingcardsmanager` -- Used in drawfromdeck to spawn cards
+- `gestaltcage` -- Used in pouncecapture action
+- `moonstormstaticcatcher` -- Used in divegrab action
+- `clientpickupsoundsuppressor` -- Used in container install
+- `containerinstallableitem` -- Used in container install
+- `slingshotmodder` -- Used in modslingshot and stopmodslingshot
+- `slingshotmods` -- Used in modslingshot to check if slingshot can be opened
+- `electricconnector` -- Used to start/end/disable electric fence linking
+- `lunarhailbuildup` -- Used to remove lunar hail buildup
+- `bathingpool` -- Used to make the doer enter the pool
+- `joustuser` -- Used to check and trigger joust conditions
+- `joustsource` -- Used to validate that the equipped item supports jousting
+
+**Tags:**
+- `balloonomancer` -- check
+- `heavy` -- check
+- `player` -- check
+- `fooddrink` -- check
+- `edible_<type>` -- check
+- `badfood` -- check
+- `spider` -- check
+- `spiderwhisperer` -- check
+- `merm` -- check
+- `masterchef` -- check
+- `portablestorage` -- check
+- `mastercookware` -- check
+- `mermonly` -- check
+- `souljar` -- check
+- `decoratable` -- check
+- `unwrappable` -- check
+- `needssewing` -- check
+- `nosteal` -- check
+- `pocketdimension_container` -- check
+- `drop_inventory_onpickup` -- check
+- `repairable_moon_altar` -- check
+- `repairable_vitae` -- check
+- `tape` -- check
+- `forgerepair_<type>` -- check
+- `trap` -- check
+- `mine` -- check
+- `soul` -- check
+- `playerfloater` -- check
+- `ancient_text` -- check
+- `ancient_reader` -- check
+- `virtualocean` -- check
+- `partiallyhooked` -- check
+- `usedeploystring` -- check
+- `projectile` -- check
+- `groundtile` -- check
+- `wallbuilder` -- check
+- `fencebuilder` -- check
+- `gatebuilder` -- check
+- `portableitem` -- check
+- `boatbuilder` -- check
+- `deploykititem` -- check
+- `eyeturret` -- check
+- `fertilizer` -- check
+- `graveplanter` -- check
+- `deployedfarmplant` -- check
+- `farm_plant` -- check
+- `reloaditem_ammo` -- check
+- `farm_debris` -- check
+- `CLASSIFIED` -- check
+- `globalmapicon` -- check
+- `wormholetrackericon` -- check
+- `frozen` -- check
+- `pickable_harvest_str` -- check
+- `pickable_rummage_str` -- check
+- `pickable_search_str` -- check
+- `propweapon` -- check
+- `whackable` -- check
+- `hammer` -- check
+- `smashable` -- check
+- `spicer` -- check
+- `watersource` -- check
+- `quickeat` -- check
+- `sloweat` -- check
+- `strongstomach` -- check
+- `monstermeat` -- check
+- `ignoresspoilage` -- check
+- `unsafefood` -- check
+- `spoiled` -- check
+- `ghostlyelixirable` -- check
+- `ghostlyelixir` -- check
+- `playbill_lecturn` -- check
+- `gemsocket` -- check
+- `trader_just_show` -- check
+- `trader_repair` -- check
+- `moontrader` -- check
+- `wintersfeasttable` -- check
+- `inventoryitemholder_give` -- check
+- `furnituredecortaker` -- check
+- `quagmire_stewer` -- check
+- `quagmire_altar` -- check
+- `playerghost` -- check
+- `wereplayer` -- check
+- `nibble` -- check
+- `MEAT` -- check
+- `foodtype` -- check
+- `quagmire_portal_key` -- check
+- `quagmire_food_` -- check
+- `bundle` -- check
+- `winter_treestand` -- check
+- `stewer` -- check
+- `birdcage` -- check
+- `withered` -- check
+- `hitcher` -- check
+- `controlled_burner` -- check
+- `stokeablefire` -- check
+- `wolfgang_coach` -- check
+- `mightiness_normal` -- check
+- `coaching` -- check
+- `coach_whistle` -- check
+- `dressable` -- check
+- `haunted` -- check
+- `catchable` -- check
+- `teleporter` -- check
+- `pocketwatchcaster` -- check
+- `wormhole` -- check
+- `tentacle_pillar` -- check
+- `cannotheal` -- check
+- `drop_inventory_onmurder` -- check
+- `burnt` -- check
+- `scrapbook_note` -- check
+- `scrapbook_data` -- check
+- `mapspotrevealer` -- check
+- `recipescanner` -- check
+- `pet_treat` -- check
+- `NOCLICK` -- check
+- `hasemergencymode` -- check
+- `soulstealer` -- check
+- `has_aggressive_follower` -- check
+- `crushitemcast` -- check
+- `notarget` -- check
+- `fire` -- check
+- `canpeek` -- check
+- `smolder` -- check
+- `combatmount` -- check
+- `dogrider_only` -- check
+- `dogrider` -- check
+- `pump` -- check
+- `lighter` -- check
+- `critterlab` -- check
+- `pickapart` -- check
+- `offerconstructionsite` -- check
+- `constructionsite` -- check
+- `repairconstructionsite` -- check
+- `rebuildconstructionsite` -- check
+- `KITCOON_NEAR_DEN_DIST` -- check
+- `kitcoonden` -- check
+- `OFFER` -- check
+- `STORE` -- check
+- `OFFER_TO` -- check
+- `REPAIR` -- check
+- `REBUILD` -- check
+- `trophyscale_` -- check
+- `weighable_` -- check
+- `bathbomb` -- add
+- `bathbombable` -- add
+- `fresh` -- check
+- `stale` -- check
+- `cookable` -- check
+- `deployable` -- check
+- `canbeslaughtered` -- check
+- `tappable` -- check
+- `race_on` -- add
+- `boat_leak` -- check
+- `trophycanbetaken` -- check
+- `singingshell` -- check
+- `can_use_heavy` -- check
+- `sewingmachine` -- check
+- `soil` -- check
+- `fertilizerresearchable` -- check
+- `pyromaniac` -- check
+- `handyperson` -- check
+- `abigail_flower` -- check
+- `fueldepleted` -- check
+- `canbebottled` -- check
+- `pushing_roll` -- check
+- `elixir_drinker` -- check
+- `super_elixir` -- check
+- `slingshot` -- check
+- `invisible` -- check
+- `hermitcrab` -- check
+- `character` -- check
 
 ## Properties
+
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| priority | number | 0 | Priority level used for action selection when multiple actions apply. |
-| fn | function | `function() return false end` | Main action execution function; returns `true` on success or `(success, reason)` tuple. |
-| strfn | function | nil | Optional function to compute action label string based on action context. |
-| instant | boolean | false | Indicates if the action is instant (e.g., no movement required). |
-| rmb | boolean | nil | If set, restricts the action to right mouse button only; used for tools. |
-| distance | number | nil | Maximum world distance the target must be within to trigger the action. |
-| mindistance | number | nil | Minimum world distance required for the action to be valid. |
-| arrivedist | number | nil | Distance threshold at which the doer is considered to have "arrived" at the target. |
-| ghost_exclusive | boolean | false | When true, the action is only available when the player is a ghost. |
-| ghost_valid | boolean | nil | Indicates if the action is valid while in ghost state; defaults to `ghost_exclusive` or `data.ghost_valid`. |
-| mount_valid | boolean | false | Indicates if the action is valid while the doer is riding. |
-| encumbered_valid | boolean | false | Indicates if the action is valid while the doer is encumbered. |
-| floating_valid | boolean | false | Indicates if the action is valid while the doer is floating (e.g., on water). |
-| canforce | function | nil | Optional function that forces action validity despite constraint checks. |
-| rangecheckfn | function | nil | Custom function used to validate range; only set if `canforce` is present. |
-| mod_name | string | nil | Optional mod identifier for the action. |
-| silent_fail | string or nil | nil | Suppresses specific failure messages when set. |
-| silent_generic_fail | boolean | nil | Suppresses generic failure messages when set. |
-| paused_valid | boolean | false | Indicates if the action is valid while the game is paused. |
-| actionmeter | component reference | nil | Reference to action meter component for UI feedback. |
-| customarrivecheck | function | nil | Custom function to validate arrival state at target. |
-| is_relative_to_platform | boolean | nil | Indicates whether position checks are relative to a platform (e.g., boat). |
-| disable_platform_hopping | boolean | nil | Prevents changing platforms during the action. |
-| skip_locomotor_facing | boolean | nil | Skips locomotor-based facing checks. |
-| do_not_locomote | boolean | nil | Skips locomotion entirely during the action. |
-| extra_arrive_dist | number | nil | Additional buffer distance added to arrive checks. |
-| tile_placer | component reference | nil | Reference to tile placer component for placement UI. |
-| show_tile_placer_fn | function | nil | Function used to display tile placer UI. |
-| theme_music | string | nil | Identifier for theme music associated with the action. |
-| theme_music_fn | function | nil | Client-side function to determine theme music dynamically. |
-| pre_action_cb | function | nil | Callback executed before action starts. |
-| invalid_hold_action | boolean | nil | Flag for handling invalid hold state. |
-| show_primary_input_left | boolean | nil | UI hint indicating primary input should be shown on the left. |
-| show_secondary_input_right | boolean | nil | UI hint indicating secondary input should be shown on the right. |
-| map_action | boolean | nil | Restricts the action to map-based interactions. |
-| closes_map | boolean | nil | Immediately closes minimap on action activation. |
-| map_only | boolean | nil | Restricts the action to map view only. |
-| map_works_on_unexplored | boolean | nil | Bypasses visibility checks when used from the map. |
-| stroverridefn | function | nil | Function to override the action string display. |
-| extra_arrive_dist | number | nil | Extra buffer distance added to arrive checks. |
-| stroverridefn | function | nil | Function to override the action string display. |
+| `priority` | number | `0` | Priority level for action selection; higher values take precedence. |
+| `fn` | function | `function() return false end` | Callback function executed when the action is performed. |
+| `strfn` | function | `nil` | Optional function returning localized string label for the action. |
+| `instant` | boolean | `false` | If true, action completes instantly without movement or delay. |
+| `rmb` | boolean | `nil` | If true, action is triggered by right mouse button (used mainly for tools). |
+| `distance` | number | `nil` | Max distance the doer can be from the target to perform the action. |
+| `mindistance` | number | `nil` | Minimum distance required between doer and target to perform the action. |
+| `arrivedist` | number | `nil` | Distance threshold considered 'arrived' for target. |
+| `ghost_exclusive` | boolean | `false` | If true, action is only available while ghost state and excludes other actions. |
+| `ghost_valid` | boolean | `false` | If true, action can be performed while in ghost state. |
+| `mount_valid` | boolean | `false` | If true, action can be performed while mounted on another entity. |
+| `encumbered_valid` | boolean | `false` | If true, action can be performed while encumbered. |
+| `floating_valid` | boolean | `false` | If true, action can be performed while floating (e.g., on water without boat). |
+| `canforce` | boolean | `nil` | If true, action can be forced by UI even if contextually unsuitable. |
+| `rangecheckfn` | function | `nil` | Custom function to validate range between doer and target. |
+| `mod_name` | string | `nil` | Name of the mod defining the action (if any). |
+| `silent_fail` | boolean | `nil` | If true, suppresses failure messages for this action. |
+| `silent_generic_fail` | boolean | `nil` | If true, suppresses generic failure messages for this action. |
+| `paused_valid` | boolean | `false` | If true, action is valid even while game is paused. |
+| `actionmeter` | boolean | `nil` | If true, action uses the action meter progress bar. |
+| `customarrivecheck` | function | `nil` | Function to determine if the doer has arrived at the destination. |
+| `is_relative_to_platform` | boolean | `false` | If true, positions are interpreted relative to the current platform. |
+| `disable_platform_hopping` | boolean | `false` | If true, prevents jumping between platforms during action. |
+| `skip_locomotor_facing` | boolean | `false` | If true, skips facing adjustment before performing action. |
+| `do_not_locomote` | boolean | `false` | If true, skips locomotion (movement) before action. |
+| `extra_arrive_dist` | function | `nil` | Function returning additional distance needed to reach target. |
+| `tile_placer` | string | `nil` | Name of the tile placer system used by this action. |
+| `show_tile_placer_fn` | function | `nil` | Function used to determine if tile placer should be shown. |
+| `theme_music` | string | `nil` | Name of the theme music to play when action is performed. |
+| `theme_music_fn` | function | `nil` | Function returning theme music name (client-side). |
+| `pre_action_cb` | function | `nil` | Callback function executed before action begins (client and server). |
+| `invalid_hold_action` | boolean | `false` | If true, action is invalid while holding an item. |
+| `show_primary_input_left` | boolean | `nil` | If true, shows primary input (left click) in UI. |
+| `show_secondary_input_right` | boolean | `nil` | If true, shows secondary input (right click) in UI. |
+| `map_action` | boolean | `false` | If true, action is intended for use on the minimap. |
+| `closes_map` | boolean | `false` | If true, minimap closes immediately upon action start. |
+| `map_only` | boolean | `false` | If true, action only exists while the minimap is open. |
+| `map_works_on_unexplored` | boolean | `false` | If true, action bypasses unexplored area visibility restrictions. |
+| `directwalking` | boolean | `false` | Property in PlayerController component; controls whether walking overrides locomotor behavior. |
 
 ## Main functions
-### `MakeRangeCheckFn(range)`
-* **Description:** Returns a closure that checks if a target entity is within a specified range of the doer using `IsNear`.
-* **Parameters:** `range` — numeric radius for proximity check.
-* **Returns:** Function `(doer, target)` returning boolean (true if within range, false otherwise or if target is nil).
 
-### `DefaultRangeCheck(doer, target)`
-* **Description:** Pre-instantiated range check function with fixed range = 4.
-* **Parameters:** `doer` — entity performing the action. `target` — entity being targeted.
-* **Returns:** Boolean (true if within 4 world units, false otherwise or if target is nil).
+### `MakeRangeCheckFn(range)`
+* **Description:** Returns a range-check function that tests if doer is within given range of target using IsNear.
+* **Parameters:**
+  - `range` -- number, max distance threshold for near-check
+* **Returns:** function(doer, target): boolean
+* **Error states:** None
 
 ### `PickRangeCheck(doer, target)`
-* **Description:** Checks distance between doer and target with dynamic range adjustment based on weapon attack range for targets tagged as pickable.
-* **Parameters:** `doer` — entity performing the action. `target` — entity being targeted (must be valid).
-* **Returns:** Boolean (true if distance `squared <= target` radius squared, false otherwise).
+* **Description:** Computes distance between doer and target with weapon attack range and physics radius padding. Returns true if within range.
+* **Parameters:**
+  - `doer` -- Entity, the one performing the action
+  - `target` -- Entity, the target of the action
+* **Returns:** boolean or nil
+* **Error states:** nil return if target is nil
 
 ### `ExtraPickRange(doer, dest, bufferedaction)`
-* **Description:** Computes extra pick range for water tiles or based on buffered action's target tags.
-* **Parameters:** `doer` — entity. `dest` — optional destination Vector3. `bufferedaction` — optional buffered action object.
-* **Returns:** Numeric extra range (0, 0.75, or weapon range value).
+* **Description:** Returns extra distance needed when target is on water (0.75) or modified by weapon range.
+* **Parameters:**
+  - `doer` -- Entity, the one performing the action
+  - `dest` -- Entity or Vector3, destination point or target
+  - `bufferedaction` -- Table, optional buffered action data
+* **Returns:** number
+* **Error states:** None
 
 ### `PhysicsPaddedRangeCheck(doer, target)`
-* **Description:** Checks proximity with padding added to target's physics radius (currently unused per comment).
-* **Parameters:** `doer` — entity. `target` — entity.
-* **Returns:** Boolean (true if within padded distance, false otherwise).
+* **Description:** Currently unused; computes range using target physics radius plus 4 units padding.
+* **Parameters:**
+  - `doer` -- Entity, the one performing the action
+  - `target` -- Entity, the target of the action
+* **Returns:** boolean or nil
+* **Error states:** nil return if target is nil
 
 ### `CheckFishingOceanRange(doer, dest)`
-* **Description:** Determines if fishing action should be allowed at destination point in ocean environment.
-* **Parameters:** `doer` — entity. `dest` — destination Vector3.
-* **Returns:** Boolean (true if fishing is permitted, fallback to true if not on ground/platform).
+* **Description:** Checks if a fishing cast point lies over valid ocean tiles or virtual ocean entities; returns true if valid.
+* **Parameters:**
+  - `doer` -- Entity, the fishing doer
+  - `dest` -- Vector3, target destination point
+* **Returns:** boolean
+* **Error states:** None
 
 ### `CheckRowRange(doer, dest)`
-* **Description:** Determines if rowing action is possible at destination (forbidden if platform present).
-* **Parameters:** `doer` — entity. `dest` — destination Vector3.
-* **Returns:** Boolean (true if rowing allowed — i.e., no platform at target point).
+* **Description:** Returns true if the destination point is NOT on a platform (i.e., on water).
+* **Parameters:**
+  - `doer` -- Entity, the rower
+  - `dest` -- Vector3, destination point
+* **Returns:** boolean
+* **Error states:** None
 
 ### `CheckIsOnPlatform(doer, dest)`
-* **Description:** Verifies whether the doer is currently on a platform (e.g., boat).
-* **Parameters:** `doer` — entity. `dest` — ignored in function body.
-* **Returns:** Boolean (true if `GetCurrentPlatform()` returns non-nil).
+* **Description:** Returns true if doer is currently on a platform (e.g., boat).
+* **Parameters:**
+  - `doer` -- Entity, the actor
+  - `dest` -- Vector3, destination (unused in this function)
+* **Returns:** boolean
+* **Error states:** None
 
 ### `CheckOceanFishingCastRange(doer, dest)`
-* **Description:** Checks whether a cast target point for ocean fishing is valid by testing if the line of sight from the doer to the target intersects solid ground or a platform before reaching the target. It performs a raycast-like check using a point slightly offset from the doer toward the target.
-* **Parameters:** `doer` — entity performing the action (typically a player). `dest` — the target point (Vector3) to cast the fishing line to.
-* **Returns:** `true` if the cast is unobstructed (either the test point is on a platform or not on visual ground), `false` otherwise.
+* **Description:** Similar to CheckFishingOceanRange but with cast radius (1.5 units); used for ocean fishing cast actions.
+* **Parameters:**
+  - `doer` -- Entity, the fishing doer
+  - `dest` -- Vector3, target destination point
+* **Returns:** boolean
+* **Error states:** None
 
 ### `CheckTileWithinRange(doer, dest)`
-* **Description:** Checks whether the target tile is within a small range (TILE_SCALE * 0.5) of the doer’s current position.
-* **Parameters:** `doer` — entity whose position is the reference. `dest` — the target tile point (Vector3).
-* **Returns:** `true` if the tile center is within the small radius, `false` otherwise.
+* **Description:** Returns true if the tile center of dest is within a half-tile (TILE_SCALE*0.5) of the doer.
+* **Parameters:**
+  - `doer` -- Entity, the actor
+  - `dest` -- Vector3, destination point
+* **Returns:** boolean
+* **Error states:** None
 
 ### `ShowPourWaterTilePlacer(right_mouse_action)`
-* **Description:** Determines whether the pour water tile placer UI should be shown, specifically when hovering over a `farm_plant` and checking if the tile is farmable soil.
-* **Parameters:** `right_mouse_action` — the action data structure, typically from a right-click, containing `target` and possibly other fields.
-* **Returns:** `true` if the target is a `farm_plant` and the tile at its position is farmable soil; otherwise `false`.
+* **Description:** Returns true if pour water tile placer should be shown: i.e., hovering a farm_plant and its tile is farmable soil.
+* **Parameters:**
+  - `right_mouse_action` -- Table, optional buffered action from right mouse click
+* **Returns:** boolean
+* **Error states:** None
 
 ### `ExtraPickupRange(doer, dest)`
-* **Description:** Adds an additional pickup range bonus when the destination point is on ocean water (but not passable, i.e., deep water).
-* **Parameters:** `doer` — entity attempting pickup. `dest` — the target point (Vector3).
-* **Returns:** `0.75` if the target is on ocean water and not passable, otherwise `0`.
+* **Description:** Returns 0.75 extra distance if target point is on water (not passable ocean tile), otherwise 0.
+* **Parameters:**
+  - `doer` -- Entity, the actor
+  - `dest` -- Vector3, destination point
+* **Returns:** number
+* **Error states:** None
 
 ### `ExtraDeployDist(doer, dest, bufferedaction)`
-* **Description:** Calculates additional deployment distance when deploying projectiles or moving between water/land/void boundaries. Used to increase deploy range for certain cross-medium deployments.
-* **Parameters:** `doer` — the deploying entity. `dest` — the deployment target point (Vector3). `bufferedaction` — optional action data structure that may contain the item being deployed (`invobject`).
-* **Returns:** Additional distance (0, 1, or more) depending on deployment scenario (e.g., +1 for cross-medium, or radius + 1 for `usedeployspacingasoffset` items), otherwise `0`.
+* **Description:** Returns extra distance for deploying items based on terrain (land/boat to ocean/void) and item flags like usedeployspacingasoffset.
+* **Parameters:**
+  - `doer` -- Entity, the actor
+  - `dest` -- Vector3, destination point
+  - `bufferedaction` -- Table, optional buffered action data
+* **Returns:** number
+* **Error states:** None
 
 ### `ExtraDropDist(doer, dest, bufferedaction)`
-* **Description:** Calculates extra drop distance for items when dropped, particularly handling water surface drops and physics radius adjustments.
-* **Parameters:** `doer` — the entity performing the action. `dest` — destination point for the drop. `bufferedaction` — the buffered action containing inventory object.
-* **Returns:** Numeric distance value (0, 0.5, 1.75, or physics_radius + 0.5).
+* **Description:** Returns extra drop distance if destination is on water (1.75) or if item has positive physics radius and collides with doer.
+* **Parameters:**
+  - `doer` -- Entity, the actor
+  - `dest` -- Vector3, destination point
+  - `bufferedaction` -- Table, optional buffered action data
+* **Returns:** number
+* **Error states:** None
 
 ### `ExtraPourWaterDist(doer, dest, bufferedaction)`
-* **Description:** Returns fixed extra distance for pouring water actions.
-* **Parameters:** Same signature as other extra distance functions (not used).
-* **Returns:** `1.5`.
+* **Description:** Returns fixed extra distance (1.5) for pouring water actions.
+* **Parameters:**
+  - `doer` -- Entity, the actor
+  - `dest` -- Vector3, destination point
+  - `bufferedaction` -- Table, optional buffered action data
+* **Returns:** number
+* **Error states:** None
 
 ### `ExtraHealRange(doer, dest, bufferedaction)`
-* **Description:** Adjusts healing range for targets with overridden physics radius (e.g., Brightshades).
-* **Parameters:** Same signature as other extra distance functions.
-* **Returns:** Absolute difference between actual and overridden physics radius, or `0` if no adjustment needed.
+* **Description:** Returns extra range adjustment for healing when target has a lower physics radius override than actual radius.
+* **Parameters:**
+  - `doer` -- Entity, the actor
+  - `dest` -- Vector3, destination point
+  - `bufferedaction` -- Table, optional buffered action data
+* **Returns:** number
+* **Error states:** None
 
 ### `ArriveAnywhere()`
-* **Description:** Simple function that always returns true, likely used as a default arrive validation.
-* **Parameters:** None.
-* **Returns:** true.
+* **Description:** Returns true unconditionally; used for actions that consider arrival valid regardless of location.
+* **Parameters:** None
+* **Returns:** true
+* **Error states:** None
 
 ### `ExtraWobyForagingDist(doer, dest, bufferedaction)`
-* **Description:** Calculates extra distance for Woby foraging based on creature size.
-* **Parameters:** `doer` — the entity performing the action (checked for "largecreature" tag).
-* **Returns:** `0.5` for normal creatures, `1.5` for large creatures.
+* **Description:** Returns 0.5 or 1.5 depending on whether doer has 'largecreature' tag.
+* **Parameters:**
+  - `doer` -- Entity, the actor
+  - `dest` -- Vector3, destination point
+  - `bufferedaction` -- Table, optional buffered action data
+* **Returns:** number
+* **Error states:** None
 
 ### `SetClientRequestedAction(actioncode, mod_name)`
-* **Description:** Sets the global CLIENT_REQUESTED_ACTION by looking up action code in either mod-specific or base action tables.
-* **Parameters:** `actioncode` — string identifier for the action. `mod_name` — optional mod identifier; if provided, looks in MOD_ACTIONS_BY_ACTION_CODE, otherwise in ACTIONS_BY_ACTION_CODE.
-* **Returns:** None (sets global variable).
+* **Description:** Sets CLIENT_REQUESTED_ACTION global based on action code and optional mod name.
+* **Parameters:**
+  - `actioncode` -- string, action code identifier
+  - `mod_name` -- string or nil, mod providing action; if nil, uses default ACTIONS_BY_ACTION_CODE
+* **Returns:** nil
+* **Error states:** None
 
 ### `ClearClientRequestedAction()`
-* **Description:** Clears the global CLIENT_REQUESTED_ACTION variable.
-* **Parameters:** None.
-* **Returns:** None (sets global variable to nil).
+* **Description:** Resets CLIENT_REQUESTED_ACTION global to nil.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None
+
+### `Action(data, instant, rmb, distance, ghost_valid, ghost_exclusive, canforce, rangecheckfn)`
+* **Description:** Constructor for action objects; supports table-only or deprecated positional arguments.
+* **Parameters:**
+  - `data` -- Table or legacy positional params (deprecated), action configuration
+  - `instant` -- boolean, deprecated positional param
+  - `rmb` -- boolean, deprecated positional param
+  - `distance` -- number, deprecated positional param
+  - `ghost_valid` -- boolean, deprecated positional param
+  - `ghost_exclusive` -- boolean, deprecated positional param
+  - `canforce` -- boolean, deprecated positional param
+  - `rangecheckfn` -- function, deprecated positional param
+* **Returns:** table (Action instance)
+* **Error states:** Prints warning if positional args used; sets defaults for missing fields
 
 ### `IsItemInReadOnlyContainer(item)`
-* **Description:** Helper function to determine if an item is inside a read-only container.
-* **Parameters:** `item` — the item entity to check.
-* **Returns:** Boolean (`true` if item is owned by a container that has `readonlycontainer = true`, otherwise `false`).
+* **Description:** Checks whether the given item is in a container marked as readonly by inspecting its ownership chain.
+* **Parameters:**
+  - `item` -- Entity: the item to check; used to verify if it is inside a readonly container via its inventoryitem.owner.container.readonlycontainer path.
+* **Returns:** boolean: true if item is in a readonly container, false otherwise.
+* **Error states:** None
 
-### `DoToolWork(act, workaction)`
-* **Description:** Performs work on a target entity using an item or character's work capabilities, applying multipliers, recoil logic, and final work subtraction. Calls `WorkedBy_Internal` directly after pre-processing.
-* **Parameters:** `act` — action table containing `target`, `doer`, `invobject`, and other metadata. `workaction` — the action type (e.g., `ACTIONS.CHOP`) to validate and perform.
-* **Returns:** `true` on successful work, or `false, reason` if work cannot be performed (e.g., item mimic or `"tooltooweak"`).
+### `ACTIONS.APPRAISE.fn(act)`
+* **Description:** Handles the APPRAISE action by checking if the invobject can appraise the target and calling Appraise or returning early with reason.
+* **Parameters:**
+  - `act` -- Table: the action object containing doer, target, and invobject.
+* **Returns:** boolean or false: returns true on success, false or 'NOTNOW' on failure.
+* **Error states:** Returns false with 'NOTNOW' when CanAppraise returns failure reason 'NOTNOW'.
 
-### `ValidToolWork(act, workaction)`
-* **Description:** Validates whether the target supports the given work action and the tool is not restricted for use by the doer. Used in `validfn` for actions to determine visibility/enabled state of UI actions.
-* **Parameters:** `act` — action table. `workaction` — action type (e.g., `ACTIONS.MINE`).
-* **Returns:** Boolean indicating if the work is valid to be performed.
+### `ACTIONS.EAT.strfn(act)`
+* **Description:** Computes the display string for the EAT action, returning 'DRINK' if the item has tag 'fooddrink'.
+* **Parameters:**
+  - `act` -- Table: the action object containing invobject.
+* **Returns:** string or nil: 'DRINK' or nil.
+* **Error states:** None
 
 ### `ACTIONS.EAT.fn(act)`
-* **Description:** Handles the eat action, attempting to eat an edible item, consume a soul, or set a fishing rod from a target oceanfishable.
-* **Parameters:** `act` — action table containing `doer`, `target`, `invobject`.
-* **Returns:** Result of the underlying component method (`eater:Eat`, `souleater:EatSoul`, `oceanfishable:SetRod`) or `nil` if conditions not met.
+* **Description:** Handles the EAT action by attempting to eat edible items, consume souls, or set rod from fishing rod to target.
+* **Parameters:**
+  - `act` -- Table: the action object containing doer, target, and invobject.
+* **Returns:** boolean or nil: true on successful eat/soul eat/setRod, nil otherwise.
+* **Error states:** Returns nil if required components or targets are missing.
 
 ### `ACTIONS.STEAL.fn(act)`
-* **Description:** Handles stealing from a target (inventory/container) or dropping items from a dryer. Includes range check and handles `dryer:DropItem()` as a fallback.
-* **Parameters:** `act` — action table.
-* **Returns:** Result of `thief:StealItem` or `dryer:DropItem()`; `nil` if out of range or no valid steal/drop target.
+* **Description:** Handles the STEAL action by attempting to steal an item from a target's inventory, drop from a dryer, or fail silently if out of range.
+* **Parameters:**
+  - `act` -- Table: the action object containing doer, target, and attack flag.
+* **Returns:** boolean or nil: true if item stolen, false or nil on failure.
+* **Error states:** Returns nil if target moved out of range before execution.
 
 ### `ACTIONS.MAKEBALLOON.fn(act)`
-* **Description:** Spawns a balloon if the doer has `balloonomancer` tag and enough sanity; consumes `TUNING.SANITY_TINY` sanity.
-* **Parameters:** `act` — action table.
-* **Returns:** `true` on success, `false` if sanity insufficient or conditions not met.
+* **Description:** Spawns a balloon near the doer if the doer has the 'balloonomancer' tag and consumes a small amount of sanity.
+* **Parameters:**
+  - `act` -- Table: the action object containing doer, invobject.
+* **Returns:** boolean: true on success, false on insufficient sanity.
+* **Error states:** Returns false if doer lacks tag or sanity too low.
 
 ### `ACTIONS.EQUIP.fn(act)`
-* **Description:** Equip an item into the doer's inventory.
-* **Parameters:** `act` — action table.
-* **Returns:** Result of `inventory:Equip`; `nil` if no inventory component.
+* **Description:** Handles the EQUIP action by attempting to equip invobject onto the doer using inventory.Equip.
+* **Parameters:**
+  - `act` -- Table: the action object containing doer and invobject.
+* **Returns:** boolean or nil: return value from inventory.Equip.
+* **Error states:** Returns nil if inventory is missing.
 
 ### `ACTIONS.UNEQUIP.strfn(act)`
-* **Description:** Stringification function for unequip action; returns reason string if unequip is blocked (e.g., heavy item, non-item equips, no slots).
-* **Parameters:** `act` — action table.
-* **Returns:** `"HEAVY"` or `nil`.
+* **Description:** Computes the display string for the UNEQUIP action, returning 'HEAVY' for heavy items or game mode settings.
+* **Parameters:**
+  - `act` -- Table: the action object containing invobject and doer.
+* **Returns:** string or nil: 'HEAVY' or nil.
+* **Error states:** None
 
 ### `ACTIONS.UNEQUIP.fn(act)`
-* **Description:** Unequip item: either puts into inventory or drops (depending on item’s `cangoincontainer` and game mode). Respects `ShouldPreventUnequipping()`.
-* **Parameters:** `act` — action table.
-* **Returns:** `true` on success; `nil` if item prevents unequip or no inventory.
+* **Description:** Handles the UNEQUIP action by unequipping an item, potentially giving it to inventory or dropping it.
+* **Parameters:**
+  - `act` -- Table: the action object containing doer and invobject.
+* **Returns:** boolean or nil: true on success, nil if unequip prevented or missing components.
+* **Error states:** Returns nil if equippable prevent unequipping or inventory missing.
 
 ### `ACTIONS.PICKUP.strfn(act)`
-* **Description:** Stringification function for pickup action; returns reason if pickup is blocked (heavy item).
-* **Parameters:** `act` — action table.
-* **Returns:** `"HEAVY"` or `nil`.
+* **Description:** Computes the display string for the PICKUP action, returning 'HEAVY' for heavy items.
+* **Parameters:**
+  - `act` -- Table: the action object containing target.
+* **Returns:** string or nil: 'HEAVY' or nil.
+* **Error states:** None
 
 ### `ACTIONS.PICKUP.fn(act)`
-* **Description:** Handles the pickup action logic for items. Validates whether an entity can be picked up by the doer based on inventory, tags, state, restrictions, and item-specific conditions (e.g., cursed items, heavy lifting, spider loyalty), and then performs the pickup by giving the item to the doer’s inventory or equipping it.
-* **Parameters:** `act` — action context object containing `doer` (the actor performing the action) and `target` (the item/entity to be picked up).
-* **Returns:** `true` on successful pickup. `false, reason` string on failure (e.g., `"restriction"`, `"INUSE"`, `"NOTMINE_YOTC"`, `"NO_HEAVY_LIFTING"`, `"NOTMINE_SPIDER"`, `"FULL_OF_CURSES"`).
+* **Description:** Handles the PICKUP action by checking many conditions (tags, restrictions, inventory full, spider ownership, cursed items, container usage) before transferring item to inventory.
+* **Parameters:**
+  - `act` -- Table: the action object containing doer and target.
+* **Returns:** boolean or false: true on success, false on various failure reasons (e.g., 'restriction', 'INUSE', 'NOTMINE_YOTC', etc.).
+* **Error states:** Returns false with specific reasons such as 'restriction', 'INUSE', 'NOTMINE_SPIDER', 'FULL_OF_CURSES', 'NO_HEAVY_LIFTING', 'NOTMINE_YOTC'.
 
 ### `ACTIONS.EMPTY_CONTAINER.fn(act)`
-* **Description:** Invokes the `onwork` callback of a workable component if present on the target container, effectively allowing custom logic (e.g., emptying contents with a side effect) without actually dropping items.
-* **Parameters:** `act` — action context object (`doer`, `target`).
-* **Returns:** `true` after triggering `onwork`, regardless of container emptiness.
+* **Description:** Handles EMPTY_CONTAINER action by calling target.workable.onwork if both container and workable components exist.
+* **Parameters:**
+  - `act` -- Table: the action object containing doer and target.
+* **Returns:** boolean: always returns true.
+* **Error states:** None
 
 ### `ACTIONS.REPAIR.strfn(act)`
-* **Description:** Returns a localization string key (e.g., `"SOCKET"` or `"REFRESH"`) for the repair action tooltip depending on the target’s tags. Used to provide context-sensitive repair UI text.
-* **Parameters:** `act` — action context object (only `act.target` is used).
-* **Returns:** `nil` if target doesn’t match any repairable tag. `"SOCKET"` if `target:HasTag("repairable_moon_altar")`. `"REFRESH"` if `target:HasTag("repairable_vitae")`.
+* **Description:** Computes the display string for the REPAIR action, returning 'SOCKET' or 'REFRESH' for specific tags.
+* **Parameters:**
+  - `act` -- Table: the action object containing target.
+* **Returns:** string or nil: 'SOCKET', 'REFRESH', or nil.
+* **Error states:** None
 
 ### `ACTIONS.REPAIR.fn(act)`
-* **Description:** Handles the repair action when a player attempts to repair a target entity. Determines the repair material based on context (e.g., heavy lifting with body slot item vs. handheld item) and delegates to either `repairable:Repair()` or `forgerepairable:Repair()`.
-* **Parameters:** `act` — action table containing `target`, `doer`, `invobject`, and other contextual fields.
-* **Returns:** Boolean or `nil` — result of the underlying repair component call.
+* **Description:** Handles the REPAIR action by trying repairable or forgerepairable components with appropriate repair materials.
+* **Parameters:**
+  - `act` -- Table: the action object containing doer, target, and invobject.
+* **Returns:** boolean: result of repair call or nil if no repair components.
+* **Error states:** Returns nil if no repair components found.
 
 ### `ACTIONS.SEW.strfn(act)`
-* **Description:** Generates a string label (e.g., `"PATCH"`) for the Sew action based on the held item's tags. Used for UI labeling.
-* **Parameters:** `act` — action table, particularly uses `act.invobject`.
-* **Returns:** String `"PATCH"` if the held item has tag `"tape"`, otherwise `nil`.
+* **Description:** Computes the display string for the SEW action, returning 'PATCH' if the item has tag 'tape'.
+* **Parameters:**
+  - `act` -- Table: the action object containing invobject.
+* **Returns:** string or nil: 'PATCH' or nil.
+* **Error states:** None
 
 ### `ACTIONS.SEW.fn(act)`
-* **Description:** Executes the sew action — delegates to `sewing:DoSewing()` if all required conditions are met (valid target, holding valid object, target has `fueled`, and object has `sewing`).
-* **Parameters:** `act` — action table (`target`, `doer`, `invobject`).
-* **Returns:** Boolean — result of `sewing:DoSewing()` (true on success), or `nil` if preconditions fail.
+* **Description:** Handles the SEW action by calling DoSewing if target is fueled and invobject has sewing component.
+* **Parameters:**
+  - `act` -- Table: the action object containing doer, target, and invobject.
+* **Returns:** boolean or nil: result of DoSewing or nil if missing components.
+* **Error states:** Returns nil if required components are absent.
 
 ### `ACTIONS.RUMMAGE.fn(act)`
-* **Description:** Handles the "rummage" action, which opens or closes containers (including via container_proxy), enforces access restrictions (e.g., master chef, merm-only, soul jar skill), drops items on open if configured, and emits open/close events.
-* **Parameters:** `act` — action table containing `target`, `invobject`, `doer`, and other context fields.
-* **Returns:** `true` on success (or silent fail for edge cases, e.g., opening in darkness). `false, reason` string on failure (e.g., `"RESTRICTED"`, `"NOTMASTERCHEF"`, `"NOTAMERM"`, `"NOTSOULJARHANDLER"`, `"INUSE"`).
+* **Description:** Handles the RUMMAGE action by opening or closing containers, handling restrictions, and optionally dropping containers per droponopen rules.
+* **Parameters:**
+  - `act` -- Table: the action object containing doer, target, invobject.
+* **Returns:** boolean or false: true on success, false with reasons like 'INUSE', 'RESTRICTED', 'NOTMERM'.
+* **Error states:** Returns false with reasons such as 'INUSE', 'RESTRICTED', 'NOTMASTERCHEF', 'NOTAMERM', 'NOTSOULJARHANDLER'.
 
 ### `ACTIONS.RUMMAGE.strfn(act)`
-* **Description:** Returns the action string for the RUMMAGE action (e.g., "CLOSE", "DECORATE", "PEEK") based on the target and doer state. Used to populate UI labels.
-* **Parameters:** `act` — the action object containing `target`, `invobject`, `doer`, and related context.
-* **Returns:** `"CLOSE"` if target is an opened container or container proxy owned by `doer`. `"DECORATE"` if target has tag `"decoratable"`. `"PEEK"` if target has tag `"unwrappable"`. `nil` if none apply.
+* **Description:** Computes the display string for the RUMMAGE action, returning 'CLOSE' if container is opened, or 'DECORATE'/'PEEK' based on tags.
+* **Parameters:**
+  - `act` -- Table: the action object containing doer, target, invobject.
+* **Returns:** string or nil: 'CLOSE', 'DECORATE', 'PEEK', or nil.
+* **Error states:** None
 
 ### `ACTIONS.DROP.fn(act)`
-* **Description:** Executes the DROP action: attempts to drop the held item from the doer’s inventory. Respects unequip restrictions and drop flags (wholestack, random direction, floater).
-* **Parameters:** `act` — the action object, with fields `invobject`, `doer`, `options.wholestack`, and `:GetActionPoint()`.
-* **Returns:** The return value of `inventory:DropItem(...)` (truthy/falsy), or `nil` if doer has no inventory component.
+* **Description:** Handles the DROP action by calling inventory.DropItem with options for wholestack, random direction, and keepoverstacked.
+* **Parameters:**
+  - `act` -- Table: the action object containing doer and invobject.
+* **Returns:** boolean or nil: return value of inventory.DropItem, or nil if inventory missing or equippable prevents dropping.
+* **Error states:** Returns nil if invobject equippable prevents unequipping or inventory missing.
 
 ### `ACTIONS.DROP.strfn(act)`
-* **Description:** Returns the action string for DROP depending on special item tags or properties (e.g., "SETTRAP", "FREESOUL").
-* **Parameters:** `act` — action object with `invobject` and context.
-* **Returns:** `"SETTRAP"` if `invobject` has tag `"trap"`. `"SETMINE"` if tag `"mine"`. `"FREESOUL"` if tag `"soul"`. `"PLACELANTERN"` if prefab is `"pumpkin_lantern"`. `"PLAYERFLOATER"` if tag `"playerfloater"` and item is equipped. Result of `GetDropActionPoint()` if defined. `nil` otherwise.
+* **Description:** Returns the display string key for the drop action based on the held item's tags or properties (trap, mine, soul, lantern, playerfloater, etc.).
+* **Parameters:**
+  - `act` -- action object containing doer, invobject, and other metadata
+* **Returns:** string key or nil
+* **Error states:** None
 
 ### `ShouldLOOKATStopLocomotor(act)`
-* **Description:** Helper function to determine if `LOOKAT` action should stop the doer’s locomotion (e.g., during walking).
-* **Parameters:** `act` — action object with `doer` and `sg`.
-* **Returns:** `false` if doer is in `directwalking` mode or stategraph has `"overridelocomote"` tag. `true` otherwise.
+* **Description:** Determines whether LOOKAT actions should stop the locomotor based on directwalking or overridelocomote state tags.
+* **Parameters:**
+  - `act` -- action object to inspect
+* **Returns:** boolean
+* **Error states:** None
 
 ### `ACTIONS.LOOKAT.strfn(act)`
-* **Description:** Returns action string for `LOOKAT` depending on context: closing inspection or reading ancient text.
-* **Parameters:** `act` — action object with `doer`, `target`, `invobject`.
-* **Returns:** `"CLOSEINSPECT"` if no item held and `CLOSEINSPECTORUTIL.CanCloseInspect(...)` is true. `"READ"` if `target` has `"ancient_text"` tag, `doer` has `"ancient_reader"` equip. `nil` otherwise.
+* **Description:** Returns the display string key for the lookat action, including 'CLOSEINSPECT' and 'READ' under specific conditions.
+* **Parameters:**
+  - `act` -- action object containing doer, target, and action point
+* **Returns:** string key or nil
+* **Error states:** None
 
 ### `ACTIONS.LOOKAT.fn(act)`
-* **Description:** Handles the "look at" action. First attempts close inspection via equipped items with `closeinspector` component. If that fails or isn’t applicable, falls back to getting description from `inspectable` component on the target object.
-* **Parameters:** `act` — the action table containing fields like `invobject`, `doer`, `target`, `GetActionPoint()`, etc.
-* **Returns:** `true, nil` on successful description display; `success, reason` from `CloseInspectTarget` or `CloseInspectPoint` calls; `nil` if no inspectable component found.
+* **Description:** Handles LOOKAT action: attempts to close inspect with equipped items or read inspectables (e.g., ancient texts with ancient_reader), stopping locomotor if needed.
+* **Parameters:**
+  - `act` -- action object with doer, target, and action point
+* **Returns:** boolean success and optional reason string, or nil
+* **Error states:** Returns early on close inspection failure or non-inspectable targets.
 
-### `ACTIONS_MAP_REMAP[ACTIONS.ACTIVATE.code] = function(act, targetpos)`
-* **Description:** Handles remapping of the ACTIVATE action specifically for map-based interactions. It attempts to route map-based activation towards a `charlieresidue` target, especially for wormhole use cases.
-* **Parameters:** `act` — the action object; `targetpos` — the target world position.
-* **Returns:** Returns a `BufferedAction` if a valid wormhole target is found via `charlieresidue`, else `nil`.
+### `ACTIONS_MAP_REMAP[ACTIONS.ACTIVATE.code](act, targetpos)`
+* **Description:** Remaps ACTIVATE action on map to JUMPIN_MAP if a wormhole is detected via charlieresidue inspection.
+* **Parameters:**
+  - `act` -- action object
+  - `targetpos` -- target world position
+* **Returns:** BufferedAction or nil
+* **Error states:** Returns nil if doer is nil, charlieresidue missing, or no wormhole detected.
 
-### `ACTIONS.READ.fn = function(act)`
-* **Description:** Executes the read action on a target item. Delegates to `reader:Read` or `simplebook:Read`.
-* **Parameters:** `act` — action object with `target`, `invobject`, and `doer` fields.
-* **Returns:** Returns `success`, `reason` from `reader:Read`, or `true` for `simplebook:Read`. Returns `nil` if no valid handler is found.
+### `ACTIONS.READ.fn(act)`
+* **Description:** Handles reading a book using the reader or simplebook component.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** boolean success and optional reason, or nil
+* **Error states:** Returns false/nil if target is invalid or components missing.
 
-### `ACTIONS.ROW_FAIL.fn = function(act)`
-* **Description:** Simulates a rowing failure when an oar is equipped but the action times out or misfires. Triggers failure speech and pushes a `working` event for oar wear-out logic.
-* **Parameters:** `act` — action object containing `doer`.
-* **Returns:** `true`.
+### `ACTIONS.ROW_FAIL.fn(act)`
+* **Description:** Handles row fail action: calls RowFail on equipped oar, displays fail string, and pushes 'working' event.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** true (always returns true to avoid skipping finite uses callback).
+* **Error states:** Returns false early if no oar equipped.
 
 ### `row(act)`
-* **Description:** Core helper function for rowing logic. Checks whether the doer has an oar equipped or is a crewmember, then calls appropriate `oar:Row` or `crewmember:Row`.
-* **Parameters:** `act` — action object with `doer`, and possibly `target` or action point.
-* **Returns:** `true` on successful invocation, `false` if no oar and no crewmember.
+* **Description:** Internal utility function for rowing actions; delegates to crewmember or oar components.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** boolean
+* **Error states:** Returns false if no oar or crewmember component.
 
-### `ACTIONS.ROW.fn = function(act)`
-* **Description:** Public entry point for ROW action (keyboard/mouse).
-* **Parameters:** `act` — action object.
-* **Returns:** Result of `row(act)`.
+### `ACTIONS.ROW.fn(act)`
+* **Description:** Wraps the internal row function for the ROW action.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** boolean
+* **Error states:** None
 
-### `ACTIONS.ROW_CONTROLLER.fn = function(act)`
-* **Description:** Public entry point for ROW action (controller).
-* **Parameters:** `act` — action object.
-* **Returns:** Result of `row(act)`.
+### `ACTIONS.ROW_CONTROLLER.fn(act)`
+* **Description:** Wraps the internal row function for the ROW_CONTROLLER action.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** boolean
+* **Error states:** None
 
-### `ACTIONS.BOARDPLATFORM.fn = function(act)`
-* **Description:** Placeholder action for boarding platforms (e.g., boats, rafts). Does nothing but succeed.
-* **Parameters:** `act` — action object.
-* **Returns:** `true`.
+### `ACTIONS.BOARDPLATFORM.fn(act)`
+* **Description:** Boarding platform action — always succeeds.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** true
+* **Error states:** None
 
 ### `ACTIONS.OCEAN_FISHING_POND.fn(act)`
-* **Description:** Checks if the target is a virtual ocean, used to validate ocean fishing actions.
-* **Parameters:** `act` — action object containing `target` (entity) and `doer` (actor).
-* **Returns:** `true` if target has tag `"virtualocean"`; `false, "WRONGGEAR"` otherwise.
+* **Description:** Checks if target is a virtualocean to allow ocean fishing pond actions.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** true/false, and optional reason string 'WRONGGEAR'
+* **Error states:** Returns false, 'WRONGGEAR' if target not tagged 'virtualocean'.
 
 ### `ACTIONS.OCEAN_FISHING_CAST.fn(act)`
-* **Description:** Casts the ocean fishing rod at the action point or target position.
-* **Parameters:** `act` — action object; extracts `invobject` (fishing rod) or equipped hand item, and `pos` (cast point).
-* **Returns:** Result of `rod.components.oceanfishingrod:Cast(doer, pos)`, or `nil` if rod or component missing.
+* **Description:** Casts ocean fishing rod at target position using the oceanfishingrod component.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** boolean from rod:Cast or nil
+* **Error states:** None
 
 ### `ACTIONS.OCEAN_FISHING_REEL.strfn(act)`
-* **Description:** Returns UI string for reel action based on target state.
-* **Parameters:** `act` — action object; retrieves equipped rod and its target.
-* **Returns:** `"SETHOOK"` if rod target is valid and has tag `"partiallyhooked"`; `nil` otherwise.
+* **Description:** Returns 'SETHOOK' if the target of the fishing rod is tagged 'partiallyhooked'.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** string key or nil
+* **Error states:** None
 
 ### `ACTIONS.OCEAN_FISHING_REEL.fn(act)`
-* **Description:** Reels in the ocean fishing line.
-* **Parameters:** `act` — action object; extracts equipped rod.
-* **Returns:** Result of `rod.components.oceanfishingrod:Reel()`, or `nil` if rod or component missing.
+* **Description:** Reels in ocean fishing rod using oceanfishingrod:Reel().
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** boolean from rod:Reel() or nil
+* **Error states:** None
 
 ### `ACTIONS.OCEAN_FISHING_STOP.fn(act)`
-* **Description:** Stops ocean fishing and transitions player state.
-* **Parameters:** `act` — action object; extracts equipped rod.
-* **Returns:** `true` unconditionally after transitioning and stopping.
+* **Description:** Stops ocean fishing by changing state to oceanfishing_stop and calling StopFishing.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** true
+* **Error states:** None
 
 ### `ACTIONS.OCEAN_FISHING_CATCH.fn(act)`
-* **Description:** Initiates fish catch animation and logic.
-* **Parameters:** `act` — action object; extracts equipped rod.
-* **Returns:** `true` unconditionally after transitioning and calling `CatchFish()`.
+* **Description:** Triggers catch animation and calls CatchFish() on oceanfishingrod component.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** true
+* **Error states:** None
 
 ### `ACTIONS.CHANGE_TACKLE.strfn(act)`
-* **Description:** Determines UI string for changing tackle based on item state.
-* **Parameters:** `act` — action object; checks `invobject` and equipped item.
-* **Returns:** `"REMOVE"` if item is held in container slot; `"AMMO"` if item has tag `"reloaditem_ammo"`; otherwise `nil`.
+* **Description:** Returns 'REMOVE' if item is inside container, or 'AMMO' if tagged 'reloaditem_ammo'.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** string key or nil
+* **Error states:** None
 
 ### `ACTIONS.CHANGE_TACKLE.fn(act)`
-* **Description:** Swaps or moves an item (tackle) from one container (typically a slingshot's ammo slot) to another location—either back to the player's inventory or to another slot within the same container.
-* **Parameters:** `act` — action table containing: `doer` (entity performing the action), `invobject` (item being moved), and potentially other action metadata.
-* **Returns:** `true` if the operation succeeds, `false` otherwise.
+* **Description:** Handles switching fishing tackle between inventory, equipped container slots, and stacks.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** boolean success or false
+* **Error states:** Returns false if containers/components missing or operations fail.
 
-### `ACTIONS.TALKTO.fn`
-* **Description:** Handles talking to a target entity (e.g., Maxwell or other talkable). If the target is Maxwell and not already talking, initiates its speech sequence.
-* **Parameters:** `act` — action data table containing `doer`, `target`, `invobject`, etc.
-* **Returns:** `true` if `target.components.talkable` exists and speech logic runs; otherwise `nil`.
+### `ACTIONS.TALKTO.fn(act)`
+* **Description:** Triggers talkable or maxwelltalker component interactions, stopping locomotor and starting speech threads.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** boolean true
+* **Error states:** None
 
-### `ACTIONS.INTERACT_WITH.strfn`
-* **Description:** Provides a string key for `INTERACT_WITH` action when the target is a farm plant.
-* **Parameters:** `act` — action data table.
-* **Returns:** `"FARM_PLANT"` if `act.target` has tag `"farm_plant"`, otherwise `nil`.
+### `ACTIONS.INTERACT_WITH.strfn(act)`
+* **Description:** Returns 'FARM_PLANT' if target is a farm_plant.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** string key or nil
+* **Error states:** None
 
-### `ACTIONS.INTERACT_WITH.fn`
-* **Description:** Handles interacting with a farm plant using `farmplanttendable` component. Tends to the plant and optionally triggers a player announcement.
-* **Parameters:** `act`.
-* **Returns:** `true` if `TendTo()` succeeds; otherwise `nil`.
+### `ACTIONS.INTERACT_WITH.fn(act)`
+* **Description:** Tends to a farm plant using farmplanttendable component, announcing via talker.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** boolean true or nil
+* **Error states:** None
 
-### `ACTIONS.INTERACT_WITH.theme_music_fn`
-* **Description:** Returns theme music identifier for farm plant interactions.
-* **Parameters:** `act`.
-* **Returns:** `"farming"` if `act.target` has tag `"farm_plant"`, otherwise `nil`.
+### `ACTIONS.INTERACT_WITH.theme_music_fn(act)`
+* **Description:** Returns 'farming' theme if target is farm_plant.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** string key or nil
+* **Error states:** None
 
-### `ACTIONS.ATTACKPLANT.fn`
-* **Description:** Simulates stressing a farm plant (e.g., neglect/harsh treatment), marking it as stressed and tendable.
-* **Parameters:** `act`.
-* **Returns:** `true` if `farmplantstress` component exists; otherwise `nil`.
+### `ACTIONS.ATTACKPLANT.fn(act)`
+* **Description:** Stresses a farm plant using farmplantstress and sets tendable true.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** boolean true
+* **Error states:** None
 
-### `ACTIONS.TELLSTORY.stroverridefn`
-* **Description:** Overrides the display string for `TELLSTORY` action, returning the base string literal instead of a dynamic target-aware variant.
-* **Parameters:** `act`.
-* **Returns:** `STRINGS.ACTIONS.TELLSTORY` (a static string).
+### `ACTIONS.TELLSTORY.stroverridefn(act)`
+* **Description:** Overrides the display string for the tell story action to prevent target name from appearing.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** string reference to STRINGS.ACTIONS.TELLSTORY
+* **Error states:** None
 
-### `ACTIONS.TELLSTORY.fn`
-* **Description:** Triggers storytelling using the `storyteller` component. Uses `target` or `invobject` as the story prop.
-* **Parameters:** `act`.
-* **Returns:** Result of `TellStory()` (e.g., `true`, `false`, or `false, "reason"`); otherwise `nil` if storyteller component is missing.
+### `ACTIONS.TELLSTORY.fn(act)`
+* **Description:** Calls storyteller:TellStory on the doer with the target or invobject.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** boolean or false+reason from storyteller component.
+* **Error states:** None
 
-### `ACTIONS.PERFORM.fn`
-* **Description:** Initiates a performance at a stage prop if the actor and prop are valid.
-* **Parameters:** `act`.
-* **Returns:** Result of `DoPerformance()` (e.g., `true`/`false`); otherwise `nil`.
+### `ACTIONS.PERFORM.fn(act)`
+* **Description:** Calls stageactingprop:DoPerformance if doer is stageactor and target is stageactingprop.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** boolean from DoPerformance or nil
+* **Error states:** Returns nil if components missing.
 
-### `ACTIONS.BAIT.fn`
-* **Description:** Baits a trap by removing bait item from inventory and setting it on the trap.
-* **Parameters:** `act`.
-* **Returns:** `true`.
+### `ACTIONS.BAIT.fn(act)`
+* **Description:** Sets bait on trap by removing item from inventory and calling trap:SetBait.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** boolean true
+* **Error states:** None
 
-### `ACTIONS.DEPLOY.fn`
-* **Description:** Deploys an item (e.g., deployable structures or projectiles) at a position. Handles inventory/container removal and physics launch for projectiles.
-* **Parameters:** `act`.
-* **Returns:** `true` on success; `false, reason` on failure (e.g., cannot deploy, deploy failed); or `nil` if no valid `deployable` item.
+### `ACTIONS.DEPLOY.fn(act)`
+* **Description:** Deploys item using deployable or complexprojectile component, handling placement and inventory removal.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** boolean or false+reason
+* **Error states:** Returns false+reason on CanDeploy failure or deploy failure.
 
 ### `ACTIONS.DEPLOY.strfn(act)`
-* **Description:** Determines the deployment string key for an inventory item based on its tags (e.g., `"usedeploystring"`, `"projectile"`, `"groundtile"`). Returns `nil` if no matching tag.
-* **Parameters:** `act` — action table containing `act.invobject` (the item being deployed).
-* **Returns:** String key (e.g., `"DEPLOY"`, `"WALL"`, `"FERTILIZE_GROUND"`), or `nil`.
+* **Description:** Returns the appropriate deployment string key based on item tags (DEPLOY, DEPLOY_TOSS, GROUNDTILE, FENCE, etc.).
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** string key or nil
+* **Error states:** None
 
 ### `ACTIONS.DEPLOY.theme_music_fn(act)`
-* **Description:** Returns `"farming"` theme music if the item has tag `"deployedfarmplant"`, otherwise `nil`.
-* **Parameters:** `act` — action table (same as above).
-* **Returns:** `"farming"` or `nil`.
+* **Description:** Returns 'farming' theme for items tagged 'deployedfarmplant'.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** string key or nil
+* **Error states:** None
 
-### `ACTIONS.DEPLOY_TILEARRIVE.fn`
-* **Description:** Reference alias to `ACTIONS.DEPLOY.fn`.
-* **Parameters:** Inherited from `ACTIONS.DEPLOY.fn`.
-* **Returns:** Same as `ACTIONS.DEPLOY.fn`.
+### `ACTIONS.DEPLOY_TILEARRIVE.fn(act)`
+* **Description:** Alias for ACTIONS.DEPLOY.fn.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** boolean or false+reason
+* **Error states:** None
 
 ### `ACTIONS.DEPLOY_TILEARRIVE.stroverridefn(act)`
-* **Description:** Constructs the localized action string by calling `ACTIONS.DEPLOY.strfn` and indexing into `STRINGS.ACTIONS.DEPLOY`.
-* **Parameters:** `act` — action table.
-* **Returns:** Localized string (e.g., `"Deploy"`), or `STRINGS.ACTIONS.DEPLOY.GENERIC`.
+* **Description:** Returns the same string override as DEPLOY, derived from strfn.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** string from STRINGS.ACTIONS.DEPLOY
+* **Error states:** None
 
-### `ACTIONS.DEPLOY_FLOATING.fn`
-* **Description:** Reference alias to `ACTIONS.DEPLOY.fn`.
-* **Parameters:** Inherited from `ACTIONS.DEPLOY.fn`.
-* **Returns:** Same as `ACTIONS.DEPLOY.fn`.
+### `ACTIONS.DEPLOY_FLOATING.fn(act)`
+* **Description:** Alias for ACTIONS.DEPLOY.fn.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** boolean or false+reason
+* **Error states:** None
 
 ### `ACTIONS.DEPLOY_FLOATING.stroverridefn(act)`
-* **Description:** Same as `DEPLOY_TILEARRIVE.stroverridefn`, but for floating deployment modes.
-* **Parameters:** `act` — action table.
-* **Returns:** Localized string for deploy/floating actions.
+* **Description:** Returns the same string override as DEPLOY, derived from strfn.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** string from STRINGS.ACTIONS.DEPLOY
+* **Error states:** None
 
-### `ACTIONS.TOGGLE_DEPLOY_MODE.strfn`
-* **Description:** Reference alias to `ACTIONS.DEPLOY.strfn`.
-* **Parameters:** Inherited from `ACTIONS.DEPLOY.strfn`.
-* **Returns:** Same as `ACTIONS.DEPLOY.strfn`.
+### `ACTIONS.TOGGLE_DEPLOY_MODE.strfn(act)`
+* **Description:** Alias for ACTIONS.DEPLOY.strfn.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** string key or nil
+* **Error states:** None
 
 ### `ACTIONS.SUMMONGUARDIAN.fn(act)`
-* **Description:** Calls the `guardian:Call()` method on the target entity if both `doer` and `target` exist and the target has the `"guardian"` component.
-* **Parameters:** `act` — action table with `act.doer`, `act.target`.
-* **Returns:** Implicitly `nil` (no explicit return).
+* **Description:** Calls guardian:Call on target if both doer and target exist.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** nil
+* **Error states:** None
 
 ### `ACTIONS.CHECKTRAP.fn(act)`
-* **Description:** Harvests a trap if the target has the `"trap"` component.
-* **Parameters:** `act` — action table with `act.doer`, `act.target`.
-* **Returns:** `true` if trap exists; otherwise, implicit `nil`.
+* **Description:** Harvests trap using trap:Harvest on target.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** true
+* **Error states:** None
+
+### `DoToolWork(act, workaction)`
+* **Description:** Performs tool-based work on target with multiplier calculations, recoil, and special work resolution.
+* **Parameters:**
+  - `act` -- action object
+  - `workaction` -- action type (CHOP, MINE, etc.)
+* **Returns:** boolean true or false
+* **Error states:** Returns false if restrictions, item mimic, or invalid workable state.
+
+### `ValidToolWork(act, workaction)`
+* **Description:** Pre-flight check for tool-based work to verify workable, action match, and equip restrictions.
+* **Parameters:**
+  - `act` -- action object
+  - `workaction` -- action type
+* **Returns:** boolean
+* **Error states:** None
 
 ### `ACTIONS.CHOP.fn(act)`
-* **Description:** Executes the CHOP action. Calls `DoToolWork`, then triggers spook FX on the doer if they have the `spooked` component and the target is valid.
-* **Parameters:** `act` — action table.
-* **Returns:** `true` on success or `false, work_fail_reason` if `DoToolWork` fails with a reason.
+* **Description:** Chops target with DoToolWork; triggers spooked on success if applicable.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** true, or false+reason if work fails.
+* **Error states:** None
 
 ### `ACTIONS.CHOP.validfn(act)`
-* **Description:** Validates CHOP action by calling `ValidToolWork`.
-* **Parameters:** `act` — action table.
-* **Returns:** Boolean indicating if CHOP is valid for the target.
+* **Description:** Returns true if CHOP is valid on target.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** boolean
+* **Error states:** None
 
 ### `ACTIONS.MINE.fn(act)`
-* **Description:** Executes the MINE action. Calls `DoToolWork`.
-* **Parameters:** `act` — action table.
-* **Returns:** `true` on success or `false, work_fail_reason`.
+* **Description:** Mines target with DoToolWork.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** true, or false+reason if work fails.
+* **Error states:** None
 
 ### `ACTIONS.MINE.validfn(act)`
-* **Description:** Validates MINE action by calling `ValidToolWork`.
-* **Parameters:** `act` — action table.
-* **Returns:** Boolean indicating if MINE is valid.
+* **Description:** Returns true if MINE is valid on target.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** boolean
+* **Error states:** None
 
 ### `ACTIONS.HAMMER.fn(act)`
-* **Description:** Executes the HAMMER action. Calls `DoToolWork`.
-* **Parameters:** `act` — action table.
-* **Returns:** `true` on success or `false, work_fail_reason`.
+* **Description:** Hammers target with DoToolWork.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** true, or false+reason if work fails.
+* **Error states:** None
 
 ### `ACTIONS.HAMMER.validfn(act)`
-* **Description:** Validates HAMMER action by calling `ValidToolWork`.
-* **Parameters:** `act` — action table.
-* **Returns:** Boolean indicating if HAMMER is valid.
+* **Description:** Returns true if HAMMER is valid on target.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** boolean
+* **Error states:** None
 
 ### `ACTIONS.DIG.fn(act)`
-* **Description:** Executes the DIG action. Calls `DoToolWork`.
-* **Parameters:** `act` — action table.
-* **Returns:** `true` on success or `false, work_fail_reason`.
+* **Description:** Digs target with DoToolWork.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** true, or false+reason if work fails.
+* **Error states:** None
 
 ### `ACTIONS.DIG.validfn(act)`
-* **Description:** Validates DIG action by calling `ValidToolWork`.
-* **Parameters:** `act` — action table.
-* **Returns:** Boolean indicating if DIG is valid.
+* **Description:** Returns true if DIG is valid on target.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** boolean
+* **Error states:** None
 
 ### `ACTIONS.DIG.theme_music_fn(act)`
-* **Description:** Determines whether to play farming-themed music when digging, based on the target being farm debris or a farm plant.
-* **Parameters:** `act` — the action object containing target and other context.
-* **Returns:** `"farming"` if the target has tag `"farm_debris"` or `"farm_plant"` and `act.target ~= nil`; otherwise `nil`.
+* **Description:** Returns 'farming' theme for targets tagged farm_debris or farm_plant.
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** string key or nil
+* **Error states:** None
 
 ### `ACTIONS.FERTILIZE.fn(act)`
-* **Description:** Applies fertilizer to various agricultural entities (crops, grower soil, pickable plants, quagmire fertilizables) or the doer themselves if fertilizable.
-* **Parameters:** `act` — action object with fields `invobject` (fertilizer item), `doer`, and `target`.
-* **Returns:** `true` if fertilizer was successfully applied; otherwise `false`.
+* **Description:** Attempts to apply fertilizer from invobject to a valid target (crop, grower, pickable, quagmire_fertilizable or self if no target). Triggers Cheevo event if applied to a pickable.
+* **Parameters:**
+  - `act` -- Action object containing doer, target, invobject; provides context for the fertilization attempt
+* **Returns:** true if fertilizer was applied, false otherwise
+* **Error states:** Returns false if no applicable fertilizer component, target not suitable, or target is already withered/harvested/matured
 
 ### `ACTIONS.SMOTHER.fn(act)`
-* **Description:** Smothers a smoldering fire using the inventory item (or doer as smotherer).
-* **Parameters:** `act` — action object with `target` (fire entity) and `invobject`.
-* **Returns:** `true` if smothering succeeded.
+* **Description:** Smothers a smoldering target by consuming either invobject or doer as the smotherer.
+* **Parameters:**
+  - `act` -- Action object with target entity and optional invobject used as smotherer
+* **Returns:** true if smothering succeeded, false otherwise
+* **Error states:** Returns nil if target has no burnable component or isn't smoldering
 
 ### `ACTIONS.MANUALEXTINGUISH.fn(act)`
-* **Description:** Extinguishes an active fire using a frozen item as a coolant/ extinguisher.
-* **Parameters:** `act` — action object with `invobject` (frozen item) and `target` (burning entity).
-* **Returns:** `true` if extinguish succeeded.
+* **Description:** Manually extinguishes a burning target using a frozen item as the extinguisher.
+* **Parameters:**
+  - `act` -- Action object with invobject (must be frozen) and burning target
+* **Returns:** true if extinguishing succeeded, false otherwise
+* **Error states:** Returns nil if target isn't burning or invobject isn't frozen
 
 ### `ACTIONS.NET.fn(act)`
-* **Description:** Allows a workable entity to be "netted", typically for capturing; may replicate via `nabbag` if applicable.
-* **Parameters:** `act` — action object with `target`, `doer`, and `invobject`.
-* **Returns:** `true` (always) — does not fail even if work was not applied.
+* **Description:** Performs netting action on a workable entity; may replicate netting to multiple entities via nabbag component.
+* **Parameters:**
+  - `act` -- Action object with target (must be workable, grabbable, and have appropriate work action) and invobject
+* **Returns:** true if netting action completed (even if no actual work performed)
+* **Error states:** Returns false if target cannot be grabbed with current tool or target is dead
 
 ### `ACTIONS.CATCH.fn(act)`
-* **Description:** Placeholder catch action — no logic implemented.
-* **Parameters:** `act` — action object (unused).
-* **Returns:** `true`.
+* **Description:** Placeholder action for catching operations; always succeeds.
+* **Parameters:**
+  - `act` -- Action object (unused in this handler)
+* **Returns:** true
+* **Error states:** None
 
 ### `ACTIONS.FISH_OCEAN.fn(act)`
-* **Description:** Ocean fishing action — currently returns failure indicating depth issue.
-* **Parameters:** `act` — action object (unused).
-* **Returns:** `false`, `"TOODEEP"`.
+* **Description:** Handles ocean fishing attempts; prevents fishing in deep water.
+* **Parameters:**
+  - `act` -- Action object (unused)
+* **Returns:** false, TOODEEP
+* **Error states:** Always returns TOODEEP
 
 ### `ACTIONS.FISH.fn(act)`
-* **Description:** Starts fishing using an equipped fishing rod.
-* **Parameters:** `act` — action object with `invobject` (fishing rod) and `target`.
-* **Returns:** `true`.
+* **Description:** Starts fishing using the fishing rod component of the held item.
+* **Parameters:**
+  - `act` -- Action object with invobject (fishing rod) and target (water source)
+* **Returns:** true
+* **Error states:** None
 
 ### `ACTIONS.REEL.fn(act)`
-* **Description:** Handles reel action during fishing, including hooking fish or stopping if no fish.
-* **Parameters:** `act` — action object with `invobject` (fishing rod).
-* **Returns:** `true` (always).
+* **Description:** Reels in the fishing line based on current state: hooks fish if biting, reels if hooked, stops if nothing.
+* **Parameters:**
+  - `act` -- Action object with invobject (fishing rod) and target
+* **Returns:** true
+* **Error states:** None
 
 ### `ACTIONS.REEL.strfn(act)`
-* **Description:** Determines the UI string/action label for the Reel action based on the fishing state and target.
-* **Parameters:** `act` — the action object containing `invobject`, `target`, and `doer`.
-* **Returns:** `"REEL"` if a fish is hooked. `"HOOK"` if the player has the `nibble` tag. `"CANCEL"` otherwise. `nil` if conditions not met.
+* **Description:** Returns appropriate action string (REEL/HOOK/CANCEL) based on current fishing state.
+* **Parameters:**
+  - `act` -- Action object with invobject (fishing rod) and target
+* **Returns:** String: REEL, HOOK, or CANCEL
+* **Error states:** Returns nil if target mismatch or invalid state
 
 ### `ACTIONS.PICK.strfn(act)`
-* **Description:** Returns the appropriate string key for the Pick action based on target tags.
-* **Parameters:** `act` — the action object containing `target`.
-* **Returns:** `"HARVEST"` if target has `pickable_harvest_str`. `"RUMMAGE"` if target has `pickable_rummage_str`. `"SEARCH"` if target has `pickable_search_str`. `nil` otherwise.
+* **Description:** Returns the appropriate string label (HARVEST/RUMMAGE/SEARCH) based on pickable tags.
+* **Parameters:**
+  - `act` -- Action object with target entity
+* **Returns:** String or nil
+* **Error states:** Returns nil if target is nil or no matching tags
 
 ### `ACTIONS.PICK.fn(act)`
-* **Description:** Executes the Pick action by delegating to `pickable:Pick()` or `searchable:Search()`.
-* **Parameters:** `act` — the action object with `target` and `doer`.
-* **Returns:** `false, "STUCK"` if the target is stuck. `true` after successful pick or search. `nil` implicitly if `act.target` is nil.
+* **Description:** Picks or searches a target: pickable.Pick() or searchable.Search(); blocks if stuck.
+* **Parameters:**
+  - `act` -- Action object with target entity and doer
+* **Returns:** true/nil for pickable, result of searchable.Search for searchable, false with STUCK reason if stuck
+* **Error states:** Returns false,STUCK if target is stuck; delegates errors from components
 
 ### `ACTIONS.PICK.validfn(act)`
-* **Description:** Validates whether the Pick action can be performed on the target.
-* **Parameters:** `act` — the action object with `target`.
-* **Returns:** `true` if `act.target` exists and has valid `pickable:CanBePicked()` or `searchable.canbesearched`. `false` otherwise.
+* **Description:** Determines if the pick action is valid for the target.
+* **Parameters:**
+  - `act` -- Action object with target entity
+* **Returns:** true if target is pickable or searchable and has appropriate flags
+* **Error states:** Returns false if target is nil or neither component is applicable
 
 ### `ACTIONS.PICK.theme_music_fn(act)`
-* **Description:** Determines the theme music to play during the Pick action.
-* **Parameters:** `act` — the action object with `target`.
-* **Returns:** `"farming"` if target has `farm_plant` tag. `nil` otherwise.
+* **Description:** Returns 'farming' theme if target is a farm plant, otherwise nil.
+* **Parameters:**
+  - `act` -- Action object with target entity
+* **Returns:** String 'farming' or nil
+* **Error states:** None
 
 ### `ACTIONS.ATTACK.fn(act)`
-* **Description:** Executes the Attack action, handling specialized combat states (prop attack, thrusting, helm splitting) and calling `combat:DoAttack()`.
-* **Parameters:** `act` — the action object with `doer` and `target`.
-* **Returns:** `true` after handling specialized attacks or `DoAttack`.
+* **Description:** Performs attack; handles prop attacks, thrusting/helmsplitting animations, and standard combat attack.
+* **Parameters:**
+  - `act` -- Action object with doer (attacker) and target
+* **Returns:** true if attack succeeded
+* **Error states:** None
 
 ### `ACTIONS.ATTACK.strfn(act)`
-* **Description:** Returns the UI string for the Attack action based on weapon/target properties.
-* **Parameters:** `act` — the action object with `target` and `invobject` (weapon).
-* **Returns:** `"PROP"` if weapon is a prop weapon. `"RANGEDSMOTHER"` if weapon can extinguish target. `"RANGEDLIGHT"` if weapon can light target. `"WHACK"` if target is `whackable` and weapon is a hammer. `"SMASHABLE"` if target is `smashable`. `nil` otherwise.
+* **Description:** Returns appropriate string label for attack animations (PROP/RANGEDSMOTHER/RANGEDLIGHT/WHACK/SMASHABLE).
+* **Parameters:**
+  - `act` -- Action object with invobject (weapon) and target
+* **Returns:** String label or nil
+* **Error states:** Returns nil if no special conditions met
 
 ### `ACTIONS.COOK.stroverridefn(act)`
-* **Description:** Overrides the COOK action label if the target has a spicer component.
-* **Parameters:** `act` — the action object with `target`.
-* **Returns:** `STRINGS.ACTIONS.SPICE` if target has `spicer` tag. `nil` otherwise.
+* **Description:** Overrides action string to SPICE if target is spicer.
+* **Parameters:**
+  - `act` -- Action object with target entity
+* **Returns:** STRINGS.ACTIONS.SPICE or nil
+* **Error states:** None
 
 ### `ACTIONS.COOK.fn(act)`
-* **Description:** Handles the cooking action, supporting multiple cooking mechanisms: `cooker` (e.g., campfire), `stewer` (e.g., crock pot), and `cooker` as a tool used on a `cookable` target (e.g., roasting a pig on a spit).
-* **Parameters:** `act` — action object containing `doer`, `target`, `invobject`, and `target` components.
-* **Returns:** `true` on successful cooking, `false` or `{false, reason}` on failure (e.g., `"TOOFAR"`, `"INUSE"`).
+* **Description:** Handles cooking: delegated to cooker, stewer, or cookable components with appropriate context.
+* **Parameters:**
+  - `act` -- Action object with target (cooker/stewer/cookable container), invobject (ingredient), and doer
+* **Returns:** true if cooking succeeded, false otherwise
+* **Error states:** Returns false with reasons like INUSE, TOOFAR, or failure from underlying components
 
 ### `ACTIONS.ACTIVATE_CONTAINER.fn(act)`
-* **Description:** Activates a container if it has a custom `cookbuttonfn`, supporting interactive cooking UI triggers (e.g., opening a crock pot).
-* **Parameters:** `act` — action object containing `doer` and `target`.
-* **Returns:** `true` on success, `false` with `"INUSE"` if container is already open by another player.
+* **Description:** Invokes target's cookbuttonfn if present and container not in use by others.
+* **Parameters:**
+  - `act` -- Action object with target container entity
+* **Returns:** true if cookbuttonfn succeeded, false if in use or missing fn
+* **Error states:** Returns false,INUSE if container is opened by others
 
 ### `ACTIONS.FILL.fn(act)`
-* **Description:** Handles filling an item with water. Determines which object is the water source and which is the target, validates the action, and calls `fillable:Fill()` if possible. Also supports ocean water filling if `acceptsoceanwater` is true and the action point is at ocean.
-* **Parameters:** `act` — action context object containing `target`, `invobject`, `doer`, and `GetActionPoint()` method.
-* **Returns:** `true` on success, `false` (optionally with reason string) on failure.
+* **Description:** Fills fillable item with water from a watersource or ocean at action point.
+* **Parameters:**
+  - `act` -- Action object with invobject and target; one must be a watersource
+* **Returns:** true if filled, false with error string otherwise
+* **Error states:** Returns false,TOODEEP if ocean filling attempted at deep water; returns false with error string from component
 
 ### `ACTIONS.FILL_OCEAN.stroverridefn(act)`
-* **Description:** Returns the string key for ocean fill action description, always `STRINGS.ACTIONS.FILL`.
-* **Parameters:** `act` — action context object.
-* **Returns:** `STRINGS.ACTIONS.FILL`.
+* **Description:** Returns default FILL string override for ocean filling.
+* **Parameters:**
+  - `act` -- Action object (unused)
+* **Returns:** STRINGS.ACTIONS.FILL
+* **Error states:** None
 
 ### `ACTIONS.DRY.fn(act)`
-* **Description:** Handles drying an item using a dryer component. Removes the item from doer's inventory, attempts to start drying on the target, and emits a custom event `CHEVO_starteddrying` on success.
-* **Parameters:** `act` — action context object.
-* **Returns:** `true` on success, `false` if drying can't be started (and item is returned to inventory).
+* **Description:** Starts drying process using a dryer component.
+* **Parameters:**
+  - `act` -- Action object with target (dryer) and invobject (dryable)
+* **Returns:** true if started, false otherwise; pushes CHEVO_starteddrying event
+* **Error states:** Returns false if dryer cannot dry or StartDrying fails
 
 ### `ACTIONS.ADDFUEL.fn(act)`
-* **Description:** Adds fuel to a fueled component. Handles two paths: inventory item removal and direct fueler component usage. Attempts to add fuel via `fueled:TakeFuelItem()`, and on failure, attempts to re-stack partial uses.
-* **Parameters:** `act` — action context object.
-* **Returns:** `true` on success, implicitly `nil`/`false` on failure (no explicit return in all branches).
+* **Description:** Adds fuel to a fueled target from inventory or via direct interaction.
+* **Parameters:**
+  - `act` -- Action object with target (fueled), invobject (fuel), and doer
+* **Returns:** true if fuel taken successfully, false otherwise
+* **Error states:** Returns false if fuel not accepted; may re-add fuel to inventory on partial consumption
 
 ### `ACTIONS.GIVE.strfn(act)`
-* **Description:** Returns the appropriate string override key for GIVE action depending on target tags (e.g., `SOCKET`, `SHOW`, `REPAIR`, `CELESTIAL`). Used to customize UI text per target type.
-* **Parameters:** `act` — action context object.
-* **Returns:** String key (`"SOCKET"`, `"SHOW"`, `"REPAIR"`, `"CELESTIAL"`) or `nil` if no matching tag found.
+* **Description:** Returns string label for giving (SOCKET/SHOW/REPAIR/CELESTIAL) based on target tags.
+* **Parameters:**
+  - `act` -- Action object with target entity
+* **Returns:** String or nil
+* **Error states:** Returns nil if no matching tags
 
 ### `ACTIONS.GIVE.stroverridefn(act)`
-* **Description:** Overrides the string displayed for the GIVE action based on specific entity tags and item types (e.g., Ghostly Elixir, Winter's Feast Table, Quagmire altar items).
-* **Parameters:** `act` — action object containing `act.target`, `act.invobject`, and `act.doer` fields.
-* **Returns:** Localized string (e.g., `STRINGS.ACTIONS.GIVE.APPLY`, `STRINGS.ACTIONS.GIVE.QUAGMIRE_ALTAR.GENERIC`), or `nil` if no override matches.
-
-### `ShouldBlockGiving(act)`
-* **Description:** Determines if giving an item to a target should be blocked due to container restriction rules (specifically for pocket-only items).
-* **Parameters:** `act` — action object (same structure as above).
-* **Returns:** `true` if giving should be blocked; `false` otherwise.
+* **Description:** Returns dynamic localized string for gifting, handling ghostlyelixir, wintersfeasttable, quagmire_altar, etc.
+* **Parameters:**
+  - `act` -- Action object with target and invobject
+* **Returns:** Formatted string or nil
+* **Error states:** Returns nil if no special handling applies
 
 ### `ACTIONS.GIVE.fn(act)`
-* **Description:** Handles giving an item (`act.invobject`) to a target entity (`act.target`). Implements special-case logic for several trader-like components and decorative interactions.
-* **Parameters:** `act`: Action object containing `doer` (entity performing the action), `target` (entity receiving), `invobject` (item being given), and other metadata.
-* **Returns:** `true` on success; `false, reason` on failure with an optional reason string.
+* **Description:** Handles giving items to various recipient types: lecturn, elixirable, trader, moontrader, furniture decortaker, etc.
+* **Parameters:**
+  - `act` -- Action object with target entity and invobject to give
+* **Returns:** true if giving succeeded, false with reason otherwise
+* **Error states:** Returns false with reasons: INUSE, FULL, not able to accept, blocked by ShouldBlockGiving
 
 ### `ACTIONS.GIVETOPLAYER.fn(act)`
-* **Description:** Specialized version of `ACTIONS.GIVE` targeting an *opened* trader container (or playerghost), giving a single stack of the item.
-* **Parameters:** Same as `ACTIONS.GIVE`.
-* **Returns:** `true` on success; `false, "FULL"` if target container cannot accept the item; `false, reason` if trader component validation fails.
+* **Description:** Gives one item to a player-owned trader that is opened or ghost.
+* **Parameters:**
+  - `act` -- Action object with target (trader/player) and invobject
+* **Returns:** true if accepted, false with reason otherwise
+* **Error states:** Returns false,INUSE or FULL or other trader rejection reason
 
 ### `ACTIONS.GIVEALLTOPLAYER.fn(act)`
-* **Description:** Attempts to give the *entire stack* of `act.invobject` to an *opened* trader container. Uses `CanAcceptCount` to determine how many can be accepted.
-* **Parameters:** Same as `ACTIONS.GIVE`.
-* **Returns:** `true` on success; `false, "FULL"` if target cannot accept any quantity of the item; `false, reason` if trader validation fails.
+* **Description:** Gives the full stack of an item to an opened trader.
+* **Parameters:**
+  - `act` -- Action object with target (trader/player) and invobject
+* **Returns:** true if accepted, false with reason otherwise
+* **Error states:** Returns false,FULL or other trader rejection reason
 
 ### `ACTIONS.FEEDPLAYER.fn(act)`
-* **Description:** Handles feeding a player character. Checks if the target can eat the item (including pvp settings, monster meat tolerance, spoilage tolerance) and if they prefer to eat it. If yes, removes the food from the feeder's inventory, places it as a child entity on the target, and transitions the target to an eating state.
-* **Parameters:** `act` — action object containing `doer`, `target`, `invobject`, and other metadata.
-* **Returns:** `true` if the action logic was processed (even if the target refused to eat), or `nil` (implicit) if preconditions fail.
+* **Description:** Feeds an idle, non-busy player edible food, playing appropriate eat animation.
+* **Parameters:**
+  - `act` -- Action object with target (eater) and invobject (edible food)
+* **Returns:** true if food eaten or eater refuses (action always succeeds); false if conditions not met
+* **Error states:** Returns false if target state or tags prevent feeding; pushes won't eat food event if refused
 
 ### `ACTIONS.DECORATEVASE.fn(act)`
-* **Description:** Attempts to decorate a vase with an item. Validates that target has a vase component and is enabled, then delegates to `vase:Decorate`.
-* **Parameters:** `act` — action object.
-* **Returns:** `true` if `vase:Decorate` is called, or `nil` if conditions not met.
+* **Description:** Decorates a vase if enabled with a valid flower item.
+* **Parameters:**
+  - `act` -- Action object with target (vase) and invobject (flower)
+* **Returns:** true if decorated, false otherwise
+* **Error states:** Returns false if vase not enabled or component missing
 
 ### `ACTIONS.CARNIVALGAME_FEED.fn(act)`
-* **Description:** Feeds a carnival game entity with an item. Checks if the game is still accepting entries and delegates to `carnivalgamefeedable:DoFeed`.
-* **Parameters:** `act` — action object.
-* **Returns:** Return value of `carnivalgamefeedable:DoFeed`, or `false, "TOO_LATE"` if the game is disabled.
+* **Description:** Feeds a carnival game feedable item if game is open.
+* **Parameters:**
+  - `act` -- Action object with target (carnivalgamefeedable) and invobject (item)
+* **Returns:** Result of DoFeed or false with TOO_LATE
+* **Error states:** Returns false,TOO_LATE if game closed; false if invalid item/target
+
+### `ShouldBlockGiving(act)`
+* **Description:** Checks if item is restricted from leaving the pocket or being placed in restricted containers.
+* **Parameters:**
+  - `act` -- Action object with invobject and target for gifting logic
+* **Returns:** true if giving should be blocked, false otherwise
+* **Error states:** None
 
 ### `ACTIONS.STORE.fn(act)`
-* **Description:** Handles the logic for storing an item (e.g., placing into a container, bundler, or occupiable entity). It supports container-to-container transfers, handles restricted containers, special tags like `"mastercookware"` or `"mermonly"`, soul jar interactions, and construction builder proxies. Falls back to occupancy if item is not container-compatible.
-* **Parameters:** `act`: An action table containing `act.target` (destination), `act.doer` (actor), `act.invobject` (item to store), and other action metadata.
-* **Returns:** `true` on successful store. `false, "INUSE"` if target container is already in use and cannot open. `false, "NOTALLOWED"` if container rejects the item. `false, "RESTRICTED"` if target container is restricted to specific players. `false, "NOTMASTERCHEF"` if trying to use master cookware without the masterchef tag. `false, "NOTAMERM"` if trying to use a merm-only container as non-merm. `false, "NOTSOULJARHANDLER"` if attempting to use a soul jar without the skill unlocked.
+* **Description:** Handles storing items into containers, handling proxies, restricted tags, construction builder slots, and special cases like soul jars and bundles; transfers items from doer's inventory to target container.
+* **Parameters:**
+  - `act` -- Action object containing doer, target, and invobject fields; represents the player-initiated action
+* **Returns:** true on success, false with reason string on failure
+* **Error states:** Fails with 'INUSE', 'NOTALLOWED', 'RESTRICTED', 'NOTMASTERCHEF', 'NOTAMERM', 'NOTSOULJARHANDLER' under various conditions; silent fail for forcedrop scenarios
 
 ### `ACTIONS.BUNDLESTORE.strfn(act)`
-* **Description:** Determines if a bundle store action is available for a target. Returns `"CONSTRUCT"` if the doer is interacting with a construction builder UI associated with the target container or target.
-* **Parameters:** `act`: Action object containing `target`, `doer`, and other action metadata.
-* **Returns:** `"CONSTRUCT"` if conditions match, otherwise `nil`.
+* **Description:** Returns 'CONSTRUCT' verb string when the action target matches the current construction builder container or target.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** 'CONSTRUCT' or nil
+* **Error states:** None
 
 ### `ACTIONS.STORE.strfn(act)`
-* **Description:** Determines the type of store action based on target prefab/tags. Handles stewer, birdcage, and decoratable targets.
-* **Parameters:** `act`: Action object.
-* **Returns:** `"SPICE"` if stewer has `"spicer"` tag, `"COOK"` for normal stewer, `"IMPRISON"` for `birdcage`, `"DECORATE"` for `"decoratable"` tag, otherwise `nil`.
+* **Description:** Returns context-specific verb strings (e.g., 'COOK', 'DECORATE', 'IMPRISON') based on target prefab and tags.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** verb string or nil
+* **Error states:** None
 
 ### `ACTIONS.BUILD.fn(act)`
-* **Description:** Delegates to builder component's `DoBuild` function to build a structure.
-* **Parameters:** `act`: Action object with `recipe`, `GetActionPoint()`, `rotation`, and `skin`.
-* **Returns:** Result of `builder:DoBuild(...)` (truthy/falsy), or `nil` if no builder component.
+* **Description:** Delegates building to the doer's builder component using recipe, position, rotation, and skin data.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** result of DoBuild or nil
+* **Error states:** None
 
 ### `ACTIONS.PLANT.strfn(act)`
-* **Description:** Returns `"PLANTER"` if target has `"winter_treestand"` tag, otherwise `nil`.
-* **Parameters:** `act`: Action object.
-* **Returns:** `"PLANTER"` or `nil`.
+* **Description:** Returns 'PLANTER' verb string if the target has the 'winter_treestand' tag.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** 'PLANTER' or nil
+* **Error states:** None
 
 ### `ACTIONS.PLANT.fn(act)`
-* **Description:** Attempts to plant a seed from inventory into a target container (`grower`, `winter_treestand`).
-* **Parameters:** `act`: Action object with `doer`, `invobject` (seed), and `target`.
-* **Returns:** `true` on successful planting or event push, otherwise `nil` (and returns seed to inventory).
+* **Description:** Removes seed from doer inventory and attempts planting via grower component or special winter tree logic; returns item on failure.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** true on success, nil on failure
+* **Error states:** Falls through and gives item back if planting fails or grower missing
 
 ### `ACTIONS.HARVEST.fn(act)`
-* **Description:** Unified harvest handler supporting multiple components: crop, harvestable, stewer, dryer, dryingrack, occupiable, and quagmire_tappable.
-* **Parameters:** `act`: Action object with `target`, `doer`, `invobject`.
-* **Returns:** Truthy result of the respective harvest function, `true` on item transfer, or `nil` if no applicable component or failure.
+* **Description:** Handles harvesting via multiple components: crop, harvestable, stewer, dryer, dryingrack, occupiable, quagmire_tappable.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** true or result from component-specific harvest method
+* **Error states:** None
 
 ### `ACTIONS.HARVEST.strfn(act)`
-* **Description:** Returns extra status strings for harvest action UI.
-* **Parameters:** `act`: Action object.
-* **Returns:** `"FREE"` for `birdcage`, `"WITHERED"` for withered crop targets, otherwise `nil`.
+* **Description:** Returns context verb strings like 'FREE' for birdcages or 'WITHERED' for withered crops.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** verb string or nil
+* **Error states:** None
 
 ### `ACTIONS.LIGHT.fn(act)`
-* **Description:** Uses an item as a lighter to ignite a target.
-* **Parameters:** `act`: Action object with `invobject` (lighter), `target`, `doer`.
-* **Returns:** `true` if lighter used successfully, otherwise `nil`.
-
-### `DoCharlieResidueMapAction(act, target, charlieresidue, residue_context)`
-* **Description:** Handles teleportation logic when a character uses a Charlie residue target that is a wormhole or tentacle pillar hole. Finds the matching teleport exit, sets up the "jumpin" state with appropriate teleporter and exit references, and manages residue decay or cooldown.
-* **Parameters:** `act` — The action table containing `doer`, `target`, and `GetActionPoint()` data. `target` — The original target entity (usually the Charlie residue). `charlieresidue` — The Charlie residue entity being activated. `residue_context` — One of `CHARLIERESIDUE_MAP_ACTIONS` constants determining behavior.
-* **Returns:** `true` if teleportation state was entered successfully; `false` otherwise (including cooldown init).
+* **Description:** Ignites target via lighter component, fires 'onstartedfire' event on doer if present.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** true on success
+* **Error states:** Returns nil if invobject lacks lighter component
 
 ### `ACTIONS.SLEEPIN.fn(act)`
-* **Description:** Handles the sleep-in action for a player. Checks if the action target or inventory object is a sleeping bag and triggers sleeping.
-* **Parameters:** `act` — action object containing `doer` (the actor), `target` (the target entity), and `invobject` (the held item).
-* **Returns:** `true` if sleeping was initiated; `nil` otherwise (implicit failure).
+* **Description:** Uses sleepingbag component on the doer, checking either invobject or target for the component.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** true on success
+* **Error states:** Returns nil if no valid sleepingbag found
 
 ### `ACTIONS.HITCHUP.fn(act)`
-* **Description:** Attempts to hitch a beefalo to a target using a bell held by the player. Validates the bell, beefalo, range, and mood state.
-* **Parameters:** `act` — action object.
-* **Returns:** `true` on success; `false, "NEEDBEEF"`, `"NEEDBEEF_CLOSER"`, or `"INMOOD"` on failure.
+* **Description:** Attempts to hitch a beefalo to a target after checking range, mood, and presence of beefalo bell.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** true on success, false with reason string on failure
+* **Error states:** Fails with 'NEEDBEEF', 'NEEDBEEF_CLOSER', or 'INMOOD'
 
 ### `ACTIONS.UNHITCH.fn(act)`
-* **Description:** Unhitches an entity that has a hitcher component but lacks the hitcher tag.
-* **Parameters:** `act` — action object.
-* **Returns:** `true` on success; `nil` if unhitching condition not met.
+* **Description:** Calls Unhitch on target's hitcher component if present and not already unhitched.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** true
+* **Error states:** None
 
 ### `ACTIONS.HITCH.fn(act)`
-* **Description:** Initiates hitching by setting `hitchingspot` to nil and calling `SetHitched` on the target if it has a hitcher component.
-* **Parameters:** `act` — action object.
-* **Returns:** Implicit `nil` (no explicit return).
+* **Description:** Calls SetHitched on target hitcher component with the doer as target.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** None
+* **Error states:** None
 
 ### `ACTIONS.MARK.strfn(act)`
-* **Description:** Determines the action string label for mark/unmark by checking if the target is already marked by the doer.
-* **Parameters:** `act` — action object.
-* **Returns:** `"UNMARK"` if already marked; `nil` otherwise.
+* **Description:** Returns 'UNMARK' if target markable component already has the doer marked.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** 'UNMARK' or nil
+* **Error states:** None
 
 ### `ACTIONS.MARK.fn(act)`
-* **Description:** Marks or unmarks a target entity via markable or markable_proxy component.
-* **Parameters:** `act` — action object.
-* **Returns:** `true` on success; `false, "NOT_PARTICIPANT"` or `"ALREADY_MARKED"` on failure.
+* **Description:** Attempts to mark or unmark target via markable or markable_proxy component.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** true on success, false with reason 'NOT_PARTICIPANT' or 'ALREADY_MARKED'
+* **Error states:** Clears yotb_post_to_mark on success
 
 ### `ACTIONS.CHANGEIN.strfn(act)`
-* **Description:** Returns action label string for dress-up if target has the dressable tag.
-* **Parameters:** `act` — action object.
-* **Returns:** `"DRESSUP"` if target has dressable tag; `nil` otherwise.
+* **Description:** Returns 'DRESSUP' verb string if target has 'dressable' tag.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** 'DRESSUP' or nil
+* **Error states:** None
 
 ### `ACTIONS.CHANGEIN.fn(act)`
-* **Description:** Handles dressing up by invoking wardrobe or groomer component to begin changing.
-* **Parameters:** `act` — action object.
-* **Returns:** `true` on success; `false, reason` if changing cannot begin.
+* **Description:** Attempts to begin dressing/skin changing via wardrobe or groomer component; fails silently in darkness.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** true on success, false with reason on failure
+* **Error states:** Fails silently if entity cannot see target
 
 ### `ACTIONS.SHAVE.strfn(act)`
-* **Description:** Returns action label string `"SELF"` for self-shave when no target is provided or target is doer and controller is attached.
-* **Parameters:** `act` — action object.
-* **Returns:** `"SELF"` or `nil`.
+* **Description:** Returns 'SELF' verb string if targeting self (or nil target) and a controller is attached.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** 'SELF' or nil
+* **Error states:** None
 
 ### `ACTIONS.SHAVE.fn(act)`
-* **Description:** Performs a shaving action using an item on a target or the doer themselves. Delegates to either the `beard` or `shaveable` component of the target.
-* **Parameters:** `act` — Action object containing `invobject` (shaving tool), `target` (entity to shave), and `doer` (entity performing the action).
-* **Returns:** Returns result of `beard:Shave()` or `shaveable:Shave()`, typically a boolean and optional reason string.
+* **Description:** Shaves either target or doer using the specified shaver item via beard or shaveable components.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** result of beard:Shave or shaveable:Shave
+* **Error states:** Returns nil if missing components or invalid state
 
 ### `ACTIONS.PLAY.strfn(act)`
-* **Description:** Returns a string identifier for the PLAY action depending on the object used (specifically for coach whistle). Used for UI/anim selection.
-* **Parameters:** `act` — Action object containing `invobject` and `doer`.
-* **Returns:** String: `"TWEET"`, `"COACH_ON"`, `"COACH_OFF"`, or nil.
+* **Description:** Returns context-specific verb strings for coach whistle actions (e.g., 'TWEET', 'COACH_ON', 'COACH_OFF').
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** verb string or nil
+* **Error states:** None
 
 ### `ACTIONS.PLAY.fn(act)`
-* **Description:** Performs the PLAY action using an instrument item.
-* **Parameters:** `act` — Action object containing `invobject` (instrument) and `doer`.
-* **Returns:** Result of `instrument:Play(doer)` call, typically `true`.
+* **Description:** Calls instrument:Play on invobject if present and has instrument component.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** true (instrument:Play always returns true)
+* **Error states:** None
 
 ### `ACTIONS.POLLINATE.fn(act)`
-* **Description:** Performs pollination or flower creation using the pollinator component on the doer.
-* **Parameters:** `act` — Action object containing `doer` and optionally `target` (flower).
-* **Returns:** Returns result of `pollinator:Pollinate(target)` or `pollinator:CreateFlower()`; nil if doer lacks pollinator component.
+* **Description:** Pollinates target flower or creates a flower if no target is specified.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** result from pollinator:Pollinate or pollinator:CreateFlower
+* **Error states:** None
 
 ### `ACTIONS.TERRAFORM.fn(act)`
-* **Description:** Performs terraforming using a tool with terraformer component on a specified point.
-* **Parameters:** `act` — Action object containing `invobject` (terraforming tool) and `doer`.
-* **Returns:** Returns result of `terraformer:Terraform(pt, doer)` call; nil if tool missing or lacks terraformer component.
+* **Description:** Uses terraformer component on invobject to terraform at action point.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** true on success, false if invalid terrain
+* **Error states:** None
 
 ### `ACTIONS.EXTINGUISH.fn(act)`
-* **Description:** Extinguishes a burning target or reduces fuel in a fueled component.
-* **Parameters:** `act` — Action object containing `target`.
-* **Returns:** `true` if successfully extinguished or fuel adjusted; `nil` if target is not burning or lacks required components.
+* **Description:** Extinguishes burning targets or depletes fueled section for special extinguishable items.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** true on success
+* **Error states:** None
 
 ### `ACTIONS.STOKEFIRE.fn(act)`
-* **Description:** Stoking a controlled fire if the target is stokeable and doer has `controlled_burner` tag.
-* **Parameters:** `act` — Action object containing `target` and `doer`.
-* **Returns:** `true` if successful stoke; `false` if fire is not stokeable; `nil` if target is not burning or doer lacks tag.
+* **Description:** Stokes a controlled burn if doer has 'controlled_burner' tag and target is stokeablefire.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** true on success, false otherwise
+* **Error states:** Returns false if doer lacks 'controlled_burner' tag or target not stokeablefire
 
 ### `ACTIONS.LAYEGG.fn(act)`
-* **Description:** Forces a pickable target to regenerate (e.g., to enable laying eggs again).
-* **Parameters:** `act` — Action object containing `target`.
-* **Returns:** Result of `pickable:Regen()`; nil if target is missing or already pickable.
+* **Description:** Triggers Regen on pickable component if egg is not currently pickable.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** result of pickable:Regen
+* **Error states:** None
 
 ### `ACTIONS.INVESTIGATE.fn(act)`
-* **Description:** Investigates a remembered location and clears the location; triggers retargeting for combat.
-* **Parameters:** `act` — Action object containing `doer`.
-* **Returns:** `true` if location was remembered; nil if no "investigate" location was stored.
+* **Description:** Remembers investigation location and attempts retargeting via combat component.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** true
+* **Error states:** None
 
 ### `ACTIONS.COMMENT.fn(act)`
-* **Description:** Triggers speech for the doer using either `npc_talker` or `talker` components based on availability, and clears `comment_data` afterward. Handles chatter vs direct speech.
-* **Parameters:** `act`: Action object containing `doer`, `target`, and `pos`.
-* **Returns:** Implicitly returns `nil`. Does not return a value.
+* **Description:** Plays queued comment data via npc_talker or talker components.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** None
+* **Error states:** Early returns if comment_data is nil
 
 ### `ACTIONS.GOHOME.fn(act)`
-* **Description:** Moves the doer to a home location by delegating to `spawner`, `childspawner`, or `hideout` components on the target, or emits an event and removes the doer. Supports positional-only homing.
-* **Parameters:** `act`: Action object containing `doer`, `target`, and `pos`.
-* **Returns:** Returns result of `GoHome(...)` call if applicable. `true` if doer is removed after emitting `onwenthome`. `nil` if no homing logic is triggered.
+* **Description:** Handles entity returning home via spawner, childspawner, or hideout components; or removes entity if no valid target.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** result from component GoHome or true
+* **Error states:** Removes entity silently if no valid target or pos
 
 ### `ACTIONS.JUMPIN.strfn(act)`
-* **Description:** Returns a localization key ("HAUNT") if the doer is a ghost, otherwise returns `nil`.
-* **Parameters:** `act`: Action object containing `doer`.
-* **Returns:** `"HAUNT"` or `nil`.
+* **Description:** Returns 'HAUNT' verb string if doer is a playerghost.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** 'HAUNT' or nil
+* **Error states:** None
 
 ### `ACTIONS.JUMPIN.fn(act)`
-* **Description:** Handles the `jumpin_pre` → `jumpin` state transition for teleportation, or reverts to `idle` if conditions fail.
-* **Parameters:** `act`: Action object containing `doer` and `target`.
-* **Returns:** Implicitly returns `nil`.
-* **Error states:** Returns `nil` (no state change) if doer is not in `jumpin_pre` state, or if teleporter target is inactive/missing.
+* **Description:** Enters jumpin state if doer is in jumpin_pre state and target is an active teleporter.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** true
+* **Error states:** Returns to idle state if conditions not met
 
 ### `ACTIONS.JUMPIN_MAP.stroverridefn(act)`
-* **Description:** Returns localization key for map-based wormhole jumps.
-* **Parameters:** `act`: Action object (unused).
-* **Returns:** `STRINGS.ACTIONS.JUMPIN.MAP_WORMHOLE`.
+* **Description:** Returns STRINGS.ACTIONS.JUMPIN.MAP_WORMHOLE.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** string
+* **Error states:** None
+
+### `DoCharlieResidueMapAction(act, target, charlieresidue, residue_context)`
+* **Description:** Handles special teleport logic via CharlieResidue map actions for wormholes and tentacle pillars.
+* **Parameters:**
+  - `act` -- Action object
+  - `target` -- Target entity
+  - `charlieresidue` -- CharlieResidue prefab instance
+  - `residue_context` -- Context enum value from CHARLIERESIDUE_MAP_ACTIONS
+* **Returns:** true on success, false otherwise
+* **Error states:** Decays residue and returns false on failure
 
 ### `ACTIONS.JUMPIN_MAP.fn(act)`
-* **Description:** Action function for the JUMPIN_MAP action. Verifies the doer is in the correct state, processes Charlie residue teleportation logic if applicable, or directly triggers teleportation via jumpin state.
-* **Parameters:** `act` — Action table with `doer`, `target`, `invobject`, and state information.
-* **Returns:** `true` on successful teleport state entry; implicitly returns `nil` (falsy) otherwise.
+* **Description:** Processes map-based jump-in actions including direct teleport and CharlieResidue handling.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** true on success, false or nil otherwise
+* **Error states:** Returns to idle state on failure
 
 ### `ACTIONS.TELEPORT.strfn(act)`
-* **Description:** Provides the string localization key for the TELEPORT action UI label.
-* **Parameters:** `act` — Action table (used only to check `act.target` for existence).
-* **Returns:** `"TOWNPORTAL"` string key if `act.target` exists; `nil` otherwise.
+* **Description:** Returns 'TOWNPORTAL' verb string if target exists.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** 'TOWNPORTAL' or nil
+* **Error states:** None
 
 ### `ACTIONS.TELEPORT.fn(act)`
-* **Description:** Action function for teleporting via a town portal item or target. Enters the "entertownportal" state when a valid teleporter object is found in inventory or as target.
-* **Parameters:** `act` — Action table with `doer`, `target`, `invobject`, and state information.
-* **Returns:** `true` on successful entry into entertownportal state; implicitly returns `nil` otherwise.
+* **Description:** Enters entertownportal state if teleporter item or target has teleporter tag.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** true
+* **Error states:** None
 
 ### `ACTIONS.RESETMINE.fn(act)`
-* **Description:** Resets a mine component on the target entity if present.
-* **Parameters:** `act` — an action table containing at least `target` and possibly `doer`.
-* **Returns:** `true` if reset succeeded, otherwise `nil` (implicit) or `false` (if no mine component).
+* **Description:** Calls Reset on target's mine component.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** true
+* **Error states:** None
 
 ### `ACTIONS.ACTIVATE.fn(act)`
-* **Description:** Attempts to activate an activatable target, provided it is not smoldering or burning.
-* **Parameters:** `act` — action table with `target`, `doer`, and possibly other fields.
-* **Returns:** `success` (boolean or `nil` for legacy compatibility), `msg` (optional failure reason string).
+* **Description:** Attempts to activate target via activatable component, skipping if burning/smoldering.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** (success ~= false) and msg
+* **Error states:** Fails with msg from CanActivate or DoActivate if present
 
 ### `ACTIONS.ACTIVATE.strfn(act)`
-* **Description:** Returns a custom activation verb string if the target defines one.
-* **Parameters:** `act` — action table.
-* **Returns:** String from `act.target:GetActivateVerb(act.doer)` or `nil`.
+* **Description:** Calls target:GetActivateVerb(doer) if present.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** result of GetActivateVerb or nil
+* **Error states:** None
 
 ### `ACTIONS.ACTIVATE.stroverridefn(act)`
-* **Description:** Returns an override activation verb string if defined on the target.
-* **Parameters:** `act` — action table.
-* **Returns:** String from `act.target:OverrideActivateVerb(act.doer)` or `nil`.
+* **Description:** Calls target:OverrideActivateVerb(doer) if present.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** result of OverrideActivateVerb or nil
+* **Error states:** None
 
 ### `ACTIONS.OPEN_CRAFTING.strfn(act)`
-* **Description:** Returns the action string from `PROTOTYPER_DEFS` for the target prefab.
-* **Parameters:** `act` — action table.
-* **Returns:** String from `PROTOTYPER_DEFS[target.prefab].action_str` or `nil`.
+* **Description:** Returns action_str from PROTOTYPER_DEFS[target.prefab] if available.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** string or nil
+* **Error states:** None
 
 ### `ACTIONS.OPEN_CRAFTING.fn(act)`
-* **Description:** Invokes `UsePrototyper` on the builder component of the doer.
-* **Parameters:** `act` — action table with `doer` and `target`.
-* **Returns:** `true`/`false`, `msg` from `UsePrototyper`, or `false` if no builder component.
+* **Description:** Calls builder:UsePrototyper(target) if doer has builder component.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** true or false with reason string
+* **Error states:** Returns false if builder missing
 
 ### `ACTIONS.CAST_POCKETWATCH.strfn(act)`
-* **Description:** Returns a custom verb string for pocket watch casting actions.
-* **Parameters:** `act` — action table with `invobject` and `doer`.
-* **Returns:** String from `FunctionOrValue` using `GetActionVerb_CAST_POCKETWATCH` or `nil`.
+* **Description:** Calls GetActionVerb_CAST_POCKETWATCH on invobject via FunctionOrValue.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** result of FunctionOrValue or nil
+* **Error states:** None
 
 ### `ACTIONS.CAST_POCKETWATCH.fn(act)`
-* **Description:** Casts a spell from a pocket watch item if the doer is a pocket watch caster.
-* **Parameters:** `act` — action table with `invobject`, `doer`, and `target`; `act:GetActionPoint()` used for target position.
-* **Returns:** Result of `act.invobject.components.pocketwatch:CastSpell(...)`, or `nil`.
+* **Description:** Calls pocketwatch:CastSpell on invobject if doer has 'pocketwatchcaster' tag.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** result of CastSpell or nil
+* **Error states:** Returns nil if missing tag or invobject
 
 ### `ACTIONS.HAUNT.fn(act)`
-* **Description:** Triggers haunting logic on a valid hauntable target if conditions are met.
-* **Parameters:** `act` — action table with `target` and `doer`.
-* **Returns:** `true` if haunting was initiated, `nil` otherwise.
+* **Description:** Attempts to haunt target if valid and not already held/haunted.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** true
+* **Error states:** None
 
-### `ACTIONS.MURDER.fn(act)`
-* **Description:** Handles the murder action, removing the target, playing sound, generating loot, transferring inventory, and pushing events.
-* **Parameters:** `act` — action table containing `invobject`, `target`, `doer`.
-* **Returns:** `true` on success, or `nil` if no valid target/components.
+### `fn(act)`
+* **Description:** Handles the MURDER action: removes the target from inventory, plays sound, spawns loot, transfers inventory if tagged, then removes the target entity.
+* **Parameters:**
+  - `act` -- Action table containing doer, target, invobject, and other action data
+* **Returns:** true if successful, nil otherwise
+* **Error states:** None
 
-### `ACTIONS.HEAL.strfn(act)`
-* **Description:** Returns the appropriate string label for the heal action UI, handling self-heal cases and special `cannotheal` targets.
-* **Parameters:** `act` — action table with `target` and `doer`.
-* **Returns:** `"USEONSELF"` if target is self and controller attached; `"USE"` if targeting another; `nil` otherwise; or `"SELF"` for self-heal.
+### `strfn(act)`
+* **Description:** Returns the string key for the HEAL action: 'USEONSELF', 'USE', 'SELF', or nil depending on context and tags.
+* **Parameters:**
+  - `act` -- Action table containing doer and target
+* **Returns:** string or nil
+* **Error states:** None
 
-### `ACTIONS.HEAL.fn(act)`
-* **Description:** Executes the heal action using a healer or maxhealer item on the target.
-* **Parameters:** `act` — action table containing `invobject`, `target`, `doer`.
-* **Returns:** Result of `healer:Heal()` or `maxhealer:Heal()`, or `nil` if conditions not met.
+### `fn(act)`
+* **Description:** Handles the HEAL action: delegates to healer or maxhealer component on the target item.
+* **Parameters:**
+  - `act` -- Action table containing doer, target, and invobject
+* **Returns:** result of healer:maxhealer:Heal(), or nil
+* **Error states:** None
 
-### `ACTIONS.UNLOCK.fn(act)`
-* **Description:** Unlocks a locked target entity using a key item.
-* **Parameters:** `act` — action table with `target`, `invobject`, `doer`.
-* **Returns:** `true` on success (even if already unlocked, since comment suggests alternate lock path is commented out).
+### `fn(act)`
+* **Description:** Handles the UNLOCK action: unlocks target if locked, using invobject as key.
+* **Parameters:**
+  - `act` -- Action table containing target and invobject
+* **Returns:** true
+* **Error states:** None
 
-### `ACTIONS.USEKLAUSSACKKEY.fn(act)`
-* **Description:** Uses a Klaus Sack key on the target.
-* **Parameters:** `act` — action table with `target`, `invobject`, `doer`.
-* **Returns:** `true` on success; `false, reason` if key usage fails.
+### `fn(act)`
+* **Description:** Handles USEKLAUSSACKKEY action: delegates to klaussacklock:UseKey() component on target.
+* **Parameters:**
+  - `act` -- Action table containing target and invobject
+* **Returns:** true, or false with reason string
+* **Error states:** None
 
-### `ACTIONS.TEACH.strfn(act)`
-* **Description:** Determines the UI label string for the teach action based on item tags.
-* **Parameters:** `act` — action table with `invobject`.
-* **Returns:** `"NOTES"`, `"SCRAPBOOK"`, `"READ"`, `"SCAN"`, or `nil` depending on `invobject` tags.
+### `strfn(act)`
+* **Description:** Determines the string key for the TEACH action based on invobject tags: 'NOTES', 'SCRAPBOOK', 'READ', 'SCAN', or nil.
+* **Parameters:**
+  - `act` -- Action table containing invobject and target
+* **Returns:** string or nil
+* **Error states:** None
 
-### `ACTIONS.TEACH.fn(act)`
-* **Description:** Handles the "teach" action—uses the item in `invobject` to teach a skill or recipe to `target` (defaults to `doer`).
-* **Parameters:** `act`: Action table with fields `invobject`, `target`, and `doer`.
-* **Returns:** Returns `true` on success, or `(success, reason)` if `maprecorder:TeachMap` or `mapspotrevealer:RevealMap` returns extra info. Also calls `postreveal` callback if present.
+### `fn(act)`
+* **Description:** Handles the TEACH action: delegates to scrapbookable, teacher, maprecorder, mapspotrevealer, or recipescanner components on the item.
+* **Parameters:**
+  - `act` -- Action table containing invobject and target
+* **Returns:** true, or success+reason from maprecorder/mapspotrevealer/recipescanner
+* **Error states:** None
 
-### `ACTIONS.TURNON.fn(act)`
-* **Description:** Turns on a machine (`machine` component) via `TurnOn`.
-* **Parameters:** `act`: Action table with `target` or `invobject` as the machine entity.
-* **Returns:** `true` on success.
+### `fn(act)`
+* **Description:** Handles the TURNON action: turns on machine component if present and currently off.
+* **Parameters:**
+  - `act` -- Action table containing target and invobject
+* **Returns:** true
+* **Error states:** None
 
-### `ACTIONS.TURNOFF.strfn(act)`
-* **Description:** Provides a label string for the "turnoff" action when the target has the `"hasemergencymode"` tag.
-* **Parameters:** `act`: Action table with `target`.
-* **Returns:** `"EMERGENCY"` if `target` has `"hasemergencymode"` tag, otherwise `nil`.
+### `strfn(act)`
+* **Description:** Returns string 'EMERGENCY' if target has hasemergencymode tag and is provided.
+* **Parameters:**
+  - `act` -- Action table containing target
+* **Returns:** 'EMERGENCY' or nil
+* **Error states:** None
 
-### `ACTIONS.TURNOFF.fn(act)`
-* **Description:** Turns off a machine (`machine` component) via `TurnOff`.
-* **Parameters:** `act`: Action table with `target` or `invobject` as the machine entity.
-* **Returns:** `true` on success.
+### `fn(act)`
+* **Description:** Handles the TURNOFF action: turns off machine component if present and currently on.
+* **Parameters:**
+  - `act` -- Action table containing target and invobject
+* **Returns:** true
+* **Error states:** None
 
-### `ACTIONS.USEITEM.fn(act)`
-* **Description:** Handles using a held item—supports `toggleableitem`, `useableitem`, and state-memory guard.
-* **Parameters:** `act`: Action table with `invobject` and `doer`.
-* **Returns:** Result of `ToggleItem` or `StartUsingItem`, or `nil`.
+### `fn(act)`
+* **Description:** Handles USEITEM action: toggles toggleableitem or starts using useableitem on the held item.
+* **Parameters:**
+  - `act` -- Action table containing invobject and doer
+* **Returns:** result of component call, or nil
+* **Error states:** None
 
-### `ACTIONS.USEITEMON.strfn(act)`
-* **Description:** Provides a label string for the "use item on" action.
-* **Parameters:** `act`: Action table with `invobject`.
-* **Returns:** Uppercase `invobject.prefab` if present, else `"GENERIC"`.
+### `strfn(act)`
+* **Description:** Returns uppercase prefab name of invobject, or 'GENERIC'.
+* **Parameters:**
+  - `act` -- Action table containing invobject
+* **Returns:** string
+* **Error states:** None
 
-### `ACTIONS.USEITEMON.pre_action_cb(act)`
-* **Description:** Pre-action hook to close the controller inventory UI if open.
-* **Parameters:** `act`: Action table with `doer` and `HUD`.
-* **Returns:** `nil`. Side-effect only.
+### `pre_action_cb(act)`
+* **Description:** Closes controller inventory HUD if open and controller attached.
+* **Parameters:**
+  - `act` -- Action table containing doer
+* **Returns:** nil
+* **Error states:** None
 
-### `ACTIONS.USEITEMON.fn(act)`
-* **Description:** Handles using a held item on a target—supports `useabletargeteditem`.
-* **Parameters:** `act`: Action table with `invobject`, `target`, and `doer`.
-* **Returns:** `true` on success, or `(success, reason)` if `StartUsingItem` returns a failure reason.
+### `fn(act)`
+* **Description:** Handles USEITEMON action: starts using useabletargeteditem component on the held item against the target.
+* **Parameters:**
+  - `act` -- Action table containing invobject, target, and doer
+* **Returns:** true, or false with reason
+* **Error states:** None
 
-### `ACTIONS.STOPUSINGITEM.strfn(act)`
-* **Description:** Provides a label string for the "stop using item" action.
-* **Parameters:** `act`: Action table with `invobject`.
-* **Returns:** Uppercase `invobject.prefab` if present, else `"GENERIC"`.
+### `strfn(act)`
+* **Description:** Returns uppercase prefab name of invobject, or 'GENERIC'.
+* **Parameters:**
+  - `act` -- Action table containing invobject
+* **Returns:** string
+* **Error states:** None
 
-### `ACTIONS.STOPUSINGITEM.fn(act)`
-* **Description:** Stops using a targeted item via `StopUsingItem`.
-* **Parameters:** `act`: Action table with `invobject`.
-* **Returns:** `true` on success.
+### `fn(act)`
+* **Description:** Handles STOPUSINGITEM action: stops using useabletargeteditem on the held item.
+* **Parameters:**
+  - `act` -- Action table containing invobject
+* **Returns:** true
+* **Error states:** None
 
-### `ACTIONS.TAKEITEM.fn(act)`
-* **Description:** Handles the action of taking a specific item from a target entity, such as a shelf or inventory item holder.
-* **Parameters:** `act` — action table containing `target`, `doer`, and other action metadata.
-* **Returns:** `true` on success, otherwise `nil` or `false`.
+### `fn(act)`
+* **Description:** Handles TAKEITEM action: takes item from shelf or inventoryitemholder component on target.
+* **Parameters:**
+  - `act` -- Action table containing target and doer
+* **Returns:** true
+* **Error states:** None
 
-### `ACTIONS.TAKEITEM.strfn(act)`
-* **Description:** Returns a string key used for localized action label, based on target prefab (e.g., `"BIRDCAGE"` or `"GENERIC"`).
-* **Parameters:** `act` — action table.
-* **Returns:** String key (`"BIRDCAGE"` if target is `"birdcage"`, else `"GENERIC"`), or `nil`.
+### `strfn(act)`
+* **Description:** Returns 'BIRDCAGE' if target is birdcage, otherwise 'GENERIC'.
+* **Parameters:**
+  - `act` -- Action table containing target
+* **Returns:** string
+* **Error states:** None
 
-### `ACTIONS.TAKEITEM.stroverridefn(act)`
-* **Description:** Generates a dynamic display string for the TAKEITEM action, including item name and stack size where applicable.
-* **Parameters:** `act` — action table.
-* **Returns:** Localized formatted string with item name/stack count, or `nil`.
+### `stroverridefn(act)`
+* **Description:** Returns custom string for TAKEITEM action, including item name and stack count if applicable.
+* **Parameters:**
+  - `act` -- Action table containing target and doer
+* **Returns:** string or nil
+* **Error states:** None
 
-### `ACTIONS.TAKESINGLEITEM.fn(act)`
-* **Description:** Takes a single item from an `inventoryitemholder`, even if the item is part of a stack.
-* **Parameters:** `act` — action table.
-* **Returns:** Result of `inventoryitemholder:TakeItem(act.doer, false)`, i.e., `true`/`false`, or `nil` if no component present.
+### `fn(act)`
+* **Description:** Handles TAKESINGLEITEM action: takes single item from inventoryitemholder on target (partial stack).
+* **Parameters:**
+  - `act` -- Action table containing target and doer
+* **Returns:** true
+* **Error states:** None
 
-### `ACTIONS.TAKESINGLEITEM.stroverridefn(act)`
-* **Description:** Returns a fixed localized string for the TAKESINGLEITEM action.
-* **Parameters:** `act` — action table (unused).
-* **Returns:** `STRINGS.ACTIONS.TAKESINGLEITEM` string.
+### `stroverridefn(act)`
+* **Description:** Returns STRINGS.ACTIONS.TAKESINGLEITEM constant.
+* **Parameters:**
+  - `act` -- Action table (unused)
+* **Returns:** string
+* **Error states:** None
 
-### `ACTIONS.CASTSPELL.strfn(act)`
-* **Description:** Returns the `spelltype` of the item used to cast the spell (from `act.invobject`).
-* **Parameters:** `act` — action table.
-* **Returns:** `act.invobject.spelltype` if present, else `nil`.
+### `strfn(act)`
+* **Description:** Returns spelltype from invobject if present.
+* **Parameters:**
+  - `act` -- Action table containing invobject
+* **Returns:** string or nil
+* **Error states:** None
 
-### `ACTIONS.CASTSPELL.fn(act)`
-* **Description:** Handles casting a spell via a spellcaster item (staff). Validates item state, rider/heavy-lifting restrictions, and casts the spell if possible.
-* **Parameters:** `act` — action table with `invobject`, `doer`, `target`, and action point.
-* **Returns:** `true` on successful cast, `false` or `false, reason` if cast is blocked.
+### `fn(act)`
+* **Description:** Handles CASTSPELL action: checks and casts spell from spellcaster component on staff or hand item, with mimic and rider checks.
+* **Parameters:**
+  - `act` -- Action table containing invobject, doer, target, and action point
+* **Returns:** true, or false with reason
+* **Error states:** None
 
-### `ACTIONS.DIRECTCOURIER_MAP.maponly_checkvalidpos_fn(act)`
-* **Description:** Validates if a target position is suitable for sending a direct courier via map. Computes nearest valid map icon (player or chest) within radius and checks player-specific constraints (e.g., minimum distance to other players).
-* **Parameters:** `act` — Action table containing doer, action point, etc.
-* **Returns:** `true, nil, act_posx, act_posz, mapent` on success; `false, "NOTARGET"` if no valid target found.
+### `maponly_checkvalidpos_fn(act)`
+* **Description:** Finds nearest valid map target (chest or player with globalmapicon) within radius for DIRECTCOURIER_MAP action.
+* **Parameters:**
+  - `act` -- Action table containing doer and action point
+* **Returns:** true, nil, x, z, mapent on success; false, 'NOTARGET' otherwise
+* **Error states:** None
 
-### `ACTIONS.DIRECTCOURIER_MAP.stroverridefn(act)`
-* **Description:** Constructs the UI display string for the DIRECTCOURIER_MAP action, depending on whether the target is a chest or a named player map icon.
-* **Parameters:** `act` — Action table (same as above).
-* **Returns:** Formatted string using `STRINGS.ACTIONS.DIRECTCOURIER_MAP.SEND` with target name if `mapent` is a named map icon; `STRINGS.ACTIONS.DIRECTCOURIER_MAP.CHEST` if targeting the woby courier chest; `nil` if validation fails.
+### `stroverridefn(act)`
+* **Description:** Returns appropriate string for DIRECTCOURIER_MAP based on target (chest or named player).
+* **Parameters:**
+  - `act` -- Action table containing doer
+* **Returns:** string or nil
+* **Error states:** None
 
-### `ACTIONS.DIRECTCOURIER_MAP.fn(act)`
-* **Description:** Executes the actual courier send action: validates target, checks player controller and woby commands state, computes platform offset, and sends the courier command.
-* **Parameters:** `act` — Action table.
-* **Returns:** `true` on success; `false` otherwise.
+### `fn(act)`
+* **Description:** Handles DIRECTCOURIER_MAP action: sends courier command to server targeting nearest chest or player.
+* **Parameters:**
+  - `act` -- Action table containing doer and action point
+* **Returns:** true
+* **Error states:** None
 
-### `TryToSoulhop(act, act_pos, consumeall)`
-* **Description:** Helper function to determine if a soul hop (portal jump) action can be performed. Checks action context, state, and availability of the `TryToPortalHop` method.
-* **Parameters:** `act` — Action table (contains doer and related data). `act_pos` — Position vector. `consumeall` — Boolean indicating whether to consume all available hops.
-* **Returns:** Boolean result of calling `doer:TryToPortalHop(...)`.
+### `fn(act)`
+* **Description:** Handles BLINK action: uses blinkstaff component or triggers soulhop if soulstealer and not holding blink staff.
+* **Parameters:**
+  - `act` -- Action table containing doer and action point
+* **Returns:** true or result from blinkstaff:Blink(), false with reason
+* **Error states:** None
 
-### `ACTIONS.BLINK.strfn(act)`
-* **Description:** Overrides the display string for the BLINK action, returning `"FREESOUL"` or `"SOUL"` when the doer has the soulstealer tag and active soulhop charges.
-* **Parameters:** `act` — Action table (contains invobject and doer).
-* **Returns:** `"FREESOUL"` if free soulhop count > 0; `"SOUL"` if at least one soul hop remains; `nil` otherwise.
+### `stroverridefn(act)`
+* **Description:** Returns formatted soul-hop string if doer is soulstealer.
+* **Parameters:**
+  - `act` -- Action table containing doer
+* **Returns:** string or nil
+* **Error states:** None
 
-### `ACTIONS.BLINK.fn(act)`
-* **Description:** Handles the `BLINK` action. Attempts to use a blink staff if available; if not, attempts soulhop if the doer can soulhop.
-* **Parameters:** `act`: The action table containing `invobject` (item involved), `doer` (actor entity), `GetActionPoint()` (target position).
-* **Returns:** `false, "ITEMMIMIC"` if item is mimic; otherwise `true` on successful soulhop or `blinkstaff:Blink(...)`, otherwise returns result of `blinkstaff:Blink`.
+### `fn(act)`
+* **Description:** Handles BLINK_MAP action: attempts soul hopping from map target.
+* **Parameters:**
+  - `act` -- Action table containing doer and action point
+* **Returns:** true
+* **Error states:** None
 
-### `ACTIONS.BLINK_MAP.stroverridefn(act)`
-* **Description:** Generates a dynamic string override for BLINK_MAP action when using soul hopping.
-* **Parameters:** `act`: The action table; checks `invobject`, `doer`, and `distancecount`.
-* **Returns:** Localized string formatted with soul count if conditions met (no item, doer is soulstealer); otherwise `nil`.
+### `fn(act, targetpos)`
+* **Description:** Remaps BLINK action to BLINK_MAP for map-based soul hopping, calculating souls required and applying skill/efficiency modifiers.
+* **Parameters:**
+  - `act` -- Action table
+  - `targetpos` -- Vector3 target position
+* **Returns:** new BufferedAction or nil if invalid
+* **Error states:** None
 
-### `ActionCanMapSoulhop(act)` (local function)
-* **Description:** Checks whether the doer can perform soulhop for the action.
-* **Parameters:** `act`: Action table; checks `invobject`, `doer.CanSoulhop`, and `distancecount`.
-* **Returns:** Result of `doer:CanSoulhop(distancecount)` if applicable; otherwise `false`.
+### `fn(act)`
+* **Description:** Handles CASTSUMMON action: uses ghostlybond:Summon() on doer with summoning item.
+* **Parameters:**
+  - `act` -- Action table containing invobject, doer
+* **Returns:** true
+* **Error states:** None
 
-### `ACTIONS.BLINK_MAP.fn(act)`
-* **Description:** Handles the `BLINK_MAP` action, currently only for soulhop (infinite range).
-* **Parameters:** `act`: Same structure as above.
-* **Returns:** `true` on successful soulhop and state transition to `"portal_jumpin"` with `from_map = true`; `nil`/`false` otherwise.
+### `fn(act)`
+* **Description:** Handles CASTUNSUMMON action: uses ghostlybond:Recall() on doer.
+* **Parameters:**
+  - `act` -- Action table containing invobject, doer
+* **Returns:** result of ghostlybond:Recall()
+* **Error states:** None
 
-### `ACTIONS_MAP_REMAP[ACTIONS.BLINK.code](act, targetpos)`
-* **Description:** Maps the raw BLINK action into a soul-hop-style map blink action for Wortox. Calculates hop costs, applies skill-based modifiers (like Lifted Spirits), handles aim-assist logic when the cursor is over water (via fogrevealer/boat logic), and constructs a new `BufferedAction` with soulhop-specific metadata.
-* **Parameters:** `act` — the original action; `targetpos` — target world position.
-* **Returns:** A modified `BufferedAction` (if valid) or `nil` (on failure, e.g., no valid map tile, invalid revealer, or fails `ActionCanMapSoulhop` check).
+### `strfn(act)`
+* **Description:** Returns string 'MAKE_DEFENSIVE' or 'MAKE_AGGRESSIVE' based on has_aggressive_follower tag.
+* **Parameters:**
+  - `act` -- Action table containing doer
+* **Returns:** string
+* **Error states:** None
 
-### `ACTIONS.CASTSUMMON.fn(act)`
-* **Description:** Attempts to summon a ghost via the GhostlyBond component using a summoning item.
-* **Parameters:** `act` — an action table containing `invobject`, `doer`, and `target` fields.
-* **Returns:** Result of `ghostlybond:Summon()` call, or `nil` if preconditions fail.
+### `fn(act)`
+* **Description:** Handles COMMUNEWITHSUMMONED action: uses ghostlybond:ChangeBehaviour() on doer.
+* **Parameters:**
+  - `act` -- Action table containing invobject, doer
+* **Returns:** result of ghostlybond:ChangeBehaviour()
+* **Error states:** None
 
-### `ACTIONS.CASTUNSUMMON.fn(act)`
-* **Description:** Attempts to recall a summoned ghost via the GhostlyBond component.
-* **Parameters:** `act` — action table.
-* **Returns:** Result of `ghostlybond:Recall(false)` call, or `nil` if preconditions fail.
+### `fn(act)`
+* **Description:** Handles COMBINESTACK action: stacks invobject into target if compatible and target is not full.
+* **Parameters:**
+  - `act` -- Action table containing target and invobject
+* **Returns:** true
+* **Error states:** None
 
-### `ACTIONS.COMMUNEWITHSUMMONED.strfn(act)`
-* **Description:** Returns UI string label based on whether the player has an aggressive follower.
-* **Parameters:** `act` — action table with `doer` field.
-* **Returns:** `"MAKE_DEFENSIVE"` if `doer` has `"has_aggressive_follower"` tag; otherwise `"MAKE_AGGRESSIVE"` or `nil`.
+### `fn(act)`
+* **Description:** Handles TRAVEL action: invokes travel_action_fn on target if present.
+* **Parameters:**
+  - `act` -- Action table containing target and doer
+* **Returns:** true
+* **Error states:** None
 
-### `ACTIONS.COMMUNEWITHSUMMONED.fn(act)`
-* **Description:** Toggles behavior of the summoned ghost via `ghostlybond:ChangeBehaviour()`.
-* **Parameters:** `act` — action table.
-* **Returns:** Result of `ghostlybond:ChangeBehaviour()`, or `nil` if preconditions fail.
+### `fn(act)`
+* **Description:** Handles UNPIN action: pushes unpinned event if target is stuck.
+* **Parameters:**
+  - `act` -- Action table containing doer and target
+* **Returns:** true
+* **Error states:** None
 
-### `ACTIONS.COMBINESTACK.fn(act)`
-* **Description:** Combines two stackable items of the same type and skin if the target stack has room.
-* **Parameters:** `act` — action table with `target` and `invobject` fields.
-* **Returns:** `true` if stacking succeeded, else `nil`.
+### `fn(act)`
+* **Description:** Handles STEALMOLEBAIT action: clears mole target and pushes onstolen event for mole thief.
+* **Parameters:**
+  - `act` -- Action table containing doer and target
+* **Returns:** true
+* **Error states:** None
 
-### `ACTIONS.TRAVEL.fn(act)`
-* **Description:** Triggers travel via the target entity's `travel_action_fn`.
-* **Parameters:** `act` — action table with `target` and `doer` fields.
-* **Returns:** `true` if `travel_action_fn` was called, else `nil`.
+### `fn(act)`
+* **Description:** Handles MAKEMOLEHILL action: spawns molehill or molebathill at doer position for mole/molebat.
+* **Parameters:**
+  - `act` -- Action table containing doer
+* **Returns:** true
+* **Error states:** None
 
-### `ACTIONS.UNPIN.fn(act)`
-* **Description:** Unpins a pinned entity by clearing its stuck state.
-* **Parameters:** `act` — action table with `target` and `doer` fields.
-* **Returns:** `true` after pushing the `"unpinned"` event, or `nil` if target is not stuck.
+### `fn(act)`
+* **Description:** Handles MOLEPEEK action: pushes peek event for doer.
+* **Parameters:**
+  - `act` -- Action table containing doer
+* **Returns:** true
+* **Error states:** None
 
-### `ACTIONS.STEALMOLEBAIT.fn(act)`
-* **Description:** Steals mole bait from a mole’s selected target.
-* **Parameters:** `act` — action table with `doer` and `target` fields.
-* **Returns:** `true` after setting `selectedasmoletarget` to `nil` and pushing `"onstolen"` event, or `nil` if `doer` is not `"mole"` or `target` is missing.
-
-### `ACTIONS.MAKEMOLEHILL.fn(act)`
-* **Description:** Spawns a molehill or molebathill childed to the mole/molebat and clears `needs_home_time`.
-* **Parameters:** `act` — action table with `doer` field.
-* **Returns:** `true` after spawning hill and childing, or `nil` if `doer` is missing or not mole/molebat.
-
-### `ACTIONS.MOLEPEEK.fn(act)`
-* **Description:** Triggers a peek action for the mole entity.
-* **Parameters:** `act` — action table with `doer` field.
-* **Returns:** `true` after pushing `"peek"` event, or `nil` if `doer` is missing.
-
-### `ACTIONS.FEED.strfn(act)`
-* **Description:** Returns `"TREAT"` string if the item is a pet treat; otherwise `nil`.
-* **Parameters:** `act` — action table with `invobject` field.
-* **Returns:** `"TREAT"` if `invobject` is non-nil and has `"pet_treat"` tag; otherwise `nil`.
-
-### `ACTIONS.FEED.fn(act)`
-* **Description:** Attempts to feed an item to a target entity. Handles two paths: feeding via `trader` component (gift acceptance) or `eater` component (direct consumption). If feeding causes the eater to die, it handles victim death logic including loot generation and cause-of-death tracking.
-* **Parameters:** `act` — the action object containing `invobject` (item to feed), `target` (recipient), and `doer` (actor performing the action).
-* **Returns:** `true` on success; `false, reason` on failure. May also return `true` after performing kill/loot logic.
-
-### `ACTIONS.HAIRBALL.fn(act)`
-* **Description:** Checks if the action is being performed by a catcoon (valid for hairball action).
-* **Parameters:** `act` — action object (not used beyond checking `act.doer`).
-* **Returns:** `true` if `act.doer` is a catcoon; otherwise implicitly returns `nil` (not `false`).
-
-### `ACTIONS.CATPLAYGROUND.fn(act)`
-* **Description:** Action handler for catcoon interactions with objects on the ground. Attempts to play with `cattoy`, `poppable`, attack weak targets, pick up items, or activate activatable objects, with probabilistic success based on tuning values.
-* **Parameters:** `act` — action table containing fields `doer`, `target`, and optionally `invobject`.
-* **Returns:** `true` on successful execution path; `false` or error reason implicitly in some branches.
-
-### `ACTIONS.CATPLAYAIR.fn(act)`
-* **Description:** Action handler for catcoon aerial interactions (e.g., swiping at objects). Similar logic to `CATPLAYGROUND` but may interact differently with `cattoy` and registers `last_play_air_time`.
-* **Parameters:** `act` — same as above.
-* **Returns:** `true` on successful execution path; no explicit return for all paths.
-
-### `ACTIONS.ERASE_PAPER.fn(act)`
-* **Description:** Erases a paper using a `papereraser` tool. Verifies required components and heat/fire constraints before delegating erasure.
-* **Parameters:** `act` — action table with `invobject`, `target`, and `doer`.
-* **Returns:** Result of `act.target.components.papereraser:DoErase(...)`, which returns a boolean (`true` on success, `false` otherwise).
-
-### `ACTIONS.FAN.fn(act)`
-* **Description:** Uses a fan item on a target (defaults to the doer if no target). Blocks use on item mimics.
-* **Parameters:** `act` — action table with `invobject` (the fan), `target`, and `doer`.
-* **Returns:** Result of `act.invobject.components.fan:Fan(...)`, or `"ITEMMIMIC"` string if the item is an item mimic.
-
-### `ACTIONS.TOSS.fn(act)`
-* **Description:** Handles the "toss" action. It retrieves the projectile from either `act.invobject` or the doer’s equipped hand, validates tossability (e.g., not restricted, not preventing unequipping, not a mimic), drops it from inventory, then launches it as a complex projectile toward `act.target` or action point.
-* **Parameters:** `act`: The action table containing `doer`, `invobject`, and action context (e.g., `target`, `GetActionPoint()`).
-* **Returns:** `true` on success, `false` with `"ITEMMIMIC"` reason if item is a mimic, or `nil` on validation failure or inventory/drop issues.
+### `strfn(act)`
+* **Description:** Returns 'TREAT' if invobject has pet_treat tag, otherwise nil.
+* **Parameters:**
+  - `act` -- Action table containing invobject
+* **Returns:** string or nil
+* **Error states:** None
 
 ### `ActionCanMapToss(act)`
-* **Description:** Helper function to check whether an item can be tossed on the map via the `CanTossOnMap` method on the item.
-* **Parameters:** `act`: Action table.
-* **Returns:** Boolean result of `act.invobject:CanTossOnMap(act.doer)` or `false` if either `act.doer` or `act.invobject` is missing.
+* **Description:** Checks if the current action can toss an item onto the map (e.g., into ocean)
+* **Parameters:**
+  - `act` -- action object containing doer, invobject, and action data
+* **Returns:** bool
+* **Error states:** None
+
+### `ACTIONS.FEED.fn(act)`
+* **Description:** Handles feeding logic: accepts gifts to traders, eats food by eatable targets, handles murder/loot if target dies from eating
+* **Parameters:**
+  - `act` -- action object with target, doer, invobject, etc.
+* **Returns:** bool or false, reason
+* **Error states:** nil if target cannot be determined; false with reason if mimic or eater rejection
+
+### `ACTIONS.HAIRBALL.fn(act)`
+* **Description:** Allows hairball action only if the doer is a catcoon
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** bool
+* **Error states:** None
+
+### `ACTIONS.CATPLAYGROUND.fn(act)`
+* **Description:** Catcoon playground behavior: plays with cattoy, pops poppable, attacks weak targets, picks up items, activates activatable objects
+* **Parameters:**
+  - `act` -- action object with doer, target, invobject
+* **Returns:** bool
+* **Error states:** None
+
+### `ACTIONS.CATPLAYAIR.fn(act)`
+* **Description:** Airborne catcoon play: similar to CATPLAYGROUND but with different logic for top-down attacks and activation
+* **Parameters:**
+  - `act` -- action object with doer, target
+* **Returns:** bool
+* **Error states:** None
+
+### `ACTIONS.ERASE_PAPER.fn(act)`
+* **Description:** Erases paper using an erasablepaper item on a papereraser, excluding fire/burnt targets
+* **Parameters:**
+  - `act` -- action object with invobject (eraser) and target (paper)
+* **Returns:** bool result of DoErase
+* **Error states:** None
+
+### `ACTIONS.FAN.fn(act)`
+* **Description:** Uses the fan component to fan either the target or the doer
+* **Parameters:**
+  - `act` -- action object with invobject (fan) and target
+* **Returns:** bool or false, reason
+* **Error states:** false if mimic; nil if no fan
+
+### `ACTIONS.TOSS.fn(act)`
+* **Description:** Drops a complexprojectile item and launches it toward target position, handling inventory and projectile constraints
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** bool or nil
+* **Error states:** nil if no projectile, equippable restrictions, or mimic; false for mimic
+
+### `ACTIONS.WATER_TOSS.fn(act)`
+* **Description:** Alias for TOSS, used for water-related toss items
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** bool or nil
+* **Error states:** None
+
+### `ACTIONS.TOSS_MAP.stroverridefn(act)`
+* **Description:** Override string for map toss action, using CanTossOnMap callback and TOSS string
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** string or nil
+* **Error states:** None
 
 ### `ACTIONS.TOSS_MAP.fn(act)`
-* **Description:** Launches a toss action targeting a map point (ocean or visual ground). Sets `act.from_map = true` then delegates to `ACTIONS.TOSS.fn`.
-* **Parameters:** `act`: Action table.
-* **Returns:** Result of `ACTIONS.TOSS.fn(act)` or `nil`.
+* **Description:** Converts a TOSS action into a map-based toss if CanTossOnMap returns true
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** bool or nil
+* **Error states:** None
 
 ### `ACTIONS_MAP_REMAP[ACTIONS.TOSS.code](act, targetpos)`
-* **Description:** Remaps a TOSS action to ensure target point respects distance constraints (`map_remap_min_dist`, `map_remap_max_dist`) and lies on valid ocean tile. If valid, creates a buffered TOSS_MAP action at the adjusted point.
-* **Parameters:** `act`: Original action. `targetpos`: Desired target position (Vector3).
-* **Returns:** New buffered `BufferedAction` for `TOSS_MAP`, or `nil` if invalid.
-
-### `ACTIONS.WATER_TOSS.fn`
-* **Description:** Simply points to `ACTIONS.TOSS.fn`. No further logic.
-* **Parameters:** None directly defined here; inherits from `TOSS.fn(act)`.
-* **Returns:** Same as `TOSS.fn`.
+* **Description:** Remaps TOSS target position using min/max distance constraints and ensures target is on ocean tile
+* **Parameters:**
+  - `act` -- action object
+  - `targetpos` -- Vector3 position of target
+* **Returns:** BufferedAction or nil
+* **Error states:** nil if not ocean or visual ground
 
 ### `ACTIONS.UPGRADE.fn(act)`
-* **Description:** Performs an upgrade action: checks if `invobject` (upgrader) and `target` (upgradeable) are present and compatible, then calls `CanUpgrade()` and `Upgrade()` on the target component.
-* **Parameters:** `act`: Action table with `doer`, `invobject`, and `target`.
-* **Returns:** `true` on success, `false` with `reason` if upgrade conditions fail, or `nil` if required components or items are missing.
+* **Description:** Attempts to upgrade a target using an upgrader item, respecting upgrade conditions
+* **Parameters:**
+  - `act` -- action object with invobject (upgrader) and target (upgradeable)
+* **Returns:** bool or false, reason
+* **Error states:** false if can't upgrade or condition fail
 
 ### `ACTIONS.UPGRADE.strfn(act)`
-* **Description:** Generates a string label for the UPGRADE action, specifically checking if the target has the `WATERPLANT_upgradeable` tag.
-* **Parameters:** `act` — the action context object containing `target`, `doer`, etc.
-* **Returns:** `"WATERPLANT"` if target has tag `WATERPLANT_upgradeable`; `nil` otherwise.
+* **Description:** Returns 'WATERPLANT' if target has tag derived from UPGRADETYPES.WATERPLANT
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** string or nil
+* **Error states:** None
 
 ### `ACTIONS.NUZZLE.fn(act)`
-* **Description:** Verifies that the target exists for the NUZZLE action (custom affection interaction).
-* **Parameters:** `act` — action context; uses `act.target`.
-* **Returns:** `true` if `act.target` exists (always succeeds if target is present).
+* **Description:** Simple nuzzle action that always succeeds if target exists
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** bool
+* **Error states:** None
 
 ### `ACTIONS.WRITE.fn(act)`
-* **Description:** Initiates writing on a target (e.g., a parchment) via the `writeable` component.
-* **Parameters:** `act` — action context (`doer`, `target`).
-* **Returns:** `true` if writing started; `false, "INUSE"` if already being written.
+* **Description:** Begins writing on a writeable item if target is not already written and visible
+* **Parameters:**
+  - `act` -- action object with doer, target, and writeable target
+* **Returns:** bool or false, reason
+* **Error states:** false if already being written or not visible
 
 ### `ACTIONS.ATTUNE.fn(act)`
-* **Description:** Attunes a target item to the doer using the `attunable` component.
-* **Parameters:** `act` — action context (`doer`, `target`).
-* **Returns:** Result of `act.target.components.attunable:LinkToPlayer(act.doer)` (boolean, optional reason string).
+* **Description:** Links the doer to the target using the attunable component
+* **Parameters:**
+  - `act` -- action object with doer and attunable target
+* **Returns:** bool, reason or result of LinkToPlayer
+* **Error states:** None
 
 ### `ACTIONS.MIGRATE.fn(act)`
-* **Description:** Activates a world migration portal via the `worldmigrator` component.
-* **Parameters:** `act` — action context (`doer`, `target`).
-* **Returns:** Result of `worldmigrator:Activate(act.doer)` (boolean, optional fail reason string `"NODESTINATION"`).
+* **Description:** Activates migration using the worldmigrator component on the target
+* **Parameters:**
+  - `act` -- action object with doer and worldmigrator target
+* **Returns:** bool
+* **Error states:** false for NODESTINATION or missing component
 
 ### `ACTIONS.REMOTERESURRECT.fn(act)`
-* **Description:** Triggers respawn from ghost state using an attuned remote resurrector or grave-stone resurrector.
-* **Parameters:** `act` — action context (`doer`).
-* **Returns:** `true` if respawn event pushed; `nil` if no valid target or conditions not met.
+* **Description:** Resurrects remotely using an attuned remoteresurrector or gravestoneresurrector
+* **Parameters:**
+  - `act` -- action object with ghost doer
+* **Returns:** bool or nil
+* **Error states:** nil if no attuner or no target
 
 ### `ACTIONS.REVIVE_CORPSE.fn(act)`
-* **Description:** Revives a corpse if conditions are met (via `revivablecorpse` component).
-* **Parameters:** `act` — action context (`doer`, `target`).
-* **Returns:** `true` unconditionally (silent failure if conditions not met).
+* **Description:** Revives a corpse if it can be revived by the doer
+* **Parameters:**
+  - `act` -- action object with doer and revivablecorpse target
+* **Returns:** bool
+* **Error states:** None
 
 ### `ACTIONS.MOUNT.fn(act)`
-* **Description:** Mounts a creature or vehicle; performs multiple validity checks before mounting.
-* **Parameters:** `act` — action context (`doer`, `target`).
-* **Returns:** `true` on mount success; `false, "TARGETINCOMBAT"`, `"INUSE"`, or `nil` (implicit) on failure.
+* **Description:** Checks conditions and mounts the target using rider component; validates saddle, combat, health, freezing, hitching, tags
+* **Parameters:**
+  - `act` -- action object with doer and rideable target
+* **Returns:** bool or false, reason
+* **Error states:** false for TARGETINCOMBAT, INUSE, or condition fails
 
 ### `ACTIONS.DISMOUNT.fn(act)`
-* **Description:** Dismounts the doer if currently riding.
-* **Parameters:** `act` — action context (`doer`, `target`, must be same).
-* **Returns:** `true` on successful dismount; `nil` otherwise.
+* **Description:** Dismounts the doer if they are riding and match the target
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** bool
+* **Error states:** None
 
 ### `ACTIONS.SADDLE.fn(act)`
-* **Description:** Handles the action of saddling a rideable entity. Checks for combat status, death, item mimicry, and then applies the saddle via the `rideable` component.
-* **Parameters:** `act` — the action table containing `doer`, `target`, `invobject`.
-* **Returns:** `false` with reason `"TARGETINCOMBAT"` or `nil`, `"ITEMMIMIC"` if validation fails; `true` on success.
+* **Description:** Saddles a mount, removing saddle from inventory and applying via rideable component
+* **Parameters:**
+  - `act` -- action object with doer, target, and invobject (saddle)
+* **Returns:** bool or false, reason
+* **Error states:** false for TARGETINCOMBAT, dead, or mimic
 
 ### `ACTIONS.UNSADDLE.fn(act)`
-* **Description:** Removes the saddle from a rideable entity by calling `SetSaddle` with `nil`. Otherwise mirrors `SADDLE` validation.
-* **Parameters:** `act` — the action table.
-* **Returns:** `false` with reason `"TARGETINCOMBAT"` or `nil`, `"ITEMMIMIC"` on failure; `true` on success.
+* **Description:** Unsaddles a mount by setting rideable.saddle to nil
+* **Parameters:**
+  - `act` -- action object with doer and target
+* **Returns:** bool or false, reason
+* **Error states:** false for TARGETINCOMBAT, dead, or mimic
 
 ### `ACTIONS.BRUSH.fn(act)`
-* **Description:** Performs brushing of a target entity (e.g., petting/bearding) using the `brushable` component.
-* **Parameters:** `act` — the action table.
-* **Returns:** `false` with reason `"TARGETINCOMBAT"` or `nil`, `"ITEMMIMIC"` on failure; `true` on success.
+* **Description:** Brushes the target using the brushable component, if valid
+* **Parameters:**
+  - `act` -- action object with doer, target, and brush item
+* **Returns:** bool or false, reason
+* **Error states:** false for TARGETINCOMBAT, dead, or mimic
 
-### `ACTIONS.ABANDON.fn`
-* **Description:** Handles abandoning a pet/follower. Uses `petleash:DespawnPet` for critters or `follower:StopFollowing` for followers (must be leader). Supports orphanage check for critters.
-* **Parameters:** `act` — the action table.
-* **Returns:** `false` if critter abandoned without orphanage access and no orphanage nearby; `true` on success.
+### `ACTIONS.ABANDON.fn(act)`
+* **Description:** Abandons a pet (via petleash or follower component), enforcing orphanage tech or nearby location for critters
+* **Parameters:**
+  - `act` -- action object with doer and target
+* **Returns:** bool
+* **Error states:** None
 
 ### `ACTIONS.PET.fn(act)`
-* **Description:** Pets a target entity, triggering `crittertraits:OnPet` and `on_petted` events for appropriate entities.
-* **Parameters:** `act` — the action table.
-* **Returns:** `true` unconditionally if `target` is valid (no validation returns).
+* **Description:** Pets a critter or notifies kitcoon with on_petted event
+* **Parameters:**
+  - `act` -- action object with doer and target
+* **Returns:** bool
+* **Error states:** None
 
 ### `ACTIONS.RETURN_FOLLOWER.fn(act)`
-* **Description:** Returns a follower to its owner’s kitcoon den (if available) by calling `kitcoonden:AddKitcoon`. Requires the `near_kitcoonden` tag and a valid den within range.
-* **Parameters:** `act` — the action table.
-* **Returns:** `true` if added to den; `false` otherwise.
+* **Description:** Returns a follower to a nearby kitcoon den if leader and in-range conditions are met
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** bool
+* **Error states:** false if no den found
 
 ### `ACTIONS.HIDEANSEEK_FIND.fn(act)`
-* **Description:** Searches a hiding spot (e.g., for Hide and Seek minigame) using `hideandseekhidingspot:SearchHidingSpot`.
-* **Parameters:** `act` — the action table; uses `target` or `invobject` as the hiding spot.
-* **Returns:** `true` if calling `SearchHidingSpot` succeeded; `false` (implicit) if `targ` or component missing.
+* **Description:** Searches a hiding spot using hideandseekhidingspot component
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** bool
+* **Error states:** None
 
-### `ACTIONS.DRAW.fn`
-* **Description:** Handles the draw action, drawing an image onto a target using a drawing tool.
-* **Parameters:** `act` — action object containing `invobject` (drawing tool), `target` (drawable entity), `doer`.
-* **Returns:** true on success, false with reason "NOIMAGE" if no image is found.
+### `ACTIONS.DRAW.stroverridefn(act)`
+* **Description:** Returns a custom string for drawing action using FindEntityToDraw and drawnameoverride
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** string or nil
+* **Error states:** None
 
-### `ACTIONS.STARTCHANNELING.fn`
-* **Description:** Initiates channeling on a target (typically a pump) via the channelable component.
-* **Parameters:** `act` — action object.
-* **Returns:** result of `StartChanneling` call (truthy value), nil if target nil or no channelable component.
+### `ACTIONS.DRAW.fn(act)`
+* **Description:** Draws an image on a target using drawingtool component if target can be drawn
+* **Parameters:**
+  - `act` -- action object with drawingtool and drawable components
+* **Returns:** bool or false, reason
+* **Error states:** false if NOIMAGE
 
-### `ACTIONS.STOPCHANNELLING.fn`
-* **Description:** Stops channeling on a target.
-* **Parameters:** `act` — action object.
-* **Returns:** true unconditionally.
+### `ACTIONS.STARTCHANNELING.strfn(act)`
+* **Description:** Returns 'PUMP' if target has 'pump' tag
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** string or nil
+* **Error states:** None
 
-### `ACTIONS.START_CHANNELCAST.fn`
-* **Description:** Starts channel-casting using either an equipped item or the off-hand (item nil), via the channelcaster component.
-* **Parameters:** `act` — action object with `doer`, `invobject`.
-* **Returns:** result of `StartChanneling`, false with reason "ITEMMIMIC" if item is mimic.
+### `ACTIONS.STARTCHANNELING.fn(act)`
+* **Description:** Starts channeling on target with the channelable component
+* **Parameters:**
+  - `act` -- action object with channelable target
+* **Returns:** bool or nil
+* **Error states:** None
 
-### `ACTIONS.STOP_CHANNELCAST.fn`
-* **Description:** Stops channel-casting on a specific item.
-* **Parameters:** `act` — action object.
-* **Returns:** true unconditionally.
+### `ACTIONS.STOPCHANNELING.fn(act)`
+* **Description:** Stops channeling on target
+* **Parameters:**
+  - `act` -- action object with channelable target
+* **Returns:** bool
+* **Error states:** None
 
-### `ACTIONS.BUNDLE.fn`
-* **Description:** Starts bundling a target (item or entity) using the doer’s bundler component.
-* **Parameters:** `act` — action object.
-* **Returns:** result of `StartBundling`, or true if bundling in dark (silent fail).
+### `ACTIONS.START_CHANNELCAST.strfn(act)`
+* **Description:** Returns 'LIGHTER' if invobject has 'lighter' tag
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** string or nil
+* **Error states:** None
 
-### `ACTIONS.WRAPBUNDLE.fn`
-* **Description:** Finishes wrapping a bundle (container) using bundler.
-* **Parameters:** `act` — action object.
-* **Returns:** result of `FinishBundling`, true on completion or error.
+### `ACTIONS.START_CHANNELCAST.fn(act)`
+* **Description:** Starts channel casting using off-hand (no item) or equipped item, respecting mimic
+* **Parameters:**
+  - `act` -- action object with channelcaster and optionally channelcastable item
+* **Returns:** bool
+* **Error states:** false if mimic or invalid state
 
-### `ACTIONS.UNWRAP.fn`
-* **Description:** Unwraps an item (unwrapable component) via its `Unwrap` method.
-* **Parameters:** `act` — action object.
-* **Returns:** true unconditionally.
+### `ACTIONS.STOP_CHANNELCAST.strfn(act)`
+* **Description:** Same as START_CHANNELCAST.strfn
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** string or nil
+* **Error states:** None
+
+### `ACTIONS.STOP_CHANNELCAST.fn(act)`
+* **Description:** Stops channel casting on a channelcastable item used by doer, respecting mimic
+* **Parameters:**
+  - `act` -- action object with channelcastable item
+* **Returns:** bool
+* **Error states:** false if mimic
+
+### `ACTIONS.BUNDLE.fn(act)`
+* **Description:** Starts bundling using the bundler component on the doer
+* **Parameters:**
+  - `act` -- action object with bundler doer and bundlable target
+* **Returns:** bool or nil
+* **Error states:** nil if not visible (silent fail)
+
+### `ACTIONS.WRAPBUNDLE.fn(act)`
+* **Description:** Finishes bundling if the target bundle is not empty; shows message if empty
+* **Parameters:**
+  - `act` -- action object with bundler doer and bundling target
+* **Returns:** bool
+* **Error states:** None
+
+### `ACTIONS.UNWRAP.fn(act)`
+* **Description:** Unwraps a target using the unwrappable component
+* **Parameters:**
+  - `act` -- action object with unwrappable target
+* **Returns:** bool
+* **Error states:** None
 
 ### `ACTIONS.PEEKBUNDLE.fn(act)`
-* **Description:** Attempts to peek inside a wrapped bundle container. Only if the bundle is unwrapppable, has `"canpeek"` tag, is not smoldering or on fire, and the doer can start bundling. Also returns active action item to inventory if needed before peaking.
-* **Parameters:** `act`: Action table containing `target`, `invobject`, and `doer`.
-* **Returns:** Result of `target.components.unwrappable:PeekInContainer(act.doer)` (boolean).
+* **Description:** Peeks inside a bundle by opening a peek container with items
+* **Parameters:**
+  - `act` -- action object with bundler doer, peekable unwrappable target
+* **Returns:** bool or nil
+* **Error states:** nil if invalid state (fire, no bundler, etc.)
 
 ### `ACTIONS.BREAK.strfn(act)`
-* **Description:** Determines string label for BREAK action. Returns `"PICKAPART"` only if target or inventory object has `"pickapart"` tag.
-* **Parameters:** `act`: Action table. Uses `act.target` or `act.invobject` as target.
-* **Returns:** `"PICKAPART"` or `nil`.
+* **Description:** Returns 'PICKAPART' if target has 'pickapart' tag
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** string or nil
+* **Error states:** None
 
 ### `ACTIONS.CONSTRUCT.stroverridefn(act)`
-* **Description:** Returns a custom name for the CONSTRUCT action, using either construction name from inventory object or target.
-* **Parameters:** `act`: Action table. Uses `act.invobject` or `act.target`.
-* **Returns:** Formatted string like `"{name}"` from `STRINGS.ACTIONS.CONSTRUCT.GENERIC_FMT`, or `nil`.
+* **Description:** Generates dynamic string for generic construction based on constructionname field
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** string or nil
+* **Error states:** None
 
 ### `ACTIONS.CONSTRUCT.strfn(act)`
-* **Description:** Determines string label for CONSTRUCT action based on target tags and presence of inventory object.
-* **Parameters:** `act`: Action table. Checks `act.invobject`, `act.target`, and target tags: `"offerconstructionsite"`, `"constructionsite"`, `"repairconstructionsite"`, `"rebuildconstructionsite"`.
-* **Returns:** One of `"OFFER"`, `"STORE"`, `"OFFER_TO"`, `"REPAIR"`, `"REBUILD"`, or `nil`.
+* **Description:** Determines construction type string based on tags on target and presence of item
+* **Parameters:**
+  - `act` -- action object
+* **Returns:** string or nil
+* **Error states:** None
 
 ### `ACTIONS.CONSTRUCT.fn(act)`
-* **Description:** Handles the construction action, initiating building or offering repair/expand/rebuild UI.
-* **Parameters:** `act` — action table containing `doer`, `target`, `invobject` (item in hand), etc.
-* **Returns:** Boolean (success) and optional `reason` string; silent failure (`true`) for controller spam or UI visibility checks.
+* **Description:** Handles the CONSTRUCT action, validating conditions, starting construction via constructionbuilder and constructionplans components, and storing inventory items into the construction container.
+* **Parameters:**
+  - `act` -- action object containing doer, target, invobject; handles construction start and item placement
+* **Returns:** true on success, false + reason on failure
+* **Error states:** Missing doer, target, constructionbuilder; construction already in progress; cannot see target; constructionplans start failure; container full/closed/locked; talker not available for error reporting
 
 ### `ACTIONS.STOPCONSTRUCTION.stroverridefn(act)`
-* **Description:** Returns a custom tooltip string for STOPCONSTRUCTION when the target has a `constructionname`.
-* **Parameters:** `act` — action table.
-* **Returns:** String or `nil`.
+* **Description:** Generates an override string for the STOPCONSTRUCTION action based on the construction site's name.
+* **Parameters:**
+  - `act` -- action object; extracts constructionname from target for string generation
+* **Returns:** formatted string or nil
+* **Error states:** Missing invobject, constructionname, or name string; fallback to nil
 
 ### `ACTIONS.STOPCONSTRUCTION.strfn(act)`
-* **Description:** Selects which string key to use for STOPCONSTRUCTION based on tags on target.
-* **Parameters:** `act` — action table.
-* **Returns:** `"OFFER"`, `"REPAIR"`, `"REBUILD"` or `nil`.
+* **Description:** Returns the action string key (OFFER, REPAIR, REBUILD) based on target tags.
+* **Parameters:**
+  - `act` -- action object; checks target tags to determine action category
+* **Returns:** string key or nil
+* **Error states:** None of the construction site tags present; fallback to nil
 
 ### `ACTIONS.STOPCONSTRUCTION.fn(act)`
-* **Description:** Stops any ongoing construction.
-* **Parameters:** `act` — action table.
-* **Returns:** `true` unconditionally.
+* **Description:** Stops the active construction process on the doer's construction builder.
+* **Parameters:**
+  - `act` -- action object; calls StopConstruction on doer's constructionbuilder
+* **Returns:** true
+* **Error states:** Missing doer or constructionbuilder component
 
 ### `ACTIONS.APPLYCONSTRUCTION.strfn(act)`
-* **Description:** Selects which string key to use for APPLYCONSTRUCTION based on tags on target.
-* **Parameters:** `act` — action table.
-* **Returns:** `"OFFER"`, `"REPAIR"`, `"REBUILD"` or `nil`.
+* **Description:** Returns the action string key (OFFER, REPAIR, REBUILD) based on target tags.
+* **Parameters:**
+  - `act` -- action object; checks target tags to determine action type
+* **Returns:** string key or nil
+* **Error states:** None of the construction site tags present; fallback to nil
 
 ### `ACTIONS.APPLYCONSTRUCTION.fn(act)`
-* **Description:** Attempts to finalize construction (e.g., placing ingredients into a construction site container).
-* **Parameters:** `act` — action table.
-* **Returns:** Boolean (success) — returns result of `FinishConstruction()` if container has items; otherwise returns `true` on empty check or failure message.
+* **Description:** Finishes construction if the target site is being constructed by doer and its container is non-empty; otherwise, reports failure.
+* **Parameters:**
+  - `act` -- action object; finishes construction if container is not empty
+* **Returns:** true on success or if valid but not finishable; false on error
+* **Error states:** Not currently constructing target; container empty or cooking/sleepingbag in use; talker not available for error message
+
+### `ACTIONS.CASTAOE.stroverridefn(act)`
+* **Description:** Returns the spell name from the held item's spellbook for display.
+* **Parameters:**
+  - `act` -- action object; retrieves spell name from spellbook component
+* **Returns:** spell name string or nil
+* **Error states:** Missing invobject or spellbook component
+
+### `ACTIONS.CASTAOE.strfn(act)`
+* **Description:** Returns the uppercase prefab name of the action object for string lookup.
+* **Parameters:**
+  - `act` -- action object; uses invobject's prefab name uppercase for string key
+* **Returns:** string key or nil
+* **Error states:** Missing invobject component
+
+### `ACTIONS.CASTAOE.fn(act)`
+* **Description:** Casts an AoE spell using the held item's aoespell component, after validating action point and mimics.
+* **Parameters:**
+  - `act` -- action object; checks CanCast and casts the spell
+* **Returns:** spellfn result (success, reason) or false + reason
+* **Error states:** Missing spellbook, invalid CanCast; itemmimic present; invalid action point
+
+### `ACTIONS.SCYTHE.fn(act)`
+* **Description:** Triggers scythe interaction on the target using the held item's DoScythe method.
+* **Parameters:**
+  - `act` -- action object; calls DoScythe on held item
+* **Returns:** true on success, false + 'ITEMMIMIC' if mimic is active
+* **Error states:** Missing invobject or DoScythe method; itemmimic present
+
+### `ACTIONS.NABBAG.fn(act)`
+* **Description:** Performs a nab action (loot collection) using the held item's nabbag component.
+* **Parameters:**
+  - `act` -- action object; calls DoNabFromAct on held item
+* **Returns:** true/false from DoNabFromAct, or false
+* **Error states:** Missing required components or itemmimic present
+
+### `ACTIONS.DISMANTLE.fn(act)`
+* **Description:** Dismantles a portable structure after verifying it is not burning (unless campfire), not in use, not cooking, and not locked.
+* **Parameters:**
+  - `act` -- action object; validates dismantle conditions and calls Dismantle
+* **Returns:** true on success, false + reason string
+* **Error states:** Missing target, portablestructure; burning unless campfire; container open/not empty/cooking; sleepingbag in use; candismantle returns false
+
+### `ACTIONS.TACKLE.fn(act)`
+* **Description:** Triggers a tackle attempt via the doer's tackler component.
+* **Parameters:**
+  - `act` -- action object; calls StartTackle on doer's tackler component
+* **Returns:** result of StartTackle or nil
+* **Error states:** Missing doer or tackler component
+
+### `ACTIONS.HALLOWEENMOONMUTATE.fn(act)`
+* **Description:** Applies a Halloween potion moon to mutate the target, skipping burning/smoldering/frozen/flying/non-passable targets.
+* **Parameters:**
+  - `act` -- action object; uses potionmoon to mutate target if conditions met
+* **Returns:** true if used, false if conditions not met
+* **Error states:** Missing potionmoon; invalid target (burning, smoldering, frozen, non-passable)
+
+### `ACTIONS.APPLYPRESERVATIVE.strfn(act)`
+* **Description:** Returns 'SALT' only for saltrock.
+* **Parameters:**
+  - `act` -- action object; returns 'SALT' only for saltrock
+* **Returns:** 'SALT' or nil
+* **Error states:** Missing invobject or not saltrock
 
 ### `ACTIONS.APPLYPRESERVATIVE.fn(act)`
-* **Description:** Applies preservative effect to a target item, increasing its shelf life by modifying `perishable.percent`. The effect is scaled by stack size and `percent_increase`, and consumes the preservative item.
-* **Parameters:** `act`: Action object with `target`, `invobject`, `doer` fields (standard DST action structure).
-* **Returns:** `true` on success, `false` otherwise.
+* **Description:** Applies preservative effect to a perishable item by increasing its percent, consuming the preservative.
+* **Parameters:**
+  - `act` -- action object; applies percent increase to perishable based on stack size and preserve effect
+* **Returns:** true if used, false if conditions not met
+* **Error states:** Missing target, preservative; health component present; invalid tags; inventory removal failure
 
 ### `COMPARE_WEIGHABLE_TEST(target, weighable)`
-* **Description:** Helper function to validate that `target` and `weighable` share a compatible trophy scale type (e.g., both `"trophyscale_meat"` and `"weighable_meat"`).
-* **Parameters:** `target`: Entity being compared on the trophy scale. `weighable`: Item being weighed (or equipped heavy item).
-* **Returns:** `true` if tags match any `TROPHYSCALE_TYPES`, `false` otherwise.
+* **Description:** Checks if target and weighable share a valid trophy scale type tag.
+* **Parameters:**
+  - `target` -- Entity to test against TROPHYSCALE_TYPES
+  - `weighable` -- Entity to test weighable types against
+* **Returns:** true if matching tag found, else false
+* **Error states:** None
 
 ### `ACTIONS.COMPARE_WEIGHABLE.fn(act)`
-* **Description:** Initiates weight comparison on a trophy scale using an item or equipped heavy item. Calls `trophyscale:Compare()` to update trophy if the item is heavier.
-* **Parameters:** `act`: Action object (`target` is trophy scale, `invobject` is item to weigh; defaults to heavy body slot if `invobject` is nil).
-* **Returns:** Return value of `trophyscale:Compare()` (`true`, `false, "TYPENAME_TOO_SMALL"`), or `false` if preconditions fail.
+* **Description:** Compares the weight of a weighable item (held or equipped heavy body slot) to a trophy scale, updating trophy if heavier.
+* **Parameters:**
+  - `act` -- action object; compares held or equipped weighable item against trophy scale
+* **Returns:** true if heavier/new trophy, false + reason if lighter/same; nil if missing components
+* **Error states:** Missing weighable, trophy_scale, or weighable components; fire/burnt tags; no matching type tag
 
 ### `ACTIONS.WEIGH_ITEM.fn(act)`
-* **Description:** Weighs an item using a weigher (either target or invobject), invoking `itemweigher:DoWeighIn()`.
-* **Parameters:** `act`: Action object (`target` and `invobject` can hold weigher/weighable roles).
-* **Returns:** Return value of `itemweigher:DoWeighIn()`, or `false` if weigher/weighable not found or weigher is burnt/fire.
+* **Description:** Determines which entity is the weigher and which is weighable, then performs weighing via itemweigher component.
+* **Parameters:**
+  - `act` -- action object; finds weigher and weighable entities, then calls DoWeighIn
+* **Returns:** result of DoWeighIn or false
+* **Error states:** Missing weigher or weighable components; fire/burnt tags on weigher
 
 ### `ACTIONS.START_CARRAT_RACE.fn(act)`
-* **Description:** Starts a carrat race if the race start controller allows and racers exist. Plays race start string with delay if present.
-* **Parameters:** `act`: Action object (`target` is race start entity).
-* **Returns:** `true` on success, `false, "NO_RACERS"` if no racers, or `false` if conditions fail.
+* **Description:** Starts a Carrat race using yotc_racestart, ensuring racers exist and no fire/burnt state.
+* **Parameters:**
+  - `act` -- action object; starts a race if race conditions are met
+* **Returns:** true on success, false + reason
+* **Error states:** Missing racestart component; CanInteract returns false; race_on tag; no racers or zero racers; fire/burnt
 
 ### `ACTIONS.TILL.fn(act)`
-* **Description:** Tills soil using a farm tiller (e.g., hoe) or Quagmire-specific tiller. Calls respective `till()` function with action point.
-* **Parameters:** `act`: Action object (`invobject` must be tiller, `target` is ignored; action point derived from `act:GetActionPoint()`).
-* **Returns:** Return value of `farmtiller:Till()` or `quagmire_tiller:Till()`, or `false` if `invobject` is itemmimic.
+* **Description:** Tills the ground at action point using the held item's tilling component.
+* **Parameters:**
+  - `act` -- action object; tills ground using farmtiller or quagmire_tiller
+* **Returns:** result of Till or false
+* **Error states:** Missing invobject; itemmimic present; no tilling component
 
 ### `ACTIONS.PLANTSOIL.fn(act)`
-* **Description:** Attempts to plant a seed onto a soil tile. Removes the seed from the player's inventory, checks for Quagmire-specific or standard farm plantable components, and plants accordingly.
-* **Parameters:** `act` — action table containing `invobject`, `doer`, `target`.
-* **Returns:** `true` on successful planting; `nil` or implicit `false` otherwise.
+* **Description:** Removes seed from inventory, plants on soil target, returns true if successful; else returns seed to inventory.
+* **Parameters:**
+  - `act` -- action object; plants a seed on soil using farmplantable or quagmire_plantable
+* **Returns:** true if planted successfully, else false
+* **Error states:** Missing seed, inventory, or soil target; planting component missing or failure
 
 ### `ACTIONS.INSTALL.fn(act)`
-* **Description:** Attempts to install an item (e.g., Quagmire gadget) onto a compatible target structure. Supports Quagmire installables and salt extractors.
-* **Parameters:** `act` — action table.
-* **Returns:** `true` on successful installation; `nil` otherwise.
+* **Description:** Installs a Quagmire prefab on target or installs salt using saltextractor component.
+* **Parameters:**
+  - `act` -- action object; installs Quagmire installable or salt extractor components
+* **Returns:** true on install success, else false
+* **Error states:** Missing invobject or target; missing installable/saltextractor or target components; spawn failure
 
 ### `ACTIONS.TAPTREE.fn(act)`
-* **Description:** Toggles tap state on a tree. Uninstalls tap if already tapped; installs tap if target is tappable and tapper tool is held.
-* **Parameters:** `act` — action table.
-* **Returns:** `true` on success; `nil` otherwise.
+* **Description:** Uninstalls existing tap if tapped, or installs tap if invobject has tapper and target is tappable.
+* **Parameters:**
+  - `act` -- action object; installs or uninstalls tap on tappable tree
+* **Returns:** true if tapped/uninstalled, else false
+* **Error states:** Missing target or tappable component; no tap or tapper
 
 ### `ACTIONS.TAPTREE.strfn(act)`
-* **Description:** Returns action string for tapping a tree: "UNTAP" if target not tappable, otherwise `nil`.
-* **Parameters:** `act` — action table (uses `act.target`).
-* **Returns:** `"UNTAP"` string or `nil`.
+* **Description:** Returns 'UNTAP' if target is not tappable (invert logic); otherwise nil.
+* **Parameters:**
+  - `act` -- action object; returns 'UNTAP' if target not tappable
+* **Returns:** 'UNTAP' or nil
+* **Error states:** None
 
 ### `ACTIONS.SLAUGHTER.stroverridefn(act)`
-* **Description:** Returns custom string for slaughter action if held tool defines one (via `GetSlaughterActionString` method).
-* **Parameters:** `act` — action table.
-* **Returns:** Custom action string from `invobject`, or `nil`.
+* **Description:** Returns a custom slaughter action string provided by the tool.
+* **Parameters:**
+  - `act` -- action object; calls GetSlaughterActionString on tool if available
+* **Returns:** string or nil
+* **Error states:** Missing tool or method; no custom string
 
 ### `ACTIONS.SLAUGHTER.fn(act)`
-* **Description:** Slaughters a target entity using a Quagmire slaughter tool.
-* **Parameters:** `act` — action table.
-* **Returns:** `true` on successful slaughter; `false` with `"TOOFAR"` if out of range, or `nil`.
+* **Description:** Validates target for slaughter, checks proximity, and calls Slaughter method on tool.
+* **Parameters:**
+  - `act` -- action object; slaughters target if valid and tool present
+* **Returns:** true on success, false + reason
+* **Error states:** Missing tool, target, or tool methods; target not valid/canbeslaughtered; too far; target not dead
 
-### `ACTIONS.REPLATE.stroverridefn(act)`
-* **Description:** Generates custom action string for replating action using Quagmire replatable entity name.
-* **Parameters:** `act` — action table.
-* **Returns:** Formatted string like `"Replate <Dish>"` if valid replatable entity found; `nil`.
+### `ACTIONS.REPLATE.stroververridefn(act)`
+* **Description:** Generates a formatted string for the REPLATE action based on replatable prefab name.
+* **Parameters:**
+  - `act` -- action object; generates REPLATE string for Quagmire dishes
+* **Returns:** formatted string or nil
+* **Error states:** No replatable instance found; missing underscore or name string
 
 ### `ACTIONS.BATHBOMB.fn(act)`
-* **Description:** Attempts to use a bath bomb on a bathbombable target. Validates both components, calls the target's OnBathBombed method, and removes the bath bomb item.
-* **Parameters:** `act` — the action table containing doer, target, and invobject.
-* **Returns:** `true` on success; implicit `nil` otherwise.
+* **Description:** Applies bathbomb effect to a bathbombable entity, consuming the bathbomb item.
+* **Parameters:**
+  - `act` -- action object; applies bathbomb to bathbombable entity
+* **Returns:** true on success, else false
+* **Error states:** Missing bathbombable or bathbomb; can_be_bathbombed false
 
 ### `ACTIONS.RAISE_SAIL.fn(act)`
-* **Description:** Unfurleds (fully raises) a sail by calling mast component's UnfurlSail.
-* **Parameters:** `act` — action table.
-* **Returns:** `true` on success; implicit `nil` if target or mast component missing.
+* **Description:** Unfurls the mast sail on the target if the mast component exists (note: action name is backwards).
+* **Parameters:**
+  - `act` -- action object; unfurls the mast sail
+* **Returns:** true if mast found, else false
+* **Error states:** Missing target or mast component
 
 ### `ACTIONS.RAISE_SAIL.stroverridefn(act)`
-* **Description:** Returns the localized string for the RAISE_SAIL action.
-* **Parameters:** `act` — action table.
-* **Returns:** `STRINGS.ACTIONS.RAISE_SAIL`.
+* **Description:** Returns the hardcoded string reference for RAISE_SAIL action.
+* **Parameters:**
+  - `act` -- action object; returns hardcoded string reference
+* **Returns:** STRINGS.ACTIONS.RAISE_SAIL
+* **Error states:** None
 
 ### `ACTIONS.LOWER_SAIL.fn(act)`
-* **Description:** Placeholder function that returns `true`; no actual sail-lowering logic implemented here (comment indicates naming is inverted).
-* **Parameters:** `act` — action table.
-* **Returns:** `true`.
+* **Description:** Placeholder for lowering sail (action name is backwards); always returns true.
+* **Parameters:**
+  - `act` -- action object; placeholder that always returns true
+* **Returns:** true
+* **Error states:** None
 
 ### `ACTIONS.LOWER_SAIL.stroverridefn(act)`
-* **Description:** Returns the localized string for the LOWER_SAIL action.
-* **Parameters:** `act` — action table.
-* **Returns:** `STRINGS.ACTIONS.LOWER_SAIL`.
+* **Description:** Returns the hardcoded string reference for LOWER_SAIL action.
+* **Parameters:**
+  - `act` -- action object; returns hardcoded string reference
+* **Returns:** STRINGS.ACTIONS.LOWER_SAIL
+* **Error states:** None
 
 ### `ACTIONS.LOWER_SAIL_BOOST.fn(act)`
-* **Description:** Applies boost to lowering a sail by calling mast component's AddSailFurler with calculated strength modifier based on expert sailor stats and master crewman tag.
-* **Parameters:** `act` — action table.
-* **Returns:** `true` on success; implicit `nil` if target, mast, or `is_sail_raised` condition not met.
-
-### `GetLowerSailStr(act)`
-* **Description:** Helper function returning the appropriate localized string index for LOWER_SAIL_BOOST based on `switchtoho` tag.
-* **Parameters:** `act` — action table.
-* **Returns:** String index: `STRINGS.ACTIONS.LOWER_SAIL_BOOST[1]` or `[2]`.
+* **Description:** Adds a sail furler to the mast with strength boosted by sailor expertise and master crewman multiplier.
+* **Parameters:**
+  - `act` -- action object; adds sail furler with boost based on sailor strength and master crewman tag
+* **Returns:** true on success, else false
+* **Error states:** Missing mast or sail not raised
 
 ### `ACTIONS.LOWER_SAIL_BOOST.stroverridefn(act)`
-* **Description:** Wraps `GetLowerSailStr` to provide localized string for the boost action.
-* **Parameters:** `act` — action table.
-* **Returns:** Localized string.
+* **Description:** Selects string index based on 'switchtoho' tag and returns from STRINGS.ACTIONS.LOWER_SAIL_BOOST.
+* **Parameters:**
+  - `act` -- action object; uses GetLowerSailStr helper for string selection
+* **Returns:** string from array
+* **Error states:** None
+
+### `GetLowerSailStr(act)`
+* **Description:** Helper function returning a string index based on 'switchtoho' tag.
+* **Parameters:**
+  - `act` -- action object; determines string index
+* **Returns:** integer index (1 or 2)
+* **Error states:** None
 
 ### `ACTIONS.LOWER_SAIL_FAIL.fn(act)`
-* **Description:** No-op function that simply returns `true`.
-* **Parameters:** `act` — action table.
-* **Returns:** `true`.
+* **Description:** Placeholder for sail lowering failure; always returns true.
+* **Parameters:**
+  - `act` -- action object; placeholder that always returns true
+* **Returns:** true
+* **Error states:** None
 
 ### `ACTIONS.LOWER_SAIL_FAIL.stroverridefn(act)`
-* **Description:** Returns the same localized string as the boost/normal lowering actions.
-* **Parameters:** `act` — action table.
-* **Returns:** Localized string via `GetLowerSailStr`.
+* **Description:** Returns string from STRINGS.ACTIONS.LOWER_SAIL_BOOST via GetLowerSailStr.
+* **Parameters:**
+  - `act` -- action object; uses GetLowerSailStr helper
+* **Returns:** string
+* **Error states:** None
 
 ### `ACTIONS.RAISE_ANCHOR.fn(act)`
-* **Description:** Calls `AddAnchorRaiser` on the anchor component of the target.
-* **Parameters:** `act` — action table.
-* **Returns:** Return value of `AddAnchorRaiser` (boolean).
+* **Description:** Calls AddAnchorRaiser on anchor component, returning success boolean.
+* **Parameters:**
+  - `act` -- action object; adds anchor raiser to anchor component
+* **Returns:** true/false
+* **Error states:** Missing anchor component
 
 ### `ACTIONS.LOWER_ANCHOR.fn(act)`
-* **Description:** Calls `StartLoweringAnchor` on the target's anchor component.
-* **Parameters:** `act` — action table.
-* **Returns:** Return value of `StartLoweringAnchor` (boolean).
+* **Description:** Calls StartLoweringAnchor on anchor component.
+* **Parameters:**
+  - `act` -- action object; starts anchor lowering
+* **Returns:** true/false
+* **Error states:** Missing anchor component
 
 ### `ACTIONS.MOUNT_PLANK.fn(act)`
-* **Description:** Calls `MountPlank` on the walking plank component.
-* **Parameters:** `act` — action table.
-* **Returns:** Boolean return of `MountPlank`.
+* **Description:** Attempts to mount the doer onto the plank entity.
+* **Parameters:**
+  - `act` -- action object; mounts doer onto walkingplank
+* **Returns:** true if mount succeeded, else false
+* **Error states:** Missing plank or plank component; mount already in use
 
 ### `ACTIONS.DISMOUNT_PLANK.fn(act)`
-* **Description:** Calls `DismountPlank` on the walking plank component.
-* **Parameters:** `act` — action table.
-* **Returns:** `true`.
+* **Description:** Calls DismountPlank on the plank component.
+* **Parameters:**
+  - `act` -- action object; dismounts doer from plank
+* **Returns:** true
+* **Error states:** Missing plank or plank component
 
 ### `ACTIONS.ABANDON_SHIP.fn(act)`
-* **Description:** Calls `AbandonShip` on the walking plank component.
-* **Parameters:** `act` — action table.
-* **Returns:** Boolean return of `AbandonShip`.
+* **Description:** Abandons the ship by calling AbandonShip on the walkingplank component.
+* **Parameters:**
+  - `act` -- action object; abandons ship via walkingplank
+* **Returns:** true if doer matches and dismount succeeds, else false
+* **Error states:** Missing plank or plank component
 
 ### `ACTIONS.EXTEND_PLANK.fn(act)`
-* **Description:** Calls `Extend` on the walking plank component.
-* **Parameters:** `act` — action table.
-* **Returns:** `true`.
+* **Description:** Extends the plank and fires start_extending event.
+* **Parameters:**
+  - `act` -- action object; extends the plank
+* **Returns:** true
+* **Error states:** Missing plank or plank component
 
 ### `ACTIONS.RETRACT_PLANK.fn(act)`
-* **Description:** Calls `Retract` on the walking plank component.
-* **Parameters:** `act` — action table.
-* **Returns:** `true`.
+* **Description:** Retracts the plank and fires start_retracting event.
+* **Parameters:**
+  - `act` -- action object; retracts the plank
+* **Returns:** true
+* **Error states:** Missing plank or plank component
 
 ### `ACTIONS.REPAIR_LEAK.fn(act)`
-* **Description:** Calls `boatleak:Repair` with the item object if all required conditions are met.
-* **Parameters:** `act` — action table.
-* **Returns:** Return value of `boatleak:Repair` (boolean).
+* **Description:** Repairs a boat leak using the held patch item and boatleak component.
+* **Parameters:**
+  - `act` -- action object; repairs a boat leak using patch item
+* **Returns:** true
+* **Error states:** Missing patch, target, boatleak, or boat_leak tag
 
 ### `ACTIONS.STEER_BOAT.pre_action_cb(act)`
-* **Description:** Ensures spell wheel is closed before steering action begins.
-* **Parameters:** `act` — action table.
-* **Returns:** None.
+* **Description:** Pre-action callback to close the spell wheel before steering.
+* **Parameters:**
+  - `act` -- action object; closes spell wheel on HUD
+* **Returns:** nil
+* **Error states:** Missing HUD
 
 ### `ACTIONS.STEER_BOAT.fn(act)`
-* **Description:** Assigns the target entity (e.g., steering wheel) to the doer as their steering wheel for boat control.
-* **Parameters:** `act` — action table containing `doer`, `target`, and optionally `invobject`.
-* **Returns:** `true` if assignment succeeded; `nil` otherwise.
+* **Description:** Attaches the doer as a sailor to the steering wheel and starts steering.
+* **Parameters:**
+  - `act` -- action object; sets doer as steering wheel user
+* **Returns:** true if set successfully, else false
+* **Error states:** Missing wheel, sailor, burnable, or steeringwheeluser; wheel in use or burning
 
 ### `ACTIONS.SET_HEADING.fn(act)`
-* **Description:** Instructs the doer’s steering wheel user to steer the boat toward the action point.
-* **Parameters:** `act` — action table.
-* **Returns:** Result of `act.doer.components.steeringwheeluser:Steer(x, z)` (boolean); `false` if doer lacks `steeringwheeluser`.
+* **Description:** Calls Steer on the doer's steeringwheeluser component to set the boat heading at action point.
+* **Parameters:**
+  - `act` -- action object; sets boat heading via steer call
+* **Returns:** true if steer succeeded, else false
+* **Error states:** Missing steeringwheeluser; no position; steer returns false
 
 ### `ACTIONS.STOP_STEERING_BOAT.fn(act)`
-* **Description:** Clears the doer’s assigned steering wheel, stopping boat steering.
-* **Parameters:** `act` — action table.
-* **Returns:** `true`.
+* **Description:** Detaches the doer from the steering wheel by passing nil to SetSteeringWheel.
+* **Parameters:**
+  - `act` -- action object; clears steering wheel user
+* **Returns:** true
+* **Error states:** Missing steeringwheeluser
 
 ### `ACTIONS.CAST_NET.fn(act)`
-* **Description:** Casts the fishing net held by the doer toward the action point or target position.
-* **Parameters:** `act` — action table.
-* **Returns:** `true` if casting succeeded; `false, "ITEMMIMIC"` if item is a mimic; `false` otherwise.
+* **Description:** Calls CastNet on the fishing net component with either action point or target position.
+* **Parameters:**
+  - `act` -- action object; casts the fishing net at action point or target position
+* **Returns:** true
+* **Error states:** Missing net or net component; itemmimic present; no valid position
 
 ### `ACTIONS.ROTATE_BOAT_CLOCKWISE.fn(act)`
-* **Description:** Sets the boat’s rotation direction to clockwise.
-* **Parameters:** `act` — action table.
-* **Returns:** `true`.
+* **Description:** Rotates the boat clockwise by setting rotation direction on boatrotator.
+* **Parameters:**
+  - `act` -- action object; sets rotation direction to 1
+* **Returns:** true
+* **Error states:** Missing boatrotator
 
 ### `ACTIONS.ROTATE_BOAT_COUNTERCLOCKWISE.fn(act)`
-* **Description:** Sets the boat’s rotation direction to counterclockwise.
-* **Parameters:** `act` — action table.
-* **Returns:** `true`.
+* **Description:** Rotates the boat counterclockwise by setting rotation direction on boatrotator.
+* **Parameters:**
+  - `act` -- action object; sets rotation direction to -1
+* **Returns:** true
+* **Error states:** Missing boatrotator
 
 ### `ACTIONS.ROTATE_BOAT_COUNTERCLOCKWISE.stroverridefn(act)`
-* **Description:** Returns localized string for the action label.
-* **Parameters:** `act` — action table (unused).
-* **Returns:** String from `STRINGS.ACTIONS.ROTATE_BOAT_COUNTERCLOCKWISE`.
+* **Description:** Returns the hardcoded string reference for ROTATE_BOAT_COUNTERCLOCKWISE action.
+* **Parameters:**
+  - `act` -- action object; returns hardcoded string reference
+* **Returns:** STRINGS.ACTIONS.ROTATE_BOAT_COUNTERCLOCKWISE
+* **Error states:** None
 
 ### `ACTIONS.ROTATE_BOAT_STOP.fn(act)`
-* **Description:** Sets the boat’s rotation direction to stopped (0).
-* **Parameters:** `act` — action table.
-* **Returns:** `true`.
+* **Description:** Stops boat rotation by setting rotation direction to zero on boatrotator.
+* **Parameters:**
+  - `act` -- action object; sets rotation direction to 0
+* **Returns:** true
+* **Error states:** Missing boatrotator
 
 ### `ACTIONS.ROTATE_BOAT_STOP.stroverridefn(act)`
-* **Description:** Returns localized string for the action label.
-* **Parameters:** `act` — action table (unused).
-* **Returns:** String from `STRINGS.ACTIONS.ROTATE_BOAT_STOP`.
+* **Description:** Returns the hardcoded string reference for ROTATE_BOAT_STOP action.
+* **Parameters:**
+  - `act` -- action object; returns hardcoded string reference
+* **Returns:** STRINGS.ACTIONS.ROTATE_BOAT_STOP
+* **Error states:** None
 
 ### `ACTIONS.BOAT_MAGNET_ACTIVATE.fn(act)`
-* **Description:** Activates the boat magnet’s search mode by transitioning to `"search_pre"` state.
-* **Parameters:** `act` — action table.
-* **Returns:** `true`.
+* **Description:** Starts the magnet beacon search process by transitioning to 'search_pre' state.
+* **Parameters:**
+  - `act` -- action object; triggers magnet search state
+* **Returns:** true
+* **Error states:** Missing magnet component
 
 ### `ACTIONS.BOAT_MAGNET_DEACTIVATE.fn(act)`
-* **Description:** Deactivates the boat magnet by unpairing it from its beacon.
-* **Parameters:** `act` — action table.
-* **Returns:** `true`.
+* **Description:** Calls UnpairWithBeacon on the magnet component to disable pairing.
+* **Parameters:**
+  - `act` -- action object; unpairs beacon from magnet
+* **Returns:** true
+* **Error states:** Missing magnet component
 
 ### `ACTIONS.BOAT_MAGNET_BEACON_TURN_ON.fn(act)`
-* **Description:** Turns on the boat magnet beacon. Uses `act.target` or `act.invobject`.
-* **Parameters:** `act` — action table.
-* **Returns:** `true`.
+* **Description:** Enables the magnet beacon by calling TurnOnBeacon on the beacon component.
+* **Parameters:**
+  - `act` -- action object; turns on beacon via boatmagnetbeacon
+* **Returns:** true
+* **Error states:** Missing beacon or beacon component
 
 ### `ACTIONS.BOAT_MAGNET_BEACON_TURN_OFF.fn(act)`
-* **Description:** Turns off the boat magnet beacon. Uses `act.target` or `act.invobject`.
-* **Parameters:** `act` — action table.
-* **Returns:** `true`.
+* **Description:** Disables the magnet beacon by calling TurnOffBeacon on the beacon component.
+* **Parameters:**
+  - `act` -- action object; turns off beacon via boatmagnetbeacon
+* **Returns:** true
+* **Error states:** Missing beacon or beacon component
 
 ### `IsBoatCannonAmmo(item)`
-* **Description:** Helper to check if an item qualifies as boat cannon ammo.
-* **Parameters:** `item` — entity to check.
-* **Returns:** `true` if `item.projectileprefab ~= nil` and item has tag `"boatcannon_ammo"`; `false` otherwise.
+* **Description:** Predicate to determine if an item is valid boat cannon ammo.
+* **Parameters:**
+  - `item` -- item entity; checks projectileprefab and boatcannon_ammo tag
+* **Returns:** true if valid ammo, else false
+* **Error states:** None
 
-### `ACTIONS.BOAT_CANNON_LOAD_AMMO.fn`
-* **Description:** Handles loading ammo into a boat cannon. Attempts to find ammo either from the doer’s active item or inventory (via `IsBoatCannonAmmo`), loads it via `boatcannon:LoadAmmo`, removes the ammo item, and gives feedback.
-* **Parameters:** `act` — action structure containing `target`, `doer`, and `invobject` fields.
-* **Returns:** `true` on success or if no action taken; `nil` implicitly on early exit paths.
+### `ACTIONS.BOAT_CANNON_LOAD_AMMO.fn(act)`
+* **Description:** Finds and loads cannon ammo from active item or inventory, consumes ammo, and notifies via talker.
+* **Parameters:**
+  - `act` -- action object; loads ammo into boat cannon
+* **Returns:** true on load success, else false
+* **Error states:** Missing cannon, inventory; ammo loaded; no ammo found; talker failure
 
-### `ACTIONS.BOAT_CANNON_START_AIMING.pre_action_cb`
-* **Description:** Cleanup callback executed before action starts; closes the spell wheel if HUD is present.
-* **Parameters:** `act` — action structure.
-* **Returns:** `nil`.
+### `ACTIONS.BOAT_CANNON_START_AIMING.pre_action_cb(act)`
+* **Description:** Pre-action callback to close the spell wheel before aiming cannon.
+* **Parameters:**
+  - `act` -- action object; closes spell wheel
+* **Returns:** nil
+* **Error states:** Missing HUD
 
-### `ACTIONS.BOAT_CANNON_START_AIMING.fn`
-* **Description:** Assigns the specified target as the doer’s cannon for aiming, if criteria are met (target has `boatcannon`, not already assigned, not burning, and doer has `boatcannonuser`).
-* **Parameters:** `act` — action structure.
-* **Returns:** `true` on success, otherwise `nil`.
+### `ACTIONS.BOAT_CANNON_START_AIMING.fn(act)`
+* **Description:** Attaches the doer as the cannon operator and begins aiming.
+* **Parameters:**
+  - `act` -- action object; sets doer as cannon user
+* **Returns:** true if set successfully, else false
+* **Error states:** Missing cannon, operator, burnable, or cannonuser; cannon in use or burning
 
-### `ACTIONS.BOAT_CANNON_SHOOT.fn`
-* **Description:** Triggers a cannon to fire: either via `boatcannonuser` state machine or directly on the cannon instance. Clears the cannon association and transitions doer state if applicable.
-* **Parameters:** `act` — action structure.
-* **Returns:** `true` unconditionally (always succeeds).
+### `ACTIONS.BOAT_CANNON_SHOOT.fn(act)`
+* **Description:** Faces the cannon at the action point, triggers 'shoot' state, and clears operator state.
+* **Parameters:**
+  - `act` -- action object; shoots the cannon
+* **Returns:** true
+* **Error states:** Missing cannonuser or cannon; invalid state
 
-### `ACTIONS.BOAT_CANNON_STOP_AIMING.fn`
-* **Description:** Clears the doer’s currently assigned cannon via `boatcannonuser:SetCannon(nil)`.
-* **Parameters:** `act` — action structure.
-* **Returns:** `true` unconditionally.
+### `ACTIONS.BOAT_CANNON_STOP_AIMING.fn(act)`
+* **Description:** Detaches the doer from the cannon by setting steering wheel to nil.
+* **Parameters:**
+  - `act` -- action object; stops aiming cannon
+* **Returns:** true
+* **Error states:** Missing cannonuser
 
-### `ACTIONS.OCEAN_TRAWLER_LOWER.fn`
-* **Description:** Lowers the ocean trawler net by calling `oceantrawler:Lower()`.
-* **Parameters:** `act` — action structure.
-* **Returns:** `true` unconditionally (no explicit success/failure propagation).
+### `ACTIONS.OCEAN_TRAWLER_LOWER.fn(act)`
+* **Description:** Calls Lower on the oceantrawler component to start trawling.
+* **Parameters:**
+  - `act` -- action object; lowers the ocean trawler net
+* **Returns:** true
+* **Error states:** Missing oceantrawler component
 
-### `ACTIONS.OCEAN_TRAWLER_RAISE.fn`
-* **Description:** Raises the ocean trawler net by calling `oceantrawler:Raise()`.
-* **Parameters:** `act` — action structure.
-* **Returns:** `true` unconditionally.
+### `ACTIONS.OCEAN_TRAWLER_RAISE.fn(act)`
+* **Description:** Calls the oceantrawler:Raise() method on the target entity if it has the component, used to raise the trawler net.
+* **Parameters:**
+  - `act` -- Action object containing doer, target, and action context
+* **Returns:** true
+* **Error states:** None
 
-### `ACTIONS.OCEAN_TRAWLER_FIX.fn`
-* **Description:** Fixes the ocean trawler by calling `oceantrawler:Fix()`, and provides feedback via talker.
-* **Parameters:** `act` — action structure.
-* **Returns:** `true` unconditionally.
+### `ACTIONS.OCEAN_TRAWLER_FIX.fn(act)`
+* **Description:** Calls the oceantrawler:Fix() method on the target entity and announces the fix using the talker component.
+* **Parameters:**
+  - `act` -- Action object containing doer, target, and action context
+* **Returns:** true
+* **Error states:** None
 
-### `ACTIONS.GIVE_TACKLESKETCH.fn`
-* **Description:** Teaches a tacklesketch to a crafting station if target accepts it: checks for `craftingstation`, not burnt, not burning, and whether the sketch prefab is already known. Calls `tacklesketch:Teach` if valid.
-* **Parameters:** `act` — action structure with `invobject`, `target`, and related components.
-* **Returns:** `true` on success, `false` on failure, or `"DUPLICATE"` as a reason if the sketch is already known.
+### `ACTIONS.GIVE_TACKLESKETCH.fn(act)`
+* **Description:** Teaches a tackle sketch recipe to a crafting station if not already known, checking for burn status and item mimicry.
+* **Parameters:**
+  - `act` -- Action object containing doer, target, and invobject (tackle sketch)
+* **Returns:** true/false, reason
+* **Error states:** Returns 'DUPLICATE' if crafting station already knows the recipe; 'ITEMMIMIC' if item is mimic; returns false if conditions not met
 
-### `ACTIONS.REMOVEFROM_TROPHYSCALE.fn(act)`
-* **Description:** Handles removing an item from a trophy scale. Checks if the target is valid for removal (not burnt, not on fire, has the component and tag), optionally runs a test function for permission, and calls `TakeItem`.
-* **Parameters:** `act`: Action table containing `target`, `doer`, `invobject` fields; used for context of the action.
-* **Returns:** Boolean success flag and optional message string (e.g., `false, "REASON"`), or the result of `TakeItem`.
+### `ACTIONS.REMOVE_FROM_TROPHYSCALE.fn(act)`
+* **Description:** Removes and gives an item from the trophy scale if conditions are met, using optional takeitemtestfn validation.
+* **Parameters:**
+  - `act` -- Action object containing doer and target (trophy scale)
+* **Returns:** true/false, reason
+* **Error states:** Returns false if target is burnt or on fire, lacks trophiescale component, or doesn't have 'trophycanbetaken' tag
+
+### `ACTIONS.CYCLE.strfn(act)`
+* **Description:** Returns 'TUNE' string action label if target is a singingshell, otherwise nil.
+* **Parameters:**
+  - `act` -- Action object containing target (singingshell)
+* **Returns:** string or nil
+* **Error states:** None
+
+### `ACTIONS.CYCLE.fn(act)`
+* **Description:** Cycles through states on a cyclable entity if cancycle allows.
+* **Parameters:**
+  - `act` -- Action object containing doer and target (cyclable entity)
+* **Returns:** true/false
+* **Error states:** Returns false if cyclable component missing or cancycle returns false
+
+### `ACTIONS.OCEAN_TOSS.fn(act)`
+* **Description:** Drops an item from inventory, adds ocean projectile behavior, and launches it toward a target or action point.
+* **Parameters:**
+  - `act` -- Action object containing doer, invobject (item), and optional target
+* **Returns:** true/false, reason
+* **Error states:** Returns 'ITEMMIMIC' if item is mimic; false if item missing, inventory invalid, or launching fails
+
+### `ACTIONS.WINTERSFEAST_FEAST.fn(act)`
+* **Description:** Placeholder action handler; actual logic is handled in the stategraph.
+* **Parameters:**
+  - `act` -- Action object (not actually used in this function)
+* **Returns:** true
+* **Error states:** None
+
+### `ACTIONS.BEGIN_QUEST.fn(act)`
+* **Description:** Attempts to begin a quest on a quest owner entity, checking CanBeginQuest and calling BeginQuest.
+* **Parameters:**
+  - `act` -- Action object containing doer and target (quest owner)
+* **Returns:** success (boolean), message (string or nil)
+* **Error states:** Returns false if questowner component missing
+
+### `ACTIONS.ABANDON_QUEST.fn(act)`
+* **Description:** Attempts to abandon a quest on a quest owner if abandonment is allowed.
+* **Parameters:**
+  - `act` -- Action object containing doer and target (quest owner)
+* **Returns:** success (boolean), message (string or nil)
+* **Error states:** Returns false if questowner component missing or CanAbandonQuest returns false
+
+### `ACTIONS.SING.fn(act)`
+* **Description:** Attempts to add and sing a song if allowed by inspiration constraints and song data.
+* **Parameters:**
+  - `act` -- Action object containing doer, invobject (song item), and singinginspiration component
+* **Returns:** true/false
+* **Error states:** Returns false if singinginspiration component missing, songdata nil, or cannot add song
+
+### `ACTIONS.SING_FAIL.fn(act)`
+* **Description:** Stub for singing failure action, always returns true.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** true
+* **Error states:** None
+
+### `ACTIONS.SING_FAIL.stroverridefn(act)`
+* **Description:** Returns the standard SING action string for failure case.
+* **Parameters:**
+  - `act` -- Action object
+* **Returns:** STRINGS.ACTIONS.SING
+* **Error states:** None
+
+### `ACTIONS.REPLATE.fn(act)`
+* **Description:** Replaces a dish on a plate with another dish type using Quagmire replating system, handling both ground and inventory cases.
+* **Parameters:**
+  - `act` -- Action object containing doer, target, and invobject (replater)
+* **Returns:** true/false, reason
+* **Error states:** Returns 'MISMATCH' or 'SAMEDISH' if dish type conflicts; false if missing components
+
+### `ACTIONS.SALT.fn(act)`
+* **Description:** Salts a food plate by replacing it with a new salted version, handling both inventory and ground cases.
+* **Parameters:**
+  - `act` -- Action object containing doer, target (food plate), and invobject (salt item)
+* **Returns:** true/false
+* **Error states:** Returns false if target missing quagmire_saltable component
+
+### `ACTIONS.UNPATCH.fn(act)`
+* **Description:** Unpatches a boat by restoring the leak state and optionally spawning repair materials.
+* **Parameters:**
+  - `act` -- Action object containing doer and target (leaky boat)
+* **Returns:** true/false
+* **Error states:** Returns false if target missing boatleak component
+
+### `ACTIONS.POUR_WATER.fn(act)`
+* **Description:** Spreads water protection on a target or ground point using wateryprotection component.
+* **Parameters:**
+  - `act` -- Action object containing doer and invobject (water source)
+* **Returns:** true/false, reason
+* **Error states:** Returns 'ITEMMIMIC' if item is mimic; 'OUT_OF_WATER' if uses exhausted
+
+### `ACTIONS.POUR_WATER.strfn(act)`
+* **Description:** Returns 'EXTINGUISH' action string if target is on fire or smoldering.
+* **Parameters:**
+  - `act` -- Action object containing target (fire/smolder entity)
+* **Returns:** string or nil
+* **Error states:** None
+
+### `ACTIONS.PLANTREGISTRY_RESEARCH_FAIL.fn(act)`
+* **Description:** Handles failed plant/fertilizer research attempts.
+* **Parameters:**
+  - `act` -- Action object containing target or invobject
+* **Returns:** false, reason
+* **Error states:** Returns 'ITEMMIMIC' or 'FERTILIZER' (fertilizer research only available via separate action)
+
+### `ACTIONS.PLANTREGISTRY_RESEARCH.fn(act)`
+* **Description:** Attempts to research a plant or fertilizer, announcing results via talker component.
+* **Parameters:**
+  - `act` -- Action object containing target or invobject (plant/fertilizer)
+* **Returns:** true/false, reason
+* **Error states:** Returns 'ITEMMIMIC' if item is mimic; false if no researchable components
+
+### `ACTIONS.ASSESSPLANTHAPPINESS.stroverridefn(act)`
+* **Description:** Returns a formatted string describing assessment of plant happiness.
+* **Parameters:**
+  - `act` -- Action object containing target or invobject (plant)
+* **Returns:** string or nil
+* **Error states:** None
+
+### `ACTIONS.ASSESSPLANTHAPPINESS.fn(act)`
+* **Description:** Assesses plant stress level and speaks a description using talker if available.
+* **Parameters:**
+  - `act` -- Action object containing doer and target or invobject (plant)
+* **Returns:** true/false, reason
+* **Error states:** Returns 'ITEMMIMIC' if item is mimic; false if target missing
+
+### `ACTIONS.PLANTWEED.fn(act)`
+* **Description:** Spawns a random weed type on a soil entity and removes the soil.
+* **Parameters:**
+  - `act` -- Action object containing target (soil) and invobject
+* **Returns:** true
+* **Error states:** None
+
+### `ACTIONS.ADDCOMPOSTABLE.fn(act)`
+* **Description:** Adds an item to the composting bin.
+* **Parameters:**
+  - `act` -- Action object containing doer, target (composting bin), and invobject (compostable item)
+* **Returns:** result from AddCompostable() (boolean)
+* **Error states:** None
+
+### `ACTIONS.WAX.fn(act)`
+* **Description:** Applies wax to a target using the waxable component.
+* **Parameters:**
+  - `act` -- Action object containing doer, target (waxable entity), and invobject (wax item)
+* **Returns:** result, reason (boolean/string)
+* **Error states:** Returns 'ITEMMIMIC' if item is mimic; false if target missing waxable component
+
+### `ACTIONS.UNLOAD_WINCH.fn(act)`
+* **Description:** Calls the custom unloadfn on a winch component if available.
+* **Parameters:**
+  - `act` -- Action object containing target (winch)
+* **Returns:** result of unloadfn or false
+* **Error states:** Returns false if winch or unloadfn missing
+
+### `ACTIONS.USE_HEAVY_OBSTACLE.strfn(act)`
+* **Description:** Returns the string key from target.use_heavy_obstacle_string_key for the action label.
+* **Parameters:**
+  - `act` -- Action object containing target (heavy obstacle)
+* **Returns:** string or nil
+* **Error states:** None
+
+### `ACTIONS.USE_HEAVY_OBSTACLE.fn(act)`
+* **Description:** Uses the heavy obstacle currently equipped by the doer on the target if conditions are met.
+* **Parameters:**
+  - `act` -- Action object containing doer and target (heavy obstacle)
+* **Returns:** result from UseHeavyObstacle or false
+* **Error states:** Returns false if no heavy item equipped, target lacks 'can_use_heavy' tag, or filter fails
+
+### `ACTIONS.YOTB_SEW.fn(act)`
+* **Description:** Starts or continues a sewing task on a sewing machine using the YOTB_sewer component.
+* **Parameters:**
+  - `act` -- Action object containing doer and target (sewing machine)
+* **Returns:** true/false, reason
+* **Error states:** Returns 'INUSE' if machine in use by another player; false if conditions not met
+
+### `ACTIONS.YOTB_STARTCONTEST.fn(act)`
+* **Description:** Starts a YOTB contest if conditions are met (not active, host visible, etc.).
+* **Parameters:**
+  - `act` -- Action object containing doer and target (host)
+* **Returns:** true/false, reason
+* **Error states:** Returns 'DOESNTWORK', 'ALREADYACTIVE', 'RIGHTTHERE', or 'NORESPONSE' based on contest state
+
+### `ACTIONS.YOTB_UNLOCKSKIN.fn(act)`
+* **Description:** Unlocks a skin using the Y
+`<`/output>
 
 ## Events & listeners
-### Events
-- `onactivated` — Pushed when an activatable target is activated; includes `doer` data.
-- `raising_anchor` — Pushed when an anchor begins raising.
-- `lowering_anchor` — Pushed when an anchor begins lowering.
-- `ammoloaded` / `ammounloaded` — Pushed on boat cannon ammo state change.
-- `onextinguish` — Pushed when a fire is extinguished.
-- `brushed` — Pushed when a brushable entity is brushed; includes `doer` and `numprizes` data.
-- `onopenother` — Pushed on master container when another entity opens it; includes `doer` and `other`.
-- `onclose` — Pushed when a container is closed; includes `doer`.
-- `onopen` — Pushed when a container is opened.
-- `oncookitem` — Pushed after an item is cooked; includes original item and new cooked item.
-- `onclose` — Pushed when a container is closed.
-- `oneat` — Pushed after an item is eaten; includes `food` and `feeder`.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `lock`/`unlock` events — Pushed on lock state changes.
-- `locomote` — Pushed when locomotion starts or stops.
-- `deployitem` — Pushed when an item is deployed; includes `prefab`.
-- `itemplanted` — Pushed when an item is planted; includes `doer` and `pos`.
-- `harvestsomething` — Pushed on harvesting; includes `object`.
-- `haunted` — Pushed after haunting logic runs.
-- `healthdelta` — Pushed when health changes; includes old/new percent, overtime, cause, afflicter, amount.
-- `on light` — Pushed when an entity is lit.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
-- `onlighterlight` — Pushed when an entity is lit by a lighter.
--
+This file is not event-driven.

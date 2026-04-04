@@ -1,11 +1,11 @@
 ---
 id: behaviourtree
 title: Behaviourtree
-description: Implements a behavior tree system for AI logic, providing core node types and execution control.
-tags: [ai, behavior-tree, logic]
+description: Implements a behavior tree system for AI entity decision-making and task execution.
+tags: [ai, brain, behavior, entity]
 sidebar_position: 10
 
-last_updated: 2026-03-10
+last_updated: 2026-03-21
 build_version: 714014
 change_status: stable
 category_type: root
@@ -15,93 +15,141 @@ system_scope: brain
 
 # Behaviourtree
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **714014** | Last updated: 2026-03-21
 
 ## Overview
-`Behaviourtree` provides a behavior tree implementation for AI decision-making. It defines a hierarchy of node types (conditions, actions, decorators, composites) that execute in a tree structure. The `BT` class serves as the controller, managing updates, resets, and sleep timing. Nodes inherit from `BehaviourNode` or its subclasses (`ConditionNode`, `ActionNode`, `DecoratorNode`, `SelectorNode`, `SequenceNode`, `ParallelNode`, etc.) to define AI logic. It is typically integrated into entities with a `brain` component.
+`behaviourtree.lua` provides a complete behavior tree implementation for AI entities in Don't Starve Together. It defines a hierarchical node system where entities can make decisions, execute actions, wait for conditions, and respond to events. The `BT` class manages the tree lifecycle, while various node types (`ConditionNode`, `ActionNode`, `SequenceNode`, `SelectorNode`, etc.) compose the actual behavior logic. This system is foundational to the `brains/` directory where entity AI behaviors are defined.
 
 ## Usage example
 ```lua
-local root = SequenceNode{
-    ConditionNode(function() return inst.components.health and inst.components.health:IsDead() end, "Is Dead?"),
-    WaitNode(1),
-    ActionNode(function() inst:DoTaskInstantly("die") end, "Die Now"),
-}
-local bt = BT(inst, root)
-inst.components.brain:SetTree(bt)
+local BT = require("behaviourtree")
+
+local root = BT.SequenceNode({
+    BT.ConditionNode(function() return inst.components.hunger:Percent() < 0.5 end, "Is Hungry"),
+    BT.ActionNode(function() inst.components.locomotor:GoToFood() end, "Find Food")
+})
+
+local brain = BT.BT(inst, root)
+brain:Update()
 ```
 
 ## Dependencies & tags
-**Components used:** None (standalone utility).  
-**Tags:** None identified.
+**Components used:** None directly (behavior trees are attached to entity `inst.brain` property)
+**Tags:** None identified (tags are managed by specific brain implementations, not this core system)
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | The entity instance owning the behavior tree. |
-| `root` | `BehaviourNode` | `nil` | The root node of the behavior tree. |
-| `forceupdate` | `boolean` | `false` | If `true`, forces the tree to update immediately regardless of sleep time. |
+| `self.inst` | entity | `nil` | The entity instance that owns this behavior tree. |
+| `self.root` | BehaviourNode | `nil` | The root node of the behavior tree. |
+| `self.forceupdate` | boolean | `false` | Forces the tree to update on the next tick regardless of sleep time. |
+| `self.status` | string | `READY` | Current execution status (`SUCCESS`, `FAILED`, `READY`, `RUNNING`). |
+| `self.children` | table | `nil` | Array of child nodes for composite node types. |
+| `self.nextupdatetime` | number | `nil` | Scheduled time for the next node update. |
 
 ## Main functions
-### `ForceUpdate()`
-* **Description:** Forces the next `Update()` call to execute immediately, ignoring sleep timing.
-* **Parameters:** None.
-* **Returns:** Nothing.
+### `BT(inst, root)`
+*   **Description:** Constructor that creates a new behavior tree instance attached to an entity.
+*   **Parameters:** `inst` (entity) - the entity owning this brain; `root` (BehaviourNode) - the root node of the tree.
+*   **Returns:** New `BT` instance.
 
 ### `Update()`
-* **Description:** Executes one tick of the behavior tree: visits nodes, saves status, and steps execution. Resets `forceupdate` after completion.
-* **Parameters:** None.
-* **Returns:** Nothing.
+*   **Description:** Executes one tick of the behavior tree, visiting nodes and processing their logic.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** May return early if tree is not properly initialized.
 
 ### `Reset()`
-* **Description:** Resets all nodes in the tree to `READY` status, clearing execution state.
-* **Parameters:** None.
-* **Returns:** Nothing.
+*   **Description:** Resets the entire tree to `READY` state, clearing all node progress.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `Stop()`
-* **Description:** Stops the tree, invoking `OnStop()` on nodes and recursively stopping child nodes.
-* **Parameters:** None.
-* **Returns:** Nothing.
+*   **Description:** Halts tree execution and calls `OnStop()` on all nodes.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `ForceUpdate()`
+*   **Description:** Marks the tree to update on the next tick regardless of sleep timing.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `GetSleepTime()`
-* **Description:** Returns the time (in seconds) until the next update is required. Returns `0` if `forceupdate` is true; otherwise, defers to the root node's sleep logic.
-* **Parameters:** None.
-* **Returns:** `number` or `nil` — sleep duration in seconds, or `nil` if no timing constraint applies.
+*   **Description:** Returns the time in seconds until the next tree update is needed.
+*   **Parameters:** None.
+*   **Returns:** `number` - seconds until next update, or `0` if forced update is pending.
 
-### `__tostring()`
-* **Description:** Returns a string representation of the entire behavior tree for debugging.
-* **Parameters:** None.
-* **Returns:** `string` — hierarchical tree view with node statuses and sleep times.
+### `BehaviourNode(name, children)`
+*   **Description:** Base constructor for all behavior tree nodes.
+*   **Parameters:** `name` (string) - node identifier; `children` (table) - optional child nodes.
+*   **Returns:** New `BehaviourNode` instance.
 
-### `Visit()`
-* **Description:** (Node method) Evaluates the node's condition or action and sets `status` to `SUCCESS`, `FAILED`, or `RUNNING`.
-* **Parameters:** None.
-* **Returns:** Nothing (modifies internal `self.status`).
+### `ConditionNode(fn, name)`
+*   **Description:** Creates a node that evaluates a condition function each visit.
+*   **Parameters:** `fn` (function) - returns `true` for success; `name` (string) - node identifier.
+*   **Returns:** New `ConditionNode` instance.
 
-### `Reset()`
-* **Description:** (Node method) Resets the node to `READY` status and recursively resets children.
-* **Parameters:** None.
-* **Returns:** Nothing.
+### `ActionNode(action, name)`
+*   **Description:** Creates a node that executes an action function when visited.
+*   **Parameters:** `action` (function) - the action to execute; `name` (string) - node identifier.
+*   **Returns:** New `ActionNode` instance.
 
-### `Step()`
-* **Description:** (Node method) Handles recursive execution after `Visit()`, resetting nodes as needed and stepping children.
-* **Parameters:** None.
-* **Returns:** Nothing.
+### `WaitNode(time)`
+*   **Description:** Creates a node that waits for a specified duration before succeeding.
+*   **Parameters:** `time` (number or function) - wait duration in seconds.
+*   **Returns:** New `WaitNode` instance.
 
-### `GetTreeString(indent)`
-* **Description:** (Node method) Returns a formatted multi-line string representation of the subtree rooted at this node.
-* **Parameters:** `indent` (`string`, optional) — prefix for indentation (default: `""`).
-* **Returns:** `string` — formatted tree view.
+### `SequenceNode(children)`
+*   **Description:** Creates a node that executes children in order until one fails or all succeed.
+*   **Parameters:** `children` (table) - array of child nodes.
+*   **Returns:** New `SequenceNode` instance.
 
-### `Sleep(t)`
-* **Description:** (Node method) Sets a future wake time based on the current simulation time plus `t` seconds.
-* **Parameters:** `t` (`number`) — duration to sleep in seconds.
-* **Returns:** Nothing.
+### `SelectorNode(children)`
+*   **Description:** Creates a node that tries children until one succeeds or all fail.
+*   **Parameters:** `children` (table) - array of child nodes.
+*   **Returns:** New `SelectorNode` instance.
+
+### `PriorityNode(children, period, noscatter)`
+*   **Description:** Creates a node that evaluates children with priority at regular intervals.
+*   **Parameters:** `children` (table) - array of child nodes; `period` (number) - evaluation interval; `noscatter` (boolean) - disable random scatter.
+*   **Returns:** New `PriorityNode` instance.
+
+### `EventNode(inst, event, child, priority)`
+*   **Description:** Creates a node that listens for an entity event and triggers child execution.
+*   **Parameters:** `inst` (entity) - entity to listen on; `event` (string) - event name; `child` (BehaviourNode) - node to execute on event; `priority` (number) - event priority.
+*   **Returns:** New `EventNode` instance.
+*   **Error states:** Automatically unregisters event listener on `OnStop()`.
+
+### `ParallelNode(children, name)`
+*   **Description:** Creates a node that runs all children simultaneously.
+*   **Parameters:** `children` (table) - array of child nodes; `name` (string) - optional node identifier.
+*   **Returns:** New `ParallelNode` instance.
+
+### `LoopNode(children, maxreps)`
+*   **Description:** Creates a node that loops through children a specified number of times.
+*   **Parameters:** `children` (table) - array of child nodes; `maxreps` (number) - maximum loop iterations.
+*   **Returns:** New `LoopNode` instance.
+
+### `RandomNode(children)`
+*   **Description:** Creates a node that randomly selects and executes one child.
+*   **Parameters:** `children` (table) - array of child nodes.
+*   **Returns:** New `RandomNode` instance.
+
+### `WhileNode(cond, name, node)`
+*   **Description:** Helper function creating a parallel node with condition and action.
+*   **Parameters:** `cond` (function) - condition checked every update; `name` (string) - node identifier; `node` (BehaviourNode) - action to execute.
+*   **Returns:** `ParallelNode` instance.
+
+### `IfNode(cond, name, node)`
+*   **Description:** Helper function creating a sequence node with condition and action.
+*   **Parameters:** `cond` (function) - condition checked once; `name` (string) - node identifier; `node` (BehaviourNode) - action to execute.
+*   **Returns:** `SequenceNode` instance.
+
+### `LatchNode(inst, latchduration, child)`
+*   **Description:** Creates a node that only allows child execution after a duration has passed.
+*   **Parameters:** `inst` (entity) - owning entity; `latchduration` (number or function) - latch time in seconds; `child` (BehaviourNode) - child to execute.
+*   **Returns:** New `LatchNode` instance.
 
 ## Events & listeners
-- **Listens to:** 
-  - `EventNode` registers listeners via `inst:ListenForEvent(self.event, self.eventfn)` for its event type.
-  - On event trigger, `EventNode` forces an immediate brain update (`inst.brain:ForceUpdate()`) and notifies parents (e.g., resets `PriorityNode` timing).
-- **Pushes:** 
-  - `EventNode`: No explicit events pushed; relies on `inst.brain:ForceUpdate()` to trigger re-evaluation.  
-  *(No other components in this file push events.)*
+- **Listens to:** Dynamic events registered via `EventNode` - any entity event can be listened to by creating an `EventNode` with the event name.
+- **Pushes:** None directly (behavior trees respond to events but do not push their own events).

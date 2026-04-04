@@ -1,104 +1,92 @@
 ---
 id: beequeenhive
 title: Beequeenhive
-description: Serves as the initial dormant hive entity that grows over time and eventually spawns a Bee Queen when destroyed; manages hive growth states, honey level visuals, and work-based spawning logic.
-tags: [hive, boss, growth, progression]
+description: Defines the Bee Queen hive prefabs with growth timers, workable interactions, and boss spawn mechanics.
+tags: [boss, hive, growth, event]
 sidebar_position: 10
 
-last_updated: 2026-03-04
+last_updated: 2026-03-20
 build_version: 714014
 change_status: stable
-category_type: prefabs
+category_type: root
 source_hash: f6acd662
-system_scope: world
+system_scope: entity
 ---
 
 # Beequeenhive
 
-> Based on game build **714014** | Last updated: 2026-03-04
+> Based on game build **714014** | Last updated: 2026-03-20
 
 ## Overview
-`beequeenhive` is the初始 (pristine) state of the Bee Queen's hive. It exists as a passive, non-blocking hole in the ground and grows over time in discrete stages (hole → small → medium → large). When a player hammers it to completion (or with sufficient chance), it transforms into `beequeenhivegrown`, which spawns the Bee Queen upon destruction. The component coordinates growth timers, honey-level animations, physics size adjustments, and queen-spawning logic via the `workable`, `timer`, `entitytracker`, `inspectable`, and `pointofinterest` components. It functions as a world-state trigger for boss encounters in the Bee Queen event.
+`beequeenhive` is a prefab file that defines two entity types: the base hive (`beequeenhive`) and the grown hive (`beequeenhivegrown`). It manages the Bee Queen boss spawn system through timer-based growth mechanics, workable hammer interactions, and entity tracking. The file handles honey level visualization, physics collision updates during growth stages, and coordinates between the hive base and spawned queen entities.
 
 ## Usage example
 ```lua
--- The component is instantiated automatically when the game loads the `beequeenhive` prefab.
--- Modders typically interact with it indirectly by:
---   - Monitoring hive growth via `beequeenhive.components.timer` timers
---   - Hooking into `beequeenhivegrown`'s workable callbacks (not directly on the base hive)
---   - Checking `beequeenhive.components.entitytracker:GetEntity("hive")` for spawned hive stages
+-- Spawn the base hive (typically done via worldgen)
+local hive = SpawnPrefab("beequeenhive")
+
+-- The hive automatically starts growth timers
+-- Players can hammer the hive to trigger queen spawn chance
+-- Check hive status via inspectable component
+local status = hive.components.inspectable:getstatus()
 ```
 
 ## Dependencies & tags
-**Components used:** `timer`, `workable`, `entitytracker`, `inspectable`, `pointofinterest`, `physics` (for `beequeenhivegrown`), `animstate` (for state synchronization), `soundemitter`, `minimapentity`, `transform`.  
-**Tags added (base hive):** `blocker`, `event_trigger`, `antlion_sinkhole_blocker`.  
-**Tags added (`beequeenhivegrown`):** `FX` (for internal physics entities only, not the prefab itself).
+**Components used:** `timer`, `workable`, `inspectable`, `entitytracker`, `pointofinterest`, `combat`, `health`, `transform`, `animstate`, `soundemitter`, `minimapentity`, `network`, `physics`
+
+**Tags:** Adds `event_trigger`, `antlion_sinkhole_blocker`, `blocker`, `FX`; checks `player`, `playerghost`
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `queenkilled` | boolean | `false` | Tracks whether the Bee Queen was previously spawned and killed (used to reset growth timers correctly). |
-| `phystask` | task reference | `nil` | Temporary task used to reset `physrad` after visual/physics size changes. |
-| `_honeytask` | task reference | `nil` | Temporary task used to delay honey-level animation updates. |
-| `physrad` | `net_tinybyte` | `0` (initial) | Networked property controlling physical radius of spawned physics entities and hive size stages. |
+| `physrad` | net_tinybyte | `0` | Networked byte tracking physics radius growth stage |
+| `queenkilled` | boolean | `false` | Tracks whether the Bee Queen has been defeated |
+| `hivebase` | entity | `nil` | Reference to the base hive entity (on grown hive) |
+| `scrapbook_anim` | string | `"large"` | Animation name for scrapbook display |
+| `scrapbook_specialinfo` | string | `"BEEQUEENHIVE"` | Special info identifier for scrapbook |
 
 ## Main functions
-### `PushPhysRad(inst, rad)`
-*   **Description:** Initiates a temporary physical size change (e.g., small/medium/large) for the hive and schedules a cleanup that resets `physrad` after 0.5 seconds. Triggers immediate visual update via `OnPhysRadDirty`.
-*   **Parameters:** `rad` (number) – target radius level: `1` (small), `2` (medium), `3` (large).
-*   **Returns:** Nothing.
-
 ### `SetHoneyLevel(inst, honeylevel, delay)`
-*   **Description:** Controls which honey overlay animation (`honey0`, `honey1`, `honey2`, `honey3`) is visible, reflecting the work progress toward spawning the Bee Queen. If `delay` is provided, animates the transition with a lag.
-*   **Parameters:**  
-    `honeylevel` (number) – integer from `0` (none) to `3` (full).  
-    `delay` (number, optional) – seconds to delay the change.
-*   **Returns:** Nothing.
-
-### `DoSpawnQueen(inst, worker, x1, y1, z1)`
-*   **Description:** Destroys the current hive entity, spawns `beequeen`, positions and orients it, sets the attacking worker as the target (if valid), and transitions the queen to the "emerge" state. Registers cleanup hooks with the hive base.
-*   **Parameters:**  
-    `worker` (entity) – the player who hammered the hive to spawn the queen.  
-    `x1, y1, z1` (numbers) – world position to face.
-*   **Returns:** Nothing.
-
-### `OnHiveGrowthTimer(inst, data)`
-*   **Description:** Handles timer completion events for hive growth (`hivegrowth1`, `hivegrowth2`, `hivegrowth`, `shorthivegrowth`, `firsthivegrowth`). Spawns `beequeenhivegrown` at the appropriate stage with matching animations and physics.
-*   **Parameters:** `data` (table) – timer data object containing `name` (string).
-*   **Returns:** Nothing.
-
-### `OnWorked(inst, worker, workleft)`
-*   **Description:** Callback for when the hive is hammered. Triggers sound/anim feedback, spawns honey/honeycomb loot based on progress, calculates spawn chance for the Bee Queen, and initiates queen emergence if successful.
-*   **Parameters:**  
-    `worker` (entity) – player performing the work.  
-    `workleft` (number) – current work remaining.
+*   **Description:** Controls which honey animation layers are visible based on the honey level (0-3).
+*   **Parameters:** `inst` (entity) - the hive entity; `honeylevel` (number) - level from 0 to 3; `delay` (number|nil) - optional delay in seconds before applying.
 *   **Returns:** Nothing.
 
 ### `StartHiveGrowthTimer(inst)`
-*   **Description:** Resets and starts the appropriate growth timer based on whether a queen was previously killed (`BEEQUEEN_RESPAWN_TIME`) or this is initial growth (`10` seconds for short phase).
-*   **Parameters:** None.
+*   **Description:** Initiates the appropriate growth timer based on queen kill status. Stops all existing growth timers first.
+*   **Parameters:** `inst` (entity) - the base hive entity.
 *   **Returns:** Nothing.
 
 ### `StopHiveGrowthTimer(inst)`
-*   **Description:** Stops all growth-related timers, resets animations to the idle "hole" state, hides honey overlays, and clears `queenkilled` flag.
-*   **Parameters:** None.
+*   **Description:** Stops all hive growth timers and resets the hive to idle state.
+*   **Parameters:** `inst` (entity) - the base hive entity.
 *   **Returns:** Nothing.
 
-### `RefreshHoneyState(inst)`
-*   **Description:** Recalculates the honey level from current `workleft` using `CalcHoneyLevel` and updates visual overlays via `SetHoneyLevel`.
-*   **Parameters:** None.
+### `DoSpawnQueen(inst, worker, x1, y1, z1)`
+*   **Description:** Spawns the Bee Queen boss entity at the hive location, optionally targeting the worker who hammered the hive.
+*   **Parameters:** `inst` (entity) - the grown hive entity; `worker` (entity) - the player who triggered the spawn; `x1`, `y1`, `z1` (number) - face target coordinates.
+*   **Returns:** Nothing.
+*   **Error states:** Removes the hive instance after spawning the queen.
+
+### `OnWorked(inst, worker, workleft)`
+*   **Description:** Callback executed when a player hammers the hive. Handles honey drop loot, queen spawn chance calculation, and animation playback.
+*   **Parameters:** `inst` (entity) - the hive entity; `worker` (entity) - the player performing the work; `workleft` (number) - remaining work points.
 *   **Returns:** Nothing.
 
 ### `EnableBase(inst, enable)`
-*   **Description:** Toggles visibility and physics activity of the hive base. Used during transitions to/from growing state.
-*   **Parameters:** `enable` (boolean) – whether to activate the base.
+*   **Description:** Toggles the base hive visibility and physics collision. Used during growth stage transitions.
+*   **Parameters:** `inst` (entity) - the base hive entity; `enable` (boolean) - whether to enable or disable the base.
 *   **Returns:** Nothing.
 
+### `CalcHoneyLevel(workleft)`
+*   **Description:** Calculates the honey level (0-3) based on remaining work points on the hive.
+*   **Parameters:** `workleft` (number) - current work left value.
+*   **Returns:** number - honey level from 0 to 3.
+
+### `SpawnBeequeenChanceMult(inst, chance, luck)`
+*   **Description:** Applies luck modifier to the Bee Queen spawn chance calculation.
+*   **Parameters:** `inst` (entity) - the hive entity; `chance` (number) - base spawn chance; `luck` (number) - player luck value.
+*   **Returns:** number - modified spawn chance.
+
 ## Events & listeners
-- **Listens to:**  
-  `timerdone` – triggers `OnHiveRegenTimer` and `OnHiveGrowthTimer`.  
-  `physraddirty` – triggers `OnPhysRadDirty` (client-side only, for physics sync).  
-  `animover` – triggers `OnHiveShortGrowAnimOver` or `OnHiveLongGrowAnimOver` during growth animations.  
-  `onremove` – triggers `OnQueenRemoved` or `OnHiveRemoved` to detect when spawned hive/queen is removed and restart growth.  
-  `OnLoad` / `OnLoadPostPass` / `OnSave` – handles state persistence and re-initialization.  
-- **Pushes:** None directly. Event handling is entirely callback-driven.
+- **Listens to:** `timerdone` - triggers growth stage transitions and honey regeneration; `physraddirty` - updates physics collision radius on clients; `animover` - advances growth animation stages; `onremove` - cleans up entity tracker references when queen or hive is removed
+- **Pushes:** None directly identified (interacts via entitytracker and timer components)

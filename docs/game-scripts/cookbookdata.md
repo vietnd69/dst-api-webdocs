@@ -1,141 +1,126 @@
 ---
 id: cookbookdata
 title: Cookbookdata
-description: Manages the player's unlocked recipes, food discovery status, and cooking filters for the cooking system.
-tags: [crafting, inventory, persistence, ui]
+description: Manages player cookbook progression data including discovered foods, learned recipes, and UI filter settings.
+tags: [cooking, progression, inventory, data]
 sidebar_position: 10
 
-last_updated: 2026-03-10
+last_updated: 2026-03-21
 build_version: 714014
 change_status: stable
 category_type: root
 source_hash: ef55e365
-system_scope: crafting
+system_scope: inventory
 ---
 
 # Cookbookdata
 
-> Based on game build **7140014** | Last updated: 2026-03-10
+> Based on game build **714014** | Last updated: 2026-03-21
 
 ## Overview
-`CookbookData` is a client-side component that tracks which prepared foods a player has unlocked (via cooking or eating), their recipes, and which dishes were recently discovered (`newfoods`). It persists unlocked data across sessions using `TheSim:SetPersistentString`, and supports syncing with online inventory data when available. It works closely with the `cooking` system to validate recipes and manage data encoding/decoding for storage. This component is intended for use on the player entity to power the in-game cookbook UI.
+`CookbookData` is a standalone data management class that tracks player progression through the cooking system. It maintains records of which prepared foods have been discovered, which recipes have been learned for each food, and user interface filter preferences. The class handles persistence by saving and loading data from disk, and supports synchronization with online profile data when available. This component is not attached to entities via the component system but is instantiated as a utility class for managing cookbook state.
 
 ## Usage example
 ```lua
-local inst = ThePlayer
-inst:AddComponent("cookbookdata")
+local CookbookData = require("cookbookdata")
+local cookbook = CookbookData()
 
--- Load persisted data
-inst.components.cookbookdata:Load()
-
--- Learn a newly eaten food
-inst.components.cookbookdata:LearnFoodStats("crockpot_stew")
-
--- Add a newly unlocked recipe (e.g., after cooking)
-inst.components.cookbookdata:AddRecipe("crockpot_stew", {"berries", "egg", "honey"})
-
--- Check discovery status
-if inst.components.cookbookdata:IsNewFood("crockpot_stew") then
-    -- show UI indicator
-end
-
--- Clear flags after UI presentation
-inst.components.cookbookdata:ClearNewFlags()
+cookbook:Load()
+cookbook:LearnFoodStats("meatballs")
+cookbook:AddRecipe("meatballs", {"meat", "meat", "meat", "meat"})
+cookbook:SetFilter("category", "meat")
+cookbook:Save(true)
 ```
 
 ## Dependencies & tags
-**Components used:** `TheSim`, `TheInventory`, `TheFrontEnd`, `TheNet`, `cooking`
+**Components used:** None (this is a standalone class, not an entity component)
 **Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `preparedfoods` | table | `{}` | Map of `product_name -> {recipes = {...}, has_eaten = boolean}` for all unlocked foods. |
-| `newfoods` | table | `{}` | Set of recently discovered products (consumed but not yet presented in UI). |
-| `filters` | table | `{}` | User-applied filter state for cookbook UI (e.g., `"category" -> value`). |
-| `dirty` | boolean | `false` | Flag indicating local unsaved changes. |
-| `save_enabled` | boolean | Not set (nil) | Controls whether `:Save()` writes data (controlled externally via `self.save_enabled`). |
-| `synced` | boolean | `false` | Indicates whether online inventory data has been applied via `:ApplyOnlineProfileData()`. |
+| `preparedfoods` | table | `{}` | Stores all discovered prepared food entries with their recipes and eaten status. |
+| `newfoods` | table | `{}` | Tracks which foods were newly discovered this session. |
+| `filters` | table | `{}` | Stores UI filter settings for the cookbook interface. |
+| `dirty` | boolean | `nil` | Indicates whether data has changed and needs to be saved. |
+| `synced` | boolean | `nil` | Indicates whether online profile data has been synchronized. |
+| `save_enabled` | boolean | `nil` | Controls whether automatic saving is enabled (commented in constructor). |
 
 ## Main functions
 ### `GetKnownPreparedFoods()`
-* **Description:** Returns the internal table of all unlocked prepared foods.
-* **Parameters:** None.
-* **Returns:** `table` — Map of product names to recipe metadata (`{recipes, has_eaten}`).
+*   **Description:** Returns the table containing all discovered prepared foods.
+*   **Parameters:** None.
+*   **Returns:** Table of prepared food data.
 
 ### `Save(force_save)`
-* **Description:** Persists current state to disk using `TheSim:SetPersistentString`, but only if `force_save` is `true` or (`save_enabled` and `dirty`).
-* **Parameters:** `force_save` (boolean) — Bypass `save_enabled` and `dirty` checks.
-* **Returns:** Nothing.
-* **Error states:** No explicit error handling; relies on `TheSim` for persistence.
+*   **Description:** Persists cookbook data to disk using `TheSim:SetPersistentString`. Only saves if `force_save` is true or if `save_enabled` and `dirty` are both true.
+*   **Parameters:** `force_save` (boolean) - forces save regardless of dirty state.
+*   **Returns:** Nothing.
+*   **Error states:** Does nothing if save conditions are not met.
 
 ### `Load()`
-* **Description:** Loads persisted cookbook data from disk. On parse failure, attempts recovery via `:ApplyOnlineProfileData()` and clears data if both fail.
-* **Parameters:** None.
-* **Returns:** Nothing.
+*   **Description:** Loads cookbook data from persistent storage. Attempts to decode JSON data and handles corruption by falling back to online profile data.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** May fail to load if persistent string is corrupted; attempts recovery via online profile data.
 
 ### `ApplyOnlineProfileData()`
-* **Description:** Fills `preparedfoods` from online inventory data (via `TheInventory:GetLocalCookBook()`), using decoding helpers. Only executes if online mode and inventory is available.
-* **Parameters:** None.
-* **Returns:** `boolean` — `true` if online data was successfully applied.
-* **Error states:** Returns `false` if online sync is not available or `TheInventory` lacks data.
-
-### `LearnFoodStats(product)`
-* **Description:** Records that the player has eaten a food (`has_eaten = true`), marks it as `newfoods`, and triggers network and disk persistence.
-* **Parameters:** `product` (string) — The prepared food name (e.g., `"crockpot_stew"`).
-* **Returns:** `boolean` — `true` if new data was recorded (`has_eaten` changed), otherwise `false`.
-* **Error states:** Silently returns `false` if `product` is invalid or not in `cooking.cookbook_recipes`.
-
-### `AddRecipe(product, ingredients)`
-* **Description:** Adds or updates a recipe for a prepared food, up to `MAX_RECIPES = 6`. Moves new recipes to the front and deduplicates if already known.
-* **Parameters:** 
-  * `product` (string) — Prepared food name.
-  * `ingredients` (table of strings) — Ordered list of ingredient names.
-* **Returns:** `boolean` — `true` if the recipe list changed, otherwise `false`.
-* **Error states:** Silently returns `false` if `product` or `ingredients` is `nil` or invalid. Normalizes ingredient names by stripping `"cooked"`/`"_cooked_"` suffixes before storage.
+*   **Description:** Synchronizes cookbook data with the player's online inventory profile. Only executes if not already synced and inventory support is available.
+*   **Parameters:** None.
+*   **Returns:** Boolean indicating whether sync was successful.
+*   **Error states:** Returns `false` if sync conditions are not met or inventory data is unavailable.
 
 ### `IsNewFood(product)`
-* **Description:** Checks if the food was recently discovered (i.e., in `newfoods`).
-* **Parameters:** `product` (string) — Prepared food name.
-* **Returns:** `boolean` — `true` if recently discovered.
+*   **Description:** Checks if a food product was newly discovered this session.
+*   **Parameters:** `product` (string) - the prepared food name.
+*   **Returns:** Boolean.
 
 ### `ClearNewFlags()`
-* **Description:** Clears all `newfoods` entries (typically after presenting them in UI).
-* **Parameters:** None.
-* **Returns:** Nothing.
+*   **Description:** Resets all new food discovery flags.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `ClearFilters()`
-* **Description:** Resets all filter settings and marks data as dirty.
-* **Parameters:** None.
-* **Returns:** Nothing.
+*   **Description:** Removes all filter settings and marks data as dirty.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `SetFilter(category, value)`
-* **Description:** Sets a UI filter value for a given category (e.g., `"type"`, `"difficulty"`), marking data as dirty on change.
-* **Parameters:** 
-  * `category` (string) — Filter key.
-  * `value` (any) — Filter value.
-* **Returns:** Nothing.
+*   **Description:** Sets a filter value for a specific category and marks data as dirty if changed.
+*   **Parameters:** `category` (string) - filter category name, `value` (any) - filter value.
+*   **Returns:** Nothing.
 
 ### `GetFilter(category)`
-* **Description:** Returns the current value of a UI filter.
-* **Parameters:** `category` (string) — Filter key.
-* **Returns:** `any` — Current filter value or `nil`.
+*   **Description:** Retrieves the current filter value for a category.
+*   **Parameters:** `category` (string) - filter category name.
+*   **Returns:** The filter value or `nil` if not set.
 
 ### `IsUnlocked(product)`
-* **Description:** Checks if a prepared food is unlocked (exists in `preparedfoods`).
-* **Parameters:** `product` (string) — Prepared food name.
-* **Returns:** `boolean` — `true` if unlocked.
+*   **Description:** Checks if a prepared food product has been discovered.
+*   **Parameters:** `product` (string) - the prepared food name.
+*   **Returns:** Boolean or the prepared food entry table if unlocked.
 
 ### `IsValidEntry(product)`
-* **Description:** Validates that `product` is a known recipe in the `cooking.cookbook_recipes` table.
-* **Parameters:** `product` (string) — Prepared food name.
-* **Returns:** `boolean` — `true` if valid.
+*   **Description:** Validates whether a product exists in the cooking recipe database.
+*   **Parameters:** `product` (string) - the prepared food name.
+*   **Returns:** Boolean.
+
+### `LearnFoodStats(product)`
+*   **Description:** Marks a food product as eaten/learned. Updates new food flags and triggers save if enabled.
+*   **Parameters:** `product` (string) - the prepared food name.
+*   **Returns:** Boolean indicating whether the record was updated.
+*   **Error states:** Returns `false` if product is `nil` or not a valid entry.
+
+### `AddRecipe(product, ingredients)`
+*   **Description:** Adds a recipe combination to a prepared food entry. Maintains a maximum of 6 recipes per food, prioritizing new combinations.
+*   **Parameters:** `product` (string) - the prepared food name, `ingredients` (table) - list of ingredient names.
+*   **Returns:** Boolean indicating whether the record was updated.
+*   **Error states:** Returns `false` if product or ingredients are `nil` or product is not valid.
 
 ### `RemoveCookedFromName(ingredients)`
-* **Description:** Normalizes ingredient names by stripping `"cooked"`, `"_cooked_"`, etc., from strings in the list.
-* **Parameters:** `ingredients` (table of strings) — Raw ingredient names.
-* **Returns:** `table of strings` — Normalized ingredient names.
+*   **Description:** Normalizes ingredient names by removing cooking-related suffixes and prefixes.
+*   **Parameters:** `ingredients` (table) - list of ingredient names.
+*   **Returns:** Table of normalized ingredient names.
 
 ## Events & listeners
-- **Listens to:** None identified.
-- **Pushes:** None identified.
+Not applicable. This class does not interact with the entity event system.

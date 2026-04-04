@@ -27,6 +27,10 @@ Not applicable — this file contains no functionality.
 None identified.
 
 ## Properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| None | | | No properties are defined. |
+
 No public properties.
 
 ## Main functions

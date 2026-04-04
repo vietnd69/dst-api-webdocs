@@ -1,108 +1,104 @@
 ---
 id: areaaware
 title: Areaaware
-description: Tracks the current map area (visual node) an entity occupies and notifies when the entity moves between areas.
-tags: [world, map, area]
+description: Tracks an entity's current map area node and tile type, pushing events when location changes occur.
+tags: [map, location, events]
 sidebar_position: 10
 
-last_updated: 2026-03-03
+last_updated: 2026-03-20
 build_version: 714014
 change_status: stable
-category_type: map
+category_type: components
 source_hash: 44218891
 system_scope: world
 ---
 
 # Areaaware
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **714014** | Last updated: 2026-03-20
 
 ## Overview
-`AreaAware` is a component that continuously monitors an entity's position to determine which map area (visual node) it occupies. It compares the entity's current coordinates against the game's topology data and fires a `changearea` event when the entity transitions between distinct areas. It also optionally watches for specific tile types and fires corresponding events when those tiles are entered or exited. The component is designed for entities that need to react to their location in the world, such as characters, bosses, or interactive objects.
+`AreaAware` monitors an entity's position on the world map and tracks which topology node (area) and tile type the entity currently occupies. It pushes events when the entity changes areas or enters/exits specific tile types. This component is commonly used for location-based logic, region triggers, and tile-dependent behaviors. It integrates with `TheWorld.Map` and `TheWorld.topology` systems to determine area data.
 
 ## Usage example
 ```lua
 local inst = CreateEntity()
 inst:AddComponent("areaaware")
-
--- Start periodic position updates (every 0.1 seconds)
-inst.components.areaaware:StartCheckingPosition(0.1)
-
--- Watch for swamp tile changes
-inst.components.areaaware:StartWatchingTile(WORLD_TILES.SWAMP)
-
--- Read current area data
-local area = inst.components.areaaware:GetCurrentArea()
-if area and inst.components.areaaware:CurrentlyInTag("water") then
-    print("Entity is in a water area.")
-end
+inst.components.areaaware:SetUpdateDist(5)
+inst.components.areaaware:StartWatchingTile(WORLD_TILES.MARSH)
+inst.components.areaaware:StartCheckingPosition(1)
 ```
 
 ## Dependencies & tags
-**Components used:** None identified  
-**Tags:** Adds `areaaware` tag via entity ownership (not directly managed by this component); checks `node.tags` internally for area-specific tags.
+**Components used:** None identified (self-contained component)
+**Tags:** None identified (does not add or check entity tags)
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `current_area` | number | `-1` | Index of the current visual node; `-1` indicates no node assigned. |
-| `current_area_data` | table? | `nil` | Table containing area metadata (`id`, `type`, `center`, `poly`, `tags`) or `nil` if no area detected. |
-| `lastpt` | Vector3 | `(-9999, 0, -9999)` | Last recorded world position used to determine when to update position. |
-| `updatedistsq` | number | `16` | Squared distance threshold (i.e., 4 units) that triggers a position update. |
-| `watch_tiles` | table? | `nil` | Map of `WORLD_TILES.*` IDs to booleans; tracks current tile type status for each watched tile. |
+| `current_area` | number | `-1` | Index of the current topology node the entity occupies. |
+| `current_area_data` | table | `nil` | Table containing area info (id, type, center, poly, tags) or `nil` if no node. |
+| `lastpt` | Vector3 | `(-9999, 0, -9999)` | Stores the last checked position coordinates. |
+| `updatedistsq` | number | `16` | Distance squared threshold before triggering position update. |
+| `watch_tiles` | table | `nil` | Optional table tracking watched tile types and their current state. |
 
 ## Main functions
-### `UpdatePosition(x, y, z)`
-*   **Description:** Updates the entity's current area based on world coordinates. If the area index changes, it populates `current_area_data` and fires a `changearea` event.
-*   **Parameters:**  
-    `x`, `y`, `z` (number) — World coordinates to evaluate.
-*   **Returns:** Nothing.
-*   **Error states:** If no visual node exists at the point, `current_area_data` becomes `nil`.
-
-### `GetCurrentArea()`
-*   **Description:** Returns detailed data about the entity's current map area.
+### `OnRemoveFromEntity()`
+*   **Description:** Cleanup function called when the component is removed from an entity. Stops updating and removes event listeners.
 *   **Parameters:** None.
-*   **Returns:** table? — Area metadata table (`id`, `type`, `center`, `poly`, `tags`) or `nil` if no area is active.
+*   **Returns:** Nothing.
 
-### `CurrentlyInTag(tag)`
-*   **Description:** Checks if the current area contains a specific tag.
-*   **Parameters:**  
-    `tag` (string) — The tag name to search for in `current_area_data.tags`.
-*   **Returns:** boolean — `true` if the tag exists in the area, `false` otherwise.
+### `UpdatePosition(x, y, z)`
+*   **Description:** Updates the current area data based on world position. Pushes `changearea` event if the area node changes. Also checks watched tiles and pushes tile events.
+*   **Parameters:** `x` (number), `y` (number), `z` (number) - world coordinates to check.
+*   **Returns:** Nothing.
+*   **Error states:** If `node_index` is `nil`, `current_area_data` is set to `nil`.
+
+### `OnUpdate(dt)`
+*   **Description:** Called periodically by the component system. Checks if entity has moved beyond `updatedistsq` threshold and triggers `UpdatePosition` if so.
+*   **Parameters:** `dt` (number) - delta time since last update.
+*   **Returns:** Nothing.
 
 ### `SetUpdateDist(dist)`
-*   **Description:** Sets the movement distance threshold (in units) that triggers an area update.
-*   **Parameters:**  
-    `dist` (number) — Minimum distance the entity must move (squared = `dist*dist`) to trigger an update.
+*   **Description:** Configures the distance threshold for position updates.
+*   **Parameters:** `dist` (number) - distance in world units (squared internally).
 *   **Returns:** Nothing.
 
-### `StartCheckingPosition(checkinterval)`
-*   **Description:** Begins periodic polling of the entity's position to update the current area.
-*   **Parameters:**  
-    `checkinterval` (number?) — Time in seconds between updates. Defaults to `self.checkinterval` if omitted (not set in constructor, defaults to `nil`).
-*   **Returns:** Nothing.
-*   **Error states:** Repeated calls may create multiple periodic tasks if not canceled.
+### `GetCurrentArea()`
+*   **Description:** Returns the current area data table containing node information.
+*   **Parameters:** None.
+*   **Returns:** Table with area info (id, type, center, poly, tags) or `nil` if no current node.
 
-### `StartWatchingTile(tile_id)`
-*   **Description:** Adds a tile type to monitor for entry/exit events.
-*   **Parameters:**  
-    `tile_id` (WORLD_TILES.* enum) — The tile type to track.
-*   **Returns:** Nothing.
-
-### `StopWatchingTile(tile_id)`
-*   **Description:** Removes a tile type from the watch list.
-*   **Parameters:**  
-    `tile_id` (WORLD_TILES.* enum) — The tile type to stop tracking.
-*   **Returns:** Nothing.
+### `CurrentlyInTag(tag)`
+*   **Description:** Checks if the current area node has a specific tag.
+*   **Parameters:** `tag` (string) - the topology tag to check for.
+*   **Returns:** Boolean - `true` if the area has the tag, `false` otherwise.
+*   **Error states:** Returns `false` if `current_area_data` or `tags` is `nil`.
 
 ### `GetDebugString()`
-*   **Description:** Returns a human-readable debug string describing the current area, including its ID, type, and tags.
+*   **Description:** Returns a formatted debug string showing current node info, area ID, node type, and tags.
 *   **Parameters:** None.
-*   **Returns:** string — Formatted string like `"AreaID: FOREST [2], {water, danger}"` or `"No current node: 12, -8"`.
+*   **Returns:** String - debug information or "No current node" message with coordinates.
+
+### `StartCheckingPosition(checkinterval)`
+*   **Description:** Starts a periodic task to check position at regular intervals.
+*   **Parameters:** `checkinterval` (number) - time in seconds between checks. Uses `self.checkinterval` if not provided.
+*   **Returns:** Nothing.
+*   **Error states:** Creates task stored in `self.checkpositiontask`.
+
+### `StartWatchingTile(tile_id)`
+*   **Description:** Begins monitoring a specific tile type for entry/exit events.
+*   **Parameters:** `tile_id` (number) - the `WORLD_TILES` constant to watch.
+*   **Returns:** Nothing.
+*   **Error states:** Initializes `watch_tiles` table if `nil`, otherwise adds the tile to existing table.
+
+### `StopWatchingTile(tile_id)`
+*   **Description:** Stops monitoring a specific tile type.
+*   **Parameters:** `tile_id` (number) - the `WORLD_TILES` constant to stop watching.
+*   **Returns:** Nothing.
+*   **Error states:** Removes tile from `watch_tiles`. If table becomes empty, sets `watch_tiles` to `nil`.
 
 ## Events & listeners
-- **Listens to:**  
-    `done_embark_movement` — Triggers an immediate position update via `_ForceUpdate`.
-- **Pushes:**  
-    `changearea` — Fired when the entity enters a new area. Payload is `current_area_data` (or `nil`).  
-    `on_<TILE>_tile` — Fired when a watched tile is entered/exited. `<TILE>` is replaced by the inverted tile name (e.g., `on_land_tile`, `on_water_tile`), and the payload is a boolean indicating entry (`true`) or exit (`false`).
+- **Listens to:** `done_embark_movement` - forces position update when embark movement completes.
+- **Pushes:** `changearea` - fired when entity enters a new topology node, includes `current_area_data` table.
+- **Pushes:** `on_<tile>_tile` - fired when watched tile state changes, includes boolean indicating current presence.

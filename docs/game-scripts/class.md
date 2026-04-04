@@ -1,111 +1,117 @@
 ---
 id: class
 title: Class
-description: Provides a lightweight object-oriented programming framework with support for class inheritance, property setters, and read-only properties.
-tags: [oop, utility, base]
+description: Provides an object-oriented class system with inheritance, property setters, and instance tracking for Lua in DST.
+tags: [utility, oop, core]
 sidebar_position: 10
 
-last_updated: 2026-03-10
+last_updated: 2026-03-21
 build_version: 714014
 change_status: stable
 category_type: root
 source_hash: 54cf8ca7
-system_scope: entity
+system_scope: world
 ---
 
 # Class
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **714014** | Last updated: 2026-03-21
 
 ## Overview
-`class.lua` implements a minimal metaprogramming-based OOP system for Lua 5.1, enabling class-based inheritance, property access control (read-only, setters), and optional runtime instance tracking. It serves as the foundational abstraction for defining entities, components, and other structured data models throughout the DST codebase. The system uses metatables to provide prototype-style behavior with class semantics, including support for hot-reloading via `ReloadedClass`.
+`class.lua` implements a foundational object-oriented programming system for Don't Starve Together. It provides class creation with inheritance support, property getter/setter mechanisms, read-only property protection, and optional instance tracking for debugging. This utility is used throughout the codebase to define structured data types, components, stategraphs, and other systems that benefit from encapsulation and inheritance.
 
 ## Usage example
 ```lua
-local Point = Class(
-    nil,
-    function(self, x, y)
-        self.x = x or 0
-        self.y = y or 0
-    end,
-    { x = nil, y = nil }
-)
+local Class = require("class")
 
-local p = Point(3, 4)
-print(p.x, p.y) -- 3, 4
+local MyClass = Class(function(self, name, value)
+    self.name = name
+    self.value = value
+end)
 
-makeReadonly(p, "x")
-p.x = 10 -- assertion fails with "Cannot change read only property"
+local instance = MyClass("test", 42)
+print(instance.name) -- "test"
+print(instance.value) -- 42
+
+-- With property setters
+local MyPropClass = Class(nil, function(self) self._count = 0 end, {
+    count = function(self, val, old)
+        print("Count changed from "..tostring(old).." to "..tostring(val))
+    end
+})
 ```
 
 ## Dependencies & tags
-**Components used:** None  
-**Tags:** None identified.
+**Components used:** None identified
+**Tags:** None identified
 
 ## Properties
-No public properties.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `_base` | table | `nil` | Reference to parent class when using inheritance. |
+| `_ctor` | function | `nil` | Constructor function called on instance creation. |
+| `is_a` | function | `_is_a` | Method to check if instance is descendant of a class. |
+| `is_class` | function | `_is_class` | Method to check if table is a class definition. |
+| `is_instance` | function | function | Method to check if object is an instance of this class. |
 
 ## Main functions
 ### `Class(base, _ctor, props)`
-*   **Description:** Creates and returns a new class table. Accepts an optional base class, constructor function, and a property specification table. When `props` is provided, the class supports read-only properties and custom setters.
-*   **Parameters:**
-    *   `base` (table or nil) – the parent class (shallow-copy inheritance).
-    *   `_ctor` (function or nil) – the constructor function, called on instantiation as `class._ctor(instance, ...)`.
-    *   `props` (table or nil) – a table of initial property definitions; keys are property names, values are setter functions (or `nil` for read-only defaults).
-*   **Returns:** A class table usable as a callable constructor.
-*   **Error states:** If `props` is non-nil but `_` (internal storage) cannot be initialized, assertions will fail.
+*   **Description:** Creates a new class with optional inheritance, constructor, and property handlers. This is the primary entry point for defining classes in DST.
+*   **Parameters:** 
+    *   `base` (table or function) - Parent class to inherit from, or constructor function if no inheritance.
+    *   `_ctor` (function) - Constructor called with `self` as first argument when creating instances.
+    *   `props` (table) - Optional table of property names mapped to setter functions for reactive property changes.
+*   **Returns:** A class table that can be called to create instances.
+*   **Error states:** If `props` is provided but the class system is not properly initialized, property setters may fail.
 
 ### `makereadonly(t, k)`
-*   **Description:** Converts a property `k` on class/table `t` into a read-only property.
-*   **Parameters:**
-    *   `t` (table) – the class or instance table.
-    *   `k` (string or number) – the property key to make read-only.
+*   **Description:** Converts an existing property into a read-only property that cannot be modified after initialization.
+*   **Parameters:** 
+    *   `t` (table) - The class or instance table.
+    *   `k` (string) - The property key to make read-only.
 *   **Returns:** Nothing.
-*   **Error states:** Fails with assertion if `t` lacks internal property storage (`_[k] == nil` and no prior definition).
+*   **Error states:** Asserts if the class does not support read-only properties (no `props` table was defined).
 
 ### `addsetter(t, k, fn)`
-*   **Description:** Attaches a custom setter function `fn` to property `k`, invoked on any subsequent assignment.
-*   **Parameters:**
-    *   `t` (table) – the class or instance table.
-    *   `k` (string or number) – the property key.
-    *   `fn` (function) – setter callback with signature `fn(instance, newValue, oldValue)`.
+*   **Description:** Adds or updates a setter function for a property, enabling reactive behavior when the property value changes.
+*   **Parameters:** 
+    *   `t` (table) - The class or instance table.
+    *   `k` (string) - The property key.
+    *   `fn` (function) - Setter function called with `(table, new_value, old_value)` when property changes.
 *   **Returns:** Nothing.
-*   **Error states:** Fails with assertion if `t` lacks internal property storage.
+*   **Error states:** Asserts if the class does not support property setters.
 
 ### `removesetter(t, k)`
-*   **Description:** Removes any attached setter and restores the property to a plain data member.
-*   **Parameters:**
-    *   `t` (table) – the class or instance table.
-    *   `k` (string or number) – the property key.
+*   **Description:** Removes a setter function from a property, converting it back to a regular field.
+*   **Parameters:** 
+    *   `t` (table) - The class or instance table.
+    *   `k` (string) - The property key to remove the setter from.
 *   **Returns:** Nothing.
 
+### `_is_a(self, klass)`
+*   **Description:** Internal function to check if an object is a descendant of a given class through the inheritance chain.
+*   **Parameters:** 
+    *   `self` (table) - The instance to check.
+    *   `klass` (table) - The class to test against.
+*   **Returns:** `true` if `self` inherits from `klass`, `false` otherwise.
+
+### `_is_class(self)`
+*   **Description:** Internal function to determine if a table is a class definition rather than an instance.
+*   **Parameters:** 
+    *   `self` (table) - The table to check.
+*   **Returns:** `true` if the table is a class, `false` if it is an instance.
+
 ### `ReloadedClass(mt)`
-*   **Description:** Removes the class table `mt` from the global `ClassRegistry`, used primarily during hot-reload to avoid stale registry entries.
-*   **Parameters:** `mt` (table) – the class metatable (i.e., the class table).
+*   **Description:** Removes a class from the `ClassRegistry` when hot-reloading code, preventing memory leaks from stale references.
+*   **Parameters:** 
+    *   `mt` (table) - The metatable of the class to remove.
 *   **Returns:** Nothing.
 
 ### `HandleClassInstanceTracking()`
-*   **Description:** Periodically dumps top class instance counts to console for leak detection (only active when `TrackClassInstances == true`).
+*   **Description:** Debug function that periodically prints the top 10 most instantiated classes when `TrackClassInstances` is enabled. Used for memory profiling and leak detection.
 *   **Parameters:** None.
 *   **Returns:** Nothing.
-*   **Error states:** Only operates when `TrackClassInstances == true` and `CWD` is defined.
-
-### `is_a(self, klass)`
-*   **Description:** Internal helper (added to class tables) that checks if `self` is an instance descending from `klass`.
-*   **Parameters:**
-    *   `self` (table) – an object instance.
-    *   `klass` (table) – a class table.
-*   **Returns:** `true` if `self` inherits from `klass`, otherwise `false`.
-
-### `is_instance(obj)`
-*   **Description:** Returns `true` if `obj` is an instance of the class (i.e., created via `Class()`).
-*   **Parameters:** `obj` (any) – value to check.
-*   **Returns:** `boolean`.
-
-### `is_class(self)`
-*   **Description:** Returns `true` if `self` is a class (not an instance).
-*   **Parameters:** `self` (table) – typically a class table.
-*   **Returns:** `boolean`.
+*   **Error states:** Only functions when `TrackClassInstances` is set to `true` and `CWD` is defined.
 
 ## Events & listeners
-None identified.
+Not applicable

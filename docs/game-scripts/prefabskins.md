@@ -1,49 +1,59 @@
 ---
 id: prefabskins
 title: Prefabskins
-description: This component manages player-specific prefab skins and their associated network replication in DST.
-tags: [player, network, skins]
+description: This module defines the PREFAB_SKINS table mapping prefabs to skin identifiers, along with a selection blacklist and a reverse lookup table for skin IDs.
+tags: [skins, prefabs, data, customization]
 sidebar_position: 10
 
-last_updated: 2026-03-10
-build_version: 714014
+last_updated: 2026-04-04
+build_version: 718694
 change_status: stable
 category_type: root
-source_hash: 87539c3f
-system_scope: player
+source_hash: 541cf500
+system_scope: global
 ---
 
 # Prefabskins
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **718694** | Last updated: 2026-04-04
 
 ## Overview
-Prefabskins is an auto-generated component responsible for handling player-specific prefab skins — assets that visually customize how prefabs (e.g., characters, items, pets) appear for a given player. It is designed to track and replicate skin state across the network without requiring explicit logic beyond auto-generation metadata. All functionality is provided via the framework's code generation pipeline.
+The `prefabskins` module serves as a central data definition file for the skinning system in Don't Starve Together. It establishes the `PREFAB_SKINS` table, which maps specific prefab names to arrays of available skin identifier strings, enabling entity customization. Additionally, it maintains a blacklist table (`PREFAB_SKINS_SHOULD_NOT_SELECT`) to exclude specific upgraded chests and critters from standard skin selection processes, and constructs a reverse lookup table (`PREFAB_SKINS_IDS`) to map skin IDs back to their corresponding skin names per prefab. This data is referenced globally to validate and resolve skin assets during entity instantiation and inventory management.
 
 ## Usage example
-Typical usage is internal and handled automatically by the game client when loading player account items or saving skin preferences; however, a mod might interact with it like this:
-
 ```lua
--- Example: Access the prefabskins component on a player entity
-local player = ThePlayer
-if player and player.components and player.components.prefabskins then
-    -- Check available skins (internal API)
-    -- Note: Actual skin setting/retrieval is typically handled via replica or RPCs
-    -- This component primarily exists to support networked skin state
+-- Access the list of available skins for a specific prefab
+local prefab_name = "waxwell"
+local available_skins = PREFAB_SKINS[prefab_name]
+
+-- Verify if a prefab is excluded from skin selection
+if PREFAB_SKINS_SHOULD_NOT_SELECT[prefab_name] then
+    return
+end
+
+-- Perform reverse lookup to find skin name from ID
+local skin_id = 1001
+local skin_lookup = PREFAB_SKINS_IDS[prefab_name]
+if skin_lookup then
+    local skin_name = skin_lookup[skin_id]
+    -- Apply skin logic using skin_name
 end
 ```
 
 ## Dependencies & tags
-**Components used:** None identified  
-**Tags:** None found
+
+**Components used:**
+None
+
+**Tags:**
+None
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| None |  |  | No properties are defined. |
 
 ## Main functions
-No functions are explicitly defined. All functionality is auto-generated and handled by the engine infrastructure.
+None
 
 ## Events & listeners
-No events are emitted or listened to by this component.
+None

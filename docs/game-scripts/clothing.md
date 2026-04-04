@@ -1,63 +1,106 @@
 ---
 id: clothing
 title: Clothing
-description: A static data registry defining clothing items, their visual overrides, hide layers, and associated sounds/symbols used by the game's rendering and UI systems.
-tags: [clothing, data, assets, rendering, ui]
+description: This auto-generated file defines static configuration data for clothing items, including skin attributes, symbol overrides, and sound effects used by the account items system.
+tags: [skins, data, inventory, account]
 sidebar_position: 10
 
-last_updated: 2026-03-10
+last_updated: 2026-03-21
 build_version: 714014
 change_status: stable
 category_type: root
 source_hash: 2c1775d6
-system_scope: entity
+system_scope: inventory
 ---
 
 # Clothing
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **714014** | Last updated: 2026-03-21
 
 ## Overview
-The `clothing.lua` file defines a global `CLOTHING` table that serves as a static registry of clothing item definitions. Each entry specifies metadata such as skins, tags, symbol overrides, and hide layer configurations. Additional global tables — `CLOTHING_SFX`, `CLOTHING_SYMBOLS`, and `HIDE_SYMBOLS` — are derived from `CLOTHING` and used for audio playback, symbol rendering, and visibility control of base layers (e.g., to hide undergarments when certain clothing is equipped). This file is not an ECS component; it contains no logic, no components, no constructors, and no runtime behavior — it is purely a data schema for clothing assets.
+The `clothing.lua` script serves as a central repository for static clothing configuration data within Don't Starve Together. Generated automatically by `export_accountitems.lua`, this file does not contain runtime logic but instead defines large dictionaries mapping clothing prefabs to their attributes. These attributes include equipment slot types, skin tags, symbol overrides, tuck behavior, rarity, and release groups. Additionally, it establishes lookup tables for clothing-related sound effects and symbol hide configurations. Other systems query this data to determine how to render skins and apply clothing assets to entities.
 
 ## Usage example
 ```lua
--- Example of accessing clothing metadata
-if CLOTHING["MY_CLOTHING_PREFAB"] then
-    local clothing_def = CLOTHING["MY_CLOTHING_PREFAB"]
-    local skins = clothing_def.skins
-    local tags = clothing_def.skin_tags
-    print(string.format("Clothing %s has %d skins", "MY_CLOTHING_PREFAB", #skins))
-end
+-- Access the global CLOTHING table populated by this file
+local clothing_defs = CLOTHING
 
--- Example of checking if a prefab has symbol overrides
-if CLOTHING_SYMBOLS["SOME_CLOTHING"] then
-    print("Symbol overrides defined for SOME_CLOTHING")
+-- Iterate through definitions to find body slot items
+for prefab, config in pairs(clothing_defs) do
+    if config.type == "CLOTHING_BODY" then
+        -- Retrieve symbol overrides for rendering
+        local symbols = config.symbol_overrides
+        -- Check rarity for inventory sorting
+        if config.rarity == "rare" then
+            -- Process rare clothing item
+        end
+    end
 end
 ```
 
 ## Dependencies & tags
-**Components used:** None identified  
-**Tags:**  
-- `"CLOTHING_BODY"`  
-- `"CLOTHING"`  
-- `"BLACK"`  
-*(Tags appear as string literals within `skin_tags` arrays in `CLOTHING` records. They are not dynamically applied or queried at runtime in this file.)*
+
+**External dependencies:**
+- `CLOTHING` -- Referenced to iterate over clothing definitions and collect symbol overrides, symbol_hides, and symbol_in_base_hides into global lookup tables.
+
+**Components used:**
+None
+
+**Tags:**
+- `CLOTHING_BODY` -- add
+- `CLOTHING` -- add
+- `CLOTHING_FEET` -- add
+- `CLOTHING_HAND` -- add
+- `CLOTHING_LEGS` -- add
+- `COSTUME` -- add
+- `T_UPDATE` -- add
+- `ANCIENT` -- add
+- `LUNAR` -- add
+- `CHEF` -- add
+- `FORMAL` -- add
+- `SURVIVOR` -- add
+- `VICTORIAN` -- add
+- `YULE` -- add
+- `HALLOWED` -- add
+- `STEAMPUNK` -- add
+- `WESTERN` -- add
+- `MASQUERADE` -- add
+- `PIRATE` -- add
+- `VARG` -- add
+- `SHADOW` -- add
+- `ROSE` -- add
+- `LAVA` -- add
+- `ICE` -- add
+- `YOTP` -- add
+- `WINTER` -- add
+- `YOTH` -- add
+- `FOOLS` -- add
+- `VALKYRIE` -- add
+- `RETRO` -- add
+- `CAVE` -- add
+- `NEXTKIN` -- add
+- `HOCKEY` -- add
+- `BOY` -- add
+- `HANDMEDOWN` -- add
+- `DETECTIVE` -- add
+- `FISHERMAN` -- add
+- `SPRING` -- add
+- `STRONGMAN` -- add
+- `ORIGNAL` -- add
+- `MINOTAUR` -- add
+- `CACTUS` -- add
+- `MUSHROOM` -- add
+- `PUMPKIN` -- add
+- `BARBER` -- add
+- `COOK` -- add
+- `HAUNTEDDOLL` -- add
 
 ## Properties
-The `CLOTHING` table contains keys (prefab names) mapping to records with the following fields:
-| Field | Type | Description |
-|-------|------|-------------|
-| `skins` | table of strings | List of skin asset paths or identifiers |
-| `skin_tags` | table of strings | Tags associated with the clothing (e.g., `"CLOTHING"`, `"BLACK"`) |
-| `symbol_overrides` | table (optional) | Defines which symbols are replaced when this clothing is equipped |
-| `symbol_hides` | table (optional) | Defines symbols to hide on the base layer |
-| `symbol_in_base_hides` | table (optional) | Defines base-layer symbols hidden when *this* item is equipped |
-
-`CLOTHING_SFX`, `CLOTHING_SYMBOLS`, and `HIDE_SYMBOLS` are derived tables (see Overview), but no *user-defined* properties are exposed beyond the `CLOTHING` registry.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
 
 ## Main functions
-None — this file contains no functions. All logic is limited to data initialization via table constructors and simple loops for derived data population.
+None
 
 ## Events & listeners
-None — no events are registered or pushed in this file.
+None

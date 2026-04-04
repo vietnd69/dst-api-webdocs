@@ -1,79 +1,75 @@
 ---
 id: bedroll
 title: Bedroll
-description: "Provides sleep functionality for players, with two variants: a disposable straw bedroll and a reusable furry bedroll that regulates sleeper temperature."
-tags: [sleep, inventory, temperature, consumable]
+description: Defines the straw and furry bedroll prefabs for sleeping and temperature regulation.
+tags: [sleep, inventory, survival]
 sidebar_position: 10
 
-last_updated: 2026-03-04
+last_updated: 2026-03-20
 build_version: 714014
 change_status: stable
 category_type: prefabs
 source_hash: d9dc717c
-system_scope: player
+system_scope: inventory
 ---
 
 # Bedroll
 
-> Based on game build **714014** | Last updated: 2026-03-04
+> Based on game build **714014** | Last updated: 2026-03-20
 
 ## Overview
-The `bedroll` prefab implements two distinct sleep items — `bedroll_straw` and `bedroll_furry` — that allow players to sleep in the world. These prefabs utilize several components: `sleepingbag` for core sleep logic (health/sanity recovery), `fuel` and burnable properties for campfire compatibility, `finiteuses` (furry variant only) for durability tracking, and `stackable` (straw variant only) for stacking support. The furry variant additionally includes temperature regulation to help maintain the sleeper's comfort within a target range.
+This script registers two prefabs: `bedroll_straw` and `bedroll_furry`. Both function as sleeping bags that allow players to recover health and sanity while regulating body temperature. The straw variant is stackable and durable, while the furry variant has limited durability managed by the `finiteuses` component. Both prefabs configure the `sleepingbag` component to handle sleep logic and temperature adjustments.
 
 ## Usage example
 ```lua
-local bedroll = Prefab("bedroll_straw", bedroll_straw, straw_assets)
-local inst = SpawnPrefab("bedroll_straw")
-inst.Transform:SetPosition(x, y, z)
+-- Spawn a straw bedroll
+local straw_bedroll = SpawnPrefab("bedroll_straw")
 
--- For the furry variant:
-local bedroll_furry = SpawnPrefab("bedroll_furry")
-bedroll_furry.Transform:SetPosition(x, y, z)
+-- Spawn a furry bedroll
+local furry_bedroll = SpawnPrefab("bedroll_furry")
+
+-- Add to inventory
+local player = ThePlayer
+player.components.inventory:GiveItem(straw_bedroll)
 ```
 
 ## Dependencies & tags
-**Components used:** `inspectable`, `inventoryitem`, `fuel`, `sleepingbag`, `stackable` (straw only), `finiteuses` (furry only), `burnable`, `propagator`, `hauntable`.
-**Tags:** None explicitly added or removed by this component.
+**Components used:** `sleepingbag`, `finiteuses` (furry), `stackable` (straw), `fuel`, `inventoryitem`, `inspectable`, `temperature` (accessed on sleeper).
+**Tags:** None identified directly on the inst; logic checks `usesdepleted` tag via `finiteuses` component.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `scrapbook_specialinfo` | string | `"STRAWROLL"` or `"FURROLL"` | Internal identifier used by the scrapbook system. |
-| `onuse` | function | `onuse_straw` or `onuse_furry` | Callback invoked when a player begins sleeping in this bedroll. |
+| `sleepingbag.health_tick` | number | `TUNING.SLEEP_HEALTH_PER_TICK * 0.5` (straw) | Health restored per tick while sleeping. |
+| `sleepingbag.sanity_tick` | number | `TUNING.SLEEP_SANITY_PER_TICK * 2/3` (straw) | Sanity restored per tick while sleeping. |
+| `sleepingbag.sleep_temp_min` | number | `TUNING.SLEEP_TARGET_TEMP_BEDROLL_FURRY` (furry) | Minimum temperature threshold for adjustment. |
+| `sleepingbag.sleep_temp_max` | number | `TUNING.SLEEP_TARGET_TEMP_BEDROLL_FURRY_MAX` (furry) | Maximum temperature threshold for adjustment. |
+| `finiteuses.max_uses` | number | `TUNING.BEDROLL_FURRY_USES` (furry) | Total durability uses for the furry bedroll. |
+| `stackable.maxsize` | number | `TUNING.STACK_SIZE_LARGEITEM` (straw) | Maximum stack size for the straw bedroll. |
 
 ## Main functions
 ### `onwake(inst, sleeper, nostatechange)`
-*   **Description:** Cleanup function called when the sleeper wakes up. Consumes the straw bedroll entirely or decrements uses on the furry variant; removes the item from the world if uses reach zero.
-*   **Parameters:**  
-    `inst` (Entity) — the bedroll instance.  
-    `sleeper` (Entity) — the sleeping player entity.  
-    `nostatechange` (boolean) — indicates whether the sleeper's state should skip transition updates.  
-*   **Returns:** Nothing.  
-*   **Error states:** None. Will silently skip removal if `finiteuses` is missing or still has uses remaining.
+*   **Description:** Callback executed when a player wakes up from sleeping in the bedroll. Removes the bedroll if durability is depleted.
+*   **Parameters:** `inst` (entity) - the bedroll instance; `sleeper` (entity) - the player waking up; `nostatechange` (boolean) - state change flag.
+*   **Returns:** Nothing.
+*   **Error states:** If `finiteuses` is missing or `GetUses()` returns `<= 0`, the item is removed from the world.
+
+### `temperaturetick(inst, sleeper)`
+*   **Description:** Periodic function that adjusts the sleeper's temperature towards the bedroll's target range.
+*   **Parameters:** `inst` (entity) - the bedroll instance; `sleeper` (entity) - the sleeping player.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if the sleeper does not have a `temperature` component.
 
 ### `onuse_straw(inst, sleeper)`
-*   **Description:** Applies visual override to the sleeper's animation to show the straw bedroll texture.
-*   **Parameters:**  
-    `inst` (Entity) — the bedroll instance.  
-    `sleeper` (Entity) — the sleeping player entity.  
+*   **Description:** Overrides the sleeper's animation symbol to display the straw bedroll visual.
+*   **Parameters:** `inst` (entity) - the bedroll instance; `sleeper` (entity) - the player using the item.
 *   **Returns:** Nothing.
 
 ### `onuse_furry(inst, sleeper)`
-*   **Description:** Applies visual skin override to the sleeper’s animation to show the furry bedroll texture, respecting bedroll skins.
-*   **Parameters:**  
-    `inst` (Entity) — the bedroll instance.  
-    `sleeper` (Entity) — the sleeping player entity.  
+*   **Description:** Overrides the sleeper's animation symbol to display the furry bedroll visual, respecting skin builds.
+*   **Parameters:** `inst` (entity) - the bedroll instance; `sleeper` (entity) - the player using the item.
 *   **Returns:** Nothing.
-*   **Error states:** Falls back to generic symbol override if `inst:GetSkinBuild()` returns `nil`.
-
-### `temperaturetick(inst, sleeper)`
-*   **Description:** Tick function used by the furry bedroll to gradually adjust the sleeper’s temperature toward a comfortable range while sleeping.
-*   **Parameters:**  
-    `inst` (Entity) — the bedroll instance.  
-    `sleeper` (Entity) — the sleeping player entity.  
-*   **Returns:** Nothing.  
-*   **Error states:** Skips if `sleeper.components.temperature` is missing.
 
 ## Events & listeners
-- **Listens to:** None directly (relies on external systems like `sleepingbag` for state triggers).
-- **Pushes:** None directly (relies on `sleepingbag` and `finiteuses` components to push related events).
+-   **Listens to:** `onwake` (assigned via `sleepingbag.onwake`) - triggers cleanup logic when sleep ends.
+-   **Pushes:** None identified directly in this script; relies on `sleepingbag` component to fire sleep events.

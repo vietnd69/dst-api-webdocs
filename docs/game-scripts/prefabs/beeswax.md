@@ -1,66 +1,59 @@
 ---
 id: beeswax
 title: Beeswax
-description: A small consumable item that melts when exposed to fire and is stackable.
-tags: [item, consumable, melt]
+description: Defines the beeswax prefab entity, including melting mechanics and inventory stacking behavior.
+tags: [prefab, inventory, melting]
 sidebar_position: 10
 
-last_updated: 2026-03-04
+last_updated: 2026-03-20
 build_version: 714014
 change_status: stable
 category_type: prefabs
 source_hash: 110d31df
-system_scope: inventory
+system_scope: entity
 ---
 
 # Beeswax
 
-> Based on game build **714014** | Last updated: 2026-03-04
+> Based on game build **714014** | Last updated: 2026-03-20
 
 ## Overview
-`beeswax` is a prefabricated item used as a crafting material and consumable. It supports melting under fire via dedicated event handlers and integrates with the `inventoryitem` and `stackable` components. The entity persists in the world until melted, at which point it becomes non-interactable and eventually removes itself.
+The `beeswax` prefab script defines the spawnable beeswax entity. It configures inventory physics, stacking limits, and specific melting behavior when exposed to fire. It relies on the `wax` component for base wax functionality and manages state transitions via event listeners. The entity is marked as `meltable` and modifies its pick-up state when melting begins.
 
 ## Usage example
 ```lua
 local inst = SpawnPrefab("beeswax")
-inst.Transform:SetPosition(x, y, z)
-inst.components.stackable:SetSize(5) -- Set stack size (max 10)
+inst.components.inventoryitem:GiveToPlayer(ThePlayer)
+-- Check stack size limit
+local max_stack = inst.components.stackable.maxsize
 ```
 
 ## Dependencies & tags
-**Components used:** `inventoryitem`, `stackable`, `wax`, `inspectable`  
-**Tags:** Adds `meltable`, `NOCLICK` (when melted); checks `debris`, `drainable`, `hauntable`, `trapbait`, `veggie` via global prefab tag system.
+**Components used:** `inspectable`, `wax`, `inventoryitem`, `stackable`
+**Tags:** Adds `meltable`, `NOCLICK`
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `melted` | boolean | `false` | Indicates whether the beeswax has melted due to fire exposure. |
-| `firemelttask` | Task or `nil` | `nil` | Task reference for delayed melting after fire exposure. |
+No public properties
 
 ## Main functions
-### `_OnFireMelt(inst, StartFireMelt, StopFireMelt)`
-*   **Description:** Internal callback triggered after 10 seconds of continuous fire exposure. Sets the `melted` state, disables pickup, plays the melt animation, and schedules removal upon animation completion.
-*   **Parameters:** `inst` (Entity), `StartFireMelt` (function), `StopFireMelt` (function) — reference closures for cleanup.
-*   **Returns:** Nothing.
-*   **Error states:** If the entity is asleep when melting begins, it is immediately removed.
-
 ### `StartFireMelt(inst)`
-*   **Description:** Starts the 10-second delayed melting timer if not already active.
-*   **Parameters:** `inst` (Entity) — the beeswax instance.
+*   **Description:** Initiates the melting process by scheduling a task.
+*   **Parameters:** `inst` (entity) - The beeswax entity instance.
 *   **Returns:** Nothing.
 
 ### `StopFireMelt(inst)`
-*   **Description:** Cancels the pending fire-melt task if active; used on exit from fire or when placed in inventory.
-*   **Parameters:** `inst` (Entity) — the beeswax instance.
+*   **Description:** Cancels the pending melting task if active.
+*   **Parameters:** `inst` (entity) - The beeswax entity instance.
 *   **Returns:** Nothing.
 
-## Events & listeners
-- **Listens to:** `firemelt`, `stopfiremelt`, `onputininventory`, `animover`, `entitysleep`.  
-- **Pushes:** None (relies on state changes and animation callbacks for side effects).
+### `_OnFireMelt(inst, StartFireMelt, StopFireMelt)`
+*   **Description:** Executes the melting logic, updating tags and animation state.
+*   **Parameters:** `inst` (entity) - The beeswax entity instance, `StartFireMelt` (function), `StopFireMelt` (function).
+*   **Returns:** Nothing.
+*   **Error states:** Removes the entity if asleep or after animation completes.
 
-```lua
-inst:ListenForEvent("firemelt", StartFireMelt)
-inst:ListenForEvent("stopfiremelt", StopFireMelt)
-inst:ListenForEvent("onputininventory", StopFireMelt)
-inst:ListenForEvent("animover", inst.Remove)
-inst:ListenForEvent("entitysleep", inst.Remove)
+## Events & listeners
+- **Listens to:** `firemelt` - triggers melting start.
+- **Listens to:** `stopfiremelt` - triggers melting cancel.
+- **Listens to:** `onputininventory` - triggers melting cancel.
+- **Pushes:** None identified.

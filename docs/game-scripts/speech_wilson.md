@@ -5,11 +5,11 @@ description: Provides static speech string data for Wilson character events and 
 tags: [audio, localization, speech, player, string]
 sidebar_position: 10
 
-last_updated: 2026-03-10
-build_version: 714014
-change_status: stable
+last_updated: 2026-04-04
+build_version: 718694
+change_status: data_patched
 category_type: root
-source_hash: a9253e81
+source_hash: 73fb9c54
 system_scope: audio
 
 ---

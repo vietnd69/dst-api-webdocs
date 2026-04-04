@@ -1,148 +1,178 @@
 ---
 id: recipe
 title: Recipe
-description: Manages crafting recipes, including ingredients, unlocks, and deconstruction logic.
-tags: [crafting, inventory, network]
+description: Defines the Recipe and Ingredient classes for managing crafting recipes, tech tree requirements, and deconstruction data in the crafting system.
+tags: [crafting, recipes, tech-tree]
 sidebar_position: 10
 
-last_updated: 2026-03-10
-build_version: 714014
+last_updated: 2026-04-04
+build_version: 718694
 change_status: stable
 category_type: root
-source_hash: 55b9b413
+source_hash: c5bbfcd1
 system_scope: crafting
 ---
 
 # Recipe
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **718694** | Last updated: 2026-04-04
 
 ## Overview
-The `recipe.lua` module defines the core data structures and utility functions for crafting recipes in DST. It provides two main classes: `Ingredient` for declaring recipe components, and `Recipe` (and its subclasses `Recipe2` and `DeconstructRecipe`) for defining craftable items, their unlock requirements, and associated metadata. Recipes are globally registered in `AllRecipes` and filtered by builder tags or skill levels. The module depends on `techtree.lua` for tier/tech-level management.
+`recipe.lua` defines the core data structures for the crafting system. It provides the `Ingredient` class for representing individual recipe costs, the `Recipe` class for full crafting recipes with tech tree requirements, and helper functions for recipe validation and registration. Recipes are stored in the global `AllRecipes` table and are used by the crafting UI and builder components to determine what players can craft. This file also handles deconstruction recipes and builder-tagged recipes for specialized crafting restrictions.
 
 ## Usage example
 ```lua
-local Recipe = require("recipe")
-local TECH = require("tech")
+require("recipe") -- Loads Recipe and Ingredient globals
 
-local myrecipe = Recipe(
-    "my_craftable",
-    {
-        Ingredient("Twig", 2),
-        Ingredient("Flint", 1),
-        Ingredient(CHARACTER_INGREDIENT.HEALTH, 5),
-    },
-    nil, -- tab (deprecated)
-    TECH.SCIENCE_ONE, -- tech level
-    {placer = "wall" },
-    3.2, -- min_spacing
-    false, -- nounlock
-    1, -- numtogive
-    nil, -- builder_tag
-    "images/inventoryimages.xml",
-    "my_craftable.tex",
-    nil, -- testfn
-    "my_craftable", -- product
-    BUILDMODE.LAND, -- build_mode
-    1 -- build_distance
+-- Create an ingredient
+local log_ingredient = Ingredient(INGREDIENT.LOG, 2)
+
+-- Create a recipe with tech tree requirement
+local axe_recipe = Recipe("axe", 
+    {log_ingredient, Ingredient(INGREDIENT.FLINT, 1)}, 
+    RECIPETABS.TOOLS, 
+    TECH.SCIENCE_ONE, 
+    "axe_placer"
 )
+
+-- Check if recipe is valid in current game mode
+if IsRecipeValid("axe") then
+    print("Axe recipe is available")
+end
+
+-- Get a validated recipe
+local valid_recipe = GetValidRecipe("axe")
 ```
 
 ## Dependencies & tags
-**Components used:** None (this is a data module, not a component).
-**Tags:** None added or removed by the module itself.
+**External dependencies:** `class` -- Class definition framework, `util` -- Utility functions (resolvefilepath), `techtree` -- TechTree.Create() for tech level requirements.
+**Components used:** None identified (this is a data/class file, not an entity component)
+**Tags:** None identified (recipe definitions do not directly manipulate entity tags)
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `type` | `CHARACTER_INGREDIENT` or `TECH_INGREDIENT` or string | — | Ingredient type (e.g., `"Twig"`, `CHARACTER_INGREDIENT.HEALTH`). |
-| `amount` | number | — | Quantity required. For character ingredients, must be a multiple of `CHARACTER_INGREDIENT_SEG`. |
-| `atlas` | string | `nil` | Path to atlas XML for ingredient icons. |
-| `image` | string | inferred from `type` | Image filename (e.g., `"health.tex"`). |
-| `deconstruct` | boolean | `nil` | Unused or legacy field (no usage found). |
-| `name` | string | — | Unique identifier for the recipe. |
-| `product` | string | recipe `name` | The prefab name produced by the recipe. |
-| `ingredients` | table | `{}` | Non-character, non-tech ingredients. |
-| `character_ingredients` | table | `{}` | Ingredients tied to player stats (health/sanity). |
-| `tech_ingredients` | table | `{}` | Ingredients tied to tech/progression (e.g., tech levels). |
-| `tab` | any | `nil` | Deprecated field for UI grouping. |
-| `nameoverride` | string | `nil` | Custom display name in crafting UI. |
-| `description` | string | `nil` | Custom description in crafting UI. |
-| `level` | `TechTree.Level` | `TechTree.Create(level)` | Unlock tech level for the recipe. |
-| `placer` | function or string | `nil` | Function or string hint for how to place the item. |
-| `min_spacing` | number | `3.2` | Minimum distance required between placed instances. |
-| `nounlock` | boolean | `false` | If true, recipe is always craftable (not hidden). |
-| `builder_tag` | string | `nil` | Restricts recipe visibility to builders with this tag (e.g., `"waxwell"`). |
-| `builder_skill` | string | `nil` | Restricts recipe to builders with this skill (e.g., `"waxwell"`). |
-| `no_builder_tag` | boolean | `nil` | Exclude builders with the specified tag. |
-| `no_builder_skill` | boolean | `nil` | Exclude builders with the specified skill. |
-| `filter` | any | `nil` | Custom filtering function or value (used by some mod systems). |
-| `layeredimagefn` | function | `nil` | For layered image generation (e.g., outfits). |
-| `imagefn` | function | `nil` | Dynamic image function. |
-| `is_deconstruction_recipe` | boolean | `false` | True for deconstruction recipes only. |
+| `AllRecipes` | table | `{}` | Global table storing all registered recipes keyed by recipe name. |
+| `AllBuilderTaggedRecipes` | table | `{}` | Global table storing recipes that require specific builder tags or skills. |
+| `Ingredient.type` | constant | — | The ingredient type constant (e.g., `INGREDIENT.LOG`, `CHARACTER_INGREDIENT.HEALTH`). |
+| `Ingredient.amount` | number | — | Quantity of this ingredient required. |
+| `Ingredient.atlas` | string or nil | `nil` | Path to the inventory atlas image for this ingredient. |
+| `Ingredient.image` | string or nil | `nil` | Image override for the ingredient icon. |
+| `Ingredient.deconstruct` | boolean or nil | `nil` | Whether this ingredient is returned on deconstruction. |
+| `Recipe.name` | string | — | Unique identifier name for this recipe. |
+| `Recipe.ingredients` | table | `{}` | Array of standard `Ingredient` objects required for crafting. |
+| `Recipe.character_ingredients` | table | `{}` | Array of character-specific ingredients (health/sanity costs). |
+| `Recipe.tech_ingredients` | table | `{}` | Array of tech tree ingredients (prototyper requirements). |
+| `Recipe.level` | TechTree node | — | Tech tree requirement created via `TechTree.Create(level)`. |
+| `Recipe.placer` | string or nil | `nil` | Prefab name to spawn when this recipe is crafted (for structures). |
+| `Recipe.product` | string | `name` | The prefab name of the item produced by this recipe. |
+| `Recipe.tab` | table or nil | `nil` | Crafting tab category (deprecated in favor of filter system). |
+| `Recipe.image` | string or function or nil | `nil` | Image path or function for the recipe icon in the crafting menu. |
+| `Recipe.atlas` | string or nil | `nil` | Atlas path for the recipe icon. |
+| `Recipe.builder_tag` | string or nil | `nil` | Tag required on the builder entity to craft this recipe. |
+| `Recipe.build_mode` | constant | `BUILDMODE.LAND` | Where this can be built (LAND, WATER, etc.). |
+| `Recipe.numtogive` | number | `1` | Quantity of items produced per craft. |
+| `Recipe.nounlock` | boolean | `false` | If true, recipe does not unlock when prototyped. |
+| `Recipe.is_deconstruction_recipe` | boolean | `false` | If true, this is a deconstruction recipe rather than a craft recipe. |
+| `Recipe.rpc_id` | number | auto-generated | Hash-based RPC identifier for network synchronization. |
 
 ## Main functions
-### `Ingredient(type, amount, atlas, deconstruct, imageoverride)`
-* **Description:** Constructor for an `Ingredient`. Validates character ingredient amounts (must be multiples of `CHARACTER_INGREDIENT_SEG = 5`) and stores recipe input data.
-* **Parameters:**
-  * `type` (string or enum) — Ingredient type; if `CHARACTER_INGREDIENT.HEALTH` or `.SANITY`, must be multiple of 5.
-  * `amount` (number) — Quantity required.
-  * `atlas` (string or `nil`) — Optional custom atlas path.
-  * `deconstruct` (any) — Unused (deprecated).
-  * `imageoverride` (string or `nil`) — Optional custom image filename.
-* **Returns:** `Ingredient` instance.
+### `Ingredient(ingredienttype, amount, atlas, deconstruct, imageoverride)`
+*   **Description:** Constructor for creating an ingredient object representing a cost in a recipe.
+*   **Parameters:**
+    *   `ingredienttype` (constant) — Type of ingredient (e.g., `INGREDIENT.LOG`, `CHARACTER_INGREDIENT.HEALTH`, `TECH_INGREDIENT.SCIENCE`).
+    *   `amount` (number) — Quantity required. Health and sanity costs must be multiples of 5.
+    *   `atlas` (string or nil) — Optional path to the inventory atlas image.
+    *   `deconstruct` (boolean or nil) — Whether this ingredient is returned when the item is deconstructed.
+    *   `imageoverride` (string or nil) — Optional image path override.
+*   **Returns:** `Ingredient` instance.
+*   **Error states:** Asserts if health/sanity ingredient amounts are not multiples of 5.
 
-### `GetAtlas()`
-* **Description:** Resolves and caches the ingredient’s atlas path if not already set; otherwise returns cached value.
-* **Parameters:** None.
-* **Returns:** `string` — Atlas path.
-
-### `GetImage()`
-* **Description:** Returns the ingredient’s image filename, defaulting to `type..".tex"` if not explicitly overridden.
-* **Parameters:** None.
-* **Returns:** `string` — Image filename.
-
-### `Recipe(name, ingredients, tab, level, placer_or_more_data, ...)`
-* **Description:** Main constructor for craftable items. Parses ingredients into categorized tables, registers to `AllRecipes`, and performs mod post-initialization hooks.
-* **Parameters:**
-  * `name` (string) — Unique recipe identifier.
-  * `ingredients` (table of `Ingredient`) — List of required ingredients.
-  * `tab` (any) — Deprecated UI grouping field.
-  * `level` (any) — Tech level required to unlock the recipe (processed by `TechTree.Create`).
-  * `placer_or_more_data` (function/string or table) — Placer hint or `more_data` table with keys like `nameoverride`, `description`, `canbuild`, `builder_tag`, etc.
-  * `min_spacing`, `nounlock`, `numtogive`, `builder_tag`, `atlas`, `image`, `testfn`, `product`, `build_mode`, `build_distance` — Optional overrides (see class definition).
-* **Returns:** `Recipe` instance.
-* **Error states:** Prints a deprecation warning to console if called directly from mod code (use `AddRecipe()` in `modmain.lua` instead).
-
-### `GetValidRecipe(recname)`
-* **Description:** Validates that a recipe is available for the current game mode and any special events. Excludes deconstruction recipes.
-* **Parameters:** `recname` (string) — Recipe name.
-* **Returns:** `Recipe` instance or `nil`.
-
-### `IsRecipeValid(recname)`
-* **Description:** Convenience wrapper for `GetValidRecipe()` — returns `true` if the recipe exists and is valid.
-* **Parameters:** `recname` (string) — Recipe name.
-* **Returns:** `boolean`.
-
-### `RemoveAllRecipes()`
-* **Description:** Resets all recipe collections (`AllRecipes`, `AllBuilderTaggedRecipes`) and the internal recipe counter.
-* **Parameters:** None.
-* **Returns:** Nothing.
+### `Recipe(name, ingredients, tab, level, placer_or_more_data, min_spacing, nounlock, numtogive, builder_tag, atlas, image, testfn, product, build_mode, build_distance)`
+*   **Description:** Constructor for creating a crafting recipe. Registers the recipe in `AllRecipes` automatically.
+*   **Parameters:**
+    *   `name` (string) — Unique recipe identifier.
+    *   `ingredients` (table) — Array of `Ingredient` objects.
+    *   `tab` (table or nil) — Crafting tab (deprecated).
+    *   `level` (TECH constant) — Tech tree requirement.
+    *   `placer_or_more_data` (string or table) — Either a placer prefab name string, or a table with `placer` and additional config options.
+    *   `min_spacing` (number or nil) — Minimum spacing for placement (default `3.2`).
+    *   `nounlock` (boolean or nil) — Whether recipe unlocks on prototype (default `false`).
+    *   `numtogive` (number or nil) — Quantity produced (default `1`).
+    *   `builder_tag` (string or nil) — Tag required on builder entity.
+    *   `atlas` (string or nil) — Icon atlas path.
+    *   `image` (string or function or nil) — Icon image path or function.
+    *   `testfn` (function or nil) — Custom placer test function.
+    *   `product` (string or nil) — Output prefab name (defaults to `name`).
+    *   `build_mode` (constant or nil) — Build mode (default `BUILDMODE.LAND`).
+    *   `build_distance` (number or nil) — Build distance (default `1`).
+*   **Returns:** `Recipe` instance.
+*   **Error states:** Prints warning if called from a mod (should use `AddRecipe` instead). Hash collision error if recipe name conflicts with existing `rpc_id`.
 
 ### `Recipe2(name, ingredients, tech, config)`
-* **Description:** Enhanced constructor with an optional `config` table for structured parameter passing. Calls `Recipe._ctor` internally.
-* **Parameters:**
-  * `name`, `ingredients`, `tech`, `config` (see `Recipe` constructor).
-* **Returns:** `Recipe2` instance (subclass of `Recipe`).
-* **Note:** Sets `is_deconstruction_recipe` to `false`.
+*   **Description:** Simplified Recipe subclass constructor that accepts a config table for optional parameters.
+*   **Parameters:**
+    *   `name` (string) — Recipe identifier.
+    *   `ingredients` (table) — Array of `Ingredient` objects.
+    *   `tech` (TECH constant) — Tech tree requirement.
+    *   `config` (table or nil) — Optional table containing any Recipe constructor parameters (e.g., `min_spacing`, `builder_tag`, `product`).
+*   **Returns:** `Recipe2` instance (subclass of `Recipe`).
+*   **Error states:** None.
 
 ### `DeconstructRecipe(name, return_ingredients, config)`
-* **Description:** Specialized constructor for deconstruction recipes. Always unlocks (`nounlock = true`) and sets `is_deconstruction_recipe = true`.
-* **Parameters:**
-  * `name` (string) — Name of the item being deconstructed.
-  * `return_ingredients` (table of `Ingredient`) — Ingredients produced on deconstruction.
-  * `config` (table or `nil`) — Optional `more_data`.
-* **Returns:** `DeconstructRecipe` instance (subclass of `Recipe`).
+*   **Description:** Constructor for deconstruction recipes that define what ingredients are returned when an item is deconstructed.
+*   **Parameters:**
+    *   `name` (string) — Recipe identifier.
+    *   `return_ingredients` (table) — Array of `Ingredient` objects returned on deconstruction.
+    *   `config` (table or nil) — Optional config table for additional parameters.
+*   **Returns:** `DeconstructRecipe` instance.
+*   **Error states:** None.
+
+### `IsCharacterIngredient(ingredienttype)`
+*   **Description:** Checks if an ingredient type is a character-specific ingredient (health or sanity cost).
+*   **Parameters:**
+    *   `ingredienttype` (constant) — The ingredient type to check.
+*   **Returns:** `boolean` — `true` if the ingredient is a character ingredient.
+*   **Error states:** None.
+
+### `IsTechIngredient(ingredienttype)`
+*   **Description:** Checks if an ingredient type is a tech tree ingredient (prototyper requirement).
+*   **Parameters:**
+    *   `ingredienttype` (constant) — The ingredient type to check.
+*   **Returns:** `boolean` — `true` if the ingredient is a tech ingredient.
+*   **Error states:** None.
+
+### `GetValidRecipe(recname)`
+*   **Description:** Retrieves a recipe if it is valid for the current game mode and any special event requirements are met.
+*   **Parameters:**
+    *   `recname` (string) — Recipe name to look up.
+*   **Returns:** `Recipe` or `nil` — The recipe object if valid, `nil` otherwise.
+*   **Error states:** Returns `nil` if `TheNet` is unavailable, recipe is deconstruction-only, or special event requirement is not active.
+
+### `IsRecipeValid(recname)`
+*   **Description:** Convenience function to check if a recipe is valid without retrieving the full recipe object.
+*   **Parameters:**
+    *   `recname` (string) — Recipe name to check.
+*   **Returns:** `boolean` — `true` if recipe is valid and available.
+*   **Error states:** None.
+
+### `RemoveAllRecipes()`
+*   **Description:** Clears all registered recipes from `AllRecipes` and `AllBuilderTaggedRecipes`. Used for world regeneration or testing.
+*   **Parameters:** None.
+*   **Returns:** None.
+*   **Error states:** None.
+
+### `Recipe:GetAtlas()`
+*   **Description:** Resolves and returns the atlas path for the recipe icon, caching the result.
+*   **Parameters:** None.
+*   **Returns:** `string` — Path to the atlas file.
+*   **Error states:** None.
+
+### `Recipe:SetModRPCID()`
+*   **Description:** Generates and assigns a hash-based RPC ID for the recipe. Checks for collisions with existing recipes.
+*   **Parameters:** None.
+*   **Returns:** None (sets `self.rpc_id`).
+*   **Error states:** Prints error if hash collision detected with another recipe name.
 
 ## Events & listeners
-*None identified.*
+None. This file defines data classes and does not interact with the event system directly.

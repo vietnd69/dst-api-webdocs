@@ -5,11 +5,11 @@ description: A self-contained speech database for the Walter character that maps
 tags: [speech, audio, character, localization, data]
 sidebar_position: 10
 
-last_updated: 2026-03-10
-build_version: 714014
-change_status: stable
+last_updated: 2026-04-04
+build_version: 718694
+change_status: data_patched
 category_type: root
-source_hash: fac6fab6
+source_hash: be38bd9d
 system_scope: player
 ---
 

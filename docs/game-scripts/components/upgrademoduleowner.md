@@ -1,150 +1,147 @@
 ---
 id: upgrademoduleowner
-title: Upgrademoduleowner
-description: Manages a collection of upgrade modules and their charge-based activation state for an entity.
-tags: [inventory, upgrading, charge]
+title: UpgradeModuleOwner
+description: Manages upgrade modules and electric charge levels for WX-78 character entities.
+tags: [upgrade, wx78, modules, electric]
 sidebar_position: 10
-last_updated: 2026-03-03
-build_version: 714014
+
+last_updated: 2026-04-04
+build_version: 718694
 change_status: stable
 category_type: components
-source_hash: ea07475f
+source_hash: 1f8488bc
 system_scope: entity
 ---
-# Upgrademoduleowner
 
-> Based on game build **714014** | Last updated: 2026-03-03
+# UpgradeModuleOwner
+
+> Based on game build **718694** | Last updated: 2026-04-04
 
 ## Overview
-`Upgrademoduleowner` serves as the central manager for upgrade modules attached to an entity, such as WX-78's electrical charge system. It maintains a list of installed modules, tracks available charge, and automatically activates or deactivates modules based on available charge relative to slot costs. It interacts closely with the `upgrademodule` component and integrates with save/load, event propagation, and UI synchronization.
+`UpgradeModuleOwner` manages upgrade modules and electric charge levels for WX-78 character entities. It tracks installed modules, their slot costs, and activation states based on available charge. This component is central to WX-78's upgrade system, coordinating module installation, removal, and power management within the Entity Component System.
 
 ## Usage example
 ```lua
 local inst = CreateEntity()
 inst:AddComponent("upgrademoduleowner")
-inst.components.upgrademoduleowner:SetChargeLevel(200)
--- Attach a module (e.g., after validation)
-local module = TheEntMan:CreateEntity("wx78module_charge")
-inst.components.upgrademoduleowner:PushModule(module, false)
--- Check module count or activation
-local active = inst.components.upgrademoduleowner:GetModuleInSlot(1)
-local num_modules = inst.components.upgrademoduleowner:NumModules()
+inst.components.upgrademoduleowner:SetChargeLevel(10)
+
+local module = SpawnPrefab("wx78module_attack")
+if inst.components.upgrademoduleowner:CanUpgrade(module) then
+    inst.components.upgrademoduleowner:PushModule(module)
+end
 ```
 
 ## Dependencies & tags
-**Components used:** `upgrademodule` (via `module.components.upgrademodule`)
-**Tags:** Adds `upgrademoduleowner` when initialized; removes it on entity removal.
+**Components used:** `upgrademodule` (on module entities), `player_classified` (optional, for UI replication)
+**Tags:** Adds `upgrademoduleowner` on initialization; removes `upgrademoduleowner` on component removal.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `modules` | table | `{}` | List of attached module entities. |
-| `charge_level` | number | `0` | Current electrical charge available. |
-| `max_charge` | number | `TUNING.WX78_MAXELECTRICCHARGE` | Maximum possible charge. |
-| `upgrade_cooldown` | number | `15*FRAMES` | Minimum time (in frames) between module installations. |
-| `onmoduleadded` | function | `nil` | Optional callback when a module is added. |
-| `onmoduleremoved` | function | `nil` | Optional callback when a module is removed. |
-| `onallmodulespopped` | function | `nil` | Optional callback when all modules are removed. |
-| `ononemodulepopped` | function | `nil` | Optional callback when one module is popped. |
-| `canupgradefn` | function | `nil` | Optional predicate to allow/block new upgrades. |
+| `modules` | table | `{}` | Array of installed module entity references. |
+| `charge_level` | number | `0` | Current electric charge level. |
+| `max_charge` | number | `TUNING.WX78_MAXELECTRICCHARGE` | Maximum charge capacity. |
+| `upgrade_cooldown` | number | `15*FRAMES` | Cooldown period between upgrades in frames. |
+| `canupgradefn` | function | `nil` | Optional custom validation function for upgrades. |
+| `onmoduleadded` | function | `nil` | Callback fired when a module is added. |
+| `onmoduleremoved` | function | `nil` | Callback fired when a module is removed. |
+| `onallmodulespopped` | function | `nil` | Callback fired when all modules are removed. |
+| `ononemodulepopped` | function | `nil` | Callback fired when one module is removed. |
+| `_last_upgrade_time` | number | `nil` | Timestamp of the last upgrade action. |
 
 ## Main functions
 ### `NumModules()`
-*   **Description:** Returns the total number of modules currently installed.
+*   **Description:** Returns the total number of installed modules.
 *   **Parameters:** None.
-*   **Returns:** `number` — the number of modules in `modules`.
+*   **Returns:** `number` - Count of modules in the `modules` table.
 
 ### `GetModuleInSlot(slotnum)`
-*   **Description:** Retrieves the module installed at a specific slot index.
-*   **Parameters:** `slotnum` (number) — 1-based index of the slot.
-*   **Returns:** `entity?` — the module entity, or `nil` if slot is empty.
+*   **Description:** Retrieves a module at a specific slot index.
+*   **Parameters:** `slotnum` (number) - The index in the modules array.
+*   **Returns:** `entity` or `nil` - The module entity at that slot, or `nil` if empty.
 
 ### `GetModuleTypeCount(moduletype)`
-*   **Description:** Counts how many modules of a specific type (e.g., `"charge"`, `"speed"`) are installed.
-*   **Parameters:** `moduletype` (string) — the type suffix used to build the module prefab name (`"wx78module_"..moduletype`).
-*   **Returns:** `number` — count of matching modules.
+*   **Description:** Counts how many modules of a specific type are installed.
+*   **Parameters:** `moduletype` (string) - The module type identifier (e.g., `"attack"`, `"speed"`).
+*   **Returns:** `number` - Count of matching modules.
 
 ### `UsedSlotCount()`
 *   **Description:** Calculates total slot cost of all installed modules.
 *   **Parameters:** None.
-*   **Returns:** `number` — sum of `slots` values from each module’s `upgrademodule` component.
+*   **Returns:** `number` - Sum of all module slot costs.
 
 ### `CanUpgrade(module_instance)`
-*   **Description:** Determines whether a new module can be installed.
-*   **Parameters:** `module_instance` (entity) — the module to be installed.
-*   **Returns:** 
-  *   `true` — if allowed.
-  *   `false, "COOLDOWN"` — if the upgrade cooldown has not elapsed.
-  *   The result of `canupgradefn(inst, module_instance)` if that callback is set.
-
-### `UpdateActivatedModules(isloading)`
-*   **Description:** Iterates over installed modules, activates or deactivates them based on remaining charge after deducting slot costs.
-*   **Parameters:** `isloading` (boolean) — whether this is during a load operation (passed to module activation).
-*   **Returns:** Nothing.
+*   **Description:** Validates whether a module can be installed.
+*   **Parameters:** `module_instance` (entity) - The module entity to validate.
+*   **Returns:** `(boolean, string?)` - `true` if upgrade is allowed; `false` with reason string (e.g., `"COOLDOWN"`) if blocked.
+*   **Error states:** Returns `false, "COOLDOWN"` if upgrade cooldown is active.
 
 ### `PushModule(module, isloading)`
-*   **Description:** Adds a module to the owner, connects it to the scene hierarchy, and updates activation states.
-*   **Parameters:** 
-  *   `module` (entity) — the module to install.
-  *   `isloading` (boolean) — whether loading from save.
+*   **Description:** Installs a module onto the entity.
+*   **Parameters:** `module` (entity) - The module entity to install. `isloading` (boolean, optional) - Whether this is during save load.
 *   **Returns:** Nothing.
+*   **Side Effects:** Sets `_last_upgrade_time` to enforce cooldown after installation.
 
 ### `PopModule(index)`
-*   **Description:** Removes and returns the module at the given index (defaults to last module).
-*   **Parameters:** `index` (number) — 1-based slot index to remove. Defaults to `#self.modules`.
-*   **Returns:** `entity?` — the removed module, or `nil` if none.
+*   **Description:** Removes a module at a specific index, or the last module if no index is provided.
+*   **Parameters:** `index` (number, optional) - Module array index; defaults to last module if omitted.
+*   **Returns:** `entity` or `nil` - The removed module entity, or `nil` if no modules exist.
 
 ### `PopAllModules()`
-*   **Description:** Removes all installed modules one by one.
+*   **Description:** Removes all installed modules.
 *   **Parameters:** None.
 *   **Returns:** Nothing.
 
 ### `PopOneModule()`
-*   **Description:** Removes the last installed module and returns the energy cost equivalent to the module's slots *if* it was fully charged at removal time.
+*   **Description:** Removes the last module if available and returns its energy cost if it was charged, otherwise returns 0.
 *   **Parameters:** None.
-*   **Returns:** `number` — energy cost recovered (same as `slots` of popped module if fully charged), or `0` if no modules.
+*   **Returns:** `number` - Energy cost of the removed module if it was charged, otherwise `0`.
 
 ### `SetChargeLevel(new_level)`
-*   **Description:** Updates the current charge level, clamps it to `[0, max_charge]`, and re-evaluates activation states.
-*   **Parameters:** `new_level` (number) — desired charge amount.
+*   **Description:** Sets the current charge level, clamped to valid range.
+*   **Parameters:** `new_level` (number) - The new charge level.
 *   **Returns:** Nothing.
 
 ### `AddCharge(n)`
-*   **Description:** Increases charge level by `n`, clamped to `max_charge`.
-*   **Parameters:** `n` (number) — amount of charge to add (can be negative).
+*   **Description:** Adds or subtracts charge from the current level.
+*   **Parameters:** `n` (number) - Amount to add (negative values subtract).
 *   **Returns:** Nothing.
 
 ### `ChargeIsMaxed()`
-*   **Description:** Checks if charge is at maximum.
+*   **Description:** Checks if charge is at maximum capacity.
 *   **Parameters:** None.
-*   **Returns:** `boolean` — `true` if `charge_level == max_charge`.
+*   **Returns:** `boolean` - `true` if `charge_level` equals `max_charge`.
 
 ### `IsChargeEmpty()`
-*   **Description:** Checks if charge is zero.
+*   **Description:** Checks if charge level is zero.
 *   **Parameters:** None.
-*   **Returns:** `boolean` — `true` if `charge_level == 0`.
+*   **Returns:** `boolean` - `true` if `charge_level` is `0`.
+
+### `UpdateActivatedModules(isloading)`
+*   **Description:** Updates module activation states based on available charge. Deactivates modules that exceed available charge slots.
+*   **Parameters:** `isloading` (boolean, optional) - Whether this is during save load.
+*   **Returns:** Nothing.
 
 ### `OnSave()`
-*   **Description:** Generates serializable save data for modules and charge state.
+*   **Description:** Serializes component state for persistence.
 *   **Parameters:** None.
-*   **Returns:** 
-  *   `data` (table) — `{ modules = {...}, charge_level = number }`
-  *   `our_references` (table) — list of referenced entity save records.
+*   **Returns:** `table`, `table` - Save data and object references.
 
 ### `OnLoad(data, newents)`
-*   **Description:** Restores modules and charge level from saved data.
-*   **Parameters:** 
-  *   `data` (table) — save data from `OnSave`.
-  *   `newents` (table) — mapping of restored entities.
+*   **Description:** Restores component state from saved data.
+*   **Parameters:** `data` (table) - Saved component data. `newents` (table) - Entity reference mapping.
 *   **Returns:** Nothing.
 
 ### `GetDebugString()`
-*   **Description:** Returns a human-readable debug string describing current charge and installed modules.
+*   **Description:** Returns debug information for console output.
 *   **Parameters:** None.
-*   **Returns:** `string` — formatted debug info.
+*   **Returns:** `string` - Formatted debug string with charge level and module list.
+
+### `OnRemoveFromEntity()`
+*   **Description:** Cleanup handler when component is removed from entity.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ## Events & listeners
-- **Listens to:** `charge_level` property change — triggers `on_charge_level_changed` callback.
-- **Pushes:** `energylevelupdate` with `{ new_level = number, old_level = number }` whenever charge level changes.
-- **Callbacks:** Supports optional user-defined callbacks `onmoduleadded`, `onmoduleremoved`, `onallmodulespopped`, `ononemodulepopped`, and `canupgradefn`.
-
+- **Pushes:** `energylevelupdate` - Fired when charge level changes; data includes `new_level` and `old_level`.

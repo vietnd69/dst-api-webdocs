@@ -1,121 +1,106 @@
 ---
 id: datagrid
 title: Datagrid
-description: A utility class for managing a 2D grid of data stored in a 1D Lua table, supporting coordinate-to-index conversion and basic persistence operations.
-tags: [util, data, grid]
+description: Provides a 2D grid data structure backed by a 1D table for efficient spatial data storage.
+tags: [data, utility, grid]
 sidebar_position: 10
 
-last_updated: 2026-03-10
+last_updated: 2026-03-21
 build_version: 714014
 change_status: stable
 category_type: root
 source_hash: e65e7202
-system_scope: util
+system_scope: ui
 ---
 
 # Datagrid
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **714014** | Last updated: 2026-03-21
 
 ## Overview
-`DataGrid` is a lightweight utility component that provides a 2D grid interface backed by a 1D Lua table. It supports indexing via `(x, y)` coordinates or linear `index`, enabling efficient storage and retrieval of grid-based data. This component is self-contained and does not integrate with the ECS or require attachment to an entity—it is designed for standalone use in utility or helper contexts.
+`DataGrid` is a utility class that manages a two-dimensional grid using a single linear table. It provides methods to convert between 2D coordinates (`x`, `y`) and 1D array indices, allowing for efficient storage and retrieval of data in a spatial layout. This class is commonly used for inventory grids, map data, or UI layouts where cell-based data access is required.
 
 ## Usage example
 ```lua
-local grid = DataGrid(5, 5) -- 5x5 grid
-grid:SetDataAtPoint(2, 3, "water")
-local value = grid:GetDataAtPoint(2, 3)
-local index = grid:GetIndex(2, 3) -- returns 17
-local x, y = grid:GetXYFromIndex(17) -- returns 2, 3
-local saved = grid:Save()
-local loaded = DataGrid(0, 0)
-loaded:Load(saved)
+local DataGrid = require("datagrid")
+
+-- Create a 10x10 grid
+local grid = DataGrid(10, 10)
+
+-- Set data at coordinate 2, 3
+grid:SetDataAtPoint(2, 3, "item_data")
+
+-- Retrieve data using index
+local index = grid:GetIndex(2, 3)
+local data = grid:GetDataAtIndex(index)
 ```
 
 ## Dependencies & tags
-**Components used:** None identified  
-**Tags:** None identified  
+**Components used:** None identified.
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `grid` | table | `{}` | Internal 1D table storing grid data, indexed linearly. |
-| `width` | number | — | Width of the grid (number of columns), set at construction. |
-| `height` | number | — | Height of the grid (number of rows), set at construction. |
+| `grid` | table | `{}` | Internal 1D table storing grid cell data. |
+| `width` | number | `width` | The number of columns in the grid. |
+| `height` | number | `height` | The number of rows in the grid. |
 
 ## Main functions
 ### `Width()`
-* **Description:** Returns the grid's width (number of columns).
-* **Parameters:** None.
-* **Returns:** `number` — the width.
+*   **Description:** Returns the total width of the grid.
+*   **Parameters:** None.
+*   **Returns:** `number` - The width value set during construction.
 
 ### `Height()`
-* **Description:** Returns the grid's height (number of rows).
-* **Parameters:** None.
-* **Returns:** `number` — the height.
+*   **Description:** Returns the total height of the grid.
+*   **Parameters:** None.
+*   **Returns:** `number` - The height value set during construction.
 
 ### `GetMaxSize()`
-* **Description:** Returns the total number of cells in the grid (width × height).
-* **Parameters:** None.
-* **Returns:** `number` — maximum capacity.
+*   **Description:** Calculates the total number of cells available in the grid.
+*   **Parameters:** None.
+*   **Returns:** `number` - The product of `width` and `height`.
 
 ### `GetIndex(x, y)`
-* **Description:** Converts `(x, y)` coordinates to a linear index. Indexing assumes 0-based x and y, with row-major layout (x varies fastest).
-* **Parameters:**  
-  - `x` (`number`) — column index (0-based).  
-  - `y` (`number`) — row index (0-based).  
-* **Returns:** `number` — linear index into `self.grid`.
-* **Error states:** No bounds checking is performed; invalid coordinates may yield out-of-range or negative indices.
+*   **Description:** Converts 2D coordinates into a 1D array index.
+*   **Parameters:** `x` (number) - The column coordinate. `y` (number) - The row coordinate.
+*   **Returns:** `number` - The linear index corresponding to the coordinates.
 
 ### `GetXYFromIndex(index)`
-* **Description:** Converts a linear index back to `(x, y)` coordinates.
-* **Parameters:**  
-  - `index` (`number`) — linear index (1D position in grid).  
-* **Returns:** `number, number` — `x` and `y` coordinates.
-* **Error states:** No validation is done on `index`; negative or non-integer inputs may yield undefined results.
+*   **Description:** Converts a 1D array index back into 2D coordinates.
+*   **Parameters:** `index` (number) - The linear index within the grid.
+*   **Returns:** `number`, `number` - The `x` and `y` coordinates respectively.
 
 ### `GetDataAtPoint(x, y)`
-* **Description:** Retrieves the data stored at a specific `(x, y)` coordinate.
-* **Parameters:**  
-  - `x` (`number`) — column index.  
-  - `y` (`number`) — row index.  
-* **Returns:** `any` — the stored data, or `nil` if unset or out of bounds.
-* **Error states:** Delegates to `GetIndex()` and `GetDataAtIndex()`, which perform no bounds checks.
+*   **Description:** Retrieves data stored at a specific 2D coordinate.
+*   **Parameters:** `x` (number) - The column coordinate. `y` (number) - The row coordinate.
+*   **Returns:** `any` - The data stored at the location, or `nil` if empty.
 
 ### `SetDataAtPoint(x, y, data)`
-* **Description:** Stores `data` at the specified `(x, y)` coordinate.
-* **Parameters:**  
-  - `x` (`number`) — column index.  
-  - `y` (`number`) — row index.  
-  - `data` (`any`) — any Lua value to store.  
-* **Returns:** `nil`.  
-* **Error states:** No bounds checking; assignments may overwrite unintended entries or create sparse table entries.
+*   **Description:** Stores data at a specific 2D coordinate.
+*   **Parameters:** `x` (number) - The column coordinate. `y` (number) - The row coordinate. `data` (any) - The value to store.
+*   **Returns:** Nothing.
 
 ### `GetDataAtIndex(index)`
-* **Description:** Retrieves data at a linear index.
-* **Parameters:**  
-  - `index` (`number`) — linear index.  
-* **Returns:** `any` — stored data, or `nil` if unset.
-* **Error states:** No validation of `index`; invalid indices return `nil` silently.
+*   **Description:** Retrieves data stored at a specific 1D index.
+*   **Parameters:** `index` (number) - The linear index.
+*   **Returns:** `any` - The data stored at the index, or `nil` if empty.
 
 ### `SetDataAtIndex(index, data)`
-* **Description:** Stores `data` at a linear index.
-* **Parameters:**  
-  - `index` (`number`) — linear index.  
-  - `data` (`any`) — value to store.  
-* **Returns:** Nothing.
+*   **Description:** Stores data at a specific 1D index.
+*   **Parameters:** `index` (number) - The linear index. `data` (any) - The value to store.
+*   **Returns:** Nothing.
 
 ### `Save()`
-* **Description:** Returns the internal `grid` table for serialization.
-* **Parameters:** None.
-* **Returns:** `table` — reference to `self.grid`.
+*   **Description:** Exports the internal grid table for serialization.
+*   **Parameters:** None.
+*   **Returns:** `table` - The raw grid data.
 
 ### `Load(grid)`
-* **Description:** Replaces the internal `grid` table with the provided `grid` table.
-* **Parameters:**  
-  - `grid` (`table`) — a table to use as the new internal grid.  
-* **Returns:** Nothing.  
-* **Note:** Does not validate structure or dimensions; caller must ensure `grid` matches expected size.
+*   **Description:** Replaces the internal grid table with loaded data.
+*   **Parameters:** `grid` (table) - The table containing grid data to load.
+*   **Returns:** Nothing.
 
 ## Events & listeners
-Not applicable
+None identified.

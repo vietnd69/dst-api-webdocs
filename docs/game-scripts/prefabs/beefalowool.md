@@ -1,11 +1,11 @@
 ---
 id: beefalowool
 title: Beefalowool
-description: A single stackable wool item that functions as fuel, a cat toy, and a burnable item in the DST game.
-tags: [inventory, fuel, item, craftable]
+description: Defines the beefalo wool inventory item prefab with burning, stacking, and trading capabilities.
+tags: [inventory, item, fuel, prefab]
 sidebar_position: 10
 
-last_updated: 2026-03-04
+last_updated: 2026-03-20
 build_version: 714014
 change_status: stable
 category_type: prefabs
@@ -15,53 +15,40 @@ system_scope: inventory
 
 # Beefalowool
 
-> Based on game build **714014** | Last updated: 2026-03-04
+> Based on game build **714014** | Last updated: 2026-03-20
 
 ## Overview
-`beefalowool` is a simple item prefab representing wool collected from Beefalo. As an entity, it supports inventory handling, stacking, and burning mechanics. It is added to the world as a lightweight item with visual animation, physics for picking up and dropping, and network synchronization. It is commonly used as crafting fuel, a cat toy (via the `cattoy` tag), and can be ignited or burned.
+The `beefalowool` prefab defines the Beefalo Wool entity found in Don't Starve Together. It configures the entity as an inventory item that can be stacked, traded, and used as fuel. The prefab attaches standard components to handle inspection, inventory management, and combustion properties. It is typically spawned via the prefab system rather than instantiated directly by modders.
 
 ## Usage example
 ```lua
+-- Spawn the beefalo wool prefab
 local inst = SpawnPrefab("beefalowool")
-if inst then
-    inst.components.inventoryitem:Equip()
-    inst.components.stackable:SetSize(5)
-    inst.components.fuel:Ignite()
+
+-- Access component properties
+local fuel_value = inst.components.fuel.fuelvalue
+local max_stack = inst.components.stackable.maxsize
+
+-- Add to player inventory
+if ThePlayer then
+    ThePlayer.components.inventory:GiveItem(inst)
 end
 ```
 
 ## Dependencies & tags
-**Components used:** `inspectable`, `inventoryitem`, `stackable`, `tradable`, `fuel`, `burnable`, `propagator`, `hauntable`
-**Tags:** `cattoy` (added unconditionally), `ammable`, `burnable`, `fuel` (via `MakeSmallBurnable` and `MakeSmallPropagator`)
+**Components used:** `inspectable`, `inventoryitem`, `stackable`, `tradable`, `fuel`
+**Tags:** Adds `cattoy`
 
 ## Properties
+The following properties are configured on the entity's components during instantiation.
+
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `fuelvalue` | number | `TUNING.MED_FUEL` | Fuel energy value used by the `fuel` component. |
-| `maxsize` | number | `TUNING.STACK_SIZE_SMALLITEM` | Maximum stack size for this item. |
+| `components.fuel.fuelvalue` | number | `TUNING.MED_FUEL` | Amount of fuel provided when burned in a fire pit. |
+| `components.stackable.maxsize` | number | `TUNING.STACK_SIZE_SMALLITEM` | Maximum number of items allowed in a single stack. |
 
 ## Main functions
-### `Fuel:Ignite()`
-* **Description:** Ignites the item immediately if it has fuel value and is not already burning. This is a method on the attached `fuel` component.
-* **Parameters:** None.
-* **Returns:** Nothing.
-* **Error states:** No effect if the item is not flammable or already burning.
-
-### `Stackable:SetSize(size)`
-* **Description:** Updates the current stack size. Used when combining or splitting stacks.
-* **Parameters:** `size` (number) — new stack count. Must be between `1` and `maxsize`.
-* **Returns:** Nothing.
-* **Error states:** silently clamps values outside the valid range.
-
-### `InventoryItem:Equip(slot, child, anim, animname)`
-* **Description:** Equips the item (e.g., as a held item or accessory). Note: `beefalowool` is typically unequipable and used only as a resource.
-* **Parameters:**
-  * `slot` (string) — inventory slot name (e.g., `"right_hand"`).
-  * `child` (optional entity) — child entity to attach to.
-  * `anim` (optional string) — animation bank.
-  * `animname` (optional string) — animation name.
-* **Returns:** Nothing.
+None identified. This prefab does not expose custom methods on the entity or component tables. Interaction is handled through standard component APIs (e.g., `inst.components.inventoryitem`).
 
 ## Events & listeners
-- **Listens to:** None identified directly in `beefalowool.lua`.
-- **Pushes:** None directly in this file. Event handling is delegated via components like `burnable`, `hauntable`, and `fuel`.
+None identified. The prefab does not register custom event listeners or push custom events in its constructor logic.

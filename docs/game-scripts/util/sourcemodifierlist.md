@@ -1,119 +1,164 @@
 ---
 id: sourcemodifierlist
-title: Sourcemodifierlist
-description: Manages and recalculates numerical or boolean modifiers from multiple external sources, supporting multiple modifiers per source via optional keys.
-tags: [util, modifier, calculation]
+title: SourceModifierList
+description: A utility class that manages and calculates modifiers applied by multiple external sources with optional key-based tracking.
+tags: [utility, modifiers, calculation]
 sidebar_position: 10
 
-last_updated: 2026-03-08
-build_version: 714014
+last_updated: 2026-04-04
+build_version: 718694
 change_status: stable
 category_type: util
-source_hash: e6c208e8
+source_hash: 3be43aba
 system_scope: entity
 ---
 
-# Sourcemodifierlist
+# SourceModifierList
 
-> Based on game build **714014** | Last updated: 2026-03-08
+> Based on game build **718694** | Last updated: 2026-04-04
 
 ## Overview
-`SourceModifierList` is a utility component that stores and computes cumulative modifiers applied by external entities or logic. It maintains a base value (e.g., `1` for multiplicative or `0` for additive cases) and combines incoming modifier values using a configurable binary function (`fn`). It supports both single-modifier-per-source and multi-modifier-per-source (via optional `key`) use cases. It also automatically cleans up listeners when an external modifier source is removed from the game.
+`SourceModifierList` is a utility class that manages modifiers applied by external sources to a base value. It supports tracking multiple modifiers from the same source using optional keys, automatically cleans up when source entities are removed from the game, and recalculates the final modifier value when changes occur. This class is commonly used for stats that need dynamic modification from multiple sources, such as damage multipliers, speed bonuses, or resource yield adjustments.
 
 ## Usage example
 ```lua
-local inst = CreateEntity()
-inst:AddComponent("sourcemodifierlist")
+local SourceModifierList = require "util/sourcemodifierlist"
 
--- Set up multiplicative modifiers (e.g., damage multiplier)
-inst.components.sourcemodifierlist:SetModifier("buff1", 1.5)
-inst.components.sourcemodifierlist:SetModifier("buff2", 2, "stack1")
-inst.components.sourcemodifierlist:SetModifier("buff2", 2, "stack2")
+-- Create a modifier list with base value 1.0 using multiplication
+local modList = SourceModifierList(inst, 1.0, SourceModifierList.multiply)
 
--- Get the final computed value
-local final_multiplier = inst.components.sourcemodifierlist:Get()  -- 1 * 1.5 * 2 * 2 = 6
+-- Add a 50% damage bonus from a specific source
+modList:SetModifier(damageBuffItem, 1.5, "damage_bonus")
 
--- Remove a specific key's modifier
-inst.components.sourcemodifierlist:RemoveModifier("buff2", "stack1")
+-- Add another modifier from a different source
+modList:SetModifier(playerSkill, 1.2, "skill_multiplier")
 
--- Check if a modifier exists
-local has_buff1 = inst.components.sourcemodifierlist:HasModifier("buff1")
+-- Get the final calculated modifier
+local finalModifier = modList:Get() -- Returns 1.8 (1.0 * 1.5 * 1.2)
+
+-- Remove a specific modifier
+modList:RemoveModifier(damageBuffItem, "damage_bonus")
 ```
 
 ## Dependencies & tags
-**Components used:** None identified  
+**Components used:** None identified
 **Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `_modifiers` | table | `{}` | Internal map: `{ source => { modifiers = { [key] = value }, onremove = callback? } }` |
-| `_base` | number | `1` (if no `base_value` passed) | Starting value before applying modifiers. |
-| `_modifier` | number | `_base` | Cached result of combining all modifiers with `_base`. |
-| `_fn` | function | `SourceModifierList.multiply` | Binary function used to combine modifiers (e.g., `multiply`, `additive`). |
-| `_dirtycb` | function? | `nil` | Optional callback invoked as `dirtycb(inst, final_value)` on recalculation. |
+| `inst` | entity | — | The entity instance that owns this modifier list; used for event listening. |
+| `_modifiers` | table | `{}` | Internal table storing all active modifiers organized by source. |
+| `_modifier` | number | `1` | The current calculated modifier value after all sources are applied. |
+| `_base` | number | `1` | The base value before any modifiers are applied. |
+| `_fn` | function | `multiply` | The function used to combine modifiers (multiply, additive, or boolean). |
+| `_dirtycb` | function | `nil` | Optional callback fired when the modifier value changes; receives `(inst, newValue)`. |
 
 ## Main functions
+### `SourceModifierList(inst, base_value, fn, dirtycb)`
+*   **Description:** Constructor that creates a new SourceModifierList instance.
+*   **Parameters:**
+    *   `inst` (entity) — The entity instance that owns this modifier list.
+    *   `base_value` (number, optional) — The base value before modifiers; defaults to `1` if nil.
+    *   `fn` (function, optional) — The function used to combine modifiers; defaults to `SourceModifierList.multiply`.
+    *   `dirtycb` (function, optional) — Callback fired when the modifier value changes.
+*   **Returns:** A new `SourceModifierList` instance.
+*   **Error states:** None.
+
 ### `Get()`
-* **Description:** Returns the current computed modifier value (`_modifier`).
-* **Parameters:** None.
-* **Returns:** `number` — the accumulated modifier.
+*   **Description:** Returns the current calculated modifier value after all sources are applied.
+*   **Parameters:** None.
+*   **Returns:** (number) The final modifier value.
+*   **Error states:** None.
 
 ### `IsEmpty()`
-* **Description:** Checks whether any modifiers have been applied.
-* **Parameters:** None.
-* **Returns:** `boolean` — `true` if no modifiers exist.
+*   **Description:** Checks if the modifier list has any active modifiers.
+*   **Parameters:** None.
+*   **Returns:** (boolean) `true` if no modifiers are present, `false` otherwise.
+*   **Error states:** None.
 
 ### `RecalculateModifier()`
-* **Description:** Recomputes the final modifier by applying `_fn` cumulatively to `_base` and all stored modifiers. Triggers `_dirtycb` if present.
-* **Parameters:** None.
-* **Returns:** Nothing.
+*   **Description:** Recalculates the final modifier value by applying all active modifiers to the base value using the combination function. Fires the dirty callback if one is registered.
+*   **Parameters:** None.
+*   **Returns:** None.
+*   **Error states:** None.
 
 ### `SetModifier(source, m, key)`
-* **Description:** Adds or updates a modifier. If `m` is `nil` or equals `_base`, it removes the modifier instead.
-* **Parameters:**  
-  - `source` (object or string) — Identifier for the modifier origin. Objects receive an automatic `"onremove"` listener for cleanup.  
-  - `m` (number or boolean) — Modifier value.  
-  - `key` (string, optional) — Used to disambiguate multiple modifiers from the same source (default: `"key"`).  
-* **Returns:** Nothing.
+*   **Description:** Sets or updates a modifier from a specific source. If the source is an entity, automatically registers cleanup when the entity is removed from the game.
+*   **Parameters:**
+    *   `source` (entity or string) — The source applying the modifier; can be an entity or identifier name.
+    *   `m` (number or boolean) — The modifier value to apply.
+    *   `key` (string, optional) — Optional key to distinguish multiple modifiers from the same source; defaults to `"key"`.
+*   **Returns:** None.
+*   **Error states:** If `source` is nil, the function returns early without making changes. If `m` is nil or equals the base value, the modifier is removed instead.
 
 ### `RemoveModifier(source, key)`
-* **Description:** Removes a specific modifier (by `key`) or the entire source if `key` is omitted.
-* **Parameters:**  
-  - `source` (object or string) — The modifier source to remove.  
-  - `key` (string, optional) — Specific key to remove. Omit to remove all modifiers from `source`.  
-* **Returns:** Nothing.
+*   **Description:** Removes a modifier from a specific source. If key is provided, only removes that specific modifier; otherwise removes all modifiers from the source.
+*   **Parameters:**
+    *   `source` (entity or string) — The source to remove modifiers from.
+    *   `key` (string, optional) — Specific modifier key to remove; if nil, removes all modifiers from the source.
+*   **Returns:** None.
+*   **Error states:** If the source has no modifiers, the function returns early without changes.
 
 ### `Reset()`
-* **Description:** Clears all modifiers and restores `_modifier` to `_base`. Removes all `"onremove"` listeners.
-* **Parameters:** None.
-* **Returns:** Nothing.
+*   **Description:** Removes all modifiers from all sources and resets the modifier value to the base value. Cleans up all event listeners.
+*   **Parameters:** None.
+*   **Returns:** None.
+*   **Error states:** None.
 
 ### `CalculateModifierFromSource(source, key)`
-* **Description:** Computes the contribution of a specific source to the final modifier *without* updating the cached `_modifier`.
-* **Parameters:**  
-  - `source` (object or string) — Modifier source.  
-  - `key` (string, optional) — Specific key. If omitted, combines all modifiers from `source`.  
-* **Returns:** `number` — computed contribution of `source` (or `nil` → falls back to `_base`).
+*   **Description:** Calculates the modifier value from a specific source without affecting the main modifier list state.
+*   **Parameters:**
+    *   `source` (entity or string) — The source to calculate modifiers from.
+    *   `key` (string, optional) — Specific modifier key; if nil, calculates all modifiers from the source.
+*   **Returns:** (number) The calculated modifier value from the source.
+*   **Error states:** Returns the base value if the source has no modifiers.
 
 ### `CalculateModifierFromKey(key)`
-* **Description:** Computes the total contribution of all modifiers matching a specific `key` (across all sources).
-* **Parameters:**  
-  - `key` (string) — Key to match.  
-* **Returns:** `number` — aggregated modifier value for that key (starting from `_base` and applying `_fn` for each match).
+*   **Description:** Calculates the combined modifier value from all sources that have a specific key.
+*   **Parameters:**
+    *   `key` (string) — The modifier key to search for across all sources.
+*   **Returns:** (number) The combined modifier value from all sources with matching keys.
+*   **Error states:** Returns the base value if no sources have the specified key.
 
 ### `HasModifier(source, key)`
-* **Description:** Checks if a specific modifier exists for a source/key pair.
-* **Parameters:**  
-  - `source` (object or string) — Modifier source.  
-  - `key` (string) — Modifier key.  
-* **Returns:** `boolean` — `true` if the modifier exists.
+*   **Description:** Checks if a specific source has a modifier with the given key.
+*   **Parameters:**
+    *   `source` (entity or string) — The source to check.
+    *   `key` (string) — The modifier key to check for.
+*   **Returns:** (boolean) `true` if the modifier exists, `false` otherwise.
+*   **Error states:** None.
 
 ### `HasAnyModifiers()`
-* **Description:** Checks if any modifiers are currently stored.
-* **Parameters:** None.
-* **Returns:** `boolean` — `true` if at least one modifier exists.
+*   **Description:** Checks if the modifier list has any active modifiers from any source.
+*   **Parameters:** None.
+*   **Returns:** (boolean) `true` if any modifiers exist, `false` otherwise.
+*   **Error states:** None.
+
+### `SourceModifierList.multiply(a, b)`
+*   **Description:** Static function that multiplies two values; used as the default combination function.
+*   **Parameters:**
+    *   `a` (number) — First value.
+    *   `b` (number) — Second value.
+*   **Returns:** (number) The product of `a` and `b`.
+*   **Error states:** None.
+
+### `SourceModifierList.additive(a, b)`
+*   **Description:** Static function that adds two values; useful for additive modifier systems.
+*   **Parameters:**
+    *   `a` (number) — First value.
+    *   `b` (number) — Second value.
+*   **Returns:** (number) The sum of `a` and `b`.
+*   **Error states:** None.
+
+### `SourceModifierList.boolean(a, b)`
+*   **Description:** Static function that performs logical OR on two boolean values; useful for flag-style modifiers.
+*   **Parameters:**
+    *   `a` (boolean) — First value.
+    *   `b` (boolean) — Second value.
+*   **Returns:** (boolean) `true` if either value is `true`.
+*   **Error states:** None.
 
 ## Events & listeners
-- **Listens to:** `"onremove"` (on modifier `source` entities) — automatically removes the source from `_modifiers` and triggers recalculation.  
-- **Pushes:** None.
+- **Listens to:** `onremove` — When a source entity is removed from the game, the modifier list automatically cleans up that source's modifiers and recalculates.
+- **Pushes:** None identified (the `_dirtycb` callback is invoked directly, not via the event system).

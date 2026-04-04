@@ -1,61 +1,62 @@
 ---
 id: debughelpers
 title: Debughelpers
-description: Provides debugging utilities to inspect entities, components, and function upvalues for development and troubleshooting.
-tags: [debug, tools, utility]
+description: Provides utility functions for logging entity and component state information to the console.
+tags: [debug, utility, logging]
 sidebar_position: 10
 
-last_updated: 2026-03-10
+last_updated: 2026-03-21
 build_version: 714014
 change_status: stable
 category_type: root
 source_hash: 9b210458
-system_scope: world
+system_scope: entity
 ---
 
 # Debughelpers
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **714014** | Last updated: 2026-03-21
 
 ## Overview
-`Debughelpers` exposes utility functions for runtime introspection of game objects. It includes helpers to dump the contents of an entity, its components, and function upvalues — valuable for diagnosing state, component presence, and closure behavior during development. These are *not* part of the runtime ECS and are intended solely for developer debugging.
+`Debughelpers` is a collection of global utility functions designed to assist developers in inspecting the runtime state of the game. It provides tools to dump the contents of entities, components, and Lua function upvalues to the standard output log. This module is primarily used during development to diagnose issues related to entity state, component data, or closure environments. It does not attach to entities as a component but operates as a standalone debugging script.
 
 ## Usage example
 ```lua
--- Dump an entity's structure, components, and values
-if TheNet:GetServerIsDebugBuild() then
-    DumpEntity(some_entity_inst)
-end
+-- Inspect the local player entity structure
+DumpEntity(ThePlayer)
 
--- Inspect upvalues of a closure for debugging closures or closures with external state
-DumpUpvalues(my_function)
+-- Inspect a specific component table
+DumpComponent(ThePlayer.components.inventory)
+
+-- Inspect upvalues of a specific function
+DumpUpvalues(SomeClosureFunction)
 ```
 
 ## Dependencies & tags
-**Components used:** None  
-**Tags:** None identified
+**Components used:** None identified.
+**Tags:** None identified.
 
 ## Properties
-No public properties
+No public properties. This module consists of standalone functions and does not maintain internal state.
 
 ## Main functions
 ### `DumpComponent(comp)`
-*   **Description:** Prints a formatted dump of all fields and methods in a component table, including source locations for functions and validity status for object references.
-*   **Parameters:** `comp` (table) — the component table to inspect.
+*   **Description:** Iterates over a component table and prints its keys and values to the console. It attempts to identify functions, valid entity tables, and standard values to provide detailed logging.
+*   **Parameters:** `comp` (table) - The component table to inspect.
 *   **Returns:** Nothing.
-*   **Error states:** None. Assumes `comp` is a valid table.
+*   **Error states:** May print `nil` or generic tostring representations if data types are unsupported.
 
 ### `DumpEntity(ent)`
-*   **Description:** Prints a comprehensive dump of an entity instance, including its debug string, direct fields, and all attached components with their respective contents.
-*   **Parameters:** `ent` (Entity) — the entity instance to inspect.
+*   **Description:** Prints comprehensive debug information for an entity instance. It outputs the entity debug string, iterates over the entity table members, and recursively calls `DumpComponent` for each attached component.
+*   **Parameters:** `ent` (Entity) - The entity instance to inspect.
 *   **Returns:** Nothing.
-*   **Error states:** None. Fails gracefully (prints nothing or partial output) if `ent` is `nil` or invalid.
+*   **Error states:** Depends on the validity of the entity passed; invalid entities may cause errors when accessing `ent.entity`.
 
 ### `DumpUpvalues(func)`
-*   **Description:** Prints a list of upvalues (captured external variables) for a given Lua closure, with type and value information.
-*   **Parameters:** `func` (function) — the function whose upvalues are to be inspected.
+*   **Description:** Uses the Lua debug library to inspect the upvalues of a given function closure. It prints the index, name, type, and value of each upvalue.
+*   **Parameters:** `func` (function) - The function closure to inspect.
 *   **Returns:** Nothing.
-*   **Error states:** None. Only prints upvalues accessible via `debug.getupvalue`; fails silently if `func` is not a function.
+*   **Error states:** Requires a valid function closure; passing non-function types will result in debug library errors.
 
 ## Events & listeners
-None identified
+None identified.

@@ -1,11 +1,11 @@
 ---
 id: beeguard
 title: Beeguard
-description: Acts as a flying combat unit that serves as a loyal bodyguard, engaging enemies while following and protecting a designated leader (typically the Bee Queen).
-tags: [combat, ai, boss, npc, flying]
+description: Defines the Bee Guard creature prefab with combat, follower, and loyalty mechanics for both hostile and friendly states.
+tags: [combat, ai, creature, bee, follower]
 sidebar_position: 10
 
-last_updated: 2026-03-04
+last_updated: 2026-03-20
 build_version: 714014
 change_status: stable
 category_type: prefabs
@@ -15,145 +15,117 @@ system_scope: entity
 
 # Beeguard
 
-> Based on game build **714014** | Last updated: 2026-03-04
+> Based on game build **714014** | Last updated: 2026-03-20
 
 ## Overview
-The `beeguard` prefab represents a flying insectoid combatant in *Don't Starve Together* that functions as a loyal enforcer and bodyguard. It is typically summoned or spawned under the control of the Bee Queen. The prefab manages aggressive behavior, retargeting logic, and dynamic state changes (e.g., dashing mode), while integrating deeply with the `commander`, `combat`, `sleeper`, `locomotor`, and `entitytracker` components. It coordinates with its leader to maintain formation, share targets, and coordinate state transitions based on player-hostile or companion status.
+`Beeguard` is a prefab entity representing the Bee Guard creature in Don't Starve Together. It operates as a flying insect combat unit that can switch between hostile and friendly states depending on its commander (either a player or the Bee Queen). The prefab integrates multiple components for combat behavior, follower mechanics, sleep/wake cycles, and army coordination. It supports special puffy transformation states when focusing targets and shares aggro with other bee units.
 
 ## Usage example
-The beeguard is not instantiated directly by modders. It is spawned internally by the game (e.g., by the Bee Queen or via the Book of Beekeeping events) using the `Prefabs` system:
-
 ```lua
--- Example: Spawning a beeguard as a soldier under a leader (e.g., queen)
-local guard = SpawnPrefab("beeguard")
-guard:AddToArmy(queen)
--- Guard now follows queen, uses queen’s commander component, and engages threats
+local beeguard = SpawnPrefab("beeguard")
+beeguard:AddComponent("follower")
+beeguard.components.follower:SetLeader(player)
+beeguard:MakeFriendly(player.userid)
+beeguard:FocusTarget(target)
+beeguard:StartFindingPlayerQueenTasks()
 ```
 
 ## Dependencies & tags
-**Components used:**  
-- `lootdropper` (`AddChanceLoot`)
-- `sleeper` (`SetResistance`, `SetSleepTest`, `SetWakeTest`)
-- `locomotor` (`EnableGroundSpeedMultiplier`, `SetTriggersCreep`, `walkspeed`, `pathcaps`)
-- `health` (`SetMaxHealth`, `IsDead`)
-- `combat` (`SetDefaultDamage`, `SetAttackPeriod`, `SetRange`, `SetRetargetFunction`, `SetKeepTargetFunction`, `SetTarget`, `ShareTarget`, `HasTarget`, `CanTarget`, `TargetIs`, `playerdamagepercent`, `bonusdamagefn`, `hiteffectsymbol`, `battlecryenabled`)
-- `stuckdetection` (`SetTimeToStuck`, `IsStuck`, `Reset`)
-- `entitytracker` (`TrackEntity`, `ForgetEntity`, `GetEntity`)
-- `knownlocations` (`RememberLocation`, `ForgetLocation`)
-- `freezable` (`SetResistance`)
-- `follower` (`SetLeader`, `StopFollowing`) — conditionally added
-- `commander` (`AddSoldier`, `RemoveSoldier`) — accessed via queen
-- `inventory` (`GetEquippedItem`) — read via target’s inventory for stunlock logic
+**Components used:** `combat`, `follower`, `sleeper`, `locomotor`, `health`, `entitytracker`, `knownlocations`, `lootdropper`, `stuckdetection`, `inspectable`, `freezable`, `burnable`, `commander`
 
-**Tags added/removed:**  
-- Always added on spawn: `insect`, `bee`, `monster`, `hostile`, `scarytoprey`, `flying`, `ignorewalkableplatformdrowning`, `__follower` (pristine, removed before replication), `notaunt` (temporary, when focus target is set)
-- Added when made friendly (`MakeFriendly`): `NOBLOCK`, `companion`; removes `hostile`
-- Removed when made friendly: `hostile`, `NOBLOCK`, `companion`
-- Removed when made hostile: `NOBLOCK`, `companion`
+**Tags:** Adds `insect`, `bee`, `monster`, `hostile`, `scarytoprey`, `flying`, `ignorewalkableplatformdrowning`, `NOBLOCK`, `companion`, `notaunt`. Removes `hostile`, `NOBLOCK`, `companion` when switching to hostile state.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `buzzing` | boolean | `true` | Whether the buzzing sound is currently playing. Controlled by `EnableBuzz`. |
-| `sounds` | table | `normalsounds` | Sound event mapping (e.g., `"attack"`, `"buzz"`, `"hit"`) — switches to `poofysounds` when dashing. |
-| `_friendid` | number or `nil` | `nil` | Stores the numeric user ID of a friendly player leader (if applicable). |
-| `_friendref` | `Inst` or `nil` | `nil` | Reference to the actual leader entity when associated with a player. |
-| `_focustarget` | `Inst` or `nil` | `nil` | High-priority target that overrides normal combat targeting. |
-| `_sleeptask` | `DoTask` or `nil` | `nil` | Task to remove the beeguard after sleeping for too long. |
-| `_findqueentask` | `DoTask` or `nil` | `nil` | Periodic task (for friendly bees) to locate the queen’s entity. |
-| `_fleetask` | `DoTask` or `nil` | `nil` | Task that cancels tracking after a linger timeout. |
-| `_friendreflistener`, `_friendrefcallback` | function references | `nil` | Event listener and callback for tracking the queen’s existence. |
+| `buzzing` | boolean | `true` | Whether the bee is currently playing buzz sound. |
+| `sounds` | table | `normalsounds` | Sound configuration table for attack, buzz, hit, death. |
+| `_friendid` | string/nil | `nil` | User ID of the friendly player commander if applicable. |
+| `_focustarget` | entity/nil | `nil` | Current focus target for special puffy attack mode. |
+| `_friendref` | entity/nil | `nil` | Reference to the friend entity for event listening. |
+| `_sleeptask` | task/nil | `nil` | Scheduled task for sleep-related cleanup. |
+| `_findqueentask` | task/nil | `nil` | Periodic task for finding player queen. |
+| `_fleetask` | task/nil | `nil` | Task for fleeing behavior timeout. |
+| `hit_recovery` | number | `1` | Hit recovery time value. |
 
 ## Main functions
 ### `EnableBuzz(enable)`
-* **Description:** Starts or stops the continuous buzzing sound. Only plays when the entity is awake.  
-* **Parameters:**  
-  - `enable` (boolean) — Whether to enable buzzing.
-* **Returns:** Nothing.
+*   **Description:** Toggles the buzzing sound effect on or off. Plays or kills the buzz sound channel based on enable state and sleep status.
+*   **Parameters:** `enable` (boolean) - whether to enable buzzing.
+*   **Returns:** Nothing.
 
 ### `IsFriendly()`
-* **Description:** Returns whether this beeguard has been designated as friendly (i.e., `_friendid` is set).  
-* **Parameters:** None.  
-* **Returns:** `boolean` — `true` if `_friendid` is not `nil`.
+*   **Description:** Checks if the beeguard is in friendly mode by testing if `_friendid` is set.
+*   **Parameters:** None.
+*   **Returns:** boolean - `true` if friendly, `false` if hostile.
 
 ### `MakeFriendly(userid)`
-* **Description:** Marks the beeguard as friendly to a specific player, clearing hostile tags and adding `NOBLOCK`/`companion`.  
-* **Parameters:**  
-  - `userid` (number) — Numeric user ID of the player to follow.  
-* **Returns:** Nothing.
+*   **Description:** Converts the beeguard to friendly mode for a specific player. Removes `hostile` tag and adds `NOBLOCK` and `companion` tags.
+*   **Parameters:** `userid` (string) - the player's user ID.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if `_friendid` is already set.
 
 ### `MakeHostile()`
-* **Description:** Reverts to hostile status if friendly, removing friendly tags and restoring `hostile`.  
-* **Parameters:** None.  
-* **Returns:** Nothing.
-
-### `FocusTarget(target)`
-* **Description:** Sets a high-priority focus target, triggering a dash mode (puffy build, higher speed/damage) or returning to default mode. Removes `notaunt` tag on clearing focus.  
-* **Parameters:**  
-  - `target` (`Inst` or `nil`) — Target to lock onto. If `nil`, reverts to default behavior.  
-* **Returns:** Nothing.  
-* **Error states:** May fail to revert to default if internal build or speed properties are not properly synchronized.
+*   **Description:** Converts the beeguard back to hostile mode. Clears `_friendid`, adds `hostile` tag, removes `NOBLOCK` and `companion` tags.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if `_friendid` is already `nil`.
 
 ### `GetQueen()`
-* **Description:** Retrieves the current queen this beeguard serves — either via `entitytracker` (for non-player queens) or `_friendref` (for player leaders).  
-* **Parameters:** None.  
-* **Returns:** `Inst` or `nil`.
+*   **Description:** Retrieves the commander entity (queen) from entity tracker or friend reference.
+*   **Parameters:** None.
+*   **Returns:** entity or `nil` - the queen commander entity if found.
 
 ### `AddToArmy(queen)`
-* **Description:** Integrates the beeguard into the queen’s army: adds it as a soldier (via `commander`), and sets the queen as its leader if the queen is a player. Removes follower component if queen is non-player and not applicable.  
-* **Parameters:**  
-  - `queen` (`Inst`) — The queen entity.  
-* **Returns:** Nothing.
-
-### `RetargetFn()`
-* **Description:** Core retargeting logic used by `combat:SetRetargetFunction`. Determines the next target based on:
-  - Friendly bees: searches for valid enemies within range (excludes queen, must match tags).
-  - Hostile bees: prioritizes focus target, stuck detection fallback, or nearest player within 15 tiles.  
-* **Parameters:** None.  
-* **Returns:** `Inst` or `nil`, optionally `true` (force retarget).  
-* **Error states:** May return `nil` if no valid targets found.
-
-### `KeepTargetFn(inst, target)`
-* **Description:** Validates current target — returns `true` if target matches focus target or is within 40 units and valid.  
-* **Parameters:**  
-  - `inst` (`Inst`) — This entity instance.  
-  - `target` (`Inst`) — Current target to validate.  
-* **Returns:** `boolean`.
+*   **Description:** Registers the beeguard as a soldier under a commander. Adds follower component if queen is a player, removes if not. Adds soldier to commander's army.
+*   **Parameters:** `queen` (entity) - the commander entity.
+*   **Returns:** Nothing.
 
 ### `StartFindingPlayerQueenTasks()`
-* **Description:** Starts periodic attempts to locate the queen for friendly bees, plus sets a timeout task to stop waiting and flee.  
-* **Parameters:** None.  
-* **Returns:** Nothing.
+*   **Description:** Starts periodic tasks to find the player queen and sets up flee timeout. Only works if beeguard is friendly.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if `IsFriendly()` returns `false`.
 
-### `OnSave(inst, data)`
-* **Description:** Serializes friendly state into save data (only stores `friendid`).  
-* **Parameters:**  
-  - `inst` (`Inst`) — Entity instance.  
-  - `data` (table) — Save data table (modified in-place).  
-* **Returns:** Nothing.
+### `FocusTarget(target)`
+*   **Description:** Sets a focus target and triggers puffy transformation mode with increased speed and damage. Clears focus to return to normal mode. Spawns visual poof effects.
+*   **Parameters:** `target` (entity or `nil`) - the target to focus on.
+*   **Returns:** Nothing.
 
-### `OnLoad(inst, data)`
-* **Description:** Restores friendly state using `friendid` on load.  
-* **Parameters:**  
-  - `inst` (`Inst`) — Entity instance.  
-  - `data` (table) — Loaded save data.  
-* **Returns:** Nothing.
+### `OnEntitySleep()`
+*   **Description:** Handles sleep state entry. Cancels sleep task, schedules removal after 10 seconds if not friendly and not dead, kills buzz sound.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `OnSpawnedGuard(inst, queen)`
-* **Description:** Called when a beeguard is spawned directly under a queen. Sets initial state graph state `"spawnin"` and adds guard to queen’s commander list.  
-* **Parameters:**  
-  - `inst` (`Inst`) — This beeguard.  
-  - `queen` (`Inst`) — The spawning queen.  
-* **Returns:** Nothing.
+### `OnEntityWake()`
+*   **Description:** Handles wake state entry. Cancels sleep task, restarts buzz sound if buzzing flag is set.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `OnSave(data)`
+*   **Description:** Saves the friend ID to persistent data for load restoration.
+*   **Parameters:** `data` (table) - save data table to populate.
+*   **Returns:** Nothing.
+
+### `OnLoad(data)`
+*   **Description:** Restores friendly state from saved data by calling `MakeFriendly` if friendid exists.
+*   **Parameters:** `data` (table) - loaded save data table.
+*   **Returns:** Nothing.
+
+### `OnLoadPostPass()`
+*   **Description:** Post-load initialization. Adds to army if queen exists, otherwise starts finding queen tasks.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `OnSpawnedGuard(queen)`
+*   **Description:** Called when guard spawns. Transitions to spawnin state and adds as soldier to queen's commander component.
+*   **Parameters:** `queen` (entity) - the queen commander.
+*   **Returns:** Nothing.
 
 ## Events & listeners
-- **Listens to:**  
-  - `"gotcommander"` (`OnGotCommander`) — Triggered when assigned a new commander (queen); handles repositioning and army integration.  
-  - `"lostcommander"` (`OnLostCommander`) — Triggered when commander is removed; cancels tracking, resets focus.  
-  - `"attacked"` (`OnAttacked`) — Sets attacker as target and notifies nearby bees to assist (share target).  
-  - `"onattackother"` (`OnAttackOther`) — Resets stuck detection; checks for bee-related armor on target to set player stunlock behavior.  
-  - `"newcombattarget"` (`OnNewTarget`) — Triggers `CheckBeeQueen` to respond to queen switching (e.g., attacking rival queen).  
-- **Pushes:**  
-  - `"flee"` (`Flee`) — Fired when lingering time expires for friendly bees with no queen found.
-
-EOF
+- **Listens to:** `gotcommander` - triggers `OnGotCommander` when assigned a new commander.
+- **Listens to:** `lostcommander` - triggers `OnLostCommander` when commander is lost.
+- **Listens to:** `attacked` - triggers `OnAttacked` to set combat target and share aggro.
+- **Listens to:** `onattackother` - triggers `OnAttackOther` to reset stuck detection and check for bee armor.
+- **Listens to:** `newcombattarget` - triggers `OnNewTarget` to check for Bee Queen target switching.
+- **Pushes:** `flee` - fired when flee timeout expires.

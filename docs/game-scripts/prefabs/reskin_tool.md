@@ -1,110 +1,101 @@
 ---
 id: reskin_tool
 title: Reskin Tool
-description: A consumable tool used to cycle and apply different visual skins to entities and characters in the game.
-tags: [inventory, visual, item, network]
+description: Defines the Reskin Tool item prefab that allows players to change the skin of valid entities.
+tags: [item, skin, utility, spell]
 sidebar_position: 10
 
-last_updated: 2026-03-06
-build_version: 714014
+last_updated: 2026-04-04
+build_version: 718694
 change_status: stable
 category_type: prefabs
-source_hash: 5713fcc5
-system_scope: inventory
+source_hash: 43854840
+system_scope: entity
 ---
 
 # Reskin Tool
 
-> Based on game build **714014** | Last updated: 2026-03-06
+> Based on game build **718694** | Last updated: 2026-04-04
 
 ## Overview
-The `reskin_tool` is a versatile inventory item that allows players to cycle through available visual skins for compatible entities (including characters, structures, and interactive objects). It leverages the `spellcaster` component to enable targeted casting, uses `equippable` for animation overrides when held, and integrates with `beard` for character-specific beard skin management. It also supports custom skin data and cross-world synchronization for world-migrating structures like wormholes and cave entrances.
+The `reskin_tool` prefab defines a special inventory item that functions as a spellcaster. When used on a valid target, it cycles through available skins that the player owns or removes the current skin. It handles complex logic for ownership validation, visual effects positioning, and synchronizing skin changes across linked entities (such as wormholes or cave entrances). This tool is primarily used in development or specific game modes to test or apply cosmetic variations.
 
 ## Usage example
 ```lua
--- Typical usage inside a prefab definition
-local inst = Prefab("reskin_tool", tool_fn, assets, prefabs)
+-- Spawning the Reskin Tool in the world
+local tool = SpawnPrefab("reskin_tool")
+tool.components.inventoryitem:GiveTo(ThePlayer)
 
--- When a player equips the tool:
-if inst.components.equippable then
-    inst.components.equippable:SetOnEquip(function(item, owner) 
-        -- Optional: Custom equip behavior
-    end)
+-- Accessing spell configuration
+if tool.components.spellcaster then
+    tool.components.spellcaster.canuseontargets = true
+    tool.components.spellcaster.canusefrominventory = true
 end
-
--- When used on a target:
-inst.components.spellcaster:SetSpellFn(function(tool, target, pos, caster) 
-    -- Custom spell behavior, e.g., reskin behavior
-end)
 ```
 
 ## Dependencies & tags
-**Components used:** `inventoryitem`, `equippable`, `spellcaster`, `fuel`, `inspectable`  
-**Tags added:** `nopunch`, `veryquickcast`  
-**Tags checked:** None explicitly via `HasTag`, but skin selection logic references `prefab` names and component presence (`beard`, `teleporter`, `worldmigrator`).
+**Components used:** `inventoryitem`, `equippable`, `spellcaster`, `fuel`, `inspectable`
+**Tags:** Adds `nopunch`, `veryquickcast`
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `_cached_reskinname` | table | `{}` | Per-prefab cache of the currently selected skin name for the tool user. Used to remember the last skin applied per target type. |
+| `_cached_reskinname` | table | `{}` | Caches the last applied skin name per prefab to facilitate cycling. |
+| `spelltype` | string | `"RESKIN"` | Identifies the type of spell for UI and logic handling. |
+| `scrapbook_specialinfo` | string | `"RESKINTOOL"` | Special identifier used for scrapbook or recipe tracking. |
+| `reskin_tool_target_redirect` | entity | `nil` | Optional field on targets to redirect the reskin action to another entity. |
+| `reskin_tool_cannot_target_this` | boolean | `nil` | If true on a target, prevents the tool from affecting it. |
 
 ## Main functions
-### `GetReskinFXInfo(target)`
-* **Description:** Returns visual effect sizing configuration (`offset`, `scale`, `scalex`, `scaley`) for the reskin FX particle system, based on the target's `prefab`. Special handling for upgraded treasure chests.
-* **Parameters:** `target` (Entity) — the entity being reskinned.
-* **Returns:** `table` — a table with optional keys `offset` (number), `scale`/`scalex`/`scaley` (numbers), or `{}` if no override is defined.
-* **Error states:** Returns `{}` if `target.prefab` has no entry in `reskin_fx_info` or is not `"treasurechest"`.
-
-### `GetNextSkin(userid, target, tool, skip_base)`
-* **Description:** Determines the next skin to apply by iterating over available skins for the target entity (e.g., character, building), checking ownership, skip rules (`PREFAB_SKINS_SHOULD_NOT_SELECT`), and active event locks. Handles special case for bearded characters.
-* **Parameters:**
-  * `userid` (string) — the player's user ID for ownership checks.
-  * `target` (Entity) — the entity to be reskinned.
-  * `tool` (Entity) — the reskin tool instance.
-  * `skip_base` (boolean) — whether to skip the base skin and cycle only from special/alternate skins.
-* **Returns:**
-  * `cached_skin` (string or `nil`) — the next valid skin name, or `nil` if none available.
-  * `prefab_to_skin` (string) — the effective prefab key used for skin lookup (e.g., `"wolverine_beard"` for beards).
-  * `is_beard` (boolean) — whether the target is a character with a skinnable beard.
-  * `skin_custom` (table or `nil`) — custom skin metadata, if any unlockable skin with differing data is selected.
-* **Error states:** Returns `(nil, ...)` if no owned skin is available and `skip_base` is `true`.
-
 ### `spellCB(tool, target, pos, caster)`
-* **Description:** The core spell callback executed when the reskin tool is used on a target. Validates ownership/targeting, computes the next skin via `GetNextSkin`, spawns a reskin FX prefab, adjusts FX scale/position, and applies the new skin via `TheSim:ReskinEntity` (or equivalent for beards, wormholes, cave entrances).
-* **Parameters:**
-  * `tool` (Entity) — the reskin tool instance.
-  * `target` (Entity or `nil`) — the target entity, defaults to `caster` for beard targeting.
-  * `pos` (Vector3) — world position of the cast.
-  * `caster` (Entity) — the entity using the tool (typically a player).
-* **Returns:** Nothing.
-* **Error states:** Silently returns early if: `target` is invalid or redirects to a non-owned entity; `target` has `reskin_tool_cannot_target_this`; or no valid skin is found when `skip_base` is `true`.
+*   **Description:** The callback function executed when the spell is successfully cast on a target. It determines the next skin, spawns visual effects, and applies the skin change via `TheSim:ReskinEntity`.
+*   **Parameters:**
+    *   `tool` (entity) - The reskin tool instance.
+    *   `target` (entity) - The entity being reskinned.
+    *   `pos` (Vector3) - The world position of the cast.
+    *   `caster` (entity) - The player or entity casting the spell.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if the target is invalid, ownership checks fail, or no valid skin is found. Handles special logic for `wormhole` (teleporter) and `cave_entrance` (worldmigrator) to sync skins across links.
 
 ### `can_cast_fn(doer, target, pos, tool)`
-* **Description:** Determines whether the reskin tool may be cast on a given target. Validates target permissions (e.g., ownership for linked entities), checks for block flags, and ensures a skin exists to apply.
-* **Parameters:**
-  * `doer` (Entity) — the entity attempting to cast the tool (typically a player).
-  * `target` (Entity or `nil`) — the entity targeted for reskin.
-  * `pos` (Vector3) — world position of the cast.
-  * `tool` (Entity) — the reskin tool instance.
-* **Returns:** `boolean` — `true` if the tool may be used, `false` otherwise.
-* **Error states:** Returns `false` if target is not owned (for linked entities), has the `reskin_tool_cannot_target_this` flag, or is an unskinnable player/character.
+*   **Description:** Validation function called before casting to determine if the tool can be used on the specific target.
+*   **Parameters:**
+    *   `doer` (entity) - The player attempting to use the tool.
+    *   `target` (entity) - The potential target entity.
+    *   `pos` (Vector3) - The target position.
+    *   `tool` (entity) - The tool instance.
+*   **Returns:** `boolean` - `true` if the cast is allowed, `false` otherwise.
+*   **Error states:** Returns `false` if the player does not own the next skin in the cycle, if the target is another player's beard, or if the target explicitly blocks reskinning.
+
+### `GetNextSkin(userid, target, tool, skip_base)`
+*   **Description:** Iterates through available skins for the target's prefab to find the next valid skin the user owns.
+*   **Parameters:**
+    *   `userid` (string) - The user's ID for ownership checks.
+    *   `target` (entity) - The entity to be reskinned.
+    *   `tool` (entity) - The tool instance (used for caching).
+    *   `skip_base` (boolean) - If true, skips the base (default) skin.
+*   **Returns:** `string`, `string`, `boolean`, `table` - Returns the new skin name, the prefab key used, a boolean indicating if it is a beard, and custom skin data.
+
+### `GetReskinFXInfo(target)`
+*   **Description:** Retrieves scaling and offset data for the visual effects spawned during reskinning, specific to the target prefab.
+*   **Parameters:**
+    *   `target` (entity) - The entity being reskinned.
+*   **Returns:** `table` - Contains `offset`, `scale`, `scalex`, and `scaley` values.
 
 ### `onequip(inst, owner)`
-* **Description:** Called when the tool is equipped by a player. Overrides the player’s hand animation to show the tool and broadcasts a custom event (`equipskinneditem`) if a skinned build is present.
-* **Parameters:**
-  * `inst` (Entity) — the reskin tool instance.
-  * `owner` (Entity) — the player equipping the tool.
-* **Returns:** Nothing.
+*   **Description:** Callback triggered when a player equips the tool. Overrides the player's animation symbols to show the skinned version of the tool.
+*   **Parameters:**
+    *   `inst` (entity) - The tool instance.
+    *   `owner` (entity) - The player equipping the item.
+*   **Returns:** Nothing.
 
 ### `onunequip(inst, owner)`
-* **Description:** Called when the tool is unequipped. Restores the default hand animation and optionally broadcasts `unequipskinneditem`.
-* **Parameters:**
-  * `inst` (Entity) — the reskin tool instance.
-  * `owner` (Entity) — the player unequipping the tool.
-* **Returns:** Nothing.
+*   **Description:** Callback triggered when a player unequips the tool. Restores default arm animations.
+*   **Parameters:**
+    *   `inst` (entity) - The tool instance.
+    *   `owner` (entity) - The player unequipping the item.
+*   **Returns:** Nothing.
 
 ## Events & listeners
-- **Listens to:** None (component does not register `ListenForEvent` handlers).
-- **Pushes:** 
-  * `equipskinneditem` (with `inst:GetSkinName()` as payload) — on equip if `GetSkinBuild()` returns non-`nil`.
-  * `unequipskinneditem` (with `inst:GetSkinName()` as payload) — on unequip if `GetSkinBuild()` returns non-`nil`.
+- **Pushes:** `equipskinneditem` - Fired when the tool is equipped, passing the skin name.
+- **Pushes:** `unequipskinneditem` - Fired when the tool is unequipped, passing the skin name.

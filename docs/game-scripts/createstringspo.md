@@ -1,11 +1,11 @@
 ---
 id: createstringspo
 title: Createstringspo
-description: A standalone utility script for generating localization template files (.pot) from game string tables, supporting both legacy msgid-based (v1) and modern msgctxt-based (v2) formats.
-tags: [localization, tooling, strings]
+description: Generates localization .pot files from the game STRINGS table for translation workflows.
+tags: [localization, tools, strings]
 sidebar_position: 10
 
-last_updated: 2026-03-10
+last_updated: 2026-03-21
 build_version: 714014
 change_status: stable
 category_type: root
@@ -15,48 +15,64 @@ system_scope: ui
 
 # Createstringspo
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **714014** | Last updated: 2026-03-21
 
 ## Overview
-`createstringspo.lua` is a standalone Lua script used to extract localized strings from the game’s `STRINGS` table and generate GNU gettext-compatible template files (`.pot`). It supports two output formats:  
-- **v1**: Uses `msgid` directly from string values (older format).  
-- **v2**: Uses `msgctxt` to disambiguate strings with identical `msgid` by including their full table path (e.g., `STRINGS.NAMES.BEE`), ensuring uniqueness.  
-
-The script also supports providing a separate lookup table (`tbl_lkp`) to align translated strings with original keys during version migrations (e.g., from a legacy `strings.lua` translation to the new v2 format). It is not an ECS component—instead, it runs as a CLI tool for mod and game string extraction.
+`Createstringspo` is a standalone utility script used during the build process to generate Portable Object Template (`.pot`) files from the game's `STRINGS` table. It is not a runtime component attached to entities; instead, it is executed via the command line to assist localization teams. The script supports two formats: Version 1 (msgid based) and Version 2 (msgctxt based), allowing developers to export string tables for translation into `.po` files.
 
 ## Usage example
-```lua
--- Generate a v2-format .pot file from the built-in STRINGS table
-CreateStringsPOTv2("languages/strings.pot", "STRINGS", STRINGS)
+This script is typically executed from the command line within the `data/scripts` directory. It can also be required as a module to invoke generation functions directly.
 
--- Generate a v2-format .pot file using a custom lookup table for translation alignment
-CreateStringsPOTv2("languages/custom.pot", "STRINGS", MY_TRANSLATED_STRINGS, STRINGS)
+```lua
+-- Execute via command line (Windows example)
+-- cd data/scripts
+-- ..\..\tools\LUA\lua.exe createstringspo.lua
+
+-- Or require within a custom build script
+require "createstringspo"
+CreateStringsPOTv2("languages/strings.pot", "STRINGS", STRINGS)
 ```
 
 ## Dependencies & tags
-**Components used:** None  
-**Tags:** None identified  
-**External dependencies:** Requires `strings.lua` and standard Lua modules (`io`, `string`). Uses platform detection via command-line arguments (`arg[1]`).
+**Components used:** None (standalone script).
+**Modules:** `strings`, `io`.
+**Tags:** None identified.
 
 ## Properties
-No public properties.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `STRING_RESERVED_LEAD_BYTES` | table | `{238, 239}` | Byte values indicating invalid UTF-8 strings to ignore during generation. |
+| `POT_GENERATION` | boolean | `true` | Flag indicating that the script is running in generation mode. |
+| `PLATFORM` | string | `WIN32_STEAM` | Detected platform based on command line arguments (e.g., `PS4`, `XBL`). |
 
 ## Main functions
 ### `CreateStringsPOTv1(filename, root, tbl_dta, tbl_lkp)`
-* **Description:** Generates a `.pot` file in v1 format using `msgid`-only entries. If a lookup table (`tbl_lkp`) is provided, it tries to find corresponding original `msgid` values for translated strings.
-* **Parameters:**  
-  - `filename` (string, optional): Output file path. Defaults to `"data\\scripts\\languages\\temp_v1.pot"`.  
-  - `root` (string, optional): Starting path in the string table. Defaults to `"STRINGS"`.  
-  - `tbl_dta` (table, required): The translation source table (e.g., `STRINGS`).  
-  - `tbl_lkp` (table, optional): Lookup table of original strings for translating existing translations.  
-* **Returns:** Nothing.
-* **Error states:** Silently skips duplicate `msgid` strings with a console warning.
+*   **Description:** Generates a Version 1 `.pot` file using msgid-based localization. Iterates through the provided table and writes formatted strings to the specified file.
+*   **Parameters:**
+    *   `filename` (string) - Path for the output `.pot` file. Defaults to `data\scripts\languages\temp_v1.pot`.
+    *   `root` (string) - Root key name for the string table. Defaults to `STRINGS`.
+    *   `tbl_dta` (table) - The string table data to process.
+    *   `tbl_lkp` (table, optional) - Lookup table for translated strings. If nil, generates template only.
+*   **Returns:** Nothing.
+*   **Error states:** May skip strings containing reserved lead bytes or duplicate msgids.
 
 ### `CreateStringsPOTv2(filename, root, tbl_dta, tbl_lkp)`
-* **Description:** Generates a `.pot` file in v2 format, where `msgctxt` contains the full table path (e.g., `msgctxt "STRINGS.NAMES.BEE"`), disambiguating strings with identical values.
-* **Parameters:** Same as `CreateStringsPOTv1`.
-* **Returns:** Nothing.
-* **Error states:** Skips strings that begin with reserved UTF-8 bytes (`238`, `239`). Logs potential omissions for strings longer than 4 characters with unexpected reserved bytes.
+*   **Description:** Generates a Version 2 `.pot` file using msgctxt-based localization. Includes file format headers and sorts output strings by path.
+*   **Parameters:**
+    *   `filename` (string) - Path for the output `.pot` file. Defaults to `data\scripts\languages\temp_v2.pot`.
+    *   `root` (string) - Root key name for the string table. Defaults to `STRINGS`.
+    *   `tbl_dta` (table) - The string table data to process.
+    *   `tbl_lkp` (table, optional) - Lookup table for translated strings. If nil, generates template only.
+*   **Returns:** Nothing.
+*   **Error states:** May skip strings containing reserved lead bytes. Logs warnings for valid strings dropped due to encoding issues.
+
+### `LookupIdValue(lkp_var, path)`
+*   **Description:** Helper function to lookup values in a table using a dot-delimited path string. Converts path syntax to bracket syntax for evaluation.
+*   **Parameters:**
+    *   `lkp_var` (string) - Name of the variable holding the lookup table.
+    *   `path` (string) - Dot-delimited indexes (e.g., `STRINGS.LEVEL1.LEVEL2`).
+*   **Returns:** string value if found, otherwise `nil`.
+*   **Error states:** Returns `nil` if the path is invalid or evaluation fails.
 
 ## Events & listeners
-None. This script is not event-driven.
+None identified. This script does not interact with the game event system.

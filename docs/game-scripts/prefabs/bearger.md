@@ -1,135 +1,106 @@
 ---
 id: bearger
 title: Bearger
-description: Implements the logic and behavior of the Bearger boss and its mutated variant, including hibernation, shedding, target stealing, and special combat mechanics.
-tags: [boss, combat, ai, seasonal, entity]
+description: Defines the Bearger and Mutated Bearger boss prefabs, configuring their components, AI, and combat behaviors.
+tags: [boss, prefab, combat, ai, seasonal]
 sidebar_position: 10
 
-last_updated: 2026-03-04
+last_updated: 2026-03-20
 build_version: 714014
 change_status: stable
-category_type: prefabs
+category_type: root
 source_hash: 515f88fe
 system_scope: entity
 ---
 
 # Bearger
 
-> Based on game build **714014** | Last updated: 2026-03-04
+> Based on game build **714014** | Last updated: 2026-03-20
 
 ## Overview
-`bearger.lua` defines the prefabs for the `bearger` and `mutatedbearger` entities — large, seasonal bosses in DST. It handles core behaviors such as hibernation during winter/spring, shedding `furtuft`, ground pounding with destruction effects, target stealing from players, sanity aura, and mutations-specific systems like planar damage, gestalt flames, and butt-recovery phases. It leverages multiple components (e.g., `combat`, `sleeper`, `shedder`, `lootdropper`, `locomotor`) and integrates with world state (seasons, players, lunar rift mutations). The prefabs are created via `normalfn()` and `mutatedfn()`, both building on a shared `commonfn()` foundation.
+The `bearger.lua` file defines the `bearger` and `mutatedbearger` prefabs. These scripts instantiate the Bearger boss entities, attaching necessary components for combat, movement, hibernation, and loot dropping. The file handles both the standard version and the Lunar Rift mutated variant, configuring specific assets, sounds, and behavior trees for each. It manages seasonal hibernation logic, player aggression tracking, and special attack patterns like ground pounding.
 
 ## Usage example
 ```lua
--- Create a normal Bearger
-local bearger = Prefab("bearger", "prefabs/bearger")
-local entity = bearger()
+-- Spawn a normal Bearger at the world center
+local bearger = SpawnPrefab("bearger")
+bearger.Transform:SetPosition(0, 0, 0)
 
--- Set up Behaviors (not shown here — AI state graph is handled internally)
-entity.components.combat:SetDefaultDamage(15)
-entity.components.health:SetMaxHealth(1200)
+-- Check if it is hibernating
+if bearger:HasTag("hibernation") then
+    -- It is sleeping
+end
 
--- Mutated Bearger
-local mutated_bearger = Prefab("mutatedbearger", "prefabs/bearger")
-local m_entity = mutated_bearger()
-m_entity.components.planardamage:SetBaseDamage(12)
-m_entity.components.health:SetMaxHealth(1600)
+-- Access custom instance function
+bearger:SetStandState("quad")
 ```
 
 ## Dependencies & tags
-**Components used:** `combat`, `health`, `shedder`, `lootdropper`, `inspectable`, `knownlocations`, `groundpounder`, `drownable`, `locomotor`, `sleeper`, `sanityaura`, `eater`, `thief`, `inventory`, `explosiveresist`, `planardamage`, `planarentity`.
-
-**Tags added:**
-- `epic`, `monster`, `hostile`, `bearger`, `scarytoprey`, `largecreature` (shared)
-- `hibernation`, `asleep` (conditional, via sleeper and season logic)
-- `lunar_aligned`, `gestaltmutant`, `bearger_blocker`, `noepicmusic`, `soulless` (mutated only)
+**Components used:** `sanityaura`, `health`, `combat`, `explosiveresist`, `shedder`, `lootdropper`, `inspectable`, `knownlocations`, `groundpounder`, `timer`, `drownable`, `locomotor`, `thief` (normal), `inventory` (normal), `eater` (normal), `sleeper` (normal), `planarentity` (mutated), `planardamage` (mutated).
+**Tags:** Adds `epic`, `monster`, `hostile`, `bearger`, `scarytoprey`, `largecreature`. Conditional tags include `hibernation`, `asleep`, `lunar_aligned`, `gestaltmutant`, `bearger_blocker`, `noepicmusic`, `soulless`.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `seenbase` | `any` | `nil` | Tracks whether the base Bearger has been seen (used by brain). |
-| `num_food_cherrypicked` | `number` | `0` | Counter for stolen food from target; triggers aggression when threshold met. |
-| `recentlycharged` | `table` | `{}` | Tracks recently destroyed workables to prevent duplicate destruction on collision. |
-| `_activeplayers` | `table` | `{}` | List of players currently tracking and potentially interfering with the Bearger. |
-| `StandState` | `string` | `"quad"` | Current stance mode (`"quad"` or `"bi"`); used for animation state switching. |
-| `temp8faced` | `net_bool` | `nil` | (Mutated only) Networked boolean flag for 8-faced animation mode. |
-| `recovery_starthp` | `number?` | `nil` | (Mutated only) HP percentage at start of butt-recovery phase. |
-| `recovery_norunningbutt` | `boolean?` | `nil` | (Mutated only) Whether `runningbutt` should be disabled during recovery. |
+| `seenbase` | boolean/nil | `nil` | Tracks if the base has been seen by the AI brain. |
+| `num_food_cherrypicked` | number | `0` | Counter for players stealing food or targets. |
+| `StandState` | string | `"quad"` | Current stance state (`"quad"` or `"bi"`). |
+| `recentlycharged` | table | `{}` | Tracks entities recently collided with to prevent double destruction. |
+| `_activeplayers` | table | `{}` | List of player instances currently tracked for action conflicts. |
+| `recovery_starthp` | number | `nil` | (Mutated) Health percent when recovery started. |
+| `canrunningbutt` | boolean | `false` | (Mutated) Whether the running butt attack is available. |
+| `_playingmusic` | boolean | `false` | (Mutated) Tracks if the mutation music is currently playing. |
 
 ## Main functions
-### `commonfn(build, commonfn)`
-*   **Description:** Core prefab initializer used by both normal and mutated Bearger prefabs. Sets up transforms, animations, physics, common components, and global event listeners (e.g., `attacked`, `onhitother`). Calls an optional `commonfn(inst)` hook for shared extension logic.
-*   **Parameters:** 
-    - `build` (string) – Animation build bank (e.g., `"bearger_build"`, `"bearger_yule"`, `"bearger_mutated"`).
-    - `commonfn` (function?) – Optional additional initialization function (e.g., `mutatedcommonfn`).
-*   **Returns:** `Entity` – A fully initialized but not yet fully configured Bearger entity.
-*   **Error states:** Returns early on the client if `TheWorld.ismastersim` is false (no server-side setup performed).
+### `SetStandState(state)`
+*   **Description:** Sets the bearger's standing state configuration.
+*   **Parameters:** `state` (string) - Either `"quad"` or `"bi"`.
+*   **Returns:** Nothing.
 
-### `normalfn()`
-*   **Description:** Constructor for the standard Bearger prefab. Adds `thief`, `inventory`, `eater`, and `sleeper` components, sets stats and retarget logic for normal behavior, and registers player interaction hooks (e.g., stealing targets via `performaction`).
+### `IsStandState(state)`
+*   **Description:** Checks if the bearger is currently in the specified stand state.
+*   **Parameters:** `state` (string) - State to check against.
+*   **Returns:** `boolean` - `true` if the state matches.
+
+### `SwitchToEightFaced()`
+*   **Description:** Switches the entity transform to use 8-faced rotation logic.
 *   **Parameters:** None.
-*   **Returns:** `Entity` – Fully configured normal Bearger instance.
-*   **Error states:** None; depends on Tuning constants and world season.
+*   **Returns:** Nothing.
 
-### `mutatedfn()`
-*   **Description:** Constructor for the Mutated Bearger prefab. Extends `commonfn` with mutation-specific logic: planar damage, gestalt flames (FX), networked `temp8faced` flag, butt-recovery logic, and loot behavior contingent on `wagboss_tracker`. Handles 4/8-faced switching and music triggers.
+### `SwitchToFourFaced()`
+*   **Description:** Switches the entity transform to use 4-faced rotation logic.
 *   **Parameters:** None.
-*   **Returns:** `Entity` – Fully configured Mutated Bearger instance.
-
-### `Mutated_SwitchToEightFaced(inst)`
-*   **Description:** Switches the Mutated Bearger to eight-faced mode (activates gestalt eyes/flames). Also updates networked `temp8faced` state.
-*   **Parameters:** `inst` (Entity) – The Mutated Bearger instance.
 *   **Returns:** Nothing.
 
-### `Mutated_SwitchToFourFaced(inst)`
-*   **Description:** Reverts the Mutated Bearger to four-faced mode.
-*   **Parameters:** `inst` (Entity) – The Mutated Bearger instance.
+### `StartButtRecovery(norunningbutt)`
+*   **Description:** (Mutated only) Initiates the health recovery logic for the butt mechanic.
+*   **Parameters:** `norunningbutt` (boolean) - Disables running butt attack during recovery if `true`.
 *   **Returns:** Nothing.
 
-### `ShouldSleep(inst)`
-*   **Description:** Determines whether Bearger should enter hibernation based on season (`winter` or `spring`), lack of combat target, and not being on fire. Stops shedding, adds `hibernation` and `asleep` tags, and overrides head animation.
-*   **Parameters:** `inst` (Entity) – The Bearger instance.
-*   **Returns:** `boolean` – `true` if hibernation should begin; otherwise `false`.
+### `IsButtRecovering()`
+*   **Description:** (Mutated only) Checks if the bearger is currently in health recovery mode.
+*   **Parameters:** None.
+*   **Returns:** `boolean` - `true` if recovery is active.
 
-### `ShouldWake(inst)`
-*   **Description:** Determines whether Bearger should wake from hibernation based on season (non-hibernation season). Restores shedding and clears hibernation state.
-*   **Parameters:** `inst` (Entity) – The Bearger instance.
-*   **Returns:** `boolean` – `true` if waking should proceed; otherwise `false`.
-
-### `OnPlayerAction(inst, player, data)`
-*   **Description:** Handles player interference while Bearger is targeting the same food source. Increases `num_food_cherrypicked`; if threshold exceeded (`TUNING.BEARGER_STOLEN_TARGETS_FOR_AGRO`), aggroes the player.
-*   **Parameters:** 
-    - `inst` (Entity) – The Bearger instance.
-    - `player` (Entity) – The player performing the action.
-    - `data` (table) – Action event data.
-*   **Returns:** Nothing.
-
-### `LaunchItem(inst, target, item)`
-*   **Description:** Launches a dropped item toward the Bearger’s target, used when Bearger steals equipment (e.g., via swipe attack).
-*   **Parameters:** 
-    - `inst` (Entity) – The Bearger instance.
-    - `target` (Entity) – The item's original owner/target.
-    - `item` (Entity) – The item to launch.
+### `WorkEntities()`
+*   **Description:** (Deprecated) Destroys workable entities in front of the bearger.
+*   **Parameters:** None.
 *   **Returns:** Nothing.
 
 ## Events & listeners
-- **Listens to:**
-  - `attacked` (`OnAttacked`) – Sets combat target to attacker.
-  - `onhitother` (`OnHitOther`) – Handles equipment theft and item launch; skips if `redirected`.
-  - `killed` (`OnKilledOther`) – Drops target and removes `dropitem` listener on victim.
-  - `newcombattarget` (`OnCombatTarget`) – Manages food-cherry-pick state and `dropitem` listeners on new target.
-  - `droppedtarget` (`OnDroppedTarget`) – Cleans up `dropitem` listeners on old target.
-  - `onwakeup` (`OnWakeUp`) – Remembers Bearger spawn position for reference.
-  - `death` (`OnDead` / `Mutated_OnDead`) – Handles achievements and mutation tracking.
-  - `onremove` (`OnRemove`) – Broadcasts removal event.
-  - `ms_playerjoined` / `ms_playerleft` – Tracks active players and registers `performaction` listening.
-  - `performaction` (`OnPlayerAction`) – Processes player’s interaction with Bearger’s current target.
-  - `season` (`OnSeasonChange`) – Adds/removes `hibernation` tag based on season.
-  - `healthdelta` (`Mutated_OnRecoveryHealthDelta`) – Tracks HP during butt-recovery in mutated variant.
-  - `temp8faceddirty` (`Mutated_OnTemp8Faced`) – Syncs 8-faced state for FX in multiplayer.
-
-- **Pushes:**
-  - `beargerkilled` – Fired upon Bearger death.
-  - `beargerremoved` – Fired on Bearger removal from world.
-  - `triggeredevent` (`name = "gestaltmutant"`) – Informs client of mutation event music.
+- **Listens to:** `attacked` - Sets combat target on hit.
+- **Listens to:** `onhitother` - Handles weapon toss and item stealing logic.
+- **Listens to:** `onwakeup` - Records spawn location.
+- **Listens to:** `killed` - Drops target if victim matches current target.
+- **Listens to:** `newcombattarget` - Tracks target for item drop forgiveness.
+- **Listens to:** `droppedtarget` - Cleans up target drop listeners.
+- **Listens to:** `death` - Triggers global boss killed event and stops shedding.
+- **Listens to:** `onremove` - Triggers global boss removed event.
+- **Listens to:** `ms_playerjoined` / `ms_playerleft` - Tracks active players for action conflicts.
+- **Listens to:** `performaction` - Detects players targeting the same object as the bearger.
+- **Listens to:** `dropitem` - Checks for food drops to potentially lose aggression.
+- **Listens to:** `season` - Toggles hibernation tags based on winter/spring.
+- **Listens to:** `healthdelta` (Mutated) - Monitors health for recovery completion.
+- **Listens to:** `temp8faceddirty` (Mutated) - Syncs 8-faced transform state.
+- **Pushes:** `beargerkilled` - Fired on death with the instance as data.
+- **Pushes:** `beargerremoved` - Fired on entity removal with the instance as data.

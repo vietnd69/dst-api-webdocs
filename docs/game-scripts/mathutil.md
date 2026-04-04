@@ -1,169 +1,194 @@
 ---
 id: mathutil
 title: Mathutil
-description: Provides utility functions for mathematical operations, including interpolation, rounding, clamping, angle normalization, and grid-based line tracing.
-tags: [math, utility, world]
+description: A collection of mathematical utility functions for calculations including interpolation, rounding, angle normalization, distance computation, and line generation.
+tags: [utility, math, helper]
 sidebar_position: 10
 
-last_updated: 2026-03-10
-build_version: 714014
+last_updated: 2026-04-04
+build_version: 718694
 change_status: stable
 category_type: root
-source_hash: 66b0bdef
+source_hash: 38f4e101
 system_scope: world
 ---
 
 # Mathutil
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **718694** | Last updated: 2026-04-04
 
 ## Overview
-`mathutil` is a standalone Lua utility module providing reusable mathematical and geometric helper functions. It does not implement an Entity Component System component—its functions are globally accessible and operate on primitive types or simple table structures (e.g., coordinate points). Functions cover common operations like linear interpolation, range remapping, rounding (with bias control), angle reduction and difference, 2D/3D squared distance, and grid-aware line drawing (Bresenham-style) for the XZ plane.
+`mathutil.lua` provides a set of standalone mathematical helper functions used throughout the game codebase. This module extends the global `math` table with additional utilities and defines global functions for common operations like linear interpolation, value remapping, rounding, angle normalization, squared distance calculations, and Bresenham line generation. Unlike components, this file does not attach to entities and has no constructor — it is simply required and its functions are called directly.
 
 ## Usage example
 ```lua
-local value = mathutil.Lerp(0, 10, 0.5) -- returns 5
-local clamped = mathutil.Clamp(15, 0, 10) -- returns 10
-local even = mathutil.IsNumberEven(4) -- returns true
-local distance_sq = mathutil.DistXYSq({x=0,y=0}, {x=3,y=4}) -- returns 25
-local points = mathutil.BresenhamLineXZtoXZ(0, 0, 2, 1) -- returns list of grid points
+require "mathutil"  -- Loads global functions (no table returned)
+
+-- Linear interpolation between two values
+local value = Lerp(0, 100, 0.5)  -- Returns 50
+
+-- Clamp a value between min and max
+local clamped = math.clamp(150, 0, 100)  -- Returns 100
+
+-- Get sine wave based on game time
+local sine = GetSineVal(0.5, true, inst)  -- Returns absolute sine value
+
+-- Calculate squared distance between two positions
+local distSq = DistXZSq({x = 0, z = 0}, {x = 3, z = 4})  -- Returns 25
 ```
 
 ## Dependencies & tags
-**Components used:** None identified  
+**Components used:** None identified
 **Tags:** None identified
+**Global constants required:** `PI` (math.pi), `TWOPI` (2 * math.pi) — DST environment constants used by angle and sine functions
 
 ## Properties
 No public properties
 
 ## Main functions
 ### `GetSineVal(mod, abs, inst)`
-*   **Description:** Generates a sine wave value based on game time. Scales the frequency by `mod` and optionally returns the absolute value (full-wave rectified wave).
-*   **Parameters:** 
-    *   `mod` (number?) — frequency multiplier (period = 2 / mod). Defaults to `1` if omitted.
-    *   `abs` (boolean?) — if truthy, returns `|sin|`; otherwise returns signed sine.
-    *   `inst` (Entity?) — if provided, uses `inst:GetTimeAlive()` as time source; otherwise uses global `GetTime()`.
-*   **Returns:** number — sine value (range `[-1, 1]` or `[0, 1]` if `abs` is true).
-*   **Error states:** Returns `0` if `mod` is `0`, but no explicit error handling for invalid inputs.
+*   **Description:** Returns a sine wave value based on game time. The wave period can be modified, and the absolute value can be optionally returned.
+*   **Parameters:**
+    *   `mod` (number or nil) — Multiplier to modify the wave period. If nil, defaults to `1`.
+    *   `abs` (boolean or nil) — If true, returns the absolute value of the sine wave.
+    *   `inst` (entity or nil) — Entity instance to get time alive from. If nil, uses global `GetTime()`.
+*   **Returns:** (number) — Sine wave value between `-1` and `1`, or `0` to `1` if `abs` is true.
 
 ### `Lerp(a, b, t)`
-*   **Description:** Linearly interpolates from `a` to `b` by factor `t`.
-*   **Parameters:** 
-    *   `a` (number) — start value.
-    *   `b` (number) — end value.
-    *   `t` (number) — interpolation factor, typically in `[0, 1]`.
-*   **Returns:** number — `a + (b - a) * t`.
-*   **Error states:** No special handling; extrapolation occurs for `t` outside `[0, 1]`.
+*   **Description:** Linearly interpolates a number from `a` to `b` over parameter `t`.
+*   **Parameters:**
+    *   `a` (number) — Start value.
+    *   `b` (number) — End value.
+    *   `t` (number) — Interpolation factor, typically between `0` and `1`.
+*   **Returns:** (number) — Interpolated value.
 
 ### `Remap(i, a, b, x, y)`
-*   **Description:** Remaps input value `i` from source range `[a, b]` to target range `[x, y]`.
-*   **Parameters:** 
-    *   `i` (number) — value to remap.
-    *   `a`, `b` (number) — source range bounds (`a ≠ b`).
-    *   `x`, `y` (number) — target range bounds.
-*   **Returns:** number — remapped value.
-*   **Error states:** Returns `NaN` or `±∞` if `a == b`; caller should validate inputs.
+*   **Description:** Remaps a value from one range to another.
+*   **Parameters:**
+    *   `i` (number) — Input value to remap.
+    *   `a` (number) — Start of input range.
+    *   `b` (number) — End of input range.
+    *   `x` (number) — Start of output range.
+    *   `y` (number) — End of output range.
+*   **Returns:** (number) — Remapped value in the new range.
 
 ### `RoundBiasedUp(num, idp)`
-*   **Description:** Rounds `num` to `idp` decimal places; 0.5-values round *up* (toward positive infinity).
-*   **Parameters:** 
-    *   `num` (number) — value to round.
-    *   `idp` (number?) — integer decimal places (defaults to `0`).
-*   **Returns:** number — rounded value.
-*   **Example:** `RoundBiasedUp(2.5, 0) → 3`, `RoundBiasedUp(-2.5, 0) → -2`.
+*   **Description:** Rounds a number to specified decimal points. Values at `0.5` are always rounded up.
+*   **Parameters:**
+    *   `num` (number) — Number to round.
+    *   `idp` (number or nil) — Number of decimal places. If nil, defaults to `0`.
+*   **Returns:** (number) — Rounded value.
 
 ### `RoundBiasedDown(num, idp)`
-*   **Description:** Rounds `num` to `idp` decimal places; 0.5-values round *down* (toward negative infinity).
-*   **Parameters:** 
-    *   `num` (number) — value to round.
-    *   `idp` (number?) — integer decimal places (defaults to `0`).
-*   **Returns:** number — rounded value.
-*   **Example:** `RoundBiasedDown(2.5, 0) → 2`, `RoundBiasedDown(-2.5, 0) → -3`.
+*   **Description:** Rounds a number to specified decimal points. Values at `0.5` are always rounded down.
+*   **Parameters:**
+    *   `num` (number) — Number to round.
+    *   `idp` (number or nil) — Number of decimal places. If nil, defaults to `0`.
+*   **Returns:** (number) — Rounded value.
 
 ### `RoundToNearest(numToRound, multiple)`
-*   **Description:** Rounds `numToRound` to the nearest multiple of `multiple`.
-*   **Parameters:** 
-    *   `numToRound` (number) — value to round.
-    *   `multiple` (number) — target multiple (must be nonzero).
-*   **Returns:** number — nearest multiple of `multiple`.
-*   **Example:** `RoundToNearest(7, 5) → 5`, `RoundToNearest(8, 5) → 10`.
+*   **Description:** Rounds a number to the nearest multiple of a given value.
+*   **Parameters:**
+    *   `numToRound` (number) — Number to round.
+    *   `multiple` (number) — Multiple to round to.
+*   **Returns:** (number) — Rounded value.
 
 ### `math.clamp(num, min, max)`
+*   **Description:** Clamps a number between two values. Extends the global `math` table.
+*   **Parameters:**
+    *   `num` (number) — Number to clamp.
+    *   `min` (number) — Minimum boundary.
+    *   `max` (number) — Maximum boundary.
+*   **Returns:** (number) — Clamped value within the range.
+
 ### `Clamp(num, min, max)`
-*   **Description:** Returns `num` constrained to the inclusive range `[min, max]`. Both functions are aliases.
-*   **Parameters:** 
-    *   `num`, `min`, `max` (number) — values.
-*   **Returns:** number — clamped value.
-*   **Error states:** Behavior is undefined if `min > max` (returns `min` or `max` inconsistently); caller should ensure `min ≤ max`.
+*   **Description:** Clamps a number between two values. Global function alias for `math.clamp`.
+*   **Parameters:**
+    *   `num` (number) — Number to clamp.
+    *   `min` (number) — Minimum boundary.
+    *   `max` (number) — Maximum boundary.
+*   **Returns:** (number) — Clamped value within the range.
 
 ### `IsNumberEven(num)`
-*   **Description:** Determines if `num` is an even integer.
-*   **Parameters:** 
-    *   `num` (number) — value to test.
-*   **Returns:** boolean — `true` if `num % 2 == 0`, else `false`.
-*   **Error states:** Returns `true` for non-integer even numbers (e.g., `2.0`), but `false` for non-integers like `2.5`.
+*   **Description:** Checks if a number is even.
+*   **Parameters:**
+    *   `num` (number) — Number to check.
+*   **Returns:** (boolean) — True if the number is even, false otherwise.
 
 ### `DistXYSq(p1, p2)`
-*   **Description:** Computes the squared Euclidean distance between two 2D points (`p1.x`, `p1.y`) and (`p2.x`, `p2.y`).
-*   **Parameters:** 
-    *   `p1`, `p2` (`{x=number, y=number}`) — point tables.
-*   **Returns:** number — squared distance.
-*   **Use case:** Avoids costly square root when comparing distances.
+*   **Description:** Calculates the squared distance between two positions in the XY plane.
+*   **Parameters:**
+    *   `p1` (table) — First position with `x` and `y` fields.
+    *   `p2` (table) — Second position with `x` and `y` fields.
+*   **Returns:** (number) — Squared distance value.
 
 ### `DistXZSq(p1, p2)`
-*   **Description:** Computes the squared Euclidean distance between two 3D points projected onto the XZ plane (ignores Y-axis).
-*   **Parameters:** 
-    *   `p1`, `p2` (`{x=number, y=number, z=number}`) — point tables.
-*   **Returns:** number — squared XZ distance.
-*   **Use case:** World-space horizontal distance in DST’s coordinate system.
+*   **Description:** Calculates the squared distance between two positions in the XZ plane (common for ground-level distance in DST).
+*   **Parameters:**
+    *   `p1` (table) — First position with `x` and `z` fields.
+    *   `p2` (table) — Second position with `x` and `z` fields.
+*   **Returns:** (number) — Squared distance value.
 
 ### `math.range(start, stop, step)`
-*   **Description:** Generates a table of numbers from `start` to `stop` in increments of `step`.
-*   **Parameters:** 
-    *   `start`, `stop` (number) — range bounds.
-    *   `step` (number?) — increment (defaults to `1`).
-*   **Returns:** `{number}` — list of numbers.
-*   **Error states:** Infinite loop or empty table if `step` has wrong sign relative to `(stop - start)`.
+*   **Description:** Generates an array of numbers from start to stop with optional step. Extends the global `math` table.
+*   **Parameters:**
+    *   `start` (number) — Starting value.
+    *   `stop` (number) — Ending value.
+    *   `step` (number or nil) — Step increment. If nil, defaults to `1`.
+*   **Returns:** (table) — Array of numbers.
 
 ### `math.diff(a, b)`
-*   **Description:** Returns absolute difference between `a` and `b`.
-*   **Parameters:** `a`, `b` (number).
-*   **Returns:** number — `|a - b|`.
-*   **Alias for:** `math.abs(a - b)`.
+*   **Description:** Returns the absolute difference between two numbers. Extends the global `math` table.
+*   **Parameters:**
+    *   `a` (number) — First number.
+    *   `b` (number) — Second number.
+*   **Returns:** (number) — Absolute difference.
 
 ### `ReduceAngle(rot)`
-*   **Description:** Normalizes rotation angle `rot` (in degrees) to the range `[-180, 180]`.
-*   **Parameters:** `rot` (number) — angle in degrees.
-*   **Returns:** number — normalized angle.
+*   **Description:** Reduces an angle in degrees to the range `-180` to `180`.
+*   **Parameters:**
+    *   `rot` (number) — Angle in degrees.
+*   **Returns:** (number) — Normalized angle.
 
 ### `DiffAngle(rot1, rot2)`
-*   **Description:** Returns the smallest unsigned angular difference (in degrees) between two rotations.
-*   **Parameters:** `rot1`, `rot2` (number) — angles in degrees.
-*   **Returns:** number — difference in `[0, 180]`.
+*   **Description:** Calculates the absolute difference between two angles in degrees.
+*   **Parameters:**
+    *   `rot1` (number) — First angle in degrees.
+    *   `rot2` (number) — Second angle in degrees.
+*   **Returns:** (number) — Absolute angle difference.
 
 ### `ReduceAngleRad(rot)`
-*   **Description:** Normalizes rotation angle `rot` (in radians) to the range `[-π, π]`.
-*   **Parameters:** `rot` (number) — angle in radians.
-*   **Returns:** number — normalized angle.
+*   **Description:** Reduces an angle in radians to the range `-pi` to `pi`.
+*   **Parameters:**
+    *   `rot` (number) — Angle in radians.
+*   **Returns:** (number) — Normalized angle.
 
 ### `DiffAngleRad(rot1, rot2)`
-*   **Description:** Returns the smallest unsigned angular difference (in radians) between two rotations.
-*   **Parameters:** `rot1`, `rot2` (number) — angles in radians.
-*   **Returns:** number — difference in `[0, π]`.
+*   **Description:** Calculates the absolute difference between two angles in radians.
+*   **Parameters:**
+    *   `rot1` (number) — First angle in radians.
+    *   `rot2` (number) — Second angle in radians.
+*   **Returns:** (number) — Absolute angle difference.
 
 ### `BresenhamLineXZtoXZ(x1, z1, x2, z2)`
-*   **Description:** Computes a list of grid-aligned points tracing a line from `(x1, z1)` to `(x2, z2)` on the XZ plane. Uses a modified algorithm to include diagonal steps as 2x2 blocks (see comment).
-*   **Parameters:** 
-    *   `x1`, `z1`, `x2`, `z2` (number) — integer grid coordinates.
-*   **Returns:** {`{x=number, z=number}`} — ordered list of grid points.
-*   **Error states:** Does not enforce integer inputs; returns points with fractional coordinates if inputs are non-integers.
+*   **Description:** Generates points along a line using Bresenham's algorithm in the XZ plane. Orthogonal moves only; diagonals create 2x2 blocks.
+*   **Parameters:**
+    *   `x1` (number) — Starting X coordinate.
+    *   `z1` (number) — Starting Z coordinate.
+    *   `x2` (number) — Ending X coordinate.
+    *   `z2` (number) — Ending Z coordinate.
+*   **Returns:** (table) — Array of position tables with `x` and `z` fields.
 
 ### `BresenhamLineXZtoXZExcludeCaps(x1, z1, x2, z2, excludestart, excludeend)`
-*   **Description:** Calls `BresenhamLineXZtoXZ`, then optionally removes the first or last point.
-*   **Parameters:** 
-    *   `excludestart` (boolean) — if true, omits the starting point.
-    *   `excludeend` (boolean) — if true, omits the ending point.
-*   **Returns:** {`{x=number, z=number}`} — filtered list of points.
+*   **Description:** Generates Bresenham line points with optional exclusion of start and/or end points.
+*   **Parameters:**
+    *   `x1` (number) — Starting X coordinate.
+    *   `z1` (number) — Starting Z coordinate.
+    *   `x2` (number) — Ending X coordinate.
+    *   `z2` (number) — Ending Z coordinate.
+    *   `excludestart` (boolean) — If true, excludes the starting point from results.
+    *   `excludeend` (boolean) — If true, excludes the ending point from results.
+*   **Returns:** (table) — Array of position tables with `x` and `z` fields.
 
 ## Events & listeners
-Not applicable
+None.

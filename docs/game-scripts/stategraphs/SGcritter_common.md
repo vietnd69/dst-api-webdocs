@@ -1,155 +1,117 @@
 ---
 id: SGcritter_common
 title: Sgcritter Common
-description: Provides reusable stategraph states and event handlers for critter AI, including idle behavior, eating, emotes, walking, and combat/playful interactions.
-tags: [ai, stategraph, critter, locomotion]
+description: Provides reusable state and event definitions for critter entity stategraphs.
+tags: [stategraph, critter, ai, animation]
 sidebar_position: 10
 
-last_updated: 2026-03-08
-build_version: 714014
+last_updated: 2026-04-04
+build_version: 718694
 change_status: stable
 category_type: stategraphs
-source_hash: f2d637d6
-system_scope: ai
+source_hash: 95996f44
+system_scope: brain
 ---
 
 # Sgcritter Common
 
-> Based on game build **714014** | Last updated: 2026-03-08
+> Based on game build **718694** | Last updated: 2026-04-04
 
 ## Overview
-`SGcritter_common` is a utility module that defines reusable stategraph states and event handlers for critter entities in DST. It centralizes common behaviors like idle animation selection, eating animations, emotional/emote sequences, walking states, and interactive states such as nuzzling or playing with other critters. This module is intended to be included and extended by specific critter stategraphs (e.g., beefalo, rabbit) via `SGCritterStates.Add*` functions. It integrates with the `locomotor`, `crittertraits`, and `follower` components to manage movement, dominant traits, and leader tracking.
+`SGcritter_common` is a utility module that provides reusable state and event definitions for building critter entity stategraphs. It contains helper functions in the `SGCritterStates` and `SGCritterEvents` tables that modders can use to add common critter behaviors like idling, eating, emotes, combat avoidance, playful interactions, and walking. This module integrates with the `locomotor`, `crittertraits`, and `follower` components to manage critter movement and trait-based behavior.
 
 ## Usage example
 ```lua
 local states = {}
 local events = {}
+local actionhandlers = {}
 
-SGCritterStates.AddIdle(states, 3, { 0.5, 1.5 }, function() return "idle_loop" end)
-SGCritterStates.AddEat(states, { 0.2, 1.0 }, { onenter = function(inst) ... end })
-SGCritterStates.AddRandomEmotes(states, {
-    { anim = "emote_cute", timeline = { 0.2 } },
-    { anim = "emote_wiggle", timeline = { 0.3 }, fns = { onexit = ... } }
-})
-SGCritterStates.AddWalkStates(states, { starttimeline = { 0.1 }, walktimeline = { 0.5, 1.0 }, endtimeline = { 0.2 } }, true)
+-- Add common critter states
+SGCritterStates.AddIdle(states, 3, nil, nil)
+SGCritterStates.AddEat(states, nil, nil)
+SGCritterStates.AddHungry(states, nil)
+SGCritterStates.AddWalkStates(states, nil, false)
 
-return StateGraph("critter_common_sg", states, events)
+-- Add common critter events
+table.insert(events, SGCritterEvents.OnEat())
+table.insert(events, SGCritterEvents.OnAvoidCombat())
+
+return StateGraph("SGCritter", states, events, "idle", actionhandlers)
 ```
 
 ## Dependencies & tags
-**Components used:** `locomotor`, `crittertraits`, `follower`  
-**Tags:** States may include `idle`, `busy`, `canrotate`, `moving`, `softstop`, `playful`. The `SGCritterEvents.OnTraitChanged` listener responds to `crittertraitchanged` events.
+**Components used:** `locomotor`, `crittertraits`, `follower`
+**Tags:** Adds `idle`, `canrotate`, `busy`, `moving`, `softstop`, `playful` (varies by state)
 
 ## Properties
-No public properties — this module exports only helper functions (`SGCritterStates.Add*`, `SGCritterEvents.*`) for composition into stategraphs.
+No public properties. This is a utility module with helper functions, not a class with instance properties.
 
 ## Main functions
 ### `SGCritterEvents.OnEat()`
-*   **Description:** Creates an event handler that transitions the stategraph to the `"eat"` state when the `"oneat"` event is fired.
+*   **Description:** Returns an event handler that transitions the critter to the `eat` state when the `oneat` event fires.
 *   **Parameters:** None.
-*   **Returns:** `EventHandler` instance.
+*   **Returns:** `EventHandler` object for the `oneat` event.
 
 ### `SGCritterEvents.OnAvoidCombat()`
-*   **Description:** Creates an event handler that updates the stategraph’s `mem.avoidingcombat` flag when the `"critter_avoidcombat"` event fires.
+*   **Description:** Returns an event handler that sets the `avoidingcombat` memory flag when the `critter_avoidcombat` event fires.
 *   **Parameters:** None.
-*   **Returns:** `EventHandler` instance.
+*   **Returns:** `EventHandler` object for the `critter_avoidcombat` event.
 
 ### `SGCritterEvents.OnTraitChanged()`
-*   **Description:** Creates an event handler that triggers an emote (`"emote_cute"` or `"combat_pre"`) when the `"crittertraitchanged"` event fires. If the critter is currently in a `"busy"` state, it queues the emote for after exit.
+*   **Description:** Returns an event handler that transitions to the `emote_cute` state when the `crittertraitchanged` event fires, or queues the transition if the critter is currently busy.
 *   **Parameters:** None.
-*   **Returns:** `EventHandler` instance.
+*   **Returns:** `EventHandler` object for the `crittertraitchanged` event.
 
 ### `SGCritterStates.AddIdle(states, num_emotes, timeline, idle_anim_fn)`
-*   **Description:** Adds an `"idle"` state that chooses animations or transitions based on hunger, dominant traits (e.g., combat, playful), queued emotes, or random chance. It stops movement, handles emote delays, and reacts to queued dominant trait emotes.
-*   **Parameters:**  
-    - `states` (table) — the state table to which the new state is appended.  
-    - `num_emotes` (number) — number of standard emote variants available (e.g., 3 for emote_1, emote_2, emote_3).  
-    - `timeline` (table?) — optional timeline definition for the state.  
-    - `idle_anim_fn` (function?) — optional function `inst → anim_name` to customize the idle animation; otherwise defaults to `"idle_loop"`.  
-*   **Returns:** Nothing — mutates the `states` table.
+*   **Description:** Adds an `idle` state to the states table with logic for random emotes, trait-based behavior, and queued actions.
+*   **Parameters:** `states` (table) - the states table to insert into. `num_emotes` (number) - number of emote variations. `timeline` (table) - optional timeline data. `idle_anim_fn` (function) - optional function receiving `inst` and returning idle animation name.
+*   **Returns:** Nothing. Modifies the `states` table in place.
 
 ### `SGCritterStates.AddEat(states, timeline, fns)`
-*   **Description:** Adds an `"eat"` state with pre/loop/post animation sequence. On exit, it either goes to `"emote_cute"` (if `"queuethankyou"` is set) or `"idle"`.
-*   **Parameters:**  
-    - `states` (table) — state table to modify.  
-    - `timeline` (table?) — optional timeline definition.  
-    - `fns` (table?) — optional table with `onenter` and `onexit` callback functions.  
-*   **Returns:** Nothing.
+*   **Description:** Adds an `eat` state with pre, loop, and post eat animations.
+*   **Parameters:** `states` (table) - the states table to insert into. `timeline` (table) - optional timeline data. `fns` (table) - optional table with `onenter` and `onexit` callbacks.
+*   **Returns:** Nothing. Modifies the `states` table in place.
 
 ### `SGCritterStates.AddHungry(states, timeline)`
-*   **Description:** Adds a `"hungry"` state that plays a `"distress"` animation and returns to `"idle"` on animover.
-*   **Parameters:**  
-    - `states` (table) — state table to modify.  
-    - `timeline` (table?) — optional timeline definition.  
-*   **Returns:** Nothing.
+*   **Description:** Adds a `hungry` state that plays a distress animation.
+*   **Parameters:** `states` (table) - the states table to insert into. `timeline` (table) - optional timeline data.
+*   **Returns:** Nothing. Modifies the `states` table in place.
 
 ### `SGCritterStates.AddNuzzle(states, actionhandlers, timeline, fns)`
-*   **Description:** Adds a `"nuzzle"` state that plays the `"emote_nuzzle"` animation, fires `"critter_onnuzzle"` on completion, and handles action buffering. Registers `ACTIONS.NUZZLE` action handler.
-*   **Parameters:**  
-    - `states` (table) — state table to modify.  
-    - `actionhandlers` (table) — table to which the action handler is appended.  
-    - `timeline` (table?) — optional timeline definition.  
-    - `fns` (table?) — optional `onenter`/`onexit` callbacks.  
-*   **Returns:** Nothing.
+*   **Description:** Adds a `nuzzle` state and registers the `NUZZLE` action handler.
+*   **Parameters:** `states` (table) - the states table to insert into. `actionhandlers` (table) - the actionhandlers table to insert into. `timeline` (table) - optional timeline data. `fns` (table) - optional table with `onenter` and `onexit` callbacks.
+*   **Returns:** Nothing. Modifies the `states` and `actionhandlers` tables in place.
 
 ### `SGCritterStates.AddRandomEmotes(states, emotes)`
-*   **Description:** Adds a series of `"emote_{i}"` states (one per entry in `emotes`) with custom animations, timelines, and callbacks.
-*   **Parameters:**  
-    - `states` (table) — state table to modify.  
-    - `emotes` (table) — array of emote entries; each entry is a table with keys:  
-        - `anim` (string) — animation name  
-        - `timeline` (table?) — optional timeline  
-        - `fns` (table?) — optional `onenter`/`onexit` callbacks  
-*   **Returns:** Nothing.
+*   **Description:** Adds multiple emote states based on the provided emotes table configuration. States are named `emote_1`, `emote_2`, etc., corresponding to the index in the `emotes` array.
+*   **Parameters:** `states` (table) - the states table to insert into. `emotes` (table) - array of emote configurations with `tags`, `anim`, `timeline`, `fns`, and `ignorestandardonenter` fields. `fns` can contain `onenter`, `animover`, and `onexit` callbacks. `ignorestandardonenter` (boolean) - if true, skips default locomotor stop and animation play.
+*   **Returns:** Nothing. Modifies the `states` table in place.
 
 ### `SGCritterStates.AddEmote(states, name, timeline)`
-*   **Description:** Adds a generic `"emote_{name}"` state (e.g., `"emote_pet"` for `name="pet"`).
-*   **Parameters:**  
-    - `states` (table) — state table to modify.  
-    - `name` (string) — suffix for the state name.  
-    - `timeline` (table?) — optional timeline definition.  
-*   **Returns:** Nothing.
+*   **Description:** Adds a single named emote state.
+*   **Parameters:** `states` (table) - the states table to insert into. `name` (string) - the emote name suffix. `timeline` (table) - optional timeline data.
+*   **Returns:** Nothing. Modifies the `states` table in place.
 
 ### `SGCritterStates.AddPetEmote(states, timeline, onexit)`
-*   **Description:** Adds an `"emote_pet"` state with `"critter_onpet"` event fire on completion.
-*   **Parameters:**  
-    - `states` (table) — state table to modify.  
-    - `timeline` (table?) — optional timeline definition.  
-    - `onexit` (function?) — optional onexit callback.  
-*   **Returns:** Nothing.
+*   **Description:** Adds an `emote_pet` state that pushes the `critter_onpet` event on completion.
+*   **Parameters:** `states` (table) - the states table to insert into. `timeline` (table) - optional timeline data. `onexit` (function) - optional exit callback.
+*   **Returns:** Nothing. Modifies the `states` table in place.
 
 ### `SGCritterStates.AddCombatEmote(states, timelines)`
-*   **Description:** Adds three states: `"combat_pre"`, `"combat_loop"`, and `"combat_pst"` to manage combat/emotional displays. Loop duration and continuation are influenced by dominant traits and movement state.
-*   **Parameters:**  
-    - `states` (table) — state table to modify.  
-    - `timelines` (table?) — optional table with keys: `pre`, `loop`, `pst`, each containing a timeline definition.  
-*   **Returns:** Nothing.
+*   **Description:** Adds three combat-related states: `combat_pre`, `combat_loop`, and `combat_pst`.
+*   **Parameters:** `states` (table) - the states table to insert into. `timelines` (table) - optional table with `pre`, `loop`, and `pst` timeline data.
+*   **Returns:** Nothing. Modifies the `states` table in place.
 
 ### `SGCritterStates.AddPlayWithOtherCritter(states, events, timeline, onexit)`
-*   **Description:** Adds `"playful"` and `"playful2"` states to coordinate two-way play animations. Handles event-based initiation (`start_playwithplaymate`, `critterplaywithme`) and delay checks.
-*   **Parameters:**  
-    - `states` (table) — state table to modify.  
-    - `events` (table) — event table to which play-related event handlers are appended.  
-    - `timeline` (table?) — optional table with `active` and `passive` timeline entries.  
-    - `onexit` (table?) — optional table with `active` and `inative` (likely a typo for `inactive`) exit callbacks.  
-*   **Returns:** Nothing.
+*   **Description:** Adds playful interaction states (`playful`, `playful2`) and event handlers for critter-to-critter play.
+*   **Parameters:** `states` (table) - the states table to insert into. `events` (table) - the events table to insert into. `timeline` (table) - optional table with `active` and `passive` timeline data. `onexit` (table) - optional table with `active` and `inactive` exit callbacks.
+*   **Returns:** Nothing. Modifies the `states` and `events` tables in place.
 
 ### `SGCritterStates.AddWalkStates(states, timelines, softstop)`
-*   **Description:** Adds `"walk_start"`, `"walk"`, and `"walk_stop"` states to handle forward movement animations and speed control. Supports soft stopping via `locomotor:SetExternalSpeedMultiplier`.
-*   **Parameters:**  
-    - `states` (table) — state table to modify.  
-    - `timelines` (table?) — optional table with `starttimeline`, `walktimeline`, `endtimeline` entries.  
-    - `softstop` (boolean or function) — if `true` or a function returning `true`, uses deceleration logic; otherwise, abrupt stop.  
-*   **Returns:** Nothing.
+*   **Description:** Adds three walking states: `walk_start`, `walk`, and `walk_stop` with optional soft stopping behavior.
+*   **Parameters:** `states` (table) - the states table to insert into. `timelines` (table) - optional table with `starttimeline`, `walktimeline`, and `endtimeline` data. `softstop` (boolean or function) - enables gradual speed reduction on stop. If function, receives `inst` as argument.
+*   **Returns:** Nothing. Modifies the `states` table in place.
 
 ## Events & listeners
-- **Listens to (via `SGCritterEvents`):**  
-  - `"oneat"` — triggers `"eat"` state.  
-  - `"critter_avoidcombat"` — updates `sg.mem.avoidingcombat`.  
-  - `"crittertraitchanged"` — queues or triggers dominant trait emotes.  
-  - `"start_playwithplaymate"` and `"critterplaywithme"` — handled inside `AddPlayWithOtherCritter`.  
-- **Pushes (events fired by states):**  
-  - `"critter_onnuzzle"` — on `"nuzzle"` state exit.  
-  - `"critter_onpet"` — on `"emote_pet"` state exit.  
-  - `"critter_doemote"` — pushed to the leader on some emote transitions.  
-  - `"oncritterplaying"` — on `"playful"` state entry.
+- **Listens to:** `oneat`, `critter_avoidcombat`, `crittertraitchanged`, `animover`, `animqueueover`, `start_playwithplaymate`, `critterplaywithme`
+- **Pushes:** `critter_doemote` (to leader), `critter_onnuzzle`, `critter_onpet`, `oncritterplaying`

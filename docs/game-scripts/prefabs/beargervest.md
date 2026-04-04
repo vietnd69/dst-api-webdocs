@@ -1,11 +1,11 @@
 ---
 id: beargervest
 title: Beargervest
-description: A wearable vest that slowly consumes fuel to reduce hunger burn rate while equipped and provide thermal insulation.
-tags: [equipment, inventory, consumption, insulation]
+description: Defines the Bearger Vest prefab, an equipable body slot item that provides insulation and slows hunger drain while consuming durability.
+tags: [inventory, equipment, insulation, durability]
 sidebar_position: 10
 
-last_updated: 2026-03-04
+last_updated: 2026-03-20
 build_version: 714014
 change_status: stable
 category_type: prefabs
@@ -15,34 +15,51 @@ system_scope: inventory
 
 # Beargervest
 
-> Based on game build **714014** | Last updated: 2026-03-04
+> Based on game build **714014** | Last updated: 2026-03-20
 
 ## Overview
-The `beargervest` is an inventory item prefab that grants thermal insulation and reduces the wearer’s hunger burn rate. It functions as a fueled item—consuming fuel over time while equipped—and provides no armor protection. The vest supports skin overrides via `GetSkinBuild()` and integrates with the equippable system to manage visual and gameplay effects when worn or unequipped.
+`Beargervest` is a prefab definition for an equipable clothing item. It functions as body armor that provides thermal insulation and reduces the owner's hunger burn rate. The item degrades over time using the `fueled` component with `FUELTYPE.USAGE` and is removed from the world when durability is depleted. It handles animation overrides for the torso slot and supports item skins.
 
 ## Usage example
 ```lua
-local inst = Prefab("beargervest", fn, assets)
--- The beargervest prefab is used as-is; no manual component manipulation is required.
--- When equipped by a player, it automatically starts fuel consumption,
--- reduces hunger burn rate, and overrides the body symbol for rendering.
+-- Spawning the vest in the world
+local vest = SpawnPrefab("beargervest")
+
+-- Adding it to a player's inventory
+local player = ThePlayer
+player.components.inventory:GiveItem(vest)
+
+-- Equipping the vest manually (triggers onequip logic)
+player.components.inventory:Equip(vest)
 ```
 
 ## Dependencies & tags
-**Components used:** `inspectable`, `inventoryitem`, `tradable`, `equippable`, `insulator`, `fueled`, `hunger` (via `owner.components.hunger`), `transform`, `animstate`, `network`
-**Tags:** None added, removed, or checked directly on `inst`.
+**Components used:** `inspectable`, `inventoryitem`, `tradable`, `equippable`, `insulator`, `fueled`.
+**Tags:** None identified. (Armor tags are present in source code but commented out).
 
 ## Properties
-No public properties are initialized in the constructor or exposed directly.
+No public properties. Configuration is handled internally during entity instantiation via the `fn` factory function.
 
 ## Main functions
-Not applicable — this is a prefab definition (`fn`) rather than a component class. No instance methods are defined beyond those inherited from attached components.
+### `onequip(inst, owner)`
+*   **Description:** Internal callback assigned to `equippable:SetOnEquip`. Executes when the vest is equipped by a player.
+*   **Parameters:** `inst` (entity) - The vest instance. `owner` (entity) - The player equipping the item.
+*   **Returns:** Nothing.
+*   **Error states:** Checks for `owner.components.hunger` existence before modifying burn rate.
+
+### `onunequip(inst, owner)`
+*   **Description:** Internal callback assigned to `equippable:SetOnUnequip`. Executes when the vest is unequipped.
+*   **Parameters:** `inst` (entity) - The vest instance. `owner` (entity) - The player unequipping the item.
+*   **Returns:** Nothing.
+*   **Error states:** Checks for `owner.components.hunger` existence before removing burn rate modifier.
+
+### `onperish(inst)`
+*   **Description:** Internal callback assigned to `fueled:SetDepletedFn`. Executes when the vest fuel reaches zero.
+*   **Parameters:** `inst` (entity) - The vest instance.
+*   **Returns:** Nothing.
+*   **Error states:** Removes the entity from the world immediately.
 
 ## Events & listeners
-- **Listens to:** None — no `inst:ListenForEvent()` calls appear in this file.
-- **Pushes:** `equipskinneditem` (via `owner:PushEvent`), `unequipskinneditem` (via `owner:PushEvent`) — triggered during equip/unequip when a skin build exists.
-- **Callback functions:**  
-  `onequip(inst, owner)` — starts fuel consumption, applies hunger modifier, and overrides the body symbol.  
-  `onunequip(inst, owner)` — clears override, removes hunger modifier, stops fuel consumption, and pushes unequip event for skins.  
-  `onequiptomodel(inst, owner)` — removes hunger modifier and stops fuel consumption (used for model preview).  
-  `onperish(inst)` — removes the vest when its fuel is fully depleted.
+-   **Listens to:** None directly on the inst.
+-   **Pushes:** `equipskinneditem` (on owner) - Fired when equipping a skinned version.
+-   **Pushes:** `unequipskinneditem` (on owner) - Fired when unequipping a skinned version.

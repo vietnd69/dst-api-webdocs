@@ -5,11 +5,11 @@ description: A data-only module containing Wendy-specific speech strings for ite
 tags: [speech, character, data, wendy, localization]
 sidebar_position: 10
 
-last_updated: 2026-03-10
-build_version: 714014
-change_status: stable
+last_updated: 2026-04-04
+build_version: 718694
+change_status: data_patched
 category_type: root
-source_hash: 9ddd916a
+source_hash: 0d370568
 system_scope: player
 ---
 

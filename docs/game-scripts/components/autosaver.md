@@ -1,55 +1,52 @@
 ---
 id: autosaver
 title: Autosaver
-description: Manages automated world saving and synchronization across master and secondary shards in DST's networking model.
-tags: [network, save, shard]
+description: Manages automatic world saving intervals and shard synchronization states.
+tags: [network, save, world]
 sidebar_position: 10
 
-last_updated: 2026-03-03
+last_updated: 2026-03-20
 build_version: 714014
 change_status: stable
 category_type: components
 source_hash: f109226b
-system_scope: network
+system_scope: world
 ---
 
 # Autosaver
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **714014** | Last updated: 2026-03-20
 
 ## Overview
-The `autosaver` component orchestrates automatic world saving and snapshot synchronization between the master shard and secondary shards in a DST multiplayer session. It handles both master-only saving logic (including snapshot versioning, rollback, and save slot management) and secondary shard behavior (such as save requests and UI state synchronization). The component ensures consistency of world state across clients and shards while minimizing manual intervention.
+The `Autosaver` component handles the logic for automatic world saving, including timing, network replication of save states, and synchronization between master and secondary shards. It manages rollback procedures if snapshot data diverges and updates the player HUD during save operations. This component is primarily internal to the engine simulation lifecycle and interacts heavily with `TheNet` and `TheWorld` globals.
 
 ## Usage example
 ```lua
--- The autosaver component is added automatically by the game engine and should not be manually instantiated.
--- It is attached to the world entity (`TheWorld`) and activated during world initialization.
--- Typical interactions involve reading the last save time or triggering manual saves via events:
-TheWorld:PushEvent("ms_save", { mintime = 120 }) -- Force a save after 2 minutes
+-- Typically attached internally to the world entity
+local world = TheWorld
+if world.components.autosaver then
+    local last_save = world.components.autosaver:GetLastSaveTime()
+    print("Last save occurred at time: " .. tostring(last_save))
+end
 ```
 
 ## Dependencies & tags
-**Components used:** None identified.  
+**Components used:** None identified.
 **Tags:** None identified.
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `inst` | entity instance | `inst` | The entity (typically `TheWorld`) that owns this component. |
+No public properties.
 
 ## Main functions
 ### `GetLastSaveTime()`
-* **Description:** Returns the Unix timestamp of the most recent successful save operation.
-* **Parameters:** None.
-* **Returns:** `number` — the Unix time (from `GetTime()`) when the last save completed.
-* **Error states:** None — always returns a numeric value (initially set to startup time).
+*   **Description:** Returns the simulation time timestamp of the last successful save operation.
+*   **Parameters:** None.
+*   **Returns:** `number` - The time value recorded during the last save.
+*   **Error states:** Returns `nil` or initial start time if no save has completed yet.
 
 ## Events & listeners
-- **Listens to:**  
-  - `issavingdirty` — triggers HUD save indicator and, on non-master shards, initiates a save.  
-  - `ms_save` — on master shard: performs world save; on secondary shard: requests a save from master.  
-  - `ms_setautosaveenabled` — on master shard: enables/disables autosave based on world settings.  
-  - `secondary_autosaverupdate` — on secondary shard: processes snapshot updates and initiates rollback if needed.
-  
-- **Pushes:**  
-  - `master_autosaverupdate` — on master shard, broadcasts current snapshot ID to secondary shards after save.
+-   **Listens to:** `issavingdirty` - Triggers HUD updates when the network save variable changes.
+-   **Listens to:** `ms_save` (on `TheWorld`) - Initiates the save process on master simulation.
+-   **Listens to:** `ms_setautosaveenabled` (on `TheWorld`) - Toggles the autosave enabled state.
+-   **Listens to:** `secondary_autosaverupdate` (on `TheWorld`) - Handles snapshot synchronization on secondary shards.
+-   **Pushes:** `master_autosaverupdate` (on `TheWorld`) - Notifies other systems of snapshot updates during save.

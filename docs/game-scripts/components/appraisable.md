@@ -1,11 +1,11 @@
 ---
 id: appraisable
 title: Appraisable
-description: Provides a pluggable appraisal mechanism for entities, allowing custom logic to determine whether a target can be appraised and what happens when appraisal occurs.
-tags: [appraisal, utility, component]
+description: Provides callback hooks for entities to validate and perform appraisal actions on targets.
+tags: [interaction, utility, callback]
 sidebar_position: 10
 
-last_updated: 2026-03-03
+last_updated: 2026-03-20
 build_version: 714014
 change_status: stable
 category_type: components
@@ -15,53 +15,55 @@ system_scope: entity
 
 # Appraisable
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **714014** | Last updated: 2026-03-20
 
 ## Overview
-`Appraisable` is a lightweight component that enables entities to define custom appraisal behavior via callback functions. It does not enforce any default appraisal logic but instead exposes two methods—`CanAppraise` and `Appraise`—that delegates to optional callback functions (`canappraisefn` and `appraisefn`). This allows prefabs to easily hook into an appraisal system (e.g., for items like the Geode or鉴定装置-like tools) without modifying core systems.
+`Appraisable` is a lightweight component that defines custom logic for appraisal interactions. It does not implement appraisal behavior itself but instead exposes two callback fields (`canappraisefn` and `appraisefn`) that prefab scripts must populate. This allows different entities to define unique conditions for when they can appraise a target and what occurs when the appraisal succeeds.
 
 ## Usage example
 ```lua
 local inst = CreateEntity()
 inst:AddComponent("appraisable")
 
--- Define custom logic
-inst.components.appraisable.canappraisefn = function(appraiser, target)
-    return target:HasTag("rare") and true or false
+-- Define validation logic
+inst.components.appraisable.canappraisefn = function(inst, target)
+    return target:IsValid() and not target:IsInLimbo()
 end
 
-inst.components.appraisable.appraisefn = function(appraiser, target)
-    TheSoundGameThread:PlaySound("pre_mesh/objects/geode_break")
+-- Define action logic
+inst.components.appraisable.appraisefn = function(inst, target)
+    inst.components.inspectable:ShowInspectionText(target)
 end
 
--- Later, check and perform appraisal
-if inst.components.appraisable:CanAppraise(some_target) then
-    inst.components.appraisable:Appraise(some_target)
+-- Check and execute
+if inst.components.appraisable:CanAppraise(target) then
+    inst.components.appraisable:Appraise(target)
 end
 ```
 
 ## Dependencies & tags
-**Components used:** None identified  
-**Tags:** None identified
+**Components used:** None identified.
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `canappraisefn` | function or `nil` | `nil` | Optional callback `(appraiser, target) -> boolean | string`. If present, used by `CanAppraise` to determine if appraisal is allowed. Returning `false` or a string (failure reason) indicates appraisal is denied; `true` allows it. |
-| `appraisefn` | function or `nil` | `nil` | Optional callback `(appraiser, target) -> void`. Executed by `Appraise` to perform the appraisal action (e.g., spawn particles, play sound, update UI). |
+| `canappraisefn` | function | `nil` | Custom function to validate if a target can be appraised. |
+| `appraisefn` | function | `nil` | Custom function executed when an appraisal occurs. |
+| `inst` | entity | `nil` | The entity instance that owns this component. |
 
 ## Main functions
 ### `CanAppraise(target)`
-*   **Description:** Checks whether the appraisal is permitted for a given `target`, using the custom `canappraisefn` callback if defined. Returns `true` if no callback is set (default approval).
-*   **Parameters:** `target` (Entity) — the entity being appraised.
-*   **Returns:** `true`, `false`, or a string (failure reason) — depending on the return value of `canappraisefn`. If `canappraisefn` is `nil`, returns `true`.
-*   **Error states:** None. Gracefully handles missing callback by returning `true`.
+*   **Description:** Checks if the entity is allowed to appraise the specified target. If `canappraisefn` is set, it calls that function; otherwise, it returns `true` by default.
+*   **Parameters:** `target` (entity) - The entity instance to evaluate for appraisal.
+*   **Returns:** `boolean` - `true` if appraisal is allowed, `false` otherwise.
+*   **Error states:** Returns `true` if `canappraisefn` is not defined.
 
 ### `Appraise(target)`
-*   **Description:** Executes the appraisal action on the `target`, using the `appraisefn` callback if defined. No-op if no callback is assigned.
-*   **Parameters:** `target` (Entity) — the entity being appraised.
+*   **Description:** Executes the appraisal action on the specified target. If `appraisefn` is set, it calls that function; otherwise, nothing happens.
+*   **Parameters:** `target` (entity) - The entity instance to appraise.
 *   **Returns:** Nothing.
-*   **Error states:** None. Does nothing silently if `appraisefn` is `nil`.
+*   **Error states:** Silently exits if `appraisefn` is not defined.
 
 ## Events & listeners
-None identified
+None identified.

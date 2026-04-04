@@ -1,132 +1,117 @@
 ---
 id: recipes
 title: Recipes
-description: Manages crafting recipe definitions, validation, and deconstruction logic, including dynamic resource generation, builder requirements, and tile-based placement constraints.
-tags: [crafting, validation, placement, deconstruction]
+description: This file defines the complete crafting recipe registry for Don't Starve Together, registering character-specific recipes, placement validation helpers, deconstruction logic, and event-specific items across all technology tiers using the Recipe2 API.
+tags: [crafting, recipes, items, characters, events]
 sidebar_position: 10
 
-last_updated: 2026-03-10
-build_version: 714014
+last_updated: 2026-04-04
+build_version: 718694
 change_status: stable
 category_type: root
-source_hash: d84b3d2b
+source_hash: 0a26f152
 system_scope: crafting
 ---
 
 # Recipes
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **718694** | Last updated: 2026-04-04
 
 ## Overview
-The `recipes.lua` file defines and configures crafting recipes in DST using the `Recipe2` and `Ingredient` APIs from `recipe.lua`. It enforces placement constraints (e.g., marsh tiles), dynamic yield calculations based on player skills (via `skilltreeupdater`), pet limits (via `petleash`), and follower requirements (via `leader`). It also supports recipe deconstruction customization via `DeconstructRecipe`, including blocking deconstruction and specifying returned components. The system integrates with custom filters, world geometry queries, and event system hooks (e.g., `craftedextraelixir`) to enable feature-rich crafting behaviors.
 
+This file defines the `PROTOTYPER_DEFS` table containing crafting station prototype data for Don't Starve Together. It depends on the `recipe` module (loaded via `require("recipe")`) and populates the global `PROTOTYPER_DEFS` table with prototyper definitions. Each prototyper entry specifies an icon atlas, icon image, whether it functions as a crafting station, and optional action strings and filter text for categorization. Prototypers include science machines (`researchlab`, `researchlab2`), magic stations (`researchlab3`, `researchlab4`), seafaring stations, fishing tackle stations, turf crafting stations, book stations, ancient altars, critter orphanages, cartography desks, sculpting tables, celestial stations, lunar and shadow forges, hermit crab shops, shellweaver stations, rabbit king shops, wandering trader shops, Wagstaff workstations, carpentry stations, shadow journals, portable blenders, and various event-specific stations (Carnival, Winter's Feast, Mad Science Lab, shrines). The file also establishes alias mappings where multiple shrine variants reference the same prototyper definition as `perdshrine`.
 ## Usage example
-```lua
-local Recipe = require("recipe")
-local recipes = require("recipes")
 
--- Register a marsh-only recipe with dynamic elixir yield
-Recipe2("ghostly_elixir", {
-    ingredients = {
-        Ingredient("ghost_fragment", 1),
-        Ingredient("_HEALTH", 1),
-    },
-    canbuild = function(inst, builder) 
-        return TheWorld.Map:GetTileAtPoint(inst.x, inst.z) == WORLD_TILES.MARSH
-    end,
-    onbuild = function(inst, builder)
-        local num = elixir_numtogive(recipe, builder)
-        if num > 1 then
-            builder:PushEvent("craftedextraelixir", { total = num })
-        end
-        return num
-    end,
+```lua
+-- Register a new crafting recipe using Recipe2
+local recipe = Recipe2("my_custom_item", {
+    Ingredient("cutgrass", 3),
+    Ingredient("twigs", 2),
+}, RECIPETABS.SURVIVAL, TECH.NONE, {
+    name = "My Custom Item",
+    desc = "A useful custom item",
+    tab_weight = 1,
 })
 
--- Define a deconstruction recipe with no deconstruction allowed
-DeconstructRecipe("security_pulse_cage_full", {}, { no_deconstruction = true })
+-- Add a custom build validation function
+recipe.atlas = CRAFTING_ICONS_ATLAS
+recipe.numtogive = 1
+recipe.crafttestfn = function(recipe, builder, pt, rotation, station)
+    if builder.components.health ~= nil and builder.components.health.currenthealth < 50 then
+        return false, "LOW_HEALTH"
+    end
+    return true
+end
+
+-- Register deconstruction recipe for when structure is hammered
+DeconstructRecipe("my_structure", {
+    Ingredient("cutgrass", 2),
+    Ingredient("twigs", 1),
+})
 ```
 
 ## Dependencies & tags
+
+**External dependencies:**
+- `recipe` -- Required module providing Recipe2 and Ingredient functions
+- `recipes_filter` -- Required module for crafting filter functionality
+
 **Components used:**
-- `leader` — via `builder.components.leader:CountFollowers(tag)` for follower-based constraints.
-- `petleash` — via `builder.components.petleash:IsFullForPrefab(prefab)` to enforce per-pet-type limits.
-- `skilltreeupdater` — via `doer.components.skilltreeupdater:IsActivated(skill)` for skill-based yield bonuses.
+- `skilltreeupdater` -- Checked on doer to determine if wendy_potion_yield or walter_ammo_efficiency skills are activated
+- `petleash` -- Checked in canbuild closures to limit Wormwood mutant pet count
+- `leader` -- Accessed via builder.components.leader to count ticoon followers
 
 **Tags:**
-- `"pocketwatch_inactive"` — used to determine deconstruction eligibility (inverted logic).
-- `"plantkin"` — `builder_tag` for Wormwood recipes.
-- `"clockmaker"` — `builder_tag` for pocketwatch recipes.
-- `"balloonomancer"` — `builder_tag` for Wes recipes.
-- `"ticoon"` — used in `CountFollowers("ticoon")` for Ticoon builder recipes.
-
+- `pocketwatch_inactive` -- check
+- `oncooldown` -- check
 ## Properties
+
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `no_deconstruction` | `boolean` | `false` | If `true`, prevents the item from being deconstructed via hammering or deconstruction recipes. |
-| `source_recipename` | `string` | `nil` | Specifies the underlying craftable recipe name, used during deconstruction reconstruction. |
-| `builder_tag` | `string` | `nil` | Requires the builder to have the specified tag. |
-| `no_builder_tag` | `string` | `nil` | Prohibits the builder from having the specified tag. |
-| `builder_skill` | `string` | `nil` | Requires the builder to have the specified skill activated. |
-| `action_str` | `string` | `nil` | Localized string override for the crafting action. |
-| `filter_text` | `string` | `nil` | Recipe filter group key, validated via `recipes_filter` to ensure membership in `CRAFTING_FILTERS`. |
-
+| `PROTOTYPER_DEFS` | table | `{}` | Top-level container for shrine prototype mappings. Contains shrine definitions (e.g., `wargshrine`, `pigshrine`, `yotc_carratshrine`) that map to base prototype definitions like `perdshrine`. |
+| `NUM_TEASHOP_LEVELS` | number | `3` | Number of upgrade levels available for the Teashop building. |
+| `NUM_COMMON_PETALS_FOR_TEASHOP_LEVEL` | table | `{8, 6, 4}` | Array of petal costs for each Teashop upgrade level. Index 1 = level 1 cost (8 petals), index 2 = level 2 cost (6 petals), index 3 = level 3 cost (4 petals). |
+| `NUM_RARE_PETALS_FOR_TEASHOP_LEVEL` | table | `{6, 4, 2}` | Array of rare petal costs for each Teashop upgrade level. Index 1 = level 1 cost (6 petals), index 2 = level 2 cost (4 petals), index 3 = level 3 cost (2 petals). Lower costs reflect higher value of weeds and succulents. |
 ## Main functions
-### `IsMarshLand(pt, rot)`
-* **Description:** Checks if the tile at the given point is a marsh tile, used to restrict recipe placement to marsh terrain.
-* **Parameters:**  
-  - `pt`: Point object with `.x`, `.y`, `.z` fields (typically `inst.x`, `inst.z`).  
-  - `rot`: Rotation angle (unused; present for API consistency with other tests).  
-* **Returns:** `true` if `TheWorld.Map:GetTileAtPoint(pt.x, pt.z) == WORLD_TILES.MARSH`; otherwise `false` or `nil` (if tile data is missing).
 
-### `telebase_testfn(pt, rot)`
-* **Description:** Validates placement of telebase structures by checking three precomputed points around `pt` for visual ground (e.g., not water or void).
-* **Parameters:**  
-  - `pt`: Placement point with `.x`, `.y`, `.z`.  
-  - `rot`: Rotation in degrees (converted internally to radians for point offset calculation).  
-* **Returns:** `true` if `TheWorld.Map:IsVisualGroundAtPoint(...)` returns `true` for all three points; otherwise `false`.
-
-### `elixir_numtogive(recipe, doer)`
-* **Description:** Calculates the number of ghostly elixirs to award, applying luck-based bonuses based on activated skill and global tuning constants.
-* **Parameters:**  
-  - `recipe`: Recipe object (unused in logic; present for signature compatibility).  
-  - `doer`: Entity performing the craft; must have `components.skilltreeupdater`.  
-* **Returns:** Integer: `1` (base), increased by `+1` if `"wendy_potion_yield"` is activated and `"GHOSTLYELIXIR_EXTRA1_CHANCE"` luck roll passes, or `+2` if `"wendy_potion_yield"` is activated *and* `"GHOSTLYELIXIR_EXTRA2_CHANCE"` luck roll passes. Never returns `nil` in practice—defaults to `1` if component/skill is unavailable.  
-* **Note:** Fires `craftedextraelixir` event on `doer` only if `total > 1`.
-
-### `calc_slingshotammo_numtogive(recipe, doer)`
-* **Description:** Returns adjusted slingshot ammo quantity when `"walter_ammo_efficiency"` skill is active.
-* **Parameters:**  
-  - `recipe`: Recipe object; its `numtogive` field is multiplied.  
-  - `doer`: Entity performing the craft; must have `components.skilltreeupdater`.  
-* **Returns:** `recipe.numtogive * 1.5` (float) if skill is activated; otherwise `nil`.
-
-### `get_slingshotammo_sg_state(recipe, doer)`
-* **Description:** Selects the appropriate stategraph action state for slingshot ammo crafting based on skill activation.
-* **Parameters:**  
-  - `recipe`: Unused.  
-  - `doer`: Entity performing the craft.  
-* **Returns:** `"domediumaction"` if `"walter_ammo_efficiency"` is activated; otherwise `nil`.
-
-### `pocketwatch_nodecon(inst)`
-* **Description:** Predicate function used to prevent deconstruction of active pocketwatch items. Returns `true` if deconstruction should be *blocked*.
-* **Parameters:**  
-  - `inst`: Entity instance (the crafted item).  
-* **Returns:** `true` if `inst:HasTag("pocketwatch_inactive")` is `false` (i.e., item is active); otherwise `false`.
-
-### `DeconstructRecipe(recipe_name, returns, options)`
-* **Description:** Registers or overrides deconstruction logic for a recipe. Used to define what ingredients are returned when an item is deconstructed or hammered.
-* **Parameters:**  
-  - `recipe_name`: String — name of the original craftable recipe (e.g., `"cotl_tabernacle_level2"`).  
-  - `returns`: Table — list of `Ingredient` objects returned on deconstruction.  
-  - `options`: Optional table; supports:  
-    - `no_deconstruction = true` — blocks deconstruction entirely.  
-    - `source_recipename = "..."` — maps deconstructed item to its underlying craftable for reconstruction.  
-* **Returns:** `nil` (side-effect: registers internal mapping in `DECONSTRUCT_RECIPES` table).  
-
+### `canbuild_boards_bunch(recipe, builder, pt, rotation, station)`
+* **Description:** Validates if the carpentry station is busy before allowing bulk board crafting. Returns 'BUSY_STATION' if station is animating use
+* **Parameters:**
+  - `recipe` -- The recipe table being evaluated
+  - `builder` -- The entity attempting to build
+  - `pt` -- The position target for the build
+  - `rotation` -- The rotation of the build
+  - `station` -- The crafting station entity
+* **Returns:** Boolean true if build allowed, or string error code
+* **Error states:** None
+### `canbuild_cutstone_bunch`(recipe, builder, pt, rotation, station)
+* **Description:** Validates if the carpentry station is busy before allowing bulk cutstone crafting. Returns 'BUSY_STATION' if station is animating use
+* **Parameters:**
+  - `recipe` -- The recipe table being evaluated
+  - `builder` -- The entity attempting to build
+  - `pt` -- The position target for the build
+  - `rotation` -- The rotation of the build
+  - `station` -- The crafting station entity
+* **Returns:** Boolean true if build allowed, or string error code
+* **Error states:** None
+### `canbuild(inst, builder)`
+* **Description:** Checks if the builder already has a ticoon follower before allowing construction. Returns 'TICOON' if builder already leads a ticoon
+* **Parameters:**
+  - `inst` -- The recipe instance
+  - `builder` -- The entity attempting to build
+* **Returns:** Boolean true if build allowed, or string 'TICOON' if builder already leads a ticoon
+* **Error states:** None
+### `w_radio(skin_name, custom)`
+* **Description:** Generates image layers for the w_radio skin based on custom configuration
+* **Parameters:**
+  - `skin_name` -- The name of the skin
+  - `custom` -- Custom skin configuration string
+* **Returns:** Table of layer configurations
+* **Error states:** None
 ## Events & listeners
-**Pushes:**
-- `craftedextraelixir` — fired on the `doer` entity when `elixir_numtogive` produces a yield > 1.  
-  *Data payload:* `{ total = number }`, where `total` is the final elixir count.
 
-**Listens to:** None explicitly defined in `recipes.lua`.
+**Events pushed:**
+- `craftedextraelixir` -- Pushed when Wendy crafts extra elixir due to skill luck rolls
+
+**Events listened to:**
+- None

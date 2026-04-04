@@ -5,11 +5,11 @@ description: Manages speech-related logic for the Wortox character, including sp
 tags: [speech, character, audio, player, interaction]
 sidebar_position: 10
 
-last_updated: 2026-03-10
-build_version: 714014
-change_status: stable
+last_updated: 2026-04-04
+build_version: 718694
+change_status: data_patched
 category_type: root
-source_hash: acc4bbd5
+source_hash: 8c658ca4
 system_scope: player
 ---
 

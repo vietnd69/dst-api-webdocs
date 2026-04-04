@@ -1,11 +1,11 @@
 ---
 id: cooking
 title: Cooking
-description: Centralizes cooking recipe registration, ingredient classification, and recipe selection logic for cookers in DST.
-tags: [crafting, recipes, ingredients]
+description: Provides cooking recipe registration, ingredient value tracking, and recipe calculation utilities for all cooker entities.
+tags: [cooking, recipes, ingredients, utility]
 sidebar_position: 10
 
-last_updated: 2026-03-10
+last_updated: 2026-03-21
 build_version: 714014
 change_status: stable
 category_type: root
@@ -15,105 +15,105 @@ system_scope: crafting
 
 # Cooking
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **714014** | Last updated: 2026-03-21
 
 ## Overview
-`cooking.lua` is a script that manages cooking recipe definitions, ingredient classification, and recipe resolution logic for cookers (e.g., `cookpot`, `portablecookpot`, `portablespicer`). It does not define a component but instead returns a module table with utility functions and data structures used by other parts of the game—particularly by the `cookpot` and `preparedfoods` systems. It reads ingredient definitions, registers recipes, and resolves weighted recipe selection based on provided ingredients.
+The `cooking` module provides central utilities for managing cooking recipes and ingredient values across all cooker entities in Don't Starve Together. It handles recipe registration, ingredient tag calculations, and deterministic recipe selection based on ingredient combinations. This module is imported by cooker prefabs and cooking-related systems to determine what food product results from combining specific ingredients.
 
 ## Usage example
 ```lua
-local cooking = require "cooking"
+local cooking = require("cooking")
 
--- Check if a prefab can be used as a cooking ingredient
+-- Check if a prefab is a valid cooking ingredient
 if cooking.IsCookingIngredient("meat") then
-    print("meat is an ingredient")
+    -- Get ingredient values for a list of prefabs
+    local ingdata = cooking.GetIngredientValues({"meat", "carrot", "berries"})
+    
+    -- Find candidate recipes for a cookpot
+    local candidates = cooking.GetCandidateRecipes("cookpot", ingdata)
+    
+    -- Calculate the final recipe that will be produced
+    local recipe_name, cooktime = cooking.CalculateRecipe("cookpot", {"meat", "carrot", "berries"})
 end
-
--- Resolve a recipe from a list of ingredient prefabs
-local recipe_name, cooktime = cooking.CalculateRecipe("cookpot", {"meat", "carrot", "honey"})
-print("Result:", recipe_name, "in", cooktime, "seconds")
 ```
 
 ## Dependencies & tags
-**Components used:** None (this file is a pure data/module utility, not an ECS component).  
-**Tags:** Not applicable.
+**Components used:** None (this is a utility module, not an entity component)
+**Tags:** None identified (module does not add or check entity tags)
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `official_foods` | table | `{}` | Set of official (non-mod) food prefab names used as keys for quick lookup. |
-| `cookerrecipes` | table | `{}` | Nested table mapping cooker names (e.g., `"cookpot"`) to recipe name → recipe table maps. |
-| `cookbook_recipes` | table | `{}` | Nested table mapping cookbook categories (e.g., `"mod"`) to recipe name → recipe table maps (excludes `portablespicer`). |
-| `recipe_cards` | table | `{}` | Flat list of `{recipe_name, cooker_name}` pairs used to populate the recipe card UI. |
-| `ingredients` | table | `{}` | Map of ingredient prefab names to their metadata, including `tags` (e.g., `meat`, `fruit`) and optional prefixed forms (`_cooked`, `_dried`). |
-| `MOD_COOKBOOK_CATEGORY` | string | `"mod"` | Constant string representing the category for mod-added recipes in the cookbook. |
+| `recipes` | table | `{}` | Contains all registered recipes organized by cooker type. |
+| `ingredients` | table | `{}` | Contains ingredient values and tags for all valid cooking ingredients. |
+| `cookbook_recipes` | table | `{}` | Recipes organized by cookbook category for UI display. |
+| `recipe_cards` | table | `{}` | Recipe card definitions for cookbook visualization. |
+| `official_foods` | table | `{}` | Tracks which foods are official (non-mod) recipes. |
 
 ## Main functions
 ### `AddCookerRecipe(cooker, recipe, is_mod_food)`
-*   **Description:** Registers a cooking recipe for a specific cooker and populates global data structures accordingly.
-*   **Parameters:**  
-    `cooker` (string) — Name of the cooker (e.g., `"cookpot"`, `"portablespicer"`).  
-    `recipe` (table) — Recipe definition table, expected to contain at least `name`, and optionally `test`, `priority`, `weight`, `cooktime`, and `no_cookbook`.  
-    `is_mod_food` (boolean) — If `true`, marks the recipe as modded and adds it to the `"mod"` cookbook category.
+*   **Description:** Registers a new recipe for a specific cooker entity. Called during initialization to populate the recipe database.
+*   **Parameters:** `cooker` (string) - the cooker prefab name (e.g., `cookpot`, `portablecookpot`). `recipe` (table) - recipe definition table containing name, test function, priority, weight, and other properties. `is_mod_food` (boolean) - whether this recipe comes from a mod.
 *   **Returns:** Nothing.
+*   **Error states:** None documented.
 
 ### `AddIngredientValues(names, tags, cancook, candry)`
-*   **Description:** Registers ingredient definitions for one or more prefabs, optionally adding `_cooked` and/or `_dried` variants.
-*   **Parameters:**  
-    `names` (table of strings) — List of prefab names to register as ingredients.  
-    `tags` (table) — Key-value map of tag names (e.g., `"meat"`, `"fruit"`) to numeric values.  
-    `cancook` (boolean, optional, default `false`) — If `true`, adds a `"_cooked"` variant with `precook` tag.  
-    `candry` (boolean, optional, default `false`) — If `true`, adds a `"_dried"` variant with `dried` tag.
+*   **Description:** Registers ingredient values and tags for one or more prefabs. Automatically creates cooked and dried variants if flags are enabled.
+*   **Parameters:** `names` (table) - list of prefab names to register. `tags` (table) - key-value pairs of tag names and their values (e.g., `{meat=1, veggie=0.5}`). `cancook` (boolean) - whether to create a `_cooked` variant. `candry` (boolean) - whether to create a `_dried` variant.
+*   **Returns:** Nothing.
+*   **Error states:** None documented.
+
+### `AddRecipeCard(cooker, recipe)`
+*   **Description:** Registers a recipe card for cookbook UI display.
+*   **Parameters:** `cooker` (string) - the cooker prefab name. `recipe` (table) - recipe definition with `name` property.
 *   **Returns:** Nothing.
 
 ### `IsCookingIngredient(prefabname)`
-*   **Description:** Checks whether a given prefab name is registered as a cooking ingredient.
-*   **Parameters:**  
-    `prefabname` (string) — Prefab name to check.
-*   **Returns:** `true` if `prefabname` (or its alias) exists in `ingredients`, otherwise `false`.
-
-### `GetRecipe(cooker, product)`
-*   **Description:** Retrieves a specific recipe table by cooker and product name.
-*   **Parameters:**  
-    `cooker` (string) — Name of the cooker.  
-    `product` (string) — Name of the recipe product (i.e., output prefab).
-*   **Returns:** Recipe table (if found), otherwise `nil`.
-
-### `GetCandidateRecipes(cooker, ingdata)`
-*   **Description:** Finds all recipes for a given cooker that satisfy the `test` function against the provided ingredients.
-*   **Parameters:**  
-    `cooker` (string) — Name of the cooker.  
-    `ingdata` (table) — Table with fields `names` (count map of ingredient prefabs) and `tags` (summed tag values), typically from `GetIngredientValues`.
-*   **Returns:** Table of candidate recipe tables, sorted descending by `priority`; only highest-priority recipes are retained if multiple share top priority.
-
-### `CalculateRecipe(cooker, names)`
-*   **Description:** Selects a random recipe (weighted by `weight`) from the candidate recipes for the given ingredients.
-*   **Parameters:**  
-    `cooker` (string) — Name of the cooker.  
-    `names` (table of strings) — List of ingredient prefab names.
-*   **Returns:** Two values:  
-    `name` (string) — Name of the chosen recipe product.  
-    `cooktime` (number) — Cook time in seconds (defaults to `1` if not specified in recipe).  
-*   **Error states:** If no candidates exist, returns `nil`.
-
-### `GetIngredientValues(prefablist)`
-*   **Description:** Converts a list of ingredient prefabs into aggregated name counts and tag sums, handling aliases and variant suffixes.
-*   **Parameters:**  
-    `prefablist` (table of strings) — List of ingredient prefab names.
-*   **Returns:** Table with two keys:  
-    `names` (table) — Map of prefab name → count.  
-    `tags` (table) — Map of tag name → summed numeric value.
+*   **Description:** Checks whether a prefab name is a valid cooking ingredient.
+*   **Parameters:** `prefabname` (string) - the prefab name to check.
+*   **Returns:** `boolean` - `true` if the prefab is a registered cooking ingredient, `false` otherwise.
+*   **Error states:** Handles alias mapping for inconsistent naming conventions.
 
 ### `IsModCookerFood(prefab)`
-*   **Description:** Checks whether a given prefab is a mod-added cooking product (not in `official_foods`).
-*   **Parameters:**  
-    `prefab` (string) — Prefab name to check.
-*   **Returns:** `true` if mod-added, `false` otherwise.
+*   **Description:** Checks whether a food product comes from a mod rather than official game content.
+*   **Parameters:** `prefab` (string) - the food product prefab name.
+*   **Returns:** `boolean` - `true` if the food is from a mod, `false` if official.
+*   **Error states:** Returns `false` if the mod is unloaded (cannot test against unloaded mod data).
 
 ### `HasModCookerFood()`
-*   **Description:** Checks whether *any* mod has registered food recipes in the `"mod"` cookbook category.
+*   **Description:** Checks whether any mod cooking foods are currently registered.
 *   **Parameters:** None.
-*   **Returns:** `true` if `cookbook_recipes["mod"]` is non-`nil`, otherwise `false`.
+*   **Returns:** `boolean` - `true` if mod cooking foods exist, `false` otherwise.
+
+### `IsModCookingProduct(cooker, name)`
+*   **Description:** Checks whether a specific recipe product for a cooker comes from an enabled mod.
+*   **Parameters:** `cooker` (string) - the cooker prefab name. `name` (string) - the recipe product name.
+*   **Returns:** `boolean` - `true` if the product is from an enabled mod, `false` otherwise.
+*   **Error states:** Iterates through all enabled mods; may be performance-intensive with many mods.
+
+### `GetIngredientValues(prefablist)`
+*   **Description:** Calculates aggregated ingredient tags and counts for a list of prefabs.
+*   **Parameters:** `prefablist` (table) - list of prefab names to analyze.
+*   **Returns:** `table` - contains `tags` (aggregated tag values) and `names` (prefab counts).
+*   **Error states:** Returns empty tables if no valid ingredients found.
+
+### `GetRecipe(cooker, product)`
+*   **Description:** Retrieves the recipe definition for a specific product from a specific cooker.
+*   **Parameters:** `cooker` (string) - the cooker prefab name. `product` (string) - the recipe product name.
+*   **Returns:** `table` or `nil` - the recipe definition table if found, `nil` otherwise.
+*   **Error states:** Returns `nil` if no recipes registered for that cooker or product not found.
+
+### `GetCandidateRecipes(cooker, ingdata)`
+*   **Description:** Finds all potentially valid recipes for a given set of ingredients, sorted by priority.
+*   **Parameters:** `cooker` (string) - the cooker prefab name. `ingdata` (table) - ingredient data from `GetIngredientValues`, containing `names` and `tags`.
+*   **Returns:** `table` - list of candidate recipe tables sorted by priority (highest first). Returns top candidates only if multiple exist with same priority.
+*   **Error states:** Returns empty table if no valid recipes found.
+
+### `CalculateRecipe(cooker, names)`
+*   **Description:** Determines the final recipe that will be produced from a set of ingredients using weighted random selection.
+*   **Parameters:** `cooker` (string) - the cooker prefab name. `names` (table) - list of ingredient prefab names.
+*   **Returns:** `string, number` - recipe name and cook time in seconds. Returns `nil` if no valid recipe found.
+*   **Error states:** Returns `nil` if no candidate recipes match the ingredients. Uses `math.random()` for weighted selection among candidates.
 
 ## Events & listeners
-None. This script is a utility module and does not interact with the game event system.
+Not applicable (this is a utility module, not an entity component with event listeners)

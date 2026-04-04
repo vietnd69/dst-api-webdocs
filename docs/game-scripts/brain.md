@@ -1,11 +1,11 @@
 ---
 id: brain
 title: Brain
-description: Manages AI behavior logic and state for an entity, including behavior tree execution, event handling, sleep/wake cycles, and integration with the global BrainManager update loop.
-tags: [ai, brain, behavior, sleep, update]
+description: Manages AI behavior trees and scheduling for entity intelligence.
+tags: [ai, brain, scheduling, entity]
 sidebar_position: 10
 
-last_updated: 2026-03-10
+last_updated: 2026-03-21
 build_version: 714014
 change_status: stable
 category_type: root
@@ -15,101 +15,113 @@ system_scope: brain
 
 # Brain
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **714014** | Last updated: 2026-03-21
 
 ## Overview
-`Brain` is a component-like class responsible for managing AI behavior execution and lifecycle for an entity. It holds references to the current behavior tree (`bt`), maintains a queue of pending behaviors, and handles event-driven responses. It integrates with `BrainManager` (a singleton `BrainWrangler` instance) to participate in the global update cycle—automatically waking, sleeping, or hibernating based on behavior needs. Note: Though named `Brain`, it is used as a standalone class and not registered as a component via `AddComponent`; it is attached directly to entities as a property (e.g., `inst.brain = Brain()`).
+The `brain.lua` file defines the core artificial intelligence system for entities. It consists of two main classes: `Brain`, which represents the behavior logic attached to a specific entity, and `BrainWrangler`, which manages the global update loop, scheduling, and hibernation states for all active brains. The `BrainManager` global instance handles ticking brains based on sleep timers or activity status, ensuring AI only processes when necessary to optimize performance.
 
 ## Usage example
 ```lua
-local brain = Brain()
-inst.brain = brain
-brain.inst = inst
-brain.bt = MyBehaviorTree()
-brain:_Start_Internal()
-brain:AddEventHandler(" attacked", function(data) print("Attacked by", data.inst) end)
-brain:PushEvent(" myevent", { value = 42 })
+local Brain = require("brain")
+
+-- Create a custom brain by extending the base class
+local MyBrain = Class(Brain, function(self, inst)
+    Brain._ctor(self, inst)
+    self.inst = inst
+    -- Initialize behavior tree here
+end)
+
+function MyBrain:OnUpdate()
+    -- Custom update logic
+    print("Brain thinking...")
+end
+
+-- Attach to an entity (typically via RunBrain helper)
+local inst = SpawnPrefab("beefalo")
+inst.brain = MyBrain(inst)
+inst.brain:_Start_Internal()
 ```
 
 ## Dependencies & tags
-**Components used:** None  
-**Tags:** None identified
+**Components used:** None identified.
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` or `nil` | `nil` | Reference to the owning entity instance. Must be set manually. |
-| `currentbehaviour` | `Behavior` or `nil` | `nil` | Currently active behavior node (deprecated naming; use `bt` instead). |
-| `behaviourqueue` | `table` | `{}` | Queue of pending behaviors (deprecated; unused in modern code). |
-| `events` | `table` | `{}` | Map of event names to handler functions. |
-| `bt` | `BehaviorTree` or `nil` | `nil` | The active behavior tree (assumed, though not initialized in constructor). |
-| `thinkperiod` | `number` or `nil` | `nil` | Interval (in seconds) between automatic behavior tree updates. |
-| `lastthinktime` | `number` or `nil` | `nil` | Timestamp of last manual think trigger. |
-| `paused` | `boolean` | `false` | Whether the brain is paused (excluded from updates but not stopped). |
-| `stopped` | `boolean` | `true` | Whether the brain is stopped (fully inactive). |
+| `inst` | entity | `nil` | The entity instance associated with this brain. |
+| `currentbehaviour` | any | `nil` | Tracks the currently active behavior node. |
+| `behaviourqueue` | table | `{}` | Queue for pending behavior actions. |
+| `events` | table | `{}` | Internal table mapping event names to handler functions. |
+| `thinkperiod` | any | `nil` | Configuration for thinking intervals. |
+| `lastthinktime` | any | `nil` | Timestamp of the last update cycle. |
+| `paused` | boolean | `false` | Indicates if the brain is currently paused. |
+| `stopped` | boolean | `true` | Indicates if the brain has been stopped. |
 
 ## Main functions
-### `ForceUpdate()`
-*   **Description:** Forces immediate update of the behavior tree (if present) and wakes the brain from hibernation or sleep to ensure it runs on the next `BrainManager:Update` cycle.
+### `BrainWrangler:AddInstance(inst)`
+*   **Description:** Registers a brain instance to the active updaters list.
+*   **Parameters:** `inst` (table) - The brain object to add.
+*   **Returns:** Nothing.
+
+### `BrainWrangler:RemoveInstance(inst)`
+*   **Description:** Completely removes a brain from all management lists (updaters, hibernaters, tickwaiters).
+*   **Parameters:** `inst` (table) - The brain object to remove.
+*   **Returns:** Nothing.
+
+### `BrainWrangler:Sleep(inst, time_to_wait)`
+*   **Description:** Schedules a brain to wake up after a specific duration. Moves the brain to a tickwaiter list.
+*   **Parameters:** `inst` (table) - The brain object. `time_to_wait` (number) - Duration in seconds.
+*   **Returns:** Nothing.
+
+### `BrainWrangler:Wake(inst)`
+*   **Description:** Moves a brain from hibernation or sleep back to the active updaters list.
+*   **Parameters:** `inst` (table) - The brain object.
+*   **Returns:** Nothing.
+
+### `Brain:ForceUpdate()`
+*   **Description:** Forces an immediate update on the behavior tree and wakes the brain manager.
 *   **Parameters:** None.
 *   **Returns:** Nothing.
 
-### `AddEventHandler(event, fn)`
-*   **Description:** Registers an event handler function for a specific event name.
-*   **Parameters:** `event` (string) - event identifier; `fn` (function) - callback invoked when event is pushed.
+### `Brain:AddEventHandler(event, fn)`
+*   **Description:** Registers a callback function for a custom internal event name.
+*   **Parameters:** `event` (string) - The event identifier. `fn` (function) - The callback to execute.
 *   **Returns:** Nothing.
 
-### `GetSleepTime()`
-*   **Description:** Returns the recommended time (in seconds) the brain can remain idle before needing to run again, based on its behavior tree or default logic.
+### `Brain:GetSleepTime()`
+*   **Description:** Queries the behavior tree for the recommended sleep duration.
 *   **Parameters:** None.
-*   **Returns:** `number` - sleep duration in seconds, or `0` if no behavior tree is present.
-*   **Error states:** Returns `0` if `bt` is `nil`.
+*   **Returns:** `number` - Time in seconds, or `0` if no behavior tree is attached.
 
-### `:Start(reason)`
-*   **Description:** **Deprecated.** Use `inst:RestartBrain(reason)` instead. Starts the brain if not already active.
-*   **Parameters:** `reason` (string) - cause for starting (for debugging/logging).
-*   **Returns:** Nothing.
-
-### `:_Start_Internal()`
-*   **Description:** Internal method called by the entity to start the brain. Initializes the brain, runs optional lifecycle callbacks, and registers with `BrainManager`.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
-*   **Error states:** Returns early if already started (`stopped == false`).
-
-### `OnUpdate()`
-*   **Description:** Called by `BrainManager` during its update loop. Executes the `DoUpdate` hook (if defined) and updates the behavior tree (if present).
+### `Brain:Pause()`
+*   **Description:** Pauses the brain update loop and removes it from the manager without stopping it completely.
 *   **Parameters:** None.
 *   **Returns:** Nothing.
 
-### `:Stop(reason)`
-*   **Description:** **Deprecated.** Use `inst:StopBrain(reason)` instead. Stops the brain.
-*   **Parameters:** `reason` (string) - cause for stopping (for debugging/logging).
-*   **Returns:** Nothing.
-
-### `:_Stop_Internal()`
-*   **Description:** Internal method called by the entity to stop the brain. Runs lifecycle callbacks, stops behavior tree, and unregisters from `BrainManager`.
+### `Brain:Resume()`
+*   **Description:** Resumes a paused brain and re-adds it to the manager.
 *   **Parameters:** None.
 *   **Returns:** Nothing.
-*   **Error states:** Returns early if already stopped (`stopped == true`).
 
-### `PushEvent(event, data)`
-*   **Description:** Triggers a named event, invoking any registered handler with the provided data.
-*   **Parameters:** `event` (string) - event identifier; `data` (any) - payload passed to the handler.
-*   **Returns:** Nothing.
-*   **Error states:** No effect if no handler is registered for `event`.
-
-### `Pause()`
-*   **Description:** Pauses the brain, removing it from `BrainManager`'s update list but preserving its state.
+### `Brain:_Start_Internal()`
+*   **Description:** Internal initialization called by EntityScript. Triggers `OnStart` and adds to manager.
 *   **Parameters:** None.
 *   **Returns:** Nothing.
-*   **Error states:** No effect if already paused.
+*   **Error states:** Returns early if `self.stopped` is `false`.
 
-### `Resume()`
-*   **Description:** Resumes a paused brain, re-registering it with `BrainManager`.
+### `Brain:_Stop_Internal()`
+*   **Description:** Internal teardown called by EntityScript. Triggers `OnStop` and removes from manager.
 *   **Parameters:** None.
 *   **Returns:** Nothing.
-*   **Error states:** No effect if not paused.
+*   **Error states:** Returns early if `self.stopped` is `true`.
+
+### `Brain:PushEvent(event, data)`
+*   **Description:** Triggers internal event handlers registered via `AddEventHandler`.
+*   **Parameters:** `event` (string) - The event identifier. `data` (any) - Data passed to the handler.
+*   **Returns:** Nothing.
 
 ## Events & listeners
-- **Listens to:** None — `Brain` does not register listeners itself, but it supports event handling via `AddEventHandler`/`PushEvent` and delegates to handlers.
-- **Pushes:** None — `Brain` does not push events; it only provides the mechanism to send them (`PushEvent`).
+- **Listens to:** Internal events registered via `AddEventHandler(event, fn)`.
+- **Pushes:** Internal events triggered via `PushEvent(event, data)`.
+- **Note:** These are specific to the `Brain` object table and do not interact with the global entity event system (`inst:ListenForEvent`).

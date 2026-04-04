@@ -1,125 +1,119 @@
 ---
 id: critters
 title: Critters
-description: A factory system for creating companion critters with AI, hunger mechanics, sleeping behavior, and optional special abilities.
-tags: [ai, companion, hunger, sleep, prefabs]
+description: Defines prefab factories for creating companion critter entities with hunger, sleep, and follower behaviors.
+tags: [prefab, companion, pet, entity]
 sidebar_position: 10
 
-last_updated: 2026-03-04
-build_version: 714014
+last_updated: 2026-04-04
+build_version: 718694
 change_status: stable
 category_type: prefabs
-source_hash: 2dfb43e6
+source_hash: 1a3f7b10
 system_scope: entity
 ---
 
 # Critters
 
-> Based on game build **714014** | Last updated: 2026-03-04
+> Based on game build **718694** | Last updated: 2026-04-04
 
 ## Overview
-The `critters.lua` file implements a factory pattern for constructing critter companions (e.g., lamb, puppy, glomling) in DST. It defines shared logic for their behavior, including hunger-based perish mechanics, leader-following with sleep-aware wake/sleep states, eating feedback, and optional special powers (e.g., Lunar Moth light effects). Critters integrate with multiple components: `follower`, `sleeper`, `eater`, `perishable`, `locomotor`, `crittertraits`, and `petleash`. Builder prefabs are also provided for spawning critters via build mode.
+The `critters.lua` prefab file provides factory functions for creating companion critter entities in Don't Starve Together. It defines the `MakeCritter` function which constructs fully-featured pet entities with hunger mechanics, sleep behavior, follower AI, and locomotion capabilities. Each critter supports perishable hunger states that affect behavior, special power callbacks for unique effects, and save/load persistence. The file also includes `MakeBuilder` for spawning critters via player construction actions.
 
 ## Usage example
 ```lua
--- To create a new critter using the provided factory:
-local my_critter_prefab = MakeCritter(
-    "my_critter",
-    "my_critter_anim",
-    4,                         -- 4-faced rotation
-    { FOODGROUP.OMNI },       -- diet
-    false,                     -- not flying
-    {                          -- data table
-        favoritefood = "bacon",
-        allow_platform_hopping = true,
-        flyingsoundloop = "my_sound_loop",
-        special_powers_fn = my_special_powers_fn,
-        playmatetags = {"my_tag"}
-    }
-)
+local standard_diet = { FOODGROUP.OMNI }
 
--- To create a builder for spawning the critter in build mode:
-local my_builder_prefab = MakeBuilder("my_critter")
+-- Create a lamb critter prefab
+local lamb_prefab = MakeCritter("critter_lamb", "sheepington", 6, 
+    standard_diet, false, {
+        favoritefood = "guacamole",
+        allow_platform_hopping = true
+    })
+
+-- Create corresponding builder prefab
+local lamb_builder = MakeBuilder("critter_lamb")
 ```
 
 ## Dependencies & tags
-**Components used:** `spawnfader`, `inspectable`, `follower`, `knownlocations`, `sleeper`, `eater`, `perishable`, `locomotor`, `embarker`, `drownable`, `crittertraits`, `timer`, `spell`, `petleash`.
+**Components used:** `spawnfader`, `inspectable`, `follower`, `knownlocations`, `sleeper`, `eater`, `perishable`, `locomotor`, `embarker` (when `allow_platform_hopping`), `drownable` (when `allow_platform_hopping`), `crittertraits`, `timer`
 
-**Tags:** `critter`, `companion`, `notraptrigger`, `noauradamage`, `small_livestock`, `NOBLOCK`, `flying` (conditional), `ignorewalkableplatformdrowning` (conditional), `CLASSIFIED` (builder only).
+**Tags:** Adds `critter`, `companion`, `notraptrigger`, `noauradamage`, `small_livestock`, `NOBLOCK`, `flying` (flying critters only), `ignorewalkableplatformdrowning` (flying critters only), `CLASSIFIED` (builder only)
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `WAKE_TO_FOLLOW_DISTANCE` | number | `6` | Distance threshold to wake up and follow leader if too far. |
-| `SLEEP_NEAR_LEADER_DISTANCE` | number | `5` | Distance threshold to fall asleep if near sleeping leader. |
-| `HUNGRY_PERISH_PERCENT` | number | `0.5` | Perish threshold below which critter is considered hungry (used for behavior and light state). |
-| `STARVING_PERISH_PERCENT` | number | `0.2` | Perish threshold below which critter is starving (spoilage state). |
-| `pettype` | string | `nil` | (Builder-only) Prefab name of the critter this builder spawns. |
-| `_special_powers` | table | `nil` | (Optional) Stores persistent special ability data (e.g., buff light prefab). |
+| `favoritefood` | string | `nil` | Preferred food item for this critter variant. |
+| `playmatetags` | table | `{"critter"}` | Tags used to identify compatible playmate entities. |
+| `_special_powers` | table | `nil` | Stores special power state for critters with custom abilities. |
+| `wormlight` | entity | `nil` | Reference to attached wormlight spell entity (saved/loaded). |
+| `pettype` | string | `nil` | Prefab name of the pet to spawn (builder only). |
+| `linked_skinname` | string | `nil` | Skin identifier for the spawned pet (builder only). |
+| `OnBuiltFn` | function | `builder_onbuilt` | Callback executed when builder entity is constructed (builder only). |
 
 ## Main functions
 ### `MakeCritter(name, animname, face, diet, flying, data, prefabs)`
-*   **Description:** Factory function that constructs and returns a Prefab definition for a critter companion. Handles asset loading, entity setup, component initialization, brain assignment, and state graph binding.
-*   **Parameters:**
-    *   `name` (string) - Unique identifier for the prefab (e.g., `"critter_puppy"`).
-    *   `animname` (string) - Base name for animation bank (e.g., `"pupington"`).
-    *   `face` (number) - Number of facing directions (`2`, `4`, `6`, or `8`).
-    *   `diet` (table) - Food groups the critter can eat (e.g., `{ FOODGROUP.OMNI }`).
-    *   `flying` (boolean) - Whether the critter flies (affects physics and pathfinding).
-    *   `data` (table, optional) - Customization table with optional keys: `buildname`, `favoritefood`, `allow_platform_hopping`, `flyingsoundloop`, `common_postinit`, `master_postinit`, `playmatetags`, `special_powers_fn`.
-    *   `prefabs` (table, optional) - List of required prefabs for this critter.
-*   **Returns:** `Prefab` — A prefabricated entity definition ready for use in the game.
-*   **Error states:** No explicit error handling; relies on calling functions and component validations.
+*   **Description:** Factory function that creates a complete critter prefab with all necessary components, assets, and behaviors configured.
+*   **Parameters:** 
+    *   `name` (string) - Prefab name identifier.
+    *   `animname` (string) - Animation bank name base.
+    *   `face` (number) - Facing direction count (2, 4, 6, or 8).
+    *   `diet` (table) - Food groups this critter can eat.
+    *   `flying` (boolean) - Whether the critter flies.
+    *   `data` (table) - Configuration table with optional fields like `favoritefood`, `allow_platform_hopping`, `special_powers_fn`, `master_postinit`, `common_postinit`, `assets`, `flyingsoundloop`, `buildname`, `skin_only`, `playmatetags`.
+    *   `prefabs` (table) - Additional prefab dependencies.
+*   **Returns:** Prefab object registered with the game.
 
 ### `MakeBuilder(prefab)`
-*   **Description:** Factory function that creates a builder prefab used in Build Mode to spawn critters. The builder is non-networked, auto-removes itself if unused, and delegates spawning to `PetLeash:SpawnPetAt`.
-*   **Parameters:**
-    *   `prefab` (string) - Name of the critter prefab this builder spawns (e.g., `"critter_lamb"`).
-*   **Returns:** `Prefab` — A non-persistent builder entity definition.
-
-### `oneat(inst, food)`
-*   **Description:** Eating callback that adjusts the critter’s maximum hunger duration based on current perish percentage (well-fed, hungry, or starving) and dominant trait status.
-*   **Parameters:**
-    *   `inst` (Entity) — The critter entity.
-    *   `food` (Entity) — The food item consumed.
-*   **Returns:** Nothing.
-*   **Side effects:** Updates `inst.components.perishable.perishtime` and resets perish percent to `1.0`, restarting the perish timer.
+*   **Description:** Creates a builder prefab that spawns a critter at the player's location when constructed.
+*   **Parameters:** `prefab` (string) - Name of the critter prefab to spawn.
+*   **Returns:** Prefab object for the builder entity.
 
 ### `GetPeepChance(inst)`
-*   **Description:** Returns probability that the critter will emit a peep sound based on hunger level.
-*   **Parameters:**
-    *   `inst` (Entity) — The critter entity.
-*   **Returns:** `number` — Probability between `0.0` and `0.8`.
-*   **Logic:** Higher chance when hungry (≤ `STARVING_PERISH_PERCENT`); none if well-fed.
+*   **Description:** Calculates the probability of the critter performing a peep animation based on hunger state.
+*   **Parameters:** `inst` (entity) - The critter entity instance.
+*   **Returns:** Number between 0 and 0.8 representing peep chance. Returns 0.8 when perishable percent is 0 (fully perished/starving), scales down as perish percent improves.
+
+### `IsAffectionate(inst)`
+*   **Description:** Determines if the critter is in an affectionate state based on hunger.
+*   **Parameters:** `inst` (entity) - The critter entity instance.
+*   **Returns:** Boolean. Returns `true` if perishable component is missing or hunger percent is above starving threshold.
+
+### `IsHungry(inst)`
+*   **Description:** Checks if the critter is in a hungry state.
+*   **Parameters:** `inst` (entity) - The critter entity instance.
+*   **Returns:** Boolean. Returns `true` if hunger percent is at or below the hungry threshold.
+
+### `IsPlayful(inst)`
+*   **Description:** Determines if the critter is in a playful state.
+*   **Parameters:** `inst` (entity) - The critter entity instance.
+*   **Returns:** Boolean. Currently returns the same value as `IsAffectionate`.
+
+### `IsSuperCute(inst)`
+*   **Description:** Placeholder function for cuteness determination.
+*   **Parameters:** `inst` (entity) - The critter entity instance.
+*   **Returns:** Boolean. Always returns `true`.
 
 ### `OnSave(inst, data)`
-*   **Description:** Save hook that records the associated `wormlight` (spell-based light) if present.
-*   **Parameters:**
-    *   `inst` (Entity) — The critter entity.
-    *   `data` (table) — Save data table to populate.
+*   **Description:** Serializes critter state for saving, including attached wormlight spell entity.
+*   **Parameters:** 
+    *   `inst` (entity) - The critter entity instance.
+    *   `data` (table) - Save data table to populate.
 *   **Returns:** Nothing.
 
 ### `OnLoad(inst, data)`
-*   **Description:** Load hook that restores and reattaches a saved `wormlight` spell, setting it to target this critter and resuming its spell lifecycle.
-*   **Parameters:**
-    *   `inst` (Entity) — The critter entity.
-    *   `data` (table) — Loaded save data.
+*   **Description:** Restores critter state from save data, reattaching wormlight spell entity if present.
+*   **Parameters:** 
+    *   `inst` (entity) - The critter entity instance.
+    *   `data` (table) - Loaded save data table.
 *   **Returns:** Nothing.
 
 ### `OnLoadPostPass(inst)`
-*   **Description:** Post-load hook that triggers `perishchange` event to initialize any special powers registered via `special_powers_fn`.
-*   **Parameters:**
-    *   `inst` (Entity) — The critter entity.
-*   **Returns:** Nothing.
-
-### `builder_onbuilt(inst, builder)`
-*   **Description:** Callback executed when the builder is placed in the world. Spawns the critter at a nearby valid position and removes the builder.
-*   **Parameters:**
-    *   `inst` (Entity) — The builder instance.
-    *   `builder` (Entity) — The entity that placed the builder.
+*   **Description:** Post-load initialization that triggers special powers based on current hunger state.
+*   **Parameters:** `inst` (entity) - The critter entity instance.
 *   **Returns:** Nothing.
 
 ## Events & listeners
-- **Listens to:** `perishchange` — Triggered when critter’s perish percentage changes; used to initialize or update special powers (e.g., Lunar Moth light).
-- **Listens to:** `onremove` — Attached to `critterbuff_lunarmoth` to detect when the buff light is destroyed and restore critter state.
-- **Pushes:** `perishchange` — Called during post-init and `OnLoadPostPass` to initialize special powers and notify listeners of initial state.
+- **Listens to:** `perishchange` - Triggers special power callbacks when hunger state changes.
+- **Listens to:** `onremove` - Cleans up special power buff entities when critter is removed.
+- **Pushes:** `perishchange` - Fired during load post-pass to initialize special powers with current hunger percent.

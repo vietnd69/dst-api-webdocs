@@ -1,11 +1,11 @@
 ---
 id: builtinusercommands
 title: Builtinusercommands
-description: Registers and manages built-in chat commands for players and admins in Don't Starve Together.
-tags: [network, ui, admin]
+description: Registers default chat and console commands for player and admin interactions.
+tags: [chat, admin, network]
 sidebar_position: 10
 
-last_updated: 2026-03-10
+last_updated: 2026-03-21
 build_version: 714014
 change_status: stable
 category_type: root
@@ -15,75 +15,96 @@ system_scope: network
 
 # Builtinusercommands
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **714014** | Last updated: 2026-03-21
 
 ## Overview
-`builtinusercommands.lua` defines and registers core built-in user commands (e.g., `/help`, `/kick`, `/ban`, `/emote`) using the `AddUserCommand` API. It integrates with the `UserCommands` and `VoteUtil` modules to support permission-based access, local/server execution, voting, and localization. This file does not define an Entity Component System (ECS) component—it is a top-level script that populates the user command registry at initialization. It serves as the authoritative source for core UI and admin functionality via chat commands.
+`builtinusercommands` is a script that registers the default set of user commands available in Don't Starve Together. It defines behavior for chat slash commands (e.g., `/help`, `/kick`) and server administration actions. This file does not define a component class but rather executes command registration logic using the `UserCommands` module. It handles permissions, voting mechanics, and network interactions for administrative tasks.
 
 ## Usage example
-The `builtinusercommands.lua` file is loaded automatically by the game and does not require manual instantiation. Modders interact with it indirectly via `AddUserCommand` calls in their own mod code to extend the command system. Example:
+This file registers commands globally upon load. Modders can reference this structure to understand how built-in commands are configured.
 
 ```lua
-local UserCommands = require("usercommands")
-
-AddUserCommand("mycommand", {
-    prettyname = "My Command",
-    desc = "Does something cool.",
+AddUserCommand("roll", {
+    aliases = { "dice", "random", "diceroll" },
     permission = COMMAND_PERMISSION.USER,
     slash = true,
-    usermenu = false,
-    servermenu = false,
-    params = {},
-    vote = false,
+    params = { "dice" },
+    paramsoptional = { true },
     localfn = function(params, caller)
-        print("My command executed!")
+        -- Implementation logic for dice rolling
+        TheNet:DiceRoll(100, 1)
     end,
 })
 ```
 
 ## Dependencies & tags
-**Components used:** None (no ECS components accessed).
+**Components used:** None (Script file).
+**Modules:** `usercommands`, `voteutil`.
 **Tags:** None identified.
 
 ## Properties
 No public properties.
 
 ## Main functions
-### `AddUserCommand(name, definition)`
-*   **Description:** Registers a new chat command with the game. This function is called internally for built-in commands and externally by mods. The command is stored in the global command registry and made available via `/name`, `name`, or via the in-game UI (if enabled).
-*   **Parameters:**  
-    - `name` (string) – Primary name of the command (e.g., `"kick"`).  
-    - `definition` (table) – Configuration table with fields like:
-        - `aliases` (array of strings, optional) – Alternate names.
-        - `prettyname`, `desc` (string or `nil`) – Localized labels; `nil` defaults to `STRINGS.UI.BUILTINCOMMANDS.NAME.*`.
-        - `permission` (`COMMAND_PERMISSION.*` enum) – Access level (e.g., `USER`, `MODERATOR`, `ADMIN`).
-        - `slash` (boolean) – Whether `/name` syntax is enabled.
-        - `usermenu`, `servermenu` (boolean) – Whether the command appears in the respective UI menus.
-        - `params` (array of strings) – Required parameter names.
-        - `paramsoptional` (array of booleans, optional) – Same length as `params`; indicates optional parameters.
-        - `vote` (boolean) – Whether voting is supported.
-        - `votetimeout`, `voteminstartage`, etc. (various) – Voting parameters (only relevant if `vote` is true).
-        - `localfn` (function) – Client-side callback `(params, caller) → nil`.
-        - `serverfn` (function, optional) – Server-side callback `(params, caller) → nil`.
-        - `hasaccessfn`, `canstartfn`, `votecanstartfn`, `voteresultfn` (function, optional) – Custom access/vote logic hooks.
+The following commands are registered by this script. They act as the functional interface for user input.
+
+### `help`
+*   **Description:** Displays a list of available commands or detailed info for a specific command.
+*   **Parameters:** `commandname` (string, optional) - The name of the command to inspect.
+*   **Returns:** Nothing (outputs to chat history).
+*   **Error states:** If `commandname` is invalid, displays a not found message.
+
+### `emote`
+*   **Description:** Triggers an emote animation or sends a chat message formatted as an emote. Supports aliases `e` and `me`.
+*   **Parameters:** `emotename` (string) - The emote to perform.
 *   **Returns:** Nothing.
-*   **Error states:** If `paramsoptional` is provided, non-optional params must appear first (i.e., `true` entries may follow `false`, but not precede them). Misordering will cause runtime issues.
+*   **Error states:** Falls back to standard chat say if emote is not found.
 
-### `ResolveCommandStringProperty(command, prop, fallback)`
-*   **Description:** Internal helper used by commands like `/help` to resolve localized string properties (e.g., `prettyname`, `desc`). Falls back to a provided default if the property is `nil`.
-*   **Parameters:**  
-    - `command` (table) – Command definition table.  
-    - `prop` (string) – Key to access in `command` (e.g., `"prettyname"`).  
-    - `fallback` (string) – Default value if `command[prop]` is `nil`.  
-*   **Returns:** (string) The resolved localized string or `fallback`.
-*   **Error states:** None.
+### `bug`
+*   **Description:** Opens the Klei bug tracker URL in the system browser.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `UserToClientID(username)`
-*   **Description:** Internal utility to convert a player’s username to their client ID for network operations (e.g., kicking, banning).
-*   **Parameters:**  
-    - `username` (string) – Player’s in-game username.  
-*   **Returns:** (number or string) Client ID (numeric) if found; otherwise, returns the original `username` (string).
-*   **Error states:** Returns the input unchanged if no mapping exists.
+### `rescue`
+*   **Description:** Forces the player entity back onto the ground (server-side).
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Server function only; requires valid caller entity.
+
+### `kick`
+*   **Description:** Removes a player from the server. Supports aliases `boot`. Requires moderator permission or a successful vote.
+*   **Parameters:** `user` (string) - The target player name or ID.
+*   **Returns:** Nothing.
+*   **Error states:** Cannot target self or admins. Vote settings apply if permission is insufficient.
+
+### `ban`
+*   **Description:** Bans a player from the server permanently or for a set duration. Requires admin permission.
+*   **Parameters:** `user` (string), `seconds` (number, optional).
+*   **Returns:** Nothing.
+*   **Error states:** Cannot target self or admins.
+
+### `stopvote`
+*   **Description:** Immediately terminates any active vote on the server. Supports alias `veto`. Requires admin permission.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+
+### `roll`
+*   **Description:** Generates a random number (dice roll). Supports aliases `dice`, `random`, `diceroll`. Includes cooldown logic.
+*   **Parameters:** `dice` (string, optional) - Format `NdS` (e.g., `1d20`) or single number for sides.
+*   **Returns:** Nothing (outputs result to chat).
+*   **Error states:** Returns early if cooldown `TUNING.DICE_ROLL_COOLDOWN` is active.
+
+### `rollback`
+*   **Description:** Reverts the world to a previous save slot. Requires admin permission or a successful vote.
+*   **Parameters:** `numsaves` (number, optional) - Number of saves to go back.
+*   **Returns:** Nothing.
+*   **Error states:** Server function only. Announces vote result if triggered by admin.
+
+### `regenerate`
+*   **Description:** Resets the world generation. Requires admin permission or a successful vote.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Server function only. Announces vote result if triggered by admin.
 
 ## Events & listeners
-None (this file does not define or listen to any events).
+None identified.

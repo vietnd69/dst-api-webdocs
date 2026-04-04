@@ -1,68 +1,61 @@
 ---
 id: area_unlock
 title: Area Unlock
-description: Tracks and manages story unlock progression for map areas based on player exploration events.
-tags: [map, progression, story]
+description: Tracks and updates the unlock status of specific stories associated with an entity.
+tags: [progression, event, state]
 sidebar_position: 10
 
-last_updated: 2026-03-03
+last_updated: 2026-03-20
 build_version: 714014
 change_status: stable
 category_type: components
 source_hash: 440db58a
-system_scope: world
+system_scope: entity
 ---
 
 # Area Unlock
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **714014** | Last updated: 2026-03-20
 
 ## Overview
-`AreaUnlock` is a client-side component that tracks which story-based map areas have been unlocked by the player. It listens for the `changearea` event—triggered when the player transitions between map areas—and updates internal state when a new story area is discovered. It does not modify gameplay mechanics directly but provides data for UI or logic systems that depend on progression status.
+The `AreaUnlock` component manages the progression state of specific stories or areas tied to an entity. It initializes a storage table for stories and listens for global area change events to update unlock status. This component is typically used to track narrative progress or region access conditions without requiring direct polling from other systems.
 
 ## Usage example
 ```lua
 local inst = CreateEntity()
 inst:AddComponent("area_unlock")
-inst.components.area_unlock:RegisterStory("cave_01")
-inst.components.area_unlock:RegisterStory("cave_02")
--- Later, when player enters a new area:
-inst.components.area_unlock:CheckUnlock({ story = "cave_01" })
--- Get all unlocked stories:
-local unlocked = inst.components.area_unlock:GetUnlocked()  -- e.g., {"cave_01"}
+inst.components.area_unlock:RegisterStory("chapter_1")
+inst.components.area_unlock:RegisterStory("chapter_2")
+-- Event "changearea" would typically trigger CheckUnlock internally
+local unlocked = inst.components.area_unlock:GetUnlocked()
 ```
 
 ## Dependencies & tags
-**Components used:** None identified  
-**Tags:** None identified  
+**Components used:** None identified.
+**Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `stories` | table | `{}` | Dictionary mapping story names (string) to unlock status (boolean). `false` = locked, `true` = unlocked. |
+| `stories` | table | `{}` | Stores the unlock state of registered stories. |
+| `inst` | entity | `nil` | The entity instance that owns this component. |
 
 ## Main functions
 ### `CheckUnlock(area)`
-*   **Description:** Checks whether the given area's story should be unlocked. If the story exists in `stories` and is currently locked (`false`), it marks the story as unlocked (`true`).
-*   **Parameters:**  
-  `area` (table) — a table containing at least a `story` key (string) identifying the story/area to check.
+*   **Description:** Internal callback triggered by the `changearea` event. It checks if the story associated with the area is registered and marked as locked, then updates it to unlocked.
+*   **Parameters:** `area` (table) - Expected to contain a `story` key matching a registered story name.
 *   **Returns:** Nothing.
-*   **Error states:** No-op if `area.story` does not exist in `self.stories` or if it is already unlocked.
 
 ### `RegisterStory(story)`
-*   **Description:** Registers a new story identifier to be tracked, initializing its unlock state as locked (`false`).
-*   **Parameters:**  
-  `story` (string) — unique identifier for the story/area (e.g., `"cave_01"`, `"ruins"`).
+*   **Description:** Registers a new story identifier into the component's tracking table. Initializes the state as locked (`false`).
+*   **Parameters:** `story` (string) - The unique identifier for the story or area.
 *   **Returns:** Nothing.
-*   **Error states:** Overwrites any existing entry if called multiple times with the same `story`.
 
 ### `GetUnlocked()`
-*   **Description:** Returns a list of all story names that have been unlocked (`true`).
+*   **Description:** Iterates through all registered stories and returns a list of those that are currently unlocked.
 *   **Parameters:** None.
-*   **Returns:**  
-  `unlocked` (table of string) — an array of story identifiers that are unlocked. Empty if none are unlocked.
-*   **Error states:** Returns an empty table if no stories are registered or none have been unlocked.
+*   **Returns:** table - A list of story identifiers where the state is `true`.
 
 ## Events & listeners
-- **Listens to:** `changearea` — triggers `CheckUnlock(area)` with the new area data.
-- **Pushes:** None identified
+- **Listens to:** `changearea` - Triggers `CheckUnlock` when the area changes.
+- **Pushes:** None identified.

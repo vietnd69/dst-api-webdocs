@@ -1,72 +1,78 @@
 ---
 id: bernie_active
 title: Bernie Active
-description: Represents the active, playable form of Bernie — a small companion creature that can transform into inactive or larger forms, managing health, movement, and inventory interactions.
-tags: [companion, transformation, combat, ai]
+description: Defines the active state prefab for Bernie, the animated teddy bear companion.
+tags: [companion, prefab, ai]
 sidebar_position: 10
 
-last_updated: 2026-03-04
+last_updated: 2026-03-20
 build_version: 714014
 change_status: stable
 category_type: prefabs
-source_hash: 12c16fbb
+source_hash: unknown
 system_scope: entity
 ---
 
 # Bernie Active
 
-> Based on game build **714014** | Last updated: 2026-03-04
+> Based on game build **714014** | Last updated: 2026-03-20
 
 ## Overview
-The `bernie_active` prefab is the primary combat and movement form of Bernie, a companion entity that can transition into `bernie_inactive` or `bernie_big` forms based on game conditions (e.g., time, player action, or leader state). It integrates several core systems: health, locomotion, combat, inventory (via `inventoryitem`), and custom transformation logic. The component adds networking support, physics, animation, and a dedicated brain (`berniebrain`) for AI behavior.
+`bernie_active` is the prefab definition for Bernie when he is in his active, mobile state. It initializes physics, animations, AI behavior, and combat capabilities required for the companion to interact with the world. The script handles state transitions, allowing Bernie to transform into an inactive doll or a giant enraged version via custom instance methods. Server-side logic ensures health, timer, and inventory interactions are synchronized correctly while client-side entities remain pristine for network optimization.
 
 ## Usage example
 ```lua
+-- Spawn an active Bernie entity
 local bernie = SpawnPrefab("bernie_active")
-bernie.Transform:SetPosition(0, 0, 0)
-bernie.components.health:SetMaxHealth(TUNING.BERNIE_HEALTH)
-bernie.components.locomotor.walkspeed = TUNING.BERNIE_SPEED
+
+-- Access custom transformation methods attached to the instance
+if bernie.GoBig then
+    -- Transform Bernie into his big form, linked to a leader player
+    bernie:GoBig(player)
+end
+
+-- Check if Bernie is currently marked as a companion
+if bernie:HasTag("companion") then
+    -- Apply companion-specific logic
+end
 ```
 
 ## Dependencies & tags
-**Components used:** `health`, `inspectable`, `locomotor`, `combat`, `timer`, `inventoryitem`, `hauntable`  
-**Tags added:** `smallcreature`, `companion`, `soulless`
+**Components used:** `health`, `inspectable`, `locomotor`, `combat`, `timer`, `inventoryitem`, `hauntable`.
+**Entity components:** `Transform`, `AnimState`, `SoundEmitter`, `DynamicShadow`, `MiniMapEntity`, `Network`.
+**Tags:** Adds `smallcreature`, `companion`, `soulless`.
+**External scripts:** `prefabs/bernie_common`, `brains/berniebrain`.
+**Dependent prefabs:** `bernie_inactive`, `bernie_big`.
 
 ## Properties
-No public properties are directly exposed or initialized beyond standard component interfaces.
+No public properties
 
 ## Main functions
 ### `GoInactive()`
-*   **Description:** Transforms `bernie_active` into `bernie_inactive`, transferring remaining health as fuel percentage and preserving position and transform rotation. Cancels pending transformation cooldown if active.
+*   **Description:** Transforms the active Bernie into an inactive doll prefab (`bernie_inactive`). Transfers current health percentage to the inactive form's fuel percentage and preserves transform data.
 *   **Parameters:** None.
-*   **Returns:** `bernie_inactive` instance if successful; `nil` otherwise.
-*   **Error states:** May return `nil` if `SpawnPrefab("bernie_inactive", ...)` fails.
+*   **Returns:** The new inactive entity instance, or `nil` if spawn fails.
+*   **Error states:** Returns `nil` if the inactive prefab fails to spawn. Removes the original instance upon success.
 
 ### `GoBig(leader)`
-*   **Description:** Transforms `bernie_active` into `bernie_big`, but only if the `leader` has not already spawned a big Bernie. Preserves position, rotation, and health percentage, and registers the new form in `leader.bigbernies`.
-*   **Parameters:** `leader` (entity) — the boss or controlling entity associated with Bernie.
-*   **Returns:** `bernie_big` instance if successful; `nil` otherwise.
-*   **Error states:** Returns early with `nil` if `leader.bigbernies` is truthy; may return `nil` on `SpawnPrefab` failure.
+*   **Description:** Transforms the active Bernie into a giant enraged prefab (`bernie_big`). Links the new entity to a specific leader player and transfers health percentage.
+*   **Parameters:** `leader` (entity) - The player entity to associate as the leader.
+*   **Returns:** The new big entity instance, or `nil` if spawn fails.
+*   **Error states:** Returns early if the leader already has a big bernie tracked in `leader.bigbernies`. Removes the original instance upon success.
 
-### `OnEntitySleep(inst)`
-*   **Description:** Schedules a transformation to `bernie_inactive` after a short delay (0.5s) upon world sleep (e.g., nightfall).
-*   **Parameters:** `inst` (entity) — the Bernie instance.
-*   **Returns:** None (sets `inst._sleeptask` for delayed execution).
+### `OnEntitySleep()`
+*   **Description:** Engine callback triggered when the entity goes to sleep. Schedules a task to transform Bernie to inactive state if a sleep task is pending.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Does nothing if `_sleeptask` is nil.
 
-### `OnEntityWake(inst)`
-*   **Description:** Cancels a pending sleep transformation if the world wakes (e.g., morning).
-*   **Parameters:** `inst` (entity) — the Bernie instance.
-*   **Returns:** None (clears `inst._sleeptask` if present).
-
-### `ReplaceOnPickup(inst, container, src_pos)`
-*   **Description:** Converts `bernie_active` to `bernie_inactive` and gives it to the target container or inventory. Used as the core logic for both pickup and inventory insertion.
-*   **Parameters:**  
-  - `inst` (entity) — the Bernie instance.  
-  - `container` (Inventory or Container component) — destination inventory.  
-  - `src_pos` (vector3) — source position for placement.  
-*   **Returns:** `true` — always returns true to indicate the original entity was removed.
+### `OnEntityWake()`
+*   **Description:** Engine callback triggered when the entity wakes up. Cancels any pending sleep transformation task.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Does nothing if `_sleeptask` is nil.
 
 ## Events & listeners
-- **Listens to:** `entitysleep` — triggers `OnEntitySleep`; used to schedule transformation to inactive form at night.  
-- **Listens to:** `entitywakeup` — triggers `OnEntityWake`; cancels pending transformation on waking.  
-- **Pushes:** None — this prefab does not emit custom events; relies on component-based events (e.g., inventory interactions).
+- **Listens to:** Engine lifecycle callbacks `OnEntitySleep` and `OnEntityWake`.
+- **Pushes:** None identified.
+- **Callbacks:** Registers `onpickup` and `onputininventory` functions via the `inventoryitem` component to handle transformation when picked up by players.

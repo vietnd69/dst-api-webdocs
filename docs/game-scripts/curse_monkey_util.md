@@ -1,11 +1,11 @@
 ---
 id: curse_monkey_util
 title: Curse Monkey Util
-description: Provides utility functions to apply or remove the Monkey Curse transformation effects on an entity using item thresholds and state management.
-tags: [transformation, curse, inventory]
+description: Manages the application and removal of Monkey Curse effects on an entity.
+tags: [event, curse, transformation]
 sidebar_position: 10
 
-last_updated: 2026-03-10
+last_updated: 2026-03-21
 build_version: 714014
 change_status: stable
 category_type: root
@@ -15,47 +15,46 @@ system_scope: entity
 
 # Curse Monkey Util
 
-> Based on game build **7140014** | Last updated: 2026-03-10
+> Based on game build **714014** | Last updated: 2026-03-21
 
 ## Overview
-`curse_monkey_util` is a module offering two core functions—`docurse` and `uncurse`—to manage the progression and reversal of the Monkey Curse on an entity. It interacts with the `skinner` component to update visual skin modes and with the `talker` component for in-game announcements. It is used when players interact with Monkey Items (e.g., Monkey Tokens) and controls layered transformation states (`monkeyfeet`, `monkeyhands`, `monkeytail`), associated tags, and scheduled transformation attempts.
+`curse_monkey_util` is a utility module responsible for managing the "Monkey Curse" state on an entity, typically a player character. It handles the visual and logical progression of the curse based on item counts, modifying entity tags, skin modes, and transformation states. It interacts closely with the `skinner` component to update appearance and the `talker` component for announcements.
 
 ## Usage example
 ```lua
-local inst = ThePlayer
-local tokens = 7 -- e.g., player collected 7 Monkey Tokens
+local util = require("curse_monkey_util")
 
--- Apply Monkey Curse (based on token count)
-inst.components.curse_monkey_util.docurse(inst, tokens)
+-- Apply curse effects based on collected items
+util.docurse(inst, 5)
 
--- Later, remove the curse
-inst.components.curse_monkey_util.uncurse(inst, 0)
+-- Remove curse effects completely
+util.uncurse(inst, 0)
 ```
-> Note: This utility is typically used as a standalone module (`require`d and invoked), not as a component added via `inst:AddComponent`.
 
 ## Dependencies & tags
 **Components used:** `skinner`, `talker`
-**Tags:** Adds/Removes `"MONKEY_CURSE_1"`, `"MONKEY_CURSE_2"`, `"MONKEY_CURSE_3"`
+**Tags:** Adds or removes `MONKEY_CURSE_1`, `MONKEY_CURSE_2`, `MONKEY_CURSE_3`, `wonkey`, `weregoose`, `weremoose`, `beaver`.
 
 ## Properties
 No public properties
 
 ## Main functions
 ### `docurse(owner, numitems)`
-*   **Description:** Applies Monkey Curse progression to the `owner` entity based on the number of Monkey Items (`numitems`). Effects are applied incrementally, and a transformation to were-creature form may be scheduled if enough items are present.
-*   **Parameters:**
-    * `owner` (Entity) — The entity upon which the curse is applied.
-    * `numitems` (number) — Count of Monkey Items (e.g., Monkey Tokens) held/used.
+*   **Description:** Applies curse effects to the owner entity based on the number of items collected. It spawns visual effects, updates skin modes, and sets curse level tags.
+*   **Parameters:** 
+    *   `owner` (Entity) - The entity instance to curse.
+    *   `numitems` (number) - The count of items determining the curse level.
 *   **Returns:** Nothing.
-*   **Error states:** If `numitems` is less than `TUNING.MONKEY_TOKEN_COUNTS.LEVEL_1`, no curse layers are applied.
+*   **Error states:** Checks `TUNING.MONKEY_TOKEN_COUNTS` thresholds. If the owner is already in a specific state (e.g., `monkeyfeet` is true), it skips redundant application steps.
 
 ### `uncurse(owner, num)`
-*   **Description:** Removes Monkey Curse progression from the `owner`. If `num <= 0`, all curse layers and tags are cleared. If `num > 0`, it may trigger a transformation attempt (if the entity is not already a were-creature) or immediately uncurse if already transformed.
-*   **Parameters:**
-    * `owner` (Entity) — The entity upon which the curse is removed.
-    * `num` (number) — Threshold or quantity used to determine behavior (typically 0 for full uncurse).
+*   **Description:** Removes or reduces curse effects on the owner entity. It spawns removal effects and resets skin modes and tags based on the provided number.
+*   **Parameters:** 
+    *   `owner` (Entity) - The entity instance to uncurse.
+    *   `num` (number) - The target level or state for the uncurse process.
 *   **Returns:** Nothing.
+*   **Error states:** If `num` is less than or equal to `0`, it clears all curse data. If the owner has the `wonkey` tag, it may schedule a transformation task instead of immediately clearing data.
 
 ## Events & listeners
-- **Listens to:** None (this module does not register event listeners).
-- **Pushes:** `"monkeycursehit"` — fired by both `docurse` and `uncurse`, with `uncurse = true/false` in event data.
+-   **Listens to:** None identified.
+-   **Pushes:** `monkeycursehit` - Fired on the owner entity with data `{ uncurse = true/false }` to indicate the state change direction.

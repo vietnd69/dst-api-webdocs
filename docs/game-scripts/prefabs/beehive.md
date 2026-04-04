@@ -1,77 +1,137 @@
 ---
 id: beehive
 title: Beehive
-description: Manages hive behavior including bee spawning, seasonal rate adjustments, damage response, hauntable mechanics, and interactions with freezing and burning.
-tags: [spawning, weather, combat, freezing, burning]
+description: Defines the Beehive prefab entity that spawns bees, handles combat interactions, and drops loot when destroyed.
+tags: [prefab, entity, spawning, combat, structure]
 sidebar_position: 10
 
-last_updated: 2026-03-04
+last_updated: 2026-03-20
 build_version: 714014
 change_status: stable
-category_type: prefabs
+category_type: root
 source_hash: f367067e
 system_scope: entity
 ---
 
 # Beehive
 
-> Based on game build **714014** | Last updated: 2026-03-04
+> Based on game build **714014** | Last updated: 2026-03-20
 
 ## Overview
-The `beehive` prefab is a structure that spawns bees (`bee`) and killer bees (`killerbee`) over time, responds to damage and hauntings by releasing killer bees, and adapts spawning rates based on season (specifically increased aggression in Spring). It integrates with multiple core components: `childspawner`, `health`, `combat`, `burnable`, `freezable`, `hauntable`, and `lootdropper`. Spawning is active only during the day unless frozen, and is disabled in winter.
+`beehive.lua` defines the Beehive prefab entity in Don't Starve Together. This structure spawns bees periodically, reacts to player attacks by releasing killer bees, and drops honey and honeycomb loot when destroyed. It integrates multiple components including `childspawner` for bee management, `combat` for defensive behavior, `burnable` and `freezable` for environmental interactions, and `hauntable` for ghost interactions. The beehive adjusts its spawning rates based on season and day/night cycles.
 
 ## Usage example
 ```lua
-local inst = CreateEntity()
-inst:AddComponent("childspawner")
-inst.components.childspawner.childname = "bee"
-inst.components.childspawner:SetMaxChildren(12)
-inst.components.childspawner:SetSpawnPeriod(6)
-inst.components.childspawner:SetRegenPeriod(60)
-inst.components.childspawner:StartSpawning()
+-- Spawn a beehive in the world
+local beehive = SpawnPrefab("beehive")
+beehive.Transform:SetPosition(10, 0, 10)
+
+-- Access components to modify behavior
+beehive.components.health:SetMaxHealth(300)
+beehive.components.childspawner:SetMaxChildren(10)
+beehive.components.lootdropper:SetLoot({ "honey", "honeycomb" })
+
+-- Manually trigger bee release
+beehive.components.childspawner:ReleaseAllChildren(player, "killerbee")
 ```
 
 ## Dependencies & tags
-**Components used:** `health`, `childspawner`, `lootdropper`, `burnable`, `freezable`, `combat`, `hauntable`, `inspectable`  
-**Tags added:** `structure`, `lifedrainable`, `beaverchewable`, `hive`, `beehive`
+**Components used:** `health`, `childspawner`, `lootdropper`, `burnable`, `freezable`, `combat`, `hauntable`, `inspectable`, `transform`, `animstate`, `soundemitter`, `minimapentity`, `network`
+
+**Tags:** Adds `structure`, `lifedrainable`, `beaverchewable`, `hive`, `beehive`
 
 ## Properties
-No public properties are exposed directly on the `beehive` prefab. All configuration occurs via component properties (e.g., `inst.components.childspawner.childname`) set during `fn()` initialization.
+No public properties
 
 ## Main functions
-### `SeasonalSpawnChanges(inst, season)`
-*   **Description:** Adjusts spawning parameters based on the current season, increasing bee production and release rates during Spring.
-*   **Parameters:** `season` (string) – one of `SEASONS.SPRING` or other season constants.
-*   **Returns:** Nothing.
+### `fn()`
+*   **Description:** Constructor function that creates and configures the Beehive entity instance. Called internally by the prefab system when spawning.
+*   **Parameters:** None.
+*   **Returns:** `inst` (Entity) - The configured beehive entity instance.
+*   **Error states:** Returns early on clientside (`not TheWorld.ismastersim`) with minimal components.
 
-### `OnIsDay(inst, isday)`
-*   **Description:** Enables or disables spawning based on whether it is currently daytime.
-*   **Parameters:** `isday` (boolean) – `true` if daytime, `false` otherwise.
+### `OnHit(inst, attacker, damage)`
+*   **Description:** Called when the beehive receives damage. Releases all children as killer bees toward the attacker and plays hit animation/sound.
+*   **Parameters:** `inst` (Entity) - The beehive instance. `attacker` (Entity) - The entity that dealt damage. `damage` (number) - Damage amount.
+*   **Returns:** Nothing.
+*   **Error states:** Only releases children if `childspawner` component exists.
+
+### `OnKilled(inst)`
+*   **Description:** Called when the beehive dies. Removes childspawner, plays death animation, drops loot, and destroys physics colliders.
+*   **Parameters:** `inst` (Entity) - The beehive instance.
 *   **Returns:** Nothing.
 
 ### `OnIgnite(inst)`
-*   **Description:** Triggers when the hive catches fire. Releases all bees, stops looping sound, and calls `DefaultBurnFn`.
-*   **Parameters:** `inst` (Entity) – the hive instance.
+*   **Description:** Called when the beehive is set on fire. Releases all children and stops spawning loop sound.
+*   **Parameters:** `inst` (Entity) - The beehive instance.
 *   **Returns:** Nothing.
 
-### `OnHit(inst, attacker, damage)`
-*   **Description:** Responds to direct damage by releasing killer bees toward the attacker.
-*   **Parameters:**  
-    `attacker` (Entity) – the entity dealing damage;  
-    `damage` (number) – amount of damage dealt.
+### `OnFreeze(inst)`
+*   **Description:** Called when the beehive is frozen. Plays freeze sound/animation and stops bee spawning.
+*   **Parameters:** `inst` (Entity) - The beehive instance.
+*   **Returns:** Nothing.
+
+### `OnThaw(inst)`
+*   **Description:** Called when the beehive begins thawing. Plays thawing sound and animation.
+*   **Parameters:** `inst` (Entity) - The beehive instance.
+*   **Returns:** Nothing.
+
+### `OnUnFreeze(inst)`
+*   **Description:** Called when the beehive fully thaws. Clears freeze overrides and resumes bee spawning.
+*   **Parameters:** `inst` (Entity) - The beehive instance.
 *   **Returns:** Nothing.
 
 ### `OnHaunt(inst)`
-*   **Description:** Handles haunting: attempts to find a valid nearby target, triggers `OnHit`, and returns success/failure status.
-*   **Parameters:** `inst` (Entity) – the hive instance.
-*   **Returns:** `true` if a target was found and attacked; `false` otherwise.
-*   **Error states:** Returns early with `false` if hauntable conditions are not met (e.g., childspawner unavailable, spawning blocked, or random chance fails).
+*   **Description:** Called when a ghost haunts the beehive. Has 50% chance to succeed, finds a valid combat target within 25 units, and triggers OnHit behavior.
+*   **Parameters:** `inst` (Entity) - The beehive instance.
+*   **Returns:** `boolean` - `true` if haunt succeeded and attacked a target, `false` otherwise.
+*   **Error states:** Returns `false` if childspawner is missing, cannot spawn, or random check fails.
+
+### `StartSpawning(inst)`
+*   **Description:** Begins bee spawning if not winter and not frozen.
+*   **Parameters:** `inst` (Entity) - The beehive instance.
+*   **Returns:** Nothing.
+
+### `StopSpawning(inst)`
+*   **Description:** Stops bee spawning immediately.
+*   **Parameters:** `inst` (Entity) - The beehive instance.
+*   **Returns:** Nothing.
+
+### `SeasonalSpawnChanges(inst, season)`
+*   **Description:** Adjusts childspawner periods and max children based on current season. Spring increases spawn rates and bee capacity.
+*   **Parameters:** `inst` (Entity) - The beehive instance. `season` (string) - Current season identifier.
+*   **Returns:** Nothing.
+
+### `OnIsDay(inst, isday)`
+*   **Description:** Toggles spawning based on day/night cycle. Starts spawning during day, stops at night.
+*   **Parameters:** `inst` (Entity) - The beehive instance. `isday` (boolean) - Whether it is currently daytime.
+*   **Returns:** Nothing.
+
+### `OnInit(inst)`
+*   **Description:** Initializes world state watchers for day/night cycle. Called after entity creation.
+*   **Parameters:** `inst` (Entity) - The beehive instance.
+*   **Returns:** Nothing.
+
+### `OnPreLoad(inst, data)`
+*   **Description:** Handles save/load data restoration for childspawner timing.
+*   **Parameters:** `inst` (Entity) - The beehive instance. `data` (table) - Save data containing spawn timing information.
+*   **Returns:** Nothing.
+
+### `OnEntityWake(inst)`
+*   **Description:** Called when entity becomes active. Plays looping hive sound.
+*   **Parameters:** `inst` (Entity) - The beehive instance.
+*   **Returns:** Nothing.
+
+### `OnEntitySleep(inst)`
+*   **Description:** Called when entity goes to sleep. Stops looping hive sound.
+*   **Parameters:** `inst` (Entity) - The beehive instance.
+*   **Returns:** Nothing.
 
 ## Events & listeners
-- **Listens to:**  
-  `isday` (world state) – triggers `OnIsDay`;  
-  `season` (world state) – triggers `SeasonalSpawnChanges`;  
-  `freeze`, `onthaw`, `unfreeze` – triggers respective freeze/thaw handlers;  
-  `death` – triggers `OnKilled`.
-- **Pushes:**  
-  No events directly; relies on component events (e.g., `childspawner:ReleaseAllChildren`).
+- **Listens to:** `isday` - Toggles spawning on day/night transition.
+- **Listens to:** `season` - Adjusts spawn rates and capacity when season changes.
+- **Listens to:** `freeze` - Triggers freeze behavior and stops spawning.
+- **Listens to:** `onthaw` - Plays thawing animation and sound.
+- **Listens to:** `unfreeze` - Resumes spawning and clears freeze state.
+- **Listens to:** `death` - Triggers loot drop and cleanup on death.
+- **Pushes:** `entity_droploot` - Fired via lootdropper component when beehive is destroyed.

@@ -1,47 +1,53 @@
 ---
 id: beardhair
 title: Beardhair
-description: A small, stackable inventory item that serves as fuel and decorative snowman accessory, commonly used for campfire refueling and seasonal builds.
-tags: [inventory, fuel, decoration]
+description: Defines the beard hair inventory item prefab used for fuel and crafting.
+tags: [inventory, fuel, item]
 sidebar_position: 10
 
-last_updated: 2026-03-04
+last_updated: 2026-03-20
 build_version: 714014
 change_status: stable
-category_type: prefabs
+category_type: root
 source_hash: 33f1f45a
 system_scope: inventory
 ---
 
 # Beardhair
 
-> Based on game build **714014** | Last updated: 2026-03-04
+> Based on game build **714014** | Last updated: 2026-03-20
 
 ## Overview
-`beardhair` is a lightweight inventory item prefab designed primarily for fueling fires and decorating snowmen. It is stackable, has a modest fuel value, and supports seasonal mechanics such as being ignitable by flamethrowers or hauntable entities. It relies on standard components (`fuel`, `stackable`, `snowmandecor`, `inspectable`, `inventoryitem`) to integrate into DST's core gameplay systems.
+`beardhair` is a prefab definition script that constructs the beard hair entity. This entity functions as a stackable inventory item, a fuel source for fires, and a inspectable object. It is networked to ensure state synchronization across clients in multiplayer sessions. The prefab configures standard components to handle physics, burning, and haunting interactions.
 
 ## Usage example
 ```lua
+-- Spawn the beardhair prefab into the world
 local inst = SpawnPrefab("beardhair")
-if inst then
-    inst.Transform:SetPosition(x, y, z)
-    inst.components.stackable:SetStackSize(5)
-    inst.components.fuel:StartRegen()
-end
+
+-- Access configured component properties
+local fuel_value = inst.components.fuel.fuelvalue
+local max_stack = inst.components.stackable.maxsize
+
+-- Add to player inventory
+inst.components.inventoryitem:GiveToPlayer(player)
 ```
 
 ## Dependencies & tags
-**Components used:** `inspectable`, `inventoryitem`, `stackable`, `fuel`, `snowmandecor`  
-**Tags:** None identified.
+**Components used:** `inspectable`, `inventoryitem`, `stackable`, `fuel`, `snowmandecor`, `network`
+**Tags:** None identified (tags are managed by attached components).
 
 ## Properties
+The prefab configures specific properties on attached components during initialization.
+
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `fuelvalue` | number | `TUNING.MED_FUEL` | Amount of fuel contributed when burned (shared across all fuel items of this tier). |
-| `maxsize` | number | `TUNING.STACK_SIZE_SMALLITEM` | Maximum stack size for grouping multiple items in inventory. |
+| `stackable.maxsize` | number | `TUNING.STACK_SIZE_SMALLITEM` | Maximum number of items allowed in a single stack. |
+| `fuel.fuelvalue` | number | `TUNING.MED_FUEL` | Amount of fuel time provided when burned. |
+| `burnable.time` | number | `TUNING.MED_BURNTIME` | Duration the item burns when ignited. |
 
 ## Main functions
-Not applicable — the component logic is handled via component interfaces (`fuel`, `stackable`, etc.) and asset-driven animation/physics setup in the prefab constructor.
+Not applicable. This file defines entity construction logic rather than exposing custom methods on the instance. Functionality is provided by standard components attached during initialization.
 
 ## Events & listeners
-Not applicable — no event listeners or pushes are defined in this prefab’s constructor.
+None identified. The prefab does not register custom event listeners or push custom events in its construction logic.

@@ -1,217 +1,419 @@
 ---
 id: debugkeys
 title: Debugkeys
-description: Provides debug key bindings and mouse input handlers to control game state, spawn entities, inspect systems, and manipulate entities/components for development and testing.
-tags: [debug, input, console, tools]
+description: This module defines a comprehensive set of debug key bindings, console command wrappers, and development utilities for manipulating world state, player attributes, entity components, and simulation parameters in the Don't Starve Together simulation, including mouse actions and farming nutrient controls.
+tags: [debugging, utilities, development, input, simulation]
 sidebar_position: 10
 
-last_updated: 2026-03-10
+last_updated: 2026-03-21
 build_version: 714014
 change_status: stable
 category_type: root
 source_hash: 7d678f15
-system_scope: player
+system_scope: world
 ---
 
 # Debugkeys
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **714014** | Last updated: 2026-03-21
 
 ## Overview
-The `debugkeys` module implements a central debug input system for Don't Starve Together. It registers keyboard and mouse handlers that modify game state, spawn or remove entities, manipulate components (e.g., health, sanity, growth), inspect tile data, trigger world events, and support development workflows like reloading scripts and teleports. These debug commands are only active during development or modded environments and are not intended for production play. The system uses both global and game-contextual key handlers, with support for modifier keys (CTRL, SHIFT, ALT) to vary behavior, and correctly routes actions across client and master simulation.
+The `debugkeys` module provides a comprehensive framework for development and testing within Don't Starve Together. It registers global and gameplay-specific keyboard shortcuts to manipulate simulation parameters, entity states, and world topology. Key features include console command wrappers for spawning and removing entities, direct component manipulation (health, hunger, sanity), map tile editing, and simulation control (pause, step, time scale). It also handles mouse debug actions for entity inspection and removal, and facilitates remote command execution between client and server. This module is essential for developers needing to rapidly iterate on game mechanics or verify entity behaviors without standard gameplay constraints.
 
 ## Usage example
 ```lua
--- Register a new debug key to toggle player godmode
-AddGameDebugKey("G", function()
-    local player = ThePlayer
-    if player and player.components.health then
-        player.components.health.isgodmode = not player.components.health.isgodmode
-        print("Godmode: " .. tostring(player.components.health.isgodmode))
+-- Register a global debug key to print player position
+AddGlobalDebugKey(KEYS.F5, function()
+    if ThePlayer then
+        local pos = ThePlayer.Transform:GetWorldPosition()
+        print("Player at:", pos.x, pos.y, pos.z)
     end
-end, true)
+end)
 
--- Trigger a debug right-click to spawn selected entity at mouse position
-DebugRMB(TheInput:GetWorldPosition())
+-- Spawn a beefalo using the debug wrapper
+d_c_spawn("beefalo", 1)
 
--- Force reload debug scripts for live iteration
-DoReload()
+-- Teleport player to mouse position
+DebugKeyHandler_T()
+
+-- Force next hounded wave
+DebugKeyHandler_H()
 ```
 
 ## Dependencies & tags
+
+**External dependencies:**
+- `TheWorld` -- Accessed for simulation state, topology, and event pushing
+- `TheSim` -- Used for debug pause, stepping, and entity finding
+- `TheInput` -- Used for key state checks and mouse position
+- `TheFrontEnd` -- Used to toggle debug panels and UI
+- `TheInventory` -- Used for debug gift functions
+- `ConsoleCommandPlayer` -- Called to get the player entity for commands
+- `GLOBAL` -- Used to expose global variables
+- `Profile` -- Checked for threaded render setting
+- `Vector3` -- Used for coordinate calculations
+- `SpawnPrefab` -- Called to instantiate entities
+- `ConsoleRemote` -- Called to execute commands on server from client
+- `consolecommands` -- Required for console command functions
+- `scripts/reload.lua` -- Required and reloaded for hot-reload functionality
+- `dbui_no_package` -- Conditionally required for debug UI modules
+- `ThePlayer` -- Used to access local player components and position
+- `TheCamera` -- Used to access target position and heading
+- `TUNING` -- Used to access game balance constants like TOTAL_DAY_TIME
+- `Ents` -- Iterated to find specific prefabs in the world
+- `DebugKeyPlayer` -- Called to get the debug key player instance
+- `PostProcessor` -- Used to set colour cube data
+- `require` -- Used to load map/levels, map/tasks, map/tasksets, map/rooms, prefabs/skilltree_defs
+- `usercommands` -- Required to run user commands for emotes
+
 **Components used:**
-- `cooldown` (`LongUpdate`, `cooldown_duration`)
-- `domesticatable` (`BecomeDomesticated`, `BecomeFeral`, `IsDomesticated`, `tendencies`)
-- `farming_manager` (`AddTileNutrients`, `GetTileNutrients`)
-- `fueled` (`SetPercent`)
-- `growable` (`DoGrowth`)
-- `harvestable` (`Grow`)
-- `health` (`DoDelta`, `Kill`, `maxhealth`)
-- `herd` (`members`)
-- `herdmember` (`herd`)
-- `hounded` (`ForceNextWave`)
-- `hunger` (`DoDelta`)
-- `inventory` (`DropEverything`, `Equip`)
-- `inventoryitem` (`SetLanded`)
-- `knownlocations` (`GetLocation`)
-- `locomotor` (no methods used)
-- `mood` (`SetIsInMood`)
-- `periodicspawner` (`TrySpawn`)
-- `perishable` (`Perish`)
-- `pickable` (`Pick`, `Regen`)
-- `pinnable` (`Stick`, `Unstick`, `IsStuck`)
-- `sanity` (`DoDelta`, `SetPercent`)
-- `setter` (`SetSetTime`, `StartSetting`)
-- `skilltreeupdater` (no methods used)
-- `temperature` (`DoDelta`)
-- `walkableplatform` (no methods used)
+- `domesticatable` -- Accessed to print tendencies on beefalo
+- `health` -- Accessed to modify health on boat bumpers
+- `inventory` -- Accessed to equip items on console player
+- `transform` -- Used to set entity positions
+- `network` -- Used to get network ID for remote removal
+- `sanity` -- Accessed to modify sanity via DoDelta or SetPercent
+- `hunger` -- Accessed to modify hunger via DoDelta
+- `temperature` -- Referenced for debug delta modification
+- `pickable` -- Accessed to Pick or Regen plants
+- `fueled` -- Accessed to SetPercent fuel
+- `harvestable` -- Accessed to Grow produce
+- `growable` -- Accessed to DoGrowth
+- `perishable` -- Accessed to Perish item
+- `setter` -- Accessed to SetSetTime and StartSetting
+- `cooldown` -- Accessed to LongUpdate
+- `locomotor` -- Checked for teleport target validation
+- `walkableplatform` -- Accessed to get players on boat platform
+- `inventoryitem` -- Accessed to SetLanded state
+- `herdmember` -- Accessed to find herd association
+- `herd` -- Accessed to iterate members
+- `periodicspawner` -- Accessed to TrySpawn
+- `mood` -- Accessed to SetIsInMood
+- `knownlocations` -- Accessed to GetLocation
+- `hounded` -- Accessed to ForceNextWave
+- `skilltreeupdater` -- Accessed to manage skill XP and activation
+- `farming_manager` -- Accessed via TheWorld.components to get and add tile nutrients
+- `Transform` -- Used to get world position or set entity position
+- `Map` -- Used to get tile coordinates, tile type, and set tile type
+- `HUD` -- Accessed on ThePlayer to toggle visibility
 
 **Tags:**
-- `player`
-- `boatbumper`
-- `FX`
-- `NOCLICK`
-- `DECOR`
-- `INLIMBO`
-- `_inventoryitem`
-- `Chester_Eyebone`
-- `withered`
-- `wall`
-- `withered`
+- `player` -- check
+- `boatbumper` -- check
+- `FX` -- check
+- `NOCLICK` -- check
+- `DECOR` -- check
+- `INLIMBO` -- check
+- `_inventoryitem` -- check
+- `wall` -- check
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `self.inst` | `entity` | N/A | The entity instance that owns this component (here, the debug module itself is not a standard component; `self` refers to the debug keys module). |
-| `CAN_USE_DBUI` | `boolean` | N/A | Conditional flag used to enable DBUI-based debug panels. |
-| `TheInput` | `TheInput` | N/A | Global input system used for key/mouse state. |
-| `ThePlayer` | `player entity` | N/A | The local player entity when in-game. |
-| `TheWorld` | `World` | N/A | The global world instance. |
-| `TheSim` | `TheSim` | N/A | Global simulation control object. |
-| `TheFrontEnd` | `FrontEnd` | N/A | Frontend UI state manager. |
 
 ## Main functions
+
 ### `dumpvariabletostr(var)`
-* **Description:** Converts any Lua variable to a human-readable string suitable for debugging output (e.g., console, log). Handles `nil`, `boolean`, `number`, `string`, `table`, `function`, and `userdata` types.
-* **Parameters:** `var` — any Lua value.
-* **Returns:** `string` — formatted representation of `var`.
+* **Description:** Converts a variable to a string format using type-specific formatting functions.
+* **Parameters:**
+  - `var` -- The variable to convert to a string representation
+* **Returns:** string representation of the variable
+* **Error states:** Asserts if the type is not found in fcts table
 
 ### `d_c_spawn(prefab, count, dontselect)`
-* **Description:** Spawns `count` instances of the given `prefab`. Handles client–server replication: dispatches remotely if not on master simulation; otherwise calls `c_spawn` directly.
-* **Parameters:**  
-  - `prefab` — string, name of the prefab to spawn.  
-  - `count` — number, number of instances.  
-  - `dontselect` — boolean, if `true`, do not auto-select the first spawned entity.  
-* **Returns:** `nil`.
+* **Description:** Wrapper for c_spawn that handles network replication for client/server.
+* **Parameters:**
+  - `prefab` -- String name of the prefab to spawn
+  - `count` -- Number of entities to spawn
+  - `dontselect` -- Boolean flag to prevent auto-selection
+* **Returns:** nil
 
 ### `d_c_give(prefab, count, dontselect)`
-* **Description:** Gives `count` instances of `prefab` to the player (via `c_give`). Handles client–server replication similar to `d_c_spawn`.
-* **Parameters:** Same as `d_c_spawn`.
-* **Returns:** `nil`.
+* **Description:** Wrapper for c_give that handles network replication for client/server.
+* **Parameters:**
+  - `prefab` -- String name of the prefab to give
+  - `count` -- Number of items to give
+  - `dontselect` -- Boolean flag to prevent auto-selection
+* **Returns:** nil
 
 ### `d_c_remove(entity)`
-* **Description:** Removes a single entity: the one under the mouse cursor if `entity` is omitted; otherwise removes the provided `entity`. Replicated across networks if needed.
-* **Parameters:** `entity` — optional entity to remove.
-* **Returns:** `nil`.
+* **Description:** Removes an entity, handling network ID serialization for remote execution.
+* **Parameters:**
+  - `entity` -- Entity instance to remove, defaults to mouse entity
+* **Returns:** nil
+* **Error states:** Returns early if world or mouse entity is nil
 
 ### `d_c_removeall(entity)`
-* **Description:** Removes all entities matching the prefab of `entity` (or the mouse entity if omitted), useful for clearing clutter.
-* **Parameters:** `entity` — optional entity to define the prefab to remove.
-* **Returns:** `nil`.
+* **Description:** Removes all entities of the same prefab type.
+* **Parameters:**
+  - `entity` -- Entity instance to match for removal, defaults to mouse entity
+* **Returns:** nil
 
 ### `DebugKeyPlayer()`
-* **Description:** Returns the player entity used for debug key actions, but only on master simulation. Otherwise returns `nil`.
-* **Parameters:** None.
-* **Returns:** `player entity` or `nil`.
+* **Description:** Retrieves the console command player entity if on master server.
+* **Parameters:** None
+* **Returns:** Entity or nil
+* **Error states:** Returns nil if not master sim or no player
 
 ### `DoDebugKey(key, down)`
-* **Description:** Invokes registered handlers for the given `key`, passing whether the event is key-down or key-up.
-* **Parameters:**  
-  - `key` — string, identifier for the key.  
-  - `down` — boolean, `true` for key press, `false` for release.  
-* **Returns:** `true` if any handler returns `true`; otherwise `nil`.
+* **Description:** Iterates through registered handlers for a specific key and executes them.
+* **Parameters:**
+  - `key` -- Key code identifier
+  - `down` -- Boolean indicating key press state
+* **Returns:** true if handled, nil otherwise
 
 ### `AddGameDebugKey(key, fn, down)`
-* **Description:** Registers a debug handler that only executes when `inGamePlay` is `true`. Commonly used for gameplay-specific debug features.
-* **Parameters:**  
-  - `key` — string, key identifier.  
-  - `fn` — function, callback executed when `key` is pressed/released.  
-  - `down` — boolean (default `true`), whether to trigger on key down (`true`) or key up (`false`).  
-* **Returns:** `nil`.
+* **Description:** Registers a debug key handler that only activates during gameplay.
+* **Parameters:**
+  - `key` -- Key code identifier
+  - `fn` -- Function to execute on key event
+  - `down` -- Boolean indicating whether to trigger on key down (default true)
+* **Returns:** nil
 
 ### `AddGlobalDebugKey(key, fn, down)`
-* **Description:** Registers a debug handler that runs regardless of current game state (e.g., menu, loading, gameplay).
-* **Parameters:** Same as `AddGameDebugKey`, but no `inGamePlay` check is enforced.
-* **Returns:** `nil`.
+* **Description:** Registers a debug key handler that activates globally regardless of game state.
+* **Parameters:**
+  - `key` -- Key code identifier
+  - `fn` -- Function to execute on key event
+  - `down` -- Boolean indicating whether to trigger on key down (default true)
+* **Returns:** nil
 
 ### `SimBreakPoint()`
-* **Description:** Toggles debug pause mode on or off. Only toggles if not already paused.
-* **Parameters:** None.
-* **Returns:** `nil`.
-
-### `DoReload()`
-* **Description:** Forces a reload of `scripts/reload.lua` by removing it from `package.loaded` and re-`require`-ing. Enables hot-reloading development scripts.
-* **Parameters:** None.
-* **Returns:** `nil`.
-
-### `BindKeys(bindings)`
-* **Description:** Registers multiple debug key bindings at once. Each binding must contain `binding` (e.g., `"G"` or `"GALT"`), `name`, and `fn`. Checks modifier keys before calling the handler.
-* **Parameters:** `bindings` — array of binding objects.
-* **Returns:** `nil`.
-
-### `try_boat_teleport(boat, x, y, z)`
-* **Description:** Teleports a boat and all attached players/items to new world coordinates. Snaps player cameras to the boat and moves entities using `Vector3`.
-* **Parameters:**  
-  - `boat` — entity, the boat to teleport.  
-  - `x`, `y`, `z` — numbers, target world coordinates.  
-* **Returns:** `true` on success; `false` otherwise.
-
-### `d_addemotekeys()`
-* **Description:** Registers Numpad key bindings (e.g., `KEY_KP1`–`KEY_KP0`) for emote commands by invoking `UserCommands.RunUserCommand`.
-* **Parameters:** None.
-* **Returns:** `nil`.
-
-### `d_gettiles()`
-* **Description:** Iterates over an 11×11 grid centered on the player, finds all `WORLD_TILES.FARMING_SOIL` tiles, and logs their world coordinates using `dumptable`.
-* **Parameters:** None.
-* **Returns:** `nil`.
-
-### `DebugRMB(x, y)`
-* **Description:** Handles debug right-click: depending on modifiers and selection state, may spawn, remove, or teleport entities, compute distance/angle, or set a debug entity.
-* **Parameters:**  
-  - `x`, `y` — numbers, world coordinates from `TheInput:GetWorldPosition()`.  
-* **Returns:** `nil`.
-
-### `DebugLMB(x, y)`
-* **Description:** On left-click during debug pause, sets the selected debug entity to the entity under the mouse.
-* **Parameters:** Same as `DebugRMB`.
-* **Returns:** `nil`.
+* **Description:** Toggles the simulation debug pause state.
+* **Parameters:** None
+* **Returns:** nil
 
 ### `DoDebugMouse(button, down, x, y)`
-* **Description:** Entry point for debug mouse handling. Routes to `DebugRMB` or `DebugLMB` only when `down` is `true`.
-* **Parameters:**  
-  - `button` — `MOUSEBUTTON_RIGHT` or `MOUSEBUTTON_LEFT`.  
-  - `down` — boolean, only processes when `true`.  
-  - `x`, `y` — numbers, world coordinates.  
-* **Returns:** `false` if `not down`; otherwise result of handler.
+* **Description:** Routes mouse button events to corresponding debug handler functions.
+* **Parameters:**
+  - `button` -- number, mouse button identifier (MOUSEBUTTON_RIGHT or MOUSEBUTTON_LEFT)
+  - `down` -- boolean, true if mouse button is pressed
+  - `x` -- number, mouse x coordinate
+  - `y` -- number, mouse y coordinate
+* **Returns:** false if not down, otherwise nil
+* **Error states:** Returns false immediately if down is false
+
+### `DoReload()`
+* **Description:** Reloads the scripts/reload.lua module to refresh debug scripts.
+* **Parameters:** None
+* **Returns:** nil
+
+### `Spawn(prefab)`
+* **Description:** Helper function to spawn a prefab entity.
+* **Parameters:**
+  - `prefab` -- String name of the prefab to spawn
+* **Returns:** Entity instance
+
+### `BindKeys(bindings)`
+* **Description:** Iterates through a binding table and registers keys using AddGlobalDebugKey.
+* **Parameters:**
+  - `bindings` -- Table of key binding configurations
+* **Returns:** nil
+
+### `try_boat_teleport(boat, x, y, z)`
+* **Description:** Teleports a boat entity and its attached items to a new position, handling physics and platform updates.
+* **Parameters:**
+  - `boat` -- Entity instance of the boat to teleport
+  - `x` -- Number, target X coordinate
+  - `y` -- Number, target Y coordinate
+  - `z` -- Number, target Z coordinate
+* **Returns:** boolean, true if successful
+
+### `DebugKeyHandler_PAGEUP()`
+* **Description:** Increases wetness, moisture, snow level, or advances season based on modifier keys.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugKeyHandler_PAGEDOWN()`
+* **Description:** Decreases wetness, moisture, snow level, or retreats season based on modifier keys.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugKeyHandler_O()`
+* **Description:** Scans map levels, tasks, and rooms for specific tags like Chester_Eyebone when Shift is held.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugKeyHandler_F9()`
+* **Description:** Triggers a LongUpdate with 25% of total day time.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugKeyHandler_F11()`
+* **Description:** Automatically picks all planted carrot entities in the world.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugKeyHandler_1()`
+* **Description:** Teleports the main character to the next teleportato part location when Ctrl is held.
+* **Parameters:** None
+* **Returns:** boolean, true or nil
+* **Error states:** Returns nil if Ctrl is not held
+
+### `DebugKeyHandler_X()`
+* **Description:** Selects the entity under the mouse or equips the player's hand item when Ctrl is held.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugKeyHandler_LEFTBRACKET()`
+* **Description:** Adjusts simulation time scale or resets player skill tree XP based on modifier keys.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugKeyHandler_RIGHTBRACKET()`
+* **Description:** Adjusts simulation time scale or adds skill tree XP based on modifier keys.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugKeyHandler_KP_PLUS()`
+* **Description:** Increases player health, hunger, or sanity via remote commands or direct component calls.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugKeyHandler_KP_MINUS()`
+* **Description:** Decreases player health, hunger, or sanity via remote commands or direct component calls.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugKeyHandler_T()`
+* **Description:** Teleports the player or selected entity to the mouse map position, handling boat platforms.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugKeyHandler_G()`
+* **Description:** Triggers growth, fuel, harvest, regen, perish, setting, cooldown, or domestication on the mouse entity when Ctrl is held.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugKeyHandler_D()`
+* **Description:** Prepares to modify map tiles at the world position under the mouse when Shift is held.
+* **Parameters:** None
+* **Returns:** None
+
+### `DebugKeyHandler_K()`
+* **Description:** Removes selected entity or teleports to monkeyhut based on modifier keys.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugKeyHandler_L()`
+* **Description:** Prints map node and tile information around the player or resets loading widget if no world.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** Returns early if ThePlayer is nil
+
+### `DebugKeyHandler_KP_DIVIDE_GLOBAL()`
+* **Description:** Toggles frame profiler or debug texture visibility based on modifier keys.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugKeyHandler_EQUALS()`
+* **Description:** Updates debug texture value or increments map overlay lerp value.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugKeyHandler_MINUS()`
+* **Description:** Updates debug texture value or decrements map overlay lerp value.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugKeyHandler_M()`
+* **Description:** Toggles fog of war, revealed areas, or reveals entire map based on modifier keys.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugKeyHandler_N()`
+* **Description:** Teleports player to the next node.
+* **Parameters:** None
+* **Returns:** None
+
+### `DebugKeyHandler_S()`
+* **Description:** Triggers a world save event remotely or locally when Ctrl is held.
+* **Parameters:** None
+* **Returns:** boolean, true
+* **Error states:** Returns nil if Ctrl is not held
+
+### `DebugKeyHandler_KP_MULTIPLY()`
+* **Description:** Gives a devtool item if debug toggle is enabled.
+* **Parameters:** None
+* **Returns:** boolean, true
+* **Error states:** Returns nil if debug toggle is disabled
+
+### `DebugKeyHandler_KP_DIVIDE_GAME()`
+* **Description:** Drops everything from the debug key player inventory if debug toggle is enabled.
+* **Parameters:** None
+* **Returns:** boolean, true
+* **Error states:** Returns nil if debug toggle is disabled or no player
+
+### `DebugKeyHandler_C()`
+* **Description:** Resets colour cube or teleports selected entity to rookery based on user name and modifiers.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugKeyHandler_PAUSE()`
+* **Description:** Toggles debug pause and debug camera, configuring render settings.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugKeyHandler_H()`
+* **Description:** Toggles HUD, forces hounded wave, or cycles through herd members based on modifiers.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugKeyHandler_J()`
+* **Description:** Triggers periodic spawner or sets mood on selected entity based on Shift key.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugKeyHandler_INSERT()`
+* **Description:** Enables debug render, toggles debug camera, or toggles physics render based on modifiers.
+* **Parameters:** None
+* **Returns:** boolean, true
+* **Error states:** Returns nil if debug toggle is disabled
+
+### `DebugKeyHandler_I()`
+* **Description:** Spawns dragonfly, light flower, or locks lavae targets based on modifiers.
+* **Parameters:** None
+* **Returns:** boolean, true
+
+### `DebugRMB(x, y)`
+* **Description:** Handles right mouse button debug actions including spawning selected prefab, removing entities, killing entities under cursor, or inspecting entities.
+* **Parameters:**
+  - `x` -- number, screen or world x coordinate
+  - `y` -- number, screen or world y coordinate
+* **Returns:** nil
+
+### `DebugLMB(x, y)`
+* **Description:** Handles left mouse button debug action to set debug entity if simulation is paused.
+* **Parameters:**
+  - `x` -- number, screen or world x coordinate
+  - `y` -- number, screen or world y coordinate
+* **Returns:** nil
+
+### `d_addemotekeys()`
+* **Description:** Registers numpad keys to trigger specific player emote user commands.
+* **Parameters:** None
+* **Returns:** nil
+
+### `d_gettiles()`
+* **Description:** Scans a grid around the player for farming soil tiles and prints their coordinates.
+* **Parameters:** None
+* **Returns:** nil
 
 ## Events & listeners
-- **Pushes `"domesticated"`** — by `Domesticatable:BecomeDomesticated()`.
-- **Pushes `"healthdelta"`** — by `Health:DoDelta()` and `Health:Kill()`.
-- **Pushes `"perished"`** — by `Perishable:Perish()`.
-- **Pushes `"picked"`** — by `Pickable:Pick()`.
-- **Pushes `"sanitydelta"`** — by `Sanity:DoDelta()`.
-- **Pushes `"goinsane"` / `"gosane"` / `"goenlightened"`** — by `Sanity:DoDelta()` on state change.
-- **Pushes `"on_no_longer_landed"` / `"on_landed"`** — by `InventoryItem:SetLanded()` on landing state change.
-- **World events** (via `TheWorld:PushEvent` in debug handlers):
-  - `"ms_nextnightmarephase"`
-  - `"ms_nextphase"`
-  - `"ms_advanceseason"`
-  - `"ms_retreatseason"`
-  - `"ms_deltawetness"`
-  - `"ms_deltamoisture"`
-  - `"ms_setsnowlevel"`
-  - `"ms_sendlightningstrike"`
-  - `"ms_setseasonlength"`
-  - `"spawnnewboatleak"`
-  - `"boatcollision"`
+
+**Listens to:**
+- `onattackother` -- Listened conditionally on player entity when F1 is pressed
+
+**Pushes:**
+- `ms_nextnightmarephase` -- Pushed on TheWorld to advance nightmare phase
+- `ms_nextphase` -- Pushed on TheWorld to advance day phase
+- `ms_advanceseason` -- Pushed on TheWorld to advance season
+- `spawnnewboatleak` -- Pushed on boat entity to spawn a leak
+- `boatcollision` -- Pushed on boat bumper entity to simulate collision
+- `ms_sendlightningstrike` -- Pushed on TheWorld to trigger lightning
+- `ms_setseasonlength` -- Pushed on TheWorld to modify season length
+- `ms_deltawetness` -- Pushed to TheWorld to change wetness level
+- `ms_deltamoisture` -- Pushed to TheWorld to change moisture level
+- `ms_setsnowlevel` -- Pushed to TheWorld to set snow level
+- `ms_retreatseason` -- Pushed to TheWorld to retreat the season
+- `ms_save` -- Pushed to TheWorld to trigger a save

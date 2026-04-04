@@ -1,11 +1,11 @@
 ---
 id: custompresets
 title: Custompresets
-description: Manages custom world and settings presets created by users or mods in Don't Starve Together.
-tags: [world, settings, persistence, customization]
+description: Manages custom world generation and settings presets for player-created world configurations.
+tags: [world, presets, customization]
 sidebar_position: 10
 
-last_updated: 2026-03-10
+last_updated: 2026-03-21
 build_version: 714014
 change_status: stable
 category_type: root
@@ -15,107 +15,93 @@ system_scope: world
 
 # Custompresets
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **714014** | Last updated: 2026-03-21
 
 ## Overview
-`CustomPresets` is a singleton class that manages user-defined and mod-provided world and settings presets. It loads preset configurations from disk, validates them, upgrades legacy formats, and provides methods for saving, moving, and deleting presets. It integrates with `map/customize.lua` for default option handling and `map/levels.lua` for base preset data retrieval.
+`CustomPresets` is a utility class that manages player-created world presets for both world generation settings and world customization options. It handles loading, saving, validating, and deleting custom preset files stored in persistent storage. This class works alongside the `Levels` and `Customize` modules to integrate custom presets into the world generation system. Presets are stored as `.wsp` (settings) or `.wgp` (worldgen) files in the `world_presets/` directory.
 
 ## Usage example
 ```lua
--- Load all custom presets into memory
-CustomPresets:Load()
+local CustomPresets = require("custompresets")
+local presets = CustomPresets()
 
--- Check if a custom preset exists
-if CustomPresets:PresetIDExists(LEVELCATEGORY.SETTINGS, "CUSTOM_MY_PRESET") then
-    -- Load and use the preset data
-    local preset = CustomPresets:LoadCustomPreset(LEVELCATEGORY.SETTINGS, "CUSTOM_MY_PRESET")
-    if preset then
-        -- use preset data, e.g., preset:GetName(), preset:GetID()
-    end
+-- Load existing custom presets from user storage
+presets:Load()
+
+-- Save a new custom preset
+presets:SaveCustomPreset(
+    LEVELCATEGORY.SETTINGS,
+    "CUSTOM_MYPRESET",
+    "SURVIVAL_TOGETHER",
+    overrides,
+    "My Preset",
+    "Custom world settings"
+)
+
+-- Check if preset exists
+if presets:PresetIDExists(LEVELCATEGORY.SETTINGS, "CUSTOM_MYPRESET") then
+    presets:DeleteCustomPreset(LEVELCATEGORY.SETTINGS, "CUSTOM_MYPRESET")
 end
 ```
 
 ## Dependencies & tags
-**Components used:** `TheSim` (for file I/O and persistent string management), `Profile` (for legacy preset migration)
+**Components used:** None (utility class, not attached to entities)
 **Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `presets` | table (nested) | `{ [LEVELCATEGORY.SETTINGS] = {}, [LEVELCATEGORY.WORLDGEN] = {} }` | Cache of loaded preset data objects, keyed by category and preset ID. |
-| `presetIDs` | table (nested) | `{ [LEVELCATEGORY.SETTINGS] = {}, [LEVELCATEGORY.WORLDGEN] = {} }` | Lists of valid custom preset IDs, sorted alphabetically, keyed by category. |
+| `presets` | table | `{}` | Cached preset data organized by category (SETTINGS/WORLDGEN). |
+| `presetIDs` | table | `{}` | List of preset IDs available for each category. |
 
 ## Main functions
 ### `Load()`
-* **Description:** Loads custom presets from persistent storage and legacy profile settings. Populates `presetIDs` and caches presets in `presets`.
-* **Parameters:** None.
-* **Returns:** Nothing.
-* **Error states:** None documented.
+*   **Description:** Loads custom presets from user profile and migrates them to persistent storage. Called during initialization to populate the preset system with user-created presets.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
+*   **Error states:** Silently fails if `Profile` is nil or contains no customization presets.
 
 ### `LoadCustomPreset(category, presetid)`
-* **Description:** Loads and returns the full preset data object for a given custom preset ID, or `nil` if invalid/unavailable.
-* **Parameters:** 
-  - `category` (number, `LEVELCATEGORY`) — Category of the preset (e.g., `LEVELCATEGORY.SETTINGS` or `LEVELCATEGORY.WORLDGEN`).
-  - `presetid` (string) — ID of the custom preset (must start with `"CUSTOM_"`).
-* **Returns:** `presetdata` (table or `nil`) — Parsed and extended preset data, or `nil` if missing or invalid.
-* **Error states:** Returns `nil` if `presetid` is not in `presetIDs[category]`, file load fails, sandbox parse fails, or required fields (`baseid`, `name`, `desc`, `overrides`) are missing.
+*   **Description:** Loads a specific custom preset from persistent storage and caches it. Validates that the preset ID starts with `CUSTOM_` prefix.
+*   **Parameters:** `category` (LEVELCATEGORY) - preset category (SETTINGS or WORLDGEN). `presetid` (string) - must start with `CUSTOM_` prefix.
+*   **Returns:** `presetdata` (table) - loaded preset data or nil if load fails.
+*   **Error states:** Returns nil if preset ID does not start with `CUSTOM_`, if preset is not in `presetIDs` table, or if file load fails.
 
 ### `IsValidPreset(category, presetid)`
-* **Description:** Synchronously checks if a preset exists and is valid without loading its full data.
-* **Parameters:** 
-  - `category` (number, `LEVELCATEGORY`) — Category of the preset.
-  - `presetid` (string) — ID of the custom preset.
-* **Returns:** `boolean` — `true` if the preset exists and is structurally valid, `false` otherwise.
-* **Error states:** None.
+*   **Description:** Checks if a custom preset exists and is valid by attempting to load and parse its data.
+*   **Parameters:** `category` (LEVELCATEGORY) - preset category. `presetid` (string) - preset ID to validate.
+*   **Returns:** `boolean` - true if preset exists and is valid, false otherwise.
+*   **Error states:** Returns false if preset ID does not start with `CUSTOM_` or if preset data is malformed.
 
 ### `SaveCustomPreset(category, presetid, basepreset, overrides, name, desc)`
-* **Description:** Creates and saves a new custom preset based on an existing base preset, applying the given overrides and metadata.
-* **Parameters:** 
-  - `category` (number, `LEVELCATEGORY`) — Category of the preset.
-  - `presetid` (string) — Unique ID for the new custom preset (must start with `"CUSTOM_"`).
-  - `basepreset` (string) — ID of the base preset to copy defaults from.
-  - `overrides` (table) — Key-value map of option overrides.
-  - `name` (string) — Display name of the custom preset.
-  - `desc` (string) — Description of the custom preset.
-* **Returns:** `true` on success, `nil` if required arguments are missing, base preset is custom, or base preset data is unavailable.
-* **Error states:** Returns early if `presetid` is missing, `basepreset` is a custom preset, or `basepreset` does not exist.
+*   **Description:** Creates or updates a custom preset with the specified configuration. Saves preset data to persistent storage and updates internal caches.
+*   **Parameters:** `category` (LEVELCATEGORY) - preset category. `presetid` (string) - must start with `CUSTOM_`. `basepreset` (string) - base preset ID this custom preset extends. `overrides` (table) - setting overrides. `name` (string) - display name. `desc` (string) - description.
+*   **Returns:** `boolean` - true on success, nil on failure.
+*   **Error states:** Returns nil if any required parameter is nil, if basepreset is itself a custom preset, or if base preset data cannot be loaded.
 
 ### `MoveCustomPreset(category, oldid, presetid, name, desc)`
-* **Description:** Renames/moves an existing custom preset to a new ID (or same ID with updated name/desc).
-* **Parameters:** 
-  - `category` (number, `LEVELCATEGORY`) — Category of the preset.
-  - `oldid` (string) — Current ID of the preset to move.
-  - `presetid` (string) — New ID for the preset (must start with `"CUSTOM_"`).
-  - `name` (string) — Updated display name.
-  - `desc` (string) — Updated description.
-* **Returns:** `presetdata` (table or `nil`) — The resulting preset object after move/update, or `nil` if `oldid` does not exist.
-* **Error states:** Does nothing if `oldid` is not found.
+*   **Description:** Renames or moves an existing custom preset to a new ID. Deletes the old preset file after successful save.
+*   **Parameters:** `category` (LEVELCATEGORY) - preset category. `oldid` (string) - current preset ID. `presetid` (string) - new preset ID. `name` (string) - new display name. `desc` (string) - new description.
+*   **Returns:** `presetdata` (table) - the moved preset data or nil if operation fails.
+*   **Error states:** Returns nil if old preset does not exist or if save operation fails.
 
 ### `DeleteCustomPreset(category, presetid)`
-* **Description:** Removes a custom preset from memory and persistent storage.
-* **Parameters:** 
-  - `category` (number, `LEVELCATEGORY`) — Category of the preset.
-  - `presetid` (string) — ID of the preset to delete.
-* **Returns:** Nothing.
-* **Error states:** None.
+*   **Description:** Removes a custom preset from cache and deletes its persistent storage file.
+*   **Parameters:** `category` (LEVELCATEGORY) - preset category. `presetid` (string) - preset ID to delete.
+*   **Returns:** Nothing.
+*   **Error states:** Silently fails if preset does not exist in cache.
 
 ### `PresetIDExists(category, presetid)`
-* **Description:** Checks whether a given preset ID exists in the loaded list for a category.
-* **Parameters:** 
-  - `category` (number, `LEVELCATEGORY`) — Category to check.
-  - `presetid` (string) — Preset ID to verify.
-* **Returns:** `boolean` — `true` if the ID is registered, `false` otherwise.
-* **Note:** For `LEVELCATEGORY.COMBINED`, checks both categories.
-
-### `IsCustomPreset(category, presetid)`
-* **Description:** Alias for `PresetIDExists`. Returns `true` if the given ID is a custom preset ID.
+*   **Description:** Checks if a preset ID is registered in the `presetIDs` table for the given category.
+*   **Parameters:** `category` (LEVELCATEGORY) - preset category. `presetid` (string) - preset ID to check.
+*   **Returns:** `boolean` - true if ID exists in presetIDs table.
+*   **Error states:** None.
 
 ### `GetPresetIDs(category)`
-* **Description:** Returns the sorted list of custom preset IDs for a category.
-* **Parameters:** 
-  - `category` (number, `LEVELCATEGORY`) — Category to list.
-* **Returns:** `table` — Array of preset IDs (e.g., `{ "CUSTOM_ABC", "CUSTOM_XYZ" }`).
+*   **Description:** Returns the list of all registered preset IDs for a specific category.
+*   **Parameters:** `category` (LEVELCATEGORY) - preset category.
+*   **Returns:** `table` - array of preset ID strings.
+*   **Error states:** Returns empty table if category has no presets.
 
 ## Events & listeners
-- **Listens to:** None identified.
-- **Pushes:** None identified.
+Not applicable - this is a utility class that does not interact with the entity event system.

@@ -1,936 +1,1368 @@
 ---
 id: debugcommands
 title: Debugcommands
-description: A collection of debug console commands for spawning entities, modifying game state, testing components, generating scrapbook data, and manipulating world topology.
-tags: [debug, console, spawning, world, testing]
+description: This module defines a comprehensive suite of debug console commands for spawning entities, manipulating world states, testing game mechanics, configuring components, managing events, and exporting entity data for testing purposes in Don't Starve Together.
+tags: [debug, console, testing, utilities, development]
 sidebar_position: 10
 
-last_updated: 2026-03-10
+last_updated: 2026-03-21
 build_version: 714014
 change_status: stable
 category_type: root
 source_hash: ed4ea1a2
-system_scope: player
+system_scope: world
 ---
 
 # Debugcommands
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **714014** | Last updated: 2026-03-21
 
 ## Overview
-The debugcommands.lua file defines a comprehensive set of debug console functions used primarily for testing, development, and automation within Don't Starve Together. These commands facilitate rapid entity spawning (including grids, lists, and specialized prefabs), state manipulation (e.g., moon phase, season, skill trees), component inspection and modification (via components like skinner, domesticatable, health, etc.), scrapbook data generation, world topology visualization, migration testing, and achievement/event simulation. The functions operate on the active player, console-selected entities, or global world state, leveraging core debug utilities such as `c_spawn`, `c_sel`, `c_give`, `ConsoleCommandPlayer()`, and `ConsoleWorldPosition()`.
+
+The `debugcommands` module provides an extensive collection of console commands and helper functions designed for developers and testers working with Don't Starve Together. This component serves as the primary interface for debugging game systems, spawning test entities, manipulating world state, verifying UI components, and exporting data for analysis. Commands cover entity spawning (prefabs, layouts, static structures), component manipulation (health, sanity, domestication, skills), world system control (weather, season, moon phase, moonstorms), event testing (Lava Arena, Year of the Catcoon, achievements), and data export utilities (scrapbook generation, hash collision testing, topology visualization). Most functions operate on the master simulation and require console access. The module integrates with numerous game components including `riftspawner`, `moonstormmanager`, `domesticatable`, `skinner`, `combat`, `inventory`, and `workable` to enable comprehensive testing scenarios.
 
 ## Usage example
+
 ```lua
--- Spawn 20 spiders and make them follow the player
-d_spiders()
+-- Spawn a grid of test entities at console position
+d_spawnlist({"beefalo", "spider", "tree"}, 3)
 
--- Fully domesticated aggressive beefalo with saddle
-d_domesticatedbeefalo("aggressive", "saddle_basic")
+-- Set player skin mode and clothing
+d_skin_mode("normal_skin")
+d_clothing("winter_hat")
 
--- Unlock all scrapbook entries
-d_unlockscrapbook()
+-- Start a moonstorm at current position
+d_startmoonstorm()
 
--- Visualize world topology and migration routes
-d_drawworldtopology()
-d_drawworldbirdmigration()
+-- Test combat DPS on selected entity
+d_testdps(10, ConsoleWorldEntityUnderMouse())
 
--- Force a full moon and generate scrapbook data
-d_fullmoon()
+-- Generate scrapbook data for all prefabs
 d_createscrapbookdata(true)
+
+-- Unlock all achievements for testing
+d_unlockallachievements()
 ```
 
 ## Dependencies & tags
-**Components used:** activatable, armor, builder, burnable, centipedebody, childspawner, combat, cyclable, domesticatable, edible, equippable, erasablepaper, finiteuses, fishable, floater, follower, forgerepair, forgerepairable, fuel, fueled, growable, harvestable, health, hideandseekhider, hunter, inspectable, insulator, inventory, inventoryitem, knownlocations, lavaarenaevent, locomotor, lootdropper, lunarthrall_plantspawner, migrationmanager, moonstormmanager, mutatedbuzzardcircler, named, oar, oceanfishingtackle, periodicspawner, perishable, petleash, pickable, planardamage, planardefense, pointofinterest, prototyper, rabbitkingmanager, repairable, repairer, rideable, riftspawner, ropebridgemanager, saddler, sanity, sanityaura, scenariorunner, shadowthrall_mimics, sharkboimanager, skilltreeupdater, skinner, snowmandecor, spawner, specialeventsetup, spellbook, stackable, stewer, tool, trader, unwrappable, upgradeable, upgrademodule, upgrader, vaultroom, wagpunk_arena_manager, walkableplatform, waterproofer, waxable, weapon, weather, workable, worldroutes, yotc_racestats
-**Tags:** boat, FX, NOCLICK, DECOR, INLIMBO, _inventoryitem, player, _combat, CLASSIFIED, smallcreature, monster, animal, fire, bird, pig, merm, hound, warg, chess, oceanfish, wagstafftool, pocketwatch, groundtile, backpack, chest, battlesong, ghostlyelixir, farm_plant, spidermutator, slingshotammo, hat, structure, tree, ancienttree, rock_tree, livingtree, marsh_tree, oceantree, driftwood_tall, driftwood_small1, mushtree_tall_webbed, atrium_*, epic, crabking, shadow_aligned, lunar_aligned, brightmare, shadow, book, winter_ornament, halloween_ornament, insect, NPCcanaggro, wall, wallbuilder, smallepic, haunted, singingshell, manrabbit, teenbird, smallbird, malbatross, moose, mossling, penguin, perd, shadowminion, shadowchesspiece, stalker, stalkerminion, shadowthrall, shadowhand, brightmare_gestalt, brightmareboss, heavy, lightbattery, boatbumper, fence
+
+**External dependencies:**
+- `scrapbook_prefabs` -- Required at start of chunk
+- `wx78_moduledefs` -- Required in d_allcircuits for module definitions
+- `prefabs/skilltree_defs` -- Required in skill tree functions for definitions
+- `screens/thankyoupopup` -- Required in d_test_thank_you
+- `skin_gifts` -- Required in d_test_thank_you for gift types
+- `screens/skinsitempopup` -- Required in d_test_skins_popup
+- `screens/giftitempopup` -- Required in d_test_skins_gift
+- `screens/redux/itemboxopenerpopup` -- Required in d_test_mystery_box
+- `TheWorld` -- Used for world components, events, and map access
+- `TheSim` -- Used for persistent string and entity finding
+- `TheFrontEnd` -- Used for pushing UI screens
+- `TheInventory` -- Used for getting full inventory in d_cycle_clothing
+- `TheGenericKV` -- Used in d_unlockaffinities
+- `AllRecipes` -- Iterated in d_playeritems
+- `Prefabs` -- Lookup table for prefab validation
+- `TUNING` -- Used for lunar hail cooldown
+- `STRINGS` -- Used for skill tree string lookup
+- `TileGroupManager` -- Used for tile filtering in explore functions
+- `TENDENCY` -- Used in d_domesticatedbeefalo
+- `ConsoleWorldPosition` -- Global function for getting spawn position
+- `ConsoleCommandPlayer` -- Global function for getting player entity
+- `c_spawn` -- Console command for spawning
+- `c_give` -- Console command for giving items
+- `c_announce` -- Console command for announcements
+- `SpawnPrefab` -- Global function for spawning prefabs
+- `Vector3` -- Used for position calculations
+- `TheItems` -- Report event progress for achievements
+- `TheNet` -- GetUserID for achievement reporting
+- `ConsoleWorldEntityUnderMouse` -- Get entity under cursor for hiding
+- `WORLD_TILES` -- Lookup tile IDs in d_ground
+- `TILE_SCALE` -- Scale coordinates in layout spawning
+- `NODE_TYPE` -- Set node type in topology
+- `SpawnSaveRecord` -- Spawn layout entities
+- `Ents` -- Pass to LoadPostPass
+- `FunctionOrValue` -- Resolve data function
+- `PickSomeWithDups` -- Select random hat/weapon in d_islandstart
+- `GetAllWinterOrnamentPrefabs` -- Get list of ornaments
+- `EventAchievements` -- Get active achievement IDs
+- `worldtiledefs` -- Required for turf definitions
+- `map/object_layout` -- Required for layout spawning logic
+- `prefabs/oceanfishdef` -- Required for fish definitions
+- `json` -- Encode achievement data
+- `c_mat` -- Console material command
+- `c_select` -- Console select command
+- `DebugSpawn` -- Debug spawn function
+- `prefabs/farm_plant_defs` -- Required to access PLANT_DEFS for farm related spawns
+- `prefabs/fertilizer_nutrient_defs` -- Required to access SORTED_FERTILIZERS
+- `cooking` -- Required to access recipe data and recipe_cards
+- `prefabs/pillow_defs` -- Required to iterate pillow materials
+- `TheInput` -- Used to get world position for spawning
+- `TheCookbook` -- Used to learn food stats and add recipes
+- `ALL_HAT_PREFAB_NAMES` -- Used to list all hat prefabs
+- `PROTOTYPER_DEFS` -- Used to list all crafting stations
+- `GLOBAL` -- Accessed for console commands like c_spawn, c_remove, c_select
+- `techtree` -- Required to check recipe tech levels
+- `prefabs/waxed_plant_common` -- Required to wax plants
+- `ThePlayer` -- Accessed for position, HUD, and components
+- `AllPlayers` -- Accessed to get first player for sound testing
+
+**Components used:**
+- `riftspawner` -- Accessed via TheWorld.components.riftspawner for rift management
+- `sharkboimanager` -- Accessed via TheWorld.components.sharkboimanager for ocean arena
+- `ropebridgemanager` -- Accessed via TheWorld.components.ropebridgemanager for bridge destruction
+- `rabbitkingmanager` -- Accessed via TheWorld.components.rabbitkingmanager for rabbit king creation
+- `skilltreeupdater` -- Accessed via player.components.skilltreeupdater for skill reset
+- `weather` -- Accessed via TheWorld.net.components.weather for lunar hail
+- `domesticatable` -- Accessed on beefalo for domestication stats
+- `rideable` -- Accessed on beefalo for saddle equipping
+- `health` -- Accessed on walls for setting percent
+- `builder` -- Accessed on player for unlocking recipes
+- `scenariorunner` -- Added and configured on spawned entities
+- `skinner` -- Accessed on player for skin/clothing changes
+- `inventoryitem` -- Accessed on items for landing state during teleport
+- `walkableplatform` -- Accessed on boat for player snapping
+- `knownlocations` -- Accessed on creature for home location
+- `combat` -- Accessed on creature for target setting
+- `follower` -- Accessed on spiders for leader setting
+- `stackable` -- Accessed on items for stack size
+- `workable` -- Accessed in d_stalkersetup to modify work left
+- `repairable` -- Accessed in d_stalkersetup to trigger onrepaired
+- `hideandseekhider` -- Accessed in d_hidekitcoon and d_allcustomhidingspots to force hiding
+- `lavaarenaevent` -- Accessed in d_lavaarena_speech to get Boarlord
+- `specialeventsetup` -- Accessed in d_hidekitcoons to setup event
+- `hunter` -- Accessed in d_hunt to force hunt
+- `sanity` -- Accessed in d_islandstart to set percent
+- `petleash` -- Accessed in d_waxwellworker and d_waxwellprotector to spawn pet
+- `yotc_racestats` -- Accessed in d_ratracer to set stats
+- `inventory` -- Accessed in d_ratracer to give item
+- `cyclable` -- Used to set step on singing shells
+- `growable` -- Used to advance growth stages on plants
+- `moonstormmanager` -- Used to start/stop moonstorms on TheWorld
+- `named` -- Used to set names on recipe cards
+- `finiteuses` -- Read to dump item durability
+- `perishable` -- Read to dump item spoil time
+- `edible` -- Read to dump food values
+- `weapon` -- Read to dump weapon damage
+- `planardamage` -- Read to dump planar damage
+- `armor` -- Read to dump armor stats
+- `lunarthrall_plantspawner` -- Used to spawn moon plant on target
+- `activatable` -- Checked in scrapbook data generation
+- `burnable` -- Checked for canlight and ignorefuel
+- `centipedebody` -- Set num_torso in d_spawncentipede
+- `childspawner` -- Accessed for dependency calculation
+- `equippable` -- Accessed for dapperness and equipslot
+- `erasablepaper` -- Accessed for erased_prefab
+- `fishable` -- Checked for scrapbook data
+- `floater` -- Accessed in d_tweak_floater
+- `forgerepair` -- Accessed for repairmaterial
+- `forgerepairable` -- Accessed for repairmaterial
+- `fuel` -- Accessed for fueltype and fuelvalue
+- `fueled` -- Accessed for maxfuel and rate
+- `harvestable` -- Checked for scrapbook data
+- `inspectable` -- Accessed for nameoverride
+- `insulator` -- Accessed for GetInsulation
+- `locomotor` -- Used to Stop or WalkForward
+- `lootdropper` -- Accessed for GetAllPossibleLoot
+- `migrationmanager` -- Accessed on TheWorld for debug data
+- `mutatedbuzzardcircler` -- Used to SetCircleTarget and Start
+- `oar` -- Accessed for force and max_velocity
+- `oceanfishingtackle` -- Accessed for casting_data and lure_data
+- `periodicspawner` -- Accessed for dependency calculation
+- `pickable` -- Checked for scrapbook data
+- `planardefense` -- Accessed for basedefense
+- `prototyper` -- Accessed for trees
+- `saddler` -- Accessed for bonusdamage
+- `sanityaura` -- Accessed for aura
+- `shadowthrall_mimics` -- Accessed on TheWorld
+- `snowmandecor` -- Checked for scrapbook data
+- `spawner` -- Accessed for dependency calculation
+- `spellbook` -- Used to SelectSpell
+- `stewer` -- Checked for scrapbook data
+- `tool` -- Accessed for actions
+- `trader` -- Used to AcceptGift
+- `upgradeable` -- Accessed for upgradetype
+- `upgrader` -- Accessed for upgradetype
+- `unwrappable` -- Used to WrapItems
+- `vaultroom` -- Used to LoadRoom
+- `wagpunk_arena_manager` -- Used to DebugSkipState
+- `waterproofer` -- Accessed for GetEffectiveness
+- `waxable` -- Checked for NeedsSpray
+
+**Tags:**
+- `cave` -- check
+- `boat` -- check
+- `_inventoryitem` -- check
+- `FX` -- check
+- `NOCLICK` -- check
+- `DECOR` -- check
+- `INLIMBO` -- check
+- `_combat` -- check
+- `player` -- check
+- `CLASSIFIED` -- add
+- `shadow_aligned` -- check
+- `lunar_aligned` -- check
+- `shadowthrall_centipede` -- check
+- `wall` -- check
+- `smallepic` -- check
+- `haunted` -- check
+- `bird` -- check
+- `pig` -- check
+- `merm` -- check
+- `hound` -- check
+- `chess` -- check
+- `oceanfish` -- check
+- `farm_plant` -- check
+- `spider` -- check
+- `tree` -- check
+- `structure` -- check
+- `hat` -- check
+- `book` -- check
+- `campfire` -- check
+- `lightbattery` -- check
+- `NPCcanaggro` -- check
+- `epic` -- check
+- `heavy` -- check
+- `shadow` -- check
+- `brightmare` -- check
 
 ## Properties
+
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| n/a | n/a | n/a | No properties are defined in this file; all logic resides in function bodies. |
 
 ## Main functions
 
 ### `d_spawnlist(list, spacing, fn)`
-* **Description:** Spawns prefabs from `list` in a grid layout centered on the console command player's position. Supports per-entity overrides via tables `{prefab, count, item_fn}` and optional per-instance callback `fn`. Returns array of spawned instances.
-* **Parameters:** `list` (array), `spacing` (number, optional, default 2), `fn` (function, optional)
-* **Returns:** Array of spawned entity instances
+* **Description:** Spawns a grid of entities from a list at the console world position.
+* **Parameters:**
+  - `list` -- Table of prefab names or tables containing prefab, count, and init function
+  - `spacing` -- Number, distance between spawned entities (default 2)
+  - `fn` -- Function, optional callback executed on each spawned instance
+* **Returns:** Table of created entity instances
 
 ### `d_playeritems()`
-* **Description:** Spawns all builder tag items (excluding placeable or builder prefabs) in a grid, organized by builder tag and sorted alphabetically.
+* **Description:** Spawns all craftable items associated with player builder tags in a grid.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_allmutators()`
-* **Description:** Gives all known mutators to the player.
+* **Description:** Gives the player all mutator items (warrior, dropper, hider, etc.).
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_allcircuits()`
-* **Description:** Spawns all `wx78module_*` prefabs in a grid based on `wx78_moduledefs.module_definitions`.
+* **Description:** Spawns all WX-78 module circuits in a grid at the console position.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_allheavy()`
-* **Description:** Spawns predefined heavy objects in a staggered grid layout (6 per row).
+* **Description:** Spawns a collection of heavy physics objects in a grid pattern.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_spiders()`
-* **Description:** Spawns predefined spider types, sets them as followers of the player, and gives `"spider_water"`.
+* **Description:** Spawns various spider types and sets them to follow the player.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_particles()`
-* **Description:** Spawns emissive particle prefabs in circular motion with labels. Particles without `pERSISTS` are updated in-place via `DoPeriodicTask`.
+* **Description:** Spawns emitting FX prefabs and attaches labels, orbiting them around a center point.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_decodedata(path)`
-* **Description:** Loads a persistent string from disk, decodes it, and re-saves with `_decoded` suffix.
-* **Parameters:** `path` (string)
-* **Returns:** None
+* **Description:** Loads a persistent string from the sim and saves it as a decoded version.
+* **Parameters:**
+  - `path` -- String, file path to decode persistent string data
+* **Returns:** nil
+* **Error states:** Prints error if load fails
 
 ### `d_riftspawns()`
-* **Description:** Simulates rift opening (10s delay), spawns 200 rifts, and highlights them.
+* **Description:** Announces rift opening, pushes world event, and spawns 200 rifts after 10 seconds.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_lunarrift()`
-* **Description:** Enables lunar rifts and spawns one at console position.
+* **Description:** Enables lunar rifts and spawns one at the console position tile center.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_shadowrift()`
-* **Description:** Enables shadow rifts and spawns one at console position.
+* **Description:** Enables shadow rifts and spawns one at the console position tile center.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_oceanarena()`
-* **Description:** Enables ocean arena spawning by setting `TEMP_DEBUG_RATE = true` and calling `FindAndPlaceOceanArenaOverTime`.
+* **Description:** Triggers the sharkboimanager to find and place an ocean arena over time.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
+* **Error states:** Announces error if sharkboimanager is missing
 
 ### `d_exploreX(filterfn, precision)`
-* **Description:** Loops over map tiles (step `precision`) and reveals matching tiles for the player.
-* **Parameters:** `filterfn` (function), `precision` (number, default 5)
-* **Returns:** None
+* **Description:** Iterates map tiles and reveals areas for the player based on a filter function.
+* **Parameters:**
+  - `filterfn` -- Function, takes tile, tx, ty and returns boolean
+  - `precision` -- Number, grid step size (default 5)
+* **Returns:** nil
+* **Error states:** Announces if not playing as a character
 
 ### `d_exploreland()`
-* **Description:** Calls `d_exploreX` with `TileGroupManager:IsLandTile` filter.
+* **Description:** Reveals all land tiles on the map for the player.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_exploreocean()`
-* **Description:** Calls `d_exploreX` with `TileGroupManager:IsOceanTile` filter.
+* **Description:** Reveals all ocean tiles on the map for the player.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_explore_printunseentiles()`
-* **Description:** Calls `d_exploreX` with filter to print tile positions that are land, valid, and not visible on minimap.
+* **Description:** Prints coordinates of unseen land tiles to the console.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_teleportboat(x, y, z)`
-* **Description:** Teleports the current boat (if player is on one) to target coordinates, checking collisions and teleporting attached items.
-* **Parameters:** `x`, `y`, `z` (numbers, optional; default console position)
-* **Returns:** None
+* **Description:** Teleports the player's current boat to a position, handling physics and items.
+* **Parameters:**
+  - `x` -- Number, optional target x coordinate
+  - `y` -- Number, optional target y coordinate
+  - `z` -- Number, optional target z coordinate
+* **Returns:** nil
+* **Error states:** Returns if not on a boat or exit is blocked
 
 ### `d_breakropebridges(delaytime)`
-* **Description:** Destroys all rope bridges on the map (instantly or with delay).
-* **Parameters:** `delaytime` (number, optional; nil for immediate)
-* **Returns:** None
+* **Description:** Destroys all rope bridges on the map, optionally with a delay sequence.
+* **Parameters:**
+  - `delaytime` -- Number, optional delay time for destruction
+* **Returns:** nil
+* **Error states:** Returns if ropebridgemanager is missing
 
 ### `d_rabbitking(kind)`
-* **Description:** Creates a Rabbit King of specified type for the player.
-* **Parameters:** `kind` (string, optional; e.g., `"warrior"`)
-* **Returns:** None
+* **Description:** Creates a Rabbit King entity for the player via the rabbitkingmanager.
+* **Parameters:**
+  - `kind` -- String, optional rabbit king variant kind
+* **Returns:** nil
+* **Error states:** Returns if not master sim or manager missing
 
 ### `d_fullmoon()`
-* **Description:** Sets moon phase to full (non-waxing) on master sim.
+* **Description:** Sets the moon phase to full on the master simulation.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_newmoon()`
-* **Description:** Sets moon phase to new (waxing) on master sim.
+* **Description:** Sets the moon phase to new on the master simulation.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_unlockaffinities()`
-* **Description:** Sets GKV flags to unlock all moon weapon affinities.
+* **Description:** Sets KV flags for Fuelweaver and Celestial Champion killed to unlock affinities.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_resetskilltree()`
-* **Description:** Deactivates all skill tree skills (up to 50 attempts), then gives max XP.
+* **Description:** Deactivates all player skills and adds max XP to the skill tree updater.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
+* **Error states:** Returns if not master sim or no player
 
 ### `d_reloadskilltreedefs()`
-* **Description:** Calls `DEBUG_REBUILD()` on `prefabs/skilltree_defs`.
+* **Description:** Triggers a debug rebuild of skill tree definitions.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_printskilltreestringsforcharacter(character)`
-* **Description:** Prints Lua strings needed for missing skill tree keys for given character.
-* **Parameters:** `character` (string, optional; defaults to current player)
-* **Returns:** None
+* **Description:** Prints missing skill tree localization strings for a character to the console.
+* **Parameters:**
+  - `character` -- String, prefab name (default console player)
+* **Returns:** nil
 
 ### `d_togglelunarhail()`
-* **Description:** Enables lunar rifts, triggers rift timer (hail), and manually advances weather cooldown.
+* **Description:** Toggles lunar rifts and triggers weather long update for lunar hail event.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_allsongs()`
-* **Description:** Gives all available battle songs.
+* **Description:** Gives the player all battlesong items.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_allstscostumes()`
-* **Description:** Gives all Stitches the Tailor costumes (masks and bodies).
+* **Description:** Gives the player all STS costume masks and bodies.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_domesticatedbeefalo(tendency, saddle)`
-* **Description:** Spawns a beefalo, fully domesticates it, sets a tendency, and equips a saddle.
-* **Parameters:** `tendency` (string, optional), `saddle` (string, optional)
-* **Returns:** None
+* **Description:** Spawns a beefalo, maximizes domestication stats, and equips a saddle.
+* **Parameters:**
+  - `tendency` -- String, tendency key for domestication
+  - `saddle` -- String, prefab name for saddle (default saddle_basic)
+* **Returns:** nil
 
 ### `d_domestication(domestication, obedience)`
-* **Description:** Adjusts domestication and obedience of selected entity.
-* **Parameters:** `domestication` (number, optional), `obedience` (number, optional)
-* **Returns:** None
+* **Description:** Sets the domestication and obedience of the selected entity to specific values.
+* **Parameters:**
+  - `domestication` -- Number, target domestication value
+  - `obedience` -- Number, target obedience value
+* **Returns:** nil
+* **Error states:** Prints error if selected ent not domesticatable
 
 ### `d_testwalls()`
-* **Description:** Spawns walls of each material at increments of health (0–100%).
+* **Description:** Spawns walls of various materials with varying health percentages.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_testruins()`
-* **Description:** Unlocks mid-tier tech, gives resources and starter gear.
+* **Description:** Unlocks recipes for the player and gives a set of ruin exploration items.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_combatgear()`
-* **Description:** Gives basic combat gear (wood armor, helmet, spear).
+* **Description:** Gives the player basic combat armor and weapons.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_teststate(state)`
-* **Description:** Forces selected entity's stategraph to jump to `state`.
-* **Parameters:** `state` (string)
-* **Returns:** None
+* **Description:** Forces the selected entity's stategraph to go to a specific state.
+* **Parameters:**
+  - `state` -- String, state graph state name
+* **Returns:** nil
 
 ### `d_anim(animname, loop)`
-* **Description:** Plays animation on selected debug entity.
-* **Parameters:** `animname` (string), `loop` (boolean, optional)
-* **Returns:** None
+* **Description:** Plays an animation on the debug entity.
+* **Parameters:**
+  - `animname` -- String, animation name to play
+  - `loop` -- Boolean, whether to loop the animation
+* **Returns:** nil
+* **Error states:** Prints error if no DebugEntity selected
 
 ### `d_light(c1, c2, c3)`
-* **Description:** Sets global ambient color.
-* **Parameters:** `c1`, `c2`, `c3` (numbers; `c1` defaults for all)
-* **Returns:** None
+* **Description:** Sets the ambient light colour in the simulation.
+* **Parameters:**
+  - `c1` -- Number, color component
+  - `c2` -- Number, color component (default c1)
+  - `c3` -- Number, color component (default c1)
+* **Returns:** nil
 
 ### `d_combatsimulator(prefab, count, force)`
-* **Description:** Spawns entities in a battle loop; if `force`, auto-targets nearest combat tag entity.
-* **Parameters:** `prefab` (string), `count` (number, default 1), `force` (boolean)
-* **Returns:** None
+* **Description:** Spawns combat entities and optionally sets them to target nearby combatants.
+* **Parameters:**
+  - `prefab` -- String, prefab name to spawn
+  - `count` -- Number, number of entities to spawn (default 1)
+  - `force` -- Boolean, whether to force aggro on nearby combat entities
+* **Returns:** nil
 
 ### `d_spawn_ds(prefab, scenario)`
-* **Description:** Spawns entity, clears existing scenario, then loads and runs new scenario via `scenariorunner`.
-* **Parameters:** `prefab` (string), `scenario` (string)
-* **Returns:** None
+* **Description:** Spawns an entity, attaches a scenario runner, and executes a scenario script.
+* **Parameters:**
+  - `prefab` -- String, prefab to spawn
+  - `scenario` -- String, scenario script name
+* **Returns:** nil
+* **Error states:** Prints error if no entity selected
 
 ### `d_test_thank_you(param)`
-* **Description:** Spawns the ThankYouPopup screen with a specified item.
-* **Parameters:** `param` (string, optional; defaults to `"birdcage_pirate"`)
+* **Description:** Pushes the ThankYouPopup screen with a skin gift item.
+* **Parameters:**
+  - `param` -- String, item name for the popup
 * **Returns:** nil
 
 ### `d_test_skins_popup(param)`
-* **Description:** Pushes the `SkinsItemPopUp` screen with specified item and test data.
-* **Parameters:** `param` (string, optional)
+* **Description:** Pushes the SkinsItemPopUp screen for a specific item.
+* **Parameters:**
+  - `param` -- String, item name for the popup
 * **Returns:** nil
 
 ### `d_test_skins_announce(param)`
-* **Description:** Triggers a networked skin announcement for "Peter" with fixed RGBA color.
-* **Parameters:** `param` (string, optional)
+* **Description:** Triggers a networking skin announcement for an item.
+* **Parameters:**
+  - `param` -- String, item name for the announcement
 * **Returns:** nil
 
 ### `d_test_skins_gift(param)`
-* **Description:** Opens the `GiftItemPopUp` screen for the local player.
-* **Parameters:** `param` (string, optional)
+* **Description:** Pushes the GiftItemPopUp screen for the player.
+* **Parameters:**
+  - `param` -- String, item name for the gift popup
 * **Returns:** nil
 
 ### `d_test_mystery_box(params)`
-* **Description:** Opens the `ItemBoxOpenerPopup` for opening a mystery box.
-* **Parameters:** `params` (table, optional)
+* **Description:** Pushes the ItemBoxOpenerPopup screen for a mystery box.
+* **Parameters:**
+  - `params` -- Table, optional configuration for the box opener popup
 * **Returns:** nil
 
 ### `d_print_skin_info()`
-* **Description:** Prints formatted debug output of skin name and usable-on strings for hardcoded prefabs.
+* **Description:** Prints skin name and usability strings for a set of test items.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_skin_mode(mode)`
-* **Description:** Calls `SetSkinMode(mode)` on player's `skinner` component.
-* **Parameters:** `mode` (string)
+* **Description:** Sets the console player's skinner component to a specific skin mode.
+* **Parameters:**
+  - `mode` -- String, skin mode type
 * **Returns:** nil
 
 ### `d_skin_name(name)`
-* **Description:** Calls `SetSkinName(name)` on player's `skinner` component.
-* **Parameters:** `name` (string)
+* **Description:** Sets the console player's skinner component to a specific skin name.
+* **Parameters:**
+  - `name` -- String, skin name to apply
 * **Returns:** nil
 
 ### `d_clothing(name)`
-* **Description:** Calls `SetClothing(name)` on player's `skinner` component.
-* **Parameters:** `name` (string)
+* **Description:** Sets the console player's clothing to a specific item.
+* **Parameters:**
+  - `name` -- String, clothing item name
 * **Returns:** nil
 
 ### `d_clothing_clear(type)`
-* **Description:** Calls `ClearClothing(type)` on player's `skinner` component.
-* **Parameters:** `type` (string)
+* **Description:** Clears the console player's clothing for a specific type.
+* **Parameters:**
+  - `type` -- String, clothing type to clear
 * **Returns:** nil
 
 ### `d_cycle_clothing()`
-* **Description:** Starts periodic task (every 10s) cycling inventory items as clothing (non-base, non-item types) using `c_clothing`.
+* **Description:** Cycles through the player's inventory clothing items every 10 seconds.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_sinkhole()`
-* **Description:** Spawns antlion sinkhole and pushes `"startcollapse"` event.
+* **Description:** Spawns an antlion sinkhole and triggers its collapse event.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_stalkersetup()`
-* **Description:** Spawns `fossil_stalker`, completes workable progress, and gives `"shadowheart"` and `"atrium_key"`.
+* **Description:** Spawns a fossil stalker mound, repairs it fully, and gives shadow heart and atrium key items.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_resetruins()`
-* **Description:** Pushes `"resetruins"` event to the world.
+* **Description:** Pushes the resetruins event to TheWorld.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_getwidget()`
-* **Description:** Returns widget currently targeted by debug widget editor.
+* **Description:** Returns the currently selected debug widget target from TheFrontEnd.
 * **Parameters:** None
-* **Returns:** widget (table)
+* **Returns:** Widget
 
 ### `d_halloween()`
-* **Description:** Spawns trinkets and candies in grids centered on console position.
+* **Description:** Spawns all trinket and halloweencandy prefabs in a grid pattern.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_potions()`
-* **Description:** Spawns all `halloweenpotion_*` and `livingtree_root` prefabs in a grid.
+* **Description:** Spawns all halloween potion prefabs in a grid pattern.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_weirdfloaters()`
-* **Description:** Spawns floating items (e.g., `"umbrella"`, `"fishingrod"`) in a grid.
+* **Description:** Spawns a predefined list of floatable item prefabs in a grid pattern.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_wintersfeast()`
-* **Description:** Spawns all ornament prefabs from `GetAllWinterOrnamentPrefabs()` in a grid.
+* **Description:** Spawns all winter ornament prefabs in a grid pattern.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_wintersfood()`
-* **Description:** Spawns `winter_food1` through `winter_foodNUM_WINTERFOOD` in a grid.
+* **Description:** Spawns all winter food prefabs in a grid pattern.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_madsciencemats()`
-* **Description:** Calls `c_mat` for five Halloween experiment material prefabs.
+* **Description:** Gives all halloween experiment materials to the player.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_showalleventservers()`
-* **Description:** Toggles `_showalleventservers` boolean flag on `TheFrontEnd`.
+* **Description:** Toggles the _showalleventservers flag on TheFrontEnd.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_lavaarena_skip()`
-* **Description:** Forces Lava Arena to skip current stage.
+* **Description:** Pushes the ms_lavaarena_endofstage event to skip the current stage.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_lavaarena_speech(dialog, banter_line)`
-* **Description:** Plays speech or banter line on Boarlord using `lavaarena_talk` event.
-* **Parameters:** `dialog` (string), `banter_line` (number, optional)
+* **Description:** Makes the Boarlord entity speak specific dialog lines during the Lava Arena event.
+* **Parameters:**
+  - `dialog` -- String key for STRINGS table or table of lines
+  - `banter_line` -- Index for banter line selection if dialog is a table
 * **Returns:** nil
 
 ### `d_unlockallachievements()`
-* **Description:** Sends synthetic achievement unlock report for all active achievements.
+* **Description:** Reports event progress to TheItems to unlock all active achievements.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_unlockfoodachievements()`
-* **Description:** Sends synthetic report unlocking all food-related achievements.
+* **Description:** Reports event progress to TheItems to unlock all food-related achievements.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_reportevent(other_ku)`
-* **Description:** Sends synthetic event report for two players with achievement unlocks.
-* **Parameters:** `other_ku` (string, optional)
+* **Description:** Reports specific event progress data to TheItems for testing.
+* **Parameters:**
+  - `other_ku` -- Optional Klei User ID for secondary player stats
 * **Returns:** nil
 
 ### `d_ground(ground, pt)`
-* **Description:** Sets tile at console position (or `pt`) to specified ground.
-* **Parameters:** `ground` (string or WORLD_TILES constant), `pt` (Vector3, optional)
+* **Description:** Sets the map tile at the specified coordinates to the specified ground type.
+* **Parameters:**
+  - `ground` -- Tile ID or string name of the ground tile
+  - `pt` -- Vector3 position, defaults to ConsoleWorldPosition
 * **Returns:** nil
 
 ### `d_portalfx()`
-* **Description:** Pushes `"ms_newplayercharacterspawned"` event with local player.
+* **Description:** Pushes the ms_newplayercharacterspawned event for ThePlayer.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_walls(width, height)`
-* **Description:** Spawns rectangular wood wall around console position.
-* **Parameters:** `width` (number, default 10), `height` (number, default `width`)
+* **Description:** Spawns wood walls in a rectangular formation around the player.
+* **Parameters:**
+  - `width` -- Width of the wall rectangle, defaults to 10
+  - `height` -- Height of the wall rectangle, defaults to width
 * **Returns:** nil
 
 ### `d_hidekitcoon()`
-* **Description:** Spawns `kitcoon_deciduous`, hides it at mouse entity; removes if hiding fails.
+* **Description:** Spawns a kitcoon and forces it to hide in the entity under the mouse cursor.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_hidekitcoons()`
-* **Description:** Triggers `_SetupYearOfTheCatcoon()` on `specialeventsetup`.
+* **Description:** Initializes the Year of the Catcoon special event setup.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_allkitcoons()`
-* **Description:** Spawns all kitcoon variants and sets `_first_nuzzle = false`.
+* **Description:** Spawns all kitcoon biome variants using d_spawnlist.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_allcustomhidingspots()`
-* **Description:** Spawns hiding spot prefabs and tries to hide `kitcoon_rocky`; marks failed spots red.
+* **Description:** Spawns custom hiding spots and associates kitcoons with them.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_hunt()`
-* **Description:** Calls `DebugForceHunt()` on `hunter` component if present.
+* **Description:** Triggers the DebugForceHunt function on the world's hunter component.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_islandstart()`
-* **Description:** Gives starting inventory items and sets sanity randomly low.
+* **Description:** Gives the player a set of starter survival items and randomizes sanity.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_waxwellworker()`
-* **Description:** Spawns `shadowworker` pet at player location and records spawn in `knownlocations`.
+* **Description:** Spawns a shadow worker pet for the player and records spawn location.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_waxwellprotector()`
-* **Description:** Spawns `shadowprotector` pet at player location and records spawn in `knownlocations`.
+* **Description:** Spawns a shadow protector pet for the player and records spawn location.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_boatitems()`
-* **Description:** Spawns boat-related prefabs (e.g., `"boat_item"`, `"oar"`).
+* **Description:** Spawns all boat construction item prefabs.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_giveturfs()`
-* **Description:** Gives all turf prefabs from `worldtiledefs.lua`.
+* **Description:** Gives the player all turf items defined in worldtiledefs.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_turfs()`
-* **Description:** Spawns 10 of each turf prefab in a grid.
+* **Description:** Spawns all turf items defined in worldtiledefs.
 * **Parameters:** None
 * **Returns:** nil
 
+### `_SpawnLayout_AddFn(prefab, points_x, points_y, current_pos_idx, entitiesOut, width, height, prefab_list, prefab_data, rand_offset)`
+* **Description:** Local helper function to spawn entities for a layout definition.
+* **Parameters:**
+  - `prefab` -- Prefab name to spawn
+  - `points_x` -- Array of x coordinates
+  - `points_y` -- Array of y coordinates
+  - `current_pos_idx` -- Current index in coordinate arrays
+  - `entitiesOut` -- Table to store spawned entities
+  - `width` -- Layout width
+  - `height` -- Layout height
+  - `prefab_list` -- List of prefabs
+  - `prefab_data` -- Data table for spawn record
+  - `rand_offset` -- Boolean for random offset
+* **Returns:** nil
+
+### `AddTopologyData(topology, left, top, width, height, room_id, tags)`
+* **Description:** Adds a node to the topology data structure.
+* **Parameters:**
+  - `topology` -- Topology table
+  - `left` -- Left coordinate
+  - `top` -- Top coordinate
+  - `width` -- Room width
+  - `height` -- Room height
+  - `room_id` -- Identifier for the room
+  - `tags` -- Table of tags for the node
+* **Returns:** index
+
+### `AddTileNodeIdsForArea(world_map, node_index, left, top, width, height)`
+* **Description:** Sets the tile node ID for a rectangular area on the map.
+* **Parameters:**
+  - `world_map` -- World map component
+  - `node_index` -- Index of the topology node
+  - `left` -- Left coordinate
+  - `top` -- Top coordinate
+  - `width` -- Area width
+  - `height` -- Area height
+* **Returns:** nil
+
 ### `d_spawnlayout(name, data)`
-* **Description:** Loads and spawns a layout definition at console position.
-* **Parameters:** `name` (string), `data` (table, optional)
+* **Description:** Spawns a static layout at the player's position, optionally updating topology.
+* **Parameters:**
+  - `name` -- Name of the layout definition
+  - `data` -- Optional table containing id, tags, and density settings
 * **Returns:** nil
 
 ### `d_allfish()`
-* **Description:** Spawns all ocean fish prefabs in a grid; uses `"_inv"` suffix if position invalid.
+* **Description:** Spawns all fish prefabs defined in oceanfishdef.
 * **Parameters:** None
 * **Returns:** nil
 
 ### `d_fishing()`
-* **Description:** Spawns fishing-related items in a grid.
+* **Description:** Spawns all ocean fishing related items (rods, lures, bobbers).
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_tables()`
-* **Description:** Spawns `table_winters_feast` in a compact grid (spacing = 1).
+* **Description:** Spawns multiple winter feast tables in a grid.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_gofishing()`
-* **Description:** Gives starter ocean fishing gear (rod, bobbers, lures).
+* **Description:** Gives the player fishing rod and various bobbers and lures.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_radius(radius, num, lifetime)`
-* **Description:** Spawns `num` flint items in a circle of radius `radius`; scheduled for removal after `lifetime`.
-* **Parameters:** `radius` (number, default 4), `num` (number, default max(5, radius*2)), `lifetime` (number, default 10)
-* **Returns:** None
+* **Description:** Spawns flint items in a circle that remove themselves after a delay.
+* **Parameters:**
+  - `radius` -- Radius of the circle, defaults to 4
+  - `num` -- Number of items, defaults to max(5, radius*2)
+  - `lifetime` -- Time in seconds before removal, defaults to 10
+* **Returns:** nil
 
 ### `d_ratracer(speed, stamina, direction, reaction)`
-* **Description:** Spawns Carrat, sets YOTC stats to provided or random values, cancels auto-spread task, gives to player.
-* **Parameters:** `speed`, `stamina`, `direction`, `reaction` (numbers, optional)
-* **Returns:** None
+* **Description:** Spawns a carrat and sets its YOTC race stats to specified values.
+* **Parameters:**
+  - `speed` -- Speed stat value
+  - `stamina` -- Stamina stat value
+  - `direction` -- Direction stat value
+  - `reaction` -- Reaction stat value
+* **Returns:** nil
 
 ### `d_ratracers()`
-* **Description:** Spawns 8 Carrats with distinct stats (max or zero) and colors.
+* **Description:** Spawns multiple carrats with varying race stats and colors, giving them to the main character.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_setup_placeholders(reuse, out_file_name)`
-* **Description:** Recursively copies missing `STRINGS.CHARACTERS.GENERIC` entries, writes to file replacing with "TODO".
-* **Parameters:** `reuse` (table, optional), `out_file_name` (string)
-* **Returns:** None
+* **Description:** Generates speech placeholder files by iterating through speech tables and writing to a file.
+* **Parameters:**
+  - `reuse` -- table, speech table to reuse or populate
+  - `out_file_name` -- string, path to the output file
+* **Returns:** nil
 
 ### `d_allshells()`
-* **Description:** Spawns 12 singing shells; sets cyclable step to index (1–12).
+* **Description:** Spawns singing shells of different sizes in a grid pattern at the input position.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_fish(swim, r, g, b)`
-* **Description:** Spawns four oceanfishes, optionally disables brain, removes `NOCLICK` tag, applies custom color.
-* **Parameters:** `swim` (boolean, default true), `r`, `g`, `b` (numbers, optional)
-* **Returns:** None
+* **Description:** Spawns ocean fish, optionally removes their brain, sets position, removes NOCLICK tag, and sets color.
+* **Parameters:**
+  - `swim` -- boolean, whether to keep brain (swim behavior)
+  - `r` -- number, red color component
+  - `g` -- number, green color component
+  - `b` -- number, blue color component
+* **Returns:** nil
 
 ### `d_farmplants(grow_stage, oversized)`
-* **Description:** Spawns oversized plant prefabs; applies growth steps and forces oversized mode.
-* **Parameters:** `grow_stage` (number, optional), `oversized` (boolean, optional)
-* **Returns:** None
+* **Description:** Spawns farm plants based on plant definitions, advancing growth stages and setting oversized flag.
+* **Parameters:**
+  - `grow_stage` -- number, growth stage to advance
+  - `oversized` -- boolean, force oversized growth
+* **Returns:** nil
 
 ### `d_plant(plant, num_wide, grow_stage, spacing)`
-* **Description:** Spawns single `plant` in `num_wide × num_wide` grid; optional growth scheduling and spacing.
-* **Parameters:** `plant` (string), `num_wide` (number), `grow_stage` (number, optional), `spacing` (number, default 1.25)
-* **Returns:** None
+* **Description:** Spawns a specific plant prefab in a grid pattern, optionally advancing growth stages.
+* **Parameters:**
+  - `plant` -- string, prefab name
+  - `num_wide` -- number, grid size
+  - `grow_stage` -- number, growth stage
+  - `spacing` -- number, distance between plants
+* **Returns:** nil
 
 ### `d_seeds()`
-* **Description:** Collects and spawns seeds from oversized plant definitions.
+* **Description:** Spawns all seed prefabs defined in farm plant definitions.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_fertilizers()`
-* **Description:** Spawns all fertilizer prefabs from `SORTED_FERTILIZERS`.
+* **Description:** Spawns all fertilizer prefabs defined in nutrient definitions.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_oversized()`
-* **Description:** Spawns all oversized products defined in plant definitions.
+* **Description:** Spawns all oversized produce prefabs defined in farm plant definitions.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_startmoonstorm()`
-* **Description:** Starts moonstorm at world node ID under input position.
+* **Description:** Starts a moonstorm at the console world position node.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_stopmoonstorm()`
-* **Description:** Stops currently active moonstorm.
+* **Description:** Stops the current moonstorm.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_moonaltars()`
-* **Description:** Spawns moon altars and additional altars with offset positioning and stage setup.
+* **Description:** Spawns various moon altars around the input position.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_cookbook()`
-* **Description:** Learns all food stats and adds fixed recipes per recipe in `cooking.cookbook_recipes`.
+* **Description:** Iterates through cooking recipes and adds them to TheCookbook with dummy ingredients.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_statues(material)`
-* **Description:** Generates chesspiece prefabs for 37 statue types and spawns them.
-* **Parameters:** `material` (string or number, optional; default `"marble"`)
-* **Returns:** None
+* **Description:** Spawns chess piece statues of various types with specified material.
+* **Parameters:**
+  - `material` -- string or number, material type for statues
+* **Returns:** nil
 
 ### `d_craftingstations()`
-* **Description:** Spawns all prototyper station prefabs from `PROTOTYPER_DEFS`.
+* **Description:** Spawns all prototyper crafting stations.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_removeentitywithnetworkid(networkid, x, y, z)`
-* **Description:** Finds and removes entity within 1 unit of (`x,y,z`) matching `networkid`.
-* **Parameters:** `networkid` (number), `x`, `y`, `z` (numbers)
-* **Returns:** None
+* **Description:** Finds and removes an entity matching the given network ID within a radius.
+* **Parameters:**
+  - `networkid` -- number, network ID of entity to remove
+  - `x` -- number, search center x
+  - `y` -- number, search center y
+  - `z` -- number, search center z
+* **Returns:** nil
 
 ### `d_recipecards()`
-* **Description:** Spawns cooking recipe cards with name override set to recipe name.
+* **Description:** Spawns cooking recipe cards with names set via the named component.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_spawnfilelist(filename, spacing)`
-* **Description:** Reads persistent text file (one prefab per line) and spawns in a grid.
-* **Parameters:** `filename` (string), `spacing` (number)
-* **Returns:** None
+* **Description:** Reads a file from persistent storage and spawns prefabs listed within it.
+* **Parameters:**
+  - `filename` -- string, name of file containing prefab list
+  - `spacing` -- number, spacing between spawned items
+* **Returns:** nil
 
 ### `d_spawnallhats()`
-* **Description:** Spawns all hats from `ALL_HAT_PREFAB_NAMES`.
+* **Description:** Spawns all hat prefabs defined in ALL_HAT_PREFAB_NAMES.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `spawn_mannequin_and_equip_item(item)`
-* **Description:** Spawns sewing mannequin at `item`'s position and equips `item` on it.
-* **Parameters:** `item` (entity)
-* **Returns:** None
+* **Description:** Helper function to spawn a mannequin and equip a given item on it.
+* **Parameters:**
+  - `item` -- Entity, item to equip on mannequin
+* **Returns:** nil
 
 ### `d_spawnallhats_onstands()`
-* **Description:** Spawns slurper hat then all hats on individual mannequins.
+* **Description:** Spawns all hats on sewing mannequins.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_spawnallarmor_onstands()`
-* **Description:** Spawns 43 armor prefabs, each on its own mannequin.
+* **Description:** Spawns all armor and vest prefabs on sewing mannequins.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_spawnallhandequipment_onstands()`
-* **Description:** Spawns 89 hand-held equipment prefabs, each on its own mannequin.
+* **Description:** Spawns all hand equipment prefabs on sewing mannequins.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_allpillows()`
-* **Description:** Spawns all pillow types from `prefabs/pillow_defs`.
+* **Description:** Spawns all pillow prefabs defined in pillow_defs.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_allpillows_onstands()`
-* **Description:** Same as `d_allpillows`, but each pillow spawns on a mannequin.
+* **Description:** Spawns all pillow prefabs on sewing mannequins.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_spawnequipment_onstand(...)`
-* **Description:** Spawns mannequin at console position and equips given items.
-* **Parameters:** `...` (variable list of prefab names)
-* **Returns:** None
+* **Description:** Spawns a mannequin at console position and equips provided items on it.
+* **Parameters:**
+  - `...` -- vararg, list of prefab names to spawn
+* **Returns:** nil
 
 ### `d_daywalker(chain)`
-* **Description:** Spawns Daywalker and three pillars; optionally chains pillars.
-* **Parameters:** `chain` (boolean)
-* **Returns:** None
+* **Description:** Spawns a daywalker and surrounding pillars, optionally setting prisoners.
+* **Parameters:**
+  - `chain` -- boolean, whether to chain pillars to daywalker
+* **Returns:** nil
 
 ### `d_moonplant()`
-* **Description:** Instructs `lunarthrall_plantspawner` to spawn moon plant at selected target.
+* **Description:** Spawns a moon plant on the currently selected entity.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_punchingbags()`
-* **Description:** Spawns three punching bag prefabs.
+* **Description:** Spawns various punching bag prefabs.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_skilltreestats()`
-* **Description:** Prints sorted list of skill trees with prefab name, total skill count, and lock count.
+* **Description:** Prints skill tree statistics for all characters to the console.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_dumpCreatureTXT()`
-* **Description:** Writes `creatures.txt` with prefab, name, health, and damage for all creatures.
+* **Description:** Iterates through prefabs, spawns them, and writes health and damage stats to creatures.txt.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_dumpItemsTXT()`
-* **Description:** Writes `items.txt` with prefabs of all items that are not skins.
+* **Description:** Iterates through prefabs, spawns them, and writes inventory item data to items.txt.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_structuresTXT()`
-* **Description:** Writes `structures.txt` with prefabs and names for structures.
+* **Description:** Writes structure prefab data to a text file named structures.txt.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `Scrapbook_AddInfo(tbl, key, value)`
-* **Description:** Helper to add key-value pairs to scrapbook entry tables with automatic quoting.
-* **Parameters:** `tbl` (table), `key` (string), `value` (any)
-* **Returns:** None
+* **Description:** Helper function to add formatted key-value info to the scrapbook data table.
+* **Parameters:**
+  - `tbl` -- table, the scrapbook data table to insert into
+  - `key` -- string, the property name
+  - `value` -- string, number, boolean or table, the property value
+* **Returns:** nil
+* **Error states:** Returns early if value is nil
 
 ### `Scrapbook_WriteToFile(buffer)`
-* **Description:** Writes scrapbook data buffer to `"scripts/screens/redux/scrapbookdata.lua"`.
-* **Parameters:** `buffer` (table)
-* **Returns:** None
+* **Description:** Writes the generated scrapbook data to scripts/screens/redux/scrapbookdata.lua.
+* **Parameters:**
+  - `buffer` -- table, the scrapbook data buffer to write
+* **Returns:** nil
 
 ### `Scrapbook_IsOnCraftingFilter(filter, entry)`
-* **Description:** Checks if entry is in crafting filter for given filter name.
-* **Parameters:** `filter` (string), `entry` (string)
-* **Returns:** Boolean
+* **Description:** Checks if a prefab entry belongs to a specific crafting filter.
+* **Parameters:**
+  - `filter` -- string, the crafting filter name
+  - `entry` -- string, the prefab entry to check
+* **Returns:** boolean
 
 ### `Scrapbook_DefineSubCategory(t)`
-* **Description:** Determines scrapbook subcategory for entity based on tags and components.
-* **Parameters:** `t` (entity instance)
-* **Returns:** String subcategory or nil
+* **Description:** Determines the scrapbook sub-category for a given entity based on tags and components.
+* **Parameters:**
+  - `t` -- Entity, the prefab instance to categorize
+* **Returns:** string
 
 ### `Scrapbook_DefineName(t)`
-* **Description:** Determines scrapbook name for entity.
-* **Parameters:** `t` (entity instance)
-* **Returns:** String name
+* **Description:** Determines the display name for a scrapbook entry.
+* **Parameters:**
+  - `t` -- Entity, the prefab instance
+* **Returns:** string
 
 ### `Scrapbook_DefineType(t, entry)`
-* **Description:** Determines scrapbook type (thing, creature, item, food, giant, POI).
-* **Parameters:** `t` (entity instance), `entry` (string)
-* **Returns:** String type
+* **Description:** Determines the scrapbook thing type (creature, food, item, etc.) for an entity.
+* **Parameters:**
+  - `t` -- Entity, the prefab instance
+  - `entry` -- string, the prefab name
+* **Returns:** string
 
 ### `Scrapbook_DefineAnimation(t)`
-* **Description:** Determines scrapbook animation for entity.
-* **Parameters:** `t` (entity instance)
-* **Returns:** String animation name or nil
+* **Description:** Determines the animation name to use for the scrapbook icon.
+* **Parameters:**
+  - `t` -- Entity, the prefab instance
+* **Returns:** string
 
 ### `Scrapbook_GetSanityAura(inst)`
-* **Description:** Gets sanity aura value from `components.sanityaura`.
-* **Parameters:** `inst` (entity instance)
-* **Returns:** Number or nil
+* **Description:** Retrieves the sanity aura value from an entity.
+* **Parameters:**
+  - `inst` -- Entity, the instance to check
+* **Returns:** number or nil
 
 ### `Scrapbook_GetSkillOwner(skill)`
-* **Description:** Finds character prefab that owns a given skill.
-* **Parameters:** `skill` (string)
-* **Returns:** Character prefab string or nil
+* **Description:** Finds the character owner of a specific skill tree skill.
+* **Parameters:**
+  - `skill` -- string, the skill name
+* **Returns:** string
 
 ### `d_printscrapbookrepairmaterialsdata()`
-* **Description:** Prints repair material data for prefabs in scrapbookprefabs.
+* **Description:** Prints repair material data for scrapbook debugging.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_createscrapbookdata(print_missing_icons)`
-* **Description:** Generates scrapbook data for all prefabs in scrapbookprefabs, writing to `scrapbookdata.lua`.
-* **Parameters:** `print_missing_icons` (boolean, optional)
-* **Returns:** None
+* **Description:** Main function to generate scrapbook data for all prefabs, handling season/weather overrides.
+* **Parameters:**
+  - `print_missing_icons` -- boolean, optional flag to print missing icon warnings
+* **Returns:** nil
+* **Error states:** Aborts if prefab is invalid or missing AnimState
 
 ### `d_unlockscrapbook()`
-* **Description:** Unlocks all scrapbook entries.
+* **Description:** Unlocks all scrapbook entries via debug function.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_erasescrapbookentrydata(entry)`
-* **Description:** Erases scrapbook entry data for given entry.
-* **Parameters:** `entry` (string)
-* **Returns:** None
+* **Description:** Erases storage data for a specific scrapbook entry.
+* **Parameters:**
+  - `entry` -- string, the scrapbook entry name
+* **Returns:** nil
+* **Error states:** Returns early if entry is invalid
 
 ### `d_waxplant(plant)`
-* **Description:** Waxes a plant using beeswax_spray.
-* **Parameters:** `plant` (entity, optional; defaults to console entity under mouse)
-* **Returns:** None
+* **Description:** Applies wax to a plant entity.
+* **Parameters:**
+  - `plant` -- Entity, optional plant instance, defaults to entity under mouse
+* **Returns:** nil
 
 ### `d_checkmissingscrapbookentries()`
-* **Description:** Prints NAME strings not in scrapbookprefabs.
+* **Description:** Checks for prefabs that have names but missing scrapbook entries.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
+
+### `_testhash(word, results)`
+* **Description:** Helper to test hash collisions.
+* **Parameters:**
+  - `word` -- string, the word to hash
+  - `results` -- table, table to store hash results
+* **Returns:** boolean
+
+### `_getbins(bitswanted, results)`
+* **Description:** Calculates hash distribution bins.
+* **Parameters:**
+  - `bitswanted` -- number, number of bits for bin mask
+  - `results` -- table, hash results table
+* **Returns:** table
+
+### `_printbins(bins, total, collisions)`
+* **Description:** Prints hash bin statistics.
+* **Parameters:**
+  - `bins` -- table, bin counts
+  - `total` -- number, total items
+  - `collisions` -- number, collision count
+* **Returns:** nil
 
 ### `d_testhashes_random(bitswanted, tests)`
-* **Description:** Tests hash distribution for random strings using bitmask bins.
-* **Parameters:** `bitswanted` (number, max 8), `tests` (number, default 10000)
-* **Returns:** None
+* **Description:** Tests hash collisions on random strings.
+* **Parameters:**
+  - `bitswanted` -- number, bits for mask
+  - `tests` -- number, number of random tests
+* **Returns:** nil
 
 ### `d_testhashes_prefabs(bitswanted)`
-* **Description:** Tests hash distribution for all Prefabs.
-* **Parameters:** `bitswanted` (number, max 8)
-* **Returns:** None
+* **Description:** Tests hash collisions on existing prefabs.
+* **Parameters:**
+  - `bitswanted` -- number, bits for mask
+* **Returns:** nil
 
 ### `d_testworldstatetags()`
-* **Description:** Tests WORLDSTATETAGS decode and debug print functionality.
+* **Description:** Tests world state tag decoding and printing.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
-### `worldtopology_createent(...)`
-* **Description:** Creates a debug entity for visualizing world topology.
-* **Parameters:** `worldtopologyvisuals` (table), `x`, `z` (numbers), `icon` (string), `labelstr` (string, optional)
-* **Returns:** Created entity instance
+### `worldtopology_createent(worldtopologyvisuals, x, z, icon, labelstr)`
+* **Description:** Creates a classified entity for visualizing world topology.
+* **Parameters:**
+  - `worldtopologyvisuals` -- table, list to store visual entities
+  - `x` -- number, x position
+  - `z` -- number, z position
+  - `icon` -- string, minimap icon
+  - `labelstr` -- string, optional label text
+* **Returns:** Entity
 
 ### `d_gotoworldtopologyindex(nodexindex)`
-* **Description:** Teleports player to centroid of topology node by index.
-* **Parameters:** `nodexindex` (number)
-* **Returns:** None
+* **Description:** Teleports the player to a specific world topology node.
+* **Parameters:**
+  - `nodexindex` -- number, the node index to teleport to
+* **Returns:** nil
+* **Error states:** Returns early if World or Player is missing
 
 ### `d_drawworldtopology()`
-* **Description:** Draws world topology visualization (nodes, edges).
+* **Description:** Draws visual markers for world topology nodes and connections.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
+* **Error states:** Returns early if World is missing
 
 ### `d_drawworldroute(routename)`
-* **Description:** Draws a world route as debug entities.
-* **Parameters:** `routename` (string)
-* **Returns:** None
+* **Description:** Draws visual markers for a specific world route.
+* **Parameters:**
+  - `routename` -- string, the name of the route to draw
+* **Returns:** nil
+* **Error states:** Returns early if World or route is missing
 
 ### `GetAvgCenterOfTask(task_name, manager)`
-* **Description:** Calculates average centroid of nodes matching task_name.
-* **Parameters:** `task_name` (string), `manager` (MigrationManager, optional)
-* **Returns:** Vector3 average position
+* **Description:** Calculates the average center position of a migration task.
+* **Parameters:**
+  - `task_name` -- string, the task name to search
+  - `manager` -- Component, optional migration manager
+* **Returns:** Vector3
+* **Error states:** Returns Vector3(0,0,0) if no nodes found
 
 ### `d_drawworldbirdmigration()`
-* **Description:** Draws bird migration topology visualization.
+* **Description:** Draws visual markers for bird migration paths.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
+* **Error states:** Returns early if World or migration map is missing
 
 ### `d_printworldroutetime(routename, speed, bonus)`
-* **Description:** Prints route length and travel times (base and bonus speed).
-* **Parameters:** `routename` (string), `speed` (number), `bonus` (number)
-* **Returns:** None
+* **Description:** Prints estimated travel time for a world route.
+* **Parameters:**
+  - `routename` -- string, the route name
+  - `speed` -- number, travel speed
+  - `bonus` -- number, speed bonus
+* **Returns:** nil
+* **Error states:** Returns early if World or route is missing
 
 ### `d_wagpunkarena_nexttask()`
-* **Description:** Skips current wagpunk arena manager state.
+* **Description:** Skips the current state in the Wagpunk arena manager.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_require(file)`
-* **Description:** Forces re-require of a file by clearing `package.loaded`.
-* **Parameters:** `file` (string)
-* **Returns:** None
+* **Description:** Reloads a Lua file by clearing package cache.
+* **Parameters:**
+  - `file` -- string, the file path to reload
+* **Returns:** nil
 
 ### `d_mapstatistics(count_cutoff, item_cutoff, density_cutoff)`
-* **Description:** Prints statistics about entities and items in the world.
-* **Parameters:** `count_cutoff` (number, default 200), `item_cutoff` (number, default 200), `density_cutoff` (number, default 100)
-* **Returns:** None
+* **Description:** Prints statistics about prefab counts and tile density on the map.
+* **Parameters:**
+  - `count_cutoff` -- number, minimum count to print prefabs
+  - `item_cutoff` -- number, minimum count to print items
+  - `density_cutoff` -- number, minimum density to print spots
+* **Returns:** nil
+
+### `_DamageListenerFn(inst, data)`
+* **Description:** Callback function to accumulate damage for DPS testing.
+* **Parameters:**
+  - `inst` -- Entity, the entity taking damage
+  - `data` -- table, event data containing damage amount
+* **Returns:** nil
 
 ### `d_testdps(time, target)`
-* **Description:** Tests damage per second on target over specified time.
-* **Parameters:** `time` (number, default 5), `target` (entity, optional)
-* **Returns:** None
+* **Description:** Tests damage per second on a target entity over a set time.
+* **Parameters:**
+  - `time` -- number, duration of the test in seconds
+  - `target` -- Entity, optional target, defaults to entity under mouse
+* **Returns:** nil
 
 ### `d_timeddebugprefab(x, y, z, lifetime, prefab)`
-* **Description:** Spawns debug prefab and removes it after `lifetime` seconds.
-* **Parameters:** `x`, `y`, `z` (numbers), `lifetime` (number, default 7), `prefab` (string, default "log")
-* **Returns:** Spawned entity instance
+* **Description:** Spawns a prefab that automatically removes itself after a lifetime.
+* **Parameters:**
+  - `x` -- number, x position
+  - `y` -- number, y position
+  - `z` -- number, z position
+  - `lifetime` -- number, seconds before removal
+  - `prefab` -- string, prefab name to spawn
+* **Returns:** Entity
 
 ### `d_prizepouch(prefab, nugget_count)`
-* **Description:** Spawns a pouch and optionally wraps gold nuggets in it.
-* **Parameters:** `prefab` (string, default "redpouch"), `nugget_count` (number, default 0)
-* **Returns:** None
+* **Description:** Spawns a prize pouch containing wrapped gold nuggets.
+* **Parameters:**
+  - `prefab` -- string, pouch prefab name
+  - `nugget_count` -- number, number of gold nuggets to wrap
+* **Returns:** nil
 
 ### `d_boatracepointers()`
-* **Description:** Spawns 8 boat race checkpoint indicators.
+* **Description:** Spawns boat race checkpoint indicators.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_testsound(soundpath, loopname, volume)`
-* **Description:** Plays sound from selected entity, player, or first player.
-* **Parameters:** `soundpath` (string), `loopname` (string, optional), `volume` (number, optional)
-* **Returns:** None
+* **Description:** Plays a test sound on the selected entity or player.
+* **Parameters:**
+  - `soundpath` -- string, path to the sound
+  - `loopname` -- string, sound loop name
+  - `volume` -- number, volume level
+* **Returns:** nil
 
 ### `d_stopsound(loopname)`
-* **Description:** Stops a looping sound.
-* **Parameters:** `loopname` (string)
-* **Returns:** None
+* **Description:** Stops a playing sound loop.
+* **Parameters:**
+  - `loopname` -- string, sound loop name to stop
+* **Returns:** nil
 
 ### `d_spell(spellnum, item)`
-* **Description:** Selects and executes a spell from spellbook.
-* **Parameters:** `spellnum` (number), `item` (entity, optional)
-* **Returns:** None
+* **Description:** Casts a spell from a spellbook item.
+* **Parameters:**
+  - `spellnum` -- number, spell index
+  - `item` -- Entity, optional spellbook item
+* **Returns:** nil
 
 ### `d_itemwithshadowmimic(item_prefab)`
-* **Description:** Spawns item and adds `itemmimic` component.
-* **Parameters:** `item_prefab` (string)
-* **Returns:** None
+* **Description:** Spawns an item and adds the itemmimic component.
+* **Parameters:**
+  - `item_prefab` -- string, prefab name of the item
+* **Returns:** nil
+* **Error states:** Returns early if shadowthrall_mimics component is missing
 
 ### `d_shadowparasite(host_prefab)`
-* **Description:** Spawns host and equips `shadow_thrall_parasitehat`.
-* **Parameters:** `host_prefab` (string, default "bunnyman")
-* **Returns:** None
+* **Description:** Spawns a host entity and equips it with a shadow parasite hat.
+* **Parameters:**
+  - `host_prefab` -- string, prefab name of the host
+* **Returns:** nil
 
 ### `d_tweak_floater(size, offset, scale, swap_bank, float_index, swap_data)`
-* **Description:** Tweaks floater component properties on selected entity.
-* **Parameters:** `size`, `offset`, `scale`, `swap_bank`, `float_index`, `swap_data` (all optional)
-* **Returns:** None
+* **Description:** Modifies the floater component of the selected entity.
+* **Parameters:**
+  - `size` -- string, floater size
+  - `offset` -- number, vertical offset
+  - `scale` -- number, scale factor
+  - `swap_bank` -- string, bank to swap
+  - `float_index` -- number, float index
+  - `swap_data` -- table, swap data
+* **Returns:** nil
 
 ### `d_startlunarhail()`
-* **Description:** Starts lunar hail event.
+* **Description:** Triggers the lunar hail event on the world.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_testbirdattack()`
-* **Description:** Spawns mutatedbird and makes it swoop attack at random position.
+* **Description:** Spawns a mutated bird to attack the player.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_testbirdclearhail()`
-* **Description:** Spawns mutatedbird and gives buffered action to remove lunar buildup.
+* **Description:** Spawns a mutated bird to clear lunar buildup from the selected entity.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
+* **Error states:** Returns early if no entity selected
 
 ### `d_spawncentipede(num)`
-* **Description:** Spawns centipede controller and sets `num_torso`.
-* **Parameters:** `num` (number, default 5)
-* **Returns:** None
+* **Description:** Spawns a shadowthrall centipede with specified torso count.
+* **Parameters:**
+  - `num` -- number, number of torso segments
+* **Returns:** nil
 
 ### `d_movementon()`
-* **Description:** Starts walking forward for selected entity's locomotor.
+* **Description:** Enables forward movement on the selected entity.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
+* **Error states:** Returns early if no entity selected
 
 ### `d_followplayer()`
-* **Description:** Adds periodic task to selected entity to always face player.
+* **Description:** Makes the selected entity face and follow the player periodically.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
+* **Error states:** Returns early if no entity selected
 
 ### `d_stopcentipedemovement()`
-* **Description:** Stops all centipede entities' movement.
+* **Description:** Stops movement for all shadowthrall centipedes.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_lightworld()`
-* **Description:** Toggles ambient lighting override.
+* **Description:** Toggles world ambient lighting override.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_activatearchives()`
-* **Description:** Finds and activates first enabled archive_switch with opal gift.
+* **Description:** Activates archive switches by giving them an opal gem.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_vaultroom(id)`
-* **Description:** Loads vault room at first classified entity with `vaultroom` component.
-* **Parameters:** `id` (string)
-* **Returns:** None
+* **Description:** Loads a specific vault room on the first found vaultroom entity.
+* **Parameters:**
+  - `id` -- string, the room ID to load
+* **Returns:** nil
 
 ### `d_spawnvaultactors()`
-* **Description:** Spawns two wilson instances at charlie_stage and equips ancient masks.
+* **Description:** Spawns Wilson actors with ancient masks at the charlie stage.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_debug_arc_attack_hitbox(arc_span, forward_offset, arc_radius, lifetime)`
-* **Description:** Calls `DebugArcAttackHitBox` with selected entity and parameters.
-* **Parameters:** `arc_span`, `forward_offset`, `arc_radius`, `lifetime` (numbers)
-* **Returns:** None
+* **Description:** Debugs an arc attack hitbox on the selected entity.
+* **Parameters:**
+  - `arc_span` -- number, arc span
+  - `forward_offset` -- number, forward offset
+  - `arc_radius` -- number, arc radius
+  - `lifetime` -- number, debug lifetime
+* **Returns:** nil
 
 ### `d_lunarmutation(corpseprefab, buildid)`
-* **Description:** Spawns corpse and sets it as non-gestalt; optionally sets alt build/bank.
-* **Parameters:** `corpseprefab` (string), `buildid` (number, optional)
-* **Returns:** None
+* **Description:** Spawns a non-gestalt lunar mutation corpse.
+* **Parameters:**
+  - `corpseprefab` -- string, corpse prefab name
+  - `buildid` -- string, optional build ID
+* **Returns:** nil
 
 ### `d_gestaltmutation(corpseprefab, buildid)`
-* **Description:** Spawns corpse and sets it as gestalt; optionally sets alt build/bank.
-* **Parameters:** `corpseprefab` (string), `buildid` (number, optional)
-* **Returns:** None
+* **Description:** Spawns a gestalt mutation corpse.
+* **Parameters:**
+  - `corpseprefab` -- string, corpse prefab name
+  - `buildid` -- string, optional build ID
+* **Returns:** nil
 
 ### `d_mutatedbuzzardcircler()`
-* **Description:** Spawns circlingbuzzard_lunar and sets it to circle the player.
+* **Description:** Spawns a circling buzzard targeting the player.
 * **Parameters:** None
-* **Returns:** Spawned buzzard entity
+* **Returns:** Entity
 
 ### `d_placegridgroupoutline()`
-* **Description:** Places gridplacer group outline at mouse world position.
+* **Description:** Places a grid group outline at the input position.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_removegridgroupoutline()`
-* **Description:** Removes gridplacer group outline at mouse world position.
+* **Description:** Removes a grid group outline at the input position.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_tiles()`
-* **Description:** Fills tile area with world tiles for testing.
+* **Description:** Sets map tiles around the input position to impassable and turf.
 * **Parameters:** None
-* **Returns:** None
+* **Returns:** nil
 
 ### `d_getmigrationpopulation(migrator_type)`
-* **Description:** Gets migration populations for given migrator type.
-* **Parameters:** `migrator_type` (string)
-* **Returns:** Population table or nil
+* **Description:** Returns the population data for a specific migrator type.
+* **Parameters:**
+  - `migrator_type` -- string, the migrator type name
+* **Returns:** table
+* **Error states:** Returns nil if type not found
 
 ## Events & listeners
-* **Listens to:** `onremove`, `droppedtarget`, `on_landed`, `on_no_longer_landed`, `wrappeditem`, `stacksizechange`, `trade`, `equipped`, `unequipped`, `locomote`, `domesticated`, `saddlechanged`, `leaderchanged`, `ms_setmoonphase`, `shadowrift_opened`, `lunarrift_opened`, `attacked`, `startcollapse`, `lavaarena_talk`, `overrideambientlighting`, `ms_setseason`, `ms_forceprecipitation`, `ms_lavaarena_endofstage`, `ms_newplayercharacterspawned`
-* **Pushes:** `domesticated`, `saddlechanged`, `leaderchanged`, `ms_setmoonphase`, `shadowrift_opened`, `lunarrift_opened`, `wrappeditem`, `stacksizechange`, `trade`, `equipped`, `unequipped`, `locomote`, `on_landed`, `on_no_longer_landed`, `startcollapse`, `lavaarena_talk`, `overrideambientlighting`, `ms_setseason`, `ms_forceprecipitation`, `ms_lavaarena_endofstage`, `ms_newplayercharacterspawned`, `attacked`
+
+**Listens to:**
+- `onremove` -- Listened in d_combatsimulator to respawn creature
+- `droppedtarget` -- Listened in d_combatsimulator to re-acquire target
+- `attacked` -- Listened to in d_testdps to accumulate damage count
+
+**Pushes:**
+- `shadowrift_opened` -- Pushed in d_riftspawns if world is cave
+- `lunarrift_opened` -- Pushed in d_riftspawns if world is not cave
+- `ms_setmoonphase` -- Pushed in d_fullmoon and d_newmoon to set moon phase
+- `startcollapse` -- Pushed in d_sinkhole on spawned antlion_sinkhole
+- `resetruins` -- Pushed by d_resetruins to reset ruins state
+- `ms_lavaarena_endofstage` -- Pushed by d_lavaarena_skip to end lava arena stage
+- `lavaarena_talk` -- Pushed by d_lavaarena_speech to trigger Boarlord dialog
+- `ms_newplayercharacterspawned` -- Pushed by d_portalfx to trigger spawn effects
+- `ms_setseason` -- Pushed in d_createscrapbookdata to force autumn season
+- `ms_forceprecipitation` -- Pushed in d_createscrapbookdata to stop rain
+- `overrideambientlighting` -- Pushed in d_lightworld to toggle lighting
+- `ms_startlunarhail` -- Pushed in d_startlunarhail to start event

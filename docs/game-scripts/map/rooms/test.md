@@ -1,66 +1,43 @@
 ---
 id: test
 title: Test
-description: Defines debug and test room templates for world generation, primarily used to validate static layouts and prefab distributions during development.
-tags: [debug, testing, worldgen]
+description: Registers several test rooms for world generation, each configured with specific layouts and content distribution for debugging and development.
+tags: [worldgen, test]
 sidebar_position: 10
-last_updated: 2026-02-27
+
+last_updated: 2026-03-15
 build_version: 714014
 change_status: stable
-category_type: map
-system_scope: world
+category_type: root
 source_hash: 6e18f946
+system_scope: world
 ---
-## Overview
-This file registers a set of static test rooms via the `AddRoom` function for use in world generation debugging and validation. It does not define a component in the Entity Component System (ECS) sense (i.e., no `Class(function(self, inst) ... end)` constructor or `inst:AddComponent` calls). Instead, it is a world generation utility that declares named room templates (e.g., `"MaxPuzzle1"`, `"TEST_ROOM"`) with specific tile values, colors, static layout placements, and dynamic prefab distribution rules.
 
-These rooms are intended for internal use only — typically during development or testing — to ensure world gen logic, static layouts, and prefab spawning behave as expected. They are not used in production game worlds.
+# Test
+
+> Based on game build **714014** | Last updated: 2026-03-15
+
+## Overview
+This file registers a set of predefined test rooms for world generation in Don't Starve Together. These rooms are used internally for development, debugging, and validation of world generation logic. Each room is defined with a unique name, visual colour, tile type, and content specifications—including static layouts, prefab counts, and distribution probabilities.
+
+The component does not define a new ECS component. Instead, it is a script-level configuration that invokes the global `AddRoom()` function to register room templates with the world generator.
 
 ## Usage example
-This file does not provide component usage. It is executed during world generation initialization to register room definitions. A modder could replicate its pattern to define custom test rooms:
-
-```lua
-AddRoom("MyTestRoom", {
-    colour = { r=1.0, g=0.0, b=0.0, a=0.5 },
-    value = WORLD_TILES.GRASS,
-    contents = {
-        countstaticlayouts = { ["MyStaticLayout"] = 1 },
-        countprefabs = {
-            tree = function() return 5 end,
-            flower = 10,
-        },
-        distributeprefabs = {
-            bush = 0.1,
-        },
-    },
-})
-```
+This script is loaded automatically during startup as part of the core worldgen setup and is not intended for manual instantiation.
 
 ## Dependencies & tags
-**Components used:** None. This file does not use or interact with any ECS components.
-**Tags:** None identified.
+**Components used:** None identified  
+**Tags:** None identified
 
 ## Properties
-No properties are defined in the ECS component sense. This file only uses local tables passed to `AddRoom`.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| None | | | No properties are defined. |
+
+No public properties — this file does not define or expose any component-level variables.
 
 ## Main functions
-This file does not define any standalone functions beyond calling `AddRoom`.
-
-### `AddRoom(name, roomdata)`
-* **Description:** Registers a named room template with the world generation system. `roomdata` specifies tile type, visual appearance, static layouts, and dynamic prefab spawning behavior.
-* **Parameters:**
-  * `name` (`string`): Unique identifier for the room (e.g., `"TEST_ROOM"`).
-  * `roomdata` (`table`): Configuration table with keys `colour`, `value`, and `contents`.
-    * `colour` (`{r: number, g: number, b: number, a: number}`): RGBA color for debug visualization in the world editor.
-    * `value` (`WORLD_TILES.*`): Tile type constant (e.g., `WORLD_TILES.GRASS`, `WORLD_TILES.FUNGUS`).
-    * `contents`: Table containing one or more of:
-      * `countstaticlayouts` (`{[layout_name] = count}`): Static layouts to place exactly this many times.
-      * `countprefabs` (`table`): Prefabs to spawn with fixed counts or via `function() return count end`.
-      * `distributepercent` (`number`): Chance (0.0–1.0) to use this room when building the world.
-      * `distributeprefabs` (`table`): Prefabs to scatter with relative weights.
-* **Returns:** None.
-* **Error states:** Room names must be unique; duplicate names may cause undefined behavior or overwrite previous definitions.
+This file contains no component functions — it is a top-level configuration script.
 
 ## Events & listeners
-No events are listened to or pushed by this file.
-
+Not applicable.

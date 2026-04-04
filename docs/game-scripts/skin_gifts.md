@@ -1,49 +1,56 @@
 ---
 id: skin_gifts
 title: Skin Gifts
-description: Provides static lookup tables mapping skin item prefabs to their associated gift event types and configuring visual popup data for gift notifications.
-tags: [ui, inventory, network]
+description: A data configuration file mapping skin item names to gift types and defining popup display data for each gift category.
+tags: [skins, gifts, configuration, inventory, ui]
 sidebar_position: 10
 
-last_updated: 2026-03-10
-build_version: 714014
+last_updated: 2026-04-04
+build_version: 718694
 change_status: stable
 category_type: root
-source_hash: 3e4f3215
-system_scope: ui
+source_hash: 3a82162e
+system_scope: inventory
 ---
 
 # Skin Gifts
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **718694** | Last updated: 2026-04-04
 
 ## Overview
-`skin_gifts.lua` is a data module that defines two core lookup structures: `SKIN_GIFT_TYPES` maps skin item prefab names to their associated gift event categories (e.g., `"TWITCH_DROP"`, `"CUPID"`), and `SKIN_GIFT_POPUPDATA` defines the visual configuration for gift-related UI popups (including atlas, image, and title offset values). This module is not a component but a configuration data module intended to be `require`d elsewhere (e.g., by UI or item logic) to standardize how gift items are categorized and displayed.
+`skin_gifts.lua` is a data configuration file that defines the relationship between skin items and their gift type categories. It contains two main tables: `SKIN_GIFT_TYPES` maps individual skin item names to gift type identifiers, and `SKIN_GIFT_POPUPDATA` defines the visual presentation data (atlas, image, title offset) for each gift type popup. This file is auto-generated and is required by systems that need to display gift acquisition notifications or validate skin gift categories. It is not a component and does not attach to entities.
 
 ## Usage example
 ```lua
-local skin_gifts = require "skin_gifts"
+local SkinGifts = require "skin_gifts"
 
--- Look up the gift type for a given skin item
-local gift_type = skin_gifts.types["torch_nautical"] -- returns "TWITCH_DROP"
+-- Look up the gift type for a specific skin item
+local giftType = SkinGifts.types["lantern_crystal"]
+print(giftType) -- "TWITCH_DROP"
 
--- Retrieve popup data for a gift type
-local popup_config = skin_gifts.popupdata["CUPID"]
--- Returns atlas, image, and titleoffset values for Cupid-themed gifts
+-- Access popup display data for a gift type
+local popupData = SkinGifts.popupdata["TWITCH_DROP"]
+print(popupData.atlas) -- "images/thankyou_twitch.xml"
+print(popupData.image) -- "twitch.tex"
 ```
 
 ## Dependencies & tags
-**Components used:** None identified  
+**Components used:** None identified
 **Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `types` | table | (see source) | Map of skin item prefab names (strings) to gift event type identifiers (strings), e.g., `"TWITCH_DROP"` or `"CUPID"`. |
-| `popupdata` | table | (see source) | Map of gift event type identifiers to visual configuration tables (each with `atlas`, `image`, and `titleoffset` keys; some include `title_size`). |
+| `types` | table | — | Table mapping skin item prefab names to gift type string identifiers. |
+| `popupdata` | table | — | Table mapping gift type identifiers to popup display configuration tables. |
+| `types[item_name]` | string | — | Gift type identifier for a specific skin item (e.g., `"TWITCH_DROP"`, `"CUPID"`, `"WINTER"`). |
+| `popupdata[type].atlas` | string | — | Path to the atlas XML file for the gift type popup image. |
+| `popupdata[type].image` | string | — | Name of the texture file within the atlas for the gift type popup. |
+| `popupdata[type].titleoffset` | table | `{0, -20, 0}` | Three-element table defining X, Y, Z offset for the popup title text. |
+| `popupdata[type].title_size` | number | — | Optional font size override for the popup title (not present for all types). |
 
 ## Main functions
-Not applicable
+No functions are defined in this file. It exports static data tables only.
 
 ## Events & listeners
-Not applicable
+None.

@@ -1,11 +1,11 @@
 ---
 id: crafting_sorting
 title: Crafting Sorting
-description: Manages recipe sorting and ordering logic for the crafting menu across multiple filter types and states.
-tags: [crafting, ui, filtering, sorting]
+description: Organizes and filters crafting recipes for the HUD based on availability and user preferences.
+tags: [crafting, ui, menu]
 sidebar_position: 10
 
-last_updated: 2026-03-10
+last_updated: 2026-03-21
 build_version: 714014
 change_status: stable
 category_type: root
@@ -15,104 +15,92 @@ system_scope: crafting
 
 # Crafting Sorting
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **714014** | Last updated: 2026-03-21
 
 ## Overview
-The `crafting_sorting.lua` module defines four sorting strategy classes (`DefaultSort`, `CraftableSort`, `FavoriteSort`, and `AlphaSort`) used by the crafting menu UI to organize recipe lists. Each class implements a custom iterator via `__ipairs` to return recipes in a specific order based on filter context (e.g., favorite, craftability, alphabetical). Classes are designed to work with a shared `widget` (typically the crafting menu) and communicate changes via callbacks like `OnFavoriteChanged`, `Refresh`, and `OnSelected`. It uses global tables such as `AllRecipes`, `CRAFTING_FILTERS`, and `STRINGS.NAMES`, and relies on helper functions like `FunctionOrValue`, `shallowcopy`, and `table.removearrayvalue`.
+The `crafting_sorting` module provides a collection of sorting classes used to organize recipes within the crafting menu interface. It categorizes recipes based on filter definitions, craftability status (buffered, craftable, uncraftable), and user favorite settings. These classes are typically instantiated by the crafting HUD widget to determine the display order of recipe buttons.
 
 ## Usage example
 ```lua
-local widget = CreateEntity()
-widget:AddComponent("craftingmenu")
+local Sorting = require("crafting_sorting")
 
--- Initialize default sort (used when no specific filter is active)
-local default_sort = DefaultSort(widget)
+-- Assume widget is a valid crafting HUD widget instance
+local widget = ThePlayer.HUD.crafting
+local sorter = Sorting.DefaultSort(widget)
 
--- Use favorite sort with default sort as dependency
-local favorite_sort = FavoriteSort(widget, default_sort)
-
--- Iterate over sorted recipes (e.g., for rendering in the UI)
-for i, recipe_name in ipairs(favorite_sort) do
-    print("Recipe", i, recipe_name)
+-- Iterate through sorted recipes
+for index, recipe_name in sorter:__ipairs() do
+    print(index, recipe_name)
 end
 
--- Trigger a refresh after a favorite change
-favorite_sort:OnFavoriteChanged("rock_goose", true)
-favorite_sort:Refresh()
+-- Refresh sorting logic if recipes change
+sorter:Refresh()
 ```
 
 ## Dependencies & tags
-**Components used:** None identified (uses global functions and tables such as `AllRecipes`, `TheCraftingMenuProfile`, `CRAFTING_FILTERS`, `FunctionOrValue`, `shallowcopy`, `table.removearrayvalue`, `stringidsorter`).
+**Components used:** None (UI utility class).
+**Dependencies:** `metaclass`
+**Globals:** `CRAFTING_FILTERS`, `AllRecipes`, `TheCraftingMenuProfile`, `STRINGS`
 **Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `widget` | table (crafting menu UI widget) | `nil` (assigned in constructor) | Reference to the parent crafting menu widget that holds state like `current_filter_name` and `valid_recipes`. |
-| `fullupdate` | boolean | `nil` (only in `DefaultSort`) | When set, forces full filter rebuild on next `Refresh()`. |
-| `buffered`, `craftable`, `uncraftable`, `recipelookup` | tables | Empty tables | State tracking tables in `CraftableSort` indicating build state categories for each recipe. |
-| `favorite`, `nonfavorite` | tables | Empty tables | State tracking tables in `FavoriteSort` indicating favorite status for each recipe. |
-| `alpha_sorted` | array | `nil` (initialized in constructor) | Pre-sorted list of recipe names in `AlphaSort`. |
+| `widget` | table | `nil` | Reference to the parent crafting widget. |
+| `sorted` | table | `{}` | List of recipes explicitly defined in the filter. |
+| `unsorted` | table | `{}` | List of recipes not defined in the filter. |
+| `fullupdate` | boolean | `false` | Flag indicating a full UI refresh is required. |
+| `craftable` | table | `{}` | (`CraftableSort`) Recipes currently craftable by the player. |
+| `favorite` | table | `{}` | (`FavoriteSort`) Recipes marked as favorites by the player. |
+| `alpha_sorted` | table | `{}` | (`AlphaSort`) List of all recipes sorted alphabetically. |
 
 ## Main functions
-### `DefaultSort:BuildFavoriteTable()`
-* **Description:** Reinitializes the `FAVORITES` filter table by copying from `CRAFTING_FILTERS.FAVORITES`, and marks the unsorted set as those not in the default sort values.
-* **Parameters:** None.
-* **Returns:** Nothing.
-* **Side effects:** Sets `self.FAVORITES.unsorted` and `self.fullupdate = true`.
+### `Constructor(widget)`
+*   **Description:** Initializes the sorting instance. Specific behavior varies by class (`DefaultSort`, `CraftableSort`, `FavoriteSort`, `AlphaSort`).
+*   **Parameters:** `widget` (table) - The crafting HUD widget instance managing the menu.
+*   **Returns:** Self (instance).
 
-### `DefaultSort:Refresh()`
-* **Description:** Triggers filter application if a full update was requested; otherwise returns `false`.
-* **Parameters:** None.
-* **Returns:** `true` if filters were applied (`fullupdate` was set), `false` otherwise.
+### `Refresh()`
+*   **Description:** Updates internal sorting tables based on current game state (e.g., inventory changes, favorite toggles). Triggers a widget update if changes occurred.
+*   **Parameters:** None.
+*   **Returns:** `boolean` - `true` if the widget requires an update, `false` otherwise.
 
-### `DefaultSort:GetSorted()`
-* **Description:** Returns the sorted list of recipe names for the current filter.
-* **Parameters:** None.
-* **Returns:** `array` — sorted list of recipe names for the current filter, or empty array if no filter selected.
+### `GetSorted()`
+*   **Description:** Retrieves the list of recipes that belong to the current filter's sorted definition.
+*   **Parameters:** None.
+*   **Returns:** `table` - List of sorted recipe names. Returns empty table if no filter is selected.
 
-### `DefaultSort:GetUnsorted()`
-* **Description:** Returns the unsorted set of recipe names (as keys) for the current filter, or global `self.unsorted` if no filter selected.
-* **Parameters:** None.
-* **Returns:** `table` — set of unsorted recipe names (keys are strings, values are `true`).
+### `GetUnsorted()`
+*   **Description:** Retrieves the list of recipes that do not belong to the current filter's sorted definition.
+*   **Parameters:** None.
+*   **Returns:** `table` - List of unsorted recipe names.
 
-### `CraftableSort:BuildCraftableTable()`
-* **Description:** Re-sorts recipes into `buffered`, `craftable`, or `uncraftable` tables based on `valid_recipes` and their `build_state` (`buffered`, `freecrafting`, `has_ingredients`, `prototype`). Updates cached sorted/unsorted arrays if needed.
-* **Parameters:** None.
-* **Returns:** `boolean` — `true` if any recipe moved between categories (i.e., state changed).
+### `__ipairs()`
+*   **Description:** Lua metamethod enabling iteration over the sorter instance. Yields indices and recipe names in the calculated order (sorted then unsorted, categorized by specific sort logic).
+*   **Parameters:** None.
+*   **Returns:** `function` - An iterator function compatible with `for i, v in ipairs(sorter) do`.
 
-### `CraftableSort:ClearSortTables()`
-* **Description:** Clears cached sorted/unsorted arrays if the current filter changed (to avoid stale caching across filters).
-* **Parameters:** None.
-* **Returns:** Nothing.
+### `OnFavoriteChanged(recipe_name, is_favorite_recipe)`
+*   **Description:** Callback triggered when a recipe's favorite status changes. Updates internal favorite tables and marks for refresh.
+*   **Parameters:** `recipe_name` (string) - The name of the recipe. `is_favorite_recipe` (boolean) - The new favorite status.
+*   **Returns:** Nothing.
 
-### `FavoriteSort:BuildFavoriteTable()`
-* **Description:** Syncs `self.favorite` and `self.nonfavorite` sets with `TheCraftingMenuProfile:IsFavorite()` for all recipes. Marks cached arrays for rebuild if any changes occurred.
-* **Parameters:** None.
-* **Returns:** Nothing.
-* **Side effects:** Resets `self.favorite_sorted`, `self.nonfavorite_sorted`, etc. if favorites changed.
+### `OnSelected()`
+*   **Description:** Called when the sorting mode or filter is selected. Rebuilds internal tables to reflect the new selection.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
-### `FavoriteSort:OnFavoriteChanged(recipe_name, is_favorite_recipe)`
-* **Description:** Updates internal state when a recipe’s favorite status changes (e.g., after user toggle). Invalidates sorted arrays in affected categories and triggers a full update.
-* **Parameters:**  
-  - `recipe_name` (string) — name of the recipe.  
-  - `is_favorite_recipe` (boolean) — whether the recipe is now a favorite.  
-* **Returns:** Nothing.
-* **Side effects:** Modifies `self.favorite`/`self.nonfavorite`, clears cached arrays, and sets `defaultsort.fullupdate = true`.
+### `BuildCraftableTable()`
+*   **Description:** (`CraftableSort`) Scans valid recipes and categorizes them into buffered, craftable, or uncraftable tables based on build state.
+*   **Parameters:** None.
+*   **Returns:** `boolean` - `true` if any category table changed.
 
-### `AlphaSort:__ipairs()`
-* **Description:** Returns an iterator over pre-sorted recipe names alphabetically by localized name (using `STRINGS.NAMES`).
-* **Parameters:** None.
-* **Returns:** `function, table, number` — standard Lua iterator signature for `ipairs`.
-
-### `DefaultSort:__ipairs()`, `CraftableSort:__ipairs()`, `FavoriteSort:__ipairs()`
-* **Description:** Custom iterators that yield recipes in filter-aware order: (1) sorted items first, then (2) unsorted items, in order of category (e.g., craftable/favorite/buffered). Uses coroutines to avoid state externally.
-* **Parameters:** None.
-* **Returns:** `function, table, number` — standard Lua iterator signature for `ipairs`.
-* **Category order per class:**
-  - `DefaultSort`: `[sorted] → [unsorted]`
-  - `CraftableSort`: `[buffered sorted] → [buffered unsorted] → [craftable sorted] → [craftable unsorted] → [uncraftable sorted] → [uncraftable unsorted]`
-  - `FavoriteSort`: `[favorite sorted] → [favorite unsorted] → [nonfavorite sorted] → [nonfavorite unsorted]`
+### `BuildFavoriteTable()`
+*   **Description:** (`FavoriteSort` / `DefaultSort`) Rebuilds the favorite vs non-favorite categorization based on `TheCraftingMenuProfile`.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ## Events & listeners
-**None identified** — this file does not register or fire DST events via `inst:ListenForEvent` or `inst:PushEvent`. It uses callback-style integration via methods like `OnFavoriteChanged`, `Refresh`, and `OnSelected`, which are presumably invoked by the parent UI widget.
+- **Listens to:** None (Does not use `inst:ListenForEvent`).
+- **Pushes:** None (Does not use `inst:PushEvent`).
+- **Widget Callbacks:** Calls `widget:ApplyFilters()` internally when `Refresh()` detects changes.

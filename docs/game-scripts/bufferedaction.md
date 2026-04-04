@@ -1,129 +1,129 @@
 ---
 id: bufferedaction
-title: BufferedAction
-description: Stores and executes a deferred action between an entity (doer) and a target, with support for success/failure callbacks and validation.
-tags: [action, inventory, network, validation]
+title: Bufferedaction
+description: Represents a queued player action with target, position, and callback handling for the action system.
+tags: [action, player, input]
 sidebar_position: 10
 
-last_updated: 2026-03-10
+last_updated: 2026-03-21
 build_version: 714014
 change_status: stable
 category_type: root
 source_hash: 8caba818
-system_scope: entity
+system_scope: player
 ---
 
-# BufferedAction
+# Bufferedaction
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **714014** | Last updated: 2026-03-21
 
 ## Overview
-`BufferedAction` is a lightweight, stateful wrapper for deferred actions in the Entity Component System. It captures all necessary context—doer, target, action function, optional inventory item, position, recipe, and validation flags—to safely queue and later execute game actions. This ensures consistency across networked environments by validating the action before execution and preserving ownership/inventory state at creation time. It is commonly used in input handling, AI behavior, and remote action dispatch where immediate execution is undesirable or unsafe.
+`BufferedAction` is a core class in the DST action system that encapsulates player verb interactions. It stores all necessary context for an action including the doer, target, inventory object, position, and success/failure callbacks. This class is used internally by the input and action systems to queue and execute player commands like attacking, picking up items, or building structures. It validates action conditions before execution and triggers appropriate callback chains on success or failure.
 
 ## Usage example
 ```lua
-local inst = CreateEntity()
-local doer = some_player
-local target = some_actor
-local action = GetAction("attack")
-local invobject = doer.components.inventory:GetActiveItem()
-
-local buffered = BufferedAction(doer, target, action, invobject)
-buffered:AddSuccessAction(function() print("Attack successful!") end)
-buffered:AddFailAction(function() print("Attack failed.") end)
-
-if buffered:IsValid() then
-    buffered:Do()
-end
+local action = BufferedAction(doer, target, ACTIONS.CHOP, nil, pos)
+action:AddSuccessAction(function()
+    print("Action completed successfully")
+end)
+action:AddFailAction(function()
+    print("Action failed")
+end)
+local success, reason = action:Do()
 ```
 
 ## Dependencies & tags
-**Components used:** `inventoryitem` (to capture and verify target ownership)
+**Components used:** `inventoryitem` (accessed via `target.components.inventoryitem`)
 **Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `doer` | `Entity` or `nil` | `doer` | The entity performing the action. |
-| `target` | `Entity` or `nil` | `target` | The entity being acted upon. |
-| `action` | `table` | `action` | The action definition, containing `fn`, `id`, `distance`, `validfn`, etc. |
-| `invobject` | `Entity` or `nil` | `invobject` | Inventory item used in the action (if any). |
-| `pos` | `DynamicPosition` or `nil` | `DynamicPosition(pos)` | Positional target for actions without a specific target entity. |
-| `rotation` | number | `0` | Facing rotation associated with the action. |
-| `recipe` | `string` or `nil` | `recipe` | Optional crafting recipe name. |
-| `distance` | number | `action.distance` | Max distance allowed to perform the action. |
-| `arrivedist` | number | `action.arrivedist` | Distance at which the doer is considered to have arrived. |
-| `forced` | boolean or `nil` | `forced` | Whether the action should be executed even against default restrictions. |
-| `doerownsobject` | boolean | Computed | True if `doer` currently holds `invobject`. |
-| `initialtargetowner` | `Entity` or `nil` | Computed | Owner of `target` at creation time (for inventory item validation). |
-| `autoequipped` | boolean or `nil` | `nil` | If set, indicates `invobject` was auto-equipped (used for validation). |
-| `onsuccess` | array of functions | `{}` | Callbacks invoked on successful action. |
-| `onfail` | array of functions | `{}` | Callbacks invoked on failed action. |
+| `doer` | entity | `nil` | The entity performing the action (typically a player). |
+| `target` | entity | `nil` | The target entity of the action. |
+| `initialtargetowner` | entity | `nil` | Owner of the target if it is an inventory item. |
+| `action` | table | `nil` | The action definition from `ACTIONS` table. |
+| `invobject` | entity | `nil` | Inventory object being used for the action. |
+| `doerownsobject` | boolean | `false` | Whether the doer owns the inventory object. |
+| `pos` | DynamicPosition | `nil` | The world position where the action occurs. |
+| `rotation` | number | `0` | Rotation value for the action. |
+| `onsuccess` | table | `{}` | Table of callback functions on action success. |
+| `onfail` | table | `{}` | Table of callback functions on action failure. |
+| `recipe` | string | `nil` | Recipe identifier if this is a crafting action. |
+| `options` | table | `{}` | Additional action options. |
+| `distance` | number | `action.distance` | Required distance to perform the action. |
+| `arrivedist` | number | `action.arrivedist` | Arrival distance threshold. |
+| `forced` | boolean | `nil` | Whether the action is forced (bypasses some checks). |
+| `autoequipped` | boolean | `nil` | True if the inventory object should be auto-equipped. |
+| `skin` | string | `nil` | Skin identifier for the action. |
 
 ## Main functions
+### `BufferedAction(doer, target, action, invobject, pos, recipe, distance, forced, rotation, arrivedist)`
+*   **Description:** Constructor that initializes a new BufferedAction instance with all action context data.
+*   **Parameters:** `doer` (entity) - the performer, `target` (entity) - the target, `action` (table) - action definition, `invobject` (entity) - inventory item, `pos` (Vector3) - position, `recipe` (string) - recipe ID, `distance` (number) - action distance, `forced` (boolean) - force flag, `rotation` (number) - rotation, `arrivedist` (number) - arrival distance.
+*   **Returns:** New BufferedAction instance.
+
 ### `Do()`
-*   **Description:** Executes the buffered action if valid. Handles item usage, callback dispatch, and result reporting.
+*   **Description:** Executes the action by calling the action function and triggering success or failure callbacks.
 *   **Parameters:** None.
-*   **Returns:** `success` (boolean), `reason` (any) — Indicates whether the action succeeded; `reason` provides failure details.
-*   **Error states:** Returns `false, reason` immediately if `IsValid()` is `false`. Fails safely if `invobject` is invalid.
+*   **Returns:** `success` (boolean), `reason` (string or nil) - whether the action succeeded and optional failure reason.
+*   **Error states:** Returns `false` immediately if `IsValid()` fails.
 
 ### `IsValid()`
-*   **Description:** Verifies all context is still valid for the action (e.g., entities still exist, target ownership unchanged, item ownership intact). This includes checks for network safety (`TheWorld.ismastersim`) and custom validation functions.
+*   **Description:** Validates all action conditions including entity validity, inventory ownership, position validity, and custom validation functions.
 *   **Parameters:** None.
-*   **Returns:** `true` if the action can be executed safely, `false` otherwise.
-*   **Error states:** Returns `false` if any entity involved has been destroyed or ownership has changed (for target inventory items or held objects).
+*   **Returns:** `boolean` - true if all action conditions are met.
+*   **Error states:** Returns `false` if doer, target, invobject, or position are invalid, or if ownership checks fail.
 
 ### `TestForStart()`
-*   **Description:** Alias of `IsValid`. Historical remnant of older code; kept for compatibility.
+*   **Description:** Alias for `IsValid()`. Used for compatibility with action system start checks.
 *   **Parameters:** None.
-*   **Returns:** Same as `IsValid`.
+*   **Returns:** `boolean` - same as `IsValid()`.
 
 ### `GetActionString()`
-*   **Description:** Retrieves the localized action label (e.g., "Attack", "Gather") to display in UI or logs.
+*   **Description:** Retrieves the localized action string for UI display, checking for doer overrides and action string override functions.
 *   **Parameters:** None.
-*   **Returns:** `str` (string), `overriden` (boolean) — Human-readable action string and whether it was custom-override.
-*   **Error states:** Falls back to `GetActionString(action.id, ...)` if no override exists.
-
-### `AddFailAction(fn)`
-*   **Description:** Appends a callback to be invoked if the action fails.
-*   **Parameters:** `fn` (function) — A no-argument function to run on failure.
-*   **Returns:** Nothing.
+*   **Returns:** `string` (action display text), `overriden` (boolean) - whether a custom string was used.
 
 ### `AddSuccessAction(fn)`
-*   **Description:** Appends a callback to be invoked if the action succeeds.
-*   **Parameters:** `fn` (function) — A no-argument function to run on success.
+*   **Description:** Adds a callback function to be executed when the action succeeds.
+*   **Parameters:** `fn` (function) - callback to execute on success.
+*   **Returns:** Nothing.
+
+### `AddFailAction(fn)`
+*   **Description:** Adds a callback function to be executed when the action fails.
+*   **Parameters:** `fn` (function) - callback to execute on failure.
 *   **Returns:** Nothing.
 
 ### `Succeed()`
-*   **Description:** Executes all success callbacks and clears the callback lists.
+*   **Description:** Executes all success callbacks and clears callback tables.
 *   **Parameters:** None.
 *   **Returns:** Nothing.
 
 ### `Fail()`
-*   **Description:** Executes all failure callbacks and clears the callback lists.
+*   **Description:** Executes all failure callbacks and clears callback tables.
 *   **Parameters:** None.
 *   **Returns:** Nothing.
 
 ### `GetActionPoint()`
-*   **Description:** Returns the 3D positional target for the action (e.g., for placement or aiming).
+*   **Description:** Returns the world position of the action as a Vector3.
 *   **Parameters:** None.
-*   **Returns:** `Vector3` or `nil`.
+*   **Returns:** `Vector3` or `nil` if no position is set.
 
 ### `GetDynamicActionPoint()`
-*   **Description:** Returns the `DynamicPosition` wrapper for the action point.
+*   **Description:** Returns the DynamicPosition object for the action.
 *   **Parameters:** None.
 *   **Returns:** `DynamicPosition` or `nil`.
 
 ### `SetActionPoint(pt)`
-*   **Description:** Updates the action point to a new position.
-*   **Parameters:** `pt` (`Vector3` or `table`) — New position to set.
+*   **Description:** Sets the action position, converting the input to a DynamicPosition.
+*   **Parameters:** `pt` (Vector3 or table) - new position coordinates.
 *   **Returns:** Nothing.
 
 ### `__tostring()`
-*   **Description:** Provides a human-readable string representation for debugging.
+*   **Description:** Returns a string representation of the action including action name, target, inventory object, and recipe info.
 *   **Parameters:** None.
-*   **Returns:** `string` — Formatted as `<action_label> <target> With Inv: <item> Recipe: <recipe>`.
+*   **Returns:** `string` - debug representation of the action.
 
 ## Events & listeners
-*   **Listens to:** None.
-*   **Pushes:** None.
+None identified. This class uses internal callback tables (`onsuccess`, `onfail`) rather than the entity event system.

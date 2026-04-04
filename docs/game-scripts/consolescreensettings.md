@@ -1,11 +1,11 @@
 ---
 id: consolescreensettings
 title: Consolescreensettings
-description: Manages persistent storage and history for the console screen, including command history, word prediction state, and save/load operations.
-tags: [console, ui, persistence, network]
+description: Manages persistent storage for console command history and UI widget states.
+tags: [ui, settings, persistence]
 sidebar_position: 10
 
-last_updated: 2026-03-10
+last_updated: 2026-03-21
 build_version: 714014
 change_status: stable
 category_type: root
@@ -15,89 +15,84 @@ system_scope: ui
 
 # Consolescreensettings
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **714014** | Last updated: 2026-03-21
 
 ## Overview
-`ConsoleScreenSettings` handles persistent configuration and history for the in-game console screen. It stores command history (up to `MAX_SAVED_COMMANDS` entries) and word prediction widget state in persistent storage, and provides methods to load, save, and manipulate this data. It is used exclusively on the client for UI state management and does not interact with server-side entities or replication.
+`ConsoleScreenSettings` is a standalone utility class responsible for managing user-specific console screen data. It handles the storage and retrieval of command history lines and word prediction widget expansion states. The class serializes this data to persistent storage using the simulation file system, ensuring settings persist across game sessions. It is not attached to an entity instance and operates independently of the Entity Component System.
 
 ## Usage example
 ```lua
 local settings = ConsoleScreenSettings()
-settings:Load()
 
--- Add a command to history
-settings:AddLastExecutedCommand("c_give(master, 'log')", false)
+-- Add a command to the history
+settings:AddLastExecutedCommand("c_spawn('beefalo')", true)
 
--- Check and set word prediction state
-if not settings:IsWordPredictionWidgetExpanded() then
-    settings:SetWordPredictionWidgetExpanded(true)
-end
+-- Retrieve the command history
+local history = settings:GetConsoleHistory()
 
--- Persist changes to disk
-settings:Save()
+-- Save changes to disk
+settings:Save(function(success)
+    print("Save complete:", success)
+end)
 ```
 
 ## Dependencies & tags
-**Components used:** None  
+**Components used:** None identified.
 **Tags:** None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `persistdata` | table | `{}` | Internal dictionary storing all persisted settings (e.g., `"historylines"`, `"expanded"`). |
-| `profanityservers` | table | `{}` | Reserved placeholder; unused in current implementation. |
-| `dirty` | boolean | `true` | Flag indicating whether unsaved changes exist. |
+| `persistdata` | table | `{}` | Stores all persistent settings including history and widget states. |
+| `profanityservers` | table | `{}` | Reserved table for profanity filter server data. |
+| `dirty` | boolean | `true` | Indicates whether the data has changed and requires saving. |
 
 ## Main functions
 ### `Reset()`
-* **Description:** Clears all persistent settings, marks the instance as dirty, and triggers an immediate save.
-* **Parameters:** None.
-* **Returns:** Nothing.
+*   **Description:** Clears all persistent data and marks the settings as dirty to trigger a save.
+*   **Parameters:** None.
+*   **Returns:** Nothing.
 
 ### `GetConsoleHistory()`
-* **Description:** Returns the current list of saved console command history lines.
-* **Parameters:** None.
-* **Returns:** `{ { str = string, remote = boolean }, ... }` — list of command entries; each entry contains `str` (command text) and `remote` (execution context flag). Returns empty array if none exist.
+*   **Description:** Retrieves the list of previously executed console commands.
+*   **Parameters:** None.
+*   **Returns:** `table` - Array of command history entries, or empty table if none exist.
 
 ### `AddLastExecutedCommand(command_str, toggle_remote_execute)`
-* **Description:** Adds a command to the history if not empty or a repeat of `c_repeatlastcommand()`. Ensures no duplicate entries and maintains max `MAX_SAVED_COMMANDS` items by shifting duplicates to the end and removing oldest entries as needed.
-* **Parameters:**
-  * `command_str` (string) — The console command string to add.
-  * `toggle_remote_execute` (boolean or nil) — Whether the command should be executed remotely. Converted to `true` or `nil`.
-* **Returns:** Nothing.
-* **Error states:** Does nothing if `command_str` is empty or exactly `"c_repeatlastcommand()"`.
+*   **Description:** Adds a new command to the history list. Handles duplicates by moving existing entries to the end and enforces a maximum limit of 20 saved commands.
+*   **Parameters:**
+    *   `command_str` (string) - The command string to save.
+    *   `toggle_remote_execute` (boolean/nil) - Indicates if the command was remotely executed.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early without saving if the command string is empty or matches `c_repeatlastcommand()`.
 
 ### `IsWordPredictionWidgetExpanded()`
-* **Description:** Checks whether the word prediction widget UI is currently expanded.
-* **Parameters:** None.
-* **Returns:** `boolean` — `true` if expanded, otherwise `false`.
+*   **Description:** Checks the current expansion state of the word prediction widget.
+*   **Parameters:** None.
+*   **Returns:** `boolean` - `true` if expanded, `false` otherwise.
 
 ### `SetWordPredictionWidgetExpanded(value)`
-* **Description:** Sets the expanded state of the word prediction widget.
-* **Parameters:** `value` (boolean) — The new expanded state.
-* **Returns:** Nothing.
-
-### `GetSaveName()`
-* **Description:** Returns the persistent storage key used for saving/loading.
-* **Parameters:** None.
-* **Returns:** `string` — `"consolescreen"` for non-dev builds; `"consolescreen_"..BRANCH` for dev builds.
+*   **Description:** Sets the expansion state of the word prediction widget and marks data as dirty.
+*   **Parameters:** `value` (boolean) - The desired expansion state.
+*   **Returns:** Nothing.
 
 ### `Save(callback)`
-* **Description:** Serializes `persistdata` to JSON and writes it to persistent storage if `dirty` is `true`. Calls `callback` upon completion.
-* **Parameters:** `callback` (function or nil) — Optional function receiving `(success: boolean)` as argument.
-* **Returns:** Nothing directly; `callback` receives success status.
+*   **Description:** Serializes `persistdata` to JSON and writes it to persistent storage if the data is marked as dirty.
+*   **Parameters:** `callback` (function) - Optional callback function called upon completion.
+*   **Returns:** Nothing.
 
 ### `Load(callback)`
-* **Description:** Initiates loading of saved settings from persistent storage using `TheSim:GetPersistentString`.
-* **Parameters:** `callback` (function or nil) — Optional function receiving `(success: boolean)` as argument.
-* **Returns:** Nothing.
+*   **Description:** Reads the persistent string from storage and parses it via `OnLoad`.
+*   **Parameters:** `callback` (function) - Optional callback function called upon completion.
+*   **Returns:** Nothing.
 
 ### `OnLoad(str, callback)`
-* **Description:** Handles loaded string data: decodes JSON, migrates legacy `"history"`/`"localremotehistory"` keys to new `"historylines"` format, and calls `callback`.
-* **Parameters:**
-  * `str` (string) — Raw persistent string from disk.
-  * `callback` (function or nil) — Optional function receiving `(success: boolean)` as argument.
-* **Returns:** Nothing.
+*   **Description:** Internal handler that processes the loaded string. Decodes JSON and migrates legacy history data formats if detected.
+*   **Parameters:**
+    *   `str` (string) - The raw loaded data string.
+    *   `callback` (function) - Optional callback function.
+*   **Returns:** Nothing.
+*   **Error states:** If `str` is nil or invalid, prints an error and calls the callback with `false`.
 
 ## Events & listeners
 None identified.

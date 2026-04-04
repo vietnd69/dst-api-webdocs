@@ -1,54 +1,52 @@
 ---
 id: achievements
 title: Achievements
-description: Defines the list of achievements available in the game, mapping internal names to platform-specific identifiers.
-tags: [achievements, data, configuration]
+description: Defines a lookup table of achievement constants mapped to platform-specific identifiers.
+tags: [data, progression, ui]
 sidebar_position: 10
 
-last_updated: 2026-03-10
+last_updated: 2026-03-21
 build_version: 714014
 change_status: stable
 category_type: root
 source_hash: 65f75a2b
-system_scope: world
+system_scope: ui
 ---
 
 # Achievements
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **714014** | Last updated: 2026-03-21
 
 ## Overview
-This file is a static data definition containing all available achievements in *Don't Starve Together*. It uses a helper function `ACHIEVEMENT(id, name)` to construct achievement entries with both human-readable names and platform-specific identifiers (e.g., Steam string IDs, PSN numeric IDs). It is not a component and does not attach to entities; it is a top-level configuration table returned for use by the achievements system elsewhere in the codebase.
+The `achievements.lua` script serves as a centralized data registry for game achievements. It constructs a global table mapping internal achievement names to platform-specific identifiers required by services like Steam or PlayStation Network. This file is typically required by UI systems or backend managers to reference achievement metadata without hardcoding IDs elsewhere in the codebase.
 
 ## Usage example
 ```lua
--- Example of accessing an achievement definition
-local achievements = require("achievements")
-local survive20 = achievements["survive_20"]
-print(survive20.name) -- "survive_20"
-print(survive20.id.steam) -- "1_survive_20"
-print(survive20.id.psn) -- 1
+local Achievements = require("achievements")
+-- Access the first achievement definition in the list
+local achievement = Achievements[1]
+print(achievement.name) -- Outputs: "survive_20"
+print(achievement.id.steam) -- Outputs: "1_survive_20"
 ```
 
 ## Dependencies & tags
-**Components used:** None identified  
-**Tags:** None identified
+**Components used:** None identified.
+**Tags:** None identified.
 
 ## Properties
+The module returns a list (array) of achievement definition tables. Each entry in the list contains the following structure:
+
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `name` | string | — | Internal identifier used in code to refer to the achievement (e.g., `"survive_20"`). |
-| `id.steam` | string | — | Platform-specific ID for Steam, formatted as `<id>_<name>`. |
-| `id.psn` | number | — | Platform-specific numeric ID for PlayStation Network (from `.trp` file). |
+| `name` | string | `nil` | Internal identifier used in code to refer to this achievement. |
+| `id` | table | `nil` | Contains platform-specific IDs, keyed by `steam` (string) and `psn` (integer). |
 
 ## Main functions
 ### `ACHIEVEMENT(id, name)`
-*   **Description:** Helper function that constructs and returns an achievement definition table with a consistent structure.
-*   **Parameters:**  
-    - `id` (string or number) — Platform ID. For Steam, converted to string; for PSN, kept as integer.  
-    - `name` (string) — Internal achievement name (used as the key in the `Achievements` table).  
-*   **Returns:** `{ name = name, id = { steam = "...", psn = ... } }`  
-*   **Error states:** None.
+*   **Description:** Internal helper function used during module load to generate achievement table entries. It formats the raw ID and name into the standard data structure.
+*   **Parameters:** `id` (string) - Numeric ID string; `name` (string) - Internal achievement name key.
+*   **Returns:** table - Structured achievement data containing `name` and nested `id` table.
+*   **Error states:** This function is local to the file and not exposed in the returned module table.
 
 ## Events & listeners
-Not applicable
+None identified.

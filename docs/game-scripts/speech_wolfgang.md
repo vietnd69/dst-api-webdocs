@@ -5,11 +5,11 @@ description: Initializes and manages Wolfgang-specific dialogue strings for play
 tags: [speech, player, localization]
 sidebar_position: 10
 
-last_updated: 2026-03-10
-build_version: 714014
-change_status: stable
+last_updated: 2026-04-04
+build_version: 718694
+change_status: data_patched
 category_type: root
-source_hash: c8d5e041
+source_hash: 859d32a5
 system_scope: player
 ---
 

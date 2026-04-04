@@ -1,159 +1,107 @@
 ---
 id: beequeen
 title: Beequeen
-description: Represents the Beequeen boss entity with dynamic health phases, command over beeguards, and honey trail generation mechanics.
-tags: [combat, boss, ai, flying, group]
+description: Defines the Beequeen boss prefab with combat, phase transitions, honey trail mechanics, and bee guard command systems.
+tags: [boss, combat, ai, monster, bee]
 sidebar_position: 10
 
-last_updated: 2026-03-07
+last_updated: 2026-03-20
 build_version: 714014
 change_status: stable
-category_type: prefabs
+category_type: root
 source_hash: d99b0da6
 system_scope: entity
 ---
 
 # Beequeen
 
-> Based on game build **714014** | Last updated: 2026-03-07
+> Based on game build **714014** | Last updated: 2026-03-20
 
 ## Overview
-`beequeen` defines the master prefab for the Beequeen boss, a flying hostile entity that commands beeguards and dynamically adjusts its behavior based on health thresholds. It integrates multiple components to manage combat, grouping, locomotion, sleep states, and boss-specific mechanics like phase transitions and honey trail generation. The entity is designed for dedicated servers and clientside music triggers, and it persists boss-specific state across save/load cycles.
+`beequeen` is a prefab file that defines the Beequeen boss entity for Don't Starve Together. It configures the entity with multiple components for combat behavior, health-based phase transitions (4 phases), honey trail spawning, commander functionality for bee guards, and player tracking systems. The prefab integrates with the brain system for AI behavior and stategraph for animation control.
 
 ## Usage example
 ```lua
--- Typically instantiated via Prefab system as "beequeen"
--- Example of adding event listeners to customize behavior:
-local inst = Prefab("beequeen")
-inst:ListenForEvent("screech", function() print("Beequeen changed phases!") end)
+-- Spawn Beequeen in the world
+local beequeen = SpawnPrefab("beequeen")
+
+-- Access phase configuration
+beequeen.focustarget_cd = TUNING.BEEQUEEN_FOCUSTARGET_CD[2]
+
+-- Control honey trail system
+beequeen:StartHoney()
+beequeen:StopHoney()
+
+-- Boost commander range for guard spawning
+beequeen:BoostCommanderRange(true)
 ```
 
 ## Dependencies & tags
-**Components used:** `inspectable`, `lootdropper`, `sleeper`, `locomotor`, `health`, `healthtrigger`, `combat`, `stuckdetection`, `explosiveresist`, `grouptargeter`, `commander`, `timer`, `sanityaura`, `epicscare`, `knownlocations`, `freezable`
+**Components used:** `combat`, `commander`, `epicscare`, `freezable`, `grouptargeter`, `health`, `healthtrigger`, `inspectable`, `knownlocations`, `locomotor`, `lootdropper`, `sleeper`, `stuckdetection`, `timer`, `sanityaura`, `explosiveresist`
 
-**Tags:** `epic`, `noepicmusic`, `bee`, `beequeen`, `insect`, `monster`, `hostile`, `scarytoprey`, `largecreature`, `flying`, `ignorewalkableplatformdrowning`
+**Tags:** Adds `epic`, `noepicmusic`, `bee`, `beequeen`, `insect`, `monster`, `hostile`, `scarytoprey`, `largecreature`, `flying`, `ignorewalkableplatformdrowning`
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `focustarget_cd` | number | `TUNING.BEEQUEEN_FOCUSTARGET_CD[1]` | Cooldown between focus-target switches per phase. |
-| `spawnguards_cd` | number | `TUNING.BEEQUEEN_SPAWNGUARDS_CD[1]` | Cooldown between guard spawns per phase. |
-| `spawnguards_maxchain` | number | `TUNING.BEEQUEEN_SPAWNGUARDS_CHAIN[1]` | Maximum number of consecutive guard spawns per phase. |
-| `spawnguards_threshold` | number | `1` | Guard count threshold that triggers phase-specific behavior. |
-| `commanderboost` | boolean | `false` | Whether the commander range is currently boosted (80 vs 40). |
-| `commandertask` | function | `nil` | Periodic task to restore normal commander range after boost. |
-| `_sleeptask` | function | `nil` | Task to remove entity after extended sleep. |
-| `_playingmusic` | boolean | `false` | Tracks whether boss music is playing for the local player. |
-| `honeytask` | function | `nil` | Periodic task responsible for honey trail generation. |
-| `honeycount` | number | `0` | Counter tracking steps since last honey spawn. |
-| `honeythreshold` | number | `HONEY_LEVELS[1].threshold` | Step count required to spawn next honey particle. |
-| `usedhoney` | table | `{}` | Queue of recently used honey variation IDs. |
-| `availablehoney` | table | `{1..7}` | List of available honey variation IDs. |
-| `spawnguards_chain` | number | `0` | Current chain count of beeguard spawns. |
+| `focustarget_cd` | number | Phase-dependent | Cooldown for focus target selection based on current phase |
+| `spawnguards_cd` | number | Phase-dependent | Cooldown for spawning bee guards based on current phase |
+| `spawnguards_maxchain` | number | Phase-dependent | Maximum chain length for guard spawning based on current phase |
+| `spawnguards_threshold` | number | Phase-dependent | Threshold for guard spawning based on current phase |
+| `honeytask` | task | `nil` | Periodic task reference for honey trail spawning |
+| `honeycount` | number | `0` | Counter for honey trail spawn timing |
+| `honeythreshold` | number | `0` | Threshold value for honey trail spawning |
+| `usedhoney` | table | `{}` | Array of recently used honey variations |
+| `availablehoney` | table | `{1..7}` | Array of available honey variation indices |
+| `commanderboost` | boolean | `false` | Whether commander range is currently boosted |
+| `commandertask` | task | `nil` | Periodic task for updating commander range |
+| `_playingmusic` | boolean | `false` | Whether Beequeen music is currently playing for nearby player |
+| `_sleeptask` | task | `nil` | Delayed removal task when entity sleeps |
+| `hit_recovery` | number | `TUNING.BEEQUEEN_HIT_RECOVERY` | Recovery time after being hit |
+| `spawnguards_chain` | number | `0` | Current chain count for guard spawning |
 
 ## Main functions
-### `SetPhaseLevel(inst, phase)`
-*   **Description:** Configures phase-specific thresholds and durations for focus-target switching and guard spawning based on the current health phase (1–4).
-*   **Parameters:** `phase` (number) – Phase index (1, 2, 3, or 4) corresponding to health thresholds.
+### `BoostCommanderRange(boost)`
+*   **Description:** Enables or disables extended commander tracking distance for bee guard spawning. When boosted, tracking distance increases to 80 units; otherwise returns to default 40 units.
+*   **Parameters:** `boost` (boolean) - Whether to enable boosted range.
 *   **Returns:** Nothing.
+*   **Error states:** Cancels existing `commandertask` if boost is enabled.
 
-### `BoostCommanderRange(inst, boost)`
-*   **Description:** Temporarily increases or restores the commander tracking distance used to maintain beeguard synchronization.
-*   **Parameters:** `boost` (boolean) – If `true`, sets tracking distance to 80; if `false`, schedules gradual reduction to default (40).
-*   **Returns:** Nothing.
-
-### `StartHoney(inst)`
-*   **Description:** Initiates the periodic honey trail generation task using `DoHoneyTrail`.
+### `StartHoney()`
+*   **Description:** Initiates the periodic honey trail spawning system. Sets initial threshold and count values, then starts a periodic task that spawns honey trails based on movement state.
 *   **Parameters:** None.
 *   **Returns:** Nothing.
-*   **Error states:** No effect if `honeytask` is already active.
+*   **Error states:** Returns early if `honeytask` is already active.
 
-### `StopHoney(inst)`
-*   **Description:** Cancels the periodic honey trail task if active.
+### `StopHoney()`
+*   **Description:** Cancels the honey trail spawning periodic task.
 *   **Parameters:** None.
 *   **Returns:** Nothing.
+*   **Error states:** Returns early if `honeytask` is `nil`.
 
-### `UpdatePlayerTargets(inst)`
-*   **Description:** Synchronizes the grouptargeter list with nearby players within aggro/deaggro radii, ensuring targeted players are correctly tracked and removed.
-*   **Parameters:** None.
+### `OnSave(data)`
+*   **Description:** Serializes Beequeen state for save files. Stores commander tracking distance if boosted.
+*   **Parameters:** `data` (table) - Save data table to populate.
 *   **Returns:** Nothing.
 
-### `RetargetFn(inst)`
-*   **Description:** Determines the next combat target based on proximity, player status, and grouptargeter weights. Returns a new target and whether the retarget is valid.
-*   **Parameters:** None.
-*   **Returns:** `target` (entity or `nil`), `valid` (`true`).
-
-### `KeepTargetFn(inst, target)`
-*   **Description:** Validates whether the current combat target should be retained based on tag, proximity to spawn, and combat eligibility.
-*   **Parameters:** `target` (entity or `nil`) – Proposed target to retain.
-*   **Returns:** Boolean (`true` if target should be kept).
-
-### `bonus_damage_via_allergy(inst, target, damage, weapon)`
-*   **Description:** Applies extra damage if the target has the `allergictobees` tag.
-*   **Parameters:** `target` (entity), `damage` (number), `weapon` (entity or `nil`).  
-*   **Returns:** `TUNING.BEE_ALLERGY_EXTRADAMAGE` if applicable; otherwise `0`.
-
-### `OnAttacked(inst, data)`
-*   **Description:** Handles damage reception by acquiring new targets (if needed) and notifying beeguards.
-*   **Parameters:** `data` (table) – Event data containing `attacker`.
+### `OnLoad(data)`
+*   **Description:** Restores Beequeen state from save files. Determines current phase based on health percentage and restores commander boost state.
+*   **Parameters:** `data` (table) - Loaded save data table.
 *   **Returns:** Nothing.
 
-### `OnAttackOther(inst, data)`
-*   **Description:** Triggers honey trail generation at the location of a hit target upon successful attack.
-*   **Parameters:** `data` (table) – Event data containing `target`.
-*   **Returns:** Nothing.
-
-### `OnMissOther(inst)`
-*   **Description:** Triggers honey trail generation at the point where the Beequeen *would* have hit (based on attack range and facing direction) when a melee attack misses.
+### `OnEntitySleep()`
+*   **Description:** Handles entity sleep state. Schedules entity removal after 10 seconds if not dead, and cancels commander update task.
 *   **Parameters:** None.
 *   **Returns:** Nothing.
 
-### `EnterPhase2Trigger(inst)`
-*   **Description:** Called when health falls below 75%; sets phase 2 parameters and pushes `"screech"` event.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
-
-### `EnterPhase3Trigger(inst)`
-*   **Description:** Called when health falls below 50%; sets phase 3 parameters and pushes `"screech"` event.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
-
-### `EnterPhase4Trigger(inst)`
-*   **Description:** Called when health falls below 25%; sets phase 4 parameters and pushes `"screech"` event.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
-
-### `OnSave(inst, data)`
-*   **Description:** Serializes commander tracking range boost state for persistence.
-*   **Parameters:** `data` (table) – Save data table to populate.
-*   **Returns:** Nothing.
-
-### `OnLoad(inst, data)`
-*   **Description:** Restores phase and commander range from saved state; corrects phase based on current health.
-*   **Parameters:** `data` (table or `nil`) – Loaded save data.
-*   **Returns:** Nothing.
-
-### `OnEntitySleep(inst)`
-*   **Description:** Cancels honey and commander tasks; schedules entity removal if not dead after sleep timeout.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
-
-### `OnEntityWake(inst)`
-*   **Description:** Restores commander range boost state and cancels removal task on wake.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
-
-### `PushMusic(inst)`
-*   **Description:** Triggers boss music for the local player when within appropriate distance and not in flight mode.
+### `OnEntityWake()`
+*   **Description:** Handles entity wake state. Cancels sleep removal task and restores commander boost state.
 *   **Parameters:** None.
 *   **Returns:** Nothing.
 
 ## Events & listeners
-- **Listens to:**  
-  `attacked` – When the entity is damaged; triggers target acquisition and beeguard targeting.  
-  `onattackother` – When a melee attack hits a target; spawns honey at hit location.  
-  `onmissother` – When a melee attack misses; spawns honey near the attack direction.
-
-- **Pushes:**  
-  `screech` – Fired on every health phase transition (phases 2, 3, and 4).  
-  *(No other events are pushed by this prefab.)*
+- **Listens to:** `attacked` - Triggers target acquisition and shares target with all bee guards via commander component.
+- **Listens to:** `onattackother` - Resets stuck detection and spawns honey trail at target location.
+- **Listens to:** `onmissother` - Spawns honey trail at attack range distance in facing direction.
+- **Pushes:** `screech` - Fired when entering phases 2, 3, or 4 (health thresholds at 75%, 50%, 25%).
+- **Pushes:** `triggeredevent` (to player) - Fired when player is near Beequeen to trigger boss music.

@@ -1,95 +1,102 @@
 ---
 id: beef_bell
 title: Beef Bell
-description: Manages the logic for the Beef Bell item, including linking to a beefalo, inventory interactions, revive functionality for the Shadow Beef Bell variant, and synchronization between server and client.
-tags: [inventory, leader, mounting, revival]
+description: Defines the Beef Bell prefab that bonds players to beefalo for riding and control, with a shadow variant that can revive dead beefalo.
+tags: [inventory, mount, beefalo]
 sidebar_position: 10
 
-last_updated: 2026-03-04
+last_updated: 2026-03-20
 build_version: 714014
 change_status: stable
-category_type: prefabs
+category_type: root
 source_hash: 12e26e32
-system_scope: inventory
+system_scope: entity
 ---
 
 # Beef Bell
 
-> Based on game build **714014** | Last updated: 2026-03-04
+> Based on game build **714014** | Last updated: 2026-03-20
 
 ## Overview
-The `beef_bell` prefab manages the behavior of both the standard Beef Bell and the Shadow Beef Bell. It acts as a container that can be linked to a single `beefalo` via the `leader` component, enabling the bell to control a follower beefalo. The shadow variant adds revive mechanics and recharging capabilities. The component integrates tightly with the `inventoryitem`, `useabletargeteditem`, `leader`, `migrationpetowner`, `rideable`, `health`, `floater`, `rechargeable`, and `skinner_beefalo` components.
+`beef_bell` is a prefab definition that creates two variants of the Beef Bell item: a regular bell and a shadow bell. The bell establishes a bond between a player and a beefalo, enabling riding and control mechanics. It manages inventory restrictions (one bell per player), visual states (bonded vs unbonded), and cleanup when the beefalo dies or the bond is broken. The shadow variant adds rechargeable mechanics and can revive dead beefalo at the cost of a debuff.
 
 ## Usage example
 ```lua
--- Typical server-side usage when spawning the bell
-local bell = Prefab("beef_bell", ...)
+-- Spawn a regular beef bell
+local bell = SpawnPrefab("beef_bell")
+bell.components.useabletargeteditem:StartUsingItem(beefalo, player)
 
--- Attach to an entity and link a beefalo
-bell.components.useabletargeteditem:SetTargetPrefab("beefalo")
-bell.components.leader:AddFollower(beefalo)
-bell.components.inventoryitem:SetOnPutInInventoryFn(OnPutInInventory)
+-- Spawn a shadow beef bell
+local shadow_bell = SpawnPrefab("shadow_beef_bell")
+shadow_bell.components.rechargeable:SetCharge(1)
+shadow_bell:ReviveTarget(dead_beefalo, player)
 ```
 
 ## Dependencies & tags
-**Components used:** `inventoryitem`, `useabletargeteditem`, `leader`, `migrationpetowner`, `health`, `rideable`, `rider`, `floater`, `rechargeable`, `skinner_beefalo`, `tradable`, `Inspectable`.
+**Components used:** `inventoryitem`, `useabletargeteditem`, `leader`, `migrationpetowner`, `rechargeable` (shadow variant), `tradable` (shadow variant), `inspectable`, `floater`
 
-**Tags:** `bell`, `donotautopick`, `shadowbell` (only for `shadow_beef_bell`), `rechargeable` (only for `shadow_beef_bell`), `nobundling` (added when linked to a beefalo), `oncooldown` (only for `shadow_beef_bell`).
+**Tags:** Adds `bell`, `donotautopick`, `nobundling` (when bonded), `shadowbell` (shadow variant), `rechargeable` (shadow variant), `oncooldown` (shadow variant when discharged)
 
 ## Properties
-No public properties are exposed as fields. State is stored in `inst` fields such as `_IsLinkedBell`, `_OnPlayerDesmounted`, `CleanUpBell`, `HasBeefalo`, `GetBeefalo`, `OnStopUsing`, and `OnIsBondedDirty` — these are internal helper functions attached directly to `inst`.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `isbonded` | net_bool | `false` | Network variable tracking whether the bell is bonded to a beefalo. |
+| `_sound` | string | varies | Sound path for bell ring effects. |
+| `AnimState` | AnimState | - | Animation state configured with cowbell or shadow build. |
 
 ## Main functions
-### `GetBeefalo(inst)`
-*   **Description:** Returns the first follower beefalo in the leader's follower list, or `nil` if none exists.
-*   **Parameters:** `inst` (entity) — the bell entity.
-*   **Returns:** Entity — the linked beefalo, or `nil`.
-*   **Error states:** Returns `nil` if `inst.components.leader` is missing or has no followers.
-
-### `GetAliveBeefalo(inst)`
-*   **Description:** Returns the linked beefalo only if it exists and is not dead.
-*   **Parameters:** `inst` (entity).
-*   **Returns:** Entity — alive linked beefalo, or `nil`.
-
 ### `OnUsedOnBeefalo(inst, target, user)`
-*   **Description:** Called when the bell is used on a beefalo. Links the bell to the beefalo, sets inventory visuals, and updates bonding state.
-*   **Parameters:**  
-    *   `inst` (entity) — the bell.  
-    *   `target` (entity) — the target beefalo.  
-    *   `user` (entity or `nil`) — the player using the bell.
-*   **Returns:**  
-    *   `boolean` — success.  
-    *   `string?` — failure reason prefixed with `"BEEF_BELL_"`.
-*   **Error states:** Returns `false, "BEEF_BELL_INVALID_TARGET"` if `target.SetBeefBellOwner` is missing; `false` if the beefalo is dead or another player has a linked bell.
+*   **Description:** Called when the bell is used on a beefalo target. Establishes the bond and updates visual state.
+*   **Parameters:** `inst` (entity) - the bell instance, `target` (entity) - the beefalo, `user` (entity) - the player using the bell.
+*   **Returns:** `successful` (boolean), `failreason` (string or nil) - success status and optional failure code.
+*   **Error states:** Returns `false` if target lacks `SetBeefBellOwner`, if beefalo is dead, or if user already has a linked bell.
 
 ### `OnStopUsing(inst, beefalo)`
-*   **Description:** Handles cleanup when the bell is removed from use. Drops skins, clears followers, and resets bell appearance. For the shadow bell, handles ghost erosion and delayed removal of the dead beefalo.
-*   **Parameters:**  
-    *   `inst` (entity) — the bell.  
-    *   `beefalo` (entity or `nil`) — the linked beefalo. If `nil`, retrieves via `GetBeefalo`.
+*   **Description:** Called when the bell bond is broken. Removes followers, cleans up visual state, and handles shadow beefalo erosion on death.
+*   **Parameters:** `inst` (entity) - the bell instance, `beefalo` (entity or nil) - the linked beefalo.
 *   **Returns:** Nothing.
-*   **Error states:** If `beefalo` is dead and the bell is a shadow bell, it initiates a server-side erosion animation before removing the beefalo.
+*   **Error states:** If beefalo is nil, attempts to retrieve via `GetBeefalo()`.
 
-### `ShadowBell_OnIsBondedDirty(inst)`
-*   **Description:** Adjusts the floating effect scale and reinitializes float effects for the shadow bell when bonding status changes.
-*   **Parameters:** `inst` (entity).
+### `CleanUpBell(inst)`
+*   **Description:** Resets the bell to unbonded state, restores default visuals, and clears network variables.
+*   **Parameters:** `inst` (entity) - the bell instance.
 *   **Returns:** Nothing.
+
+### `GetBeefalo(inst)`
+*   **Description:** Retrieves the linked beefalo from the leader component's followers table.
+*   **Parameters:** `inst` (entity) - the bell instance.
+*   **Returns:** `beefalo` (entity or nil) - the first linked beefalo follower.
+
+### `GetAliveBeefalo(inst)`
+*   **Description:** Returns the linked beefalo only if it is alive. Used by migration pet owner component.
+*   **Parameters:** `inst` (entity) - the bell instance.
+*   **Returns:** `beefalo` (entity or nil) - alive beefalo or nil if dead/unlinked.
+
+### `OnPutInInventory(inst, owner)`
+*   **Description:** Called when the bell is picked up. Drops any other linked bell in the owner's inventory to enforce one-bell limit.
+*   **Parameters:** `inst` (entity) - the bell instance, `owner` (entity) - the picking up entity.
+*   **Returns:** Nothing.
+*   **Error states:** Returns early if owner is nil or bell has no beefalo linked.
 
 ### `ShadowBell_ReviveTarget(inst, target, doer)`
-*   **Description:** Revives a dead beefalo linked to this shadow bell and applies the shadow curse debuff to the user. Also discharges the bell.
-*   **Parameters:**  
-    *   `inst` (entity) — the shadow bell.  
-    *   `target` (entity) — the dead beefalo.  
-    *   `doer` (entity) — the player performing the revive.
+*   **Description:** Shadow bell variant function. Revives a dead beefalo and applies a curse debuff to the player.
+*   **Parameters:** `inst` (entity) - the shadow bell, `target` (entity) - the dead beefalo, `doer` (entity) - the player.
+*   **Returns:** Nothing.
+*   **Error states:** Only available on shadow bell variant.
+
+### `OnSave(inst, data)`
+*   **Description:** Serializes beefalo clothing and save record for persistence across save/load cycles.
+*   **Parameters:** `inst` (entity) - the bell instance, `data` (table) - save data table to populate.
+*   **Returns:** Nothing.
+
+### `OnLoad(inst, data)`
+*   **Description:** Restores the beefalo from save record and re-establishes the bond on world load.
+*   **Parameters:** `inst` (entity) - the bell instance, `data` (table) - loaded save data.
 *   **Returns:** Nothing.
 
 ## Events & listeners
-- **Listens to:**  
-    - `player_despawn` — triggers `OnPlayerDespawned`.  
-    - `dismounted` — temporary listener during dismount in `OnPlayerDespawned`.  
-    - `isbondeddirty` (client-only for `shadow_beef_bell`) — triggers `OnIsBondedDirty`.
-- **Pushes:**  
-    - `invincibletoggle` (via `health.SetInvincible`) — when setting invincibility during despawn logic.  
-    - `dropitem` (via `inventory.DropItem`) — when dropping a conflicting bell.  
-    - `onclothingchanged` (via `skinner_beefalo.reloadclothing`) — when reloading clothing after load.  
-    - `despawn` — to signal the linked beefalo should despawn.
+- **Listens to:** `player_despawn` - triggers beefalo despawn handling when bonded player leaves.
+- **Listens to:** `isbondeddirty` (shadow variant, client) - updates floater scale when bond state changes.
+- **Listens to:** `dismounted` (conditional) - tracks rider dismount during beefalo despawn.
+- **Pushes:** `despawn` (on beefalo) - triggers beefalo removal when bond breaks.
+- **Pushes:** Various events through component systems (`inventoryitem`, `useabletargeteditem`, `rechargeable`).
