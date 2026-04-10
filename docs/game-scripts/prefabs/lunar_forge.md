@@ -1,12 +1,11 @@
 ---
 id: lunar_forge
 title: Lunar Forge
-description: A deployable crafting structure that functions as a prototyper and provides lantern-like lighting in DST's Lunar event.
-tags: [crafting, lighting, structure]
+description: Defines the Lunar Forge structure prefab, including prototyper, workable, and hauntable behaviors.
+tags: [structure, crafting, lunar]
 sidebar_position: 10
-
-last_updated: 2026-03-05
-build_version: 714014
+last_updated: 2026-04-07
+build_version: 718694
 change_status: stable
 category_type: prefabs
 source_hash: 2d523a14
@@ -15,86 +14,99 @@ system_scope: crafting
 
 # Lunar Forge
 
-> Based on game build **714014** | Last updated: 2026-03-05
+> Based on game build **718694** | Last updated: 2026-04-07
 
 ## Overview
-The Lunar Forge is a deployable structure prefab that serves as a crafting prototyper during the Lunar event. It is functionally similar to the Science Machine or Alchemy Engine but features unique animations, sound effects, and lighting behavior. It uses the `prototyper`, `workable`, `lootdropper`, and `hauntable` components to provide crafting access, tool interaction, loot drop on destruction, and hauntable mechanics respectively.
+`lunar_forge` defines the prefab for the Lunar Forge structure, a craftable station used for prototyping lunar-themed items. It integrates the `prototyper` component to unlock recipes, the `workable` component to allow hammering for loot, and the `hauntable` component for ghost interactions. The prefab manages specific animation states and sound effects based on activation and proximity events.
 
 ## Usage example
-The Lunar Forge is instantiated and deployed automatically by the game when a player uses its kit. Its behavior is fully encapsulated in the prefab definition; modders typically do not add it manually. To use as a reference, a similar deployment would look like:
-
 ```lua
-local inst = Prefab("lunar_forge", fn)
-inst:DoTaskInTime(0, function() 
-    inst.components.prototyper.on = true
-    inst.components.prototyper:OnActivate()
-end)
+-- Spawn the Lunar Forge structure directly
+local forge = SpawnPrefab("lunar_forge")
+forge.Transform:SetPosition(0, 0, 0)
+
+-- Alternatively, craft the deployable kit
+local player = ThePlayer
+player.components.inventory:GiveItem(SpawnPrefab("lunar_forge_kit"))
 ```
 
 ## Dependencies & tags
-**Components used:** `inspectable`, `prototyper`, `lootdropper`, `workable`, `hauntable`
-**Tags:** Adds `structure`, `lunar_forge`, and `prototyper` (for optimization)
+**External dependencies:**
+- `prefabutil` -- Provides helper functions for creating prefabs and kit items.
+
+**Components used:**
+- `inspectable` -- Allows players to examine the structure.
+- `prototyper` -- Enables recipe unlocking; configured with custom callbacks for activation states.
+- `lootdropper` -- Handles item drops when the structure is hammered.
+- `workable` -- Enables hammering action; configured with finish and work callbacks.
+- `hauntable` -- Allows ghosts to haunt the structure for a small effect.
+
+**Tags:**
+- `structure` -- Added; identifies entity as a building.
+- `lunar_forge` -- Added; specific identifier for this structure type.
+- `prototyper` -- Added; marks entity as a prototyping station.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `_activecount` | number | `0` | Tracks concurrent activators; decremented after `onactivate` completes. |
-| `_activetask` | Task | `nil` | Tracks delayed task to reset state after use animation completes. |
+| `_activecount` | number | `0` | Tracks the number of active uses or interactions. |
+| `_activetask` | task | `nil` | Reference to the scheduled task for resetting activation state. |
 
-## Main functions
+## Internal Callbacks
 ### `onhammered(inst, worker)`
-* **Description:** Called when the Lunar Forge is destroyed via hammering. Drops loot using `lootdropper`, spawns a `collapse_small` effect, and removes the entity.
-* **Parameters:** 
-  * `inst` (Entity) - the Lunar Forge instance.
-  * `worker` (Entity) - the entity performing the hammer action.
-* **Returns:** Nothing.
+* **Description:** Callback triggered when hammering work is completed. Drops loot, spawns collapse effects, and removes the entity.
+* **Parameters:**
+  - `inst` -- The lunar forge entity instance.
+  - `worker` -- The entity performing the hammering.
+* **Returns:** None
+* **Error states:** Errors if inst has no lootdropper component (nil dereference on inst.components.lootdropper — no guard present in source)
 
 ### `onhit(inst, worker)`
-* **Description:** Called during intermediate hammering steps. Plays different animations based on whether the forge is currently on or off.
-* **Parameters:** 
-  * `inst` (Entity) - the Lunar Forge instance.
-  * `worker` (Entity) - the entity performing the hammer action.
-* **Returns:** Nothing.
-
-### `onturnon(inst)`
-* **Description:** Activates the forge's "on" state: starts proximity loop animation, ensures looping sound is playing.
-* **Parameters:** `inst` (Entity) - the Lunar Forge instance.
-* **Returns:** Nothing.
-
-### `onturnoff(inst)`
-* **Description:** Deactivates the forge's "on" state: triggers post-animation, stops looping sound.
-* **Parameters:** `inst` (Entity) - the Lunar Forge instance.
-* **Returns:** Nothing.
+* **Description:** Callback triggered when work is performed (hammer hit). Plays animations based on whether the prototyper is currently active.
+* **Parameters:**
+  - `inst` -- The lunar forge entity instance.
+  - `worker` -- The entity performing the work.
+* **Returns:** None
+* **Error states:** Errors if `inst.components.prototyper` is nil (no guard present).
 
 ### `onactivate(inst)`
-* **Description:** Handles activation of the forge (e.g., when a player opens the prototyper menu). Plays use animation, increments active count, schedules delayed deactivation, and cancels any existing delayed task.
-* **Parameters:** `inst` (Entity) - the Lunar Forge instance.
-* **Returns:** Nothing.
-
-### `doneact(inst)`
-* **Description:** Cleans up after an activation sequence: resets `_activetask`, and re-applies `onturnon` or `onturnoff` depending on the current state.
-* **Parameters:** `inst` (Entity) - the Lunar Forge instance.
-* **Returns:** Nothing.
+* **Description:** Callback triggered when the prototyper is activated. Plays use animation, sound, increments active count, and schedules reset tasks.
+* **Parameters:** `inst` -- The lunar forge entity instance.
+* **Returns:** None
+* **Error states:** Errors if `inst.AnimState` or `inst.SoundEmitter` is nil.
 
 ### `doonact(inst)`
-* **Description:** Decrements `_activecount` and schedules final cleanup only when count reaches zero.
-* **Parameters:** `inst` (Entity) - the Lunar Forge instance.
-* **Returns:** Nothing.
+* **Description:** Internal helper callback that decrements the active count after a delay. Called by `onactivate` after 1.5 seconds.
+* **Parameters:** `inst` -- The lunar forge entity instance.
+* **Returns:** None
+* **Error states:** None
+
+### `doneact(inst)`
+* **Description:** Internal helper callback that resets activation state and triggers turn on/off handlers. Called by `onactivate` after animation completes.
+* **Parameters:** `inst` -- The lunar forge entity instance.
+* **Returns:** None
+* **Error states:** Errors if inst has no prototyper component (nil dereference on inst.components.prototyper — no guard present in source)
+
+### `onturnon(inst)`
+* **Description:** Callback triggered when the prototyper turns on. Plays proximity loop animations and sound if not already playing.
+* **Parameters:** `inst` -- The lunar forge entity instance.
+* **Returns:** None
+* **Error states:** Errors if `inst.AnimState` or `inst.SoundEmitter` is nil.
+
+### `onturnoff(inst)`
+* **Description:** Callback triggered when the prototyper turns off. Plays post-proximity animations and stops loop sounds.
+* **Parameters:** `inst` -- The lunar forge entity instance.
+* **Returns:** None
+* **Error states:** Errors if `inst.AnimState` or `inst.SoundEmitter` is nil.
 
 ### `onbuilt(inst, data)`
-* **Description:** Triggered on placement. Plays placement animation and sound.
-* **Parameters:** 
-  * `inst` (Entity) - the Lunar Forge instance.
-  * `data` (table) - event payload (unused).
-* **Returns:** Nothing.
+* **Description:** Callback triggered when the entity is built by a player. Plays placement animation and sound.
+* **Parameters:**
+  - `inst` -- The lunar forge entity instance.
+  - `data` -- Event data table (unused).
+* **Returns:** None
+* **Error states:** Errors if `inst.AnimState` or `inst.SoundEmitter` is nil.
 
 ## Events & listeners
-- **Listens to:** `onbuilt` - triggers `onbuilt` callback after placement.
-
-- **Pushes:** No events are directly fired by this component.
-
-## Overview notes
-- The `prototyper` component is pre-attached to the pristine (server-only) instance for performance optimization.
-- Custom lighting and bloom effects are applied on `fx_puff2`, `head_fx_big`, and `glows` symbols for visual appeal.
-- The forge has two sound states: `loopsound` (looping proximity sound) and `use`/`place`/`proximity_pst` one-shots.
-- It inherits behavior from `MakeDeployableKitItem` and `MakePlacer` to support deployment as a kit item.
+- **Listens to:** `onbuilt` - Triggers `onbuilt` callback when the structure is placed.
+- **Pushes:** None identified.

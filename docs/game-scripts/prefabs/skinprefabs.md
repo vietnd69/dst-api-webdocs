@@ -1,152 +1,127 @@
 ---
 id: skinprefabs
 title: Skinprefabs
-description: This module registers cosmetic skin prefabs for characters, items, structures, and tools using CreatePrefabSkin, defining initialization callbacks, rarity levels, and skin-specific behavior including bloom effects and color changes.
-tags: [prefabs, skins, cosmetics, items, characters]
+description: This file defines and registers cosmetic skin prefab configurations for items, structures, pets, and characters using CreatePrefabSkin calls with initialization callbacks.
+tags: [skins, cosmetics, prefabs, items]
 sidebar_position: 10
 
-last_updated: 2026-04-04
-build_version: 718694
+last_updated: 2026-04-11
+build_version: 719586
 change_status: stable
 category_type: prefabs
-source_hash: 47ea6c09
+source_hash: c9f03c13
 system_scope: inventory
 ---
 
 # Skinprefabs
 
-> Based on game build **718694** | Last updated: 2026-04-04
+> Based on game build **719586** | Last updated: 2026-04-11
 
 ## Overview
-
-The `skinprefabs.lua` file serves as the central registry for all cosmetic skin definitions in Don't Starve Together. It uses the `CreatePrefabSkin` helper function to register hundreds of skin prefabs covering characters, weapons, tools, furniture, structures, clothing, and pets. Each skin definition includes metadata such as rarity level, base prefab reference, initialization callbacks (`init_fn`), and optional skin tags. The module contains specialized logic for certain skins with dynamic behavior, most notably the `backpack_labrat` skin which features bloom effects, color changes based on player insulation status, and event-driven visual reactions to lightning, attacks, haunting, and freezing. The file accumulates all skin definitions into a `prefs` table that is returned for use by the skin system. External initialization functions (named `*_init_fn`) are referenced throughout to apply skin-specific setup logic when instances are created.
+`skinprefabs.lua` is a data configuration file that populates a global `prefs` table with hundreds of cosmetic skin prefab definitions for Don't Starve Together. Each skin entry is created using the `CreatePrefabSkin()` factory function and specifies metadata including base prefab, rarity, skin tags, release group, and an initialization callback. The file covers item skins (weapons, tools, containers), structure skins (fences, walls, furniture), pet skins, and character skin variants for all playable characters. Special logic exists for the labrat backpack skin, which implements dynamic colour-changing mechanics triggered by electrical stimuli, haunting, and freezing events.
 
 ## Usage example
-
 ```lua
--- Register a custom skin prefab for an item
-table.insert(prefs, CreatePrefabSkin("skin_axe_golden", {
-    base_prefab = "axe",
-    skin_name = "Golden Axe",
-    rarity = "rare",
-    init_fn = function(inst, skin_custom)
-        axe_init_fn(inst, "golden", skin_custom)
-    end,
-    skin_tags = {"axe", "tool", "golden"}
-}))
+local skinprefabs = require "prefabs/skinprefabs"
 
--- Define initialization callback for a character skin
-local function walter_custom_init_fn(inst, skin_custom)
-    -- Apply character-specific skin logic
-    inst.components.appearance:SetSkinBuild("walter_custom")
+-- Access the prefs table containing all skin definitions
+local prefs = skinprefabs
+
+-- Iterate through skin definitions
+for i, skin_def in ipairs(prefs) do
+    print(skin_def.name)        -- Skin identifier
+    print(skin_def.base_prefab) -- Base prefab this skin modifies
+    print(skin_def.rarity)      -- Rarity level (e.g., "Heirloom", "Elegant")
 end
 
--- Register character skin with portrait animation
-table.insert(prefs, CreatePrefabSkin("walter_victorian", {
-    base_prefab = "walter",
-    skin_name = "Victorian Walter",
-    rarity = "epic",
-    init_fn = walter_custom_init_fn,
-    portrait_anim = "walter_victorian_portrait"
-}))
-
-return prefs
+-- Skin definitions are registered with the skin system at game initialization
 ```
 
 ## Dependencies & tags
-
 **External dependencies:**
-- `CreatePrefabSkin` -- Global function used to register skin prefab definitions into the prefs table.
-- `prefs` -- Global or upvalue table used to store registered skin prefabs.
-- `Various *_init_fn functions` -- External initialization functions (e.g., goggleshat_init_fn, hammer_init_fn) called by the init_fn closure to apply skin-specific logic.
-- `Vector3` -- DST global used for 3D position offset in campfire_cabin skin init_fn.
-- `abigail_init_fn` -- Initialization callback function for Abigail character skins.
-- `backpack_init_fn` -- External initialization function referenced in skin definitions.
-- `treasurechest_init_fn` -- External initialization function called by treasure chest skin init_fn callbacks.
-- `winterhat_init_fn` -- Called within init_fn closure to initialize various winter hat skins.
+- `CreatePrefabSkin` -- Global function called to create and insert skin prefab definitions into the prefs table
+- `*_init_fn` -- Multiple initialization function references passed as init_fn callbacks for specific skin types
 
 **Components used:**
-- `inventoryitem` -- Accessed to change the image name when setting backpack colour.
-- `bloomer` -- Used to push bloom effects for the labrat backpack fx.
-- `inventory` -- Checked for insulation status to determine lightning reaction.
+- `inventoryitem` -- ChangeImageName called to update backpack image based on colour selection
+- `bloomer` -- PushBloom called in followfx_postinit to apply bloom shader effect
+- `inventory` -- IsInsulated checked to determine if owner is protected from lightning effects
 
 **Tags:**
-- None
+- `AMULET_RED`, `AMULET_YELLOW`, `ANCHOR`, `ARMOR_BRAMBLE`, `ARMORDREADSTONE`, `ARMORGRASS`, `ARMOR_LUNARPLANT`, `ARMORMARBLE`, `ANCIENT`, `ARTNOUVEAU`, `CRAFTABLE`, `LAVA`, `LUNAR`, `NAUTICAL`, `ORNATE`, `RELIC`, `ROSE`, `SHADOW` -- check operations for various item types
+- `BACKPACK`, `FANTASY`, `HALLOWED`, `BEARGERFUR_SACK`, `MYSTICAL`, `BEARGERVEST`, `WINTER`, `BEDROLL`, `MIGHTY`, `BLUE`, `GREEN`, `GREY`, `ORANGE`, `RED`, `GLOMMER`, `GOGGLESHAT`, `COTTAGE`, `GOLDENFARMHOE`, `INVISIBLE`, `GOLDENAXE`, `YOTC`, `GOLDENPICKAXE`, `GOLDENPITCHFORK`, `GOLDENSHOVEL`, `GRAVESTONE`, `GOTHIC`, `PET`, `PICKAXE`, `VICTORIAN`, `PIGGYBACK`, `PIGHOUSE`, `HOCKEY`, `PITCHFORK`, `PORTABLEBLENDER`, `T_UPDATE`, `PORTABLECOOKPOT`, `PORTABLESPICER`, `POTTEDFERN`, `C_UPDATE`, `RAINCOAT`, `WESTERN`, `RAINOMETER`, `CIRCUS`, `SWAMP`, `RAZOR`, `BARBER`, `REFLECTIVEVEST`, `CAWNIVAL`, `ALCHEMY`, `CRYSTAL`, `ADVENTURE`, `MANIPULATOR`, `SCIENCEMACHINE`, `RETRO`, `RESKIN`, `HEART`, `RESURRECTIONSTATUE`, `REVIVER`, `SCULPTINGTABLE`, `SEASIDE`, `SEAFARINGPROTO`, `SEEDPOUCH`, `BOY`, `SEWING_MANNEQUIN`, `SHOVEL`, `SIESTAHUT`, `SISTURN`, `SKELETONHAT`, `MYTHICAL`, `CHEST`, `YULE`, `BASE`, `WANDA`, `WARDROBE`, `HANDMEDOWN`, `YOTP`, `WARLY`, `COSTUME`, `CHEF`, `FISHERMAN`, `FORMAL`, `ICE`, `MASQUERADE`, `VARG`, `PIRATE`, `SURVIVOR`, `BUILDERS`, `WATERINGCAN`, `WATERMELONHAT`, `WATHGRITHR`, `WICKERBOTTOM`, `WILLOW`, `WINONA_SPOTLIGHT`, `SPRING`, `WINONA`, `WINONA_BATTERY_HIGH`, `WINONA_BATTERY_LOW`, `WINTERHAT`, `WOODIE`, `WX78` -- add/check operations for skin categorization
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
 
 ## Main functions
+### `init_fn(inst, skin_custom)`
+* **Description:** Anonymous initialization callback assigned to each skin prefab; calls type-specific init function with the skin name and custom data.
+* **Parameters:**
+  - `inst` -- Entity instance of the skin prefab being initialized
+  - `skin_custom` -- Custom skin data table passed from the skin system
+* **Returns:** nil
+* **Error states:** Errors if the referenced init_fn is not defined in scope when the skin is instantiated
 
 ### `followfx_postinit(inst, fx)`
-* **Description:** Initializes the bloom effect and color for the backpack labrat follow fx.
+* **Description:** Initializes the follow effect with light override and bloom shader, then applies colour settings if not default yellow.
 * **Parameters:**
-  - `inst` -- The entity instance of the backpack.
-  - `fx` -- The follow fx entity instance.
-* **Returns:** `nil`
+  - `inst` -- Entity instance owning the backpack skin
+  - `fx` -- Follow effect entity to initialize
+* **Returns:** nil
 * **Error states:** None
 
 ### `initialize(inst)`
-* **Description:** Sets up event listeners for the backpack labrat skin to handle lightning and haunted events.
+* **Description:** Creates event handler table for playerlightningtargeted, attacked, haunted, and freeze events, then registers the haunted listener on the instance.
 * **Parameters:**
-  - `inst` -- The entity instance of the backpack.
-* **Returns:** `nil`
+  - `inst` -- Entity instance being initialized with labrat backpack skin
+* **Returns:** nil
 * **Error states:** None
 
 ### `uninitialize(inst)`
-* **Description:** Cleans up event listeners and resets backpack labrat properties.
+* **Description:** Removes all event callbacks from instance and owner, clears stored event handlers, owner reference, colour value, and usefollowsymbol flag.
 * **Parameters:**
-  - `inst` -- The entity instance of the backpack.
-* **Returns:** `nil`
+  - `inst` -- Entity instance being uninitialized
+* **Returns:** nil
 * **Error states:** None
 
 ### `onequip(inst, owner)`
-* **Description:** Registers event listeners on the owner when the backpack is equipped.
+* **Description:** Removes old event listeners from previous owner if present, stores new owner reference, and registers all event listeners on the new owner entity.
 * **Parameters:**
-  - `inst` -- The entity instance of the backpack.
-  - `owner` -- The player entity equipping the backpack.
-* **Returns:** `nil`
+  - `inst` -- Entity instance being equipped
+  - `owner` -- Player entity equipping the backpack
+* **Returns:** nil
 * **Error states:** None
 
 ### `onunequip(inst, owner)`
-* **Description:** Removes event listeners from the owner when the backpack is unequipped.
+* **Description:** Removes all event listeners from the stored owner and clears the owner reference.
 * **Parameters:**
-  - `inst` -- The entity instance of the backpack.
-  - `owner` -- The player entity unequipping the backpack.
-* **Returns:** `nil`
-* **Error states:** None
+  - `inst` -- Entity instance being unequipped
+  - `owner` -- Player entity unequipping the backpack
+* **Returns:** nil
+* **Error states:** Asserts failure if owner parameter does not match stored _backpack_labrat_owner
 
 ### `onsave(inst, data)`
-* **Description:** Saves the backpack labrat colour state.
+* **Description:** Stores the current labrat colour index in the save data table under labrat_colour key.
 * **Parameters:**
-  - `inst` -- The entity instance of the backpack.
-  - `data` -- The table to save data into.
-* **Returns:** `nil`
+  - `inst` -- Entity instance being saved
+  - `data` -- Save data table to populate
+* **Returns:** nil
 * **Error states:** None
 
 ### `onload(inst, data, ents)`
-* **Description:** Restores the backpack labrat colour state and updates visuals.
+* **Description:** Restores the labrat colour from save data and updates the visual state, toggling usefollowsymbol as needed.
 * **Parameters:**
-  - `inst` -- The entity instance of the backpack.
-  - `data` -- The table containing saved data.
-  - `ents` -- Entity reference table for loading.
-* **Returns:** `nil`
-* **Error states:** None
-
-### `init_fn (winona_spotlight_spike)(inst, skin_custom)`
-* **Description:** Initialization callback for the winona_spotlight_spike skin that calls winona_spotlight_init_fn.
-* **Parameters:**
-  - `inst` -- Entity instance of the skin prefab
-  - `skin_custom` -- Custom skin data table
-* **Returns:** `nil`
+  - `inst` -- Entity instance being loaded
+  - `data` -- Save data table containing labrat_colour
+  - `ents` -- Entity reference table for save/load resolution
+* **Returns:** nil
 * **Error states:** None
 
 ## Events & listeners
-
 **Listens to:**
-- `haunted` -- Triggered when the entity is haunted by a ghost.
+- `haunted` -- Triggers colour reset and visual state change when entity is haunted
 
 **Pushes:**
-- None
+None

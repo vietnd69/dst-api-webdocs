@@ -4,12 +4,38 @@ title: Scripts Changelog
 description: Build-by-build changelog for the DST Lua API documentation.
 tags: [changelog]
 sidebar_position: 3
-last_updated: 2026-03-23
-build_version: 718694
+last_updated: 2026-04-11
+build_version: 719586
 change_status: updated
 ---
 
 # Scripts Changelog
+
+## Build 719586
+
+Add new skin strings and localization for Chinese (Simplified and Traditional) and asset references
+
+- Add 10 new string entries across `skin_strings.lua` and language files for Chinese (Simplified, Traditional) and POT templates  
+- Update `prefabskins.lua`, `skins_defs_data.lua`, `prefabs/skinprefabs.lua`, and `skin_assets.lua` to incorporate new skin definitions and references  
+
+### Added
+- None
+
+### Modified
+- prefabskins.lua  
+- skins_defs_data.lua  
+- prefabs/skinprefabs.lua  
+- languages/chinese_s.po  
+- skin_strings.lua  
+- languages/chinese_t.po  
+- languages/strings.pot  
+- skin_assets.lua  
+
+### Deleted
+- None
+
+### Moved
+- None
 
 ## Build 718694
 
